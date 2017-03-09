@@ -414,7 +414,7 @@ WRITE8_MEMBER(flstory_state::sound_control_2_w)
 	//  popmessage("SND2 0=%02x 1=%02x 2=%02x 3=%02x", m_snd_ctrl0, m_snd_ctrl1, m_snd_ctrl2, m_snd_ctrl3);
 
 	device_sound_interface *sound;
-	device->interface(sound);
+	device->interface_check(sound);
 	for (i = 0; i < 3; i++)
 		sound->set_output_gain(i, m_vol_ctrl[(m_snd_ctrl2 >> 4) & 15] / 100.0); /* ym2149f all */
 }

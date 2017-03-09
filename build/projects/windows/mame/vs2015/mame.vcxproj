@@ -1,0 +1,1210 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{44BF23C9-B029-D83F-F967-89E56511B694}</ProjectGuid>
+    <RootNamespace>mame</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>..\..\..\..\..\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x32\Debug\mame\</IntDir>
+    <TargetName>mamed</TargetName>
+    <TargetExt>.exe</TargetExt>
+    <LinkIncremental>true</LinkIncremental>
+    <GenerateManifest>false</GenerateManifest>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>..\..\..\..\..\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x64\Debug\mame\</IntDir>
+    <TargetName>mame64d</TargetName>
+    <TargetExt>.exe</TargetExt>
+    <LinkIncremental>false</LinkIncremental>
+    <GenerateManifest>false</GenerateManifest>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>..\..\..\..\..\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x32\Release\mame\</IntDir>
+    <TargetName>mame</TargetName>
+    <TargetExt>.exe</TargetExt>
+    <LinkIncremental>false</LinkIncremental>
+    <GenerateManifest>false</GenerateManifest>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>..\..\..\..\..\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x64\Release\mame\</IntDir>
+    <TargetName>mame64</TargetName>
+    <TargetExt>.exe</TargetExt>
+    <LinkIncremental>false</LinkIncremental>
+    <GenerateManifest>false</GenerateManifest>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\generated\resource;..\..\..\..\..\3rdparty\zlib;..\..\..\..\..\3rdparty\libflac\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;GIT_VERSION=22-g00897f5;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ProgramDataBaseFileName>$(OutDir)mamed.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;GIT_VERSION=22-g00897f5;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\generated\resource;..\..\..\..\..\3rdparty\zlib;..\..\..\..\..\3rdparty\libflac\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>user32.lib;winmm.lib;advapi32.lib;shlwapi.lib;wsock32.lib;ws2_32.lib;psapi.lib;iphlpapi.lib;shell32.lib;userenv.lib;opengl32.lib;gdi32.lib;dsound.lib;dxguid.lib;oleaut32.lib;dinput8.lib;comctl32.lib;comdlg32.lib;ole32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)mamed.exe</OutputFile>
+      <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
+      <TargetMachine>MachineX86</TargetMachine>
+      <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+    <PreBuildEvent>
+      <Command>mkdir C:\msys64\src\mame\build\generated\resource\ 2&gt;NUL
+@echo Emitting mamevers.rc...
+C:\msys64\mingw64\bin\python.exe C:\msys64\src\mame\scripts\build\verinfo.py -r -b mame C:\msys64\src\mame\src\version.cpp &gt; C:\msys64\src\mame\build\generated\resource\mamevers.rc</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\generated\resource;..\..\..\..\..\3rdparty\zlib;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\..\3rdparty\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;GIT_VERSION=22-g00897f5;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ProgramDataBaseFileName>$(OutDir)mame64d.pdb</ProgramDataBaseFileName>
+      <DisableSpecificWarnings>4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;GIT_VERSION=22-g00897f5;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\generated\resource;..\..\..\..\..\3rdparty\zlib;..\..\..\..\..\3rdparty\libflac\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>user32.lib;winmm.lib;advapi32.lib;shlwapi.lib;wsock32.lib;ws2_32.lib;psapi.lib;iphlpapi.lib;shell32.lib;userenv.lib;opengl32.lib;gdi32.lib;dsound.lib;dxguid.lib;oleaut32.lib;dinput8.lib;comctl32.lib;comdlg32.lib;ole32.lib;openvr_api.lib;PhysX3DEBUG_x64.lib;PhysX3CommonDEBUG_x64.lib;PhysX3ExtensionsDEBUG.lib;PhysXProfileSDKDEBUG.lib;PhysXVisualDebuggerSDKDEBUG.lib;libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)mame64d.exe</OutputFile>
+      <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
+      <TargetMachine>MachineX64</TargetMachine>
+      <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalLibraryDirectories>..\..\..\..\..\3rdparty\openvr\lib\win64;..\..\..\..\..\3rdparty\physx\PhysXSDK\Lib\vc14win64;$(ADSK_FBX_SDK_2017)lib\vs2015\x64\debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+    <PreBuildEvent>
+      <Command>mkdir C:\msys64\src\mame\build\generated\resource\ 2&gt;NUL
+@echo Emitting mamevers.rc...
+C:\msys64\mingw64\bin\python.exe C:\msys64\src\mame\scripts\build\verinfo.py -r -b mame C:\msys64\src\mame\src\version.cpp &gt; C:\msys64\src\mame\build\generated\resource\mamevers.rc</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\generated\resource;..\..\..\..\..\3rdparty\zlib;..\..\..\..\..\3rdparty\libflac\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;GIT_VERSION=22-g00897f5;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ProgramDataBaseFileName>$(OutDir)mame.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;GIT_VERSION=22-g00897f5;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\generated\resource;..\..\..\..\..\3rdparty\zlib;..\..\..\..\..\3rdparty\libflac\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>user32.lib;winmm.lib;advapi32.lib;shlwapi.lib;wsock32.lib;ws2_32.lib;psapi.lib;iphlpapi.lib;shell32.lib;userenv.lib;opengl32.lib;gdi32.lib;dsound.lib;dxguid.lib;oleaut32.lib;dinput8.lib;comctl32.lib;comdlg32.lib;ole32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)mame.exe</OutputFile>
+      <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
+      <TargetMachine>MachineX86</TargetMachine>
+      <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+    <PreBuildEvent>
+      <Command>mkdir C:\msys64\src\mame\build\generated\resource\ 2&gt;NUL
+@echo Emitting mamevers.rc...
+C:\msys64\mingw64\bin\python.exe C:\msys64\src\mame\scripts\build\verinfo.py -r -b mame C:\msys64\src\mame\src\version.cpp &gt; C:\msys64\src\mame\build\generated\resource\mamevers.rc</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\generated\resource;..\..\..\..\..\3rdparty\zlib;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\..\3rdparty\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;GIT_VERSION=22-g00897f5;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ProgramDataBaseFileName>$(OutDir)mame64.pdb</ProgramDataBaseFileName>
+      <DisableSpecificWarnings>4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;GIT_VERSION=22-g00897f5;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\generated\resource;..\..\..\..\..\3rdparty\zlib;..\..\..\..\..\3rdparty\libflac\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>user32.lib;winmm.lib;advapi32.lib;shlwapi.lib;wsock32.lib;ws2_32.lib;psapi.lib;iphlpapi.lib;shell32.lib;userenv.lib;opengl32.lib;gdi32.lib;dsound.lib;dxguid.lib;oleaut32.lib;dinput8.lib;comctl32.lib;comdlg32.lib;ole32.lib;openvr_api.lib;PhysX3_x64.lib;PhysX3Common_x64.lib;PhysX3Extensions.lib;PhysXProfileSDK.lib;libfbxsdk-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)mame64.exe</OutputFile>
+      <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
+      <TargetMachine>MachineX64</TargetMachine>
+      <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalLibraryDirectories>..\..\..\..\..\3rdparty\openvr\lib\win64;..\..\..\..\..\3rdparty\assimp\build\code\Release;..\..\..\..\..\3rdparty\physx\PhysXSDK\Lib\vc14win64;$(ADSK_FBX_SDK_2017)lib\vs2015\x64\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+    <PreBuildEvent>
+      <Command>mkdir C:\msys64\src\mame\build\generated\resource\ 2&gt;NUL
+@echo Emitting mamevers.rc...
+C:\msys64\mingw64\bin\python.exe C:\msys64\src\mame\scripts\build\verinfo.py -r -b mame C:\msys64\src\mame\src\version.cpp &gt; C:\msys64\src\mame\build\generated\resource\mamevers.rc</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\src\mame\mame.cpp">
+      <ObjectFileName>$(IntDir)src\mame\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\version.cpp">
+      <ObjectFileName>$(IntDir)src\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\generated\mame\mame\drivlist.cpp">
+      <ObjectFileName>$(IntDir)generated\mame\mame\</ObjectFileName>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\..\..\..\src\mame\mame.lst">
+      <FileType>Text</FileType>
+      <Command>@echo Building driver list...
+C:\msys64\mingw64\bin\python.exe ../../../../../scripts/build/makelist.py  ../../../../../src/mame/mame.lst  &gt; ../../../../generated/mame/mame/drivlist.cpp 
+</Command>
+      <Outputs>../../../../generated/mame/mame/drivlist.cpp;%(Outputs)</Outputs>
+      <SubType>Designer</SubType>
+      <Message>
+      </Message>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\..\..\..\..\scripts\resources\windows\mame\mame.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="acorn.vcxproj">
+      <Project>{4F533A6D-BBB4-177B-4422-5E2DB0824E3A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="alba.vcxproj">
+      <Project>{4C1FDB31-3803-9C87-A163-96DA8D668609}</Project>
+    </ProjectReference>
+    <ProjectReference Include="alliedl.vcxproj">
+      <Project>{D37EDFB9-3FEB-9AB4-08DF-3212740ABD1C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="alpha.vcxproj">
+      <Project>{A2453F6D-0EA7-1C7B-9714-632D0375533A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="amiga.vcxproj">
+      <Project>{1BB43F6D-8715-1D7B-1083-632D7CE3533A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="aristocr.vcxproj">
+      <Project>{A3A86ABD-8FA2-930F-780F-2A2064A8F97B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ascii.vcxproj">
+      <Project>{25E5426D-9146-207B-1AB4-662D8614573A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="atari.vcxproj">
+      <Project>{2D6A436D-99CB-207B-2239-672D8E99573A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="atlus.vcxproj">
+      <Project>{6599436D-D1FA-207B-5A68-672DC6C8573A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="barcrest.vcxproj">
+      <Project>{1219EAA0-FE12-13F3-E77F-A903D318795F}</Project>
+    </ProjectReference>
+    <ProjectReference Include="bfm.vcxproj">
+      <Project>{11712DAC-7D87-2B42-C6FE-B6633254FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="bmc.vcxproj">
+      <Project>{EE712DAC-5A88-2B42-A3FF-B6630F55FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="capcom.vcxproj">
+      <Project>{8F2A0B19-7BB9-94E2-24D8-A8DD1046A588}</Project>
+    </ProjectReference>
+    <ProjectReference Include="cinemat.vcxproj">
+      <Project>{9D9FF64C-090C-B247-D2FF-49A53E2BD4AF}</Project>
+    </ProjectReference>
+    <ProjectReference Include="comad.vcxproj">
+      <Project>{200E656D-8C6F-427B-15DD-882D813D793A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="cvs.vcxproj">
+      <Project>{68772DAC-D48D-2B42-1D05-B763895AFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="dataeast.vcxproj">
+      <Project>{23B1EC7D-0FAB-15D0-F817-ACE0E4B07B3C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="dgrm.vcxproj">
+      <Project>{46B1DC31-3295-9D87-9BF5-97DA87F88709}</Project>
+    </ProjectReference>
+    <ProjectReference Include="dooyong.vcxproj">
+      <Project>{5BEA0CA8-C756-C8A2-904A-6000FC75EA0A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="dynax.vcxproj">
+      <Project>{C0A67C6D-2C08-5A7B-B575-A02D21D6903A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="edevices.vcxproj">
+      <Project>{A4159E2F-900F-C781-797C-5D9265152DEE}</Project>
+    </ProjectReference>
+    <ProjectReference Include="eolith.vcxproj">
+      <Project>{81BBB01E-6D4A-3AE8-1669-4EE302D74A8E}</Project>
+    </ProjectReference>
+    <ProjectReference Include="excelent.vcxproj">
+      <Project>{B4914E2D-A08B-777F-89F8-0D907591DDEB}</Project>
+    </ProjectReference>
+    <ProjectReference Include="exidy.vcxproj">
+      <Project>{FF1D8E6D-6B7F-6B7B-F4EC-B12D604DA23A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="f32.vcxproj">
+      <Project>{477B2DAC-B391-2B42-FC08-B763685EFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="funworld.vcxproj">
+      <Project>{6D04924D-59FE-BA9F-426B-51B02E04210C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="fuuki.vcxproj">
+      <Project>{40C59E6D-AC26-7C7B-3594-C22DA1F4B23A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="gaelco.vcxproj">
+      <Project>{A7E95922-9378-E3EB-3C97-F7E62805F491}</Project>
+    </ProjectReference>
+    <ProjectReference Include="gameplan.vcxproj">
+      <Project>{01AAAC32-EDA3-D584-D610-6C95C2A93BF1}</Project>
+    </ProjectReference>
+    <ProjectReference Include="gametron.vcxproj">
+      <Project>{D9F6AE32-C5F0-D784-AE5D-6E959AF63DF1}</Project>
+    </ProjectReference>
+    <ProjectReference Include="gottlieb.vcxproj">
+      <Project>{B64ABD79-A244-E6CB-8BB1-7CDC774A4C38}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ibmpc.vcxproj">
+      <Project>{2782CA6D-93E3-A77B-1C51-EE2D88B1DE3A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="igs.vcxproj">
+      <Project>{FF8E2DAC-6BA5-2B42-B41C-B7632072FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="irem.vcxproj">
+      <Project>{499CDF31-3580-A087-9EE0-9ADA8AE38A09}</Project>
+    </ProjectReference>
+    <ProjectReference Include="itech.vcxproj">
+      <Project>{493DD46D-B59E-B17B-3E0C-F82DAA6CE83A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="jaleco.vcxproj">
+      <Project>{6A1C5D29-56AB-E6F2-FFC9-FAEDEB37F798}</Project>
+    </ProjectReference>
+    <ProjectReference Include="jpm.vcxproj">
+      <Project>{63942DAC-CFAA-2B42-1822-B7638477FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="kaneko.vcxproj">
+      <Project>{D55EB32B-C1ED-3CF5-6A0C-51F0567A4D9B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="konami.vcxproj">
+      <Project>{1BA5B02C-0734-3AF6-B052-4EF19CC04A9C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="matic.vcxproj">
+      <Project>{AA74126E-16D6-EF7B-9F43-362E0BA4263B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="maygay.vcxproj">
+      <Project>{84BF6330-704E-EDF9-196D-01F505DBFD9F}</Project>
+    </ProjectReference>
+    <ProjectReference Include="meadows.vcxproj">
+      <Project>{0C9D7C44-7809-383F-41FD-CF9CAD285AA7}</Project>
+    </ProjectReference>
+    <ProjectReference Include="merit.vcxproj">
+      <Project>{BD9D146E-29FF-F17B-B26C-382E1ECD283B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="metro.vcxproj">
+      <Project>{63A7146E-CF08-F27B-5876-382EC4D6283B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="midcoin.vcxproj">
+      <Project>{DFFA064E-4B67-C248-145B-5AA68086E4B0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="midw8080.vcxproj">
+      <Project>{BD1E3110-A918-5A62-9285-F0727E1EC0CE}</Project>
+    </ProjectReference>
+    <ProjectReference Include="midway.vcxproj">
+      <Project>{A743E930-93D2-72FA-3CF1-86F5285F83A0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="namco.vcxproj">
+      <Project>{AA6E246E-16D0-017C-9F3D-482E0B9E383B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="nasco.vcxproj">
+      <Project>{3088246E-9CE9-017C-2557-482E91B7383B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="neogeo.vcxproj">
+      <Project>{D9CEFB32-C55D-85FC-6E7C-99F75AEA95A2}</Project>
+    </ProjectReference>
+    <ProjectReference Include="nichibut.vcxproj">
+      <Project>{D2162AF9-BE10-534B-A77D-E95B9316B9B7}</Project>
+    </ProjectReference>
+    <ProjectReference Include="nintendo.vcxproj">
+      <Project>{1BFBA913-07F5-D265-F061-6976DCFA38D2}</Project>
+    </ProjectReference>
+    <ProjectReference Include="nix.vcxproj">
+      <Project>{8BA42DAC-F7BA-2B42-4032-B763AC87FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="nmk.vcxproj">
+      <Project>{02A52DAC-6EBB-2B42-B732-B7632388FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="omori.vcxproj">
+      <Project>{22263D6E-8E87-1A7C-17F5-602E8355513B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="olympia.vcxproj">
+      <Project>{D7707CF0-43DD-37EB-0CD1-CF4878FC5953}</Project>
+    </ProjectReference>
+    <ProjectReference Include="orca.vcxproj">
+      <Project>{41E6E231-2DCA-A387-962A-9EDA822D8E09}</Project>
+    </ProjectReference>
+    <ProjectReference Include="pacific.vcxproj">
+      <Project>{8B773D22-F7E3-F81C-C0D7-907A2C031B85}</Project>
+    </ProjectReference>
+    <ProjectReference Include="pacman.vcxproj">
+      <Project>{8C425737-78D1-E000-21F0-F4FB0D5EF1A6}</Project>
+    </ProjectReference>
+    <ProjectReference Include="pce.vcxproj">
+      <Project>{34AC2DAC-A0C2-2B42-E939-B763558FFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="phoenix.vcxproj">
+      <Project>{97AA6833-0317-242E-CC0A-BC8B38364696}</Project>
+    </ProjectReference>
+    <ProjectReference Include="playmark.vcxproj">
+      <Project>{FDF227B5-E9EC-5007-D259-E717BEF2B673}</Project>
+    </ProjectReference>
+    <ProjectReference Include="psikyo.vcxproj">
+      <Project>{7B40A038-67CF-2902-10EE-3DFDFC5B3AA8}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ramtek.vcxproj">
+      <Project>{E02D073C-CCBC-9005-75DB-A4006149A1AB}</Project>
+    </ProjectReference>
+    <ProjectReference Include="rare.vcxproj">
+      <Project>{0645E431-F228-A587-5B89-9FDA478C8F09}</Project>
+    </ProjectReference>
+    <ProjectReference Include="sanritsu.vcxproj">
+      <Project>{7559FF48-6153-289B-4AC0-BEAB36598E07}</Project>
+    </ProjectReference>
+    <ProjectReference Include="sega.vcxproj">
+      <Project>{FCE0E431-E8C4-A587-5125-A0DA3D289009}</Project>
+    </ProjectReference>
+    <ProjectReference Include="seibu.vcxproj">
+      <Project>{9409816E-006B-5E7C-89D8-A42EF538953B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="seta.vcxproj">
+      <Project>{A9E2E431-95C6-A587-FE26-A0DAEA299009}</Project>
+    </ProjectReference>
+    <ProjectReference Include="sigma.vcxproj">
+      <Project>{ED33836E-5995-607C-E202-A72E4E63973B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="snk.vcxproj">
+      <Project>{68BA2DAC-D4D0-2B42-1D48-B763899DFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="sony.vcxproj">
+      <Project>{850CE531-71F0-A587-DA50-A0DAC6539009}</Project>
+    </ProjectReference>
+    <ProjectReference Include="stern.vcxproj">
+      <Project>{4834896E-B495-667C-3D03-AD2EA9639D3B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="subsino.vcxproj">
+      <Project>{1FCBC637-8B37-8232-542B-1A90C056A49A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="sun.vcxproj">
+      <Project>{52BB2DAC-BED1-2B42-0749-B763739EFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="suna.vcxproj">
+      <Project>{F325E531-DF09-A687-486A-A0DA346D9009}</Project>
+    </ProjectReference>
+    <ProjectReference Include="sure.vcxproj">
+      <Project>{7B26E531-670A-A687-D06A-A0DABC6D9009}</Project>
+    </ProjectReference>
+    <ProjectReference Include="taito.vcxproj">
+      <Project>{DDF2906E-4954-6E7C-D2C1-B42E3E22A53B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tatsumi.vcxproj">
+      <Project>{43C75F57-AF33-1B52-7827-B3AFE4523DBA}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tch.vcxproj">
+      <Project>{3BBD2DAC-A7D3-2B42-F04A-B7635CA0FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tecfri.vcxproj">
+      <Project>{792BF440-65BA-7D0A-0ED9-9105FA468EB0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="technos.vcxproj">
+      <Project>{90A37A5F-FC0F-365A-C503-CEB7312F58C2}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tehkan.vcxproj">
+      <Project>{77FCF640-638B-800A-0CAA-9405F81791B0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="thepit.vcxproj">
+      <Project>{2AB72B41-1646-B50A-BF64-C905ABD2C5B0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="toaplan.vcxproj">
+      <Project>{8B61AE76-F7CD-6971-C0C1-01CF2CED8BD9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tong.vcxproj">
+      <Project>{D498E531-C07C-A687-29DD-A0DA15E09009}</Project>
+    </ProjectReference>
+    <ProjectReference Include="unico.vcxproj">
+      <Project>{1A2AAA6E-868B-877C-0FF9-CD2E7B59BE3B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="univers.vcxproj">
+      <Project>{6868E7C1-D4D4-A2BC-9DC8-3A1A09F4C424}</Project>
+    </ProjectReference>
+    <ProjectReference Include="upl.vcxproj">
+      <Project>{2DC32DAC-99D9-2B42-E250-B7634EA6FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="valadon.vcxproj">
+      <Project>{E155B9F0-4DC2-74EB-16B6-0C4982E19653}</Project>
+    </ProjectReference>
+    <ProjectReference Include="veltmjr.vcxproj">
+      <Project>{408918FA-ACF5-D3F4-75E9-6B52E114F65C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="venture.vcxproj">
+      <Project>{45DD3CFA-B149-F8F4-7A3D-9052E6681A5D}</Project>
+    </ProjectReference>
+    <ProjectReference Include="vsystem.vcxproj">
+      <Project>{5791AB1B-C3FD-6616-8CF1-FE73F81C897E}</Project>
+    </ProjectReference>
+    <ProjectReference Include="yunsung.vcxproj">
+      <Project>{B5907D06-21FD-3801-EAF0-D05E561C5B69}</Project>
+    </ProjectReference>
+    <ProjectReference Include="zaccaria.vcxproj">
+      <Project>{3A900FA4-268A-38F6-0FF7-CE06FB8F9E62}</Project>
+    </ProjectReference>
+    <ProjectReference Include="misc.vcxproj">
+      <Project>{48A9E131-348D-A287-9DED-9CDA89F08C09}</Project>
+    </ProjectReference>
+    <ProjectReference Include="pinball.vcxproj">
+      <Project>{9EDEA935-0A4B-6530-D33E-FD8D3F6A8798}</Project>
+    </ProjectReference>
+    <ProjectReference Include="shared.vcxproj">
+      <Project>{F364D43E-DFF3-5D08-8812-720374806EAE}</Project>
+    </ProjectReference>
+    <ProjectReference Include="act.vcxproj">
+      <Project>{746C2DAC-E082-2B42-29FA-B663954FFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="adc.vcxproj">
+      <Project>{846C2DAC-F082-2B42-39FA-B663A54FFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="alesis.vcxproj">
+      <Project>{FD212215-E9B0-ABDE-92CF-BFD97E3DBC84}</Project>
+    </ProjectReference>
+    <ProjectReference Include="altos.vcxproj">
+      <Project>{9F573F6D-0BB9-1C7B-9426-632D0087533A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="amstrad.vcxproj">
+      <Project>{0892B9BC-74FE-74B7-3DF2-0C15A91D971F}</Project>
+    </ProjectReference>
+    <ProjectReference Include="apf.vcxproj">
+      <Project>{136E2DAC-7F84-2B42-C8FB-B6633451FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="apollo.vcxproj">
+      <Project>{63E26F15-4F71-F9DE-F88F-0DDAE4FD0985}</Project>
+    </ProjectReference>
+    <ProjectReference Include="apple.vcxproj">
+      <Project>{AE77416D-1AD9-1E7B-A346-652D0FA7553A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="applied.vcxproj">
+      <Project>{9B397EC3-07A6-39BE-D099-D11B3CC55B26}</Project>
+    </ProjectReference>
+    <ProjectReference Include="arcadia.vcxproj">
+      <Project>{612F37C7-CD9B-F2C1-968F-8A1F02BB142A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="at.vcxproj">
+      <Project>{11EC2FE6-FDE4-4E38-2617-34BD126F2E44}</Project>
+    </ProjectReference>
+    <ProjectReference Include="att.vcxproj">
+      <Project>{A56E2DAC-1185-2B42-5AFC-B663C651FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="bally.vcxproj">
+      <Project>{90454B6D-FCA6-287B-8514-6F2DF1745F3A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="bandai.vcxproj">
+      <Project>{9BEBB416-877A-3EE0-3099-52DB1C074F86}</Project>
+    </ProjectReference>
+    <ProjectReference Include="banctec.vcxproj">
+      <Project>{4C2352ED-B88F-0DE8-8183-A545EDAE2F50}</Project>
+    </ProjectReference>
+    <ProjectReference Include="be.vcxproj">
+      <Project>{23EC2FE6-0FE5-4E38-3817-34BD246F2E44}</Project>
+    </ProjectReference>
+    <ProjectReference Include="bnpo.vcxproj">
+      <Project>{0BB6DB31-F799-9C87-60FA-96DA4CFD8609}</Project>
+    </ProjectReference>
+    <ProjectReference Include="bondwell.vcxproj">
+      <Project>{939E59CD-7F98-821F-6805-1930549EE88B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="booth.vcxproj">
+      <Project>{9800536D-0462-307B-8DCF-762DF92F673A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="camputers.vcxproj">
+      <Project>{90D457D0-FC0B-A067-0516-048B71CCC660}</Project>
+    </ProjectReference>
+    <ProjectReference Include="canon.vcxproj">
+      <Project>{EB665D6D-57C8-3A7B-E035-812D4C96713A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="cantab.vcxproj">
+      <Project>{45580A19-31E7-93E2-DA05-A8DDC673A488}</Project>
+    </ProjectReference>
+    <ProjectReference Include="casio.vcxproj">
+      <Project>{6B7B5D6D-D7DC-3A7B-604A-812DCCAA713A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="cbm.vcxproj">
+      <Project>{CE742DAC-3A8B-2B42-8302-B763EF57FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="cccp.vcxproj">
+      <Project>{F511DC31-E1F5-9C87-4A56-97DA36598709}</Project>
+    </ProjectReference>
+    <ProjectReference Include="cce.vcxproj">
+      <Project>{E7742DAC-538B-2B42-9C02-B7630858FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ccs.vcxproj">
+      <Project>{F5742DAC-618B-2B42-AA02-B7631658FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="chromatics.vcxproj">
+      <Project>{69640F47-5589-5EC7-7ED4-43576A585DE5}</Project>
+    </ProjectReference>
+    <ProjectReference Include="coleco.vcxproj">
+      <Project>{1157061A-FDE5-8FE3-A604-A4DE9272A089}</Project>
+    </ProjectReference>
+    <ProjectReference Include="cromemco.vcxproj">
+      <Project>{F17078A3-DD6A-A1F5-C6D7-3706B2700762}</Project>
+    </ProjectReference>
+    <ProjectReference Include="comx.vcxproj">
+      <Project>{5346DC31-3F2A-9D87-A88A-97DA948D8709}</Project>
+    </ProjectReference>
+    <ProjectReference Include="concept.vcxproj">
+      <Project>{885AF45A-F4C6-AF55-BDBA-47B329E6D1BD}</Project>
+    </ProjectReference>
+    <ProjectReference Include="conitec.vcxproj">
+      <Project>{21E3F75A-8D4F-B355-5643-4BB3C26ED5BD}</Project>
+    </ProjectReference>
+    <ProjectReference Include="cybiko.vcxproj">
+      <Project>{5DE2B51A-4971-3FE4-F28F-53DFDEFD4F8A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="dai.vcxproj">
+      <Project>{EA782DAC-568F-2B42-9F06-B7630B5CFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ddr.vcxproj">
+      <Project>{56792DAC-C28F-2B42-0B07-B763775CFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="dec.vcxproj">
+      <Project>{68792DAC-D48F-2B42-1D07-B763895CFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="dicksmth.vcxproj">
+      <Project>{F3B9D3BE-DFB3-FC10-C820-9321B4B9627D}</Project>
+    </ProjectReference>
+    <ProjectReference Include="dms.vcxproj">
+      <Project>{807A2DAC-EC90-2B42-3508-B763A15DFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="dragon.vcxproj">
+      <Project>{17CB8B1C-035A-15E6-AC78-29E198E6258C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="drc.vcxproj">
+      <Project>{157B2DAC-8191-2B42-CA08-B763365EFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="eaca.vcxproj">
+      <Project>{2622DD31-1206-9E87-7B66-98DA67698809}</Project>
+    </ProjectReference>
+    <ProjectReference Include="einis.vcxproj">
+      <Project>{34FA856D-A05B-637B-29C9-A92D95299A3A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="elektor.vcxproj">
+      <Project>{52204BED-BE8C-06E8-8780-9E45F3AB2850}</Project>
+    </ProjectReference>
+    <ProjectReference Include="elektrka.vcxproj">
+      <Project>{CF36AF96-BB30-D8E8-A49D-6EF990363E55}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ensoniq.vcxproj">
+      <Project>{D9DFF4F2-454C-B0ED-0E40-484B7A6BD255}</Project>
+    </ProjectReference>
+    <ProjectReference Include="enterprise.vcxproj">
+      <Project>{DD9A84ED-C9BF-D36D-F20A-B9FDDE8ED28B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="entex.vcxproj">
+      <Project>{20D1886D-8C32-667B-15A0-AC2D81009D3A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="epoch.vcxproj">
+      <Project>{4BD4896D-B735-677B-40A3-AD2DAC039E3A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="epson.vcxproj">
+      <Project>{E1E6896D-4D48-677B-D6B5-AD2D42169E3A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="fairch.vcxproj">
+      <Project>{090C0720-F59A-90E9-9EB9-A4E48A27A18F}</Project>
+    </ProjectReference>
+    <ProjectReference Include="fidelity.vcxproj">
+      <Project>{B6113C99-A20B-65EB-8B78-FBFB7711CB57}</Project>
+    </ProjectReference>
+    <ProjectReference Include="force.vcxproj">
+      <Project>{2B6D9B6D-97CE-787B-203C-BF2D8C9CAF3A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="fujitsu.vcxproj">
+      <Project>{062D9D4F-7299-584A-3B8D-F0A7A7B87AB2}</Project>
+    </ProjectReference>
+    <ProjectReference Include="funtech.vcxproj">
+      <Project>{4955EB4F-B5C1-A64A-7EB5-3EA8EAE0C8B2}</Project>
+    </ProjectReference>
+    <ProjectReference Include="galaxy.vcxproj">
+      <Project>{42945D22-2E23-E7EB-D741-FBE6C3AFF791}</Project>
+    </ProjectReference>
+    <ProjectReference Include="gamepark.vcxproj">
+      <Project>{647DAC32-5077-D584-39E4-6B95257D3BF1}</Project>
+    </ProjectReference>
+    <ProjectReference Include="gi.vcxproj">
+      <Project>{CCEC2FE6-B8E5-4E38-E117-34BDCD6F2E44}</Project>
+    </ProjectReference>
+    <ProjectReference Include="grundy.vcxproj">
+      <Project>{F5589623-E1E7-1FED-8A06-34E876743093}</Project>
+    </ProjectReference>
+    <ProjectReference Include="hartung.vcxproj">
+      <Project>{B54981BB-21B6-3CB6-EAA9-D41356D55E1E}</Project>
+    </ProjectReference>
+    <ProjectReference Include="heathkit.vcxproj">
+      <Project>{AE93E437-9A8D-0D8A-83FA-A39A6F9373F6}</Project>
+    </ProjectReference>
+    <ProjectReference Include="hec2hrp.vcxproj">
+      <Project>{E814A2C3-5481-5DBE-1D75-F51B89A07F26}</Project>
+    </ProjectReference>
+    <ProjectReference Include="hegener.vcxproj">
+      <Project>{1A8606C4-86F2-C1BE-4FE6-591CBB11E426}</Project>
+    </ProjectReference>
+    <ProjectReference Include="heurikon.vcxproj">
+      <Project>{611C6866-4D16-91B8-3683-27C9221CF724}</Project>
+    </ProjectReference>
+    <ProjectReference Include="hitachi.vcxproj">
+      <Project>{360744CE-A273-FFC8-6B67-9726D7922131}</Project>
+    </ProjectReference>
+    <ProjectReference Include="homebrew.vcxproj">
+      <Project>{353E9654-2138-BFA6-0AA5-55B7F63D2513}</Project>
+    </ProjectReference>
+    <ProjectReference Include="homelab.vcxproj">
+      <Project>{54A6C6DB-C012-82D6-8906-1A34F531A43E}</Project>
+    </ProjectReference>
+    <ProjectReference Include="hp.vcxproj">
+      <Project>{F4EC2FE6-E0E5-4E38-0918-34BDF56F2E44}</Project>
+    </ProjectReference>
+    <ProjectReference Include="imp.vcxproj">
+      <Project>{C28F2DAC-2EA6-2B42-771D-B763E372FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="intel.vcxproj">
+      <Project>{1833D16D-8494-AE7B-0D02-F52D7962E53A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="interton.vcxproj">
+      <Project>{8FC23A04-7BBC-6356-6429-FA6650C2C9C2}</Project>
+    </ProjectReference>
+    <ProjectReference Include="intv.vcxproj">
+      <Project>{3D8DDF31-2971-A087-92D1-9ADA7ED48A09}</Project>
+    </ProjectReference>
+    <ProjectReference Include="isc.vcxproj">
+      <Project>{7B902DAC-E7A6-2B42-301E-B7639C73FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="kaypro.vcxproj">
+      <Project>{B296B92B-9E25-43F5-4744-57F033B2539B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="koei.vcxproj">
+      <Project>{44A8E031-308C-A187-99EC-9BDA85EF8B09}</Project>
+    </ProjectReference>
+    <ProjectReference Include="kyocera.vcxproj">
+      <Project>{8AEF2BDA-F65B-E7D4-BF4F-7F322B7B093D}</Project>
+    </ProjectReference>
+    <ProjectReference Include="luxor.vcxproj">
+      <Project>{96650B6E-02C7-E87B-8B34-2F2EF7941F3B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="magnavox.vcxproj">
+      <Project>{BD82D3AE-A97C-FC00-92E9-92117E82626D}</Project>
+    </ProjectReference>
+    <ProjectReference Include="makerbot.vcxproj">
+      <Project>{11468EB7-FD3F-B709-E6AC-4D1AD2451D76}</Project>
+    </ProjectReference>
+    <ProjectReference Include="marx.vcxproj">
+      <Project>{3487E131-206B-A287-89CB-9CDA75CE8C09}</Project>
+    </ProjectReference>
+    <ProjectReference Include="matsushi.vcxproj">
+      <Project>{4AF78BCD-36F1-B41F-1F5E-4B300BF71A8C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="mattel.vcxproj">
+      <Project>{63396130-4FC8-EAF9-F8E6-FEF4E454FB9F}</Project>
+    </ProjectReference>
+    <ProjectReference Include="mb.vcxproj">
+      <Project>{8BED2FE6-77E6-4E38-A018-34BD8C702E44}</Project>
+    </ProjectReference>
+    <ProjectReference Include="mchester.vcxproj">
+      <Project>{571D844A-4317-AD9C-2C84-43AD181D1309}</Project>
+    </ProjectReference>
+    <ProjectReference Include="memotech.vcxproj">
+      <Project>{4EA3D7F0-3A9D-0043-230A-97530FA366AF}</Project>
+    </ProjectReference>
+    <ProjectReference Include="mgu.vcxproj">
+      <Project>{05A02DAC-71B6-2B42-BA2D-B7632683FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="microkey.vcxproj">
+      <Project>{7FA5A00D-6B9F-C95F-540C-607040A52FCC}</Project>
+    </ProjectReference>
+    <ProjectReference Include="microsoft.vcxproj">
+      <Project>{F2E0B9C1-5E18-0259-6722-667CD3D82852}</Project>
+    </ProjectReference>
+    <ProjectReference Include="mit.vcxproj">
+      <Project>{46A02DAC-B2B6-2B42-FB2D-B7636783FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="mits.vcxproj">
+      <Project>{79A9E131-658D-A287-CEED-9CDABAF08C09}</Project>
+    </ProjectReference>
+    <ProjectReference Include="mitsubishi.vcxproj">
+      <Project>{FD9D1703-E9C2-6683-120E-4C13FE9165A1}</Project>
+    </ProjectReference>
+    <ProjectReference Include="mizar.vcxproj">
+      <Project>{3FF0166E-AB51-F47B-34BF-3A2EA01F2B3B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="morrow.vcxproj">
+      <Project>{82705D31-6EFF-E6FA-171E-FBF5038CF7A0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="mos.vcxproj">
+      <Project>{0BA12DAC-77B7-2B42-C02E-B7632C84FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="motorola.vcxproj">
+      <Project>{2932F102-152C-1A55-FE98-B065EA3180C1}</Project>
+    </ProjectReference>
+    <ProjectReference Include="multitch.vcxproj">
+      <Project>{E6F87ABE-D2F2-A310-BB5F-3A21A7F8097D}</Project>
+    </ProjectReference>
+    <ProjectReference Include="nakajima.vcxproj">
+      <Project>{587383A3-446D-ACF5-2DDA-420619731262}</Project>
+    </ProjectReference>
+    <ProjectReference Include="nascom.vcxproj">
+      <Project>{9D8EB532-891D-3FFC-323C-53F71EAA4FA2}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ne.vcxproj">
+      <Project>{AFED2FE6-9BE6-4E38-C418-34BDB0702E44}</Project>
+    </ProjectReference>
+    <ProjectReference Include="nec.vcxproj">
+      <Project>{F2A32DAC-5EBA-2B42-A731-B7631387FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="netronic.vcxproj">
+      <Project>{3E47A1ED-2A41-CA3F-13AE-6050FF4630AC}</Project>
+    </ProjectReference>
+    <ProjectReference Include="next.vcxproj">
+      <Project>{5B25E231-4709-A387-B069-9DDA9C6C8D09}</Project>
+    </ProjectReference>
+    <ProjectReference Include="nokia.vcxproj">
+      <Project>{2E142C6E-9A75-097C-23E3-4F2E8F43403B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="northstar.vcxproj">
+      <Project>{E1989646-4DD0-DEDD-56DA-4201C29005D7}</Project>
+    </ProjectReference>
+    <ProjectReference Include="novag.vcxproj">
+      <Project>{F7412C6E-63A3-097C-EC10-502E5871403B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ns.vcxproj">
+      <Project>{BDED2FE6-A9E6-4E38-D218-34BDBE702E44}</Project>
+    </ProjectReference>
+    <ProjectReference Include="olivetti.vcxproj">
+      <Project>{AC0755DB-9801-7E2D-816E-143E6D07E499}</Project>
+    </ProjectReference>
+    <ProjectReference Include="omnibyte.vcxproj">
+      <Project>{23410C33-0F3B-3585-F8A7-CB95E4409BF1}</Project>
+    </ProjectReference>
+    <ProjectReference Include="orion.vcxproj">
+      <Project>{23CA3F6E-8F2B-1D7C-1899-632E84F9533B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="osborne.vcxproj">
+      <Project>{947B31FF-00E8-ECF9-C9DB-845735070F62}</Project>
+    </ProjectReference>
+    <ProjectReference Include="osi.vcxproj">
+      <Project>{07AA2DAC-73C0-2B42-BC37-B763288DFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="palm.vcxproj">
+      <Project>{862BE331-720F-A487-DB6F-9EDAC7728E09}</Project>
+    </ProjectReference>
+    <ProjectReference Include="parker.vcxproj">
+      <Project>{41745F37-2D03-E900-D621-FDFBC28FF9A6}</Project>
+    </ProjectReference>
+    <ProjectReference Include="pc.vcxproj">
+      <Project>{EFED2FE6-DBE6-4E38-0419-34BDF0702E44}</Project>
+    </ProjectReference>
+    <ProjectReference Include="pdp1.vcxproj">
+      <Project>{9138E331-7D1C-A487-E67C-9EDAD27F8E09}</Project>
+    </ProjectReference>
+    <ProjectReference Include="pel.vcxproj">
+      <Project>{7DAC2DAC-E9C2-2B42-323A-B7639E8FFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="philips.vcxproj">
+      <Project>{D5D9FF32-4146-BB2D-0A3A-538B7665DD95}</Project>
+    </ProjectReference>
+    <ProjectReference Include="pitronic.vcxproj">
+      <Project>{04E40DFA-F0DD-364C-D94A-CD5CC5E39CB8}</Project>
+    </ProjectReference>
+    <ProjectReference Include="poly88.vcxproj">
+      <Project>{90B65938-7C45-E301-2564-F7FC11D2F3A7}</Project>
+    </ProjectReference>
+    <ProjectReference Include="psion.vcxproj">
+      <Project>{056F526E-71D0-2F7C-FA3D-762E669E663B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="radio.vcxproj">
+      <Project>{2BAB6C6E-970C-4A7C-207A-902E8CDA803B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="rca.vcxproj">
+      <Project>{B2B42DAC-1ECB-2B42-6742-B763D397FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="regnecentralen.vcxproj">
+      <Project>{C9AFDAD3-B56A-CA7F-5E22-43CA4ABC1410}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ritam.vcxproj">
+      <Project>{3951716E-A5B2-4E7C-2E20-952E9A80853B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="rm.vcxproj">
+      <Project>{3BEE2FE6-27E7-4E38-5019-34BD3C712E44}</Project>
+    </ProjectReference>
+    <ProjectReference Include="robotron.vcxproj">
+      <Project>{31A53E76-1D9F-67C8-060C-FED8F2A4CD34}</Project>
+    </ProjectReference>
+    <ProjectReference Include="rockwell.vcxproj">
+      <Project>{3FD94C78-2BD3-75CA-1440-0CDB00D9DB36}</Project>
+    </ProjectReference>
+    <ProjectReference Include="roland.vcxproj">
+      <Project>{DCA8033D-C837-8D06-7156-A1015DC49DAC}</Project>
+    </ProjectReference>
+    <ProjectReference Include="rolm.vcxproj">
+      <Project>{D67FE431-C263-A587-2BC4-9FDA17C78F09}</Project>
+    </ProjectReference>
+    <ProjectReference Include="sage.vcxproj">
+      <Project>{FCCFE431-E8B3-A587-5114-A0DA3D179009}</Project>
+    </ProjectReference>
+    <ProjectReference Include="samcoupe.vcxproj">
+      <Project>{590F9E45-4509-C797-2E76-5DA81A0F2D04}</Project>
+    </ProjectReference>
+    <ProjectReference Include="samsung.vcxproj">
+      <Project>{1ADFE609-864B-A204-4F3F-3A62BB6AC46C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="sanyo.vcxproj">
+      <Project>{46F07E6E-B251-5C7C-3BBF-A22EA71F933B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="saturn.vcxproj">
+      <Project>{1933603E-05C2-E907-AEE0-FD029A4EFAAD}</Project>
+    </ProjectReference>
+    <ProjectReference Include="sequential.vcxproj">
+      <Project>{57B420FA-43D9-6F7A-6C24-550A58A86E98}</Project>
+    </ProjectReference>
+    <ProjectReference Include="sgi.vcxproj">
+      <Project>{7FB92DAC-EBCF-2B42-3447-B763A09CFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="sharp.vcxproj">
+      <Project>{BA8E826E-26F0-5F7C-AF5D-A62E1BBE963B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="siemens.vcxproj">
+      <Project>{D0D1FB1B-3C3E-B716-0532-4F74715DD97E}</Project>
+    </ProjectReference>
+    <ProjectReference Include="sinclair.vcxproj">
+      <Project>{F122C3AF-DD1C-EC01-C689-8212B222526E}</Project>
+    </ProjectReference>
+    <ProjectReference Include="skeleton.vcxproj">
+      <Project>{41865835-2D80-8187-16ED-17980286E7F3}</Project>
+    </ProjectReference>
+    <ProjectReference Include="slicer.vcxproj">
+      <Project>{3EEA203F-2A79-AA08-D397-BE03BF05BBAE}</Project>
+    </ProjectReference>
+    <ProjectReference Include="sord.vcxproj">
+      <Project>{F40CE531-E0F0-A587-4951-A0DA35549009}</Project>
+    </ProjectReference>
+    <ProjectReference Include="special.vcxproj">
+      <Project>{BD814A2C-29EE-0527-F2E1-9D845E0D288F}</Project>
+    </ProjectReference>
+    <ProjectReference Include="svi.vcxproj">
+      <Project>{6EBB2DAC-DAD1-2B42-2349-B7638F9EFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="svision.vcxproj">
+      <Project>{679F9A3A-D30B-5635-9CFF-ED92082B789D}</Project>
+    </ProjectReference>
+    <ProjectReference Include="swtpc09.vcxproj">
+      <Project>{960EB53D-027B-7038-CB6E-0896379A92A0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="synertec.vcxproj">
+      <Project>{89BA8E7F-75B4-B7D1-5E21-4EE24ABA1D3E}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ta.vcxproj">
+      <Project>{71EE2FE6-5DE7-4E38-8619-34BD72712E44}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tandberg.vcxproj">
+      <Project>{A3C03F34-8FBA-6886-7827-FF9664C0CEF2}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tangerin.vcxproj">
+      <Project>{74E57734-60DF-A086-494C-379735E506F3}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tatung.vcxproj">
+      <Project>{2F5BB540-1BEA-3E0A-C408-5305B0764FB0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="teamconc.vcxproj">
+      <Project>{6636794A-5230-A29C-3B9D-38AD27360809}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tektroni.vcxproj">
+      <Project>{ECB15362-D8AB-7CB4-C118-13C5ADB1E220}</Project>
+    </ProjectReference>
+    <ProjectReference Include="telenova.vcxproj">
+      <Project>{7A3A9763-6634-C0B5-4FA1-56C63B3A2622}</Project>
+    </ProjectReference>
+    <ProjectReference Include="telercas.vcxproj">
+      <Project>{4F369963-3B30-C2B5-249D-58C610362822}</Project>
+    </ProjectReference>
+    <ProjectReference Include="televideo.vcxproj">
+      <Project>{DDB70BD7-49EF-536E-52F9-B791BEAF7A67}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tem.vcxproj">
+      <Project>{82BD2DAC-EED3-2B42-374B-B763A3A0FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tesla.vcxproj">
+      <Project>{D54D936E-41AF-707C-CA1C-B72E367DA73B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="test.vcxproj">
+      <Project>{FC6EE531-E852-A687-51B3-A0DA3DB69009}</Project>
+    </ProjectReference>
+    <ProjectReference Include="thomson.vcxproj">
+      <Project>{A4165667-1083-1162-D976-A9BF45A233CA}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ti.vcxproj">
+      <Project>{79EE2FE6-65E7-4E38-8E19-34BD7A712E44}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tiger.vcxproj">
+      <Project>{774B956E-E3AC-727C-6C1A-B92ED87AA93B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tigertel.vcxproj">
+      <Project>{FCA6D88B-E8A0-01DE-D10D-98EEBDA6674A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tiki.vcxproj">
+      <Project>{ED7EE531-D962-A687-42C3-A0DA2EC69009}</Project>
+    </ProjectReference>
+    <ProjectReference Include="tomy.vcxproj">
+      <Project>{C598E531-B17C-A687-1ADD-A0DA06E09009}</Project>
+    </ProjectReference>
+    <ProjectReference Include="toshiba.vcxproj">
+      <Project>{E6AAEF77-5217-AB72-1B0B-43D08736CDDA}</Project>
+    </ProjectReference>
+    <ProjectReference Include="trainer.vcxproj">
+      <Project>{D10DAA7D-3D7A-6578-066E-FDD5729987E0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="trs.vcxproj">
+      <Project>{35BF2DAC-A1D5-2B42-EA4C-B76356A2FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ultimachine.vcxproj">
+      <Project>{AFC5E4F7-1B88-1882-6438-A70ED039F15F}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ultratec.vcxproj">
+      <Project>{602E3E7E-4C28-67D0-3595-FDE0212ECD3C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="unisonic.vcxproj">
+      <Project>{C495A3FE-B08F-CC50-99FC-6261859532BD}</Project>
+    </ProjectReference>
+    <ProjectReference Include="unisys.vcxproj">
+      <Project>{27B3EF43-1342-790D-BC60-8D08A8CE89B3}</Project>
+    </ProjectReference>
+    <ProjectReference Include="usp.vcxproj">
+      <Project>{94C32DAC-00DA-2B42-4951-B763B5A6FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="veb.vcxproj">
+      <Project>{F9C52DAC-65DC-2B42-AE53-B7631AA9FCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="vidbrain.vcxproj">
+      <Project>{0B3D265D-F736-4FAF-E0A3-E5BFCC3CB51B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="videoton.vcxproj">
+      <Project>{04335B5D-F02C-84AF-D999-1AC0C532EA1B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="visual.vcxproj">
+      <Project>{70E2EF45-5C71-790F-0590-8D0AF1FD89B5}</Project>
+    </ProjectReference>
+    <ProjectReference Include="votrax.vcxproj">
+      <Project>{20F55C46-0C84-E60F-B5A2-FA0AA110F7B5}</Project>
+    </ProjectReference>
+    <ProjectReference Include="vtech.vcxproj">
+      <Project>{D67BBF6E-42DD-9C7C-CB4A-E32E37ABD33B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="wang.vcxproj">
+      <Project>{6902E731-55E6-A787-BE46-A2DAAA499209}</Project>
+    </ProjectReference>
+    <ProjectReference Include="wavemate.vcxproj">
+      <Project>{3694C60B-228E-EF5D-0BFB-856EF79355CA}</Project>
+    </ProjectReference>
+    <ProjectReference Include="xerox.vcxproj">
+      <Project>{12ACDB6E-7E0D-B97C-077B-FF2E73DBEF3B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="xussrpc.vcxproj">
+      <Project>{F4C1DDB9-602E-99B4-2922-3112954DBB1C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="yamaha.vcxproj">
+      <Project>{CDF95A4C-B988-E415-62A7-F8104E15F5BB}</Project>
+    </ProjectReference>
+    <ProjectReference Include="zenith.vcxproj">
+      <Project>{6E34F94E-5AC3-8218-03E2-9613EF4F93BE}</Project>
+    </ProjectReference>
+    <ProjectReference Include="zpa.vcxproj">
+      <Project>{67D82DAC-D3EE-2B42-1C66-B76388BBFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="zvt.vcxproj">
+      <Project>{40D92DAC-ACEF-2B42-F566-B76361BCFCC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="messshared.vcxproj">
+      <Project>{2BDFA140-1704-F1C0-404F-D6502CD3EFDE}</Project>
+    </ProjectReference>
+    <ProjectReference Include="osd_windows.vcxproj">
+      <Project>{D5E1A481-4197-1D77-CA8B-174E3640147B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="qtdbg_windows.vcxproj">
+      <Project>{01D73598-6D97-B1CE-36D2-FA4BA251F6AA}</Project>
+    </ProjectReference>
+    <ProjectReference Include="frontend.vcxproj">
+      <Project>{E98E14C4-82A4-4988-BA29-01C90C817AB8}</Project>
+    </ProjectReference>
+    <ProjectReference Include="netlist.vcxproj">
+      <Project>{665EF8AC-2A4C-4C3E-A05F-FD1E5DB11DE9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="optional.vcxproj">
+      <Project>{F7D1D881-E3B5-99D7-4C16-942A38198459}</Project>
+    </ProjectReference>
+    <ProjectReference Include="emu.vcxproj">
+      <Project>{E6FA15E4-A354-4526-ACEF-13C8E80FCACF}</Project>
+    </ProjectReference>
+    <ProjectReference Include="formats.vcxproj">
+      <Project>{F69636B1-FCCE-45CE-B09A-113E371A2D7A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="dasm.vcxproj">
+      <Project>{F2D28B0A-6DA5-4F78-B629-D834AA00429D}</Project>
+    </ProjectReference>
+    <ProjectReference Include="utils.vcxproj">
+      <Project>{22489AD0-4CB2-4D91-AD81-24B0D80CA30A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="expat.vcxproj">
+      <Project>{F4CD40B1-C37C-452D-9785-640F26F0BF54}</Project>
+    </ProjectReference>
+    <ProjectReference Include="softfloat.vcxproj">
+      <Project>{04FBF89E-4761-4CF2-8A12-64500CF0C5C5}</Project>
+    </ProjectReference>
+    <ProjectReference Include="jpeg.vcxproj">
+      <Project>{447C6800-DCFD-4C48-B72A-A8223BB409CA}</Project>
+    </ProjectReference>
+    <ProjectReference Include="7z.vcxproj">
+      <Project>{AD573D62-E76A-4B11-AE34-5110A6789A42}</Project>
+    </ProjectReference>
+    <ProjectReference Include="lua.vcxproj">
+      <Project>{D9E2EED1-F1AB-4737-A6AC-863700B1A5A9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="lualibs.vcxproj">
+      <Project>{1D84EDAB-94CF-48FB-83EE-B75BC697660E}</Project>
+    </ProjectReference>
+    <ProjectReference Include="uv.vcxproj">
+      <Project>{CD2AFE7F-139D-49C3-9000-FC9119F3CEA0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="http-parser.vcxproj">
+      <Project>{90C6BA59-BDB2-4FEE-8B44-57601D690E14}</Project>
+    </ProjectReference>
+    <ProjectReference Include="zlib.vcxproj">
+      <Project>{3D78BD2A-2BD0-4449-8087-42DDFAEF7EC9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="flac.vcxproj">
+      <Project>{B6FC19E8-073A-4541-BB7B-D24B548D424A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="sqlite3.vcxproj">
+      <Project>{5CB3D495-57ED-461C-81E5-80DC0857517D}</Project>
+    </ProjectReference>
+    <ProjectReference Include="portmidi.vcxproj">
+      <Project>{587F2DA6-3274-4A65-86A2-F13EA315BB98}</Project>
+    </ProjectReference>
+    <ProjectReference Include="bgfx.vcxproj">
+      <Project>{D3E7E119-35CF-4F4F-ABA0-D3BDCD1B879A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ocore_windows.vcxproj">
+      <Project>{678AFACB-D34A-7602-9C85-BF7F0805BBDE}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

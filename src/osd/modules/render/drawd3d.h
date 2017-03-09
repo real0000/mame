@@ -13,6 +13,7 @@
 
 #ifdef OSD_WINDOWS
 
+#include <functional>
 #include "d3d/d3dintf.h"
 #include "d3d/d3dcomm.h"
 
@@ -32,6 +33,7 @@ class texture_info;
 class texture_manager;
 struct device;
 struct vertex_buffer;
+struct index_buffer;
 class shaders;
 struct hlsl_options;
 class poly_info;
@@ -49,6 +51,9 @@ public:
 	virtual int create() override;
 	virtual render_primitive_list *get_primitives() override;
 	virtual int draw(const int update) override;
+	void normal_draw_process();
+	void vr_draw_process();
+
 	virtual void save() override;
 	virtual void record() override;
 	virtual void toggle_fsfx() override;
@@ -56,6 +61,7 @@ public:
 	int                     initialize();
 
 	int                     device_create(HWND device_HWND);
+	int						device_create11();// for vr
 	int                     device_create_resources();
 	void                    device_delete();
 	void                    device_delete_resources();
@@ -98,6 +104,7 @@ public:
 	int                     get_refresh() const { return m_refresh; }
 
 	device *                get_device() const { return m_device; }
+	device11 *				get_device11() const { return m_device11; }
 	present_parameters *    get_presentation() { return &m_presentation; }
 
 	vertex_buffer *         get_vertex_buffer() const { return m_vertexbuf; }
@@ -123,6 +130,9 @@ public:
 	hlsl_options *          get_shaders_options() const { return m_shaders_options; }
 
 private:
+	void					init_vr_resource();
+	void					draw_vr_machine_model();
+
 	int                     m_adapter;                  // ordinal adapter number
 	int                     m_width;                    // current width
 	int                     m_height;                   // current height
@@ -134,6 +144,9 @@ private:
 	present_parameters      m_presentation;             // set of presentation parameters
 	D3DDISPLAYMODE          m_origmode;                 // original display mode for the adapter
 	D3DFORMAT               m_pixformat;                // pixel format we are using
+
+	device11 *              m_device11;					// d3d 11 device for openvr
+	context11 *             m_context11;				// d3d 11 immediate context for openvr
 
 	vertex_buffer *         m_vertexbuf;                // pointer to the vertex buffer object
 	vertex *                m_lockedbuf;                // pointer to the locked vertex buffer
@@ -168,6 +181,11 @@ private:
 	d3d_texture_manager *  m_texture_manager;          // texture manager
 
 	int                     m_line_count;
+
+	std::function<void()>	m_draw_process;
+	typedef std::tuple<surface11 *, texture11 *, texture11_view *> surface11_pack;
+	texture *				m_game_screen_texture;
+	surface11_pack			m_vr_left_eye, m_vr_left_eye_depth, m_vr_right_eye, m_vr_right_eye_depth;
 };
 
 #endif // OSD_WINDOWS

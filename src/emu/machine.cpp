@@ -74,6 +74,7 @@
 #include "config.h"
 #include "debugger.h"
 #include "render.h"
+#include "vr.h"
 #include "uiinput.h"
 #include "crsshair.h"
 #include "unzip.h"
@@ -200,6 +201,9 @@ void running_machine::start()
 	m_render = std::make_unique<render_manager>(*this);
 	m_bookkeeping = std::make_unique<bookkeeping_manager>(*this);
 
+	// init vr enviroment if we have
+	vr_machine::singleton().init(this);
+
 	// allocate a soft_reset timer
 	m_soft_reset_timer = m_scheduler.timer_alloc(timer_expired_delegate(FUNC(running_machine::soft_reset), this));
 
@@ -268,7 +272,7 @@ void running_machine::start()
 	else if (options().autosave() && (m_system.flags & MACHINE_SUPPORTS_SAVE) != 0)
 		schedule_load("auto");
 
-
+	
 	manager().update_machine();
 }
 
@@ -420,6 +424,8 @@ void running_machine::schedule_exit()
 	// if we're autosaving on exit, schedule a save as well
 	if (options().autosave() && (m_system.flags & MACHINE_SUPPORTS_SAVE) && this->time() > attotime::zero)
 		schedule_save("auto");
+
+	vr_machine::singleton().uninit();
 }
 
 
@@ -1016,7 +1022,7 @@ std::string running_machine::nvram_filename(device_t &device) const
 		for (device_t *dev = &device; dev->owner() != nullptr; dev = dev->owner())
 		{
 			device_image_interface *intf;
-			if (dev->interface(intf))
+			if (dev->interface_check(intf))
 			{
 				software = intf->basename_noext();
 				break;

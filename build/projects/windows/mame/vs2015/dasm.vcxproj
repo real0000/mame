@@ -1,0 +1,599 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{F2D28B0A-6DA5-4F78-B629-D834AA00429D}</ProjectGuid>
+    <RootNamespace>dasm</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>..\..\..\..\vs2015\bin\x32\Debug\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x32\Debug\dasm\</IntDir>
+    <TargetName>dasm</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>..\..\..\..\vs2015\bin\x64\Debug\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x64\Debug\dasm\</IntDir>
+    <TargetName>dasm</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>..\..\..\..\vs2015\bin\x32\Release\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x32\Release\dasm\</IntDir>
+    <TargetName>dasm</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>..\..\..\..\vs2015\bin\x64\Release\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x64\Release\dasm\</IntDir>
+    <TargetName>dasm</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\emu;..\..\..\..\..\3rdparty\expat\lib;..\..\..\..\..\3rdparty\lua\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ProgramDataBaseFileName>$(OutDir)dasm.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\emu;..\..\..\..\..\3rdparty\expat\lib;..\..\..\..\..\3rdparty\lua\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Lib>
+      <OutputFile>$(OutDir)dasm.lib</OutputFile>
+      <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\emu;..\..\..\..\..\3rdparty\expat\lib;..\..\..\..\..\3rdparty\lua\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ProgramDataBaseFileName>$(OutDir)dasm.pdb</ProgramDataBaseFileName>
+      <DisableSpecificWarnings>4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\emu;..\..\..\..\..\3rdparty\expat\lib;..\..\..\..\..\3rdparty\lua\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Lib>
+      <OutputFile>$(OutDir)dasm.lib</OutputFile>
+      <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+      <TargetMachine>MachineX64</TargetMachine>
+    </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\emu;..\..\..\..\..\3rdparty\expat\lib;..\..\..\..\..\3rdparty\lua\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\emu;..\..\..\..\..\3rdparty\expat\lib;..\..\..\..\..\3rdparty\lua\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Lib>
+      <OutputFile>$(OutDir)dasm.lib</OutputFile>
+      <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\emu;..\..\..\..\..\3rdparty\expat\lib;..\..\..\..\..\3rdparty\lua\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <DisableSpecificWarnings>4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\3rdparty;..\..\..\..\generated\emu;..\..\..\..\..\3rdparty\expat\lib;..\..\..\..\..\3rdparty\lua\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Lib>
+      <OutputFile>$(OutDir)dasm.lib</OutputFile>
+      <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+      <TargetMachine>MachineX64</TargetMachine>
+    </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\src\devices\cpu\i960\i960dis.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\8x300\8x300dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\8x300\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\arc\arcdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\arc\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\arcompact\arcompactdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\arcompact\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\arcompact\arcompactdasm_dispatch.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\arcompact\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\arcompact\arcompactdasm_ops.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\arcompact\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\arcompact\arcompact_common.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\arcompact\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\arm\armdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\arm\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\arm7\arm7dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\arm7\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\se3208\se3208dis.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\se3208\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\amis2000\amis2000d.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\amis2000\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\alph8201\8201dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\alph8201\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\adsp2100\2100dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\adsp2100\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\sharc\sharcdsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\sharc\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\apexc\apexcdsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\apexc\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\dsp16\dsp16dis.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\dsp16\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\dsp32\dsp32dis.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\dsp32\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\asap\asapdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\asap\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\am29000\am29dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\am29000\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\jaguar\jagdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\jaguar\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\cubeqcpu\cubedasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\cubeqcpu\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\esrip\esripdsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\esrip\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\e0c6200\e0c6200d.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\e0c6200\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\cosmac\cosdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\cosmac\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\cop400\cop410ds.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\cop400\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\cop400\cop420ds.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\cop400\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\cop400\cop440ds.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\cop400\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\cp1610\1610dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\cp1610\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\ccpu\ccpudasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\ccpu\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\t11\t11dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\t11\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\f8\f8dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\f8\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\g65816\g65816ds.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\g65816\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\hcd62121\hcd62121d.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\hcd62121\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\hmcs40\hmcs40d.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\hmcs40\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\sh2\sh2dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\sh2\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\sh4\sh4dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\sh4\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\hphybrid\hphybrid_dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\hphybrid\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\h6280\6280dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\h6280\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\e132xs\32xsdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\e132xs\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\ie15\ie15dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\ie15\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\i4004\4004dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\i4004\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\i8008\8008dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\i8008\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\scmp\scmpdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\scmp\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\i8085\8085dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\i8085\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\i8089\i8089_dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\i8089\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mcs48\mcs48dsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\mcs48\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mcs51\mcs51dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\mcs51\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\i386\i386dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\i386\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\i860\i860dis.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\i860\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\i960\i960dis.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\i960\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\lh5801\5801dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\lh5801\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\ssem\ssemdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\ssem\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mb88xx\mb88dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\mb88xx\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mb86233\mb86233d.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\mb86233\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mb86235\mb86235d.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\mb86235\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\pic16c5x\16c5xdsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\pic16c5x\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\pic16c62x\16c62xdsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\pic16c62x\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mips\r3kdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\mips\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mips\mips3dsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\mips\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\psx\psxdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\psx\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\melps4\melps4d.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\melps4\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\m37710\m7700ds.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\m37710\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\m6800\6800dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\m6800\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\m6805\6805dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\m6805\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\m6809\6809dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\m6809\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\m6809\6309dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\m6809\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\m6809\knmidasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\m6809\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mc68hc11\hc11dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\mc68hc11\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\m68000\m68kdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\m68000\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\dsp56k\dsp56dsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\dsp56k\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\dsp56k\opcode.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\dsp56k\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\dsp56k\inst.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\dsp56k\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\dsp56k\pmove.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\dsp56k\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\dsp56k\tables.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\dsp56k\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\pdp1\pdp1dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\pdp1\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\pdp1\tx0dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\pdp1\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\patinhofeio\patinho_feio_dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\patinhofeio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\powerpc\ppc_dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\powerpc\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\nec\necdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\nec\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\v60\v60d.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\v60\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\v810\v810dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\v810\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\upd7725\dasm7725.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\upd7725\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\upd7810\upd7810_dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\upd7810\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\ucom4\ucom4d.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\ucom4\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\minx\minxd.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\minx\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\rsp\rsp_dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\rsp\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mn10200\mn102dis.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\mn10200\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\saturn\saturnds.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\saturn\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\sm510\sm510d.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\sm510\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\sm8500\sm8500d.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\sm8500\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\s2650\2650dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\s2650\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\sc61860\scdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\sc61860\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\spc700\spc700ds.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\spc700\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\ssp1601\ssp1601d.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\ssp1601\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\unsp\unspdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\unsp\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\avr8\avr8dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\avr8\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms1000\tms1k_dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\tms1000\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms7000\7000dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\tms7000\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms9900\9900dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\tms9900\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms34010\34010dsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\tms34010\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms32010\32010dsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\tms32010\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms32025\32025dsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\tms32025\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms32031\dis32031.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\tms32031\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms32051\dis32051.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\tms32051\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms32082\dis_mp.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\tms32082\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms32082\dis_pp.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\tms32082\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms57002\57002dsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\tms57002\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tlcs900\dasm900.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\tlcs900\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\z80\z80dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\z80\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\lr35902\lr35902d.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\lr35902\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\z180\z180dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\z180\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\z8000\8000dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\z8000\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\z8\z8dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\z8\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\superfx\sfx_dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\superfx\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\pps4\pps4dasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\pps4\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\hd61700\hd61700d.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\hd61700\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\lc8670\lc8670dsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\lc8670\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\scudsp\scudspdasm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\scudsp\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\score\scoredsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\score\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\alto2\alto2dsm.cpp">
+      <ObjectFileName>$(IntDir)src\devices\cpu\alto2\</ObjectFileName>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\..\..\..\src\devices\cpu\tms57002\tmsinstr.lst">
+      <FileType>Text</FileType>
+      <Command>@echo Generating TMS57002 source file...
+C:\msys64\mingw64\bin\python.exe ../../../../../src/devices/cpu/tms57002/tmsmake.py  ../../../../../src/devices/cpu/tms57002/tmsinstr.lst  ../../../../generated/emu/cpu/tms57002/tms57002.hxx 
+</Command>
+      <Outputs>../../../../generated/emu/cpu/tms57002/tms57002.hxx;%(Outputs)</Outputs>
+      <SubType>Designer</SubType>
+      <Message>
+      </Message>
+    </CustomBuild>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

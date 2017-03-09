@@ -571,7 +571,7 @@ void ui_menu_select_software::build_software_list()
 				tmpmatches.part = strensure(part->name());
 				tmpmatches.driver = m_driver;
 				tmpmatches.listname = strensure(swlist.list_name());
-				tmpmatches.interface = strensure(part->interface());
+				tmpmatches.interface = strensure(part->get_interface());
 				tmpmatches.startempty = 0;
 				tmpmatches.parentlongname.clear();
 				tmpmatches.usage.clear();

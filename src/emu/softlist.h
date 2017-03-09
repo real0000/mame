@@ -116,7 +116,7 @@ public:
 	software_part *next() const { return m_next; }
 	software_info &info() const { return m_info; }
 	const char *name() const { return m_name; }
-	const char *interface() const { return m_interface; }
+	const char *get_interface() const { return m_interface; }
 	const simple_list<feature_list_item> &featurelist() const { return m_featurelist; }
 	rom_entry *romdata(unsigned int index = 0) { return (index < m_romdata.size()) ? &m_romdata[index] : nullptr; }
 

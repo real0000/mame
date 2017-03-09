@@ -33,7 +33,6 @@
 #include "d3dhlsl.h"
 #include "../frontend/mame/ui/slider.h"
 
-
 //============================================================
 //  GLOBALS
 //============================================================
@@ -52,7 +51,7 @@ static void get_vector(const char *data, int count, float *out, bool report_erro
 
 typedef HRESULT (WINAPI *direct3dx9_loadeffect_ptr)(LPDIRECT3DDEVICE9 pDevice, LPCTSTR pSrcFile, const D3DXMACRO *pDefines, LPD3DXINCLUDE pInclude, DWORD Flags, LPD3DXEFFECTPOOL pPool, LPD3DXEFFECT *ppEffect, LPD3DXBUFFER *ppCompilationErrors);
 static direct3dx9_loadeffect_ptr g_load_effect = nullptr;
-
+#define D3D_SAFE_RELEASE(p) if( nullptr != p ) p->Release(); p = nullptr
 
 //============================================================
 //  shader manager constructor
@@ -119,7 +118,7 @@ void shaders::window_save()
 		return;
 	}
 
-	HRESULT result = (*d3dintf->device.create_texture)(d3d->get_device(), snap_width, snap_height, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &snap_copy_texture);
+	HRESULT result = (*d3dintf->device.create_texture)(d3d->get_device(), snap_width, snap_height, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &snap_copy_texture, nullptr);
 	if (result != D3D_OK)
 	{
 		osd_printf_verbose("Direct3D: Unable to init system-memory target for HLSL snapshot (%08x), bailing\n", (UINT32)result);
@@ -127,7 +126,7 @@ void shaders::window_save()
 	}
 	(*d3dintf->texture.get_surface_level)(snap_copy_texture, 0, &snap_copy_target);
 
-	result = (*d3dintf->device.create_texture)(d3d->get_device(), snap_width, snap_height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &snap_texture);
+	result = (*d3dintf->device.create_texture)(d3d->get_device(), snap_width, snap_height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &snap_texture, nullptr);
 	if (result != D3D_OK)
 	{
 		osd_printf_verbose("Direct3D: Unable to init video-memory target for HLSL snapshot (%08x), bailing\n", (UINT32)result);
@@ -619,7 +618,7 @@ void shaders::set_texture(texture_info *texture)
 //  shaders::init
 //============================================================
 
-void shaders::init(d3d_base *d3dintf, running_machine *machine, renderer_d3d9 *renderer)
+void shaders::init(d3d_base *d3dintf, d3d11_base *d3d11intf, running_machine *machine, renderer_d3d9 *renderer)
 {
 	if (!d3dintf->post_fx_available)
 	{
@@ -636,6 +635,7 @@ void shaders::init(d3d_base *d3dintf, running_machine *machine, renderer_d3d9 *r
 	}
 
 	this->d3dintf = d3dintf;
+	this->d3d11intf = d3d11intf;
 	this->machine = machine;
 	this->d3d = renderer;
 	this->options = renderer->get_shaders_options();
@@ -743,6 +743,22 @@ void shaders::init(d3d_base *d3dintf, running_machine *machine, renderer_d3d9 *r
 	options->params_dirty = true;
 }
 
+void shaders::add_custom_effect(device11 *dev, context11 *con, const char *name, const char *path)
+{
+	effect11 *new_effect = new effect11(d3d11intf, dev, con, name, path);
+	custom_effect_list.push_back(new_effect);
+}
+
+effect11* shaders::get_custom_effect(unsigned int idx)
+{
+	return custom_effect_list[idx];
+}
+
+void shaders::clear_custom_effect()
+{
+	for( unsigned int i=0 ; i<custom_effect_list.size() ; ++i ) delete custom_effect_list[i];
+	custom_effect_list.clear();
+}
 
 //============================================================
 //  shaders::init_fsfx_quad
@@ -842,7 +858,7 @@ int shaders::create_resources(bool reset, std::vector<ui_menu_item>& sliders)
 		osd_printf_verbose("Direct3D: Error %08X during device get_render_target call\n", (int)result);
 	}
 
-	result = (*d3dintf->device.create_texture)(d3d->get_device(), 4, 4, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &black_texture);
+	result = (*d3dintf->device.create_texture)(d3d->get_device(), 4, 4, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &black_texture, nullptr);
 	if (result != D3D_OK)
 	{
 		osd_printf_verbose("Direct3D: Unable to init video-memory target for black texture (%08x)\n", (UINT32)result);
@@ -856,7 +872,7 @@ int shaders::create_resources(bool reset, std::vector<ui_menu_item>& sliders)
 	result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, backbuffer);
 	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 
-	result = (*d3dintf->device.create_texture)(d3d->get_device(), (int)snap_width, (int)snap_height, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &avi_copy_texture);
+	result = (*d3dintf->device.create_texture)(d3d->get_device(), (int)snap_width, (int)snap_height, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &avi_copy_texture, nullptr);
 	if (result != D3D_OK)
 	{
 		osd_printf_verbose("Direct3D: Unable to init system-memory target for HLSL AVI dumping (%08x)\n", (UINT32)result);
@@ -864,7 +880,7 @@ int shaders::create_resources(bool reset, std::vector<ui_menu_item>& sliders)
 	}
 	(*d3dintf->texture.get_surface_level)(avi_copy_texture, 0, &avi_copy_surface);
 
-	result = (*d3dintf->device.create_texture)(d3d->get_device(), (int)snap_width, (int)snap_height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &avi_final_texture);
+	result = (*d3dintf->device.create_texture)(d3d->get_device(), (int)snap_width, (int)snap_height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &avi_final_texture, nullptr);
 	if (result != D3D_OK)
 	{
 		osd_printf_verbose("Direct3D: Unable to init video-memory target for HLSL AVI dumping (%08x)\n", (UINT32)result);
@@ -923,7 +939,7 @@ int shaders::create_resources(bool reset, std::vector<ui_menu_item>& sliders)
 		return 1;
 	}
 
-	effect *effects[13] = {
+	effect *effects[] = {
 		default_effect,
 		post_effect,
 		distortion_effect,
@@ -938,8 +954,9 @@ int shaders::create_resources(bool reset, std::vector<ui_menu_item>& sliders)
 		downsample_effect,
 		vector_effect
 	};
+	const unsigned int c_NumEffect = sizeof(effects) / sizeof(effect);
 
-	for (int i = 0; i < 13; i++)
+	for (int i = 0; i < c_NumEffect; i++)
 	{
 		effects[i]->add_uniform("SourceDims", uniform::UT_VEC2, uniform::CU_SOURCE_DIMS);
 		effects[i]->add_uniform("TargetDims", uniform::UT_VEC2, uniform::CU_TARGET_DIMS);
@@ -2043,6 +2060,7 @@ void shaders::delete_resources(bool reset)
 		currtarget = targethead;
 	}
 
+	clear_custom_effect();
 	if (downsample_effect != nullptr)
 	{
 		delete downsample_effect;
@@ -2911,6 +2929,11 @@ void uniform::set(texture *tex)
 	m_texture = tex;
 }
 
+void uniform::set(void *extern_data)
+{
+	m_extern = extern_data;
+}
+
 void uniform::upload()
 {
 	switch (m_type)
@@ -3100,7 +3123,246 @@ D3DXHANDLE effect::get_parameter(D3DXHANDLE param, const char *name)
 	return m_effect->GetParameterByName(param, name);
 }
 
+uniform* effect::get_last_uniform()
+{
+	return m_uniform_tail;
+}
+
 ULONG effect::release()
 {
 	return m_effect->Release();
+}
+
+
+//============================================================
+//  effect 11 functions
+//============================================================
+effect11::effect11(d3d11_base *d3dptr, device11 *dev, context11 *con, const char *name, const char *path)
+	: m_total_size(0)
+	, m_vertex_shader(nullptr)
+	, m_pixel_shader(nullptr)
+	, m_input_layout(nullptr)
+	, m_contant_buffer(nullptr)
+	, m_depth_state(nullptr), m_rast_state(nullptr), m_blend_state(nullptr)
+	, m_sampler(nullptr)
+	, m_ref_dev((ID3D11Device *)dev)
+	, m_ref_con((ID3D11DeviceContext *)con)
+{
+	memset(m_data_buffer, 0, sizeof(m_data_buffer));
+
+	const char *target_name[] = {"vs", "ps"};
+	const unsigned int num_shader = sizeof(target_name) / sizeof(const char *);
+
+	char name_cstr[1024];
+
+	std::vector<ID3DBlob *> binaries(num_shader, nullptr);
+	for( unsigned int i=0 ; i<num_shader ; ++i )
+	{
+		sprintf(name_cstr, "%s/%s.%s", path, name, target_name[i]);
+		
+		char entry[32], shader_target_name[32];
+		sprintf(entry, "%s_main", target_name[i]);
+		sprintf(shader_target_name, "%s_5_0", target_name[i]);
+		
+		ID3DBlob *binary = nullptr, *error_msg = nullptr;
+		HRESULT result = (*d3dptr->d3d.effect_compiler)(d3dptr, name_cstr, nullptr, nullptr, entry, shader_target_name, &binary, &error_msg);
+		if( S_OK != result )
+		{
+			if (error_msg != nullptr)
+			{
+				LPVOID compile_errors = error_msg->GetBufferPointer();
+				printf("Unable to compile shader: %s\n", (const char*)compile_errors); fflush(stdout);
+			}
+			else
+			{
+				printf("Shader %s is missing, corrupt or cannot be compiled.\n", (const char*)name); fflush(stdout);
+				continue;
+			}
+		}
+
+		binaries[i] = binary;
+	}
+
+	HRESULT result = m_ref_dev->CreateVertexShader(binaries[0]->GetBufferPointer(), binaries[0]->GetBufferSize(), nullptr, &m_vertex_shader);
+	if( S_OK != result )
+	{
+		printf("Unable to create vertex shader.(error code : %x)\n", (unsigned int)result);
+		fflush(stdout);
+	}
+
+	result = m_ref_dev->CreatePixelShader(binaries[1]->GetBufferPointer(), binaries[1]->GetBufferSize(), nullptr, &m_pixel_shader);
+	if( S_OK != result )
+	{
+		printf("Unable to create pixel shader.(error code : %x)\n", (unsigned int)result);
+		fflush(stdout);
+	}
+
+	D3D11_INPUT_ELEMENT_DESC layout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+	const unsigned int num_layout = sizeof(layout) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	result = m_ref_dev->CreateInputLayout(layout, num_layout, binaries[0]->GetBufferPointer(), binaries[0]->GetBufferSize(), &m_input_layout);
+	if( S_OK != result )
+	{
+		printf("Unable to create input layout.(error code : %x)\n", (unsigned int)result);
+		fflush(stdout);
+	}
+
+	for( unsigned int i=0 ; i<num_shader ; ++i )
+	{
+		if( nullptr != binaries[i] ) binaries[i]->Release();
+	}
+
+	D3D11_SAMPLER_DESC sampler_desc = {};
+	sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sampler_desc.AddressU = sampler_desc.AddressV = sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampler_desc.MipLODBias = 0.0f;
+	sampler_desc.MaxAnisotropy = 1;
+	sampler_desc.ComparisonFunc = D3D11_COMPARISON_LESS;
+	sampler_desc.MinLOD = 0.0f;
+	sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
+	result = m_ref_dev->CreateSamplerState(&sampler_desc, &m_sampler);
+	if( S_OK != result )
+	{
+		printf("Unable to create sampler.(error code : %x)\n", (unsigned int)result);
+		fflush(stdout);
+	}
+
+	D3D11_BLEND_DESC blend_desc = {};
+	blend_desc.AlphaToCoverageEnable = true;
+	blend_desc.IndependentBlendEnable = false;
+	blend_desc.RenderTarget[0].BlendEnable = false;
+	blend_desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	blend_desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	blend_desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blend_desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blend_desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+	blend_desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blend_desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	result = m_ref_dev->CreateBlendState(&blend_desc, &m_blend_state);
+	if( S_OK != result )
+	{
+		printf("Unable to create blend state.(error code : %x)\n", (unsigned int)result);
+		fflush(stdout);
+	}
+
+	D3D11_DEPTH_STENCIL_DESC depth_desc = {};
+	depth_desc.DepthEnable = true;
+	depth_desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	depth_desc.DepthFunc = D3D11_COMPARISON_LESS;
+	depth_desc.StencilEnable = false;
+	depth_desc.StencilReadMask = 0xff;
+	depth_desc.StencilWriteMask = 0xff;
+	depth_desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	depth_desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	depth_desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+	depth_desc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+	depth_desc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	depth_desc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	depth_desc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+	depth_desc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+	result = m_ref_dev->CreateDepthStencilState(&depth_desc, &m_depth_state);
+	if( S_OK != result )
+	{
+		printf("Unable to create depth stencil state.(error code : %x)\n", (unsigned int)result);
+		fflush(stdout);
+	}
+
+	D3D11_RASTERIZER_DESC rasterizer_desc = {};
+	rasterizer_desc.FillMode = D3D11_FILL_SOLID;
+	rasterizer_desc.CullMode = D3D11_CULL_NONE;
+	rasterizer_desc.FrontCounterClockwise = true;
+	rasterizer_desc.DepthBias = 0;
+	rasterizer_desc.DepthBiasClamp = 0.0f;
+	rasterizer_desc.SlopeScaledDepthBias = 0.0f;
+	rasterizer_desc.DepthClipEnable = true;
+	rasterizer_desc.ScissorEnable = false;
+	rasterizer_desc.MultisampleEnable = false;
+	rasterizer_desc.AntialiasedLineEnable = false;
+	result = m_ref_dev->CreateRasterizerState(&rasterizer_desc, &m_rast_state);
+	if( S_OK != result )
+	{
+		printf("Unable to create rasterizer state.(error code : %x)\n", (unsigned int)result);
+		fflush(stdout);
+	}
+}
+
+effect11::~effect11()
+{
+	D3D_SAFE_RELEASE(m_depth_state);
+	D3D_SAFE_RELEASE(m_rast_state);
+	D3D_SAFE_RELEASE(m_blend_state);
+	D3D_SAFE_RELEASE(m_sampler);
+	D3D_SAFE_RELEASE(m_contant_buffer);
+	D3D_SAFE_RELEASE(m_input_layout);
+	D3D_SAFE_RELEASE(m_vertex_shader);
+	D3D_SAFE_RELEASE(m_pixel_shader);
+}
+
+void effect11::begin()
+{
+	float blend_factor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+	
+	m_ref_con->OMSetBlendState(m_blend_state, blend_factor, 0xffffffff);
+	m_ref_con->OMSetDepthStencilState(m_depth_state, 0xffffffff);
+	m_ref_con->RSSetState(m_rast_state);
+
+	m_ref_con->IASetInputLayout(m_input_layout);
+	m_ref_con->VSSetShader(m_vertex_shader, nullptr, 0);
+	m_ref_con->VSSetConstantBuffers(0, 1, &m_contant_buffer);
+	m_ref_con->PSSetShader(m_pixel_shader, nullptr, 0);
+	m_ref_con->PSSetConstantBuffers(0, 1, &m_contant_buffer);
+	m_ref_con->PSSetSamplers(0, 1, &m_sampler);
+}
+
+void effect11::end()
+{
+	m_ref_con->IASetInputLayout(nullptr);
+	m_ref_con->VSSetShader(nullptr, nullptr, 0);
+	m_ref_con->VSSetConstantBuffers(0, 0, nullptr);
+	m_ref_con->PSSetShader(nullptr, nullptr, 0);
+	m_ref_con->PSSetConstantBuffers(0, 0, nullptr);
+	m_ref_con->PSSetSamplers(0, 0, nullptr);
+}
+
+void effect11::add_constant(uniform::uniform_type type, void **output)
+{
+	unsigned int size = 0;
+	switch( type )
+	{
+		case uniform::UT_VEC4:	size = sizeof(float) * 4;	break;
+		case uniform::UT_VEC3:	size = sizeof(float) * 3;	break;
+		case uniform::UT_VEC2:	size = sizeof(float) * 2;	break;
+		case uniform::UT_FLOAT:	size = sizeof(float) * 1;	break;
+		case uniform::UT_INT:	size = sizeof(int);			break;
+		case uniform::UT_BOOL:	size = sizeof(bool);		break;
+		case uniform::UT_MATRIX:size = sizeof(float) * 16;	break;
+		default:break;
+	}
+
+	*output = m_data_buffer + m_total_size;
+	m_total_size += size;
+}
+
+void effect11::init_constant()
+{
+	D3D11_BUFFER_DESC desc = {};
+	desc.Usage = D3D11_USAGE_DEFAULT;
+	desc.ByteWidth = (m_total_size + 0x0000000f) & ~0x0000000f;
+	desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	desc.CPUAccessFlags = 0;
+
+	D3D11_SUBRESOURCE_DATA initdata = {};
+	initdata.pSysMem = m_data_buffer;
+	m_ref_dev->CreateBuffer(&desc, &initdata, &m_contant_buffer);
+}
+
+void effect11::update_constant()
+{
+	m_ref_con->UpdateSubresource(m_contant_buffer, 0, nullptr, m_data_buffer, 0, 0);
 }

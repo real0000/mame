@@ -78,7 +78,7 @@ void c64_bn1541_device::device_start()
 	{
 		for (device_t &subdevice : device_iterator(device))
 		{
-			if (subdevice.interface(m_other) && &subdevice != this)
+			if (subdevice.interface_check(m_other) && &subdevice != this)
 			{
 				if (LOG) logerror("Parallel device %s\n", subdevice.tag());
 

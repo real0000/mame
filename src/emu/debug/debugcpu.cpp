@@ -425,7 +425,7 @@ bool debug_comment_load(running_machine &machine)
 int debug_cpu_translate(address_space &space, int intention, offs_t *address)
 {
 	device_memory_interface *memory;
-	if (space.device().interface(memory))
+	if (space.device().interface_check(memory))
 		return memory->translate(space.spacenum(), intention, *address);
 	return true;
 }
@@ -873,7 +873,7 @@ UINT64 debug_read_opcode(address_space &space, offs_t address, int size)
 	/* return early if we got the result directly */
 	space.set_debugger_access(global->debugger_access = true);
 	device_memory_interface *memory;
-	if (space.device().interface(memory) && memory->readop(address, size, result2))
+	if (space.device().interface_check(memory) && memory->readop(address, size, result2))
 	{
 		space.set_debugger_access(global->debugger_access = false);
 		return result2;
@@ -1633,10 +1633,10 @@ device_debug::device_debug(device_t &device)
 	memset(m_wplist, 0, sizeof(m_wplist));
 
 	// find out which interfaces we have to work with
-	device.interface(m_exec);
-	device.interface(m_memory);
-	device.interface(m_state);
-	device.interface(m_disasm);
+	device.interface_check(m_exec);
+	device.interface_check(m_memory);
+	device.interface_check(m_state);
+	device.interface_check(m_disasm);
 
 	// set up state-related stuff
 	if (m_state != nullptr)

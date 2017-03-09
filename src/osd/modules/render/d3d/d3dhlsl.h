@@ -10,6 +10,7 @@
 #define __WIN_D3DHLSL__
 
 #include <vector>
+#include <map>
 #include "aviio.h"
 #include "../frontend/mame/ui/menuitem.h"
 
@@ -116,6 +117,7 @@ public:
 	void        set(bool x);
 	void        set(matrix *mat);
 	void        set(texture *tex);
+	void        set(void *extern_data);
 
 	void        upload();
 	void        update();
@@ -123,11 +125,15 @@ public:
 protected:
 	uniform     *m_next;
 
-	float       m_vec[4];
-	int         m_ival;
-	bool        m_bval;
-	matrix      *m_mval;
-	texture     *m_texture;
+	union
+	{
+		float       m_vec[4];
+		int         m_ival;
+		bool        m_bval;
+		matrix      *m_mval;
+		texture     *m_texture;
+		void		*m_extern;
+	};
 	int         m_count;
 	uniform_type    m_type;
 	int         m_id;
@@ -163,6 +169,7 @@ public:
 	void        update_uniforms();
 
 	D3DXHANDLE  get_parameter(D3DXHANDLE param, const char *name);
+	uniform*	get_last_uniform();
 
 	ULONG       release();
 
@@ -177,6 +184,37 @@ private:
 	shaders     *m_shaders;
 
 	bool        m_valid;
+};
+
+class effect11
+{
+public:
+	effect11(d3d11_base *d3dptr, device11 *dev, context11 *con, const char *name, const char *path);
+	virtual ~effect11();
+
+	void begin();
+	void end();
+
+	void add_constant(uniform::uniform_type type, void **output);
+	void init_constant();
+	void update_constant();
+
+private:
+	unsigned int m_total_size;
+
+	char m_data_buffer[1024];
+	ID3D11VertexShader *m_vertex_shader;
+	ID3D11PixelShader *m_pixel_shader;
+	ID3D11InputLayout *m_input_layout;
+	ID3D11Buffer *m_contant_buffer;
+	
+	ID3D11DepthStencilState *m_depth_state;
+	ID3D11RasterizerState *m_rast_state;
+	ID3D11BlendState *m_blend_state;
+	ID3D11SamplerState *m_sampler;
+	
+	ID3D11Device *m_ref_dev;
+	ID3D11DeviceContext *m_ref_con;
 };
 
 class d3d_render_target;
@@ -300,7 +338,10 @@ public:
 	shaders();
 	~shaders();
 
-	void init(d3d_base *d3dintf, running_machine *machine, renderer_d3d9 *renderer);
+	void init(d3d_base *d3dintf, d3d11_base *d3d11ptr, running_machine *machine, renderer_d3d9 *renderer);
+	void add_custom_effect(device11 *dev, context11 *con, const char *name, const char *path);
+	effect11* get_custom_effect(unsigned int idx);
+	void clear_custom_effect();
 
 	bool enabled() { return master_enable; }
 	void toggle(std::vector<ui_menu_item>& sliders);
@@ -375,6 +416,7 @@ private:
 	void                    ui_pass(poly_info *poly, int vertnum);
 
 	d3d_base *              d3dintf;                    // D3D interface
+	d3d11_base *            d3d11intf;
 
 	running_machine *       machine;
 	renderer_d3d9 *         d3d;                        // D3D renderer
@@ -439,6 +481,8 @@ private:
 	cache_target *          cachehead;
 
 	std::vector<slider*>    internal_sliders;
+
+	std::vector<effect11*>	custom_effect_list;
 
 	static slider_desc      s_sliders[];
 	static hlsl_options     last_options;               // last used options

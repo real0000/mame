@@ -68,7 +68,7 @@ sound_stream::sound_stream(device_t &device, int inputs, int outputs, int sample
 {
 	// get the device's sound interface
 	device_sound_interface *sound;
-	if (!device.interface(sound))
+	if (!device.interface_check(sound))
 		throw emu_fatalerror("Attempted to create a sound_stream with a non-sound device");
 
 	if(m_callback.isnull())
@@ -178,7 +178,7 @@ std::string sound_stream::input_name(int inputnum) const
 
 		// get the sound interface; if there is more than 1 output we need to figure out which one
 		device_sound_interface *sound;
-		if (source.interface(sound) && sound->outputs() > 1)
+		if (source.interface_check(sound) && sound->outputs() > 1)
 		{
 			// iterate over outputs until we find the stream that matches our source
 			// then look for a match on the output number

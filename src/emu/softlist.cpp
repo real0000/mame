@@ -663,7 +663,7 @@ void software_list_device::internal_validity_check(validity_checker &valid)
 		softlist_map part_names;
 		for (software_part &part : swinfo.parts())
 		{
-			if (part.interface() == nullptr)
+			if (part.get_interface() == nullptr)
 				osd_printf_error("%s: %s has a part (%s) without interface\n", filename(), swinfo.shortname(), part.name());
 
 			if (part.romdata() == nullptr)

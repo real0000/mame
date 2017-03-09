@@ -23,6 +23,7 @@
 
 machine_config::machine_config(const game_driver &gamedrv, emu_options &options)
 	: m_minimum_quantum(attotime::zero),
+		m_vr_machine_name(""),
 		m_default_layout(nullptr),
 		m_gamedrv(gamedrv),
 		m_options(options)

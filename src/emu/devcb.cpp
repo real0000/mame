@@ -76,7 +76,7 @@ void devcb_base::resolve_inputline()
 
 	// make sure we have an execute interface
 	device_execute_interface *exec;
-	if (!m_target.device->interface(exec))
+	if (!m_target.device->interface_check(exec))
 		throw emu_fatalerror("No execute interface found for device reference to '%s' in device '%s'\n", m_target_tag, m_device.tag());
 }
 

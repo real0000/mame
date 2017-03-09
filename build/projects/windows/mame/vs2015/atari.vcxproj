@@ -1,0 +1,938 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{2D6A436D-99CB-207B-2239-672D8E99573A}</ProjectGuid>
+    <RootNamespace>atari</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>..\..\..\..\vs2015\bin\x32\Debug\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x32\Debug\atari\</IntDir>
+    <TargetName>atari</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>..\..\..\..\vs2015\bin\x64\Debug\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x64\Debug\atari\</IntDir>
+    <TargetName>atari</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>..\..\..\..\vs2015\bin\x32\Release\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x32\Release\atari\</IntDir>
+    <TargetName>atari</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>..\..\..\..\vs2015\bin\x64\Release\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x64\Release\atari\</IntDir>
+    <TargetName>atari</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ProgramDataBaseFileName>$(OutDir)atari.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Lib>
+      <OutputFile>$(OutDir)atari.lib</OutputFile>
+      <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ProgramDataBaseFileName>$(OutDir)atari.pdb</ProgramDataBaseFileName>
+      <DisableSpecificWarnings>4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Lib>
+      <OutputFile>$(OutDir)atari.lib</OutputFile>
+      <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+      <TargetMachine>MachineX64</TargetMachine>
+    </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Lib>
+      <OutputFile>$(OutDir)atari.lib</OutputFile>
+      <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <DisableSpecificWarnings>4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Lib>
+      <OutputFile>$(OutDir)atari.lib</OutputFile>
+      <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+      <TargetMachine>MachineX64</TargetMachine>
+    </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\arcadecl.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\asteroid.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\llander.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\atarifb.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\atarig1.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\slapstic.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\atarig42.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\atarigt.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\atarigx2.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\atarisy1.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\atarisy2.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\atetris.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\avalnche.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\badlands.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\batman.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\beathead.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\blstroid.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\bsktball.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\bwidow.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\bzone.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\canyon.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\ccastles.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\centiped.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\cloak.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\cloud9.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\copsnrob.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\cyberbal.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\dragrace.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\eprom.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\firetrk.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\foodf.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\gauntlet.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\harddriv.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\irobot.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\jaguar.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\jagblit.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\jagblit.hxx" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\jagobj.hxx" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\jedi.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\klax.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\liberatr.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\metalmx.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\mhavoc.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\nitedrvr.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\offtwall.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\orbit.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\nl_pong.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\nl_pongd.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\nl_breakout.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\poolshrk.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\rampart.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\relief.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\runaway.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\shuuz.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\skullxbo.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\skydiver.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\skyraid.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\sprint2.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\sprint4.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\sprint4.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\sprint8.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\starshp1.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\starwars.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\subs.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\tank8.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\thunderj.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\toobin.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\tia.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\triplhnt.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\tunhunt.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\ultratnk.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\videopin.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\vindictr.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\wolfpack.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\xybots.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\asic65.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\atari_vg.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\atarigen.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\mathbox.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\atarijsa.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\cage.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\redbaron.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\atarimo.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\atarirle.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\maria.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\atarifdc.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\atarist.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\atarist.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\lynx.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\lynx.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\portfoli.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\arcadecl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\arcadecl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\asteroid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\asteroid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\asteroid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\llander.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\atarifb.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\atarifb.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\atarifb.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\atarifb.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\atarig1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\atarig1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\atarig42.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\atarig42.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\atarigt.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\atarigt.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\atarigx2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\atarigx2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\atarisy1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\atarisy1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\atarisy2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\atarisy2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\atarisy4.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\atarittl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\atetris.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\atetris.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\avalnche.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\avalnche.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\badlands.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\badlands.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bartop52.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\batman.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\batman.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\beathead.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\beathead.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\blstroid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\blstroid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\boxer.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bsktball.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\bsktball.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\bsktball.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\bsktball.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bwidow.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\bwidow.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bzone.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\bzone.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\canyon.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\canyon.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\canyon.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cball.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ccastles.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\ccastles.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\centiped.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\centiped.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cloak.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\cloak.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cloud9.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\cloud9.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cmmb.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cops.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\copsnrob.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\copsnrob.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\copsnrob.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cyberbal.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\cyberbal.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\cyberbal.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\destroyr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dragrace.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\dragrace.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\dragrace.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\eprom.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\eprom.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\firefox.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\firetrk.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\firetrk.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\firetrk.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\flyball.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\foodf.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\foodf.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gauntlet.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\gauntlet.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\harddriv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\harddriv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\harddriv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\harddriv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\irobot.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\irobot.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\irobot.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\jaguar.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\jaguar.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\jaguar.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\jedi.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\jedi.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\jedi.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\klax.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\klax.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\liberatr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\liberatr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mediagx.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\metalmx.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mgolf.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mhavoc.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\mhavoc.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\missile.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\nitedrvr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\nitedrvr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\nitedrvr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\nitedrvr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\offtwall.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\offtwall.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\orbit.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\orbit.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\orbit.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\pong.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\nl_pong.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\nl_pongd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\nl_breakout.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\poolshrk.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\poolshrk.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\poolshrk.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\quantum.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\quizshow.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\rampart.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\rampart.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\relief.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\relief.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\runaway.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\runaway.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sbrkout.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\shuuz.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\shuuz.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\skullxbo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\skullxbo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\skydiver.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\skydiver.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\skydiver.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\skyraid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\skyraid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\skyraid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sprint2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\sprint2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\sprint2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sprint4.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\sprint4.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\sprint4.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sprint8.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\sprint8.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\sprint8.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\starshp1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\starshp1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\starshp1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\starwars.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\starwars.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\starwars.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\subs.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\subs.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\subs.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\subs.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tank8.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\tank8.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tank8.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tempest.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\thunderj.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\thunderj.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tomcat.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\toobin.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\toobin.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tourtabl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tia.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\triplhnt.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\triplhnt.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\triplhnt.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tunhunt.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tunhunt.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ultratnk.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\ultratnk.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\videopin.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\videopin.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\videopin.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\vindictr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\vindictr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\wolfpack.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\wolfpack.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\xybots.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\xybots.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\asic65.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\atari_vg.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\atarigen.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\mathbox.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\slapstic.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\atarijsa.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\cage.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\redbaron.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\atarimo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\atarirle.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\a2600.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\a7800.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\maria.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\atari400.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\atarifdc.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\atarist.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\atarist.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\lynx.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\lynx.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\lynx.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\portfoli.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

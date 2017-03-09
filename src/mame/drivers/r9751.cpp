@@ -160,7 +160,7 @@ DRIVER_INIT_MEMBER(r9751_state,r9751)
 	smioc_dma_bank = 0;
 	m_mem = &m_maincpu->space(AS_PROGRAM);
 
-	m_maincpu->interface<m68000_base_device>(ptr_m68000);
+	m_maincpu->interface_check<m68000_base_device>(ptr_m68000);
 }
 
 void r9751_state::machine_reset()

@@ -50,7 +50,7 @@ void device_video_interface::static_set_screen(device_t &device, const char *tag
 {
 	// find our video interface
 	device_video_interface *video;
-	if (!device.interface(video))
+	if (!device.interface_check(video))
 		throw emu_fatalerror("MCFG_VIDEO_SET_SCREEN called on device '%s' with no video interface", device.tag());
 	video->m_screen_tag = tag;
 }

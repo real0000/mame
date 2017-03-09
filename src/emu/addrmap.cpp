@@ -336,7 +336,7 @@ address_map::address_map(device_t &device, address_spacenum spacenum)
 {
 	// get our memory interface
 	const device_memory_interface *memintf;
-	if (!device.interface(memintf))
+	if (!device.interface_check(memintf))
 		throw emu_fatalerror("No memory interface defined for device '%s'\n", device.tag());
 
 	// and then the configuration for the current address space

@@ -200,7 +200,7 @@ void ui_menu_control_device_image::handle()
 
 	case START_OTHER_PART: {
 		submenu_result = -1;
-		ui_menu::stack_push(global_alloc_clear<ui_menu_software_parts>(ui(), container, swi, swp->interface(), &swp, true, &submenu_result));
+		ui_menu::stack_push(global_alloc_clear<ui_menu_software_parts>(ui(), container, swi, swp->get_interface(), &swp, true, &submenu_result));
 		state = SELECT_OTHER_PART;
 		break;
 	}

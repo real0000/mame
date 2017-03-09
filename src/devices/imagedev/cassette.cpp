@@ -262,7 +262,7 @@ bool cassette_image_device::call_load()
 	const char *extension;
 	int is_writable;
 	device_image_interface *image = nullptr;
-	interface(image);
+	interface_check(image);
 
 	if ((has_been_created()) || (length() == 0))
 	{
