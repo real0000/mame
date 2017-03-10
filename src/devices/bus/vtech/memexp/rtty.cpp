@@ -6,6 +6,7 @@
 
 ***************************************************************************/
 
+#include "emu.h"
 #include "rtty.h"
 
 
@@ -24,7 +25,7 @@ ROM_START( rtty )
 	ROM_LOAD("vzrtty.ic3", 0x0000, 0x1000, CRC(ccf4289b) SHA1(de737ef0e0b582b3102da473836af1fa159a2e78))
 ROM_END
 
-const rom_entry *rtty_interface_device::device_rom_region() const
+const tiny_rom_entry *rtty_interface_device::device_rom_region() const
 {
 	return ROM_NAME( rtty );
 }
@@ -38,7 +39,7 @@ const rom_entry *rtty_interface_device::device_rom_region() const
 //  rtty_interface_device - constructor
 //-------------------------------------------------
 
-rtty_interface_device::rtty_interface_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+rtty_interface_device::rtty_interface_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
 	device_t(mconfig, RTTY_INTERFACE, "DSE VZ-200/300 RTTY Interface", tag, owner, clock, "vz_rtty", __FILE__),
 	device_memexp_interface(mconfig, *this)
 {
@@ -59,7 +60,7 @@ void rtty_interface_device::device_start()
 void rtty_interface_device::device_reset()
 {
 	// program
-	m_slot->m_program->install_rom(0x4000, 0x4fff, 0, 0x1000, memregion("software")->base());
+	m_slot->m_program->install_rom(0x4000, 0x4fff, 0x1000, memregion("software")->base());
 
 	// data
 	m_slot->m_program->install_read_handler(0x5000, 0x57ff, read8_delegate(FUNC(rtty_interface_device::receive_data_r), this));

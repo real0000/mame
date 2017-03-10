@@ -13,9 +13,6 @@
 #include <tinystl/unordered_map.h>
 namespace stl = tinystl;
 
-namespace std { namespace tr1 {} }
-using namespace std::tr1;
-
 #include "common.h"
 #include "bgfx_utils.h"
 
@@ -23,7 +20,7 @@ using namespace std::tr1;
 #include <bx/timer.h>
 #include <bx/allocator.h>
 #include <bx/hash.h>
-#include <bx/float4_t.h>
+#include <bx/simd_t.h>
 #include <bx/fpumath.h>
 #include <bx/crtimpl.h>
 #include "entry/entry.h"
@@ -1029,29 +1026,29 @@ struct Mesh
 #define BGFX_CHUNK_MAGIC_IB  BX_MAKEFOURCC('I', 'B', ' ', 0x0)
 #define BGFX_CHUNK_MAGIC_PRI BX_MAKEFOURCC('P', 'R', 'I', 0x0)
 
-		bx::CrtFileReader reader;
-		bx::open(&reader, _filePath);
+		bx::FileReaderI* reader = entry::getFileReader();
+		bx::open(reader, _filePath);
 
 		Group group;
 
 		uint32_t chunk;
-		while (4 == bx::read(&reader, chunk) )
+		while (4 == bx::read(reader, chunk) )
 		{
 			switch (chunk)
 			{
 			case BGFX_CHUNK_MAGIC_VB:
 				{
-					bx::read(&reader, group.m_sphere);
-					bx::read(&reader, group.m_aabb);
-					bx::read(&reader, group.m_obb);
+					bx::read(reader, group.m_sphere);
+					bx::read(reader, group.m_aabb);
+					bx::read(reader, group.m_obb);
 
-					bgfx::read(&reader, m_decl);
+					bgfx::read(reader, m_decl);
 					uint16_t stride = m_decl.getStride();
 
-					bx::read(&reader, group.m_numVertices);
+					bx::read(reader, group.m_numVertices);
 					const uint32_t size = group.m_numVertices*stride;
 					group.m_vertices = (uint8_t*)malloc(size);
-					bx::read(&reader, group.m_vertices, size);
+					bx::read(reader, group.m_vertices, size);
 
 					const bgfx::Memory* mem = bgfx::makeRef(group.m_vertices, size);
 					group.m_vbh = bgfx::createVertexBuffer(mem, m_decl);
@@ -1060,10 +1057,10 @@ struct Mesh
 
 			case BGFX_CHUNK_MAGIC_IB:
 				{
-					bx::read(&reader, group.m_numIndices);
+					bx::read(reader, group.m_numIndices);
 					const uint32_t size = group.m_numIndices*2;
 					group.m_indices = (uint16_t*)malloc(size);
-					bx::read(&reader, group.m_indices, size);
+					bx::read(reader, group.m_indices, size);
 
 					const bgfx::Memory* mem = bgfx::makeRef(group.m_indices, size);
 					group.m_ibh = bgfx::createIndexBuffer(mem);
@@ -1073,31 +1070,31 @@ struct Mesh
 			case BGFX_CHUNK_MAGIC_PRI:
 				{
 					uint16_t len;
-					bx::read(&reader, len);
+					bx::read(reader, len);
 
 					std::string material;
 					material.resize(len);
-					bx::read(&reader, const_cast<char*>(material.c_str() ), len);
+					bx::read(reader, const_cast<char*>(material.c_str() ), len);
 
 					uint16_t num;
-					bx::read(&reader, num);
+					bx::read(reader, num);
 
 					for (uint32_t ii = 0; ii < num; ++ii)
 					{
-						bx::read(&reader, len);
+						bx::read(reader, len);
 
 						std::string name;
 						name.resize(len);
-						bx::read(&reader, const_cast<char*>(name.c_str() ), len);
+						bx::read(reader, const_cast<char*>(name.c_str() ), len);
 
 						Primitive prim;
-						bx::read(&reader, prim.m_startIndex);
-						bx::read(&reader, prim.m_numIndices);
-						bx::read(&reader, prim.m_startVertex);
-						bx::read(&reader, prim.m_numVertices);
-						bx::read(&reader, prim.m_sphere);
-						bx::read(&reader, prim.m_aabb);
-						bx::read(&reader, prim.m_obb);
+						bx::read(reader, prim.m_startIndex);
+						bx::read(reader, prim.m_numIndices);
+						bx::read(reader, prim.m_startVertex);
+						bx::read(reader, prim.m_numVertices);
+						bx::read(reader, prim.m_sphere);
+						bx::read(reader, prim.m_aabb);
+						bx::read(reader, prim.m_obb);
 
 						group.m_prims.push_back(prim);
 					}
@@ -1108,13 +1105,13 @@ struct Mesh
 				break;
 
 			default:
-				DBG("%08x at %d", chunk, reader.seek() );
+				DBG("%08x at %d", chunk, bx::seek(reader) );
 				abort();
 				break;
 			}
 		}
 
-		bx::close(&reader);
+		bx::close(reader);
 
 		for (GroupArray::iterator it = m_groups.begin(), itEnd = m_groups.end(); it != itEnd; ++it)
 		{
@@ -1179,7 +1176,7 @@ struct Model
 			{
 				bgfx::setTexture(0, s_texColor, m_texture);
 			}
-			bgfx::setTexture(1, s_texStencil, s_stencilFb);
+			bgfx::setTexture(1, s_texStencil, bgfx::getTexture(s_stencilFb) );
 
 			// Apply render state
 			::setRenderState(_renderState);
@@ -1513,9 +1510,9 @@ void shadowVolumeCreate(ShadowVolume& _shadowVolume
 
 			using namespace bx;
 
-			const float4_t lx = float4_splat(_light[0]);
-			const float4_t ly = float4_splat(_light[1]);
-			const float4_t lz = float4_splat(_light[2]);
+			const simd128_t lx = simd_splat(_light[0]);
+			const simd128_t ly = simd_splat(_light[1]);
+			const simd128_t lz = simd_splat(_light[2]);
 
 			for (; ii < numEdgesRounded; ii+=2)
 			{
@@ -1524,47 +1521,47 @@ void shadowVolumeCreate(ShadowVolume& _shadowVolume
 				const Plane* edgePlane0 = &edgePlanes[ii*2];
 				const Plane* edgePlane1 = &edgePlanes[ii*2 + 2];
 
-				const float4_t reverse =
-					float4_ild(edge0.m_faceReverseOrder[0]
+				const simd128_t reverse =
+					simd_ild(edge0.m_faceReverseOrder[0]
 							, edge1.m_faceReverseOrder[0]
 							, edge0.m_faceReverseOrder[1]
 							, edge1.m_faceReverseOrder[1]
 							);
 
-				const float4_t p00 = float4_ld(edgePlane0[0].m_plane);
-				const float4_t p10 = float4_ld(edgePlane1[0].m_plane);
-				const float4_t p01 = float4_ld(edgePlane0[1].m_plane);
-				const float4_t p11 = float4_ld(edgePlane1[1].m_plane);
+				const simd128_t p00 = simd_ld(edgePlane0[0].m_plane);
+				const simd128_t p10 = simd_ld(edgePlane1[0].m_plane);
+				const simd128_t p01 = simd_ld(edgePlane0[1].m_plane);
+				const simd128_t p11 = simd_ld(edgePlane1[1].m_plane);
 
-				const float4_t xxyy0 = float4_shuf_xAyB(p00, p01);
-				const float4_t zzww0 = float4_shuf_zCwD(p00, p01);
-				const float4_t xxyy1 = float4_shuf_xAyB(p10, p11);
-				const float4_t zzww1 = float4_shuf_zCwD(p10, p11);
+				const simd128_t xxyy0 = simd_shuf_xAyB(p00, p01);
+				const simd128_t zzww0 = simd_shuf_zCwD(p00, p01);
+				const simd128_t xxyy1 = simd_shuf_xAyB(p10, p11);
+				const simd128_t zzww1 = simd_shuf_zCwD(p10, p11);
 
-				const float4_t vX = float4_shuf_xAyB(xxyy0, xxyy1);
-				const float4_t vY = float4_shuf_zCwD(xxyy0, xxyy1);
-				const float4_t vZ = float4_shuf_xAyB(zzww0, zzww1);
-				const float4_t vW = float4_shuf_zCwD(zzww0, zzww1);
+				const simd128_t vX = simd_shuf_xAyB(xxyy0, xxyy1);
+				const simd128_t vY = simd_shuf_zCwD(xxyy0, xxyy1);
+				const simd128_t vZ = simd_shuf_xAyB(zzww0, zzww1);
+				const simd128_t vW = simd_shuf_zCwD(zzww0, zzww1);
 
-				const float4_t r0 = float4_mul(vX, lx);
-				const float4_t r1 = float4_mul(vY, ly);
-				const float4_t r2 = float4_mul(vZ, lz);
+				const simd128_t r0 = simd_mul(vX, lx);
+				const simd128_t r1 = simd_mul(vY, ly);
+				const simd128_t r2 = simd_mul(vZ, lz);
 
-				const float4_t dot = float4_add(r0, float4_add(r1, r2) );
-				const float4_t f = float4_add(dot, vW);
+				const simd128_t dot = simd_add(r0, simd_add(r1, r2) );
+				const simd128_t f = simd_add(dot, vW);
 
-				const float4_t zero = float4_zero();
-				const float4_t mask = float4_cmpgt(f, zero);
-				const float4_t onef = float4_splat(1.0f);
-				const float4_t tmp0 = float4_and(mask, onef);
-				const float4_t tmp1 = float4_ftoi(tmp0);
-				const float4_t tmp2 = float4_xor(tmp1, reverse);
-				const float4_t tmp3 = float4_sll(tmp2, 1);
-				const float4_t onei = float4_isplat(1);
-				const float4_t tmp4 = float4_isub(tmp3, onei);
+				const simd128_t zero = simd_zero();
+				const simd128_t mask = simd_cmpgt(f, zero);
+				const simd128_t onef = simd_splat(1.0f);
+				const simd128_t tmp0 = simd_and(mask, onef);
+				const simd128_t tmp1 = simd_ftoi(tmp0);
+				const simd128_t tmp2 = simd_xor(tmp1, reverse);
+				const simd128_t tmp3 = simd_sll(tmp2, 1);
+				const simd128_t onei = simd_isplat(1);
+				const simd128_t tmp4 = simd_isub(tmp3, onei);
 
 				BX_ALIGN_DECL_16(int32_t res[4]);
-				float4_st(&res, tmp4);
+				simd_st(&res, tmp4);
 
 				for (uint16_t jj = 0; jj < 2; ++jj)
 				{
@@ -1884,8 +1881,8 @@ int _main_(int _argc, char** _argv)
 
 	bgfx::TextureHandle fbtextures[] =
 	{
-		bgfx::createTexture2D(viewState.m_width, viewState.m_height, 1, bgfx::TextureFormat::BGRA8, BGFX_TEXTURE_U_CLAMP|BGFX_TEXTURE_V_CLAMP|BGFX_TEXTURE_RT),
-		bgfx::createTexture2D(viewState.m_width, viewState.m_height, 1, bgfx::TextureFormat::D16, BGFX_TEXTURE_RT_WRITE_ONLY),
+		bgfx::createTexture2D(viewState.m_width, viewState.m_height, false, 1, bgfx::TextureFormat::BGRA8, BGFX_TEXTURE_U_CLAMP|BGFX_TEXTURE_V_CLAMP|BGFX_TEXTURE_RT),
+		bgfx::createTexture2D(viewState.m_width, viewState.m_height, false, 1, bgfx::TextureFormat::D16, BGFX_TEXTURE_RT_WRITE_ONLY),
 	};
 	s_stencilFb  = bgfx::createFrameBuffer(BX_COUNTOF(fbtextures), fbtextures, true);
 
@@ -2078,8 +2075,8 @@ int _main_(int _argc, char** _argv)
 
 			bgfx::destroyFrameBuffer(s_stencilFb);
 
-			fbtextures[0] = bgfx::createTexture2D(viewState.m_width, viewState.m_height, 1, bgfx::TextureFormat::BGRA8, BGFX_TEXTURE_U_CLAMP|BGFX_TEXTURE_V_CLAMP|BGFX_TEXTURE_RT);
-			fbtextures[1] = bgfx::createTexture2D(viewState.m_width, viewState.m_height, 1, bgfx::TextureFormat::D16, BGFX_TEXTURE_RT_WRITE_ONLY);
+			fbtextures[0] = bgfx::createTexture2D(viewState.m_width, viewState.m_height, false, 1, bgfx::TextureFormat::BGRA8, BGFX_TEXTURE_U_CLAMP|BGFX_TEXTURE_V_CLAMP|BGFX_TEXTURE_RT);
+			fbtextures[1] = bgfx::createTexture2D(viewState.m_width, viewState.m_height, false, 1, bgfx::TextureFormat::D16, BGFX_TEXTURE_RT_WRITE_ONLY);
 			s_stencilFb = bgfx::createFrameBuffer(BX_COUNTOF(fbtextures), fbtextures, true);
 		}
 

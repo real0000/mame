@@ -50,7 +50,7 @@ public:
 	DECLARE_READ8_MEMBER(portff05_r);
 
 private:
-	UINT8 m_term_data;
+	uint8_t m_term_data;
 	required_device<cpu_device> m_maincpu;
 	required_device<generic_terminal_device> m_terminal;
 };
@@ -81,7 +81,7 @@ MACHINE_RESET_MEMBER(onyx_state, c8002)
 static ADDRESS_MAP_START(c8002_mem, AS_PROGRAM, 16, onyx_state)
 	AM_RANGE(0x00000, 0x00fff) AM_ROM AM_SHARE("share0")
 	AM_RANGE(0x01000, 0x07fff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0x08000, 0xfffff) AM_RAM AM_SHARE("share2")
+	AM_RANGE(0x08000, 0x0ffff) AM_RAM AM_SHARE("share2") // Z8002 has 64k memory
 ADDRESS_MAP_END
 
 //static ADDRESS_MAP_START(c8002_data, AS_DATA, 16, onyx_state)

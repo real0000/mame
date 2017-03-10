@@ -11,7 +11,6 @@
 #ifndef __CGENIE_EXPANSION_FLOPPY_H__
 #define __CGENIE_EXPANSION_FLOPPY_H__
 
-#include "emu.h"
 #include "expansion.h"
 #include "machine/wd_fdc.h"
 #include "bus/generic/slot.h"
@@ -27,7 +26,7 @@ class cgenie_fdc_device : public device_t, public device_expansion_interface
 {
 public:
 	// construction/destruction
-	cgenie_fdc_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	cgenie_fdc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	DECLARE_ADDRESS_MAP(mmio, 8);
 
@@ -44,7 +43,7 @@ public:
 
 
 protected:
-	virtual const rom_entry *device_rom_region() const override;
+	virtual const tiny_rom_entry *device_rom_region() const override;
 	virtual machine_config_constructor device_mconfig_additions() const override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
@@ -65,7 +64,7 @@ private:
 
 	floppy_image_device *m_floppy;
 
-	UINT8 m_irq_status;
+	uint8_t m_irq_status;
 };
 
 // device type definition

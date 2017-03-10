@@ -103,8 +103,6 @@ public:
 		m_region_maincpu(*this, "maincpu")
 	{ }
 
-	DECLARE_WRITE_LINE_MEMBER( snd_int_callback );
-	DECLARE_WRITE_LINE_MEMBER( bios_int_callback );
 	DECLARE_READ8_MEMBER(cart_select_r);
 	DECLARE_WRITE8_MEMBER(cart_select_w);
 	DECLARE_READ8_MEMBER(bios_ctrl_r);
@@ -127,7 +125,7 @@ public:
 	DECLARE_DRIVER_INIT(mt_slot);
 	DECLARE_MACHINE_RESET(megatech);
 
-	int load_cart(device_image_interface &image, generic_slot_device *slot, int gameno);
+	image_init_result load_cart(device_image_interface &image, generic_slot_device *slot, int gameno);
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( mt_cart1 ) { return load_cart(image, m_cart1, 0); }
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( mt_cart2 ) { return load_cart(image, m_cart2, 1); }
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( mt_cart3 ) { return load_cart(image, m_cart3, 2); }
@@ -137,16 +135,16 @@ public:
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( mt_cart7 ) { return load_cart(image, m_cart7, 6); }
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( mt_cart8 ) { return load_cart(image, m_cart8, 7); }
 
-	UINT32 screen_update_main(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	UINT32 screen_update_menu(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update_main(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update_menu(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void screen_eof_main(screen_device &screen, bool state);
 
 private:
-	UINT8 m_mt_cart_select_reg;
-	UINT32 m_bios_port_ctrl;
+	uint8_t m_mt_cart_select_reg;
+	uint32_t m_bios_port_ctrl;
 	int m_current_MACHINE_IS_sms; // is the current game SMS based (running on genesis z80, in VDP compatibility mode)
-	UINT32 m_bios_ctrl_inputs;
-	UINT8 m_bios_ctrl[6];
+	uint32_t m_bios_ctrl_inputs;
+	uint8_t m_bios_ctrl[6];
 	int m_mt_bank_addr;
 
 	int m_cart_is_genesis[8];
@@ -156,9 +154,9 @@ private:
 
 	void switch_cart(int gameno);
 
-	std::unique_ptr<UINT8[]> m_banked_ram;
-	std::unique_ptr<UINT8[]> sms_mainram;
-	std::unique_ptr<UINT8[]> sms_rom;
+	std::unique_ptr<uint8_t[]> m_banked_ram;
+	std::unique_ptr<uint8_t[]> sms_mainram;
+	std::unique_ptr<uint8_t[]> sms_rom;
 
 	required_device<sega315_5124_device> m_vdp1;
 	required_device<generic_slot_device> m_cart1;
@@ -367,12 +365,12 @@ void mtech_state::set_genz80_as_sms()
 	address_space &io = m_z80snd->space(AS_IO);
 
 	// main ram area
-	sms_mainram = std::make_unique<UINT8[]>(0x2000);
-	prg.install_ram(0xc000, 0xdfff, 0, 0x2000, sms_mainram.get());
+	sms_mainram = std::make_unique<uint8_t[]>(0x2000);
+	prg.install_ram(0xc000, 0xdfff, 0x2000, sms_mainram.get());
 	memset(sms_mainram.get(), 0x00, 0x2000);
 
 	// fixed rom bank area
-	sms_rom = std::make_unique<UINT8[]>(0xc000);
+	sms_rom = std::make_unique<uint8_t[]>(0xc000);
 	prg.install_rom(0x0000, 0xbfff, sms_rom.get());
 
 	memcpy(sms_rom.get(), m_region_maincpu->base(), 0xc000);
@@ -380,10 +378,10 @@ void mtech_state::set_genz80_as_sms()
 	prg.install_write_handler(0xfffc, 0xffff, write8_delegate(FUNC(mtech_state::mt_sms_standard_rom_bank_w),this));
 
 	// ports
-	io.install_read_handler      (0x40, 0x41, 0xff, 0x3e, read8_delegate(FUNC(mtech_state::sms_count_r),this));
-	io.install_write_handler     (0x40, 0x41, 0xff, 0x3e, write8_delegate(FUNC(sn76496_device::write),(sn76496_base_device *)m_snsnd));
-	io.install_readwrite_handler (0x80, 0x80, 0xff, 0x3e, read8_delegate(FUNC(sega315_5124_device::vram_read),(sega315_5124_device *)m_vdp), write8_delegate(FUNC(sega315_5124_device::vram_write),(sega315_5124_device *)m_vdp));
-	io.install_readwrite_handler (0x81, 0x81, 0xff, 0x3e, read8_delegate(FUNC(sega315_5124_device::register_read),(sega315_5124_device *)m_vdp), write8_delegate(FUNC(sega315_5124_device::register_write),(sega315_5124_device *)m_vdp));
+	io.install_read_handler      (0x40, 0x41, 0, 0x3e, 0, read8_delegate(FUNC(mtech_state::sms_count_r),this));
+	io.install_write_handler     (0x40, 0x41, 0, 0x3e, 0, write8_delegate(FUNC(sn76496_device::write),(sn76496_base_device *)m_snsnd));
+	io.install_readwrite_handler (0x80, 0x80, 0, 0x3e, 0, read8_delegate(FUNC(sega315_5124_device::vram_read),(sega315_5124_device *)m_vdp), write8_delegate(FUNC(sega315_5124_device::vram_write),(sega315_5124_device *)m_vdp));
+	io.install_readwrite_handler (0x81, 0x81, 0, 0x3e, 0, read8_delegate(FUNC(sega315_5124_device::register_read),(sega315_5124_device *)m_vdp), write8_delegate(FUNC(sega315_5124_device::register_write),(sega315_5124_device *)m_vdp));
 
 	io.install_read_handler      (0x10, 0x10, read8_delegate(FUNC(mtech_state::sms_ioport_dd_r),this)); // super tetris
 
@@ -495,7 +493,7 @@ WRITE8_MEMBER(mtech_state::bios_ctrl_w )
 READ8_MEMBER(mtech_state::read_68k_banked_data )
 {
 	address_space &space68k = m_maincpu->space();
-	UINT8 ret = space68k.read_byte(m_mt_bank_addr + offset);
+	uint8_t ret = space68k.read_byte(m_mt_bank_addr + offset);
 	return ret;
 }
 
@@ -548,7 +546,7 @@ WRITE8_MEMBER(mtech_state::bios_port_ctrl_w )
 /* the test mode accesses the joypad/stick inputs like this */
 READ8_MEMBER(mtech_state::bios_joypad_r )
 {
-	UINT8 retdata = 0;
+	uint8_t retdata = 0;
 
 	if (m_bios_port_ctrl == 0x55)
 	{
@@ -597,7 +595,7 @@ ADDRESS_MAP_END
 
 DRIVER_INIT_MEMBER(mtech_state,mt_slot)
 {
-	m_banked_ram = std::make_unique<UINT8[]>(0x1000*8);
+	m_banked_ram = std::make_unique<uint8_t[]>(0x1000*8);
 
 	DRIVER_INIT_CALL(megadriv);
 
@@ -607,14 +605,14 @@ DRIVER_INIT_MEMBER(mtech_state,mt_slot)
 
 DRIVER_INIT_MEMBER(mtech_state,mt_crt)
 {
-	UINT8* pin = memregion("sms_pin")->base();
+	uint8_t* pin = memregion("sms_pin")->base();
 	DRIVER_INIT_CALL(mt_slot);
 
 	m_cart_is_genesis[0] = !pin[0] ? 1 : 0;;
 }
 
 
-UINT32 mtech_state::screen_update_main(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
+uint32_t mtech_state::screen_update_main(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	// if we're running an sms game then use the SMS update.. maybe this should be moved to the megadrive emulation core as compatibility mode is a feature of the chip
 	if (!m_current_MACHINE_IS_sms)
@@ -626,8 +624,8 @@ UINT32 mtech_state::screen_update_main(screen_device &screen, bitmap_rgb32 &bitm
 		// when launching megatech + both sms and megadrive games, the following would be needed...
 		for (int y = 0; y < 224; y++)
 		{
-			UINT32* lineptr = &bitmap.pix32(y);
-			UINT32* srcptr =  &m_vdp->get_bitmap().pix32(y + SEGA315_5124_TBORDER_START + SEGA315_5124_NTSC_224_TBORDER_HEIGHT);
+			uint32_t* lineptr = &bitmap.pix32(y);
+			uint32_t* srcptr =  &m_vdp->get_bitmap().pix32(y + SEGA315_5124_TBORDER_START + SEGA315_5124_NTSC_224_TBORDER_HEIGHT);
 
 			for (int x = 0; x < SEGA315_5124_WIDTH; x++)
 				lineptr[x] = srcptr[x];
@@ -671,23 +669,12 @@ MACHINE_RESET_MEMBER(mtech_state, megatech)
 	switch_cart(0);
 }
 
-UINT32 mtech_state::screen_update_menu(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
+uint32_t mtech_state::screen_update_menu(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	m_vdp1->screen_update(screen, bitmap, cliprect);
 	return 0;
 }
 
-
-
-WRITE_LINE_MEMBER( mtech_state::bios_int_callback )
-{
-	m_bioscpu->set_input_line(0, state);
-}
-
-WRITE_LINE_MEMBER( mtech_state::snd_int_callback )
-{
-	m_z80snd->set_input_line(0, state);
-}
 
 static MACHINE_CONFIG_START( megatech, mtech_state )
 	/* basic machine hardware */
@@ -710,7 +697,7 @@ static MACHINE_CONFIG_START( megatech, mtech_state )
 	MCFG_SCREEN_VBLANK_DRIVER(mtech_state, screen_eof_main)
 
 	MCFG_DEVICE_MODIFY("gen_vdp")
-	MCFG_SEGA315_5313_INT_CB(WRITELINE(mtech_state, snd_int_callback))
+	MCFG_SEGA315_5313_INT_CB(INPUTLINE("genesis_snd_z80", 0))
 
 	MCFG_SCREEN_ADD("menu", RASTER)
 	// check frq
@@ -722,7 +709,7 @@ static MACHINE_CONFIG_START( megatech, mtech_state )
 	MCFG_DEVICE_ADD("vdp1", SEGA315_5246, 0)
 	MCFG_SEGA315_5246_SET_SCREEN("menu")
 	MCFG_SEGA315_5246_IS_PAL(false)
-	MCFG_SEGA315_5246_INT_CB(WRITELINE(mtech_state, bios_int_callback))
+	MCFG_SEGA315_5246_INT_CB(INPUTLINE("mtbios", 0))
 
 	/* sound hardware */
 	MCFG_SOUND_ADD("sn2", SN76496, MASTER_CLOCK/15)
@@ -731,21 +718,21 @@ static MACHINE_CONFIG_START( megatech, mtech_state )
 MACHINE_CONFIG_END
 
 
-int mtech_state::load_cart(device_image_interface &image, generic_slot_device *slot, int gameno)
+image_init_result mtech_state::load_cart(device_image_interface &image, generic_slot_device *slot, int gameno)
 {
-	UINT8 *ROM;
+	uint8_t *ROM;
 	const char  *pcb_name;
-	UINT32 size = slot->common_get_size("rom");
+	uint32_t size = slot->common_get_size("rom");
 
 	if (image.software_entry() == nullptr)
-		return IMAGE_INIT_FAIL;
+		return image_init_result::FAIL;
 
 	slot->rom_alloc(size, GENERIC_ROM8_WIDTH, ENDIANNESS_LITTLE);
 	ROM = slot->get_rom_base();
 	memcpy(ROM, image.get_software_region("rom"), size);
 
 	if ((pcb_name = image.get_feature("pcb_type")) == nullptr)
-		return IMAGE_INIT_FAIL;
+		return image_init_result::FAIL;
 	else
 	{
 		if (!core_stricmp("genesis", pcb_name))
@@ -762,7 +749,7 @@ int mtech_state::load_cart(device_image_interface &image, generic_slot_device *s
 			osd_printf_debug("cart%d is invalid\n", gameno + 1);
 	}
 
-	return IMAGE_INIT_PASS;
+	return image_init_result::PASS;
 }
 
 #define MCFG_MEGATECH_CARTSLOT_ADD(_tag, _load) \
@@ -789,7 +776,7 @@ static MACHINE_CONFIG_DERIVED( megatech_fixedslot, megatech )
 
 	// add cart slots
 	MCFG_MEGATECH_CARTSLOT_ADD("mt_slot1", mt_cart1)
-	MCFG_SET_IMAGE_LOADABLE(FALSE)
+	MCFG_SET_IMAGE_LOADABLE(false)
 MACHINE_CONFIG_END
 
 
@@ -1473,4 +1460,17 @@ ROM_END
 /* 61 */ GAME( 1992, mt_tout,  megatech, megatech_fixedslot, megatech, mtech_state, mt_crt, ROT0, "Sega",                  "Turbo Outrun (Mega-Tech)", MACHINE_NOT_WORKING )
 /* 62 */ GAME( 1992, mt_soni2, megatech, megatech_fixedslot, megatech, mtech_state, mt_crt, ROT0, "Sega",                  "Sonic The Hedgehog 2 (Mega-Tech)", MACHINE_NOT_WORKING )
 
-/* more? */
+/* Games seen in auction (#122011114579), but no confirmed number
+- Action Fighter
+- Enduro Racer
+
+Games seen in auction (#122011114579) known not to be original but manufactured/bootlegged on actual megatech carts.
+The labels are noticably different than expected.  Be careful if thinking of obtaining!
+- After Burner II (GEN)
+- Castle of Illusion Starring Mickey Mouse (GEN)
+- Double Dragon (SMS)
+- Kung Fu Kid (SMS)
+- Quackshot Starring Donald Duck (GEN)
+- Wonderboy (SMS)
+
+more? */

@@ -41,7 +41,7 @@ ADPCM in the bootlegs is not quite right.... Misusing the data?
   the microcode dump's the same). This in conjunction with the different
   ADPCM chip (msm5205) are used to 'fake' a M6295.
 - Bootleg 1 ADPCM is now wired up, but still not working :-(
-  Definantly sync problems between the i8049 and the m5205 which need
+  Definitely sync problems between the i8049 and the m5205 which need
   further looking at.
 
 
@@ -76,10 +76,9 @@ Dip locations and factory settings verified with China Gate US manual.
 #include "cpu/m6809/m6809.h"
 #include "cpu/z80/z80.h"
 #include "cpu/mcs48/mcs48.h"
-#include "sound/2151intf.h"
+#include "sound/ym2151.h"
 #include "sound/2203intf.h"
 #include "sound/okim6295.h"
-#include "sound/msm5205.h"
 #include "includes/ddragon.h"
 
 #define MAIN_CLOCK      XTAL_12MHz
@@ -97,10 +96,11 @@ public:
 	DECLARE_MACHINE_START(chinagat);
 	DECLARE_MACHINE_RESET(chinagat);
 	DECLARE_VIDEO_START(chinagat);
-	DECLARE_WRITE8_MEMBER( chinagat_interrupt_w );
-	DECLARE_WRITE8_MEMBER( chinagat_video_ctrl_w );
-	DECLARE_WRITE8_MEMBER( chinagat_bankswitch_w );
-	DECLARE_WRITE8_MEMBER( chinagat_sub_bankswitch_w );
+	DECLARE_WRITE8_MEMBER(interrupt_w);
+	DECLARE_WRITE8_MEMBER(video_ctrl_w);
+	DECLARE_WRITE8_MEMBER(bankswitch_w);
+	DECLARE_WRITE8_MEMBER(sub_bankswitch_w);
+	DECLARE_WRITE8_MEMBER(sub_irq_ack_w);
 	DECLARE_READ8_MEMBER( saiyugoub1_mcu_command_r );
 	DECLARE_WRITE8_MEMBER( saiyugoub1_mcu_command_w );
 	DECLARE_WRITE8_MEMBER( saiyugoub1_adpcm_rom_addr_w );
@@ -108,15 +108,14 @@ public:
 	DECLARE_WRITE8_MEMBER( saiyugoub1_m5205_clk_w );
 	DECLARE_READ8_MEMBER( saiyugoub1_m5205_irq_r );
 	DECLARE_WRITE_LINE_MEMBER(saiyugoub1_m5205_irq_w);
-	DECLARE_WRITE_LINE_MEMBER(chinagat_irq_handler);
 	optional_device<msm5205_device> m_adpcm;
 };
 
 
 VIDEO_START_MEMBER(chinagat_state,chinagat)
 {
-	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(chinagat_state::get_bg_tile_info),this),tilemap_mapper_delegate(FUNC(chinagat_state::background_scan),this), 16, 16, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(chinagat_state::get_fg_16color_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(chinagat_state::get_bg_tile_info),this),tilemap_mapper_delegate(FUNC(chinagat_state::background_scan),this), 16, 16, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(chinagat_state::get_fg_16color_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 	m_fg_tilemap->set_scrolldy(-8, -8);
@@ -161,13 +160,12 @@ TIMER_DEVICE_CALLBACK_MEMBER(chinagat_state::chinagat_scanline)
 		scanline = 0;
 }
 
-WRITE8_MEMBER(chinagat_state::chinagat_interrupt_w )
+WRITE8_MEMBER(chinagat_state::interrupt_w)
 {
 	switch (offset)
 	{
 		case 0: /* 3e00 - SND irq */
-			soundlatch_byte_w(space, 0, data);
-			m_soundcpu->set_input_line(m_sound_irq, (m_sound_irq == INPUT_LINE_NMI) ? PULSE_LINE : HOLD_LINE );
+			m_soundlatch->write(space, 0, data);
 			break;
 
 		case 1: /* 3e01 - NMI ack */
@@ -183,12 +181,12 @@ WRITE8_MEMBER(chinagat_state::chinagat_interrupt_w )
 			break;
 
 		case 4: /* 3e04 - sub CPU IRQ ack */
-			m_subcpu->set_input_line(m_sprite_irq, (m_sprite_irq == INPUT_LINE_NMI) ? PULSE_LINE : HOLD_LINE );
+			m_subcpu->set_input_line(m_sprite_irq, ASSERT_LINE);
 			break;
 	}
 }
 
-WRITE8_MEMBER(chinagat_state::chinagat_video_ctrl_w )
+WRITE8_MEMBER(chinagat_state::video_ctrl_w)
 {
 	/***************************
 	---- ---x   X Scroll MSB
@@ -202,14 +200,19 @@ WRITE8_MEMBER(chinagat_state::chinagat_video_ctrl_w )
 	flip_screen_set(~data & 0x04);
 }
 
-WRITE8_MEMBER(chinagat_state::chinagat_bankswitch_w )
+WRITE8_MEMBER(chinagat_state::bankswitch_w)
 {
 	membank("bank1")->set_entry(data & 0x07); // shall we check (data & 7) < 6 (# of banks)?
 }
 
-WRITE8_MEMBER(chinagat_state::chinagat_sub_bankswitch_w )
+WRITE8_MEMBER(chinagat_state::sub_bankswitch_w)
 {
 	membank("bank4")->set_entry(data & 0x07); // shall we check (data & 7) < 6 (# of banks)?
+}
+
+WRITE8_MEMBER(chinagat_state::sub_irq_ack_w)
+{
+	m_subcpu->set_input_line(m_sprite_irq, CLEAR_LINE);
 }
 
 READ8_MEMBER(chinagat_state::saiyugoub1_mcu_command_r )
@@ -243,7 +246,7 @@ WRITE8_MEMBER(chinagat_state::saiyugoub1_adpcm_rom_addr_w )
 WRITE8_MEMBER(chinagat_state::saiyugoub1_adpcm_control_w )
 {
 	/* i8748 Port 2 write */
-	UINT8 *saiyugoub1_adpcm_rom = memregion("adpcm")->base();
+	uint8_t *saiyugoub1_adpcm_rom = memregion("adpcm")->base();
 
 	if (data & 0x80)    /* Reset m5205 and disable ADPCM ROM outputs */
 	{
@@ -327,11 +330,11 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, chinagat_state )
 	AM_RANGE(0x3000, 0x317f) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x3400, 0x357f) AM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0x3800, 0x397f) AM_WRITE_BANK("bank3") AM_SHARE("spriteram")
-	AM_RANGE(0x3e00, 0x3e04) AM_WRITE(chinagat_interrupt_w)
+	AM_RANGE(0x3e00, 0x3e04) AM_WRITE(interrupt_w)
 	AM_RANGE(0x3e06, 0x3e06) AM_WRITEONLY AM_SHARE("scrolly_lo")
 	AM_RANGE(0x3e07, 0x3e07) AM_WRITEONLY AM_SHARE("scrollx_lo")
-	AM_RANGE(0x3f00, 0x3f00) AM_WRITE(chinagat_video_ctrl_w)
-	AM_RANGE(0x3f01, 0x3f01) AM_WRITE(chinagat_bankswitch_w)
+	AM_RANGE(0x3f00, 0x3f00) AM_WRITE(video_ctrl_w)
+	AM_RANGE(0x3f01, 0x3f01) AM_WRITE(bankswitch_w)
 	AM_RANGE(0x3f00, 0x3f00) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x3f01, 0x3f01) AM_READ_PORT("DSW1")
 	AM_RANGE(0x3f02, 0x3f02) AM_READ_PORT("DSW2")
@@ -343,8 +346,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sub_map, AS_PROGRAM, 8, chinagat_state )
 	AM_RANGE(0x0000, 0x1fff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0x2000, 0x2000) AM_WRITE(chinagat_sub_bankswitch_w)
-	AM_RANGE(0x2800, 0x2800) AM_WRITEONLY /* Called on CPU start and after return from jump table */
+	AM_RANGE(0x2000, 0x2000) AM_WRITE(sub_bankswitch_w)
+	AM_RANGE(0x2800, 0x2800) AM_WRITE(sub_irq_ack_w) /* Called on CPU start and after return from jump table */
 //  AM_RANGE(0x2a2b, 0x2a2b) AM_READNOP /* What lives here? */
 //  AM_RANGE(0x2a30, 0x2a30) AM_READNOP /* What lives here? */
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank4")
@@ -356,7 +359,7 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, chinagat_state )
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
 	AM_RANGE(0x8800, 0x8801) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0x9800, 0x9800) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0xA000, 0xA000) AM_READ(soundlatch_byte_r)
+	AM_RANGE(0xA000, 0xA000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( ym2203c_sound_map, AS_PROGRAM, 8, chinagat_state )
@@ -374,7 +377,7 @@ static ADDRESS_MAP_START( ym2203c_sound_map, AS_PROGRAM, 8, chinagat_state )
 
 //  AM_RANGE(0x8800, 0x8801) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 //  AM_RANGE(0x9800, 0x9800) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0xA000, 0xA000) AM_READ(soundlatch_byte_r)
+	AM_RANGE(0xA000, 0xA000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( saiyugoub1_sound_map, AS_PROGRAM, 8, chinagat_state )
@@ -382,7 +385,7 @@ static ADDRESS_MAP_START( saiyugoub1_sound_map, AS_PROGRAM, 8, chinagat_state )
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
 	AM_RANGE(0x8800, 0x8801) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0x9800, 0x9800) AM_WRITE(saiyugoub1_mcu_command_w)
-	AM_RANGE(0xA000, 0xA000) AM_READ(soundlatch_byte_r)
+	AM_RANGE(0xA000, 0xA000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( i8748_map, AS_PROGRAM, 8, chinagat_state )
@@ -507,11 +510,6 @@ static GFXDECODE_START( chinagat )
 GFXDECODE_END
 
 
-WRITE_LINE_MEMBER(chinagat_state::chinagat_irq_handler)
-{
-	m_soundcpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE );
-}
-
 MACHINE_START_MEMBER(chinagat_state,chinagat)
 {
 	/* configure banks */
@@ -583,6 +581,9 @@ static MACHINE_CONFIG_START( chinagat, chinagat_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("soundcpu", INPUT_LINE_NMI))
+
 	MCFG_YM2151_ADD("ymsnd", 3579545)
 	MCFG_YM2151_IRQ_HANDLER(INPUTLINE("soundcpu", 0))
 	MCFG_SOUND_ROUTE(0, "mono", 0.80)
@@ -629,6 +630,9 @@ static MACHINE_CONFIG_START( saiyugoub1, chinagat_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("soundcpu", INPUT_LINE_NMI))
+
 	MCFG_YM2151_ADD("ymsnd", 3579545)
 	MCFG_YM2151_IRQ_HANDLER(INPUTLINE("soundcpu", 0))
 	MCFG_SOUND_ROUTE(0, "mono", 0.80)
@@ -673,8 +677,11 @@ static MACHINE_CONFIG_START( saiyugoub2, chinagat_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("soundcpu", INPUT_LINE_NMI))
+
 	MCFG_SOUND_ADD("ym1", YM2203, 3579545)
-	MCFG_YM2203_IRQ_HANDLER(WRITELINE(chinagat_state, chinagat_irq_handler))
+	MCFG_YM2203_IRQ_HANDLER(INPUTLINE("soundcpu", 0))
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -900,12 +907,11 @@ ROM_END
 
 DRIVER_INIT_MEMBER(chinagat_state,chinagat)
 {
-	UINT8 *MAIN = memregion("maincpu")->base();
-	UINT8 *SUB = memregion("sub")->base();
+	uint8_t *MAIN = memregion("maincpu")->base();
+	uint8_t *SUB = memregion("sub")->base();
 
 	m_technos_video_hw = 1;
 	m_sprite_irq = M6809_IRQ_LINE;
-	m_sound_irq = INPUT_LINE_NMI;
 
 	membank("bank1")->configure_entries(0, 6, &MAIN[0x10000], 0x4000);
 	membank("bank4")->configure_entries(0, 6, &SUB[0x10000], 0x4000);

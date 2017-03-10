@@ -48,7 +48,7 @@ public:
 	DECLARE_MACHINE_START(vrom_fix);
 
 	void init_at_common(int xmsbase);
-	UINT16 m_ps1_reg[2];
+	uint16_t m_ps1_reg[2];
 };
 
 class megapc_state : public driver_device
@@ -136,7 +136,7 @@ WRITE16_MEMBER( at_state::ps1_unk_w )
 
 READ8_MEMBER( at_state::ps1_portb_r )
 {
-	UINT8 data = m_mb->portb_r(space, offset);
+	uint8_t data = m_mb->portb_r(space, offset);
 	/* 0x10 is the dram refresh line bit, 15.085us. */
 	data = (data & ~0x10) | ((machine().time().as_ticks(66291) & 1) ? 0x10 : 0);
 
@@ -152,8 +152,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( neat_io, AS_IO, 16, at_state )
 	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x0022, 0x0023) AM_DEVWRITE8("cs8221", cs8221_device, address_w, 0x00ff)
-	AM_RANGE(0x0022, 0x0023) AM_DEVREADWRITE8("cs8221", cs8221_device, data_r, data_w, 0xff00)
+	AM_RANGE(0x0022, 0x0023) AM_DEVICE("cs8221", cs8221_device, map)
 	AM_RANGE(0x0000, 0x00ff) AM_DEVICE("mb", at_mb_device, map)
 ADDRESS_MAP_END
 
@@ -175,21 +174,21 @@ ADDRESS_MAP_END
 
 DRIVER_INIT_MEMBER(megapc_state, megapc)
 {
-	UINT8* ROM = memregion("bios")->base();
+	uint8_t* ROM = memregion("bios")->base();
 	ROM[0x19145] = 0x45;  // hack to fix keyboard.  To be removed when the keyboard controller from the MegaPC is dumped
 	ROM[0x1fea0] = 0x20;  // to correct checksum
 }
 
 DRIVER_INIT_MEMBER(megapc_state, megapcpl)
 {
-	UINT8* ROM = memregion("bios")->base();
+	uint8_t* ROM = memregion("bios")->base();
 	ROM[0x187b1] = 0x55;  // hack to fix keyboard.  To be removed when the keyboard controller from the MegaPC is dumped
 	ROM[0x1fea0] = 0x20;  // to correct checksum
 }
 
 DRIVER_INIT_MEMBER(at_state, megapcpla)
 {
-	UINT8* ROM = memregion("bios")->base();
+	uint8_t* ROM = memregion("bios")->base();
 
 	init_at_common(0xa0000);
 

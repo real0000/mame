@@ -11,7 +11,6 @@
 #ifndef __MC1502_ROM__
 #define __MC1502_ROM__
 
-#include "emu.h"
 #include "isa.h"
 
 //**************************************************************************
@@ -23,10 +22,10 @@ class mc1502_rom_device : public device_t,
 {
 public:
 	// construction/destruction
-	mc1502_rom_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	mc1502_rom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// optional information overrides
-	virtual const rom_entry *device_rom_region() const override;
+	virtual const tiny_rom_entry *device_rom_region() const override;
 
 protected:
 	// device-level overrides

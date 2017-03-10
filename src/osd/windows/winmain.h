@@ -83,9 +83,9 @@
 #define WINOPTION_YIQ_QVALUE                "yiq_q"
 #define WINOPTION_YIQ_SCAN_TIME             "yiq_scan_time"
 #define WINOPTION_YIQ_PHASE_COUNT           "yiq_phase_count"
+#define WINOPTION_VECTOR_BEAM_SMOOTH        "vector_beam_smooth"
 #define WINOPTION_VECTOR_LENGTH_SCALE       "vector_length_scale"
 #define WINOPTION_VECTOR_LENGTH_RATIO       "vector_length_ratio"
-#define WINOPTION_VECTOR_TIME_PERIOD        "vector_time_period"
 #define WINOPTION_BLOOM_BLEND_MODE          "bloom_blend_mode"
 #define WINOPTION_BLOOM_SCALE               "bloom_scale"
 #define WINOPTION_BLOOM_OVERDRIVE           "bloom_overdrive"
@@ -178,9 +178,9 @@ public:
 	float screen_yiq_q() const { return float_value(WINOPTION_YIQ_QVALUE); }
 	float screen_yiq_scan_time() const { return float_value(WINOPTION_YIQ_SCAN_TIME); }
 	int screen_yiq_phase_count() const { return int_value(WINOPTION_YIQ_PHASE_COUNT); }
+	float screen_vector_beam_smooth() const { return float_value(WINOPTION_VECTOR_BEAM_SMOOTH); }
 	float screen_vector_length_scale() const { return float_value(WINOPTION_VECTOR_LENGTH_SCALE); }
 	float screen_vector_length_ratio() const { return float_value(WINOPTION_VECTOR_LENGTH_RATIO); }
-	float screen_vector_time_period() const { return float_value(WINOPTION_VECTOR_TIME_PERIOD); }
 	int screen_bloom_blend_mode() const { return int_value(WINOPTION_BLOOM_BLEND_MODE); }
 	float screen_bloom_scale() const { return float_value(WINOPTION_BLOOM_SCALE); }
 	const char *screen_bloom_overdrive() const { return value(WINOPTION_BLOOM_OVERDRIVE); }
@@ -241,8 +241,8 @@ enum input_event
 struct KeyPressEventArgs
 {
 	input_event event_id;
-	UINT8 vkey;
-	UINT8 scancode;
+	uint8_t vkey;
+	uint8_t scancode;
 };
 
 struct MouseButtonEventArgs
@@ -258,8 +258,10 @@ struct _EXCEPTION_POINTERS;
 
 class windows_osd_interface : public osd_common_t
 {
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	// Access to exception filter static method
 	friend int main(int argc, char *argv[]);
+#endif
 
 public:
 	// construction/destruction
@@ -274,7 +276,7 @@ public:
 	virtual void customize_input_type_list(simple_list<input_type_entry> &typelist) override;
 
 	// video overridables
-	virtual void add_audio_to_recording(const INT16 *buffer, int samples_this_frame) override;
+	virtual void add_audio_to_recording(const int16_t *buffer, int samples_this_frame) override;
 
 	virtual void video_register() override;
 
@@ -303,6 +305,7 @@ protected:
 
 private:
 	virtual void osd_exit() override;
+	void output_oslog(const char *buffer);
 
 	windows_options &   m_options;
 

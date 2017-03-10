@@ -9,6 +9,7 @@
 //
 //============================================================
 
+#include "emu.h"
 #include "../frontend/mame/ui/slider.h"
 
 #include "emucore.h"
@@ -55,13 +56,9 @@ void bgfx_input_pair::bind(bgfx_effect *effect, const int32_t screen) const
 	bgfx::setTexture(m_index, effect->uniform(m_sampler)->handle(), chains().textures().handle(name));
 }
 
-static INT32 update_trampoline(running_machine &machine, void *arg, int id, std::string *str, INT32 newval)
+int32_t bgfx_input_pair::slider_changed(running_machine &machine, void *arg, int id, std::string *str, int32_t newval)
 {
-	if (arg != nullptr)
-	{
-		return reinterpret_cast<bgfx_input_pair*>(arg)->texture_changed(id, str, newval);
-	}
-	return 0;
+	return texture_changed(id, str, newval);
 }
 
 int32_t bgfx_input_pair::texture_changed(int32_t id, std::string *str, int32_t newval)
@@ -100,23 +97,25 @@ void bgfx_input_pair::create_selection_slider(uint32_t screen_index)
 {
 	std::string description = "Window " + std::to_string(chains().window_index()) + ", Screen " + std::to_string(screen_index) + " " + m_selection + ":";
 	size_t size = sizeof(slider_state) + description.length();
-	slider_state *state = reinterpret_cast<slider_state *>(auto_alloc_array_clear(chains().machine(), UINT8, size));
+	slider_state *state = reinterpret_cast<slider_state *>(auto_alloc_array_clear(chains().machine(), uint8_t, size));
 
 	state->minval = 0;
 	state->defval = m_current_texture;
 	state->maxval = m_available_textures.size() - 1;
 	state->incval = 1;
-	state->update = update_trampoline;
+
+	using namespace std::placeholders;
+	state->update = std::bind(&bgfx_input_pair::slider_changed, this, _1, _2, _3, _4, _5);
 	state->arg = this;
 	state->id = screen_index;
 	strcpy(state->description, description.c_str());
 
-	ui_menu_item item;
+	ui::menu_item item;
 	item.text = state->description;
 	item.subtext = "";
 	item.flags = 0;
 	item.ref = state;
-	item.type = ui_menu_item_type::SLIDER;
+	item.type = ui::menu_item_type::SLIDER;
 	m_selection_slider = item;
 }
 
@@ -125,9 +124,9 @@ bool bgfx_input_pair::needs_sliders()
 	return chains().screen_count() > 0 && m_available_textures.size() > 1;
 }
 
-std::vector<ui_menu_item> bgfx_input_pair::get_slider_list()
+std::vector<ui::menu_item> bgfx_input_pair::get_slider_list()
 {
-	std::vector<ui_menu_item> sliders;
+	std::vector<ui::menu_item> sliders;
 
 	if (!needs_sliders())
 	{

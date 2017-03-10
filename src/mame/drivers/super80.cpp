@@ -605,25 +605,25 @@ static const gfx_layout super80v_charlayout =
 };
 
 static GFXDECODE_START( super80 )
-	GFXDECODE_ENTRY( "chargen", 0x0000, super80_charlayout, 0, 1 )
+	GFXDECODE_ENTRY( "chargen", 0x0000, super80_charlayout, 16, 1 )
 GFXDECODE_END
 
 static GFXDECODE_START( super80d )
-	GFXDECODE_ENTRY( "chargen", 0x0000, super80d_charlayout, 0, 1 )
+	GFXDECODE_ENTRY( "chargen", 0x0000, super80d_charlayout, 16, 1 )
 GFXDECODE_END
 
 static GFXDECODE_START( super80e )
-	GFXDECODE_ENTRY( "chargen", 0x0000, super80e_charlayout, 0, 1 )
+	GFXDECODE_ENTRY( "chargen", 0x0000, super80e_charlayout, 16, 1 )
 GFXDECODE_END
 
 static GFXDECODE_START( super80m )
-	GFXDECODE_ENTRY( "chargen", 0x0000, super80e_charlayout, 0, 8 )
-	GFXDECODE_ENTRY( "chargen", 0x1000, super80d_charlayout, 0, 8 )
+	GFXDECODE_ENTRY( "chargen", 0x0000, super80e_charlayout, 2, 6 )
+	GFXDECODE_ENTRY( "chargen", 0x1000, super80d_charlayout, 2, 6 )
 GFXDECODE_END
 
 /* This will show the 128 characters in the ROM + whatever happens to be in the PCG */
 static GFXDECODE_START( super80v )
-	GFXDECODE_ENTRY( "maincpu", 0xf000, super80v_charlayout, 0, 8 )
+	GFXDECODE_ENTRY( "maincpu", 0xf000, super80v_charlayout, 2, 6 )
 GFXDECODE_END
 
 
@@ -678,6 +678,15 @@ static SLOT_INTERFACE_START( super80_floppies )
 SLOT_INTERFACE_END
 
 
+static const char *const relay_sample_names[] =
+{
+	"*relay",
+	"relayoff",
+	"relayon",
+	nullptr
+};
+
+
 static MACHINE_CONFIG_START( super80, super80_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, MASTER_CLOCK/6)        /* 2 MHz */
@@ -710,6 +719,10 @@ static MACHINE_CONFIG_START( super80, super80_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.05)
 	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1)
+	MCFG_SAMPLES_NAMES(relay_sample_names)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* printer */
 	MCFG_CENTRONICS_ADD("centronics", centronics_devices, "printer")
@@ -790,7 +803,6 @@ static MACHINE_CONFIG_START( super80v, super80_state )
 
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", super80v)
 	MCFG_DEFAULT_LAYOUT( layout_super80 )
-	MCFG_VIDEO_START_OVERRIDE(super80_state,super80v)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -798,6 +810,10 @@ static MACHINE_CONFIG_START( super80v, super80_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.05)
 	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1)
+	MCFG_SAMPLES_NAMES(relay_sample_names)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* printer */
 	MCFG_CENTRONICS_ADD("centronics", centronics_devices, "printer")

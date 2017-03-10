@@ -325,7 +325,7 @@ Stephh's notes (based on the game M68000 code and some tests) :
 #include "includes/taitoipt.h"
 #include "audio/taitosnd.h"
 #include "sound/2203intf.h"
-#include "sound/2151intf.h"
+#include "sound/ym2151.h"
 #include "includes/rbisland.h"
 
 
@@ -944,7 +944,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(rbisland_state,rbisland)
 {
-	UINT8 *ROM = memregion("audiocpu")->base();
+	uint8_t *ROM = memregion("audiocpu")->base();
 
 	membank("bank1")->configure_entries(0, 4, &ROM[0xc000], 0x4000);
 
@@ -953,7 +953,7 @@ DRIVER_INIT_MEMBER(rbisland_state,rbisland)
 
 DRIVER_INIT_MEMBER(rbisland_state,rbislande)
 {
-	UINT8 *ROM = memregion("audiocpu")->base();
+	uint8_t *ROM = memregion("audiocpu")->base();
 
 	membank("bank1")->configure_entries(0, 4, &ROM[0xc000], 0x4000);
 

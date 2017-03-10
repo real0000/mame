@@ -91,7 +91,7 @@ slampic: no sound. A priority problem between sprites and crowd.
 #include "includes/cps1.h"
 #include "sound/2203intf.h"
 #include "sound/msm5205.h"
-#include "sound/2151intf.h"
+#include "sound/ym2151.h"
 #include "sound/okim6295.h"
 #include "machine/eepromser.h"
 
@@ -490,8 +490,9 @@ void cps_state::fcrash_render_sprites( screen_device &screen, bitmap_ind16 &bitm
 	int base = m_sprite_base / 2;
 	int num_sprites = m_gfxdecode->gfx(2)->elements();
 	int last_sprite_offset = 0x1ffc;
-	UINT16 *sprite_ram = m_gfxram;
-	UINT16 tileno,flipx,flipy,colour,xpos,ypos;
+	uint16_t *sprite_ram = m_gfxram;
+	uint16_t tileno,colour,xpos,ypos;
+	bool flipx, flipy;
 
 	/* if we have separate sprite ram, use it */
 	if (m_bootleg_sprite_ram) sprite_ram = m_bootleg_sprite_ram.get();
@@ -509,13 +510,16 @@ void cps_state::fcrash_render_sprites( screen_device &screen, bitmap_ind16 &bitm
 			if (tileno >= num_sprites) continue; /* don't render anything outside our tiles */
 			xpos   = sprite_ram[base + pos + 2] & 0x1ff;
 			ypos   = sprite_ram[base + pos - 1] & 0x1ff;
-			flipx  = sprite_ram[base + pos + 1] & 0x20;
-			flipy  = sprite_ram[base + pos + 1] & 0x40;
+			flipx  = BIT(sprite_ram[base + pos + 1], 5);
+			flipy  = BIT(sprite_ram[base + pos + 1], 6);
 			colour = sprite_ram[base + pos + 1] & 0x1f;
 			ypos   = 256 - ypos - 16;
 			xpos   = xpos + m_sprite_x_offset + 49;
 
-			m_gfxdecode->gfx(2)->prio_transpen(bitmap,cliprect, tileno, colour, flipx, flipy, xpos, ypos, screen.priority(), 0x02, 15);
+			if (flip_screen())
+				m_gfxdecode->gfx(2)->prio_transpen(bitmap, cliprect, tileno, colour, !flipx, !flipy, 512-16-xpos, 256-16-ypos, screen.priority(), 2, 15);
+			else
+				m_gfxdecode->gfx(2)->prio_transpen(bitmap, cliprect, tileno, colour, flipx, flipy, xpos, ypos, screen.priority(), 2, 15);
 		}
 	}
 }
@@ -577,7 +581,7 @@ void cps_state::fcrash_build_palette()
 	}
 }
 
-UINT32 cps_state::screen_update_fcrash(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t cps_state::screen_update_fcrash(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	int layercontrol, l0, l1, l2, l3;
 	int videocontrol = m_cps_a_regs[0x22 / 2];
@@ -1421,7 +1425,7 @@ INPUT_PORTS_END
 
 MACHINE_START_MEMBER(cps_state,fcrash)
 {
-	UINT8 *ROM = memregion("audiocpu")->base();
+	uint8_t *ROM = memregion("audiocpu")->base();
 
 	membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x4000);
 
@@ -1484,7 +1488,7 @@ MACHINE_START_MEMBER(cps_state, cawingbl)
 
 MACHINE_START_MEMBER(cps_state, sf2mdt)
 {
-	UINT8 *ROM = memregion("audiocpu")->base();
+	uint8_t *ROM = memregion("audiocpu")->base();
 
 	membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x4000);
 
@@ -1508,7 +1512,7 @@ MACHINE_START_MEMBER(cps_state, sf2mdt)
 
 MACHINE_START_MEMBER(cps_state, knightsb)
 {
-	UINT8 *ROM = memregion("audiocpu")->base();
+	uint8_t *ROM = memregion("audiocpu")->base();
 
 	membank("bank1")->configure_entries(0, 16, &ROM[0x10000], 0x4000);
 
@@ -1527,7 +1531,7 @@ MACHINE_START_MEMBER(cps_state, knightsb)
 
 MACHINE_START_MEMBER(cps_state, sf2m1)
 {
-	UINT8 *ROM = memregion("audiocpu")->base();
+	uint8_t *ROM = memregion("audiocpu")->base();
 
 	membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x4000);
 
@@ -1937,7 +1941,7 @@ DRIVER_INIT_MEMBER(cps_state, kodb)
 
 	/* the original game alternates between 2 sprite ram areas to achieve flashing sprites - the bootleg doesn't do the write to the register to achieve this
 	mapping both sprite ram areas to the same bootleg sprite ram - similar to how sf2mdt works */
-	m_bootleg_sprite_ram = std::make_unique<UINT16[]>(0x2000);
+	m_bootleg_sprite_ram = std::make_unique<uint16_t[]>(0x2000);
 	m_maincpu->space(AS_PROGRAM).install_ram(0x900000, 0x903fff, m_bootleg_sprite_ram.get());
 	m_maincpu->space(AS_PROGRAM).install_ram(0x904000, 0x907fff, m_bootleg_sprite_ram.get()); /* both of these need to be mapped */
 
@@ -2241,7 +2245,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(cps_state, dinopic)
 {
-	m_bootleg_sprite_ram = std::make_unique<UINT16[]>(0x2000);
+	m_bootleg_sprite_ram = std::make_unique<uint16_t[]>(0x2000);
 	m_maincpu->space(AS_PROGRAM).install_ram(0x990000, 0x993fff, m_bootleg_sprite_ram.get());
 	DRIVER_INIT_CALL(cps1);
 }
@@ -2518,7 +2522,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(cps_state, punipic)
 {
-	UINT16 *mem16 = (UINT16 *)memregion("maincpu")->base();
+	uint16_t *mem16 = (uint16_t *)memregion("maincpu")->base();
 	mem16[0x5A8/2] = 0x4E71; // set data pointers
 	mem16[0x4DF0/2] = 0x33ED;
 	mem16[0x4DF2/2] = 0xDB2E;
@@ -2531,7 +2535,7 @@ DRIVER_INIT_MEMBER(cps_state, punipic)
 
 DRIVER_INIT_MEMBER(cps_state, punipic3)
 {
-	UINT16 *mem16 = (UINT16 *)memregion("maincpu")->base();
+	uint16_t *mem16 = (uint16_t *)memregion("maincpu")->base();
 	mem16[0x5A6/2] = 0x4E71; // set data pointers
 	mem16[0x5A8/2] = 0x4E71;
 
@@ -2608,7 +2612,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(cps_state, sf2m1)
 {
-	UINT16 *mem16 = (UINT16 *)memregion("maincpu")->base();
+	uint16_t *mem16 = (uint16_t *)memregion("maincpu")->base();
 	mem16[0x64E/2] = 0x6046; // fix priorities
 
 	DRIVER_INIT_CALL(dinopic);
@@ -2789,9 +2793,9 @@ ROM_END
 DRIVER_INIT_MEMBER(cps_state, sf2mdt)
 {
 	int i;
-	UINT32 gfx_size = memregion( "gfx" )->bytes();
-	UINT8 *rom = memregion( "gfx" )->base();
-	UINT8 tmp;
+	uint32_t gfx_size = memregion( "gfx" )->bytes();
+	uint8_t *rom = memregion( "gfx" )->base();
+	uint8_t tmp;
 
 	for( i = 0; i < gfx_size; i += 8 )
 	{
@@ -2812,9 +2816,9 @@ DRIVER_INIT_MEMBER(cps_state, sf2mdt)
 DRIVER_INIT_MEMBER(cps_state, sf2mdtb)
 {
 	int i;
-	UINT32 gfx_size = memregion( "gfx" )->bytes();
-	UINT8 *rom = memregion( "gfx" )->base();
-	UINT8 tmp;
+	uint32_t gfx_size = memregion( "gfx" )->bytes();
+	uint8_t *rom = memregion( "gfx" )->base();
+	uint8_t tmp;
 
 	for( i = 0; i < gfx_size; i += 8 )
 	{
@@ -2827,7 +2831,7 @@ DRIVER_INIT_MEMBER(cps_state, sf2mdtb)
 	}
 
 	/* bootleg sprite ram */
-	m_bootleg_sprite_ram = std::make_unique<UINT16[]>(0x2000);
+	m_bootleg_sprite_ram = std::make_unique<uint16_t[]>(0x2000);
 	m_maincpu->space(AS_PROGRAM).install_ram(0x700000, 0x703fff, m_bootleg_sprite_ram.get());
 	m_maincpu->space(AS_PROGRAM).install_ram(0x704000, 0x707fff, m_bootleg_sprite_ram.get()); /* both of these need to be mapped  */
 
@@ -2838,11 +2842,11 @@ DRIVER_INIT_MEMBER(cps_state, sf2mdtb)
 DRIVER_INIT_MEMBER(cps_state, sf2mdta)
 {
 	/* bootleg sprite ram */
-	m_bootleg_sprite_ram = std::make_unique<UINT16[]>(0x2000);
+	m_bootleg_sprite_ram = std::make_unique<uint16_t[]>(0x2000);
 	m_maincpu->space(AS_PROGRAM).install_ram(0x700000, 0x703fff, m_bootleg_sprite_ram.get());
 	m_maincpu->space(AS_PROGRAM).install_ram(0x704000, 0x707fff, m_bootleg_sprite_ram.get()); /* both of these need to be mapped - see the "Magic Delta Turbo" text on the title screen */
 
-	m_bootleg_work_ram = std::make_unique<UINT16[]>(0x8000);
+	m_bootleg_work_ram = std::make_unique<uint16_t[]>(0x8000);
 	m_maincpu->space(AS_PROGRAM).install_ram(0xfc0000, 0xfcffff, m_bootleg_work_ram.get()); /* this has moved */
 
 	DRIVER_INIT_CALL(cps1);
@@ -2851,7 +2855,7 @@ DRIVER_INIT_MEMBER(cps_state, sf2mdta)
 DRIVER_INIT_MEMBER(cps_state, sf2b)
 {
 	/* bootleg sprite ram */
-	m_bootleg_sprite_ram = std::make_unique<UINT16[]>(0x2000);
+	m_bootleg_sprite_ram = std::make_unique<uint16_t[]>(0x2000);
 	m_maincpu->space(AS_PROGRAM).install_ram(0x700000, 0x703fff, m_bootleg_sprite_ram.get());
 	m_maincpu->space(AS_PROGRAM).install_ram(0x704000, 0x707fff, m_bootleg_sprite_ram.get());
 
@@ -2954,6 +2958,103 @@ ROM_START( slampic )
 	ROM_LOAD( "mb_qa.5k",   0x00000, 0x20000, CRC(e21a03c4) SHA1(98c03fd2c9b6bf8a4fc25a4edca87fff7c3c3819) )
 ROM_END
 
+// ************************************************************************* VARTHB
+
+WRITE16_MEMBER(cps_state::varthb_layer_w)
+{
+	if (data > 0x9000)
+		m_cps_a_regs[0x06 / 2] = data;
+}
+
+static ADDRESS_MAP_START( varthb_map, AS_PROGRAM, 16, cps_state )
+	AM_RANGE(0x000000, 0x1fffff) AM_ROM
+	AM_RANGE(0x800000, 0x800001) AM_READ_PORT("IN1")
+	AM_RANGE(0x800006, 0x800007) AM_WRITE(cps1_soundlatch_w)
+	AM_RANGE(0x800018, 0x80001f) AM_READ(cps1_dsw_r)
+	AM_RANGE(0x800030, 0x800037) AM_WRITE(cps1_coinctrl_w)
+	AM_RANGE(0x800100, 0x80013f) AM_WRITE(cps1_cps_a_w) AM_SHARE("cps_a_regs")
+	AM_RANGE(0x800140, 0x80017f) AM_READWRITE(cps1_cps_b_r, cps1_cps_b_w) AM_SHARE("cps_b_regs")
+	AM_RANGE(0x800188, 0x800189) AM_WRITE(varthb_layer_w)
+	AM_RANGE(0x980000, 0x98000b) AM_WRITE(dinopic_layer_w)
+	AM_RANGE(0x900000, 0x92ffff) AM_RAM_WRITE(cps1_gfxram_w) AM_SHARE("gfxram")
+	AM_RANGE(0xff0000, 0xffffff) AM_RAM AM_SHARE("mainram")
+ADDRESS_MAP_END
+
+static MACHINE_CONFIG_START( varthb, cps_state )
+
+	/* basic machine hardware */
+	MCFG_CPU_ADD("maincpu", M68000, 12000000)
+	MCFG_CPU_PROGRAM_MAP(varthb_map)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", cps_state,  cps1_interrupt)
+
+	MCFG_CPU_ADD("audiocpu", Z80, 3579545)
+	MCFG_CPU_PROGRAM_MAP(sgyxz_sound_map)
+
+	MCFG_MACHINE_START_OVERRIDE(cps_state,cps1)
+
+	/* video hardware */
+	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_REFRESH_RATE(60)
+	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
+	MCFG_SCREEN_SIZE(64*8, 32*8)
+	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 2*8, 30*8-1 )
+	MCFG_SCREEN_UPDATE_DRIVER(cps_state, screen_update_cps1)
+	MCFG_SCREEN_VBLANK_DRIVER(cps_state, screen_eof_cps1)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cps1)
+	MCFG_PALETTE_ADD("palette", 0xc00)
+
+	MCFG_VIDEO_START_OVERRIDE(cps_state,cps1)
+
+	/* sound hardware */
+	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch2")
+
+	MCFG_YM2151_ADD("2151", XTAL_3_579545MHz)
+	MCFG_YM2151_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
+	MCFG_SOUND_ROUTE(0, "mono", 0.35)
+	MCFG_SOUND_ROUTE(1, "mono", 0.35)
+
+	MCFG_OKIM6295_ADD("oki", XTAL_16MHz/4/4, OKIM6295_PIN7_HIGH)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
+MACHINE_CONFIG_END
+
+ROM_START( varthb )
+	ROM_REGION( CODE_SIZE, "maincpu", 0 )      /* 68000 code */
+	ROM_LOAD16_BYTE( "2",   0x000000, 0x80000, CRC(2f010023) SHA1(bf4b6c0cd82cf1b86e17d6ea2670110c06e6eabe) )
+	ROM_LOAD16_BYTE( "1",   0x000001, 0x80000, CRC(0861dff3) SHA1(bf6dfe18ecaeaa1bbea09267014891c4a4a07943) )
+	ROM_LOAD16_BYTE( "4",   0x100000, 0x10000, CRC(aa51e43b) SHA1(46b9dab844c55b50a47d048e5bb114911773699c) )
+	ROM_LOAD16_BYTE( "3",   0x100001, 0x10000, CRC(f7e4f2f0) SHA1(2ce4eadb2d6a0e0d5745323eff2c899950ad4d3b) )
+
+	ROM_REGION( 0x200000, "gfx", 0 )
+	ROMX_LOAD( "14",  0x000000, 0x40000, CRC(7ca73780) SHA1(26909db32f84157cd05719e5d1e715e76636d292) , ROM_SKIP(7) )
+	ROMX_LOAD( "13",  0x000001, 0x40000, CRC(9fb11869) SHA1(a434fb0b588f934aaa68139495e1212a63ccf162) , ROM_SKIP(7) )
+	ROMX_LOAD( "12",  0x000002, 0x40000, CRC(afeba416) SHA1(e722c65ea2e2bac3251c32208899484aa5ef6ad2) , ROM_SKIP(7) )
+	ROMX_LOAD( "11",  0x000003, 0x40000, CRC(9eef3507) SHA1(ae03064ca5681fbdc43a34c54aaac11c8467428b) , ROM_SKIP(7) )
+	ROMX_LOAD( "10",  0x000004, 0x40000, CRC(eeec6183) SHA1(40dc9c86e90d7c1a2ad600c195fe387180d95fd4) , ROM_SKIP(7) )
+	ROMX_LOAD( "9",   0x000005, 0x40000, CRC(0e94f718) SHA1(249534f2323abcdb24099d0abc24c229c699ba94) , ROM_SKIP(7) )
+	ROMX_LOAD( "8",   0x000006, 0x40000, CRC(c4ddc5b4) SHA1(79c2a42a664e387932b7804e7a80f5753338c3b0) , ROM_SKIP(7) )
+	ROMX_LOAD( "7",   0x000007, 0x40000, CRC(8941ca12) SHA1(5ad5d47b8614c2899d05c65dc3b74947d4bac561) , ROM_SKIP(7) )
+
+	ROM_REGION( 0x18000, "audiocpu", 0 ) /* 64k for the audio CPU (+banks) */
+	ROM_LOAD( "6",    0x00000, 0x08000, CRC(7a99446e) SHA1(ca027f41e3e58be5abc33ad7380746658cb5380a) )
+	ROM_CONTINUE(           0x10000, 0x08000 )
+
+	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
+	ROM_LOAD( "5",    0x00000, 0x40000, CRC(1547e595) SHA1(27f47b1afd9700afd9e8167d7e4e2888be34a9e5) )
+
+	ROM_REGION( 0x1000, "pals", 0 )
+	ROM_LOAD_OPTIONAL( "varth1.bin",    0x00000, 0x157, CRC(4c6a0d99) SHA1(081a307ef38675de178dd6221e6c4e55a5bfbd87) )
+	ROM_LOAD_OPTIONAL( "varth2.bin",    0x00200, 0x157, NO_DUMP ) // Registered
+	ROM_LOAD_OPTIONAL( "varth3.bin",    0x00400, 0x157, NO_DUMP ) // Registered
+	ROM_LOAD_OPTIONAL( "varth4.bin",    0x00600, 0x117, CRC(53317bf6) SHA1(f7b8f8b2c40429a517e3be63e5aed9573972ddfb) )
+	ROM_LOAD_OPTIONAL( "varth5.bin",    0x00800, 0x157, NO_DUMP ) // Registered
+	ROM_LOAD_OPTIONAL( "varth6.bin",    0x00a00, 0x157, NO_DUMP ) // Registered
+ROM_END
+
 
 // ************************************************************************* DRIVER MACROS
 
@@ -2986,3 +3087,5 @@ GAME( 1992, sf2m9,     sf2ce,    sf2m1,     sf2,      cps_state, sf2m1,    ROT0,
 GAME( 1993, slampic,   slammast, slampic,   slammast, cps_state, dinopic,  ROT0,   "bootleg", "Saturday Night Slam Masters (bootleg with PIC16c57)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE ) // 930713 ETC
 
 GAME( 1999, sgyxz,     wof,      sgyxz,     sgyxz,    cps_state, cps1,     ROT0,   "bootleg (All-In Electronic)", "Warriors of Fate ('sgyxz' bootleg)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )   // 921005 - Sangokushi 2
+
+GAME( 1992, varthb,    varth,    varthb,    varth,    cps_state, dinopic,  ROT270, "bootleg", "Varth: Operation Thunderstorm (bootleg)", MACHINE_SUPPORTS_SAVE )

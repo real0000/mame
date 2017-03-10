@@ -261,13 +261,6 @@ static GFXDECODE_START( blktiger )
 GFXDECODE_END
 
 
-
-/* handler called by the 2203 emulator when the internal timers cause an IRQ */
-WRITE_LINE_MEMBER(blktiger_state::irqhandler)
-{
-	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
-}
-
 void blktiger_state::machine_start()
 {
 	/* configure bankswitching */
@@ -340,7 +333,7 @@ static MACHINE_CONFIG_START( blktiger, blktiger_state )
 	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
 
 	MCFG_SOUND_ADD("ym1", YM2203, XTAL_3_579545MHz) /* verified on pcb */
-	MCFG_YM2203_IRQ_HANDLER(WRITELINE(blktiger_state, irqhandler))
+	MCFG_YM2203_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.15)
 
 	MCFG_SOUND_ADD("ym2", YM2203, XTAL_3_579545MHz) /* verified on pcb */
@@ -604,9 +597,9 @@ ROM_END
 
 DRIVER_INIT_MEMBER(blktiger_state,blktigerb3)
 {
-	UINT8 *src = memregion("audiocpu")->base();
+	uint8_t *src = memregion("audiocpu")->base();
 	int len = 0x8000;
-	dynamic_buffer buffer(len);
+	std::vector<uint8_t> buffer(len);
 
 	for (int i = 0; i < len; i++)
 	{

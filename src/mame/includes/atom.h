@@ -6,7 +6,6 @@
 #define __ATOM__
 
 
-#include "emu.h"
 #include "cpu/m6502/m6502.h"
 #include "imagedev/cassette.h"
 #include "imagedev/flopdrv.h"
@@ -97,7 +96,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( motor_w );
 
 	/* video state */
-	required_shared_ptr<UINT8> m_video_ram;
+	required_shared_ptr<uint8_t> m_video_ram;
 
 	/* keyboard state */
 	int m_keylatch;
@@ -112,7 +111,7 @@ public:
 	DECLARE_FLOPPY_FORMATS(floppy_formats);
 	TIMER_DEVICE_CALLBACK_MEMBER(cassette_output_tick);
 
-	int load_cart(device_image_interface &image, generic_slot_device *slot);
+	image_init_result load_cart(device_image_interface &image, generic_slot_device *slot);
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(cart_load) { return load_cart(image, m_cart); }
 	DECLARE_QUICKLOAD_LOAD_MEMBER(atom_atm);
 };

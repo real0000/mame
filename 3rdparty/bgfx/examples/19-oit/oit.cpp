@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2017 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
  */
 
@@ -90,7 +90,7 @@ inline void mtxProj(float* _result, float _fovy, float _aspect, float _near, flo
 
 void screenSpaceQuad(float _textureWidth, float _textureHeight, bool _originBottomLeft = false, float _width = 1.0f, float _height = 1.0f)
 {
-	if (bgfx::checkAvailTransientVertexBuffer(3, PosColorTexCoord0Vertex::ms_decl) )
+	if (3 == bgfx::getAvailTransientVertexBuffer(3, PosColorTexCoord0Vertex::ms_decl) )
 	{
 		bgfx::TransientVertexBuffer vb;
 		bgfx::allocTransientVertexBuffer(&vb, 3, PosColorTexCoord0Vertex::ms_decl);
@@ -264,8 +264,8 @@ class ExampleOIT : public entry::AppI
 					bgfx::destroyFrameBuffer(m_fbh);
 				}
 
-				m_fbtextures[0] = bgfx::createTexture2D(m_width, m_height, 1, bgfx::TextureFormat::RGBA16F, BGFX_TEXTURE_RT);
-				m_fbtextures[1] = bgfx::createTexture2D(m_width, m_height, 1, bgfx::TextureFormat::R16F,    BGFX_TEXTURE_RT);
+				m_fbtextures[0] = bgfx::createTexture2D(m_width, m_height, false, 1, bgfx::TextureFormat::RGBA16F, BGFX_TEXTURE_RT);
+				m_fbtextures[1] = bgfx::createTexture2D(m_width, m_height, false, 1, bgfx::TextureFormat::R16F,    BGFX_TEXTURE_RT);
 				m_fbh = bgfx::createFrameBuffer(BX_COUNTOF(m_fbtextures), m_fbtextures, true);
 			}
 
@@ -410,6 +410,14 @@ class ExampleOIT : public entry::AppI
 							| BGFX_STATE_MSAA
 							;
 
+						const uint64_t stateNoDepth = 0
+						| BGFX_STATE_CULL_CW
+						| BGFX_STATE_RGB_WRITE
+						| BGFX_STATE_ALPHA_WRITE
+						| BGFX_STATE_DEPTH_TEST_ALWAYS
+						| BGFX_STATE_MSAA
+						;
+
 						bgfx::ProgramHandle program = BGFX_INVALID_HANDLE;
 						switch (m_mode)
 						{
@@ -428,7 +436,7 @@ class ExampleOIT : public entry::AppI
 								program = m_wbSeparatePass;
 
 								// Set render states.
-								bgfx::setState(state
+								bgfx::setState(stateNoDepth
 									| BGFX_STATE_BLEND_FUNC_SEPARATE(BGFX_STATE_BLEND_ONE, BGFX_STATE_BLEND_ONE, BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_INV_SRC_ALPHA)
 									);
 								break;
@@ -438,7 +446,7 @@ class ExampleOIT : public entry::AppI
 								program = m_wbPass;
 
 								// Set render states.
-								bgfx::setState(state
+								bgfx::setState(stateNoDepth
 									| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ONE, BGFX_STATE_BLEND_ONE)
 									| BGFX_STATE_BLEND_INDEPENDENT
 									, 0

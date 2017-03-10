@@ -6,7 +6,7 @@
 
 #include "bus/msx_slot/slot.h"
 #include "bus/msx_slot/rom.h"
-#include "sound/2413intf.h"
+#include "sound/ym2413.h"
 
 
 extern const device_type MSX_SLOT_MUSIC;
@@ -19,7 +19,7 @@ extern const device_type MSX_SLOT_MUSIC;
 class msx_slot_music_device : public msx_slot_rom_device
 {
 public:
-	msx_slot_music_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	msx_slot_music_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// static configuration helpers
 	static void set_ym2413_tag(device_t &device, const char *tag) { dynamic_cast<msx_slot_music_device &>(device).m_ym2413_tag = tag; }

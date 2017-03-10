@@ -11,164 +11,158 @@
 #define NLLISTS_H_
 
 #include "nl_config.h"
+#include "netlist_types.h"
 #include "plib/plists.h"
+#include "plib/pchrono.h"
+#include "plib/ptypes.h"
 
 #include <atomic>
-
+#include <thread>
+#include <mutex>
 
 // ----------------------------------------------------------------------------------------
 // timed queue
 // ----------------------------------------------------------------------------------------
 
+
 namespace netlist
 {
-	template <class _Element, class _Time>
-	class timed_queue
+	//FIXME: move to an appropriate place
+	template<bool enabled_ = true>
+	class pspin_mutex
 	{
-		P_PREVENT_COPYING(timed_queue)
+	public:
+		pspin_mutex() noexcept { }
+		void lock() noexcept{ while (m_lock.test_and_set(std::memory_order_acquire)) { } }
+		void unlock() noexcept { m_lock.clear(std::memory_order_release); }
+	private:
+		std::atomic_flag m_lock = ATOMIC_FLAG_INIT;
+	};
+
+	template<>
+	class pspin_mutex<false>
+	{
+	public:
+		void lock() const noexcept { }
+		void unlock() const noexcept { }
+	};
+
+	template <class Element, class Time>
+	class timed_queue : plib::nocopyassignmove
+	{
 	public:
 
-		class entry_t
+		struct entry_t final
 		{
-		public:
-			ATTR_HOT  entry_t()
-			:  m_exec_time(), m_object() {}
-#if 0
-			ATTR_HOT  entry_t(entry_t &&right) NOEXCEPT
-			:  m_exec_time(right.m_exec_time), m_object(right.m_object) {}
-			ATTR_HOT  entry_t(const entry_t &right) NOEXCEPT
-			:  m_exec_time(right.m_exec_time), m_object(right.m_object) {}
-#endif
-			ATTR_HOT  entry_t(const _Time &atime, const _Element &elem) NOEXCEPT
-			: m_exec_time(atime), m_object(elem)  {}
-			ATTR_HOT  const _Time &exec_time() const { return m_exec_time; }
-			ATTR_HOT  const _Element &object() const { return m_object; }
-#if 0
-			ATTR_HOT  entry_t &operator=(const entry_t &right) NOEXCEPT {
-				m_exec_time = right.m_exec_time;
-				m_object = right.m_object;
+			constexpr entry_t() : m_exec_time(), m_object(nullptr) { }
+			constexpr entry_t(const Time &t, const Element &o) : m_exec_time(t), m_object(o) { }
+			constexpr entry_t(const entry_t &e) : m_exec_time(e.m_exec_time), m_object(e.m_object) { }
+			constexpr entry_t(entry_t &&e) : m_exec_time(e.m_exec_time), m_object(e.m_object) { }
+			~entry_t() = default;
+
+			entry_t& operator=(entry_t && other)
+			{
+				m_exec_time = other.m_exec_time;
+				m_object = other.m_object;
 				return *this;
 			}
-#endif
-		private:
-			_Time m_exec_time;
-			_Element m_object;
+
+			Time m_exec_time;
+			Element m_object;
 		};
 
 		timed_queue(unsigned list_size)
 		: m_list(list_size)
 		{
-	#if HAS_OPENMP && USE_OPENMP
-			m_lock = 0;
-	#endif
 			clear();
 		}
 
-		ATTR_HOT  std::size_t capacity() const { return m_list.size(); }
-		ATTR_HOT  bool is_empty() const { return (m_end == &m_list[1]); }
-		ATTR_HOT  bool is_not_empty() const { return (m_end > &m_list[1]); }
+		constexpr std::size_t capacity() const { return m_list.size(); }
+		constexpr bool empty() const { return (m_end == &m_list[1]); }
 
-		ATTR_HOT void push(const entry_t e) NOEXCEPT
+		void push(entry_t &&e) noexcept
 		{
-	#if HAS_OPENMP && USE_OPENMP
 			/* Lock */
-			while (m_lock.exchange(1)) { }
-	#endif
-#if 1
-			const _Time t = e.exec_time();
-			entry_t * i = m_end++;
-			for (; t > (i - 1)->exec_time(); i--)
+			tqlock lck(m_lock);
+			entry_t * i = m_end;
+			while (e.m_exec_time > (i - 1)->m_exec_time)
 			{
-				*(i) = *(i-1);
-				//i--;
-				inc_stat(m_prof_sortmove);
-			}
-			*i = e;
-#else
-			entry_t * i = m_end++;
-			while (e.exec_time() > (i - 1)->exec_time())
-			{
-				*(i) = *(i-1);
+				*(i) = std::move(*(i-1));
 				--i;
-				inc_stat(m_prof_sortmove);
+				m_prof_sortmove.inc();
 			}
-			*i = e;
+			*i = std::move(e);
+			++m_end;
+			m_prof_call.inc();
+		}
+
+#if 0
+		entry_t pop() noexcept              { return std::move(*(--m_end)); }
+		const entry_t &top() const noexcept { return std::move(*(m_end-1)); }
+#else
+		entry_t pop() noexcept              { return *(--m_end); }
+		const entry_t &top() const noexcept { return *(m_end-1); }
 #endif
-			inc_stat(m_prof_call);
-	#if HAS_OPENMP && USE_OPENMP
-			m_lock = 0;
-	#endif
-			//nl_assert(m_end - m_list < _Size);
-		}
-
-		ATTR_HOT  const entry_t & pop() NOEXCEPT
-		{
-			return *(--m_end);
-		}
-
-		ATTR_HOT  const entry_t & top() const NOEXCEPT
-		{
-			return *(m_end-1);
-		}
-
-		ATTR_HOT  void remove(const _Element &elem) NOEXCEPT
+		void remove(const Element &elem) noexcept
 		{
 			/* Lock */
-	#if HAS_OPENMP && USE_OPENMP
-			while (m_lock.exchange(1)) { }
-	#endif
+			tqlock lck(m_lock);
 			for (entry_t * i = m_end - 1; i > &m_list[0]; i--)
 			{
-				if (i->object() == elem)
+				if (i->m_object == elem)
 				{
 					m_end--;
 					while (i < m_end)
 					{
-						*i = *(i+1);
-						i++;
+						*i = std::move(*(i+1));
+						++i;
 					}
-	#if HAS_OPENMP && USE_OPENMP
-					m_lock = 0;
-	#endif
 					return;
 				}
 			}
-	#if HAS_OPENMP && USE_OPENMP
-			m_lock = 0;
-	#endif
 		}
 
-		ATTR_COLD void clear()
+		void retime(const Element &elem, const Time t) noexcept
 		{
+			remove(elem);
+			push(entry_t(t, elem));
+		}
+
+		void clear()
+		{
+			tqlock lck(m_lock);
 			m_end = &m_list[0];
 			/* put an empty element with maximum time into the queue.
 			 * the insert algo above will run into this element and doesn't
 			 * need a comparison with queue start.
 			 */
-			m_list[0] = entry_t(_Time::from_raw(~0), _Element(0));
+			m_list[0] = { Time::never(), Element(0) };
 			m_end++;
 		}
 
 		// save state support & mame disasm
 
-		ATTR_COLD  const entry_t *listptr() const { return &m_list[1]; }
-		ATTR_HOT  int count() const { return m_end - &m_list[1]; }
-		ATTR_HOT  const entry_t & operator[](const int & index) const { return m_list[1+index]; }
-
-	#if (NL_KEEP_STATISTICS)
-		// profiling
-		INT32   m_prof_sortmove;
-		INT32   m_prof_call;
-	#endif
+		constexpr const entry_t *listptr() const { return &m_list[1]; }
+		constexpr std::size_t size() const noexcept { return static_cast<std::size_t>(m_end - &m_list[1]); }
+		constexpr const entry_t & operator[](const std::size_t index) const { return m_list[ 1 + index]; }
 
 	private:
-
 	#if HAS_OPENMP && USE_OPENMP
-		volatile std::atomic<int> m_lock;
+		using tqmutex = pspin_mutex<true>;
+	#else
+		using tqmutex = pspin_mutex<false>;
 	#endif
+		using tqlock = std::lock_guard<tqmutex>;
+
+		tqmutex m_lock;
 		entry_t * m_end;
-		parray_t<entry_t> m_list;
-	};
+		std::vector<entry_t> m_list;
+
+	public:
+		// profiling
+		nperfcount_t m_prof_sortmove;
+		nperfcount_t m_prof_call;
+};
 
 }
 

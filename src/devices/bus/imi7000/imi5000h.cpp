@@ -8,6 +8,7 @@
 
 **********************************************************************/
 
+#include "emu.h"
 #include "imi5000h.h"
 
 
@@ -51,7 +52,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const rom_entry *imi5000h_device::device_rom_region() const
+const tiny_rom_entry *imi5000h_device::device_rom_region() const
 {
 	return ROM_NAME( imi5000h );
 }
@@ -81,7 +82,7 @@ static ADDRESS_MAP_START( imi5000h_io, AS_IO, 8, imi5000h_device )
 	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE(Z80PIO_0_TAG, z80pio_device, read, write)
 	AM_RANGE(0x08, 0x0b) AM_DEVREADWRITE(Z80PIO_2_TAG, z80pio_device, read, write)
 	AM_RANGE(0x0c, 0x0f) AM_DEVREADWRITE(Z80PIO_3_TAG, z80pio_device, read, write)
-	AM_RANGE(0x10, 0x13) AM_MIRROR(0x03) // BEGRDY
+	AM_RANGE(0x10, 0x10) AM_MIRROR(0x03) // BEGRDY
 	AM_RANGE(0x14, 0x14) AM_MIRROR(0x03) // HSXCLR
 	AM_RANGE(0x18, 0x18) AM_MIRROR(0x03) // XFERSTB
 	AM_RANGE(0x1c, 0x1f) AM_DEVREADWRITE(Z80CTC_TAG, z80ctc_device, read, write)
@@ -445,7 +446,7 @@ ioport_constructor imi5000h_device::device_input_ports() const
 //  imi5000h_device - constructor
 //-------------------------------------------------
 
-imi5000h_device::imi5000h_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+imi5000h_device::imi5000h_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
 	device_t(mconfig, IMI5000H, "IMI 5000H", tag, owner, clock, "imi5000h", __FILE__),
 	device_imi7000_interface(mconfig, *this),
 	m_maincpu(*this, Z80_TAG),

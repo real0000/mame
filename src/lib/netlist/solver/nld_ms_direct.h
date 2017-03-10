@@ -10,43 +10,46 @@
 
 #include <algorithm>
 
-#include "solver/nld_solver.h"
-#include "solver/nld_matrix_solver.h"
-#include "solver/vector_base.h"
+#include "nld_solver.h"
+#include "nld_matrix_solver.h"
+#include "vector_base.h"
 
 /* Disabling dynamic allocation gives a ~10% boost in performance
  * This flag has been added to support continuous storage for arrays
  * going forward in case we implement cuda solvers in the future.
  */
 #define NL_USE_DYNAMIC_ALLOCATION (0)
-#define TEST_PARALLEL (0)
+#define TEST_PARALLEL (0    )
 
 #if TEST_PARALLEL
 #include <thread>
 #include <atomic>
 #endif
 
-NETLIB_NAMESPACE_DEVICES_START()
-
-//#define nl_ext_double __float128 // slow, very slow
+namespace netlist
+{
+	namespace devices
+	{
+//#define nl_ext_double _float128 // slow, very slow
 //#define nl_ext_double long double // slightly slower
 #define nl_ext_double nl_double
 
 #if TEST_PARALLEL
 #define MAXTHR 10
-static const int num_thr = 1;
+static const int num_thr = 3;
 
 struct thr_intf
 {
+	virtual ~thr_intf() = default;
 	virtual void do_work(const int id, void *param) = 0;
 };
 
 struct ti_t
 {
-	volatile std::atomic<int> lo;
+	/*volatile */std::atomic<int> lo;
 	thr_intf *intf;
 	void *params;
-//  int _block[29]; /* make it 256 bytes */
+//  int block[29]; /* make it 256 bytes */
 };
 
 static ti_t ti[MAXTHR];
@@ -111,7 +114,7 @@ static void thr_dispose()
 }
 #endif
 
-template <unsigned m_N, unsigned _storage_N>
+template <std::size_t m_N, std::size_t storage_N>
 #if TEST_PARALLEL
 class matrix_solver_direct_t: public matrix_solver_t, public thr_intf
 #else
@@ -121,8 +124,8 @@ class matrix_solver_direct_t: public matrix_solver_t
 	friend class matrix_solver_t;
 public:
 
-	matrix_solver_direct_t(netlist_t &anetlist, const pstring &name, const solver_parameters_t *params, const int size);
-	matrix_solver_direct_t(netlist_t &anetlist, const pstring &name, const eSortType sort, const solver_parameters_t *params, const int size);
+	matrix_solver_direct_t(netlist_t &anetlist, const pstring &name, const solver_parameters_t *params, const std::size_t size);
+	matrix_solver_direct_t(netlist_t &anetlist, const pstring &name, const eSortType sort, const solver_parameters_t *params, const std::size_t size);
 
 	virtual ~matrix_solver_direct_t();
 
@@ -130,10 +133,10 @@ public:
 	virtual void reset() override { matrix_solver_t::reset(); }
 
 protected:
-	virtual int vsolve_non_dynamic(const bool newton_raphson) override;
-	int solve_non_dynamic(const bool newton_raphson);
+	virtual unsigned vsolve_non_dynamic(const bool newton_raphson) override;
+	unsigned solve_non_dynamic(const bool newton_raphson);
 
-	inline unsigned N() const { if (m_N == 0) return m_dim; else return m_N; }
+	constexpr std::size_t N() const { return (m_N == 0) ? m_dim : m_N; }
 
 	void LE_solve();
 
@@ -154,24 +157,25 @@ protected:
 	inline nl_ext_double &RHS(const T1 &r) { return m_A[r * m_pitch + N()]; }
 #else
 	template <typename T1, typename T2>
-	inline nl_ext_double &A(const T1 &r, const T2 &c) { return m_A[r][c]; }
+	nl_ext_double &A(const T1 &r, const T2 &c) { return m_A[r][c]; }
 	template <typename T1>
-	inline nl_ext_double &RHS(const T1 &r) { return m_A[r][N()]; }
+	nl_ext_double &RHS(const T1 &r) { return m_A[r][N()]; }
 #endif
-	ATTR_ALIGN nl_double m_last_RHS[_storage_N]; // right hand side - contains currents
+	nl_double m_last_RHS[storage_N]; // right hand side - contains currents
 
 private:
-	static const std::size_t m_pitch = (((_storage_N + 1) + 7) / 8) * 8;
-	//static const std::size_t m_pitch = (((_storage_N + 1) + 15) / 16) * 16;
-	//static const std::size_t m_pitch = (((_storage_N + 1) + 31) / 32) * 32;
+	//static const std::size_t m_pitch = (((storage_N + 1) + 0) / 1) * 1;
+	static const std::size_t m_pitch = (((storage_N + 1) + 7) / 8) * 8;
+	//static const std::size_t m_pitch = (((storage_N + 1) + 15) / 16) * 16;
+	//static const std::size_t m_pitch = (((storage_N + 1) + 31) / 32) * 32;
 #if (NL_USE_DYNAMIC_ALLOCATION)
-	ATTR_ALIGN nl_ext_double * RESTRICT m_A;
+	nl_ext_double * RESTRICT m_A;
 #else
-	ATTR_ALIGN nl_ext_double m_A[_storage_N][m_pitch];
+	nl_ext_double m_A[storage_N][m_pitch];
 #endif
-	//ATTR_ALIGN nl_ext_double m_RHSx[_storage_N];
+	//nl_ext_double m_RHSx[storage_N];
 
-	const unsigned m_dim;
+	const std::size_t m_dim;
 
 };
 
@@ -179,49 +183,42 @@ private:
 // matrix_solver_direct
 // ----------------------------------------------------------------------------------------
 
-template <unsigned m_N, unsigned _storage_N>
-matrix_solver_direct_t<m_N, _storage_N>::~matrix_solver_direct_t()
+template <std::size_t m_N, std::size_t storage_N>
+matrix_solver_direct_t<m_N, storage_N>::~matrix_solver_direct_t()
 {
 #if (NL_USE_DYNAMIC_ALLOCATION)
-	pfree_array(m_A);
+	plib::pfree_array(m_A);
 #endif
 #if TEST_PARALLEL
 	thr_dispose();
 #endif
 }
 
-template <unsigned m_N, unsigned _storage_N>
-ATTR_COLD void matrix_solver_direct_t<m_N, _storage_N>::vsetup(analog_net_t::list_t &nets)
+template <std::size_t m_N, std::size_t storage_N>
+void matrix_solver_direct_t<m_N, storage_N>::vsetup(analog_net_t::list_t &nets)
 {
-	if (m_dim < nets.size())
-		log().fatal("Dimension {1} less than {2}", m_dim, nets.size());
-
 	matrix_solver_t::setup_base(nets);
 
 	/* add RHS element */
-	for (unsigned k = 0; k < N(); k++)
+	for (std::size_t k = 0; k < N(); k++)
 	{
-		terms_t * t = m_terms[k];
+		terms_for_net_t * t = m_terms[k].get();
 
-		if (!t->m_nzrd.contains(N()))
-			t->m_nzrd.push_back(N());
+		if (!plib::container::contains(t->m_nzrd, static_cast<unsigned>(N())))
+			t->m_nzrd.push_back(static_cast<unsigned>(N()));
 	}
 
-	save(NLNAME(m_last_RHS));
+	netlist().save(*this, m_last_RHS, "m_last_RHS");
 
-	for (unsigned k = 0; k < N(); k++)
-	{
-		pstring num = pfmt("{1}")(k);
-
-		save(RHS(k), "RHS." + num);
-	}
+	for (std::size_t k = 0; k < N(); k++)
+		netlist().save(*this, RHS(k), plib::pfmt("RHS.{1}")(k));
 }
 
 
 
 #if TEST_PARALLEL
-template <unsigned m_N, unsigned _storage_N>
-void matrix_solver_direct_t<m_N, _storage_N>::do_work(const int id, void *param)
+template <std::size_t m_N, std::size_t storage_N>
+void matrix_solver_direct_t<m_N, storage_N>::do_work(const int id, void *param)
 {
 	const int i = x_i[id];
 	/* FIXME: Singular matrix? */
@@ -244,58 +241,13 @@ void matrix_solver_direct_t<m_N, _storage_N>::do_work(const int id, void *param)
 }
 #endif
 
-template <unsigned m_N, unsigned _storage_N>
-void matrix_solver_direct_t<m_N, _storage_N>::LE_solve()
+template <std::size_t m_N, std::size_t storage_N>
+void matrix_solver_direct_t<m_N, storage_N>::LE_solve()
 {
-	const unsigned kN = N();
-
-	for (unsigned i = 0; i < kN; i++) {
-		// FIXME: use a parameter to enable pivoting? m_pivot
-		if (!TEST_PARALLEL && m_params.m_pivot)
-		{
-			/* Find the row with the largest first value */
-			unsigned maxrow = i;
-			for (unsigned j = i + 1; j < kN; j++)
-			{
-				//if (std::abs(m_A[j][i]) > std::abs(m_A[maxrow][i]))
-				if (A(j,i) * A(j,i) > A(maxrow,i) * A(maxrow,i))
-					maxrow = j;
-			}
-
-			if (maxrow != i)
-			{
-				/* Swap the maxrow and ith row */
-				for (unsigned k = 0; k < kN + 1; k++) {
-					std::swap(A(i,k), A(maxrow,k));
-				}
-				//std::swap(RHS(i), RHS(maxrow));
-			}
-			/* FIXME: Singular matrix? */
-			const nl_double f = 1.0 / A(i,i);
-
-			/* Eliminate column i from row j */
-
-			for (unsigned j = i + 1; j < kN; j++)
-			{
-				const nl_double f1 = - A(j,i) * f;
-				if (f1 != NL_FCONST(0.0))
-				{
-					const nl_double * RESTRICT pi = &A(i,i+1);
-					nl_double * RESTRICT pj = &A(j,i+1);
-#if 1
-					vec_add_mult_scalar(kN-i,pi,f1,pj);
-#else
-					vec_add_mult_scalar(kN-i-1,pj,f1,pi);
-					//for (unsigned k = i+1; k < kN; k++)
-					//  pj[k] = pj[k] + pi[k] * f1;
-					//for (unsigned k = i+1; k < kN; k++)
-						//A(j,k) += A(i,k) * f1;
-					RHS(j) += RHS(i) * f1;
-#endif
-				}
-			}
-		}
-		else
+	const std::size_t kN = N();
+	if (!(!TEST_PARALLEL && m_params.m_pivot))
+	{
+		for (std::size_t i = 0; i < kN; i++)
 		{
 #if TEST_PARALLEL
 			const unsigned eb = m_terms[i]->m_nzbd.size();
@@ -307,7 +259,7 @@ void matrix_solver_direct_t<m_N, _storage_N>::LE_solve()
 				{
 					x_i[p] = i;
 					x_start[p] = chunks * p;
-					x_stop[p] = nl_math::min(chunks*(p+1), eb);
+					x_stop[p] = std::min(chunks*(p+1), eb);
 					if (p<num_thr && x_start[p] < x_stop[p]) thr_process(p, this, nullptr);
 				}
 				if (x_start[num_thr] < x_stop[num_thr])
@@ -328,46 +280,93 @@ void matrix_solver_direct_t<m_N, _storage_N>::LE_solve()
 			const auto &nzrd = m_terms[i]->m_nzrd;
 			const auto &nzbd = m_terms[i]->m_nzbd;
 
-			for (auto & j : nzbd)
+			for (std::size_t j : nzbd)
 			{
 				const nl_double f1 = -f * A(j,i);
-				for (auto & k : nzrd)
+				for (std::size_t k : nzrd)
 					A(j,k) += A(i,k) * f1;
 				//RHS(j) += RHS(i) * f1;
+			}
 #endif
+		}
+	}
+	else
+	{
+		for (std::size_t i = 0; i < kN; i++)
+		{
+			/* Find the row with the largest first value */
+			std::size_t maxrow = i;
+			for (std::size_t j = i + 1; j < kN; j++)
+			{
+				//if (std::abs(m_A[j][i]) > std::abs(m_A[maxrow][i]))
+				if (A(j,i) * A(j,i) > A(maxrow,i) * A(maxrow,i))
+					maxrow = j;
+			}
+
+			if (maxrow != i)
+			{
+				/* Swap the maxrow and ith row */
+				for (std::size_t k = 0; k < kN + 1; k++) {
+					std::swap(A(i,k), A(maxrow,k));
+				}
+				//std::swap(RHS(i), RHS(maxrow));
+			}
+			/* FIXME: Singular matrix? */
+			const nl_double f = 1.0 / A(i,i);
+
+			/* Eliminate column i from row j */
+
+			for (std::size_t j = i + 1; j < kN; j++)
+			{
+				const nl_double f1 = - A(j,i) * f;
+				if (f1 != NL_FCONST(0.0))
+				{
+					const nl_double * RESTRICT pi = &A(i,i+1);
+					nl_double * RESTRICT pj = &A(j,i+1);
+#if 1
+					vec_add_mult_scalar_p(kN-i,pi,f1,pj);
+#else
+					vec_add_mult_scalar_p(kN-i-1,pj,f1,pi);
+					//for (unsigned k = i+1; k < kN; k++)
+					//  pj[k] = pj[k] + pi[k] * f1;
+					//for (unsigned k = i+1; k < kN; k++)
+						//A(j,k) += A(i,k) * f1;
+					RHS(j) += RHS(i) * f1;
+#endif
+				}
 			}
 		}
 	}
 }
 
-template <unsigned m_N, unsigned _storage_N>
+template <std::size_t m_N, std::size_t storage_N>
 template <typename T>
-void matrix_solver_direct_t<m_N, _storage_N>::LE_back_subst(
+void matrix_solver_direct_t<m_N, storage_N>::LE_back_subst(
 		T * RESTRICT x)
 {
-	const unsigned kN = N();
+	const std::size_t kN = N();
 
 	/* back substitution */
 	if (m_params.m_pivot)
 	{
-		for (int j = kN - 1; j >= 0; j--)
+		for (std::size_t j = kN; j-- > 0; )
 		{
 			T tmp = 0;
-			for (unsigned k = j+1; k < kN; k++)
+			for (std::size_t k = j+1; k < kN; k++)
 				tmp += A(j,k) * x[k];
 			x[j] = (RHS(j) - tmp) / A(j,j);
 		}
 	}
 	else
 	{
-		for (int j = kN - 1; j >= 0; j--)
+		for (std::size_t j = kN; j-- > 0; )
 		{
 			T tmp = 0;
 
 			const auto *p = m_terms[j]->m_nzrd.data();
 			const auto e = m_terms[j]->m_nzrd.size() - 1; /* exclude RHS element */
 
-			for (unsigned k = 0; k < e; k++)
+			for (std::size_t k = 0; k < e; k++)
 			{
 				const auto pk = p[k];
 				tmp += A(j,pk) * x[pk];
@@ -378,10 +377,10 @@ void matrix_solver_direct_t<m_N, _storage_N>::LE_back_subst(
 }
 
 
-template <unsigned m_N, unsigned _storage_N>
-int matrix_solver_direct_t<m_N, _storage_N>::solve_non_dynamic(ATTR_UNUSED const bool newton_raphson)
+template <std::size_t m_N, std::size_t storage_N>
+unsigned matrix_solver_direct_t<m_N, storage_N>::solve_non_dynamic(const bool newton_raphson)
 {
-	nl_double new_V[_storage_N]; // = { 0.0 };
+	nl_double new_V[storage_N]; // = { 0.0 };
 
 	this->LE_solve();
 	this->LE_back_subst(new_V);
@@ -401,27 +400,27 @@ int matrix_solver_direct_t<m_N, _storage_N>::solve_non_dynamic(ATTR_UNUSED const
 	}
 }
 
-template <unsigned m_N, unsigned _storage_N>
-inline int matrix_solver_direct_t<m_N, _storage_N>::vsolve_non_dynamic(const bool newton_raphson)
+template <std::size_t m_N, std::size_t storage_N>
+inline unsigned matrix_solver_direct_t<m_N, storage_N>::vsolve_non_dynamic(const bool newton_raphson)
 {
 	build_LE_A<matrix_solver_direct_t>();
 	build_LE_RHS<matrix_solver_direct_t>();
 
-	for (unsigned i=0, iN=N(); i < iN; i++)
+	for (std::size_t i=0, iN=N(); i < iN; i++)
 		m_last_RHS[i] = RHS(i);
 
 	this->m_stat_calculations++;
 	return this->solve_non_dynamic(newton_raphson);
 }
 
-template <unsigned m_N, unsigned _storage_N>
-matrix_solver_direct_t<m_N, _storage_N>::matrix_solver_direct_t(netlist_t &anetlist, const pstring &name,
-		const solver_parameters_t *params, const int size)
+template <std::size_t m_N, std::size_t storage_N>
+matrix_solver_direct_t<m_N, storage_N>::matrix_solver_direct_t(netlist_t &anetlist, const pstring &name,
+		const solver_parameters_t *params, const std::size_t size)
 : matrix_solver_t(anetlist, name, ASCENDING, params)
 , m_dim(size)
 {
 #if (NL_USE_DYNAMIC_ALLOCATION)
-	m_A = palloc_array(nl_ext_double, N() * m_pitch);
+	m_A = plib::palloc_array<nl_ext_double>(N() * m_pitch);
 #endif
 	for (unsigned k = 0; k < N(); k++)
 	{
@@ -432,14 +431,14 @@ matrix_solver_direct_t<m_N, _storage_N>::matrix_solver_direct_t(netlist_t &anetl
 #endif
 }
 
-template <unsigned m_N, unsigned _storage_N>
-matrix_solver_direct_t<m_N, _storage_N>::matrix_solver_direct_t(netlist_t &anetlist, const pstring &name,
-		const eSortType sort, const solver_parameters_t *params, const int size)
+template <std::size_t m_N, std::size_t storage_N>
+matrix_solver_direct_t<m_N, storage_N>::matrix_solver_direct_t(netlist_t &anetlist, const pstring &name,
+		const eSortType sort, const solver_parameters_t *params, const std::size_t size)
 : matrix_solver_t(anetlist, name, sort, params)
 , m_dim(size)
 {
 #if (NL_USE_DYNAMIC_ALLOCATION)
-	m_A = palloc_array(nl_ext_double, N() * m_pitch);
+	m_A = plib::palloc_array<nl_ext_double>(N() * m_pitch);
 #endif
 	for (unsigned k = 0; k < N(); k++)
 	{
@@ -450,6 +449,7 @@ matrix_solver_direct_t<m_N, _storage_N>::matrix_solver_direct_t(netlist_t &anetl
 #endif
 }
 
-NETLIB_NAMESPACE_DEVICES_END()
+	} //namespace devices
+} // namespace netlist
 
 #endif /* NLD_MS_DIRECT_H_ */

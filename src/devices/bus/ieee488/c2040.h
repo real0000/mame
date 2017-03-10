@@ -11,7 +11,6 @@
 #ifndef __C2040__
 #define __C2040__
 
-#include "emu.h"
 #include "ieee488.h"
 #include "c2040fdc.h"
 #include "cpu/m6502/m6502.h"
@@ -32,11 +31,11 @@ class c2040_t :  public device_t,
 {
 public:
 	// construction/destruction
-	c2040_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
-	c2040_t(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	c2040_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
+	c2040_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// optional information overrides
-	virtual const rom_entry *device_rom_region() const override;
+	virtual const tiny_rom_entry *device_rom_region() const override;
 	virtual machine_config_constructor device_mconfig_additions() const override;
 	virtual ioport_constructor device_input_ports() const override;
 
@@ -95,10 +94,10 @@ class c3040_t :  public c2040_t
 {
 public:
 	// construction/destruction
-	c3040_t(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	c3040_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// optional information overrides
-	virtual const rom_entry *device_rom_region() const override;
+	virtual const tiny_rom_entry *device_rom_region() const override;
 	virtual machine_config_constructor device_mconfig_additions() const override;
 
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
@@ -111,10 +110,10 @@ class c4040_t :  public c2040_t
 {
 public:
 	// construction/destruction
-	c4040_t(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	c4040_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// optional information overrides
-	virtual const rom_entry *device_rom_region() const override;
+	virtual const tiny_rom_entry *device_rom_region() const override;
 	virtual machine_config_constructor device_mconfig_additions() const override;
 
 	DECLARE_FLOPPY_FORMATS( floppy_formats );

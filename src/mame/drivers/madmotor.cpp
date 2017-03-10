@@ -18,7 +18,7 @@
 #include "cpu/m68000/m68000.h"
 #include "cpu/h6280/h6280.h"
 #include "sound/2203intf.h"
-#include "sound/2151intf.h"
+#include "sound/ym2151.h"
 #include "sound/okim6295.h"
 #include "includes/madmotor.h"
 
@@ -338,7 +338,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(madmotor_state,madmotor)
 {
-	UINT8 *rom = memregion("maincpu")->base();
+	uint8_t *rom = memregion("maincpu")->base();
 	int i;
 
 	for (i = 0x00000;i < 0x80000;i++)

@@ -16,37 +16,28 @@ const device_type IREM_M62_AUDIO = &device_creator<m62_audio_device>;
 const device_type IREM_M52_SOUNDC_AUDIO = &device_creator<m52_soundc_audio_device>;
 const device_type IREM_M52_LARGE_AUDIO = &device_creator<m52_large_audio_device>;
 
-irem_audio_device::irem_audio_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+irem_audio_device::irem_audio_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
 	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 	m_port1(0),
-	m_port2(0)
+	m_port2(0),
+	m_soundlatch(*this, "soundlatch")
 	//m_ay_45L(*this, "ay_45l"),
 	//m_ay_45M(*this, "ay_45m")
 {
 }
 
-m62_audio_device::m62_audio_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+m62_audio_device::m62_audio_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 	: irem_audio_device(mconfig, IREM_M62_AUDIO, "Irem M62 Audio", tag, owner, clock, "irem_m62_audio", __FILE__)
 {
 }
 
-m52_soundc_audio_device::m52_soundc_audio_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+m52_soundc_audio_device::m52_soundc_audio_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 	: irem_audio_device(mconfig, IREM_M52_SOUNDC_AUDIO, "Irem M52 SoundC Audio", tag, owner, clock, "irem_m52_soundc_audio", __FILE__)
 {
 }
 
-m52_large_audio_device::m52_large_audio_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+m52_large_audio_device::m52_large_audio_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 	: irem_audio_device(mconfig, IREM_M52_LARGE_AUDIO, "Irem M52 Large Audio", tag, owner, clock, "irem_m52_large_audio", __FILE__)
-{
-}
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void irem_audio_device::device_config_complete()
 {
 }
 
@@ -83,9 +74,8 @@ void irem_audio_device::device_start()
 
 WRITE8_MEMBER( irem_audio_device::cmd_w )
 {
-	driver_device *drvstate = space.machine().driver_data<driver_device>();
 	if ((data & 0x80) == 0)
-		drvstate->soundlatch_byte_w(space, 0, data & 0x7f);
+		m_soundlatch->write(space, 0, data & 0x7f);
 	else
 		subdevice("iremsound")->execute().set_input_line(0, ASSERT_LINE);
 }
@@ -421,10 +411,12 @@ static MACHINE_CONFIG_FRAGMENT( irem_audio_base )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+
 	MCFG_SOUND_ADD("ay_45m", AY8910, XTAL_3_579545MHz/4) /* verified on pcb */
 	MCFG_AY8910_OUTPUT_TYPE(AY8910_RESISTOR_OUTPUT)
 	MCFG_AY8910_RES_LOADS(2000.0, 2000.0, 2000.0)
-	MCFG_AY8910_PORT_A_READ_CB(DEVREAD8(":", driver_device, soundlatch_byte_r))
+	MCFG_AY8910_PORT_A_READ_CB(DEVREAD8("soundlatch", generic_latch_8_device, read))
 	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(irem_audio_device, ay8910_45M_portb_w))
 	MCFG_SOUND_ROUTE_EX(0, "snd_nl", 1.0, 0)
 	MCFG_SOUND_ROUTE_EX(1, "snd_nl", 1.0, 1)
@@ -453,11 +445,11 @@ static MACHINE_CONFIG_FRAGMENT( irem_audio_base )
 	MCFG_NETLIST_SETUP(kidniki)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
-	MCFG_NETLIST_LOGIC_INPUT("snd_nl", "ibd", "I_BD0.IN", 0, 1)
-	MCFG_NETLIST_LOGIC_INPUT("snd_nl", "isd", "I_SD0.IN", 0, 1)
-	MCFG_NETLIST_LOGIC_INPUT("snd_nl", "ich", "I_CH0.IN", 0, 1)
-	MCFG_NETLIST_LOGIC_INPUT("snd_nl", "ioh", "I_OH0.IN", 0, 1)
-	MCFG_NETLIST_LOGIC_INPUT("snd_nl", "sinh", "SINH.IN", 0, 1)
+	MCFG_NETLIST_LOGIC_INPUT("snd_nl", "ibd", "I_BD0.IN", 0)
+	MCFG_NETLIST_LOGIC_INPUT("snd_nl", "isd", "I_SD0.IN", 0)
+	MCFG_NETLIST_LOGIC_INPUT("snd_nl", "ich", "I_CH0.IN", 0)
+	MCFG_NETLIST_LOGIC_INPUT("snd_nl", "ioh", "I_OH0.IN", 0)
+	MCFG_NETLIST_LOGIC_INPUT("snd_nl", "sinh", "SINH.IN", 0)
 
 	MCFG_NETLIST_STREAM_INPUT("snd_nl", 0, "R_AY45M_A.R")
 	MCFG_NETLIST_STREAM_INPUT("snd_nl", 1, "R_AY45M_B.R")
@@ -490,10 +482,12 @@ MACHINE_CONFIG_FRAGMENT( m52_sound_c_audio )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+
 	MCFG_SOUND_ADD("ay_45m", AY8910, XTAL_3_579545MHz/4) /* verified on pcb */
 	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT | AY8910_DISCRETE_OUTPUT)
 	MCFG_AY8910_RES_LOADS(470, 0, 0)
-	MCFG_AY8910_PORT_A_READ_CB(DEVREAD8(":", driver_device, soundlatch_byte_r))
+	MCFG_AY8910_PORT_A_READ_CB(DEVREAD8("soundlatch", generic_latch_8_device, read))
 	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(irem_audio_device, ay8910_45M_portb_w))
 	MCFG_SOUND_ROUTE_EX(0, "filtermix", 1.0, 0)
 
@@ -524,10 +518,12 @@ MACHINE_CONFIG_FRAGMENT( m52_large_audio)  /* 10 yard fight */
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+
 	MCFG_SOUND_ADD("ay_45m", AY8910, XTAL_3_579545MHz/4) /* verified on pcb */
 	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT | AY8910_DISCRETE_OUTPUT)
 	MCFG_AY8910_RES_LOADS(470, 0, 0)
-	MCFG_AY8910_PORT_A_READ_CB(DEVREAD8(":", driver_device, soundlatch_byte_r))
+	MCFG_AY8910_PORT_A_READ_CB(DEVREAD8("soundlatch", generic_latch_8_device, read))
 	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(irem_audio_device, ay8910_45M_portb_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 

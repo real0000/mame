@@ -915,7 +915,54 @@ ADDRESS_MAP_END
   W 9A00-B7FF FF
  RW B000-B7FF 00
 
+ Flaming7 custom hardware writes the bonus
+ graphics at 9A80-9A89, and the "reel scroll"
+ at B0C0-B0FF...
 */
+
+
+/* need to check item by item...
+
+    PPIs are OK:
+    B800 = 9B (A, B, C, all input)
+    B810 = 9B (A, B, C, all input)
+    B820 = 90 (A input, B & C output)
+
+    RAM/ROM/NVRAM are OK.
+
+    Reels RAM and scroll are OK.
+    (only reel 2 seems to be used by the game)
+
+    Video & atr RAM are OK.
+
+    PSG is OK.
+
+    AY8910 ports are OK.
+*/
+static ADDRESS_MAP_START( mbstar_map, AS_PROGRAM, 8, goldstar_state )
+	AM_RANGE(0x0000, 0x7fff) AM_ROM
+	AM_RANGE(0x8000, 0x87ff) AM_RAM AM_SHARE("nvram")
+	AM_RANGE(0x8800, 0x8fff) AM_RAM_WRITE(goldstar_fg_vidram_w) AM_SHARE("fg_vidram")
+	AM_RANGE(0x9000, 0x97ff) AM_RAM_WRITE(goldstar_fg_atrram_w) AM_SHARE("fg_atrram")
+	AM_RANGE(0x9800, 0x99ff) AM_RAM_WRITE(goldstar_reel1_ram_w) AM_SHARE("reel1_ram")
+	AM_RANGE(0xa000, 0xa1ff) AM_RAM_WRITE(goldstar_reel2_ram_w) AM_SHARE("reel2_ram")
+	AM_RANGE(0xa800, 0xa9ff) AM_RAM_WRITE(goldstar_reel3_ram_w) AM_SHARE("reel3_ram")
+	AM_RANGE(0xb040, 0xb07f) AM_RAM AM_SHARE("reel1_scroll")
+	AM_RANGE(0xb080, 0xb0bf) AM_RAM AM_SHARE("reel2_scroll")
+	AM_RANGE(0xb100, 0xb17f) AM_RAM AM_SHARE("reel3_scroll")
+
+	AM_RANGE(0xb800, 0xb803) AM_DEVREADWRITE("ppi8255_0", i8255_device, read, write)    /* Input Ports */
+	AM_RANGE(0xb810, 0xb813) AM_DEVREADWRITE("ppi8255_1", i8255_device, read, write)    /* Input Ports */
+	AM_RANGE(0xb820, 0xb823) AM_DEVREADWRITE("ppi8255_2", i8255_device, read, write)    /* Input/Output Ports */
+	AM_RANGE(0xb830, 0xb830) AM_DEVREADWRITE("aysnd", ay8910_device, data_r, data_w)
+	AM_RANGE(0xb840, 0xb840) AM_DEVWRITE("aysnd", ay8910_device, address_w)  /* no sound... only use both ports for DSWs */
+	AM_RANGE(0xb850, 0xb850) AM_WRITE(p1_lamps_w)
+	AM_RANGE(0xb860, 0xb860) AM_WRITE(p2_lamps_w)
+	AM_RANGE(0xb870, 0xb870) AM_DEVWRITE("snsnd", sn76489_device, write)    /* sound */
+	AM_RANGE(0xc000, 0xf7ff) AM_ROM
+	AM_RANGE(0xf800, 0xffff) AM_RAM
+ADDRESS_MAP_END
+
 
 WRITE8_MEMBER(wingco_state::magodds_outb850_w)
 {
@@ -936,6 +983,11 @@ WRITE8_MEMBER(wingco_state::magodds_outb850_w)
 WRITE8_MEMBER(wingco_state::magodds_outb860_w)
 {
 //  popmessage("magodds_outb860_w %02x\n", data);
+}
+
+WRITE8_MEMBER(wingco_state::fl7w4_outc802_w)
+{
+	m_fl7w4_id->write((data >> 6) & 0x01);
 }
 
 static ADDRESS_MAP_START( magodds_map, AS_PROGRAM, 8, wingco_state )
@@ -4073,6 +4125,163 @@ static INPUT_PORTS_START( bingownga )
 	PORT_DIPSETTING(    0x28, "1 Coin/10 Credits" )
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( mbstar )
+	PORT_START("IN0")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_1) PORT_NAME("IN0-1")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_2) PORT_NAME("Increment top's 'S' (bet?)")  // Increment top's 'S' (looks like bet)
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_3) PORT_NAME("IN0-3")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_4) PORT_NAME("IN0-4")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_5) PORT_NAME("Collect")  // Collect. Also used to blank the BK.
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_6) PORT_NAME("IN0-6")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_7) PORT_NAME("Bookkeeping: Down")  // BK: down.
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_8) PORT_NAME("Bookkeeping: Set/Enter - Start")  // BK: enter. (start?)
+
+	PORT_START("IN1")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_Q) PORT_NAME("IN1-1")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_W) PORT_NAME("IN1-2")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_E) PORT_NAME("IN1-3")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_R) PORT_NAME("IN1-4")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_T) PORT_NAME("IN1-5")
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_Y) PORT_NAME("IN1-6")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_U) PORT_NAME("IN1-7")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_I) PORT_NAME("IN1-8")
+
+	PORT_START("IN2")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_A) PORT_NAME("IN2-1")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_S) PORT_NAME("IN2-2")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_D) PORT_NAME("IN2-3")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_F) PORT_NAME("IN2-4")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_G) PORT_NAME("IN2-5")
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_H) PORT_NAME("IN2-6")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_J) PORT_NAME("IN2-7")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_K) PORT_NAME("IN2-8")
+
+	PORT_START("IN3")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_Z) PORT_NAME("IN3-1")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_X) PORT_NAME("IN3-2")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_C) PORT_NAME("IN3-3")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_V) PORT_NAME("Coin 1") PORT_IMPULSE(2)    // coin 1
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_B) PORT_NAME("Coin 2") PORT_IMPULSE(2)    // coin 2
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_N) PORT_NAME("Note")      // note acceptor
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_M) PORT_NAME("Remote")    // remote credits
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_L) PORT_NAME("Coin 3 (tokens)")    // coin 3 (tokens)
+
+	PORT_START("IN4")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_1_PAD) PORT_NAME("IN4-1")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_2_PAD) PORT_NAME("Operator Bookkeeping")  // operator bookkeeping
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_3_PAD) PORT_NAME("IN4-3")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_4_PAD) PORT_NAME("IN4-4")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_5_PAD) PORT_NAME("Payout")  // payout?
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_6_PAD) PORT_NAME("IN4-6")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_7_PAD) PORT_NAME("IN4-7")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_8_PAD) PORT_NAME("Supervisor Bookkeeping")  // supervisor bookkeeping
+
+	PORT_START("DSW1")
+	PORT_DIPNAME( 0x01, 0x01, "DSW1")
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+
+	PORT_START("DSW2")
+	PORT_DIPNAME( 0x01, 0x01, "DSW2")
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x00, DEF_STR( Unknown ) )  // enter in a different mode, and no attract.
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )  // seems to accellerate the different mode.
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+
+	PORT_START("DSW3")
+	PORT_DIPNAME( 0x01, 0x01, "DSW3")
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+
+	PORT_START("DSW4")
+	PORT_DIPNAME( 0x01, 0x01, "DSW4")
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+INPUT_PORTS_END
+
+
 static INPUT_PORTS_START( magodds )
 	PORT_START("IN0")   /* d800 */
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
@@ -6908,7 +7117,7 @@ static INPUT_PORTS_START( cmtetris )
 INPUT_PORTS_END
 
 
-static INPUT_PORTS_START( flaming7 )
+static INPUT_PORTS_START( flam7_w4 )
 	PORT_START("IN0")   /* b800 */
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_L) PORT_NAME("Button Lockout")
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_POKER_HOLD1 ) PORT_NAME("Hold 1 - Big")
@@ -6936,7 +7145,7 @@ static INPUT_PORTS_START( flaming7 )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER( "fl7w4_id", ds2401_device, read )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("IN3")   /* b810 */
@@ -7058,6 +7267,157 @@ static INPUT_PORTS_START( flaming7 )
 INPUT_PORTS_END
 
 
+static INPUT_PORTS_START( flaming7 )
+	PORT_START("IN0")   /* b800 */
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_L) PORT_NAME("Button Lockout")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_POKER_HOLD1 ) PORT_NAME("Hold 1 - Big")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_POKER_HOLD5 ) PORT_NAME("Hold 5")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_POKER_HOLD3 ) PORT_NAME("Hold 3 - Double-Up")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_POKER_HOLD4 ) PORT_NAME("Hold 4 - Take Score")
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_GAMBLE_BET )  PORT_NAME("Bet 1")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_POKER_HOLD2 ) PORT_NAME("Hold 2 - Low")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START1 )      PORT_NAME("Start")
+
+	PORT_START("IN1")   /* b801 */
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_START("IN2")   /* b802 */
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER( "fl7w4_id", ds2401_device, read )  // Same input, different device.
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_START("IN3")   /* b810 */
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_D) PORT_NAME("Main Door SW")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_H) PORT_NAME("Change")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_F) PORT_NAME("Logic Door SW")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_G) PORT_NAME("Cash Door SW")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_T) PORT_NAME("IN3-5")
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_COIN2 ) PORT_NAME("Coin B")  // confirmed.
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_COIN1 ) PORT_NAME("Coin A")  // confirmed.
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_GAMBLE_KEYIN ) PORT_NAME("Coin C or Mars")  // confirmed.
+
+	PORT_START("IN4")   /* b811 */
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_A)   PORT_NAME("WT RXD")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_S)   PORT_NAME("COUT RTS")  // related to hopper...
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_Y)   PORT_NAME("IN4-3")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_U)   PORT_NAME("IN4-4 Active")  // This one is active in real PCB.
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_I)   PORT_NAME("IN4-5")
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_GAMBLE_KEYOUT )                PORT_NAME("Collect")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_R) PORT_NAME("Reset")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_0) PORT_NAME("Books / Stats / Setup") PORT_TOGGLE
+
+	PORT_START("DSW1")
+	PORT_DIPNAME( 0x03, 0x03, "Credits Out" )          PORT_DIPLOCATION("DSW1:1,2")
+	PORT_DIPSETTING(    0x03, "Amusement (no credits out)" )
+	PORT_DIPSETTING(    0x02, "Ticket Printer" )
+	PORT_DIPSETTING(    0x01, "Hopper Payout" )
+	PORT_DIPSETTING(    0x00, "Remote Clear" )
+	PORT_DIPNAME( 0x04, 0x04, "Game Speed" )           PORT_DIPLOCATION("DSW1:3")
+	PORT_DIPSETTING(    0x04, "Fast Game" )
+	PORT_DIPSETTING(    0x00, "Slow Game" )
+	PORT_DIPNAME( 0x08, 0x08, "Lock-Up on 7 or 8 of a kind" )  PORT_DIPLOCATION("DSW1:4")
+	PORT_DIPSETTING(    0x08, DEF_STR( No ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x30, 0x30, "Graphics Type" )        PORT_DIPLOCATION("DSW1:5,6")
+	PORT_DIPSETTING(    0x30, "Regular Fruit" )
+	PORT_DIPSETTING(    0x20, "Numbers" )
+	PORT_DIPSETTING(    0x10, "Graphics Option 1" )
+	PORT_DIPSETTING(    0x00, "Graphics Option 2" )
+	PORT_DIPNAME( 0xc0, 0xc0, "Paytable" )             PORT_DIPLOCATION("DSW1:7,8")
+	PORT_DIPSETTING(    0xc0, "9325 (92.50%)" )
+	PORT_DIPSETTING(    0x80, "9326 (90.45%)" )
+	PORT_DIPSETTING(    0x40, "9327 (90.53%)" )
+	PORT_DIPSETTING(    0x00, "9328 (90.60%)" )
+
+	PORT_START("DSW2")
+	PORT_DIPNAME( 0x07, 0x07, "Bonus Pay" )   PORT_DIPLOCATION("DSW2:1,2,3")  // percentage of how quickly the internal progressive advances.
+	PORT_DIPSETTING(    0x07, "1.00%" )
+	PORT_DIPSETTING(    0x06, "2.00%" )
+	PORT_DIPSETTING(    0x05, "3.30%" )
+	PORT_DIPSETTING(    0x04, "4.00%" )
+	PORT_DIPSETTING(    0x03, "5.00%" )
+	PORT_DIPSETTING(    0x02, "6.20%" )
+	PORT_DIPSETTING(    0x01, "8.30%" )
+	PORT_DIPSETTING(    0x00, "10%" )
+	PORT_DIPNAME( 0x08, 0x00, "Internal Progressive" )   PORT_DIPLOCATION("DSW2:4")
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, "Not Used (Leave OFF)" )   PORT_DIPLOCATION("DSW2:5")
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, "Not Used (Leave OFF)" )   PORT_DIPLOCATION("DSW2:6")
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, "Not Used (Leave OFF)" )   PORT_DIPLOCATION("DSW2:7")
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, "Not Used (Leave OFF)" )   PORT_DIPLOCATION("DSW2:8")
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+
+	PORT_START("DSW3")
+	PORT_DIPNAME( 0x03, 0x03, "Maximum Bet" )          PORT_DIPLOCATION("DSW3:1,2")
+	PORT_DIPSETTING(    0x03, "8" )
+	PORT_DIPSETTING(    0x02, "16" )
+	PORT_DIPSETTING(    0x01, "32" )
+	PORT_DIPSETTING(    0x00, "64" )
+	PORT_DIPNAME( 0x04, 0x04, "Coin-In Timeout" )      PORT_DIPLOCATION("DSW3:3")
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x38, 0x38, "Denomination" )         PORT_DIPLOCATION("DSW3:4,5,6")
+	PORT_DIPSETTING(    0x38, "$1.00" )
+	PORT_DIPSETTING(    0x30, "50 Cents" )
+	PORT_DIPSETTING(    0x28, "25 Cents" )
+	PORT_DIPSETTING(    0x20, "10 Cents" )
+	PORT_DIPSETTING(    0x18, "5 Cents" )
+	PORT_DIPSETTING(    0x10, "5 Cents" )
+	PORT_DIPSETTING(    0x08, "5 Cents" )
+	PORT_DIPSETTING(    0x00, "5 Cents" )
+	PORT_DIPNAME( 0xc0, 0xc0, "Progressive Sign" )     PORT_DIPLOCATION("DSW3:7,8")
+	PORT_DIPSETTING(    0xc0, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x80, "Single Level" )
+	PORT_DIPSETTING(    0x40, "Multi Level" )   // use this setting *only* if using external sign.
+	PORT_DIPSETTING(    0x00, "Test Mode" )
+
+	PORT_START("DSW4")
+	PORT_DIPNAME( 0x01, 0x01, "Button Lockout" )       PORT_DIPLOCATION("DSW4:1")  // this is used to lockout the button panel switches...
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, "Lockout Polarity" )     PORT_DIPLOCATION("DSW4:2")
+	PORT_DIPSETTING(    0x02, "Active High" )
+	PORT_DIPSETTING(    0x00, "Active Low" )
+	PORT_DIPNAME( 0x0c, 0x0c, "Printer Type" )         PORT_DIPLOCATION("DSW4:3,4")
+	PORT_DIPSETTING(    0x0c, "Epson 267A" )
+	PORT_DIPSETTING(    0x08, "Star 300" )
+	PORT_DIPSETTING(    0x04, "Ithaca 76" )
+	PORT_DIPSETTING(    0x00, "Citizen 3541" )
+	PORT_DIPNAME( 0x10, 0x10, "Paper Low Sensor" )      PORT_DIPLOCATION("DSW4:5")
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, "Not Used (Leave OFF)" )  PORT_DIPLOCATION("DSW4:6")
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, "Not Used (Leave OFF)" )  PORT_DIPLOCATION("DSW4:7")
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, "Not Used (Leave OFF)" )  PORT_DIPLOCATION("DSW4:8")
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+
+INPUT_PORTS_END
+
 
 /*****************************************************
 *            Graphics Layouts & Decode               *
@@ -7160,7 +7520,7 @@ static const gfx_layout tilelayout_cb3e =
 	256,    /* 256 tiles */
 	4,      /* 4 bits per pixel */
 	{ 0, 2, 4, 6 },
-	{ 2*8+0, 2*8+1,3*8+0, 3*8+1,  0, 1, 1*8+0, 1*8+1 },
+	{ 2*8+0, 2*8+1,3*8+0, 3*8+1, 0, 1, 1*8+0, 1*8+1 },
 	{ 0*8, 4*8, 8*8, 12*8, 16*8, 20*8, 24*8, 28*8,
 			32*8, 36*8, 40*8, 44*8, 48*8, 52*8, 56*8, 60*8,
 			64*8, 68*8, 72*8, 76*8, 80*8, 84*8, 88*8, 92*8,
@@ -7201,8 +7561,8 @@ static const gfx_layout tiles8x32x4alt_layout =
 	8,32,
 	RGN_FRAC(1,2),
 	4,
-	{ RGN_FRAC(1,2)+0, RGN_FRAC(1,2)+4,0,4 },
-	{ 3,2,1,0,11, 10, 9, 8 },
+	{ RGN_FRAC(1,2)+0, RGN_FRAC(1,2)+4, 0, 4 },
+	{ 3, 2, 1, 0, 11, 10, 9, 8 },
 	{ 0*16, 1*16,  2*16,  3*16,  4*16,  5*16,  6*16,  7*16,
 		8*16, 9*16, 10*16, 11*16, 12*16, 13*16, 14*16, 15*16,
 		16*16,17*16, 18*16, 19*16, 20*16, 21*16, 22*16, 23*16,
@@ -7211,12 +7571,12 @@ static const gfx_layout tiles8x32x4alt_layout =
 	16*32
 };
 
-static const UINT32 layout_xoffset[128] =
+static const uint32_t layout_xoffset[128] =
 {
 	STEP32(0*128,4),STEP32(1*128,4),STEP32(2*128,4),STEP32(3*128,4)
 };
 
-static const UINT32 layout_yoffset[128] =
+static const uint32_t layout_yoffset[128] =
 {
 	STEP32(0*16384, 512),STEP32(1*16384,512),STEP32(2*16384,512),STEP32(3*16384,512)
 };
@@ -7235,12 +7595,12 @@ static const gfx_layout tiles128x128x4_layout =
 };
 
 
-static const UINT32 layout_xoffset256[256] =
+static const uint32_t layout_xoffset256[256] =
 {
 	STEP32(0*128,4),STEP32(1*128,4),STEP32(2*128,4),STEP32(3*128,4), STEP32(4*128,4), STEP32(5*128,4), STEP32(6*128,4), STEP32(7*128,4)
 };
 
-static const UINT32 layout_yoffset256[256] =
+static const uint32_t layout_yoffset256[256] =
 {
 	STEP32(0*32768, 1024),STEP32(1*32768,1024),STEP32(2*32768,1024),STEP32(3*32768,1024),STEP32(4*32768,1024), STEP32(5*32768,1024),STEP32(6*32768,1024),STEP32(7*32768,1024)
 };
@@ -7281,8 +7641,8 @@ static const gfx_layout cb3c_tiles8x8_layout =
 	8,8,
 	RGN_FRAC(1,1),
 	4,
-	{ 0,1,2,3 },
-	{ 4,0,12,8,20,16,28,24 },
+	{ 0, 1, 2, 3 },
+	{ 4, 0, 12, 8, 20, 16, 28, 24 },
 	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
 	8*32
 };
@@ -7293,9 +7653,11 @@ static const gfx_layout cb3c_tiles8x32_layout =
 	8,32,
 	RGN_FRAC(1,1),
 	4,
-	{ 0,1,2,3 },
-	{ 4,0,12,8,20,16,28,24 },
-	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32, 8*32,9*32,10*32,11*32,12*32,13*32,14*32,15*32,16*32,17*32,18*32,19*32,20*32,21*32,22*32,23*32,24*32,25*32,26*32,27*32,28*32,29*32,30*32,31*32 },
+	{ 0, 1, 2, 3 },
+	{ 4, 0, 12, 8, 20, 16, 28, 24 },
+	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32, 8*32, 9*32, 10*32, 11*32, 12*32,
+		13*32, 14*32, 15*32, 16*32, 17*32, 18*32, 19*32, 20*32, 21*32, 22*32, 23*32,
+		24*32, 25*32, 26*32, 27*32, 28*32, 29*32, 30*32, 31*32 },
 	32*32
 };
 
@@ -7360,6 +7722,56 @@ static const gfx_layout super9_tilelayout =  // Green is OK. Red needs normal go
 	128*8   /* every char takes 128 consecutive bytes */
 };
 
+
+static const gfx_layout flaming7_charlayout =
+{
+	8,8,    /* 8*8 characters */
+	4096,    /* 4096 characters */
+	3,      /* 3 bits per pixel */
+	{ 2, 4, 6 }, /* the bitplanes are packed in one byte */
+	{ 2*8+0, 2*8+1, 3*8+0, 3*8+1, 0*8+0, 0*8+1, 1*8+0, 1*8+1 },
+	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
+	32*8   /* every char takes 32 consecutive bytes */
+};
+
+static const gfx_layout flaming7_tilelayout =
+{
+	8,32,    /* 8*32 characters */
+	256,    /* 256 tiles */
+	4,      /* 4 bits per pixel */
+	{ 0, 2, 4, 6 },
+	{ 2*8+0, 2*8+1, 3*8+0, 3*8+1, 0, 1, 1*8+0, 1*8+1 },
+	{ 0*8, 4*8, 8*8, 12*8, 16*8, 20*8, 24*8, 28*8,
+		32*8, 36*8, 40*8, 44*8, 48*8, 52*8, 56*8, 60*8,
+		64*8, 68*8, 72*8, 76*8, 80*8, 84*8, 88*8, 92*8,
+		96*8, 100*8, 104*8, 108*8, 112*8, 116*8, 120*8, 124*8 },
+	128*8   /* every char takes 128 consecutive bytes */
+};
+
+static const gfx_layout flam7_tw_charlayout =
+{
+	8,8,    /* 8*8 characters */
+	4096,    /* 4096 characters */
+	3,      /* 3 bits per pixel */
+	{ 2, 4, 6 }, /* the bitplanes are packed in one byte */
+	{ 3*8+0, 3*8+1, 2*8+0, 2*8+1, 1*8+0, 1*8+1, 0*8+0, 0*8+1 },
+	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
+	32*8   /* every char takes 32 consecutive bytes */
+};
+
+static const gfx_layout flam7_tw_tilelayout =  // FIXME
+{
+	8,32,    /* 8*32 characters */
+	256,    /* 256 tiles */
+	4,      /* 4 bits per pixel */
+	{ 0, 2, 4, 6 },
+	{ 3*8+0, 3*8+1, 2*8+0, 1*8+0, 1*8+1, 2*8+1, 0, 1 },
+	{ 0*8, 4*8, 8*8, 12*8, 16*8, 20*8, 24*8, 28*8,
+		32*8, 36*8, 40*8, 44*8, 48*8, 52*8, 56*8, 60*8,
+		64*8, 68*8, 72*8, 76*8, 80*8, 84*8, 88*8, 92*8,
+		96*8, 100*8, 104*8, 108*8, 112*8, 116*8, 120*8, 124*8 },
+	128*8   /* every char takes 128 consecutive bytes */
+};
 
 
 static GFXDECODE_START( goldstar )
@@ -7465,15 +7877,27 @@ static GFXDECODE_START( super9 )
 	GFXDECODE_ENTRY( "gfx2", 0, super9_tilelayout, 128,  8 )
 GFXDECODE_END
 
+static GFXDECODE_START( flaming7 )  // gfx 2 still wrong...
+	GFXDECODE_ENTRY( "gfx1", 0, flaming7_charlayout,   0, 16 )
+	GFXDECODE_ENTRY( "gfx2", 0, flaming7_tilelayout, 104,  8 )
+GFXDECODE_END
+
+static GFXDECODE_START( flam7_tw )  // gfx 2 still wrong...
+	GFXDECODE_ENTRY( "gfx1", 0, flam7_tw_charlayout,   0, 16 )
+	GFXDECODE_ENTRY( "gfx2", 0, flam7_tw_tilelayout, 104,  8 )
+GFXDECODE_END
+
 
 static const gfx_layout tiles8x32_4bpp_layout =
 {
 	8,32,
 	RGN_FRAC(1,4),
 	4,
-	{ RGN_FRAC(0,4),RGN_FRAC(1,4),RGN_FRAC(2,4),RGN_FRAC(3,4) },
-	{ 0,1,2,3,4,5,6,7},
-	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8,8*8,9*8,10*8,11*8,12*8,13*8,14*8,15*8,16*8,17*8,18*8,19*8,20*8,21*8,22*8,23*8,24*8,25*8,26*8,27*8,28*8,29*8,30*8,31*8 },
+	{ RGN_FRAC(0,4), RGN_FRAC(1,4), RGN_FRAC(2,4), RGN_FRAC(3,4) },
+	{ 0, 1, 2, 3, 4, 5, 6, 7},
+	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8, 8*8, 9*8, 10*8, 11*8, 12*8,
+		13*8, 14*8, 15*8, 16*8, 17*8, 18*8, 19*8, 20*8, 21*8, 22*8, 23*8,
+		24*8, 25*8, 26*8, 27*8, 28*8, 29*8, 30*8, 31*8 },
 	32*8
 };
 
@@ -7482,8 +7906,8 @@ static const gfx_layout tiles8x8_3bpp_layout =
 	8,8,
 	RGN_FRAC(1,3),
 	3,
-	{ RGN_FRAC(0,3),RGN_FRAC(1,3),RGN_FRAC(2,3) },
-	{ 0,1,2,3,4,5,6,7},
+	{ RGN_FRAC(0,3), RGN_FRAC(1,3), RGN_FRAC(2,3) },
+	{ 0, 1, 2, 3, 4, 5, 6, 7},
 	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8 },
 	8*8
 };
@@ -7499,8 +7923,8 @@ static const gfx_layout tiles8x8x3_miss1bpp_layout =
 	8,8,
 	RGN_FRAC(1,1),
 	3,
-	{ 1,2,3 },
-	{  8,12,0,4,24,28,16,20 },
+	{ 1, 2, 3 },
+	{ 8, 12, 0, 4, 24, 28, 16, 20 },
 	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
 	8*32
 };
@@ -7510,8 +7934,8 @@ static const gfx_layout tiles8x8x4alt_layout =
 	8,8,
 	RGN_FRAC(1,1),
 	4,
-	{ 0, 1,2,3 },
-	{  4,0,12,8,20,16,28,24 },
+	{ 0, 1, 2, 3 },
+	{ 4, 0, 12, 8, 20, 16, 28, 24 },
 	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
 	8*32
 };
@@ -7521,8 +7945,8 @@ static const gfx_layout tiles8x32x4alt2_layout =
 	8,32,
 	RGN_FRAC(1,1),
 	4,
-	{ 0, 1,2,3 },
-	{  4,0,12,8,20,16,28,24 },
+	{ 0, 1, 2, 3 },
+	{ 4, 0, 12, 8, 20, 16, 28, 24 },
 	{ STEP32(0,32) },
 	32*32
 };
@@ -7538,8 +7962,8 @@ static const gfx_layout tilescherrys_layout =
 	8,32,
 	RGN_FRAC(1,1),
 	4,
-	{ 3,2,1,0 },
-	{  8,12,0,4,24,28,16,20 },
+	{ 3, 2, 1, 0 },
+	{  8, 12, 0, 4, 24, 28, 16, 20 },
 	{ STEP32(0,32) },
 	32*32
 };
@@ -7575,9 +7999,9 @@ static const gfx_layout cm97_layout =
 	8,8,
 	RGN_FRAC(1,1),
 	4,
-	{ 0,1,2,3 },
-	{ 8,12,0,4,24,28, 16,20 },
-	{ 0*32,1*32,2*32,3*32,4*32,5*32,6*32,7*32 },
+	{ 0, 1, 2, 3 },
+	{ 8, 12, 0, 4, 24, 28, 16, 20 },
+	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
 	8*32
 };
 
@@ -7588,7 +8012,9 @@ static const gfx_layout cm97_layout32 =
 	4,
 	{ 0,1,2,3 },
 	{ 8,12,0,4,24,28, 16,20 },
-	{ 0*32,1*32,2*32,3*32,4*32,5*32,6*32,7*32, 8*32, 9*32, 10*32, 11*32, 12*32, 13*32,14*32,15*32,16*32,17*32,18*32,19*32,20*32,21*32,22*32,23*32,24*32,25*32,26*32,27*32,28*32,29*32,30*32,31*32 },
+	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32, 8*32, 9*32, 10*32, 11*32,
+		12*32, 13*32, 14*32, 15*32, 16*32, 17*32, 18*32, 19*32, 20*32, 21*32,
+		22*32, 23*32, 24*32, 25*32, 26*32, 27*32, 28*32, 29*32, 30*32, 31*32 },
 	32*32
 };
 
@@ -7627,6 +8053,7 @@ WRITE8_MEMBER(goldstar_state::ay8910_outputb_w)
 	//popmessage("ay8910_outputb_w %02x",data);
 }
 
+
 static MACHINE_CONFIG_START( goldstar, goldstar_state )
 
 	/* basic machine hardware */
@@ -7649,7 +8076,7 @@ static MACHINE_CONFIG_START( goldstar, goldstar_state )
 	MCFG_PALETTE_FORMAT(BBGGGRRR)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_VIDEO_START_OVERRIDE(goldstar_state,goldstar)
+	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -7670,7 +8097,7 @@ static MACHINE_CONFIG_START( goldstbl, goldstar_state )
 	MCFG_CPU_ADD("maincpu", Z80, CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(goldstar_map)
 	MCFG_CPU_IO_MAP(goldstar_readport)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state,  irq0_line_hold)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state, irq0_line_hold)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -7686,7 +8113,7 @@ static MACHINE_CONFIG_START( goldstbl, goldstar_state )
 	MCFG_PALETTE_FORMAT(BBGGGRRR)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_VIDEO_START_OVERRIDE(goldstar_state,goldstar)
+	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -7714,7 +8141,7 @@ static MACHINE_CONFIG_START( star100, sanghopm_state )
 	MCFG_CPU_ADD("maincpu", Z80, CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(star100_map)
 	MCFG_CPU_IO_MAP(star100_readport)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", sanghopm_state,  irq0_line_hold)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", sanghopm_state, irq0_line_hold)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -7755,7 +8182,7 @@ static MACHINE_CONFIG_START( super9, goldstar_state )
 //  MCFG_CPU_PROGRAM_MAP(nfm_map)
 	MCFG_CPU_IO_MAP(goldstar_readport)
 //  MCFG_CPU_IO_MAP(unkch_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state,  irq0_line_hold)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state, irq0_line_hold)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -7785,7 +8212,7 @@ static MACHINE_CONFIG_START( super9, goldstar_state )
 MACHINE_CONFIG_END
 
 
-PALETTE_INIT_MEMBER(goldstar_state,cm)
+PALETTE_INIT_MEMBER(goldstar_state, cm)
 {
 	/* BBGGGRRR */
 
@@ -7793,8 +8220,8 @@ PALETTE_INIT_MEMBER(goldstar_state,cm)
 
 	for (i = 0; i < 0x100; i++)
 	{
-		UINT8 data;
-		UINT8*proms = memregion("proms")->base();
+		uint8_t data;
+		uint8_t*proms = memregion("proms")->base();
 
 		data = proms[0x000 + i] | (proms[0x100 + i] << 4);
 
@@ -7802,14 +8229,14 @@ PALETTE_INIT_MEMBER(goldstar_state,cm)
 	}
 }
 
-PALETTE_INIT_MEMBER(goldstar_state,cmast91)
+PALETTE_INIT_MEMBER(goldstar_state, cmast91)
 {
 	int i;
 	for (i = 0; i < 0x100; i++)
 	{
 		int r,g,b;
 
-		UINT8*proms = memregion("proms")->base();
+		uint8_t*proms = memregion("proms")->base();
 
 		b = proms[0x000 + i] << 4;
 		g = proms[0x100 + i] << 4;
@@ -7824,8 +8251,8 @@ PALETTE_INIT_MEMBER(goldstar_state, lucky8)
 	/* BBGGGRRR */
 
 	int i;
-	UINT8 data;
-	UINT8 *proms;
+	uint8_t data;
+	uint8_t *proms;
 
 	proms = memregion("proms")->base();
 	for (i = 0; i < 0x100; i++)
@@ -7921,7 +8348,7 @@ static MACHINE_CONFIG_START( wcherry, goldstar_state )
 	MCFG_CPU_ADD("maincpu", Z80, CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(wcherry_map)
 	MCFG_CPU_IO_MAP(wcherry_readwriteport)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state,  irq0_line_hold)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state, irq0_line_hold)
 
 	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
 	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
@@ -7970,7 +8397,7 @@ static MACHINE_CONFIG_START( cm, cmaster_state )
 	MCFG_CPU_ADD("maincpu", Z80, CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(cm_map)
 	MCFG_CPU_IO_MAP(cm_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state,  irq0_line_hold)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state, irq0_line_hold)
 
 	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
 	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
@@ -8100,7 +8527,7 @@ static MACHINE_CONFIG_START( lucky8, wingco_state )
 	MCFG_PALETTE_INIT_OWNER(goldstar_state, lucky8)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_VIDEO_START_OVERRIDE(goldstar_state,goldstar)
+	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -8151,7 +8578,7 @@ static MACHINE_CONFIG_START( bingowng, wingco_state )
 
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ncb3)
 	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state,lucky8)
+	MCFG_PALETTE_INIT_OWNER(goldstar_state, lucky8)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
 	MCFG_VIDEO_START_OVERRIDE(wingco_state, bingowng)
@@ -8175,22 +8602,64 @@ static MACHINE_CONFIG_DERIVED( bingownga, bingowng )
 MACHINE_CONFIG_END
 
 
+static MACHINE_CONFIG_DERIVED( flam7_w4, lucky8 )
+	/* basic machine hardware */
+	MCFG_CPU_MODIFY("maincpu")
+	MCFG_CPU_PROGRAM_MAP(flaming7_map)
+
+	MCFG_DEVICE_MODIFY("ppi8255_0")
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(wingco_state, fl7w4_outc802_w))
+
+	MCFG_DS2401_ADD("fl7w4_id")
+MACHINE_CONFIG_END
+
 static MACHINE_CONFIG_DERIVED( flaming7, lucky8 )
 	/* basic machine hardware */
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(flaming7_map)
-//  MCFG_CPU_IO_MAP(flaming7_readport)
+
+	MCFG_GFXDECODE_MODIFY("gfxdecode", flaming7)
+
+	// to do serial protection.
+	MCFG_DEVICE_MODIFY("ppi8255_0")
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(wingco_state, fl7w4_outc802_w))
+
+	MCFG_DS2401_ADD("fl7w4_id")
 MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_DERIVED( flam7_tw, lucky8 )
+	/* basic machine hardware */
+	MCFG_CPU_MODIFY("maincpu")
+	MCFG_CPU_PROGRAM_MAP(flaming7_map)
+
+	MCFG_GFXDECODE_MODIFY("gfxdecode", flam7_tw)
+
+	// to do serial protection.
+	MCFG_DEVICE_MODIFY("ppi8255_0")
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(wingco_state, fl7w4_outc802_w))
+
+	MCFG_DS2401_ADD("fl7w4_id")
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_DERIVED( mbstar, lucky8 )
+	/* basic machine hardware */
+	MCFG_CPU_MODIFY("maincpu")
+	MCFG_CPU_PROGRAM_MAP(mbstar_map)
+
+	MCFG_SCREEN_MODIFY("screen")
+	MCFG_SCREEN_UPDATE_DRIVER(wingco_state, screen_update_mbstar)
+MACHINE_CONFIG_END
+
 
 
 PALETTE_INIT_MEMBER(wingco_state, magodds)
 {
 	for (int i = 0; i < 0x100; i++)
 	{
-		UINT8 *proms = memregion("proms")->base();
-		UINT8 b = proms[0x000 + i] << 4;
-		UINT8 g = proms[0x100 + i] << 4;
-		UINT8 r = proms[0x200 + i] << 4;
+		uint8_t *proms = memregion("proms")->base();
+		uint8_t b = proms[0x000 + i] << 4;
+		uint8_t g = proms[0x100 + i] << 4;
+		uint8_t r = proms[0x200 + i] << 4;
 
 		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
@@ -8202,7 +8671,7 @@ static MACHINE_CONFIG_START( magodds, wingco_state )
 	MCFG_CPU_ADD("maincpu", Z80, CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(magodds_map)
 	//MCFG_CPU_IO_MAP(goldstar_readport)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", wingco_state,  masked_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", wingco_state, masked_irq)
 
 	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
 	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
@@ -8257,7 +8726,7 @@ static MACHINE_CONFIG_START( kkotnoli, goldstar_state )
 	MCFG_CPU_ADD("maincpu", Z80, CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(kkotnoli_map)
 	//MCFG_CPU_IO_MAP(goldstar_readport)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state,  nmi_line_pulse)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state, nmi_line_pulse)
 
 	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
 	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
@@ -8284,7 +8753,7 @@ static MACHINE_CONFIG_START( kkotnoli, goldstar_state )
 	MCFG_PALETTE_ADD("palette", 256)
 	MCFG_PALETTE_INIT_OWNER(goldstar_state, lucky8)
 
-	MCFG_VIDEO_START_OVERRIDE(goldstar_state,goldstar)
+	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -8301,7 +8770,7 @@ static MACHINE_CONFIG_START( ladylinr, goldstar_state )
 	MCFG_CPU_ADD("maincpu", Z80, CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(ladylinr_map)
 	//MCFG_CPU_IO_MAP(goldstar_readport)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state,  nmi_line_pulse)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state, nmi_line_pulse)
 
 	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
 	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
@@ -8325,7 +8794,7 @@ static MACHINE_CONFIG_START( ladylinr, goldstar_state )
 	MCFG_PALETTE_INIT_OWNER(goldstar_state, lucky8)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_VIDEO_START_OVERRIDE(goldstar_state,goldstar)
+	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -8344,7 +8813,7 @@ static MACHINE_CONFIG_START( wcat3, wingco_state )
 	MCFG_CPU_ADD("maincpu", Z80, CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(wcat3_map)
 	//MCFG_CPU_IO_MAP(goldstar_readport)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state,  nmi_line_pulse)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state, nmi_line_pulse)
 
 	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
 	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
@@ -8376,7 +8845,7 @@ static MACHINE_CONFIG_START( wcat3, wingco_state )
 	MCFG_PALETTE_INIT_OWNER(goldstar_state, lucky8)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_VIDEO_START_OVERRIDE(goldstar_state,goldstar)
+	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -8401,7 +8870,7 @@ static MACHINE_CONFIG_START( amcoe1, cmaster_state )
 	MCFG_CPU_ADD("maincpu", Z80, CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(cm_map)
 	MCFG_CPU_IO_MAP(amcoe1_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state,  irq0_line_hold)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state, irq0_line_hold)
 
 	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
 	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
@@ -8483,7 +8952,7 @@ static MACHINE_CONFIG_START( amcoe2, cmaster_state )
 	MCFG_PALETTE_INIT_OWNER(goldstar_state,cm)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_VIDEO_START_OVERRIDE(goldstar_state,cherrym)
+	MCFG_VIDEO_START_OVERRIDE(goldstar_state, cherrym)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -8554,7 +9023,7 @@ static MACHINE_CONFIG_START( pkrmast, goldstar_state )
 	MCFG_CPU_ADD("maincpu", Z80, CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(cm_map)
 	MCFG_CPU_IO_MAP(pkrmast_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state,  irq0_line_hold)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", goldstar_state, irq0_line_hold)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -11031,6 +11500,155 @@ ROM_START( ns8linesa )
 ROM_END
 
 
+/*
+  Mega Bonus Star II (Millennium Edition, Euro)
+  Auto-Data Graz, 2002.
+
+  W4 derivative hardware...
+
+  PCB has a daughterboard with:
+  - Z80.
+  - Unknown DIP40 IC
+  - M48T12 Timekeeper NVRAM.
+  - HM6116L-70
+  - GAL16V8D.
+  - DS1232.
+  - 74LS374N
+  - SN74LS08N
+  - 8 MHz Xtal.
+
+  Here the DB layout...
+  +-----------------------------+
+  |        +-----------+ +----+ |
+  |    +-+ |MBGEU_OR   | |U   | |
+  |    | | |V.3.5.5    | |N   | |
+  |+-+ |B| +-----------+ |K   | |
+  || | | | +----+ +----+ |O   | |
+  || | +-+ |HM61| |M48T| |W   | |
+  ||A| +-+ |16L-| |12  | |N  Z| |
+  || | | | |70  | |    | |   I| |
+  || | |C| |    | |TIME| |   L| |
+  || | | | |    | |KEEP| |   O| |
+  |+-+ | | |    | |RAM | |   G| |
+  |    +-+ +----+ +----+ +----+ |
+  |    +----------------+       |
+  |    |ZILOG           | XTAL  |
+  |+-+ |Z0840006P       | 8.000 |
+  ||D| +----------------+       |
+  |+-+                          |
+  +-----------------------------+
+
+  A: GAL16V8D
+  B: SN74LS08N
+  C: DM74LS374N
+  D: DS1232
+
+  Unknown Zilog 40pin IC (scratched):
+  (could be either a Z86C15 or Z86C91 MCU)
+
+                    +-----V-----+
+               VCC -|01       40|- 74LS08N (Pin 01)
+        XTAL 8MHz <-|02       39|- GAL16V8 (Pin 17)
+        XTAL 8MHz >-|03   Z   38|- 74LS374 (Pin 03)
+               N/C -|04   I   37|- 74LS374 (Pin 04)
+               N/C -|05   L   36|- 74LS374 (Pin 07)
+  74LS08N (Pin 10) -|06   O   35|- 74LS374 (Pin 08)
+  GAL16V8 (Pin 07) -|07   G   34|- 74LS374 (Pin 13)
+  GAL16V8 (Pin 08) -|08       33|- 74LS374 (Pin 14)
+  74LS374 (Pin 11) -|09       32|- 74LS374 (Pin 17)
+               N/C -|10       31|- 74LS374 (Pin 18)
+               GND -|11       30|- 74LS374 (Pin 01)
+               N/C -|12       29|- 74LS08N (Pin 02)
+      27C512 (A08) -|13       28|- 27C512 (Q7)
+      27C512 (A09) -|14       27|- 27C512 (Q6)
+      27C512 (A10) -|15       26|- 27C512 (Q5)
+      27C512 (A11) -|16       25|- 27C512 (Q4)
+      27C512 (A12) -|17       24|- 27C512 (Q3)
+      27C512 (A13) -|18       23|- 27C512 (Q2)
+      27C512 (A14) -|19       22|- 27C512 (Q1)
+      27C512 (A15) -|20       21|- 27C512 (Q0)
+                    +-----------+
+
+  40-Pin DIP Pin Identification for Z86C15 MCU (for reference):
+
+  ---------------------------------------------------------
+  Pin    Symbol    Function                       Direction
+  ---------------------------------------------------------
+  01     VCC       Power Supply                   Input
+  02     CLKOUT    Z8 System Clock                Output
+  03     RCIN      RC Oscillator Clock            Input
+  04     P37       Port 3, Pin 7                  Output
+  05     P30       Port 3, Pin 0                  Input
+  06     /RESET    Reset                          Input
+  07     AGND      Analog Ground
+  08     NC        Not Connected
+  09     /WDTOUT   Watch-Dog Timer                Output
+  10     P35       Port 3, Pin 5                  Output
+  11     GND       Ground
+  12     P32       Port 3, Pin 2                  Input
+  13-20  P00-P07   Port 0, Pins 0,1,2,3,4,5,6,7   In/Output
+  21-28  P10-P17   Port 1, Pins 0,1,2,3,4,5,6,7   In/Output
+  29     P34       Port 3, Pin 4                  Output
+  30     P33       Port 3, Pin 3                  Input
+  31-38  P20-P27   Port 2, Pins 0,1,2,3,4,5,6,7   In/Output
+  39     P31       Port 3, Pin 1                  Input
+  40     P36       Port 3, Pin 6                  Output
+  ---------------------------------------------------------
+
+  BASE Board (based on WING W4):
+
+  XTAL: 11.98135MHZ
+  4x DIP-SWITCH
+
+  1x YAMAHA YM2149F
+  3x NEC D8255AC-2
+  6x HY6116ALP-12
+
+  Daughterboard is inserted in the Z80 Socket of the main board...
+
+*/
+ROM_START( mbs2euro )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "mbgeu_or_v.3.5.5.bin",   0x0000, 0x10000, CRC(b468a62f) SHA1(011536b08eb7cd42dd83826b195bbce314effda0) )
+
+	ROM_REGION( 0x20000, "temp", 0 )
+	ROM_LOAD( "mbs_21.bin",  0x00000, 0x8000, CRC(769f5793) SHA1(ffe542b8d1eee12738426b391a6cf61dbcc9fb3e) )  // GFX are in the last quarter.
+	ROM_LOAD( "mbs_22.bin",  0x08000, 0x8000, CRC(2a4fa0f1) SHA1(1df7c7762aa6f4300c390a43092803cfd7ce46d3) )  // GFX are in the last quarter.
+	ROM_LOAD( "mbs_23.bin",  0x10000, 0x8000, CRC(d47117ed) SHA1(ff5d981a70da7b08f04988e60624bad26529374f) )  // GFX are in the last quarter.
+	ROM_LOAD( "mbs_24.bin",  0x18000, 0x8000, CRC(90fa917c) SHA1(d0de55c37c0bcc07586796189bb1e7a861f61a2d) )  // GFX are in the last quarter.
+
+	ROM_REGION( 0x18000, "gfx1", 0 )
+	ROM_LOAD( "mbeu_5.bin",  0x00000, 0x8000, CRC(e97e90b4) SHA1(433b864d43b735dd043880e72eaabd0533530ceb) )
+	ROM_LOAD( "mbeu_6.bin",  0x08000, 0x8000, CRC(9be871a7) SHA1(d4738be7207c121ab3b82bf01e19377b47956f56) )
+	ROM_LOAD( "mbeu_7.bin",  0x10000, 0x8000, CRC(7a647742) SHA1(3f5433b85c81a94675fd681c18f2766d722a1f1f) )
+
+	ROM_REGION( 0x8000, "gfx2", 0 )
+	ROM_COPY( "temp",   0x06000, 0x0000, 0x2000 )
+	ROM_COPY( "temp",   0x0e000, 0x2000, 0x2000 )
+	ROM_COPY( "temp",   0x16000, 0x4000, 0x2000 )
+	ROM_COPY( "temp",   0x1e000, 0x6000, 0x2000 )
+
+	ROM_REGION( 0x200, "proms", 0 ) /* proper dumps */
+	ROM_LOAD( "am27s21.g13", 0x0000, 0x0100, CRC(058b1195) SHA1(8e094e7a15d2ed7ff9d0336b0ea8a0a816e965e4) )
+	ROM_LOAD( "am27s21.g14", 0x0100, 0x0100, CRC(0dcaa791) SHA1(69c68a22002b57d03b90e82b5a33d1df66c39362) )
+
+	ROM_REGION( 0x20, "proms2", 0 )
+	ROM_LOAD( "82s123.d13",  0x0000, 0x0020, CRC(eacb8b76) SHA1(30cdd169a45b87c4262eea03ae28f910b091b100) )
+
+	ROM_REGION( 0x100, "unkprom", 0 )
+	ROM_LOAD( "am27s21.f3",  0x0000, 0x0100, CRC(169cbb68) SHA1(1062e84c4b4208be9aa400e236579dc5b83e9f83) )
+
+	ROM_REGION( 0x20, "unkprom2", 0 )
+	ROM_LOAD( "82s123.d12",  0x0000, 0x0020, CRC(6df3f972) SHA1(0096a7f7452b70cac6c0752cb62e24b643015b5c) )
+
+	ROM_REGION( 0x800, "timekeeper", 0 )  // just for preservation and further analysis...
+	ROM_LOAD( "m48t12.bin",  0x0000, 0x07f8, CRC(11e61f97) SHA1(57d4744747b9d75b3ac31da8fc621f1a00ff1de3) )  // shouldn't be 0x800?
+
+	ROM_REGION( 0x1000, "plds", 0 )
+	ROM_LOAD( "gal16v8d.bin",  0x0000, 0x0892, CRC(1687b8da) SHA1(63c0bd119ec67c8033d08e03a6e6c86e0cab2884) )  // protected?... the first 0x800 are 1's
+ROM_END
+
+
 /*  Lucky Bar
     Unknown reels game based on Wing's Lucky 8 Lines.
     W-4 hardware
@@ -11297,7 +11915,7 @@ is this the original Magical Odds?
 DRIVER_INIT_MEMBER(wingco_state, magoddsc)
 {
 	int A;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 
 	for (A = 0;A < 0x8000;A++)
 	{
@@ -12691,10 +13309,10 @@ ROM_END
 DRIVER_INIT_MEMBER(cmaster_state, fb2010)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	for (i = 0;i < 0x10000;i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 
 		switch(i & 0x22)
 		{
@@ -13754,7 +14372,34 @@ ROM_END
 
 */
 ROM_START( cmpacman )
-	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_REGION( 0x10000, "maincpu", 0 )  // Seems to have the pulse/bookkeeping bug fixed.
+	ROM_LOAD( "corsica_v8.31_pacman_old_board_new.bin",  0x0000,  0x10000, CRC(4f1ea727) SHA1(e127f3da9e7cc81b93dc3eec66ca56452e78375e) )
+
+	ROM_REGION( 0x18000, "gfx1", 0 )
+	ROM_LOAD( "c_m_pacman_rom7.u16", 0x00000,  0x8000, CRC(c53273a4) SHA1(d359e65c31ef5253f1e9a3b67db8851a8d1262d1) )
+	ROM_LOAD( "c_m_pacman_rom6.u11", 0x08000,  0x8000, CRC(013bff64) SHA1(65f2808480970a756b642ddd1a64c10b89ea3b3e) )
+	ROM_LOAD( "c_m_pacman_rom5.u4",  0x10000,  0x8000, CRC(03298f22) SHA1(32c99da82afff6d38333a9998802c497d6f49fab) )
+
+	ROM_REGION( 0x8000, "gfx2", 0 )
+	ROM_LOAD( "4.u15",  0x0000,  0x2000, CRC(8607ffd9) SHA1(9bc94715554aa2473ae2ed249a47f29c7886b3dc) )
+	ROM_LOAD( "3.u10",  0x2000,  0x2000, CRC(c32367be) SHA1(ff217021b9c58e23b2226f8b0a7f5da966225715) )
+	ROM_LOAD( "2.u14",  0x4000,  0x2000, CRC(6dfcb188) SHA1(22430429c798954d9d979e62699b58feae7fdbf4) )
+	ROM_LOAD( "1.u9",   0x6000,  0x2000, CRC(9678ead2) SHA1(e80aefa98b2363fe9e6b2415762695ace272e4d3) )
+
+	ROM_REGION( 0x10000, "user1", 0 )
+	ROM_LOAD( "8.u53",  0x0000, 0x10000, CRC(e92443d3) SHA1(4b6ca4521841610054165f085ae05510e77af191) )
+
+	/* proms taken from cmv4, probably wrong  */
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "82s129.u84", 0x0000, 0x0100, CRC(0489b760) SHA1(78f8632b17a76335183c5c204cdec856988368b0) )
+	ROM_LOAD( "82s129.u79", 0x0100, 0x0100, CRC(21eb5b19) SHA1(9b8425bdb97f11f4855c998c7792c3291fd07470) )
+
+	ROM_REGION( 0x100, "proms2", 0 )
+	ROM_LOAD( "82s129.u46", 0x0000, 0x0100, CRC(50ec383b) SHA1(ae95b92bd3946b40134bcdc22708d5c6b0f4c23e) )
+ROM_END
+
+ROM_START( cmpacmana )
+	ROM_REGION( 0x10000, "maincpu", 0 )  // Seems to have a pulse/bookkeeping bug.
 	ROM_LOAD( "corsica_v8.31_pacman_old_board.bin",  0x0000,  0x10000, CRC(f69cbe75) SHA1(08446eb005b6c7ed24489fd664df14b20a41e3eb) )
 
 	ROM_REGION( 0x18000, "gfx1", 0 )
@@ -13961,11 +14606,20 @@ ROM_END
   Probably tracing pin connections to the HX881 will confirm it.
 
 
-  You can switch the games pulsing their respective hidden buttons.
-
   Hidden Switch:
 
-  Unknown, yet...
+  You can enter Cherry Master mode in same way like other Tetris versions.
+
+  One wire goes to edge connector 35 + 36 (solder side), putting PPI (u34)
+  pin 14 (PC0) to GND (needed to get the switch working).
+
+  One button adds GND to the edge connector 8 (solder side):
+  PPI pin 18 (PB0), to switch to Tetris game.
+
+  The other button, adds GND to the edge connector 7 (solder side):
+  PPI pin 19 (PB1), to switch to Cherry Master game.
+
+  Need proper implementation.
 
 */
 ROM_START( cmtetrsb )
@@ -14000,7 +14654,6 @@ ROM_END
 
   Flaming 7.
   Cyberdyne Systems, Inc.
-  Looks a W-4 derivative...
 
   Graphics: CGA
   Reels: 3 spinning reels.
@@ -14008,12 +14661,15 @@ ROM_END
   Bonus Games: Yes.
   Harness Type: Standard 36/10 Pin Cherry Master Harness.
 
+  Looks like a Wing W-4 derivative. There are at least 3 different hardwares:
+  Cyberdyne original PCB, Taiwanese custom PCB, and one close to Wing W-4.
+
   Graphics: 4 different types, selectable through DIP switches.
 
   1) Regular Fruits.
-  2) Numbers.
-  3) Custom Set 1
-  4) Custom Set 2
+  2) Numbers.     (Custom Option 1 in W-4 HW)
+  3) Custom Set 1 (Custom Option 2 in W-4 HW)
+  4) Custom Set 2 (Custom Option 3 in W-4 HW)
 
   Titles / GFX upgrades:
 
@@ -14024,12 +14680,12 @@ ROM_END
   | 02 | Buffalo Bills.               | NO      | NO       |
   | 03 | Cash Cabaret.                | NO      | NO       |
   | 04 | Cash Cow.                    | NO      | NO       |
-  | 05 | Cherry 50 Bonus.             | NO      | NO       |
-  | 06 | Cherry 500 Bonus.            | NO      | NO       |
-  | 07 | Cherry 1000 Bonus.           | NO      | NO       |
+  | 05 | Cherry 50 Bonus.             | YES     | YES      |  Custom main 50, 500 & 2000.
+  | 06 | Cherry 500 Bonus.            | YES     | YES      |  Custom main 50, 500 & 2000.
+  | 07 | Cherry 1000 Bonus.           | YES     | YES      |  Custom main 50, 500 & 2000.
   | 08 | Christmas.                   | NO      | NO       |
   | 09 | Deuces Wild.                 | NO      | NO       |
-  | 10 | Diamond Delight.             | NO      | NO       |
+  | 10 | Diamond Delight.             | YES     | YES      |  Different set. Custom main 50, 500 & 2000.
   | 11 | Diamond Doubles.             | NO      | NO       |
   | 12 | Diamond Treasure.            | NO      | NO       |
   | 13 | Dream Catcher.               | NO      | NO       |
@@ -14040,7 +14696,7 @@ ROM_END
   | 18 | Golden Treasure.             | NO      | NO       |
   | 19 | Greenbacks.                  | NO      | NO       |
   | 20 | Harley Davidson.             | NO      | NO       |
-  | 21 | Hollywood Nights.            | YES     | YES      |
+  | 21 | Hollywood Nights.            | YES (W4)| YES (W4) |  Flaming 7's W4 version.
   | 22 | Independence Day.            | NO      | NO       |
   | 23 | Jokers Wild.                 | NO      | NO       |
   | 24 | Midnight Sevens.             | NO      | NO       |
@@ -14050,7 +14706,7 @@ ROM_END
   | 28 | New Year's.                  | NO      | NO       |
   | 29 | Prospector's Gold.           | NO      | NO       |
   | 30 | Red Hot Ice.                 | NO      | NO       |
-  | 31 | Red, White & Blue 7's.       | YES     | YES      |
+  | 31 | Red, White & Blue 7's.       | YES (W4)| YES (W4) |  Flaming 7's W4 version.
   | 32 | Rising Star.                 | NO      | NO       |
   | 33 | Rockin' Reels.               | NO      | NO       |
   | 34 | Rolling Thunder.             | NO      | NO       |
@@ -14073,37 +14729,338 @@ ROM_END
 
   -------------------------------------------------------------------
 
+  Original Cyberdyne Systems hardware DIP switches:
+
+  +-----------------------------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | DIP SWITCHES BANK #1              |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |
+  +----------------+------------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | CREDITS OUT    | NO CREDITS OUT   | OFF | OFF |     |     |     |     |     |     |
+  |                | TICKET PRINTER   | ON  | OFF |     |     |     |     |     |     |
+  |                | HOPPER PAYOUT    | OFF | ON  |     |     |     |     |     |     |
+  |                | REMOTE CLEAR     | ON  | ON  |     |     |     |     |     |     |
+  +----------------+------------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | GAME SPEED     | FAST GAME        |     |     | OFF |     |     |     |     |     |
+  |                | SLOW GAME        |     |     | ON  |     |     |     |     |     |
+  +----------------+------------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | LOCK UP ON 7-8 | NO               |     |     |     | OFF |     |     |     |     |
+  |  OF ANY KIND   | YES              |     |     |     | ON  |     |     |     |     |
+  +----------------+------------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | GRAPHICS TYPE  | REGULAR FRUIT    |     |     |     |     | OFF | OFF |     |     |
+  |                | NUMBERS          |     |     |     |     | ON  | OFF |     |     |
+  |                | CUSTOM OPTION 1  |     |     |     |     | OFF | ON  |     |     |
+  |                | CUSTOM OPTION 2  |     |     |     |     | ON  | ON  |     |     |
+  +----------------+------------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | PAY TABLE      | 9322             |     |     |     |     |     |     | OFF | OFF |
+  |                | 9323             |     |     |     |     |     |     | ON  | OFF |
+  |                | 9324             |     |     |     |     |     |     | OFF | ON  |
+  |                | 9321             |     |     |     |     |     |     | ON  | ON  |
+  +----------------+------------------+-----+-----+-----+-----+-----+-----+-----+-----+
+
+  +-----------------------------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | DIP SWITCHES BANK #2              |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |
+  +----------------+------------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | BONUS PAY %    | 1.0 %            | OFF | OFF | OFF |     |     |     |     |     |
+  |                | 1.2 %            | ON  | OFF | OFF |     |     |     |     |     |
+  |                | 3.3 %            | OFF | ON  | OFF |     |     |     |     |     |
+  |                | 4.0 %            | ON  | ON  | OFF |     |     |     |     |     |
+  |                | 5.0 %            | OFF | OFF | ON  |     |     |     |     |     |
+  |                | 6.2 %            | ON  | OFF | ON  |     |     |     |     |     |
+  |                | 8.0 %            | OFF | ON  | ON  |     |     |     |     |     |
+  |                | 10.0 %           | ON  | ON  | ON  |     |     |     |     |     |
+  +----------------+-----+------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | INTERNAL PROGRESSIVE | ON         |     |     |     | OFF |     |     |     |     |
+  |                      | OFF        |     |     |     | ON  |     |     |     |     |
+  +----------------+-----+------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | NOT USED       |                  |     |     |     |     | OFF | OFF | OFF | OFF |
+  +----------------+------------------+-----+-----+-----+-----+-----+-----+-----+-----+
+
+  +-----------------------------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | DIP SWITCHES BANK #3              |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |
+  +------------------+----------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | MAXIMUM BET      | 8              | OFF | OFF |     |     |     |     |     |     |
+  |                  | 16             | ON  | OFF |     |     |     |     |     |     |
+  |                  | 32             | OFF | ON  |     |     |     |     |     |     |
+  |                  | 64             | ON  | ON  |     |     |     |     |     |     |
+  +------------------+----------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | COIN IN-TIME OUT | OFF            |     |     | OFF |     |     |     |     |     |
+  |                  | ON             |     |     | ON  |     |     |     |     |     |
+  +------------------+----------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | DEMONATION       | $1.00          |     |     |     | OFF | OFF | OFF |     |     |
+  |                  | 50 CENTS       |     |     |     | ON  | OFF | OFF |     |     |
+  |                  | 25 CENTS       |     |     |     | OFF | ON  | OFF |     |     |
+  |                  | 10 CENTS       |     |     |     | ON  | ON  | OFF |     |     |
+  |                  | 5 CENTS        |     |     |     | OFF | OFF | ON  |     |     |
+  +------------------+----------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | PROGRESSIVE SIGN | OFF            |     |     |     |     |     |     | OFF | OFF |
+  |                  | SINGLE LEVEL   |     |     |     |     |     |     | ON  | OFF |
+  |                  | MULTI-LEVEL    |     |     |     |     |     |     | OFF | ON  |
+  |                  | TEST MODE      |     |     |     |     |     |     | ON  | ON  |
+  +------------------+----------------+-----+-----+-----+-----+-----+-----+-----+-----+
+
+  +-----------------------------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | DIP SWITCHES BANK #4              |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |
+  +------------------+----------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | BUTTON LOCKOUT   | OFF            | OFF |     |     |     |     |     |     |     |
+  |                  | ON             | ON  |     |     |     |     |     |     |     |
+  +------------------+----------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | LOCKOUT POLARITY | ACTIVE HIGH    |     | OFF |     |     |     |     |     |     |
+  |                  | ACTIVE LOW     |     | ON  |     |     |     |     |     |     |
+  +------------------+----------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | PRINTER TYPE     | EPSON 276A     |     |     | OFF | OFF |     |     |     |     |
+  |                  | STAR 300       |     |     | ON  | OFF |     |     |     |     |
+  |                  | ITHACA 75      |     |     | OFF | ON  |     |     |     |     |
+  |                  | CITIZEN 3541   |     |     | ON  | ON  |     |     |     |     |
+  +------------------+----------------+-----+-----+-----+-----+-----+-----+-----+-----+
+  | PAPER LOW SENSOR | OFF            |     |     |     |     | OFF | OFF | OFF | OFF |
+  |                  | ON             |     |     |     |     | ON  | OFF | OFF | OFF |
+  +------------------+----------------+-----+-----+-----+-----+-----+-----+-----+-----+
+
+
+  NOTE: Set bill validator DIP switches for 1 pulse per dollar. When you choose the
+        demonation with the DIP switch on the board, the software will know how many
+        credits to give per dollar.
+
+
+  Pay Table Diagram: (Set With DIP Switches Bank #1, numbers 7 & 8)
+
+
+  --- 9323 ---
+
+  3 Flaming Sevens    75 for 1
+  3 Sevens            40 for 1
+  9 Bars              15 for 1
+  6 Bars              12 for 1
+  3 Bars              10 for 1
+  3 Cherries          08 for 1
+  2 Cherries          05 for 1
+  1 Cherries          02 for 1
+
+  With 8 or more Bet:
+
+  9 of any one = 1000 for 1
+  8 of any one =  500 for 1
+  7 of any one =  100 for 1
+
+  If Cherry Bonus is on 5 or more Cherries, Pays Bonus.
+
+
+  --- 9324 ---
+
+  3 Flaming Sevens    75 for 1
+  3 Sevens            40 for 1
+  9 Bars              15 for 1
+  6 Bars              12 for 1
+  3 Bars              10 for 1
+  3 Cherries          08 for 1
+  2 Cherries          04 for 1
+  1 Cherries          01 for 1
+
+  With 8 or more Bet:
+
+  9 of any one = 5000 for 1
+  8 of any one = 2500 for 1
+  7 of any one =  500 for 1
+
+  If Cherry Bonus is on 5 or more Cherries, Pays Bonus.
+
+
+  --- 9321 ---
+
+  3 Flaming Sevens    75 for 1
+  3 Sevens            40 for 1
+  9 Bars              15 for 1
+  6 Bars              12 for 1
+  3 Bars              10 for 1
+  3 Cherries          08 for 1
+  2 Cherries          05 for 1
+  1 Cherries          02 for 1
+
+  With 8 or more Bet:
+
+  9 of any one = 3000 for 1
+  8 of any one = 1500 for 1
+  7 of any one =  300 for 1
+
+  If Cherry Bonus is on 5 or more Cherries, Pays Bonus.
+
+
+  --- 9322 ---
+
+  3 Flaming Sevens   100 for 1
+  3 Sevens            50 for 1
+  9 Bars              18 for 1
+  6 Bars              14 for 1
+  3 Bars              10 for 1
+  3 Cherries          10 for 1
+  2 Cherries          05 for 1
+  1 Cherries          02 for 1
+
+  With 8 or more Bet:
+
+  9 of any one = 1000 for 1
+  8 of any one =  500 for 1
+  7 of any one =  100 for 1
+
+  If Cherry Bonus is on 5 or more Cherries, Pays Bonus.
+
+  -------------------------------------------------------------------------
+
+        CYBERDYNE 72 PIN GAME LOGIC CONNECTOR
+
+            Parts Side |  |  | Solder Side
+        ---------------+--+--+---------------
+             Red Video |01|37| Green Video
+            Blue Video |02|38| Video Sync
+            Speaker (+)|03|39| Speaker Ground
+                       |04|40|
+                       |05|41|
+                       |06|42|
+          Drop Door SW |07|43| Change SW
+         Logic Door SW |08|44| Main Door SW
+          Start Switch |09|45|
+            Low Switch |10|46|
+    Play Credit Switch |11|47|
+     Take Score Switch |12|48|
+      Double Up Switch |13|49|
+           High Switch |14|50|
+           Button Lock |15|51|
+                       |16|52|
+                       |17|53|
+         (DBA) Inuput0 |18|54| Coin Switch "A"
+       Coin Switch "B" |19|55|
+   Book Keeping Switch |20|56| Stats / Setup SW
+            Collect SW |21|57|
+    Hopper Full Switch |22|58|
+       Counter Out "A" |23|59|
+                  Bell |24|60| Lockout mars (DBA)
+            Tower Lamp |25|61|
+       Counter Out "D" |26|62|
+          Played Meter |27|63| Lack of Hopper Counter
+  Count down Meter Out |28|64|
+            Start Lamp |29|65|
+              Low Lamp |30|66| Collect Lamp
+      Play Credit Lamp |31|67| Progressive Link
+       Take Score Lamp |32|68|
+        Double Up Lamp |33|69| TXD
+             High Lamp |34|70|
+                       |35|71|
+        Switch Grounds |36|72| Switch Grounds
+                       +--+--+
+
+
+           20 Pin Game PCB Power Connector
+
+            Parts Side |  |  | Solder Side
+        ---------------+--+--+---------------
+          Logic Ground |01|11| Logic Ground
+          Logic Ground |02|12| Logic Ground
+                +5 VDC |03|13|
+                +5 VDC |04|14| +5 VDC
+               +12 VDC |05|15| +12 VDC
+                       |06|16|
+                       |07|17|
+                       |08|18|
+          Logic Ground |09|19| Logic Ground
+          Logic Ground |10|20| Logic Ground
+                       +--+--+
+
+  -------------------------------------------------------------------------
+
+  Cyberdyne Printer Harness (Flaming 7)
+  -------------------------------------
+
+                         +12V.----+----+
+                                  |    |
+                                  Z    Z
+                                  Z    Z  470 ohm 1/4 watt resistors
+                                  Z    Z
+                                  |    |
+  PCB Pin 69 Solder Side (TXD) ---+----|---- DB25 pin 3 (received data)
+                                       |
+                                       +---- DB25 pin 6
+
+  PCB Pin 22 Parts Side -------------------- DB25 pins 1 & 7 (Single & Safety)
+
+  PCB Pin 35 Parts Side -------------------- DB25 pin 20 (Printer Busy Signal)
+
+
+  DIP Switches settings for Citizen Printer:
+
+  Model # 3551
+  DIP SW #1 = 5, 7, 9, 10 OFF.
+  DIP SW #2 = 5, 7, 8, OFF.
+
+  -------------------------------------------------------------------------
+
   Tech Notes:
 
-  PCB has some hacks...
+  W-4 PCB type has some hacks...
 
   1) PPI 8255 pin 10 (PC7) is wired to pin 22 (PB4)...
-     Maybe the boot protection?
 
   2) Pin 39 from solder side (speaker GND) and pin 04 from components side (PPI 8255 pin 11, PC6)
      are wired with a DS2401 (sillicon serial number) device, to pins 1 & 2 (GND & DATA).
 
+     DS2401 has 64bits of internal data: 8 bits for family type + 48 bits for serial + 8 bits for CRC.
+
+     Maxim/Dallas 1-Wire devices use what is called Dow CRC to check that the data bytes were received correctly.
+     This returns an 8-bit CRC value as the last byte and uses a polynomial of X^8 + X^5 + X^4 + X^0.
+
   3) Z80 /INT line (pin 16) is out of socket and wired to a 74161.
 
 
-*/
+  Custom Hardware Notes:
+
+  To initialize the game the first time, enter BOOKS/STATS/SETUP (Key 0),
+  and advance through the menus with RESET key (key R). When finish press
+  again BOOKS/STATS/SETUP (Key 0) to exit the setup mode.
+
+  ---
+
+  GFX Bank 1 (chars and BG graphics) is colors-accurate.
+  GFX Bank 2 needs some work...
+
+  There is a window that should shows the bonus graphics.
+  This graphic icon is taken from Bank 2, and is the "representative"
+  for the chosen gfx set.
+
+  Code writes the bonus graphics at 9A80-9A89, and the "reel scroll"
+  at B0C0-B0FF...
+
+  Tileset:
+  Reels GFX 1: 00-00-01-02-03-04-05-06-07-00
+  Reels GFX 2: 00-5A-5B-5C-5D-5E-5F-60-61-00
+  Reels GFX 3: 9F-A0-A1-A2-A3-A4-A5-A6-A7-A8
+  Reels GFX 4: E7-E8-E9-EA-EB-EC-ED-EE-EF-F0
+
+  ...and written 0x10 at B0C0-B0FF.
+
+
+  The taiwanese hardware needs better decoded reels graphics ROMs,
+  The chars/text graphics are properly decodes, but texts strings
+  look bad in the game.
+
+*******************************************************************************************/
 
 /*
   Flaming 7
   Cyberdyne Systems, Inc.
 
+  W4 hardware.
+
   GFX sets:
   1) Red, White & Blue 7's
   2) Hollywood Nights.
 
-  Issues: At boot, writes "E6" on screen (5th row, 7th column).
-          Looks like an error code.
+  To boot the first time, press the BET 1 button (key M), and then BOOKS/STATS/SETUP (Key 0) twice.
+  For further boots, just press BET 1 button. (the real hardware boots straight due to electronic
+  serial number protection)
 
-  To boot the first time, press the BET button, and then STATS/SETUP twice.
-  For further boots, just press BET button. (the real hardware boots straight)
+  To enter the Bookkeeping/Setup mode, press BOOKS/STATS/SETUP (key 0). Use RESET key (key R) to
+  navigate between pages. Press BOOKS/STATS/SETUP (key 0) to exit the Bookkeeping mode.
 
 */
-ROM_START( fl7_3121 )  // Red, White & Blue 7's + Hollywood Nights.
+ROM_START( fl7_3121 )  // Red, White & Blue 7's + Hollywood Nights. Serial 7D063B800000.
 	ROM_REGION( 0x8000, "maincpu", 0 )
 	ROM_LOAD( "main.14b",  0x0000, 0x8000, CRC(5756e927) SHA1(5448e1ca4ae060b086145eee10b8dc6eb05acc56) )
 
@@ -14130,6 +15087,168 @@ ROM_START( fl7_3121 )  // Red, White & Blue 7's + Hollywood Nights.
 
 	ROM_REGION( 0x20, "unkprom2", 0 )
 	ROM_LOAD( "82s123.d12", 0x0000, 0x0020, CRC(6df3f972) SHA1(0096a7f7452b70cac6c0752cb62e24b643015b5c) )
+
+	ROM_REGION(0x8, "fl7w4_id", 0)     /* Electronic Serial DS2401 */
+	ROM_LOAD( "ds2401.bin", 0x0000, 0x0008, CRC(b7078792) SHA1(f9eba1587b65ed9bc07ea6c4b2d393fb43f60659) ) // Hand built to match our ROM set
+
+ROM_END
+
+/*
+  Flaming 7's
+  Cyberdyne Systems.
+
+  Main - 50.
+  Custom Hardware.
+
+*/
+ROM_START( fl7_50 )  // Serial 00000069A1C9.
+	ROM_REGION( 0x8000, "maincpu", 0 )
+	ROM_LOAD( "50-main.u22",  0x0000, 0x8000, CRC(e097e317) SHA1(a903144cc2290b7e22045490784b592adbf9ba97) )
+
+	ROM_REGION( 0x20000, "gfx1", 0 )
+	ROM_LOAD( "27c1001.u6",  0x00000, 0x20000, CRC(00eac3c1) SHA1(1a955f8bc044e17f0885b4b126a66d7ad191e410) )
+
+	ROM_REGION( 0x8000, "gfx2", 0 )
+	ROM_LOAD( "27c256.u3",   0x0000, 0x8000, CRC(cfc8f3e2) SHA1(7dd72e3ffb0904776f3c07635b953e72f4c63068) )
+
+	/* Proper bipolar PROM dump */
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "am27s29.u1", 0x0000, 0x0100, CRC(3fe7e369) SHA1(cf4ae287cb58581a4bf9e9ff1994426461fb38cc) )
+	ROM_CONTINUE(           0x0000, 0x0100)  // palette data is stored in the second half.
+
+	ROM_REGION( 0x20, "proms2", 0 )
+	ROM_LOAD( "dummy", 0x0000, 0x0020, NO_DUMP )
+
+	ROM_REGION(0x8, "fl7w4_id", 0)     /* Electronic Serial */
+	ROM_LOAD( "eserial.bin", 0x0000, 0x0008, NO_DUMP ) // Hand built to match our ROM set
+
+ROM_END
+
+
+/*
+  Flaming 7's
+  Cyberdyne Systems.
+
+  Main - 500.
+  Custom Hardware.
+
+*/
+ROM_START( fl7_500 )  // Serial 000000125873.
+	ROM_REGION( 0x8000, "maincpu", 0 )
+	ROM_LOAD( "500-main.u22",  0x0000, 0x8000, CRC(e2c82c67) SHA1(951b0044de9b6104f51aa5a3176d0ea475415f7c) )
+
+	ROM_REGION( 0x20000, "gfx1", 0 )
+	ROM_LOAD( "27c1001.u6",  0x00000, 0x20000, CRC(00eac3c1) SHA1(1a955f8bc044e17f0885b4b126a66d7ad191e410) )
+
+	ROM_REGION( 0x8000, "gfx2", 0 )
+	ROM_LOAD( "27c256.u3",   0x0000, 0x8000, CRC(4e3bd980) SHA1(202d3135da7ab435f487943079d88b170dc10955) )
+
+	/* Proper bipolar PROM dump */
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "am27s29.u1", 0x0000, 0x0100, CRC(3fe7e369) SHA1(cf4ae287cb58581a4bf9e9ff1994426461fb38cc) )
+	ROM_CONTINUE(           0x0000, 0x0100)  // palette data is stored in the second half.
+
+	ROM_REGION( 0x20, "proms2", 0 )
+	ROM_LOAD( "dummy", 0x0000, 0x0020, NO_DUMP )
+
+	ROM_REGION(0x8, "fl7w4_id", 0)     /* Electronic Serial */
+	ROM_LOAD( "eserial.bin",  0x0000, 0x0008, NO_DUMP ) // Hand built to match our ROM set
+
+ROM_END
+
+
+/*
+  Flaming 7's
+  Cyberdyne Systems.
+
+  Main - 2000.
+  Custom Hardware.
+
+*/
+ROM_START( fl7_2000 )  // Serial 00000063A47F.
+	ROM_REGION( 0x8000, "maincpu", 0 )
+	ROM_LOAD( "2000_main_27c256.u22",  0x0000, 0x8000, CRC(9659b045) SHA1(801b6733b70b35de65cd8faba6814fa013c05ad0) )
+
+	ROM_REGION( 0x20000, "gfx1", 0 )
+	ROM_LOAD( "m27c1001.u6",  0x00000, 0x20000, CRC(5a2157bb) SHA1(2b170102caf1224df7a6d33bb84d19114f453d89) )
+
+	ROM_REGION( 0x8000, "gfx2", 0 )
+	ROM_LOAD( "27c256.u3",   0x0000, 0x8000, CRC(cfc8f3e2) SHA1(7dd72e3ffb0904776f3c07635b953e72f4c63068) )
+
+	/* Proper bipolar PROM dump */
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "am27s29.u1", 0x0000, 0x0100, CRC(3fe7e369) SHA1(cf4ae287cb58581a4bf9e9ff1994426461fb38cc) )
+	ROM_CONTINUE(           0x0000, 0x0100)  // palette data is stored in the second half.
+
+	ROM_REGION( 0x20, "proms2", 0 )
+	ROM_LOAD( "dummy", 0x0000, 0x0020, NO_DUMP )
+
+	ROM_REGION(0x8, "fl7w4_id", 0)     /* Electronic Serial */
+	ROM_LOAD( "eserial.bin", 0x0000, 0x0008, NO_DUMP ) // Hand built to match our ROM set
+
+ROM_END
+
+
+/*
+  Flaming 7's
+  Cyberdyne Systems.
+
+  2000 Bonus. Egyptian Gold.
+  Custom Hardware.
+
+*/
+ROM_START( fl7_2k16 )  // Serial 000000743111.
+	ROM_REGION( 0x8000, "maincpu", 0 )
+	ROM_LOAD( "2000_bonus_27c256.u22",  0x0000, 0x8000, CRC(290c37b0) SHA1(a90093d2139fd5ca261870298c2d84648f14e6bc) )
+
+	ROM_REGION( 0x20000, "gfx1", 0 )
+	ROM_LOAD( "egyptian_gold_m27c1001.u6", 0x00000, 0x20000, CRC(5a2157bb) SHA1(2b170102caf1224df7a6d33bb84d19114f453d89) )
+
+	ROM_REGION( 0x8000, "gfx2", 0 )
+	ROM_LOAD( "egyptian_gold_27c256.u3",   0x0000, 0x8000, CRC(11241dae) SHA1(7197813304623c022dc37aa603c0cb067c8bf1fd) )
+
+	/* Bipolar PROM dump borrowed from main sets */
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "am27s29.u1", 0x0000, 0x0100, CRC(3fe7e369) SHA1(cf4ae287cb58581a4bf9e9ff1994426461fb38cc) )
+	ROM_CONTINUE(           0x0000, 0x0100)  // palette data is stored in the second half.
+
+	ROM_REGION( 0x20, "proms2", 0 )
+	ROM_LOAD( "dummy", 0x0000, 0x0020, NO_DUMP )
+
+	ROM_REGION(0x8, "fl7w4_id", 0)     /* Electronic Serial */
+	ROM_LOAD( "eserial.bin", 0x0000, 0x0008, NO_DUMP ) // Hand built to match our ROM set
+
+ROM_END
+
+
+/*
+  Flaming 7's (unknown version)
+  Taiwanese Hardware.
+
+  Needs proper graphics ROM decryption and gfxdecode...
+
+*/
+ROM_START( fl7_tw )  // Serial 00000050E9B7.
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "27c512_tw.u20",  0x0000, 0x10000, CRC(50927a1b) SHA1(2557069f497b23f13978294f3ac108229d9db544) )  // identical halves.
+
+	ROM_REGION( 0x20000, "gfx1", 0 )
+	ROM_LOAD( "m27c1001_tw.u1", 0x00000, 0x20000, CRC(e6099723) SHA1(31e73a81166dd0d50d51ead38d348e36018d0698) )
+
+	ROM_REGION( 0x8000, "gfx2", 0 )
+	ROM_LOAD( "27c256_tw.u3",   0x0000, 0x8000, CRC(7f163639) SHA1(607aa1e7d15423409bb2cd49895502dc2e4b3e46) )
+
+	/* Bipolar PROM dump borrowed from main sets */
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "am27s29.u1", 0x0000, 0x0100, CRC(3fe7e369) SHA1(cf4ae287cb58581a4bf9e9ff1994426461fb38cc) )
+	ROM_CONTINUE(           0x0000, 0x0100)  // palette data is stored in the second half.
+
+	ROM_REGION( 0x20, "proms2", 0 )
+	ROM_LOAD( "dummy", 0x0000, 0x0020, NO_DUMP )
+
+	ROM_REGION(0x8, "fl7w4_id", 0)     /* Electronic Serial */
+	ROM_LOAD( "eserial.bin", 0x0000, 0x0008, NO_DUMP ) // Hand built to match our ROM set
+
 ROM_END
 
 
@@ -14138,7 +15257,7 @@ ROM_END
 DRIVER_INIT_MEMBER(goldstar_state,goldstar)
 {
 	int A;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 
 	for (A = 0; A < 0x10000; A++)
 	{
@@ -14149,13 +15268,13 @@ DRIVER_INIT_MEMBER(goldstar_state,goldstar)
 	}
 }
 
-// this block swapping is the same for chry10, chrygld and cb3
+//  this block swapping is the same for chry10, chrygld and cb3
 //  the underlying bitswaps / xors are different however
-void cb3_state::do_blockswaps(UINT8* ROM)
+void cb3_state::do_blockswaps(uint8_t* ROM)
 {
 	int A;
 
-	static const UINT16 cherry_swaptables[32] = {
+	static const uint16_t cherry_swaptables[32] = {
 		/* to align with goldstar */
 		0x0800, 0x4000, 0x2800, 0x5800,
 		0x1800, 0x3000, 0x6800, 0x7000,
@@ -14169,7 +15288,7 @@ void cb3_state::do_blockswaps(UINT8* ROM)
 		0xa000, 0xa800, 0xb000, 0xb800,
 	};
 
-	dynamic_buffer buffer(0x10000);
+	std::vector<uint8_t> buffer(0x10000);
 	memcpy(&buffer[0], ROM, 0x10000);
 
 	// swap some 0x800 blocks around..
@@ -14179,7 +15298,7 @@ void cb3_state::do_blockswaps(UINT8* ROM)
 	}
 }
 
-void cb3_state::dump_to_file( UINT8* ROM)
+void cb3_state::dump_to_file( uint8_t* ROM)
 {
 	#if 0
 	{
@@ -14196,10 +15315,10 @@ void cb3_state::dump_to_file( UINT8* ROM)
 	#endif
 }
 
-UINT8 cb3_state::cb3_decrypt(UINT8 cipherText, UINT16 address)
+uint8_t cb3_state::cb3_decrypt(uint8_t cipherText, uint16_t address)
 {
 	int idx;
-	UINT8 output;
+	uint8_t output;
 	int rotation[8] = {1, 0, 0, 1, 0, 1, 1, 1};
 	int sbox[8] = {0x08, 0x08, 0x28, 0x00, 0x20, 0x20, 0x88, 0x88};
 
@@ -14213,14 +15332,14 @@ UINT8 cb3_state::cb3_decrypt(UINT8 cipherText, UINT16 address)
 	return output ^ sbox[idx];
 }
 
-UINT8 cb3_state::chry10_decrypt(UINT8 cipherText)
+uint8_t cb3_state::chry10_decrypt(uint8_t cipherText)
 {
 	return cipherText ^ (BIT(cipherText, 4) << 3) ^ (BIT(cipherText, 1) << 5) ^ (BIT(cipherText, 6) << 7);
 }
 
 DRIVER_INIT_MEMBER(cb3_state, chry10)
 {
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	int size = memregion("maincpu")->bytes();
 	int start = 0;
 
@@ -14244,7 +15363,7 @@ DRIVER_INIT_MEMBER(cb3_state, chry10)
 
 DRIVER_INIT_MEMBER(cb3_state, cb3)
 {
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	int size = memregion("maincpu")->bytes();
 	int start = 0;
 
@@ -14263,13 +15382,13 @@ DRIVER_INIT_MEMBER(cb3_state, cb3)
 DRIVER_INIT_MEMBER(cb3_state, chrygld)
 {
 	int A;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	do_blockswaps(ROM);
 
 	// a data bitswap
 	for (A = 0; A < 0x10000; A++)
 	{
-		UINT8 dat = ROM[A];
+		uint8_t dat = ROM[A];
 		dat =  BITSWAP8(dat, 5, 6, 3, 4, 7, 2, 1, 0);
 		ROM[A] = dat;
 	}
@@ -14277,9 +15396,9 @@ DRIVER_INIT_MEMBER(cb3_state, chrygld)
 	dump_to_file(ROM);
 }
 
-DRIVER_INIT_MEMBER(cmaster_state,cm)
+DRIVER_INIT_MEMBER(cmaster_state, cm)
 {
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 
 /*  forcing PPI mode 0 for all, and A, B & C as input.
     the mixed modes 2-0 are not working properly.
@@ -14290,7 +15409,7 @@ DRIVER_INIT_MEMBER(cmaster_state,cm)
 
 DRIVER_INIT_MEMBER(cmaster_state, cmv4)
 {
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 
 /*  forcing PPI mode 0 for all, and A, B & C as input.
     the mixed modes 2-0 are not working properly.
@@ -14299,9 +15418,9 @@ DRIVER_INIT_MEMBER(cmaster_state, cmv4)
 	ROM[0x020d] = 0x9b;
 }
 
-DRIVER_INIT_MEMBER(goldstar_state,cmast91)
+DRIVER_INIT_MEMBER(goldstar_state, cmast91)
 {
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 
 /*  forcing PPI mode 0 for all, and A, B & C as input.
     the mixed modes 2-0 are not working properly.
@@ -14312,7 +15431,7 @@ DRIVER_INIT_MEMBER(goldstar_state,cmast91)
 
 DRIVER_INIT_MEMBER(wingco_state, lucky8a)
 {
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 
 	ROM[0x0010] = 0x21;
 }
@@ -14320,11 +15439,11 @@ DRIVER_INIT_MEMBER(wingco_state, lucky8a)
 DRIVER_INIT_MEMBER(cmaster_state, nfb96sea)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 		switch(i & 7)
 		{
 			case 0: x = BITSWAP8(x ^ 0x80, 1, 6, 7, 4, 5, 2, 3, 0); break;
@@ -14345,10 +15464,10 @@ DRIVER_INIT_MEMBER(cmaster_state, nfb96sea)
 DRIVER_INIT_MEMBER(cmaster_state, schery97)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 		switch(i & 0x12)
 		{
 			case 0x00: x = BITSWAP8(x ^ 0x3e, 1, 0, 7, 6, 5, 4, 3, 2); break;
@@ -14367,10 +15486,10 @@ DRIVER_INIT_MEMBER(cmaster_state, schery97)
 DRIVER_INIT_MEMBER(cmaster_state, schery97a)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 		switch(i & 6)
 		{
 			case 0: x = BITSWAP8(x ^ 0xb9, 4, 0, 6, 7, 3, 1, 5, 2); break;
@@ -14390,10 +15509,10 @@ DRIVER_INIT_MEMBER(cmaster_state, schery97a)
 DRIVER_INIT_MEMBER(cmaster_state, skill98)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 		switch(i & 0x12)
 		{
 			case 0x00: x = BITSWAP8(x ^ 0x21, 2, 1, 0, 7, 6, 5, 4, 3); break;
@@ -14411,10 +15530,10 @@ DRIVER_INIT_MEMBER(cmaster_state, skill98)
 DRIVER_INIT_MEMBER(cmaster_state, nfb96_c1)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 
 		switch(i & 0x12)
 		{
@@ -14432,10 +15551,10 @@ DRIVER_INIT_MEMBER(cmaster_state, nfb96_c1)
 DRIVER_INIT_MEMBER(cmaster_state, nfb96_c2)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 
 		switch(i & 0x22)
 		{
@@ -14453,10 +15572,10 @@ DRIVER_INIT_MEMBER(cmaster_state, nfb96_c2)
 DRIVER_INIT_MEMBER(cmaster_state, nfb96_d)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 
 		switch(i & 5)
 		{
@@ -14480,10 +15599,10 @@ DRIVER_INIT_MEMBER(cmaster_state, nfb96_d)
 DRIVER_INIT_MEMBER(cmaster_state, nfb96_dk)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 
 		switch(i & 5)
 		{
@@ -14501,10 +15620,10 @@ DRIVER_INIT_MEMBER(cmaster_state, nfb96_dk)
 DRIVER_INIT_MEMBER(cmaster_state, rp35)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 
 		switch(i & 3)
 		{
@@ -14523,10 +15642,10 @@ DRIVER_INIT_MEMBER(cmaster_state, rp35)
 DRIVER_INIT_MEMBER(cmaster_state, rp36)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 
 		switch(i & 5)
 		{
@@ -14545,10 +15664,10 @@ DRIVER_INIT_MEMBER(cmaster_state, rp36)
 DRIVER_INIT_MEMBER(cmaster_state, rp36c3)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 
 		switch(i & 0xa)
 		{
@@ -14567,10 +15686,10 @@ DRIVER_INIT_MEMBER(cmaster_state, rp36c3)
 DRIVER_INIT_MEMBER(cmaster_state, rp96sub)  // 95 33 95 33 70 6C 70 6C... XORs seem ok. need bitswap and handler.
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 
 		switch(i & 5)
 		{
@@ -14590,10 +15709,10 @@ DRIVER_INIT_MEMBER(cmaster_state, rp96sub)  // 95 33 95 33 70 6C 70 6C... XORs s
 DRIVER_INIT_MEMBER(cmaster_state, po33)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 
 		switch(i & 0x14)
 		{
@@ -14613,10 +15732,10 @@ DRIVER_INIT_MEMBER(cmaster_state, po33)
 DRIVER_INIT_MEMBER(cmaster_state, match133)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 x = ROM[i];
+		uint8_t x = ROM[i];
 
 		switch(i & 0x12)
 		{
@@ -14636,7 +15755,7 @@ DRIVER_INIT_MEMBER(cmaster_state, match133)
 DRIVER_INIT_MEMBER(cb3_state, cherrys)
 {
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 
 	unsigned char rawData[256] = {
 		0xCC, 0xCD, 0xCE, 0xCF, 0xC8, 0xC9, 0xCA, 0xCB, 0xC4, 0xC5, 0xC6, 0xC7,
@@ -14676,7 +15795,7 @@ DRIVER_INIT_MEMBER(unkch_state, unkch1)
 	// game stores $02 at ($D75C) and expects it to change
 	// possibly expecting stack to grow to this point in NMI handler?
 	// it does this before enabling vblank irq, so if that's the case there's a missing nmi source
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	ROM[0x9d52] = 0x00;
 	ROM[0x9d53] = 0x00;
 }
@@ -14686,7 +15805,7 @@ DRIVER_INIT_MEMBER(unkch_state, unkch3)
 	// game stores $04 at ($D77F) and expects it to change
 	// possibly expecting stack to grow to this point in NMI handler?
 	// it does this before enabling vblank irq, so if that's the case there's a missing nmi source
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	ROM[0x9b86] = 0x00;
 	ROM[0x9b87] = 0x00;
 }
@@ -14696,7 +15815,7 @@ DRIVER_INIT_MEMBER(unkch_state, unkch4)
 	// game stores $02 at ($D75C) and expects it to change
 	// possibly expecting stack to grow to this point in NMI handler?
 	// it does this before enabling vblank irq, so if that's the case there's a missing nmi source
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	ROM[0x9a6e] = 0x00;
 	ROM[0x9a6f] = 0x00;
 }
@@ -14714,7 +15833,7 @@ DRIVER_INIT_MEMBER(cmaster_state, tonypok)
 DRIVER_INIT_MEMBER(goldstar_state, super9)
 {
 	int i;
-	UINT8 *src = memregion("gfx1")->base();
+	uint8_t *src = memregion("gfx1")->base();
 	for (i = 0; i < 0x20000; i++)
 	{
 //      src[i] = BITSWAP8(src[i], 7, 4, 2, 1, 6, 5, 3, 0);
@@ -14722,7 +15841,7 @@ DRIVER_INIT_MEMBER(goldstar_state, super9)
 		src[i] = BITSWAP8(src[i], 7, 3, 2, 6, 5, 1, 4, 0);
 	}
 
-	UINT8 *src2 = memregion("gfx2")->base();
+	uint8_t *src2 = memregion("gfx2")->base();
 	for (i = 0; i < 0x8000; i++)
 	{
 //      src2[i] = BITSWAP8(src2[i], 7, 4, 2, 1, 6, 5, 3, 0);
@@ -14736,26 +15855,26 @@ DRIVER_INIT_MEMBER(cb3_state, cb3e)
 {
 /*  program bitswap */
 	int i;
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	do_blockswaps(ROM);
 
 	for (i = 0; i < 0x10000; i++)
 	{
-		UINT8 dat = ROM[i];
+		uint8_t dat = ROM[i];
 		dat =  BITSWAP8(dat, 5, 6, 3, 4, 7, 2, 1, 0);
 		ROM[i] = dat;
 	}
 
 /*  bank 1 graphics */
 //  int i;
-	UINT8 *src = memregion("gfx1")->base();
+	uint8_t *src = memregion("gfx1")->base();
 	for (i = 0; i < 0x20000; i++)
 	{
 		src[i] = BITSWAP8(src[i], 4, 3, 2, 5, 1, 6, 0, 7);      // OK
 	}
 
 /*  bank 2 graphics */
-	UINT8 *src2 = memregion("gfx2")->base();
+	uint8_t *src2 = memregion("gfx2")->base();
 	for (i = 0; i < 0x8000; i++)
 	{
 		src2[i] = BITSWAP8(src2[i], 3, 4, 2, 5, 1, 6, 0, 7);    // OK
@@ -14766,18 +15885,72 @@ DRIVER_INIT_MEMBER(goldstar_state, wcherry)
 {
 /*  bank 1 graphics */
 	int i;
-	UINT8 *src = memregion("gfx1")->base();
+	uint8_t *src = memregion("gfx1")->base();
 	for (i = 0; i < 0x20000; i++)
 	{
 		src[i] = BITSWAP8(src[i], 4, 3, 2, 5, 1, 6, 0, 7);      // OK
 	}
 
 /*  bank 2 graphics */
-	UINT8 *src2 = memregion("gfx2")->base();
+	uint8_t *src2 = memregion("gfx2")->base();
 	for (i = 0; i < 0x8000; i++)
 	{
 		src2[i] = BITSWAP8(src2[i], 3, 4, 2, 5, 1, 6, 0, 7);    // OK
 	}
+}
+
+/*
+  Flaming 7's
+  Cyberdyne Systems.
+
+  Original custom hardware graphics decryption.
+
+*/
+DRIVER_INIT_MEMBER(wingco_state, flaming7)
+{
+/*  bank 1 graphics */
+	int i;
+	uint8_t *src = memregion("gfx1")->base();
+	for (i = 0; i < 0x20000; i++)
+	{
+		src[i] = BITSWAP8(src[i], 4, 3, 2, 5, 1, 6, 0, 7);      // OK
+	}
+
+/*  bank 2 graphics */
+	uint8_t *src2 = memregion("gfx2")->base();
+	for (i = 0; i < 0x8000; i++)
+	{
+		src2[i] = BITSWAP8(src2[i], 3, 4, 2, 5, 1, 6, 0, 7);    // OK
+	}
+
+/*  Patch to bypass the iButton electronic serial number check.
+
+    5D79: jumps to $5D83 for the demo game.
+          just patched to jump to $5D80 (jmp $6115)
+          where the check is succesfull.
+*/
+	uint8_t *ROM = memregion("maincpu")->base();
+	ROM[0x5d7a] = 0x05;
+}
+
+/*
+  Flaming 7's
+  Cyberdyne Systems.
+
+  Taiwanese custom hardware.
+
+*/
+DRIVER_INIT_MEMBER(wingco_state, flam7_tw)
+{
+/*  Patch to bypass the iButton electronic serial number check.
+
+    60B2: After last compare, code jumps to $60BC for the demo game.
+          Just patched to jump to $60B9 (jmp $644E) where the check
+          is succesfull.
+*/
+	uint8_t *ROM = memregion("maincpu")->base();
+	ROM[0x60b3] = 0x05;
+
 }
 
 
@@ -14875,9 +16048,16 @@ GAME(  1991, megaline,  0,        megaline, megaline, driver_device,  0,        
 GAMEL( 1993, bingowng,  0,        bingowng, bingowng, driver_device,  0,         ROT0, "Wing Co., Ltd.",    "Bingo (set 1)",                                            0,                     layout_bingowng )
 GAMEL( 1993, bingownga, bingowng, bingownga,bingownga,driver_device,  0,         ROT0, "Wing Co., Ltd.",    "Bingo (set 2)",                                            0,                     layout_bingowng )
 
+GAME(  2002, mbs2euro,  0,        mbstar,   mbstar,   driver_device,  0,         ROT0, "Auto-Data Graz",    "Mega Bonus Star II (Euro, Millennium Edition)",            MACHINE_NOT_WORKING )  // need more work in memory map, inputs, and reels alignment.
+
 
 // --- Flaming 7's hardware (W-4 derivative) ---
-GAME(  199?, fl7_3121,  0,        flaming7, flaming7, driver_device,  0,         ROT0, "Cyberdyne Systems", "Flaming 7 (Red, White & Blue 7's + Hollywood Nights)",     MACHINE_NOT_WORKING )
+GAME(  199?, fl7_3121,  0,        flam7_w4, flam7_w4, driver_device,  0,         ROT0, "Cyberdyne Systems", "Flaming 7 (W4 Hardware, Red, White & Blue 7's + Hollywood Nights)",          0 )
+GAME(  199?, fl7_50,    0,        flaming7, flaming7, wingco_state,   flaming7,  ROT0, "Cyberdyne Systems", "Flaming 7 (Custom Hardware, Main, 50 Bonus)",              MACHINE_UNEMULATED_PROTECTION | MACHINE_IMPERFECT_GRAPHICS )
+GAME(  199?, fl7_500,   fl7_50,   flaming7, flaming7, wingco_state,   flaming7,  ROT0, "Cyberdyne Systems", "Flaming 7 (Custom Hardware, Main, 500 Bonus)",             MACHINE_UNEMULATED_PROTECTION | MACHINE_IMPERFECT_GRAPHICS )
+GAME(  199?, fl7_2000,  fl7_50,   flaming7, flaming7, wingco_state,   flaming7,  ROT0, "Cyberdyne Systems", "Flaming 7 (Custom Hardware, Main, 2000 Bonus)",            MACHINE_UNEMULATED_PROTECTION | MACHINE_IMPERFECT_GRAPHICS )
+GAME(  199?, fl7_2k16,  fl7_50,   flaming7, flaming7, wingco_state,   flaming7,  ROT0, "Cyberdyne Systems", "Flaming 7 (Custom Hardware, Egyptian Gold, 2000 Bonus)",   MACHINE_UNEMULATED_PROTECTION | MACHINE_IMPERFECT_GRAPHICS )
+GAME(  199?, fl7_tw,    fl7_50,   flam7_tw, flaming7, wingco_state,   flam7_tw,  ROT0, "Cyberdyne Systems", "Flaming 7 (Taiwanese Hardware, unknown version)",          MACHINE_UNEMULATED_PROTECTION | MACHINE_IMPERFECT_GRAPHICS )  // needs proper reels gfx roms decryption.
 
 
 // --- Wing W-8 hardware ---
@@ -14954,12 +16134,13 @@ GAME( 1996, cherry96, scmaster,  unkch,    unkch4,    unkch_state,    unkch4,   
 /* Stealth sets.
    These have hidden games inside that can be switched to avoid inspections, police or whatever purposes)... */
 
-/*    YEAR  NAME       PARENT    MACHINE   INPUT     STATE           INIT     ROT    COMPANY                FULLNAME                                                 FLAGS                  LAYOUT    */
-GAMEL( 198?, cmpacman, 0,        cm,       cmpacman, cmaster_state,  cm,      ROT0, "<unknown>",           "Super Pacman (v1.2) + Cherry Master (Corsica, v8.31)",   0,                     layout_cmpacman ) // need to press K to switch between games...
-GAMEL( 198?, cmtetris, 0,        cm,       cmtetris, cmaster_state,  cm,      ROT0, "<unknown>",           "Tetris + Cherry Master (Corsica, v8.01, set 1)",         0,                     layout_cmpacman ) // need to press K/L to switch between games...
-GAMEL( 198?, cmtetrsa, 0,        cm,       cmtetris, cmaster_state,  cm,      ROT0, "<unknown>",           "Tetris + Cherry Master (Corsica, v8.01, set 2)",         MACHINE_NOT_WORKING,      layout_cmpacman ) // seems banked...
-GAMEL( 198?, cmtetrsb, 0,        cm,       cmtetris, cmaster_state,  cm,      ROT0, "<unknown>",           "Tetris + Cherry Master (+K, Canada Version, encrypted)", MACHINE_NOT_WORKING,      layout_cmpacman ) // different Tetris game. press insert to throttle and see the attract running.
-GAMEL( 1997, crazybon, 0,        pkrmast,  crazybon, driver_device,  0,       ROT0, "bootleg (Crazy Co.)", "Crazy Bonus 2002",                                       MACHINE_IMPERFECT_COLORS, layout_crazybon ) // Windows ME desktop... but not found the way to switch it.
+/*    YEAR  NAME        PARENT    MACHINE   INPUT     STATE           INIT     ROT    COMPANY                FULLNAME                                                      FLAGS                     LAYOUT    */
+GAMEL( 198?, cmpacman,  0,        cm,       cmpacman, cmaster_state,  cm,      ROT0, "<unknown>",           "Super Pacman (v1.2) + Cherry Master (Corsica, v8.31, set 1)", 0,                        layout_cmpacman ) // need to press K to switch between games...
+GAMEL( 198?, cmpacmana, cmpacman, cm,       cmpacman, cmaster_state,  cm,      ROT0, "<unknown>",           "Super Pacman (v1.2) + Cherry Master (Corsica, v8.31, set 2)", 0,                        layout_cmpacman ) // need to press K to switch between games...
+GAMEL( 198?, cmtetris,  0,        cm,       cmtetris, cmaster_state,  cm,      ROT0, "<unknown>",           "Tetris + Cherry Master (Corsica, v8.01, set 1)",              0,                        layout_cmpacman ) // need to press K/L to switch between games...
+GAMEL( 198?, cmtetrsa,  0,        cm,       cmtetris, cmaster_state,  cm,      ROT0, "<unknown>",           "Tetris + Cherry Master (Corsica, v8.01, set 2)",              MACHINE_NOT_WORKING,      layout_cmpacman ) // seems banked...
+GAMEL( 198?, cmtetrsb,  0,        cm,       cmtetris, cmaster_state,  cm,      ROT0, "<unknown>",           "Tetris + Cherry Master (+K, Canada Version, encrypted)",      MACHINE_NOT_WORKING,      layout_cmpacman ) // different Tetris game. press insert to throttle and see the attract running.
+GAMEL( 1997, crazybon,  0,        pkrmast,  crazybon, driver_device,  0,       ROT0, "bootleg (Crazy Co.)", "Crazy Bonus 2002",                                            MACHINE_IMPERFECT_COLORS, layout_crazybon ) // Windows ME desktop... but not found the way to switch it.
 
 /* other possible stealth sets:
  - cmv4a    ---> see the 1fxx zone. put a bp in 1f9f to see the loop.

@@ -12,7 +12,6 @@
 #ifndef __BML3BUS_MP1805__
 #define __BML3BUS_MP1805__
 
-#include "emu.h"
 #include "bml3bus.h"
 #include "imagedev/flopdrv.h"
 #include "machine/mc6843.h"
@@ -27,11 +26,11 @@ class bml3bus_mp1805_device:
 {
 public:
 	// construction/destruction
-	bml3bus_mp1805_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	bml3bus_mp1805_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// optional information overrides
 	virtual machine_config_constructor device_mconfig_additions() const override;
-	virtual const rom_entry *device_rom_region() const override;
+	virtual const tiny_rom_entry *device_rom_region() const override;
 
 	DECLARE_READ8_MEMBER(bml3_mp1805_r);
 	DECLARE_WRITE8_MEMBER(bml3_mp1805_w);
@@ -45,7 +44,7 @@ protected:
 	required_device<mc6843_device> m_mc6843;
 
 private:
-	UINT8 *m_rom;
+	uint8_t *m_rom;
 };
 
 // device type definition

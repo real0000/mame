@@ -52,7 +52,7 @@ Known Games on this Platform
 
 ToDo:
 
- IRQ4 generation - Puzzli 2 doens't like this, many other games require it for coins / inputs to work.
+ IRQ4 generation - Puzzli 2 doesn't like this, many other games require it for coins / inputs to work.
 
 
 Protection Devices / Co-processors
@@ -173,7 +173,7 @@ Notes:
       -----
          3.6V_BATT - 3.6V NICad battery, connected to the V3021 RTC
          IDC34     - IDC34 way flat cable plug, PGM can support 4 players max in two cabs,
-                     this is jamma connecter for another cab and the P3&P4
+                     this is jamma connector for another cab and the P3&P4
          PAL       - Atmel ATF16V8B PAL (DIP20)
          SW1       - Push button switch to enter Test Mode
          SW2       - 8 position DIP Switch (for configuration of PCB/game options)
@@ -277,7 +277,7 @@ WRITE16_MEMBER(pgm_state::m68k_l1_w)
 	{
 		if (PGMLOGERROR)
 			logerror("SL 1 m68.w %02x (%06x) IRQ\n", data & 0xff, space.device().safe_pc());
-		soundlatch_byte_w(space, 0, data);
+		m_soundlatch->write(space, 0, data);
 		m_soundcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE );
 	}
 }
@@ -286,13 +286,9 @@ WRITE8_MEMBER(pgm_state::z80_l3_w)
 {
 	if (PGMLOGERROR)
 		logerror("SL 3 z80.w %02x (%04x)\n", data, space.device().safe_pc());
-	soundlatch3_byte_w(space, 0, data);
+	m_soundlatch3->write(space, 0, data);
 }
 
-WRITE_LINE_MEMBER(pgm_state::pgm_sound_irq)
-{
-	m_soundcpu->set_input_line(0, state);
-}
 
 /*** Memory Maps *************************************************************/
 
@@ -304,9 +300,9 @@ ADDRESS_MAP_END
 
 ADDRESS_MAP_START( pgm_z80_io, AS_IO, 8, pgm_state )
 	AM_RANGE(0x8000, 0x8003) AM_DEVREADWRITE("ics", ics2115_device, read, write)
-	AM_RANGE(0x8100, 0x81ff) AM_READ(soundlatch3_byte_r) AM_WRITE(z80_l3_w)
-	AM_RANGE(0x8200, 0x82ff) AM_READWRITE(soundlatch_byte_r, soundlatch_byte_w)
-	AM_RANGE(0x8400, 0x84ff) AM_READWRITE(soundlatch2_byte_r, soundlatch2_byte_w)
+	AM_RANGE(0x8100, 0x81ff) AM_DEVREAD("soundlatch3", generic_latch_8_device, read) AM_WRITE(z80_l3_w)
+	AM_RANGE(0x8200, 0x82ff) AM_DEVREADWRITE("soundlatch", generic_latch_8_device, read, write)
+	AM_RANGE(0x8400, 0x84ff) AM_DEVREADWRITE("soundlatch2", generic_latch_8_device, read, write)
 ADDRESS_MAP_END
 
 /*** 68000 (main CPU) + variants for protection devices **********************/
@@ -320,12 +316,12 @@ ADDRESS_MAP_START( pgm_base_mem, AS_PROGRAM, 16, pgm_state )
 	AM_RANGE(0xa00000, 0xa011ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xb00000, 0xb0ffff) AM_RAM AM_SHARE("videoregs") /* Video Regs inc. Zoom Table */
 
-	AM_RANGE(0xc00002, 0xc00003) AM_READ(soundlatch_word_r) AM_WRITE(m68k_l1_w)
-	AM_RANGE(0xc00004, 0xc00005) AM_READWRITE(soundlatch2_word_r, soundlatch2_word_w)
+	AM_RANGE(0xc00002, 0xc00003) AM_DEVREAD8("soundlatch", generic_latch_8_device, read, 0x00ff) AM_WRITE(m68k_l1_w)
+	AM_RANGE(0xc00004, 0xc00005) AM_DEVREADWRITE8("soundlatch2", generic_latch_8_device, read, write, 0x00ff)
 	AM_RANGE(0xc00006, 0xc00007) AM_DEVREADWRITE8("rtc", v3021_device, read, write, 0x00ff)
 	AM_RANGE(0xc00008, 0xc00009) AM_WRITE(z80_reset_w)
 	AM_RANGE(0xc0000a, 0xc0000b) AM_WRITE(z80_ctrl_w)
-	AM_RANGE(0xc0000c, 0xc0000d) AM_READWRITE(soundlatch3_word_r, soundlatch3_word_w)
+	AM_RANGE(0xc0000c, 0xc0000d) AM_DEVREADWRITE8("soundlatch3", generic_latch_8_device, read, write, 0x00ff)
 
 	AM_RANGE(0xc08000, 0xc08001) AM_READ_PORT("P1P2")
 	AM_RANGE(0xc08002, 0xc08003) AM_READ_PORT("P3P4")
@@ -538,8 +534,13 @@ MACHINE_CONFIG_FRAGMENT( pgmbase )
 
 	/*sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch2")
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch3")
+
 	MCFG_ICS2115_ADD("ics", 0)
-	MCFG_ICS2115_IRQ_CB(WRITELINE(pgm_state, pgm_sound_irq))
+	MCFG_ICS2115_IRQ_CB(INPUTLINE("soundcpu", 0))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 5.0)
 MACHINE_CONFIG_END
 
@@ -4471,7 +4472,7 @@ ROM_END
 
 void pgm_state::expand_colourdata()
 {
-	UINT8 *src = memregion( "sprcol" )->base();
+	uint8_t *src = memregion( "sprcol" )->base();
 	size_t srcsize = memregion( "sprcol" )->bytes();
 	int cnt;
 	size_t needed = srcsize / 2 * 3;
@@ -4482,11 +4483,11 @@ void pgm_state::expand_colourdata()
 	while (m_sprite_a_region_size < needed)
 		m_sprite_a_region_size <<= 1;
 
-	m_sprite_a_region = std::make_unique<UINT8[]>(m_sprite_a_region_size);
+	m_sprite_a_region = std::make_unique<uint8_t[]>(m_sprite_a_region_size);
 
 	for (cnt = 0 ; cnt < srcsize / 2 ; cnt++)
 	{
-		UINT16 colpack;
+		uint16_t colpack;
 
 		colpack = ((src[cnt * 2]) | (src[cnt * 2 + 1] << 8));
 		m_sprite_a_region[cnt * 3 + 0] = (colpack >> 0 ) & 0x1f;
@@ -4497,7 +4498,7 @@ void pgm_state::expand_colourdata()
 
 void pgm_state::pgm_basic_init( bool set_bank)
 {
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	if (set_bank) membank("bank1")->set_base(&ROM[0x100000]);
 
 	expand_colourdata();
@@ -4535,7 +4536,7 @@ GAME( 1997, drgw2,        pgm,       pgm_012_025_drgw2,     pgm, pgm_012_025_sta
 GAME( 1997, dw2v100x,     drgw2,     pgm_012_025_drgw2,     pgm, pgm_012_025_state,      dw2v100x,   ROT0,   "IGS", "Dragon World II (ver. 100X, Export)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
 GAME( 1997, drgw2j,       drgw2,     pgm_012_025_drgw2,     pgm, pgm_012_025_state,      drgw2j,     ROT0,   "IGS", "Chuugokuryuu II (ver. 100J, Japan)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
 GAME( 1997, drgw2c,       drgw2,     pgm_012_025_drgw2,     pgm, pgm_012_025_state,      drgw2c,     ROT0,   "IGS", "Zhong Guo Long II (ver. 100C, China)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1997, drgw2hk,      drgw2,     pgm_012_025_drgw2,     pgm, pgm_012_025_state,      drgw2hk,    ROT0,   "IGS", "Dragon World II (ver. 100H, Hong Kong [Hokg Kong])", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE | MACHINE_NOT_WORKING ) // correct title? (region is shown as Hokg Kong, Dragon World 3 is the same)
+GAME( 1997, drgw2hk,      drgw2,     pgm_012_025_drgw2,     pgm, pgm_012_025_state,      drgw2hk,    ROT0,   "IGS", "Dragon World II (ver. 100H, Hong Kong)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE | MACHINE_NOT_WORKING ) // correct title? (region is shown as Hokg Kong, Dragon World 3 is the same)
 
 GAME( 1998, killbld,      pgm,       pgm_022_025_killbld, killbld, pgm_022_025_state,  killbld,    ROT0,   "IGS", "The Killing Blade (ver. 109, Chinese Board)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE ) /* region provided by protection device */
 GAME( 1998, killbld104,   killbld,   pgm_022_025_killbld, killbld, pgm_022_025_state,  killbld,    ROT0,   "IGS", "The Killing Blade (ver. 104)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE ) /* region provided by protection device */

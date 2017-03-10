@@ -17,11 +17,15 @@
     Known games (followed by game ID, some are duplicate):
 
     1943 Kai (65)
+    Adventure Island (64)
     Aero Blaster (32)
     After Burner II (46)
-  * Ankoku Densetu
+    Alice in Wonderland (61)
+  * Ankoku Densetu (Legendary Axe II)
     Armed-F (?)
     Ballistix (186)
+    Barunba (39)
+  * Batman
     Be Ball (93)
   * Blodia
     Bomberman (71)
@@ -40,10 +44,13 @@
     Doraemon Meikyuu Daisakusen (20)
   * Doraemon II
     Down Load (43)
+  * Dragon Egg!
     Dragon Saber (65)
     Dragon Spirit (?)
+    Drop Rock Hora Hora (12)
     Dungeon Explorer (?)
   * F1 Triple Battle
+    Fighting Run (195)
     Final Blaster (29)
     Final Lap Twin (79)
     Final Match Tennis (62)
@@ -51,16 +58,21 @@
     Gomola Speed (27)
     Gunhed (148)
     Hana Taka Daka (Super Long Nose Goblin) (6)
+  * Hatris
+    Image Fight (99)
     Jackie Chan (54)
     Jinmu Densho (19)
+    Kato & Ken (42)
     Kiki Kaikai (120)
     Legend Of Hero Tomna (56)
-    Makyo Densetsu - The Legenary Axe (?)
-    Mizubaku Daibouken Liquid Kids (10)
+    Makyo Densetsu - The Legenary Axe (40)
+    Mesopotamia (197)
+    Mizubaku Daibouken Liquid Kids (10) (marketed as "Parasol Stars II")
     Mr. Heli (23)
     Ninja Ryukenden (10)
     Operation Wolf (26)
-  * Out Run
+    Ordyne (94)
+    Out Run (38)
     Override (53)
     Pac-Land (16)
   * Paranoia (18)
@@ -71,11 +83,12 @@
     Power Eleven (83)
   * Power Golf
     Power League IV (?)
-  * Power Sports
+    Power Sports (199)
+    Power Tennis (183)
     Pro Yakyuu World Stadium '91 (192)
     Psycho Chaser (14)
     Puzzle Boy (57)
-  * Puzznic
+    Puzznic (69)
     R-Type II (61)
   * Rabio Lepus Special
     Raiden (111)
@@ -85,17 +98,21 @@
     Shinobi (5)
     Side Arms (2)
     Skweek (89)
-  * Soldier Blade
+    Sokoban World (66)
+    Soldier Blade (23)
     Son Son II (80)
-    Special Criminal Investigation (?)
+    Special Criminal Investigation (58)
+    Spin Pair (50)
     Super Star Soldier (42)
-    Super Volley ball (?)
+    Super Volley ball (9)
     Tatsujin (31)
     Terra Cresta II (27)
-    Thunder Blade (?)
+    The NewZealand Story (11)
+    Thunder Blade (34)
   * Tiger Road
+  * Titan
     Toy Shop Boys (51)
-  * Tricky
+    Tricky (42)
   * TV Sports
     USA Pro Basketball (?)
     Veigues (40)
@@ -104,6 +121,9 @@
     W-Ring (21)
     Winning Shot (28)
     Xevious (?)
+
+    Rumored games:
+  * Parasol Stars - often been mentioned, but still not confirmed, for Tourvision. For now it's been added from its NEC PC-Engine dump, which it would be likely identical.
 
 * Denotes Not Dumped
 
@@ -288,10 +308,9 @@ public:
 	DECLARE_WRITE8_MEMBER(tourvision_i8155_b_w);
 	DECLARE_WRITE8_MEMBER(tourvision_i8155_c_w);
 	DECLARE_WRITE_LINE_MEMBER(tourvision_timer_out);
-	DECLARE_WRITE_LINE_MEMBER(pce_irq_changed);
 	required_device<cpu_device> m_subcpu;
 	required_device<generic_slot_device> m_cart;
-	UINT32  m_rom_size;
+	uint32_t  m_rom_size;
 
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(tourvision_cart);
 };
@@ -302,8 +321,8 @@ DEVICE_IMAGE_LOAD_MEMBER( tourvision_state, tourvision_cart )
 	m_cart->rom_alloc(m_rom_size, GENERIC_ROM8_WIDTH, ENDIANNESS_LITTLE);
 	m_cart->common_load_rom(m_cart->get_rom_base(), m_rom_size, "rom");
 
-	UINT8* rgn = memregion("maincpu")->base();
-	UINT8* base = m_cart->get_rom_base();
+	uint8_t* rgn = memregion("maincpu")->base();
+	uint8_t* base = m_cart->get_rom_base();
 
 	if (m_rom_size == 0x0c0000)
 	{
@@ -338,7 +357,7 @@ DEVICE_IMAGE_LOAD_MEMBER( tourvision_state, tourvision_cart )
 	}
 #endif
 
-	return IMAGE_INIT_PASS;
+	return image_init_result::PASS;
 }
 
 /* note from system11 - this system actually supports 2 players */
@@ -472,10 +491,6 @@ WRITE_LINE_MEMBER(tourvision_state::tourvision_timer_out)
 	//logerror("Timer out %d\n", state);
 }
 
-WRITE_LINE_MEMBER(tourvision_state::pce_irq_changed)
-{
-	m_maincpu->set_input_line(0, state);
-}
 
 static MACHINE_CONFIG_START( tourvision, tourvision_state )
 	/* basic machine hardware */
@@ -500,7 +515,7 @@ static MACHINE_CONFIG_START( tourvision, tourvision_state )
 	MCFG_HUC6260_HSYNC_CHANGED_CB(DEVWRITELINE("huc6270", huc6270_device, hsync_changed))
 	MCFG_DEVICE_ADD( "huc6270", HUC6270, 0 )
 	MCFG_HUC6270_VRAM_SIZE(0x10000)
-	MCFG_HUC6270_IRQ_CHANGED_CB(WRITELINE(tourvision_state, pce_irq_changed))
+	MCFG_HUC6270_IRQ_CHANGED_CB(INPUTLINE("maincpu", 0))
 
 	MCFG_DEVICE_ADD("i8155", I8155, 1000000 /*?*/)
 	MCFG_I8155_OUT_PORTA_CB(WRITE8(tourvision_state, tourvision_i8155_a_w))

@@ -28,6 +28,7 @@ $c088-$c095 player tiles
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "cpu/m6800/m6800.h"
+#include "machine/gen_latch.h"
 #include "sound/ay8910.h"
 #include "sound/hc55516.h"
 #include "sound/msm5205.h"
@@ -48,21 +49,22 @@ public:
 		m_msm(*this, "msm"),
 		m_cvsd(*this, "cvsd"),
 		m_palette(*this, "palette"),
-		m_blitter(*this, "blitter") { }
+		m_blitter(*this, "blitter"),
+		m_soundlatch(*this, "soundlatch") { }
 
 	/* sound-related */
 	// Jangou CVSD Sound
 	emu_timer    *m_cvsd_bit_timer;
-	UINT8        m_cvsd_shiftreg;
+	uint8_t        m_cvsd_shiftreg;
 	int          m_cvsd_shift_cnt;
 	// Jangou Lady ADPCM Sound
-	UINT8        m_adpcm_byte;
+	uint8_t        m_adpcm_byte;
 	int          m_msm5205_vclk_toggle;
 
 	/* misc */
-	UINT8        m_mux_data;
-	UINT8        m_nsc_latch;
-	UINT8        m_z80_latch;
+	uint8_t        m_mux_data;
+	uint8_t        m_nsc_latch;
+	uint8_t        m_z80_latch;
 
 	/* devices */
 	required_device<cpu_device> m_cpu_0;
@@ -72,6 +74,7 @@ public:
 	optional_device<hc55516_device> m_cvsd;
 	required_device<palette_device> m_palette;
 	required_device<jangou_blitter_device> m_blitter;
+	optional_device<generic_latch_8_device> m_soundlatch;
 
 	/* video-related */
 	DECLARE_WRITE8_MEMBER(mux_w);
@@ -97,7 +100,7 @@ public:
 	DECLARE_MACHINE_RESET(jngolady);
 	DECLARE_MACHINE_START(common);
 	DECLARE_MACHINE_RESET(common);
-	UINT32 screen_update_jangou(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update_jangou(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(cvsd_bit_timer_callback);
 	DECLARE_WRITE_LINE_MEMBER(jngolady_vclk_cb);
 
@@ -114,7 +117,7 @@ public:
 /* guess: use the same resistor values as Crazy Climber (needs checking on the real HW) */
 PALETTE_INIT_MEMBER(jangou_state, jangou)
 {
-	const UINT8 *color_prom = memregion("proms")->base();
+	const uint8_t *color_prom = memregion("proms")->base();
 	static const int resistances_rg[3] = { 1000, 470, 220 };
 	static const int resistances_b [2] = { 470, 220 };
 	double weights_rg[3], weights_b[2];
@@ -157,23 +160,23 @@ void jangou_state::video_start()
 	m_tmp_bitmap = std::make_unique<bitmap_ind16>(256, 256);
 }
 
-UINT32 jangou_state::screen_update_jangou(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t jangou_state::screen_update_jangou(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	int x, y;
 
 	for (y = cliprect.min_y; y <= cliprect.max_y; ++y)
 	{
-		UINT8 *src = &m_blitter->m_blit_buffer[y * 256 + cliprect.min_x];
-		UINT16 *dst = &m_tmp_bitmap->pix16(y, cliprect.min_x);
+		uint8_t *src = &m_blitter->m_blit_buffer[y * 256 + cliprect.min_x];
+		uint16_t *dst = &m_tmp_bitmap->pix16(y, cliprect.min_x);
 
 		for (x = cliprect.min_x; x <= cliprect.max_x; x += 2)
 		{
-			UINT32 srcpix = *src++;
+			uint32_t srcpix = *src++;
 			*dst++ = m_palette->pen(srcpix & 0xf);
 			*dst++ = m_palette->pen((srcpix >> 4) & 0xf);
 		}
 	}
-	//void copybitmap(bitmap_rgb32 &dest, const bitmap_rgb32 &src, int flipx, int flipy, INT32 destx, INT32 desty, const rectangle &cliprect)
+	//void copybitmap(bitmap_rgb32 &dest, const bitmap_rgb32 &src, int flipx, int flipy, int32_t destx, int32_t desty, const rectangle &cliprect)
 
 	copybitmap(bitmap, *m_tmp_bitmap, flip_screen(), flip_screen(),0,0, cliprect);
 
@@ -233,14 +236,14 @@ READ8_MEMBER(jangou_state::input_system_r)
 
 WRITE8_MEMBER(jangou_state::sound_latch_w)
 {
-	soundlatch_byte_w(space, 0, data & 0xff);
+	m_soundlatch->write(space, 0, data & 0xff);
 	m_cpu_1->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }
 
 READ8_MEMBER(jangou_state::sound_latch_r)
 {
 	m_cpu_1->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-	return soundlatch_byte_r(space, 0);
+	return m_soundlatch->read(space, 0);
 }
 
 /* Jangou HC-55516 CVSD */
@@ -503,22 +506,21 @@ static INPUT_PORTS_START( jangou )
 
 	/* there's a bank of 6 dip-switches in there*/
 	PORT_START("DSW")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW1:1")
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW1:2")
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW1:3")
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Difficulty ) ) PORT_DIPLOCATION("SW1:1,2")
+	PORT_DIPSETTING(    0x03, DEF_STR( Easy ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( Normal ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Hard ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Very_Hard ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unused ) )     PORT_DIPLOCATION("SW1:3")
 	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW1:4")
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unused ) )     PORT_DIPLOCATION("SW1:4")
 	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW1:5")
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unused ) )     PORT_DIPLOCATION("SW1:5")
 	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW1:6")
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unused ) )     PORT_DIPLOCATION("SW1:6")
 	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen") // guess
@@ -690,22 +692,21 @@ static INPUT_PORTS_START( jngolady )
 
 	/* 6 or 7 dip-switches here? bit 6 seems used as vblank.*/
 	PORT_MODIFY("DSW")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:1")
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW1:2")
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW1:3")
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Difficulty ) )  PORT_DIPLOCATION("SW1:1,2")
+	PORT_DIPSETTING(    0x03, DEF_STR( Easy ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( Medium ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Hard ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Very_Hard ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unused ) ) PORT_DIPLOCATION("SW1:3")
 	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW1:4")
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unused ) ) PORT_DIPLOCATION("SW1:4")
 	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW1:5")
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unused ) ) PORT_DIPLOCATION("SW1:5")
 	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW1:6")
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unused ) ) PORT_DIPLOCATION("SW1:6")
 	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen")
@@ -760,9 +761,9 @@ static INPUT_PORTS_START( roylcrdn )
 	PORT_START("SYSTEM")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNUSED )                                                                 /* Spare 2 */
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )                                      PORT_NAME("Note In")        /* Note In */
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_TOGGLE  PORT_CODE(KEYCODE_9)  PORT_NAME("Memory Reset")   /* Memory Reset */
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_MEMORY_RESET ) PORT_TOGGLE  PORT_CODE(KEYCODE_9)                         /* Memory Reset */
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_TOGGLE  PORT_CODE(KEYCODE_0)  PORT_NAME("Analyzer")       /* Analyzer */
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_TOGGLE  PORT_CODE(KEYCODE_F2) PORT_NAME("Test Mode")      /* Test Mode */
+	PORT_SERVICE( 0x10, IP_ACTIVE_LOW )                                                                         /* Test Mode */
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_COIN1 )                                      PORT_NAME("Coin In")        /* Coin In */
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_GAMBLE_KEYOUT )                              PORT_NAME("Credit Clear")   /* Credit Clear */
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNUSED )                                                                 /* Spare 1 */
@@ -859,6 +860,8 @@ static MACHINE_CONFIG_START( jangou, jangou_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+
 	MCFG_SOUND_ADD("aysnd", AY8910, MASTER_CLOCK / 16)
 	MCFG_AY8910_PORT_A_READ_CB(READ8(jangou_state, input_mux_r))
 	MCFG_AY8910_PORT_B_READ_CB(READ8(jangou_state, input_system_r))
@@ -909,6 +912,7 @@ static MACHINE_CONFIG_DERIVED( cntrygrl, jangou )
 
 	/* sound hardware */
 	MCFG_DEVICE_REMOVE("cvsd")
+	MCFG_DEVICE_REMOVE("soundlatch")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( roylcrdn, jangou )
@@ -928,6 +932,7 @@ static MACHINE_CONFIG_DERIVED( roylcrdn, jangou )
 
 	/* sound hardware */
 	MCFG_DEVICE_REMOVE("cvsd")
+	MCFG_DEVICE_REMOVE("soundlatch")
 MACHINE_CONFIG_END
 
 
@@ -1213,7 +1218,7 @@ DRIVER_INIT_MEMBER(jangou_state,luckygrl)
 {
 	// this is WRONG
 	int A;
-	UINT8 *ROM = memregion("cpu0")->base();
+	uint8_t *ROM = memregion("cpu0")->base();
 
 	unsigned char patn1[32] = {
 		0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0,
@@ -1227,7 +1232,7 @@ DRIVER_INIT_MEMBER(jangou_state,luckygrl)
 
 	for (A = 0; A < 0x3000; A++)
 	{
-		UINT8 dat = ROM[A];
+		uint8_t dat = ROM[A];
 		if (A&0x100) dat = dat ^ patn2[A & 0x1f];
 		else dat = dat ^ patn1[A & 0x1f];
 

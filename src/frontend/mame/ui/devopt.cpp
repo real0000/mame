@@ -10,22 +10,23 @@
 
 #include "emu.h"
 #include "ui/ui.h"
-#include "ui/menu.h"
 #include "ui/devopt.h"
 
+
+namespace ui {
 /*-------------------------------------------------
- ui_device_config - handle the game information
+ device_config - handle the game information
  menu
  -------------------------------------------------*/
 
-ui_menu_device_config::ui_menu_device_config(mame_ui_manager &mui, render_container *container, device_slot_interface *slot, device_slot_option *option) : ui_menu(mui, container)
+menu_device_config::menu_device_config(mame_ui_manager &mui, render_container &container, device_slot_interface *slot, device_slot_option *option) : menu(mui, container)
 {
 	m_option = option;
 	m_owner = slot;
 	m_mounted = slot->device().subdevice(option->name()) != nullptr;
 }
 
-void ui_menu_device_config::populate()
+void menu_device_config::populate(float &customtop, float &custombottom)
 {
 	std::ostringstream str;
 	device_t *dev;
@@ -111,7 +112,7 @@ void ui_menu_device_config::populate()
 		std::unordered_set<std::string> soundtags;
 		for (device_sound_interface &sound : snditer)
 		{
-			if (!soundtags.insert(sound.device().tag()).second)
+			if (!sound.issound() || !soundtags.insert(sound.device().tag()).second)
 				continue;
 
 			// count how many identical sound chips we have
@@ -146,18 +147,18 @@ void ui_menu_device_config::populate()
 	{
 		std::string bios_str;
 		// first loop through roms in search of default bios (shortname)
-		for (const rom_entry *rom = dev->rom_region(); !ROMENTRY_ISEND(rom); rom++)
-			if (ROMENTRY_ISDEFAULT_BIOS(rom))
-				bios_str.assign(ROM_GETNAME(rom));
+		for (const rom_entry &rom : dev->rom_region_vector())
+			if (ROMENTRY_ISDEFAULT_BIOS(&rom))
+				bios_str.assign(ROM_GETNAME(&rom));
 
 		// then loop again to count bios options and to get the default bios complete name
-		for (const rom_entry *rom = dev->rom_region(); !ROMENTRY_ISEND(rom); rom++)
+		for (const rom_entry &rom : dev->rom_region_vector())
 		{
-			if (ROMENTRY_ISSYSTEM_BIOS(rom))
+			if (ROMENTRY_ISSYSTEM_BIOS(&rom))
 			{
 				bios++;
-				if (bios_str.compare(ROM_GETNAME(rom))==0)
-					bios_str.assign(ROM_GETHASHDATA(rom));
+				if (bios_str.compare(ROM_GETNAME(&rom))==0)
+					bios_str.assign(ROM_GETHASHDATA(&rom));
 			}
 		}
 
@@ -174,8 +175,8 @@ void ui_menu_device_config::populate()
 		portlist.append(iptdev, errors);
 
 	// check if the device adds inputs to the system
-	for (ioport_port &port : portlist)
-		for (ioport_field &field : port.fields())
+	for (auto &port : portlist)
+		for (ioport_field &field : port.second->fields())
 		{
 			if (field.type() >= IPT_MAHJONG_FIRST && field.type() < IPT_MAHJONG_LAST)
 				input_mj++;
@@ -265,15 +266,17 @@ void ui_menu_device_config::populate()
 			str << "[None]\n";
 
 	const_cast<machine_config &>(machine().config()).device_remove(&machine().config().root_device(), m_option->name());
-	item_append(str.str().c_str(), nullptr, MENU_FLAG_MULTILINE, nullptr);
+	item_append(str.str(), "", FLAG_MULTILINE, nullptr);
 }
 
-void ui_menu_device_config::handle()
+void menu_device_config::handle()
 {
 	/* process the menu */
 	process(0);
 }
 
-ui_menu_device_config::~ui_menu_device_config()
+menu_device_config::~menu_device_config()
 {
 }
+
+} // namespace ui

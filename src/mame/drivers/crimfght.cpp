@@ -17,7 +17,7 @@
 #include "cpu/z80/z80.h"
 #include "cpu/m6809/konami.h" /* for the callback and the firq irq definition */
 #include "machine/watchdog.h"
-#include "sound/2151intf.h"
+#include "sound/ym2151.h"
 #include "includes/konamipt.h"
 #include "includes/crimfght.h"
 
@@ -56,7 +56,7 @@ WRITE8_MEMBER(crimfght_state::k052109_051960_w)
 WRITE8_MEMBER(crimfght_state::sound_w)
 {
 	// writing the latch asserts the irq line
-	soundlatch_write(0, data);
+	m_soundlatch->write(space, offset, data);
 	m_audiocpu->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
 }
 
@@ -107,7 +107,7 @@ static ADDRESS_MAP_START( crimfght_sound_map, AS_PROGRAM, 8, crimfght_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x87ff) AM_MIRROR(0x1800) AM_RAM
 	AM_RANGE(0xa000, 0xa001) AM_MIRROR(0x1ffe) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
-	AM_RANGE(0xc000, 0xc000) AM_MIRROR(0x1fff) AM_READ(soundlatch_byte_r)
+	AM_RANGE(0xc000, 0xc000) AM_MIRROR(0x1fff) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
 	AM_RANGE(0xe000, 0xe00f) AM_MIRROR(0x1ff0) AM_DEVREADWRITE("k007232", k007232_device, read, write)
 ADDRESS_MAP_END
 
@@ -285,7 +285,7 @@ WRITE8_MEMBER( crimfght_state::banking_callback )
 
 CUSTOM_INPUT_MEMBER( crimfght_state::system_r )
 {
-	UINT8 data = 0;
+	uint8_t data = 0;
 
 	data |= 1 << 4; // VCC
 	data |= m_woco << 5;
@@ -339,6 +339,8 @@ static MACHINE_CONFIG_START( crimfght, crimfght_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
 
 	MCFG_YM2151_ADD("ymsnd", XTAL_3_579545MHz)  /* verified on pcb */
 	MCFG_YM2151_PORT_WRITE_HANDLER(WRITE8(crimfght_state, ym2151_ct_w))

@@ -1,4 +1,4 @@
-// license:LGPL-2.1+
+// license:BSD-3-Clause
 // copyright-holders:Tomasz Slanina,Pierpaolo Prazzoli
 /********************************************************************
  Eolith 32 bits hardware: Gradation 2D system
@@ -551,6 +551,7 @@ static MACHINE_CONFIG_START( eolith45, eolith_state )
 	MCFG_CPU_ADD("soundcpu", I8032, XTAL_12MHz)
 	MCFG_CPU_PROGRAM_MAP(sound_prg_map)
 	MCFG_CPU_IO_MAP(sound_io_map)
+	MCFG_MCS51_SERIAL_TX_CB(WRITE8(eolith_state, soundcpu_to_qs1000)) // Sound CPU -> QS1000 CPU serial link
 
 	MCFG_MACHINE_RESET_OVERRIDE(eolith_state,eolith)
 
@@ -593,7 +594,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( ironfort, eolith45 )
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CLOCK(44900000) /* Normaly 45MHz??? but PCB actually had a 44.9MHz OSC, so it's value is used */
+	MCFG_CPU_CLOCK(44900000) /* Normally 45MHz??? but PCB actually had a 44.9MHz OSC, so it's value is used */
 MACHINE_CONFIG_END
 
 
@@ -1493,9 +1494,6 @@ DRIVER_INIT_MEMBER(eolith_state,eolith)
 {
 	init_speedup();
 
-	// Sound CPU -> QS1000 CPU serial link
-	m_soundcpu->i8051_set_serial_tx_callback(write8_delegate(FUNC(eolith_state::soundcpu_to_qs1000),this));
-
 	// Configure the sound ROM banking
 	membank("sound_bank")->configure_entries(0, 16, memregion("sounddata")->base(), 0x8000);
 
@@ -1518,7 +1516,7 @@ DRIVER_INIT_MEMBER(eolith_state,landbrka)
 	//it fails compares with memories:
 	//$4002d338 -> $4002d348 .... $4002d33f -> $4002d34f
 	//related with bits 0x100 - 0x200 read at startup from input(0) ?
-	UINT32 *rombase = (UINT32*)memregion("maincpu")->base();
+	uint32_t *rombase = (uint32_t*)memregion("maincpu")->base();
 	rombase[0x14f00/4] = (rombase[0x14f00/4] & 0xffff) | 0x03000000; /* Change BR to NOP */
 
 	m_coin_counter_bit = 0x2000;
@@ -1529,7 +1527,7 @@ DRIVER_INIT_MEMBER(eolith_state,landbrka)
 DRIVER_INIT_MEMBER(eolith_state,hidctch2)
 {
 	//it fails compares in memory like in landbrka
-	UINT32 *rombase = (UINT32*)memregion("maincpu")->base();
+	uint32_t *rombase = (uint32_t*)memregion("maincpu")->base();
 	rombase[0xbcc8/4] = (rombase[0xbcc8/4] & 0xffff) | 0x03000000; /* Change BR to NOP */
 
 	DRIVER_INIT_CALL(eolith);
@@ -1538,7 +1536,7 @@ DRIVER_INIT_MEMBER(eolith_state,hidctch2)
 
 DRIVER_INIT_MEMBER(eolith_state,hidnc2k)
 {
-	UINT32 *rombase = (UINT32*)memregion("maincpu")->base();
+	uint32_t *rombase = (uint32_t*)memregion("maincpu")->base();
 	rombase[0x17b2c/4] = (rombase[0x17b2c/4] & 0x0000ffff) | 0x03000000; /* Change BR to NOP */
 	DRIVER_INIT_CALL(eolith);
 }

@@ -1,5 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:Manuel Abadia
+
+#include "machine/gen_latch.h"
 #include "machine/watchdog.h"
 #include "sound/k007232.h"
 #include "video/k052109.h"
@@ -21,10 +23,11 @@ public:
 		m_k052109(*this, "k052109"),
 		m_k051960(*this, "k051960"),
 		m_k051316(*this, "k051316"),
-		m_palette(*this, "palette") { }
+		m_palette(*this, "palette"),
+		m_soundlatch(*this, "soundlatch") { }
 
 	/* video-related */
-	UINT8      m_priority;
+	uint8_t      m_priority;
 
 	/* misc */
 	int        m_firq_enable;
@@ -40,16 +43,18 @@ public:
 	required_device<k051960_device> m_k051960;
 	required_device<k051316_device> m_k051316;
 	required_device<palette_device> m_palette;
+	required_device<generic_latch_8_device> m_soundlatch;
+
 	DECLARE_WRITE8_MEMBER(sound_bank_w);
-	DECLARE_READ8_MEMBER(ajax_ls138_f10_r);
-	DECLARE_WRITE8_MEMBER(ajax_ls138_f10_w);
-	DECLARE_WRITE8_MEMBER(ajax_bankswitch_2_w);
-	DECLARE_WRITE8_MEMBER(ajax_bankswitch_w);
-	DECLARE_WRITE8_MEMBER(ajax_lamps_w);
+	DECLARE_READ8_MEMBER(ls138_f10_r);
+	DECLARE_WRITE8_MEMBER(ls138_f10_w);
+	DECLARE_WRITE8_MEMBER(bankswitch_2_w);
+	DECLARE_WRITE8_MEMBER(bankswitch_w);
+	DECLARE_WRITE8_MEMBER(lamps_w);
 	DECLARE_WRITE8_MEMBER(k007232_extvol_w);
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
-	UINT32 screen_update_ajax(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_WRITE8_MEMBER(volume_callback0);
 	DECLARE_WRITE8_MEMBER(volume_callback1);
 	K051316_CB_MEMBER(zoom_callback);

@@ -1,12 +1,12 @@
 // license:BSD-3-Clause
 // copyright-holders:Robbbert
-#include "emu.h"
 #include "cpu/z80/z80.h"
 #include "cpu/z80/z80daisy.h"
 #include "sound/wave.h"
 #include "imagedev/snapquik.h"
 #include "imagedev/cassette.h"
 #include "sound/speaker.h"
+#include "sound/samples.h"
 #include "machine/buffer.h"
 #include "bus/centronics/ctronics.h"
 #include "video/mc6845.h"
@@ -28,15 +28,20 @@ public:
 		: driver_device(mconfig, type, tag)
 		, m_palette(*this, "palette")
 		, m_maincpu(*this, "maincpu")
+		, m_p_ram(*this, "maincpu")
+		, m_p_chargen(*this, "chargen")
+		, m_p_colorram(*this, "colorram")
+		, m_p_videoram(*this, "videoram")
 		, m_pio(*this, "z80pio")
 		, m_cassette(*this, "cassette")
 		, m_wave(*this, WAVE_TAG)
+		, m_samples(*this, "samples")
 		, m_speaker(*this, "speaker")
 		, m_centronics(*this, "centronics")
 		, m_cent_data_out(*this, "cent_data_out")
 		, m_io_dsw(*this, "DSW")
 		, m_io_config(*this, "CONFIG")
-		, m_io_keyboard(*this, "KEY")
+		, m_io_keyboard(*this, "KEY.%u", 0)
 		, m_crtc(*this, "crtc")
 		, m_dma(*this, "dma")
 		, m_fdc (*this, "fdc")
@@ -69,46 +74,45 @@ public:
 	DECLARE_MACHINE_RESET(super80);
 	DECLARE_MACHINE_RESET(super80r);
 	DECLARE_VIDEO_START(super80);
-	DECLARE_VIDEO_START(super80v);
 	DECLARE_PALETTE_INIT(super80m);
 	DECLARE_QUICKLOAD_LOAD_MEMBER(super80);
 	MC6845_UPDATE_ROW(crtc_update_row);
-	UINT32 screen_update_super80(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	UINT32 screen_update_super80v(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	UINT32 screen_update_super80d(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	UINT32 screen_update_super80e(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	UINT32 screen_update_super80m(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update_super80(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update_super80v(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update_super80d(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update_super80e(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update_super80m(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_super80m(screen_device &screen, bool state);
 	TIMER_CALLBACK_MEMBER(super80_reset);
 	TIMER_DEVICE_CALLBACK_MEMBER(timer_h);
 	TIMER_DEVICE_CALLBACK_MEMBER(timer_k);
 	TIMER_DEVICE_CALLBACK_MEMBER(timer_p);
-	UINT8 m_s_options;
-	UINT8 m_portf0;
-	UINT8 *m_p_videoram;
-	UINT8 *m_p_colorram;
-	UINT8 *m_p_pcgram;
-	UINT8 m_mc6845_cursor[16];
-	UINT8 m_palette_index;
-	required_device<palette_device> m_palette;
 private:
-	UINT8 m_keylatch;
-	UINT8 m_cass_data[4];
-	UINT8 m_int_sw;
-	UINT8 m_last_data;
-	UINT8 m_key_pressed;
-	UINT16 m_vidpg;
-	UINT8 m_current_charset;
-	const UINT8 *m_p_chargen;
-	UINT8 m_mc6845_reg[32];
-	UINT8 m_mc6845_ind;
-	UINT8 *m_p_ram;
+	uint8_t m_s_options;
+	uint8_t m_portf0;
+	uint8_t m_mc6845_cursor[16];
+	uint8_t m_palette_index;
+	uint8_t m_keylatch;
+	uint8_t m_cass_data[4];
+	uint8_t m_int_sw;
+	uint8_t m_last_data;
+	uint8_t m_key_pressed;
+	uint16_t m_vidpg;
+	uint8_t m_current_charset;
+	uint8_t m_mc6845_reg[32];
+	uint8_t m_mc6845_ind;
 	void mc6845_cursor_configure();
-	void super80_cassette_motor(UINT8 data);
+	void super80_cassette_motor(bool data);
+	required_device<palette_device> m_palette;
 	required_device<cpu_device> m_maincpu;
+	required_region_ptr<u8> m_p_ram;
+	optional_region_ptr<u8> m_p_chargen;
+	optional_region_ptr<u8> m_p_colorram;
+	optional_region_ptr<u8> m_p_videoram;
 	required_device<z80pio_device> m_pio;
 	required_device<cassette_image_device> m_cassette;
 	required_device<wave_device> m_wave;
+	required_device<samples_device> m_samples;
 	required_device<speaker_sound_device> m_speaker;
 	required_device<centronics_device> m_centronics;
 	required_device<output_latch_device> m_cent_data_out;

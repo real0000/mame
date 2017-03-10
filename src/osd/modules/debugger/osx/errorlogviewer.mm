@@ -6,6 +6,7 @@
 //
 //============================================================
 
+#include "emu.h"
 #import "errorlogviewer.h"
 
 #import "errorlogview.h"
@@ -14,8 +15,8 @@
 @implementation MAMEErrorLogViewer
 
 - (id)initWithMachine:(running_machine &)m console:(MAMEDebugConsole *)c {
-	NSScrollView	*logScroll;
-	NSString		*title;
+	NSScrollView    *logScroll;
+	NSString        *title;
 
 	title = [NSString stringWithFormat:@"Error Log: %@ [%@]",
 									   [NSString stringWithUTF8String:m.system().description],
@@ -31,6 +32,7 @@
 	[logScroll setHasVerticalScroller:YES];
 	[logScroll setAutohidesScrollers:YES];
 	[logScroll setBorderType:NSNoBorder];
+	[logScroll setDrawsBackground:NO];
 	[logScroll setDocumentView:logView];
 	[logView release];
 	[window setContentView:logScroll];
@@ -38,13 +40,13 @@
 
 	// calculate the optimal size for everything
 	{
-		NSSize	desired = [NSScrollView frameSizeForContentSize:[logView maximumFrameSize]
+		NSSize  desired = [NSScrollView frameSizeForContentSize:[logView maximumFrameSize]
 										  hasHorizontalScroller:YES
 											hasVerticalScroller:YES
 													 borderType:[logScroll borderType]];
 
 		// this thing starts with no content, so its prefered height may be very small
-		desired.height = MAX(desired.height, 240);
+		desired.height = std::max(desired.height, CGFloat(240));
 		[self cascadeWindowWithDesiredSize:desired forView:logScroll];
 	}
 

@@ -21,7 +21,7 @@
 #include "cpu/m68000/m68000.h"
 #include "cpu/h6280/h6280.h"
 #include "sound/2203intf.h"
-#include "sound/2151intf.h"
+#include "sound/ym2151.h"
 #include "sound/okim6295.h"
 #include "includes/darkseal.h"
 
@@ -460,7 +460,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(darkseal_state,darkseal)
 {
-	UINT8 *RAM = memregion("maincpu")->base();
+	uint8_t *RAM = memregion("maincpu")->base();
 	int i;
 
 	for (i=0x00000; i<0x80000; i++)

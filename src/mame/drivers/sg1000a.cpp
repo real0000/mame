@@ -1,4 +1,4 @@
-// license:LGPL-2.1+
+// license:BSD-3-Clause
 // copyright-holders:Tomasz Slanina
 /*********************************************************
 Sega hardware based on their SG-1000 console
@@ -129,11 +129,10 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_decrypted_opcodes(*this, "decrypted_opcodes") { }
 
-	DECLARE_WRITE_LINE_MEMBER(vdp_interrupt);
 	DECLARE_WRITE8_MEMBER(sg1000a_coin_counter_w);
 	DECLARE_DRIVER_INIT(sg1000a);
 	required_device<cpu_device> m_maincpu;
-	optional_shared_ptr<UINT8> m_decrypted_opcodes;
+	optional_shared_ptr<uint8_t> m_decrypted_opcodes;
 };
 
 
@@ -247,10 +246,6 @@ static INPUT_PORTS_START( dokidoki )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 INPUT_PORTS_END
 
-WRITE_LINE_MEMBER(sg1000a_state::vdp_interrupt)
-{
-	m_maincpu->set_input_line(INPUT_LINE_IRQ0, state);
-}
 
 WRITE8_MEMBER(sg1000a_state::sg1000a_coin_counter_w)
 {
@@ -278,7 +273,7 @@ static MACHINE_CONFIG_START( sg1000a, sg1000a_state )
 	/* video hardware */
 	MCFG_DEVICE_ADD( "tms9928a", TMS9928A, XTAL_10_738635MHz / 2 )
 	MCFG_TMS9928A_VRAM_SIZE(0x4000)
-	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(sg1000a_state, vdp_interrupt))
+	MCFG_TMS9928A_OUT_INT_LINE_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
 
 	MCFG_TMS9928A_SCREEN_ADD_NTSC( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9928a", tms9928a_device, screen_update )

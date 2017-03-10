@@ -12,7 +12,6 @@
 #ifndef ISA_VGA_ATI_H_
 #define ISA_VGA_ATI_H_
 
-#include "emu.h"
 #include "isa.h"
 #include "video/pc_vga.h"
 #include "mach32.h"
@@ -29,11 +28,11 @@ class isa16_vga_gfxultra_device :
 {
 public:
 		// construction/destruction
-		isa16_vga_gfxultra_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+		isa16_vga_gfxultra_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 		// optional information overrides
 		virtual machine_config_constructor device_mconfig_additions() const override;
-		virtual const rom_entry *device_rom_region() const override;
+		virtual const tiny_rom_entry *device_rom_region() const override;
 
 		DECLARE_READ8_MEMBER(input_port_0_r);
 protected:
@@ -51,11 +50,11 @@ class isa16_vga_gfxultrapro_device :
 {
 public:
 		// construction/destruction
-		isa16_vga_gfxultrapro_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+		isa16_vga_gfxultrapro_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 		// optional information overrides
 		virtual machine_config_constructor device_mconfig_additions() const override;
-		virtual const rom_entry *device_rom_region() const override;
+		virtual const tiny_rom_entry *device_rom_region() const override;
 
 		DECLARE_READ8_MEMBER(input_port_0_r);
 protected:
@@ -72,11 +71,11 @@ class isa16_vga_mach64_device :
 {
 public:
 		// construction/destruction
-		isa16_vga_mach64_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+		isa16_vga_mach64_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 		// optional information overrides
 		virtual machine_config_constructor device_mconfig_additions() const override;
-		virtual const rom_entry *device_rom_region() const override;
+		virtual const tiny_rom_entry *device_rom_region() const override;
 
 		DECLARE_READ8_MEMBER(input_port_0_r);
 protected:

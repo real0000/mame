@@ -13,7 +13,6 @@
 #ifndef __TF20_H__
 #define __TF20_H__
 
-#include "emu.h"
 #include "cpu/z80/z80.h"
 #include "machine/ram.h"
 #include "machine/upd765.h"
@@ -30,10 +29,10 @@ class epson_tf20_device : public device_t,
 {
 public:
 	// construction/destruction
-	epson_tf20_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	epson_tf20_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// optional information overrides
-	virtual const rom_entry *device_rom_region() const override;
+	virtual const tiny_rom_entry *device_rom_region() const override;
 	virtual machine_config_constructor device_mconfig_additions() const override;
 	virtual ioport_constructor device_input_ports() const override;
 

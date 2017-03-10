@@ -88,7 +88,7 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_cart(*this, "cartslot"),
-		m_key_matrix(*this, "IN"),
+		m_key_matrix(*this, "IN.%u", 0),
 		m_battery_inp(*this, "BATTERY")
 	{ }
 
@@ -97,10 +97,10 @@ public:
 	required_ioport_array<8> m_key_matrix;
 	required_ioport m_battery_inp;
 
-	UINT8 m_key_select;
-	UINT8 m_power;
+	u8 m_key_select;
+	u8 m_power;
 
-	void update_lcd_indicator(UINT8 y, UINT8 x, int state);
+	void update_lcd_indicator(u8 y, u8 x, int state);
 	void update_battery_status(int state);
 
 	DECLARE_READ8_MEMBER(keyboard_r);
@@ -126,19 +126,19 @@ public:
 
 DEVICE_IMAGE_LOAD_MEMBER(ti74_state, ti74_cartridge)
 {
-	UINT32 size = m_cart->common_get_size("rom");
+	u32 size = m_cart->common_get_size("rom");
 
 	// max size is 32KB
 	if (size > 0x8000)
 	{
 		image.seterror(IMAGE_ERROR_UNSPECIFIED, "Invalid file size");
-		return IMAGE_INIT_FAIL;
+		return image_init_result::FAIL;
 	}
 
 	m_cart->rom_alloc(size, GENERIC_ROM8_WIDTH, ENDIANNESS_LITTLE);
 	m_cart->common_load_rom(m_cart->get_rom_base(), size, "rom");
 
-	return IMAGE_INIT_PASS;
+	return image_init_result::PASS;
 }
 
 
@@ -156,7 +156,7 @@ PALETTE_INIT_MEMBER(ti74_state, ti74)
 	palette.set_pen_color(2, rgb_t(131, 136, 139)); // lcd pixel off
 }
 
-void ti74_state::update_lcd_indicator(UINT8 y, UINT8 x, int state)
+void ti74_state::update_lcd_indicator(u8 y, u8 x, int state)
 {
 	// TI-74 ref._________________...
 	// output#  |10     11     12     13     14      2      3      4
@@ -229,7 +229,7 @@ HD44780_PIXEL_UPDATE(ti74_state::ti95_pixel_update)
 
 READ8_MEMBER(ti74_state::keyboard_r)
 {
-	UINT8 ret = 0;
+	u8 ret = 0;
 
 	// read selected keyboard rows
 	for (int i = 0; i < 8; i++)
@@ -266,7 +266,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, ti74_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x1000, 0x1001) AM_DEVREADWRITE("hd44780", hd44780_device, read, write)
 	AM_RANGE(0x2000, 0x3fff) AM_RAM AM_SHARE("sysram.ic3")
-	//AM_RANGE(0x4000, 0xbfff)      // mapped by the cartslot
+	//AM_RANGE(0x4000, 0xbfff) // mapped by the cartslot
 	AM_RANGE(0xc000, 0xdfff) AM_ROMBANK("sysbank")
 ADDRESS_MAP_END
 

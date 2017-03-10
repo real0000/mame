@@ -81,6 +81,7 @@ Notes:
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
+#include "machine/gen_latch.h"
 #include "machine/segacrp2_device.h"
 #include "sound/ay8910.h"
 
@@ -95,16 +96,17 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_gfxdecode(*this, "gfxdecode"),
 		m_palette(*this, "palette"),
+		m_soundlatch(*this, "soundlatch"),
 		m_decrypted_opcodes(*this, "decrypted_opcodes") { }
 
 	/* memory pointers */
-	required_shared_ptr<UINT8> m_fg_ram;
-	required_shared_ptr<UINT8> m_sprites;
+	required_shared_ptr<uint8_t> m_fg_ram;
+	required_shared_ptr<uint8_t> m_sprites;
 
 	/* video-related */
 	tilemap_t  *m_bg_tilemap;
 	tilemap_t  *m_fg_tilemap;
-	UINT8    m_bg_bank;
+	uint8_t    m_bg_bank;
 	DECLARE_WRITE8_MEMBER(fg_ram_w);
 	DECLARE_WRITE8_MEMBER(bg_bank_w);
 	DECLARE_WRITE8_MEMBER(calorie_flipscreen_w);
@@ -116,11 +118,12 @@ public:
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
 	virtual void video_start() override;
-	UINT32 screen_update_calorie(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update_calorie(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<palette_device> m_palette;
-	optional_shared_ptr<UINT8> m_decrypted_opcodes;
+	required_device<generic_latch_8_device> m_soundlatch;
+	optional_shared_ptr<uint8_t> m_decrypted_opcodes;
 };
 
 
@@ -132,7 +135,7 @@ public:
 
 TILE_GET_INFO_MEMBER(calorie_state::get_bg_tile_info)
 {
-	UINT8 *src = memregion("user1")->base();
+	uint8_t *src = memregion("user1")->base();
 	int bg_base = (m_bg_bank & 0x0f) * 0x200;
 	int code  = src[bg_base + tile_index] | (((src[bg_base + tile_index + 0x100]) & 0x10) << 4);
 	int color = src[bg_base + tile_index + 0x100] & 0x0f;
@@ -152,13 +155,13 @@ TILE_GET_INFO_MEMBER(calorie_state::get_fg_tile_info)
 
 void calorie_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(calorie_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 16, 16);
-	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(calorie_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(calorie_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 16, 16);
+	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(calorie_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 }
 
-UINT32 calorie_state::screen_update_calorie(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t calorie_state::screen_update_calorie(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	int x;
 
@@ -237,8 +240,8 @@ WRITE8_MEMBER(calorie_state::calorie_flipscreen_w)
 
 READ8_MEMBER(calorie_state::calorie_soundlatch_r)
 {
-	UINT8 latch = soundlatch_byte_r(space, 0);
-	soundlatch_clear_byte_w(space, 0, 0);
+	uint8_t latch = m_soundlatch->read(space, 0);
+	m_soundlatch->clear_w(space, 0, 0);
 	return latch;
 }
 
@@ -266,7 +269,7 @@ static ADDRESS_MAP_START( calorie_map, AS_PROGRAM, 8, calorie_state )
 	AM_RANGE(0xf002, 0xf002) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0xf004, 0xf004) AM_READ_PORT("DSW1") AM_WRITE(calorie_flipscreen_w)
 	AM_RANGE(0xf005, 0xf005) AM_READ_PORT("DSW2")
-	AM_RANGE(0xf800, 0xf800) AM_WRITE(soundlatch_byte_w)
+	AM_RANGE(0xf800, 0xf800) AM_DEVWRITE("soundlatch", generic_latch_8_device, write)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( decrypted_opcodes_map, AS_DECRYPTED_OPCODES, 8, calorie_state )
@@ -476,6 +479,8 @@ static MACHINE_CONFIG_START( calorie, calorie_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 1500000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.8)  /* YM2149 really */

@@ -11,7 +11,6 @@
 #ifndef __CMD_HD__
 #define __CMD_HD__
 
-#include "emu.h"
 #include "cbmiec.h"
 #include "cpu/m6502/m6502.h"
 #include "imagedev/harddriv.h"
@@ -40,10 +39,10 @@ class cmd_hd_device :  public device_t,
 {
 public:
 	// construction/destruction
-	cmd_hd_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	cmd_hd_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// optional information overrides
-	virtual const rom_entry *device_rom_region() const override;
+	virtual const tiny_rom_entry *device_rom_region() const override;
 	virtual machine_config_constructor device_mconfig_additions() const override;
 
 	DECLARE_WRITE8_MEMBER( led_w );

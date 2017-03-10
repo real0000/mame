@@ -37,6 +37,7 @@ RUN
 
 *****************************************************************************/
 
+#include "emu.h"
 #include "includes/phc25.h"
 
 /* Read/Write Handlers */
@@ -58,7 +59,7 @@ READ8_MEMBER( phc25_state::port40_r )
 
 	*/
 
-	UINT8 data = 0;
+	uint8_t data = 0;
 
 	/* vertical sync */
 	data |= !m_vdg->fs_r() << 4;
@@ -262,7 +263,7 @@ INPUT_PORTS_END
 
 READ8_MEMBER( phc25_state::video_ram_r )
 {
-	if BIT(m_port40, 7) // graphics
+	if (BIT(m_port40, 7)) // graphics
 	{
 		return m_video_ram[offset];
 	}

@@ -75,9 +75,10 @@ Is there another alt program rom set labeled 9 & 10?
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "cpu/m68000/m68000.h"
+#include "machine/gen_latch.h"
 #include "machine/watchdog.h"
 #include "sound/2203intf.h"
-#include "sound/2151intf.h"
+#include "sound/ym2151.h"
 #include "sound/okim6295.h"
 #include "video/kan_pand.h"
 #include "machine/kaneko_hit.h"
@@ -92,19 +93,23 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_pandora(*this, "pandora"),
-		m_view2_0(*this, "view2_0")
+		m_view2_0(*this, "view2_0"),
+		m_soundlatch(*this, "soundlatch"),
+		m_soundlatch2(*this, "soundlatch2")
 		{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<kaneko_pandora_device> m_pandora;
-	optional_device<kaneko_view2_tilemap_device> m_view2_0;
+	required_device<kaneko_view2_tilemap_device> m_view2_0;
+	required_device<generic_latch_8_device> m_soundlatch;
+	required_device<generic_latch_8_device> m_soundlatch2;
 
-	UINT8 m_sprite_irq;
-	UINT8 m_unknown_irq;
-	UINT8 m_vblank_irq;
-	UINT8 m_latch1_full;
-	UINT8 m_latch2_full;
+	uint8_t m_sprite_irq;
+	uint8_t m_unknown_irq;
+	uint8_t m_vblank_irq;
+	uint8_t m_latch1_full;
+	uint8_t m_latch2_full;
 
 	DECLARE_READ16_MEMBER(irq_cause_r);
 	DECLARE_WRITE16_MEMBER(irq_cause_w);
@@ -120,7 +125,7 @@ public:
 
 	virtual void machine_start() override;
 
-	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof(screen_device &screen, bool state);
 
 	INTERRUPT_GEN_MEMBER(interrupt);
@@ -129,7 +134,7 @@ public:
 
 
 
-UINT32 sandscrp_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t sandscrp_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	bitmap.fill(0, cliprect);
 
@@ -251,7 +256,7 @@ WRITE16_MEMBER(sandscrp_state::latchstatus_word_w)
 READ16_MEMBER(sandscrp_state::soundlatch_word_r)
 {
 	m_latch2_full = 0;
-	return soundlatch2_byte_r(space,0);
+	return m_soundlatch2->read(space,0);
 }
 
 WRITE16_MEMBER(sandscrp_state::soundlatch_word_w)
@@ -259,7 +264,7 @@ WRITE16_MEMBER(sandscrp_state::soundlatch_word_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		m_latch1_full = 1;
-		soundlatch_byte_w(space, 0, data & 0xff);
+		m_soundlatch->write(space, 0, data & 0xff);
 		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 		space.device().execute().spin_until_time(attotime::from_usec(100)); // Allow the other cpu to reply
 	}
@@ -306,13 +311,13 @@ READ8_MEMBER(sandscrp_state::latchstatus_r)
 READ8_MEMBER(sandscrp_state::soundlatch_r)
 {
 	m_latch1_full = 0;
-	return soundlatch_byte_r(space,0);
+	return m_soundlatch->read(space,0);
 }
 
 WRITE8_MEMBER(sandscrp_state::soundlatch_w)
 {
 	m_latch2_full = 1;
-	soundlatch2_byte_w(space,0,data);
+	m_soundlatch2->write(space,0,data);
 }
 
 static ADDRESS_MAP_START( sandscrp_soundmem, AS_PROGRAM, 8, sandscrp_state )
@@ -504,6 +509,9 @@ static MACHINE_CONFIG_START( sandscrp, sandscrp_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch2")
 
 	MCFG_OKIM6295_ADD("oki", 12000000/6, OKIM6295_PIN7_HIGH)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)

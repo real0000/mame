@@ -48,6 +48,10 @@ end
 			"ppapi_gles2",
 			"pthread",
 		}
+
+	configuration { "winstore*" }
+		kind "WindowedApp"
+
 	configuration {  }
 
 	addprojectflags()
@@ -68,6 +72,36 @@ end
 	flags {
 		"Unicode",
 	}
+
+	configuration { "winstore*" }
+		-- Windows Required Files
+		files {
+			-- Manifest file
+			MAME_DIR .. "scripts/resources/uwp/Package.appxmanifest",
+		}
+
+	configuration { "winstore*" }
+		files {
+			MAME_DIR .. "scripts/resources/uwp/assets/*.png"
+		}
+		configuration "**/scripts/resources/uwp/assets/*.png"
+			flags { "DeploymentContent" }
+
+	-- Effects and Shaders
+	configuration { "winstore*" }
+		files {
+			MAME_DIR .. "artwork/*",
+			MAME_DIR .. "artwork/**/*",
+			MAME_DIR .. "bgfx/*",
+			MAME_DIR .. "bgfx/**/*",
+			MAME_DIR .. "hash/*",
+			MAME_DIR .. "language/*",
+			MAME_DIR .. "language/**/*",
+			MAME_DIR .. "plugins/*",
+			MAME_DIR .. "plugins/**/*",
+		}
+		configuration "**/*"
+			flags { "DeploymentContent" }
 
 	configuration { "x64", "Release" }
 		targetsuffix "64"
@@ -115,7 +149,7 @@ end
 		targetextension ".bc"
 		if os.getenv("EMSCRIPTEN") then
 			local emccopts = ""
-				.. " -O3"
+				.. " -O" .. _OPTIONS["OPTIMIZE"]
 				.. " -s USE_SDL=2"
 				.. " -s USE_SDL_TTF=2"
 				.. " --memory-init-file 0"
@@ -128,11 +162,18 @@ end
 				.. " --post-js " .. _MAKE.esc(MAME_DIR) .. "scripts/resources/emscripten/emscripten_post.js"
 				.. " --embed-file " .. _MAKE.esc(MAME_DIR) .. "bgfx/chains@bgfx/chains"
 				.. " --embed-file " .. _MAKE.esc(MAME_DIR) .. "bgfx/effects@bgfx/effects"
-				.. " --embed-file " .. _MAKE.esc(MAME_DIR) .. "bgfx/shaders/gles@bgfx/shaders/gles"
+				.. " --embed-file " .. _MAKE.esc(MAME_DIR) .. "bgfx/shaders/essl@bgfx/shaders/essl"
 				.. " --embed-file " .. _MAKE.esc(MAME_DIR) .. "artwork/slot-mask.png@artwork/slot-mask.png"
 
 			if _OPTIONS["SYMBOLS"]~=nil and _OPTIONS["SYMBOLS"]~="0" then
-				emccopts = emccopts .. " -g" .. _OPTIONS["SYMLEVEL"]
+				emccopts = emccopts
+					.. " -g" .. _OPTIONS["SYMLEVEL"]
+					.. " -s DEMANGLE_SUPPORT=1"
+			end
+
+			if _OPTIONS["WEBASSEMBLY"] then
+				emccopts = emccopts
+					.. " -s BINARYEN=1"
 			end
 
 			if _OPTIONS["ARCHOPTS"] then
@@ -145,17 +186,7 @@ end
 		end
 
 	configuration { }
-	
-if _OPTIONS["IGNORE_GIT"]~="1" then	
-	GIT_VERSION = backtick( "git describe --dirty" )
-	local p = string.find(GIT_VERSION, '-', 1)
-	if (p~=nil) then
-		defines {
-			"GIT_VERSION=" .. string.sub(GIT_VERSION,p+1)
-		}
-	end
-end
-	
+
 	if _OPTIONS["targetos"]=="android" then
 		includedirs {
 			MAME_DIR .. "3rdparty/SDL2/include",
@@ -205,12 +236,20 @@ if (STANDALONE~=true) then
 		"frontend",
 	}
 end
+if (MACHINES["NETLIST"]~=null) then
 	links {
 		"netlist",
+	}
+end
+	links {
 		"optional",
 		"emu",
+	}
+--if (STANDALONE~=true) then
+	links {
 		"formats",
 	}
+--end
 if #disasm_files > 0 then
 	links {
 		"dasm",
@@ -222,22 +261,39 @@ end
 		"softfloat",
 		ext_lib("jpeg"),
 		"7z",
+	}
+if (STANDALONE~=true) then
+	links {
 		ext_lib("lua"),
 		"lualibs",
 	}
-
-	if _OPTIONS["USE_LIBUV"]=="1" then
-		links {
-			ext_lib("uv"),
-			"http-parser",
-		}
-	end
+if (_OPTIONS["osd"] ~= "uwp") then
+	links {
+		"linenoise-ng",
+	}
+end
+end
 	links {
 		ext_lib("zlib"),
 		ext_lib("flac"),
+		ext_lib("utf8proc"),
+	}
+if (STANDALONE~=true) then
+	links {
 		ext_lib("sqlite3"),
 	}
+end
 
+	if _OPTIONS["NO_USE_PORTAUDIO"]~="1" then
+		links {
+			ext_lib("portaudio"),
+		}
+		if _OPTIONS["targetos"]=="windows" then
+			links {
+				"setupapi",
+			}
+		end
+	end
 	if _OPTIONS["NO_USE_MIDI"]~="1" then
 		links {
 			ext_lib("portmidi"),
@@ -245,6 +301,7 @@ end
 	end
 	links {
 		"bgfx",
+		"bx",
 		"ocore_" .. _OPTIONS["osd"],
 	}
 
@@ -266,18 +323,18 @@ end
 		ext_includedir("flac"),
 	}
 
-	
+
 if (STANDALONE==true) then
 	standalone();
 end
-		
+
 if (STANDALONE~=true) then
 	if _OPTIONS["targetos"]=="macosx" and (not override_resources) then
 		linkoptions {
 			"-sectcreate __TEXT __info_plist " .. _MAKE.esc(GEN_DIR) .. "resource/" .. _subtarget .. "-Info.plist"
 		}
 		custombuildtask {
-			{ MAME_DIR .. "src/version.cpp" ,  GEN_DIR .. "resource/" .. _subtarget .. "-Info.plist",    {  MAME_DIR .. "scripts/build/verinfo.py" }, {"@echo Emitting " .. _subtarget .. "-Info.plist" .. "...",    PYTHON .. " $(1)  -p -b " .. _subtarget .. " $(<) > $(@)" }},
+			{ GEN_DIR .. "version.cpp" ,  GEN_DIR .. "resource/" .. _subtarget .. "-Info.plist",    {  MAME_DIR .. "scripts/build/verinfo.py" }, {"@echo Emitting " .. _subtarget .. "-Info.plist" .. "...",    PYTHON .. " $(1)  -p -b " .. _subtarget .. " $(<) > $(@)" }},
 		}
 		dependency {
 			{ "$(TARGET)" ,  GEN_DIR  .. "resource/" .. _subtarget .. "-Info.plist", true  },
@@ -312,7 +369,7 @@ if (STANDALONE~=true) then
 	end
 	files {
 		mainfile,
-		MAME_DIR .. "src/version.cpp",
+		GEN_DIR .. "version.cpp",
 		GEN_DIR  .. _target .. "/" .. _subtarget .."/drivlist.cpp",
 	}
 
@@ -355,21 +412,21 @@ if (STANDALONE~=true) then
 
 	configuration { "mingw*" }
 		custombuildtask {
-			{ MAME_DIR .. "src/version.cpp" ,  GEN_DIR  .. "resource/" .. rctarget .. "vers.rc",    {  MAME_DIR .. "scripts/build/verinfo.py" }, {"@echo Emitting " .. rctarget .. "vers.rc" .. "...",    PYTHON .. " $(1)  -r -b " .. rctarget .. " $(<) > $(@)" }},
+			{ GEN_DIR .. "version.cpp" ,  GEN_DIR  .. "resource/" .. rctarget .. "vers.rc",    {  MAME_DIR .. "scripts/build/verinfo.py" }, {"@echo Emitting " .. rctarget .. "vers.rc" .. "...",    PYTHON .. " $(1)  -r -b " .. rctarget .. " $(<) > $(@)" }},
 		}
 
 	configuration { "vs*" }
 		prebuildcommands {
 			"mkdir " .. path.translate(GEN_DIR  .. "resource/","\\") .. " 2>NUL",
 			"@echo Emitting ".. rctarget .. "vers.rc...",
-			PYTHON .. " " .. path.translate(MAME_DIR .. "scripts/build/verinfo.py","\\") .. " -r -b " .. rctarget .. " " .. path.translate(MAME_DIR .. "src/version.cpp","\\") .. " > " .. path.translate(GEN_DIR  .. "resource/" .. rctarget .. "vers.rc", "\\") ,
+			PYTHON .. " " .. path.translate(MAME_DIR .. "scripts/build/verinfo.py","\\") .. " -r -b " .. rctarget .. " " .. path.translate(GEN_DIR .. "version.cpp","\\") .. " > " .. path.translate(GEN_DIR  .. "resource/" .. rctarget .. "vers.rc", "\\") ,
 		}
 end
 
 	configuration { }
 
 	if _OPTIONS["DEBUG_DIR"]~=nil then
-		debugabsolutedir(_OPTIONS["DEBUG_DIR"])
+		debugdir(_OPTIONS["DEBUG_DIR"])
 	else
 		debugdir (MAME_DIR)
 	end
@@ -377,6 +434,6 @@ end
 		debugargs (_OPTIONS["DEBUG_ARGS"])
 	else
 		debugargs ("-window")
-	end	
-	
+	end
+
 end

@@ -125,7 +125,7 @@ READ8_MEMBER(jack_state::striv_question_r)
 	// Read the actual byte from question roms
 	else
 	{
-		UINT8 *ROM = memregion("user1")->base();
+		uint8_t *ROM = memregion("user1")->base();
 		int real_address;
 
 		real_address = m_question_address | (offset & 0x3f0) | m_remap_address[offset & 0x0f];
@@ -1471,12 +1471,12 @@ DRIVER_INIT_MEMBER(jack_state,zzyzzyxx)
 
 void jack_state::treahunt_decode(  )
 {
-	UINT8 *rom = memregion("maincpu")->base();
+	uint8_t *rom = memregion("maincpu")->base();
 
 	/* Thanks to Mike Balfour for helping out with the decryption */
 	for (int A = 0; A < 0x4000; A++)
 	{
-		UINT8 data = rom[A];
+		uint8_t data = rom[A];
 
 		if (A & 0x1000)
 		{
@@ -1528,7 +1528,7 @@ DRIVER_INIT_MEMBER(jack_state,loverboy)
 	   code, the protection device is disabled or changes behaviour via
 	   writes at 0xf000 and 0xf008. -AS
 	*/
-	UINT8 *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = memregion("maincpu")->base();
 	ROM[0x13] = 0x01;
 	ROM[0x12] = 0x9d;
 
@@ -1538,8 +1538,8 @@ DRIVER_INIT_MEMBER(jack_state,loverboy)
 
 DRIVER_INIT_MEMBER(jack_state,striv)
 {
-	UINT8 *ROM = memregion("maincpu")->base();
-	UINT8 data;
+	uint8_t *ROM = memregion("maincpu")->base();
+	uint8_t data;
 	int A;
 
 	/* decrypt program rom */
@@ -1590,4 +1590,4 @@ GAME( 1985, striv,     0,        striv,    striv,    jack_state, striv,    ROT27
 GAME( 1983, joinem,    0,        joinem,   joinem,   jack_state, zzyzzyxx, ROT90,  "Global Corporation", "Joinem", MACHINE_SUPPORTS_SAVE )
 GAME( 1983, unclepoo,  0,        unclepoo, unclepoo, jack_state, zzyzzyxx, ROT90,  "Diatec", "Uncle Poo", MACHINE_SUPPORTS_SAVE ) // based on Joinem?
 GAME( 1983, loverboy,  0,        joinem,   loverboy, jack_state, loverboy, ROT90,  "G.T Enterprise Inc", "Lover Boy", MACHINE_SUPPORTS_SAVE )
-GAME( 1993, trikitri,  loverboy, joinem,   loverboy, jack_state, loverboy, ROT90,  "DDT Enterprise Inc", "Triki Triki (Lover Boy bootleg)", MACHINE_SUPPORTS_SAVE )
+GAME( 1993, trikitri,  loverboy, joinem,   loverboy, jack_state, loverboy, ROT90,  "bootleg (DDT Enterprise Inc)", "Triki Triki (Lover Boy bootleg)", MACHINE_SUPPORTS_SAVE )

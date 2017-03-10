@@ -12,6 +12,7 @@
 
 ***************************************************************************/
 
+#include "emu.h"
 #include "includes/coco3.h"
 #include "cpu/m6809/m6809.h"
 #include "cpu/m6809/hd6309.h"
@@ -221,7 +222,6 @@ static INPUT_PORTS_START( coco3 )
 	PORT_INCLUDE( coco3_keyboard )
 	PORT_INCLUDE( coco3_joystick )
 	PORT_INCLUDE( coco_analog_control )
-	PORT_INCLUDE( coco_cart_autostart )
 	PORT_INCLUDE( coco_rat_mouse )
 	PORT_INCLUDE( coco_lightgun )
 	PORT_INCLUDE( coco_rtc )
@@ -245,6 +245,7 @@ static MACHINE_CONFIG_START( coco3, coco3_state )
 	// basic machine hardware
 	MCFG_CPU_ADD(MAINCPU_TAG, M6809E, XTAL_3_579545MHz)
 	MCFG_CPU_PROGRAM_MAP(coco3_mem)
+	MCFG_CPU_DISASSEMBLE_OVERRIDE(coco_state, dasm_override)
 
 	// devices
 	MCFG_DEVICE_ADD(PIA0_TAG, PIA6821, 0)

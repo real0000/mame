@@ -11,7 +11,13 @@
 
     Hardware revisions (XXX verify everything):
     - 7.102.076 -- has DIP switches, SRAM at 0x2000, model name "KSM"
-    - 7.102.228 -- no DIP switches, SRAM at 0x2100, model name "KSM-01"
+    - 7.102.228 -- no DIP switches, ?? SRAM at 0x2100, model name "KSM-01"
+
+    Two sets of dumps exist:
+    - one puts SRAM at 0x2000, which is where technical manual puts it,
+      but chargen has 1 missing pixel in 'G' character.
+    - another puts SRAM at 0x2100, but has no missing pixel.
+    Merge them for now into one (SRAM at 0x2000 and no missing pixel).
 
     Emulates a VT52 without copier (ESC Z response is ESC / M), with
     Hold Screen mode and Graphics character set (but it is unique and
@@ -49,7 +55,7 @@ ksm|DVK KSM,
     To do:
     - verify if pixel stretching is done by hw
     - verify details of hw revisions (memory map, DIP presence...)
-    - baud rate selection (missing feature in bitbanger)
+    - baud rate selection
 
 ****************************************************************************/
 
@@ -92,21 +98,19 @@ ksm|DVK KSM,
 class ksm_state : public driver_device
 {
 public:
-	ksm_state(const machine_config &mconfig, device_type type, const char *tag) :
-		driver_device(mconfig, type, tag),
-		m_p_videoram(*this, "videoram"),
-		m_maincpu(*this, "maincpu"),
-		m_pic8259(*this, "pic8259"),
-		m_i8251line(*this, "i8251line"),
-		m_rs232(*this, "rs232"),
-		m_i8251kbd(*this, "i8251kbd"),
-		m_ms7004(*this, "ms7004"),
-		m_screen(*this, "screen")
-	{ }
+	ksm_state(const machine_config &mconfig, device_type type, const char *tag)
+		: driver_device(mconfig, type, tag)
+		, m_p_videoram(*this, "videoram")
+		, m_maincpu(*this, "maincpu")
+		, m_pic8259(*this, "pic8259")
+		, m_i8251line(*this, "i8251line")
+		, m_rs232(*this, "rs232")
+		, m_i8251kbd(*this, "i8251kbd")
+		, m_ms7004(*this, "ms7004")
+		, m_screen(*this, "screen")
+		, m_p_chargen(*this, "chargen")
+		{ }
 
-	virtual void machine_reset() override;
-	virtual void video_start() override;
-	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER( scanline_callback );
 
 	DECLARE_WRITE_LINE_MEMBER(write_keyboard_clock);
@@ -114,20 +118,21 @@ public:
 
 	DECLARE_WRITE8_MEMBER(ksm_ppi_porta_w);
 	DECLARE_WRITE8_MEMBER(ksm_ppi_portc_w);
+	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 private:
-	UINT32 draw_scanline(UINT16 *p, UINT16 offset, UINT8 scanline);
+	uint32_t draw_scanline(uint16_t *p, uint16_t offset, uint8_t scanline);
 	rectangle m_tmpclip;
 	bitmap_ind16 m_tmpbmp;
 
-	const UINT8 *m_p_chargen;
 	struct {
-		UINT8 line;
-		UINT16 ptr;
+		uint8_t line;
+		uint16_t ptr;
 	} m_video;
 
-protected:
-	required_shared_ptr<UINT8> m_p_videoram;
+	virtual void machine_reset() override;
+	virtual void video_start() override;
+	required_shared_ptr<uint8_t> m_p_videoram;
 	required_device<cpu_device> m_maincpu;
 	required_device<pic8259_device>  m_pic8259;
 	required_device<i8251_device> m_i8251line;
@@ -135,6 +140,7 @@ protected:
 	required_device<i8251_device> m_i8251kbd;
 	required_device<ms7004_device> m_ms7004;
 	required_device<screen_device> m_screen;
+	required_region_ptr<u8> m_p_chargen;
 };
 
 static ADDRESS_MAP_START( ksm_mem, AS_PROGRAM, 8, ksm_state )
@@ -203,8 +209,6 @@ void ksm_state::machine_reset()
 
 void ksm_state::video_start()
 {
-	m_p_chargen = memregion("chargen")->base();
-
 	m_tmpclip = rectangle(0, KSM_DISP_HORZ-1, 0, KSM_DISP_VERT-1);
 	m_tmpbmp.allocate(KSM_DISP_HORZ, KSM_DISP_VERT);
 }
@@ -222,8 +226,7 @@ WRITE8_MEMBER(ksm_state::ksm_ppi_portc_w)
 
 WRITE_LINE_MEMBER(ksm_state::write_keyboard_clock)
 {
-//  KSM never sends data to keyboard
-//  m_i8251kbd->write_txc(state);
+	m_i8251kbd->write_txc(state);
 	m_i8251kbd->write_rxc(state);
 }
 
@@ -249,10 +252,10 @@ WRITE_LINE_MEMBER(ksm_state::write_line_clock)
     displayed on 3 extra scan lines.
 */
 
-UINT32 ksm_state::draw_scanline(UINT16 *p, UINT16 offset, UINT8 scanline)
+uint32_t ksm_state::draw_scanline(uint16_t *p, uint16_t offset, uint8_t scanline)
 {
-	UINT8 gfx, fg, bg, ra, blink;
-	UINT16 x, chr;
+	uint8_t gfx, fg, bg, ra, blink;
+	uint16_t x, chr;
 
 	bg = 0; fg = 1; ra = scanline % 8;
 	blink = (m_screen->frame_number() % 10) > 4;
@@ -284,8 +287,8 @@ UINT32 ksm_state::draw_scanline(UINT16 *p, UINT16 offset, UINT8 scanline)
 
 TIMER_DEVICE_CALLBACK_MEMBER(ksm_state::scanline_callback)
 {
-	UINT16 y = m_screen->vpos();
-	UINT16 offset;
+	uint16_t y = m_screen->vpos();
+	uint16_t offset;
 
 	DBG_LOG(2,"scanline_cb",
 		("addr %02x frame %d x %.4d y %.3d row %.2d\n",
@@ -304,7 +307,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(ksm_state::scanline_callback)
 	draw_scanline(&m_tmpbmp.pix16(y), offset, y%11);
 }
 
-UINT32 ksm_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t ksm_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	copybitmap(bitmap, m_tmpbmp, 0, 0, KSM_HORZ_START, KSM_VERT_START, cliprect);
 	return 0;
@@ -335,10 +338,9 @@ static MACHINE_CONFIG_START( ksm, ksm_state )
 	MCFG_CPU_IO_MAP(ksm_io)
 	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259", pic8259_device, inta_cb)
 
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("scantimer", ksm_state, scanline_callback, attotime::from_hz(50*28*11))
-	MCFG_TIMER_START_DELAY(attotime::from_hz(XTAL_15_4MHz/KSM_HORZ_START))
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ksm_state, scanline_callback, "screen", 0, 1)
 
-	MCFG_SCREEN_ADD_MONOCHROME("screen", RASTER, rgb_t::green)
+	MCFG_SCREEN_ADD_MONOCHROME("screen", RASTER, rgb_t::green())
 	MCFG_SCREEN_UPDATE_DRIVER(ksm_state, screen_update)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_15_4MHz, KSM_TOTAL_HORZ, KSM_HORZ_START,
 		KSM_HORZ_START+KSM_DISP_HORZ, KSM_TOTAL_VERT, KSM_VERT_START,
@@ -360,8 +362,6 @@ static MACHINE_CONFIG_START( ksm, ksm_state )
 	// serial connection to host
 	MCFG_DEVICE_ADD( "i8251line", I8251, 0)
 	MCFG_I8251_TXD_HANDLER(DEVWRITELINE("rs232", rs232_port_device, write_txd))
-	MCFG_I8251_DTR_HANDLER(DEVWRITELINE("rs232", rs232_port_device, write_dtr))
-	MCFG_I8251_RTS_HANDLER(DEVWRITELINE("rs232", rs232_port_device, write_rts))
 	MCFG_I8251_RXRDY_HANDLER(DEVWRITELINE("pic8259", pic8259_device, ir3_w))
 
 	MCFG_RS232_PORT_ADD("rs232", default_rs232_devices, "null_modem")
@@ -369,6 +369,7 @@ static MACHINE_CONFIG_START( ksm, ksm_state )
 	MCFG_RS232_CTS_HANDLER(DEVWRITELINE("i8251line", i8251_device, write_cts))
 	MCFG_RS232_DSR_HANDLER(DEVWRITELINE("i8251line", i8251_device, write_dsr))
 
+	// XXX /RTS, /DTR, PC5 and PC6 are wired to baud rate generator.
 	MCFG_DEVICE_ADD("line_clock", CLOCK, 9600*16) // 8251 is set to /16 on the clock input
 	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(ksm_state, write_line_clock))
 
@@ -384,27 +385,9 @@ static MACHINE_CONFIG_START( ksm, ksm_state )
 	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(ksm_state, write_keyboard_clock))
 MACHINE_CONFIG_END
 
-
-/*
-    Assumes that SRAM is at 0x2000, which is where technical manual puts it.
-    Chargen has 1 missing pixel in 'G' character.
-*/
 ROM_START( dvk_ksm )
 	ROM_REGION(0x1000, "maincpu", ROMREGION_ERASE00)
 	ROM_LOAD( "ksm_04_rom0_d32.bin", 0x0000, 0x0800, CRC(6ad62715) SHA1(20f8f95119bc7fc6e0f16c67864e339a86edb44d))
-	ROM_LOAD( "ksm_05_rom1_d33.bin", 0x0800, 0x0800, CRC(5b29bcd2) SHA1(1f4f82c2f88f1e8615ec02076559dc606497e654))
-
-	ROM_REGION(0x0800, "chargen", ROMREGION_ERASE00)
-	ROM_LOAD("ksm_03_cg_d31.bin", 0x0000, 0x0800, CRC(98853aa7) SHA1(09b8e1b5b10a00c0b0ae7e36ad1328113d31230a))
-ROM_END
-
-/*
-    Assumes that SRAM is at 0x2100, otherwise identical.
-    Chargen has no missing pixels in 'G' character.
-*/
-ROM_START( dvk_ksm01 )
-	ROM_REGION(0x1000, "maincpu", ROMREGION_ERASE00)
-	ROM_LOAD( "ksm_04_rom0_d32.bin", 0x0000, 0x0800, CRC(5276dc9a) SHA1(dd41dfb4cb3f1cf22d96d95f1ff6a27fe4eb9a38))
 	ROM_LOAD( "ksm_05_rom1_d33.bin", 0x0800, 0x0800, CRC(5b29bcd2) SHA1(1f4f82c2f88f1e8615ec02076559dc606497e654))
 
 	ROM_REGION(0x0800, "chargen", ROMREGION_ERASE00)
@@ -415,4 +398,3 @@ ROM_END
 
 /*    YEAR  NAME      PARENT  COMPAT   MACHINE    INPUT    INIT                      COMPANY     FULLNAME       FLAGS */
 COMP( 1986, dvk_ksm,  0,      0,       ksm,       ksm,     driver_device,     0,     "USSR",     "DVK KSM",     0)
-COMP( 198?, dvk_ksm01,dvk_ksm,0,       ksm,       ksm,     driver_device,     0,     "USSR",     "DVK KSM-01",  0)

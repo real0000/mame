@@ -78,10 +78,15 @@
 #include "crsshair.h"
 #include "unzip.h"
 #include "debug/debugvw.h"
+#include "debug/debugcpu.h"
+#include "dirtc.h"
 #include "image.h"
 #include "network.h"
 #include "ui/uimain.h"
 #include <time.h>
+#include "server_http.hpp"
+#include "rapidjson/include/rapidjson/writer.h"
+#include "rapidjson/include/rapidjson/stringbuffer.h"
 
 #if defined(EMSCRIPTEN)
 #include <emscripten.h>
@@ -108,7 +113,6 @@ running_machine::running_machine(const machine_config &_config, machine_manager 
 	: firstcpu(nullptr),
 		primary_screen(nullptr),
 		debug_flags(0),
-		debugcpu_data(nullptr),
 		m_config(_config),
 		m_system(_config.gamedrv()),
 		m_manager(manager),
@@ -129,9 +133,12 @@ running_machine::running_machine(const machine_config &_config, machine_manager 
 		m_memory(*this),
 		m_ioport(*this),
 		m_parameters(*this),
-		m_scheduler(*this)
+		m_scheduler(*this),
+		m_dummy_space(_config, "dummy_space", &root_device(), 0)
 {
 	memset(&m_base_time, 0, sizeof(m_base_time));
+
+	m_dummy_space.set_machine(*this);
 
 	// set the machine on all devices
 	device_iterator iter(root_device());
@@ -245,7 +252,6 @@ void running_machine::start()
 	{
 		m_debug_view = std::make_unique<debug_view_manager>(*this);
 		m_debugger = std::make_unique<debugger_manager>(*this);
-		m_debugger->initialize();
 	}
 
 	m_render->resolve_tags();
@@ -253,8 +259,8 @@ void running_machine::start()
 	manager().create_custom(*this);
 
 	// register callbacks for the devices, then start them
-	add_notifier(MACHINE_NOTIFY_RESET, machine_notify_delegate(FUNC(running_machine::reset_all_devices), this));
-	add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(running_machine::stop_all_devices), this));
+	add_notifier(MACHINE_NOTIFY_RESET, machine_notify_delegate(&running_machine::reset_all_devices, this));
+	add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(&running_machine::stop_all_devices, this));
 	save().register_presave(save_prepost_delegate(FUNC(running_machine::presave_all_devices), this));
 	start_all_devices();
 	save().register_postload(save_prepost_delegate(FUNC(running_machine::postload_all_devices), this));
@@ -267,7 +273,6 @@ void running_machine::start()
 	// if we're in autosave mode, schedule a load
 	else if (options().autosave() && (m_system.flags & MACHINE_SUPPORTS_SAVE) != 0)
 		schedule_load("auto");
-
 
 	manager().update_machine();
 }
@@ -293,13 +298,15 @@ int running_machine::run(bool quiet)
 			m_logfile = std::make_unique<emu_file>(OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
 			osd_file::error filerr = m_logfile->open("error.log");
 			assert_always(filerr == osd_file::error::NONE, "unable to open log file");
-			add_logerror_callback(logfile_callback);
+
+			using namespace std::placeholders;
+			add_logerror_callback(std::bind(&running_machine::logfile_callback, this, _1));
 		}
 
 		// then finish setting up our local machine
 		start();
 
-		// load the configuration settings and NVRAM
+		// load the configuration settings
 		m_configuration->load_settings();
 
 		// disallow save state registrations starting here.
@@ -307,7 +314,12 @@ int running_machine::run(bool quiet)
 		// devices with timers.
 		m_save.allow_registration(false);
 
+		// load the NVRAM
 		nvram_load();
+
+		// set the time on RTCs (this may overwrite parts of NVRAM)
+		set_rtc_datetime(system_time(m_base_time));
+
 		sound().ui_mute(false);
 		if (!quiet)
 			sound().start_recording();
@@ -323,6 +335,8 @@ int running_machine::run(bool quiet)
 		if (m_saveload_schedule != SLS_NONE)
 			handle_saveload();
 
+		export_http_api();
+
 		// run the CPUs until a reset or exit
 		m_hard_reset_pending = false;
 		while ((!m_hard_reset_pending && !m_exit_pending) || m_saveload_schedule != SLS_NONE)
@@ -336,10 +350,7 @@ int running_machine::run(bool quiet)
 
 			// execute CPUs if not paused
 			if (!m_paused)
-			{
 				m_scheduler.timeslice();
-				emulator_info::periodic_check();
-			}
 			// otherwise, just pump video updates through
 			else
 				m_video->frame_update();
@@ -376,9 +387,9 @@ int running_machine::run(bool quiet)
 		osd_printf_error("Error performing a late bind of type %s to %s\n", btex.m_actual_type.name(), btex.m_target_type.name());
 		error = EMU_ERR_FATALERROR;
 	}
-	catch (add_exception &aex)
+	catch (tag_add_exception &aex)
 	{
-		osd_printf_error("Tag '%s' already exists in tagged_list\n", aex.tag());
+		osd_printf_error("Tag '%s' already exists in tagged map\n", aex.tag());
 		error = EMU_ERR_FATALERROR;
 	}
 	catch (std::exception &ex)
@@ -495,7 +506,7 @@ std::string running_machine::get_statename(const char *option) const
 			int end;
 
 			if ((end1 != -1) && (end2 != -1))
-				end = MIN(end1, end2);
+				end = std::min(end1, end2);
 			else if (end1 != -1)
 				end = end1;
 			else if (end2 != -1)
@@ -548,6 +559,39 @@ std::string running_machine::get_statename(const char *option) const
 	return statename_str;
 }
 
+
+//-------------------------------------------------
+//  compose_saveload_filename - composes a filename
+//  for state loading/saving
+//-------------------------------------------------
+
+std::string running_machine::compose_saveload_filename(const char *filename, const char **searchpath)
+{
+	std::string result;
+
+	// is this an absolute path?
+	if (osd_is_absolute_path(filename))
+	{
+		// if so, this is easy
+		if (searchpath != nullptr)
+			*searchpath = nullptr;
+		result = filename;
+	}
+	else
+	{
+		// this is a relative path; first specify the search path
+		if (searchpath != nullptr)
+			*searchpath = options().state_directory();
+
+		// take into account the statename option
+		const char *stateopt = options().state_name();
+		std::string statename = get_statename(stateopt);
+		result = string_format("%s%s%s.sta", statename, PATH_SEPARATOR, filename);
+	}
+	return result;
+}
+
+
 //-------------------------------------------------
 //  set_saveload_filename - specifies the filename
 //  for state loading/saving
@@ -555,20 +599,8 @@ std::string running_machine::get_statename(const char *option) const
 
 void running_machine::set_saveload_filename(const char *filename)
 {
-	// free any existing request and allocate a copy of the requested name
-	if (osd_is_absolute_path(filename))
-	{
-		m_saveload_searchpath = nullptr;
-		m_saveload_pending_file.assign(filename);
-	}
-	else
-	{
-		m_saveload_searchpath = options().state_directory();
-		// take into account the statename option
-		const char *stateopt = options().state_name();
-		std::string statename = get_statename(stateopt);
-		m_saveload_pending_file.assign(statename.c_str()).append(PATH_SEPARATOR).append(filename).append(".sta");
-	}
+	// compose the save/load filename and persist it
+	m_saveload_pending_file = compose_saveload_filename(filename, &m_saveload_searchpath);
 }
 
 
@@ -727,6 +759,30 @@ void running_machine::add_logerror_callback(logerror_callback callback)
 
 
 //-------------------------------------------------
+//  strlog - send an error logging string to the
+//  debugger and any OSD-defined output streams
+//-------------------------------------------------
+
+void running_machine::strlog(const char *str) const
+{
+	// log to all callbacks
+	for (auto &cb : m_logerror_list)
+		cb->m_func(str);
+}
+
+
+//-------------------------------------------------
+//  debug_break - breaks into the debugger, if
+//  enabled
+//-------------------------------------------------
+
+void running_machine::debug_break()
+{
+	if ((debug_flags & DEBUG_FLAG_ENABLED) != 0)
+		debugger().debug_break();
+}
+
+//-------------------------------------------------
 //  base_datetime - retrieve the time of the host
 //  system; useful for RTC implementations
 //-------------------------------------------------
@@ -750,10 +806,23 @@ void running_machine::current_datetime(system_time &systime)
 
 
 //-------------------------------------------------
+//  set_rtc_datetime - set the current time on
+//  battery-backed RTCs
+//-------------------------------------------------
+
+void running_machine::set_rtc_datetime(const system_time &systime)
+{
+	for (device_rtc_interface &rtc : rtc_interface_iterator(root_device()))
+		if (rtc.has_battery())
+			rtc.set_current_time(systime);
+}
+
+
+//-------------------------------------------------
 //  rand - standardized random numbers
 //-------------------------------------------------
 
-UINT32 running_machine::rand()
+u32 running_machine::rand()
 {
 	m_rand_seed = 1664525 * m_rand_seed + 1013904223;
 
@@ -799,7 +868,7 @@ void running_machine::handle_saveload()
 		}
 		else
 		{
-			UINT32 const openflags = (m_saveload_schedule == SLS_LOAD) ? OPEN_FLAG_READ : (OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
+			u32 const openflags = (m_saveload_schedule == SLS_LOAD) ? OPEN_FLAG_READ : (OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
 
 			// open the file
 			emu_file file(m_saveload_searchpath, openflags);
@@ -819,7 +888,7 @@ void running_machine::handle_saveload()
 					break;
 
 				case STATERR_INVALID_HEADER:
-					popmessage("Error: Unable to %s state due to an invalid header. Make sure the save state is correct for this game.", opname);
+					popmessage("Error: Unable to %s state due to an invalid header. Make sure the save state is correct for this machine.", opname);
 					break;
 
 				case STATERR_READ_ERROR:
@@ -832,7 +901,7 @@ void running_machine::handle_saveload()
 
 				case STATERR_NONE:
 					if (!(m_system.flags & MACHINE_SUPPORTS_SAVE))
-						popmessage("State successfully %s.\nWarning: Save states are not officially supported for this game.", opnamed);
+						popmessage("State successfully %s.\nWarning: Save states are not officially supported for this machine.", opnamed);
 					else
 						popmessage("State successfully %s.", opnamed);
 					break;
@@ -863,7 +932,7 @@ void running_machine::handle_saveload()
 //  of the system
 //-------------------------------------------------
 
-void running_machine::soft_reset(void *ptr, INT32 param)
+void running_machine::soft_reset(void *ptr, s32 param)
 {
 	logerror("Soft reset\n");
 
@@ -883,12 +952,12 @@ void running_machine::soft_reset(void *ptr, INT32 param)
 //  logfile
 //-------------------------------------------------
 
-void running_machine::logfile_callback(const running_machine &machine, const char *buffer)
+void running_machine::logfile_callback(const char *buffer)
 {
-	if (machine.m_logfile != nullptr)
+	if (m_logfile != nullptr)
 	{
-		machine.m_logfile->puts(buffer);
-		machine.m_logfile->flush();
+		m_logfile->puts(buffer);
+		m_logfile->flush();
 	}
 }
 
@@ -899,6 +968,8 @@ void running_machine::logfile_callback(const running_machine &machine, const cha
 
 void running_machine::start_all_devices()
 {
+	m_dummy_space.start();
+
 	// iterate through the devices
 	int last_failed_starts = -1;
 	while (last_failed_starts != 0)
@@ -959,7 +1030,7 @@ void running_machine::stop_all_devices()
 {
 	// first let the debugger save comments
 	if ((debug_flags & DEBUG_FLAG_ENABLED) != 0)
-		debug_comment_save(*this);
+		debugger().cpu().comment_save();
 
 	// iterate over devices and stop them
 	for (device_t &device : device_iterator(root_device()))
@@ -1110,7 +1181,32 @@ running_machine::logerror_callback_item::logerror_callback_item(logerror_callbac
 {
 }
 
+void running_machine::export_http_api()
+{
+	if (!options().http()) return;
 
+	m_manager.http_server()->on_get("/api/machine", [this](auto response, auto request)
+	{
+		rapidjson::StringBuffer s;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(s);
+		writer.StartObject();
+		writer.Key("name");
+		writer.String(m_basename.c_str());
+
+		writer.Key("devices");
+		writer.StartArray();
+
+		device_iterator iter(this->root_device());
+		for (device_t &device : iter)
+			writer.String(device.tag());
+
+		writer.EndArray();
+		writer.EndObject();
+
+		response->type("application/json");
+		response->status(200).send(s.GetString());
+	});
+}
 
 //**************************************************************************
 //  SYSTEM TIME
@@ -1123,6 +1219,11 @@ running_machine::logerror_callback_item::logerror_callback_item(logerror_callbac
 system_time::system_time()
 {
 	set(0);
+}
+
+system_time::system_time(time_t t)
+{
+	set(t);
 }
 
 
@@ -1156,6 +1257,48 @@ void system_time::full_time::set(struct tm &t)
 	is_dst  = t.tm_isdst;
 }
 
+
+
+//**************************************************************************
+//  DUMMY ADDRESS SPACE
+//**************************************************************************
+
+READ8_MEMBER(dummy_space_device::read)
+{
+	throw emu_fatalerror("Attempted to read from generic address space (offs %X)\n", offset);
+}
+
+WRITE8_MEMBER(dummy_space_device::write)
+{
+	throw emu_fatalerror("Attempted to write to generic address space (offs %X = %02X)\n", offset, data);
+}
+
+static ADDRESS_MAP_START(dummy, AS_0, 8, dummy_space_device)
+	AM_RANGE(0x00000000, 0xffffffff) AM_READWRITE(read, write)
+ADDRESS_MAP_END
+
+const device_type DUMMY_SPACE = &device_creator<dummy_space_device>;
+
+dummy_space_device::dummy_space_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock) :
+	device_t(mconfig, DUMMY_SPACE, "Dummy Space", tag, owner, clock, "dummy_space", __FILE__),
+	device_memory_interface(mconfig, *this),
+	m_space_config("dummy", ENDIANNESS_LITTLE, 8, 32, 0, nullptr, *ADDRESS_MAP_NAME(dummy))
+{
+}
+
+void dummy_space_device::device_start()
+{
+}
+
+//-------------------------------------------------
+//  memory_space_config - return a description of
+//  any address spaces owned by this device
+//-------------------------------------------------
+
+const address_space_config *dummy_space_device::memory_space_config(address_spacenum spacenum) const
+{
+	return (spacenum == 0) ? &m_space_config : nullptr;
+}
 
 
 //**************************************************************************

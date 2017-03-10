@@ -8,29 +8,34 @@
 
 #pragma once
 
-#ifndef __UI_FLOPPY_IMAGE_H__
-#define __UI_FLOPPY_IMAGE_H__
+#ifndef MAME_FRONTEND_UI_FLOPPYCNTRL_H
+#define MAME_FRONTEND_UI_FLOPPYCNTRL_H
+
+#include "ui/imgcntrl.h"
 
 #include "imagedev/floppy.h"
 #include "formats/flopimg.h"
 
-class ui_menu_control_floppy_image : public ui_menu_control_device_image {
+namespace ui {
+class menu_control_floppy_image : public menu_control_device_image
+{
 public:
-	ui_menu_control_floppy_image(mame_ui_manager &ui, render_container *container, device_image_interface *image);
-	virtual ~ui_menu_control_floppy_image();
+	menu_control_floppy_image(mame_ui_manager &ui, render_container &container, device_image_interface &image);
+	virtual ~menu_control_floppy_image() override;
 
-	virtual void handle() override;
-
-protected:
+private:
 	enum { SELECT_FORMAT = LAST_ID, SELECT_MEDIA, SELECT_RW };
 
 	floppy_image_format_t **format_array;
 	floppy_image_format_t *input_format, *output_format;
 	std::string input_filename, output_filename;
 
+	virtual void handle() override;
+
 	void do_load_create();
-	virtual void hook_load(std::string filename, bool softlist) override;
+	virtual void hook_load(const std::string &filename) override;
 };
 
+} // namespace ui
 
-#endif /* __UI_FLOPPY_IMAGE_H__ */
+#endif /* MAME_FRONTEND_UI_FLOPPYCNTRL_H */

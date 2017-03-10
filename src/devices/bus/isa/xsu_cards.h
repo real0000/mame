@@ -11,7 +11,6 @@
 #ifndef __XSU_CARDS_H__
 #define __XSU_CARDS_H__
 
-#include "emu.h"
 
 #include "cga.h"
 // storage
@@ -22,6 +21,7 @@
 // misc
 #include "mc1502_rom.h"
 #include "p1_rom.h"
+#include "p1_sound.h"
 
 // non-native
 #include "com.h"

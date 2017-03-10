@@ -6,6 +6,7 @@
 
 *************************************************************************/
 
+#include "machine/gen_latch.h"
 #include "machine/nvram.h"
 #include "machine/watchdog.h"
 #include "video/tms34061.h"
@@ -25,6 +26,7 @@ public:
 		m_audiocpu(*this, "audiocpu"),
 		m_tms34061(*this, "tms34061"),
 		m_screen(*this, "screen"),
+		m_soundlatch(*this, "soundlatch"),
 		m_rowaddress(*this, "rowaddress") { }
 
 	/* devices */
@@ -33,15 +35,16 @@ public:
 	required_device<cpu_device> m_audiocpu;
 	required_device<tms34061_device> m_tms34061;
 	required_device<screen_device> m_screen;
+	required_device<generic_latch_8_device> m_soundlatch;
 
 	/* memory pointers */
-	required_shared_ptr<UINT8> m_rowaddress;
+	required_shared_ptr<uint8_t> m_rowaddress;
 
 	/* video-related */
 	offs_t m_blitter_addr;
 
 	/* input-related */
-	UINT8 m_last_trackball_val[2];
+	uint8_t m_last_trackball_val[2];
 
 	emu_timer *m_update_timer;
 
@@ -67,8 +70,8 @@ public:
 	INTERRUPT_GEN_MEMBER(interrupt);
 	TIMER_CALLBACK_MEMBER(update);
 
-	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	inline rgb_t pen_for_pixel( UINT8 *src, UINT8 pix );
+	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	inline rgb_t pen_for_pixel( uint8_t *src, uint8_t pix );
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;

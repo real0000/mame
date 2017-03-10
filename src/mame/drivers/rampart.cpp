@@ -28,7 +28,7 @@
 #include "cpu/m68000/m68000.h"
 #include "machine/watchdog.h"
 #include "sound/okim6295.h"
-#include "sound/2413intf.h"
+#include "sound/ym2413.h"
 #include "includes/rampart.h"
 
 
@@ -51,7 +51,7 @@ void rampart_state::scanline_update(screen_device &screen, int scanline)
 {
 	/* generate 32V signals */
 	if ((scanline & 32) == 0)
-		scanline_int_gen(m_maincpu);
+		scanline_int_gen(*m_maincpu);
 }
 
 
@@ -480,7 +480,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(rampart_state,rampart)
 {
-	UINT8 *rom = memregion("maincpu")->base();
+	uint8_t *rom = memregion("maincpu")->base();
 
 	memcpy(&rom[0x140000], &rom[0x40000], 0x8000);
 	slapstic_configure(*m_maincpu, 0x140000, 0x438000, memregion("maincpu")->base() + 0x140000);

@@ -11,7 +11,6 @@
 #ifndef __SERIAL_BOX__
 #define __SERIAL_BOX__
 
-#include "emu.h"
 #include "cpu/m6502/m65c02.h"
 #include "bus/cbmiec/cbmiec.h"
 
@@ -36,10 +35,10 @@ class serial_box_device :  public device_t,
 {
 public:
 	// construction/destruction
-	serial_box_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	serial_box_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// optional information overrides
-	virtual const rom_entry *device_rom_region() const override;
+	virtual const tiny_rom_entry *device_rom_region() const override;
 	virtual machine_config_constructor device_mconfig_additions() const override;
 
 protected:

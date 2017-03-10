@@ -40,14 +40,6 @@
 #include "includes/crospang.h"
 
 
-WRITE16_MEMBER(crospang_state::crospang_soundlatch_w)
-{
-	if(ACCESSING_BITS_0_7)
-	{
-		soundlatch_byte_w(space, 0, data & 0xff);
-	}
-}
-
 /* main cpu */
 
 static ADDRESS_MAP_START( crospang_base_map, AS_PROGRAM, 16, crospang_state )
@@ -57,7 +49,7 @@ static ADDRESS_MAP_START( crospang_base_map, AS_PROGRAM, 16, crospang_state )
 	AM_RANGE(0x122000, 0x1227ff) AM_RAM_WRITE(crospang_bg_videoram_w) AM_SHARE("bg_videoram")
 	AM_RANGE(0x200000, 0x2005ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x210000, 0x2107ff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x270000, 0x270001) AM_WRITE(crospang_soundlatch_w)
+	AM_RANGE(0x270000, 0x270001) AM_DEVWRITE8("soundlatch", generic_latch_8_device, write, 0x00ff)
 	AM_RANGE(0x270004, 0x270007) AM_WRITENOP // ??
 	AM_RANGE(0x280000, 0x280001) AM_READ_PORT("P1_P2")
 	AM_RANGE(0x280002, 0x280003) AM_READ_PORT("COIN")
@@ -114,7 +106,7 @@ static ADDRESS_MAP_START( crospang_sound_io_map, AS_IO, 8, crospang_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)
 	AM_RANGE(0x02, 0x02) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0x06, 0x06) AM_READ(soundlatch_byte_r)
+	AM_RANGE(0x06, 0x06) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
 ADDRESS_MAP_END
 
 
@@ -377,6 +369,8 @@ static MACHINE_CONFIG_START( crospang, crospang_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+
 	MCFG_SOUND_ADD("ymsnd", YM3812, 14318180/4)
 	MCFG_YM3812_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
@@ -602,7 +596,7 @@ ROM_END
 
 void crospang_state::tumblepb_gfx1_rearrange()
 {
-	UINT8 *rom = memregion("gfx1")->base();
+	uint8_t *rom = memregion("gfx1")->base();
 	int len = memregion("gfx1")->bytes();
 	int i;
 

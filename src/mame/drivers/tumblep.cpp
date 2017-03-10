@@ -45,7 +45,7 @@ Stephh's notes (based on the games M68000 code and some tests) :
 #include "cpu/m68000/m68000.h"
 #include "cpu/h6280/h6280.h"
 #include "machine/decocrpt.h"
-#include "sound/2151intf.h"
+#include "sound/ym2151.h"
 #include "sound/3812intf.h"
 #include "sound/okim6295.h"
 #include "includes/tumblep.h"
@@ -376,10 +376,10 @@ ROM_END
 /******************************************************************************/
 
 #if TUMBLEP_HACK
-void ::tumblep_patch_code(UINT16 offset)
+void ::tumblep_patch_code(uint16_t offset)
 {
 	/* A hack which enables all Dip Switches effects */
-	UINT16 *RAM = (UINT16 *)memregion("maincpu")->base();
+	uint16_t *RAM = (uint16_t *)memregion("maincpu")->base();
 	RAM[(offset + 0)/2] = 0x0240;
 	RAM[(offset + 2)/2] = 0xffff;   // andi.w  #$f3ff, D0
 }

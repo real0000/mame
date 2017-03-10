@@ -9,50 +9,68 @@
 *********************************************************************/
 
 #include "emu.h"
-#include "mame.h"
-#include "luaengine.h"
 
 #include "ui/pluginopt.h"
 
-void ui_menu_plugin::handle()
+#include "mame.h"
+#include "luaengine.h"
+
+
+namespace ui {
+void menu_plugin::handle()
 {
-	const ui_menu_event *menu_event = process(0);
+	const event *menu_event = process(0);
 
 	if (menu_event != nullptr && menu_event->itemref != nullptr)
 	{
 		if (menu_event->iptkey == IPT_UI_SELECT)
-			ui_menu::stack_push(global_alloc_clear<ui_menu_plugin_opt>(ui(), container, (char *)menu_event->itemref));
+			menu::stack_push<menu_plugin_opt>(ui(), container(), (char *)menu_event->itemref);
 	}
 }
 
-ui_menu_plugin::ui_menu_plugin(mame_ui_manager &mui, render_container *container) :
-		ui_menu(mui, container),
+menu_plugin::menu_plugin(mame_ui_manager &mui, render_container &container) :
+		menu(mui, container),
 		m_plugins(mame_machine_manager::instance()->lua()->get_menu())
 {
 }
 
-void ui_menu_plugin::populate()
+void menu_plugin::populate(float &customtop, float &custombottom)
 {
 	for (auto &curplugin : m_plugins)
-		item_append(curplugin.c_str(), nullptr, 0, (void *)curplugin.c_str());
-	item_append(ui_menu_item_type::SEPARATOR);
+		item_append(curplugin, "", 0, (void *)curplugin.c_str());
+	item_append(menu_item_type::SEPARATOR);
 }
 
-ui_menu_plugin::~ui_menu_plugin()
+void menu_plugin::show_menu(mame_ui_manager &mui, render_container &container, char *menu)
+{
+	// reset the menu stack
+	menu::stack_reset(mui.machine());
+
+	// add the plugin menu entry
+	menu::stack_push<menu_plugin_opt>(mui, container, menu);
+
+	// force the menus on
+	mui.show_menu();
+
+	// make sure MAME is paused
+	mui.machine().pause();
+}
+
+menu_plugin::~menu_plugin()
 {
 }
 
-ui_menu_plugin_opt::ui_menu_plugin_opt(mame_ui_manager &mui, render_container *container, char *menu) :
-		ui_menu(mui, container),
+menu_plugin_opt::menu_plugin_opt(mame_ui_manager &mui, render_container &container, char *menu) :
+		ui::menu(mui, container),
 		m_menu(menu)
 {
 }
 
-void ui_menu_plugin_opt::handle()
+void menu_plugin_opt::handle()
 {
-	const ui_menu_event *menu_event = process(0);
+	const event *menu_event = process(0);
 
-	if (menu_event != nullptr && (FPTR)menu_event->itemref)
+	if (menu_event != nullptr && (uintptr_t)menu_event->itemref)
 	{
 		std::string key;
 		switch(menu_event->iptkey)
@@ -81,33 +99,45 @@ void ui_menu_plugin_opt::handle()
 			default:
 				return;
 		}
-		if(mame_machine_manager::instance()->lua()->menu_callback(m_menu, (FPTR)menu_event->itemref, key))
-			reset(UI_MENU_RESET_REMEMBER_REF);
+		if(mame_machine_manager::instance()->lua()->menu_callback(m_menu, (uintptr_t)menu_event->itemref, key))
+			reset(reset_options::REMEMBER_REF);
 	}
 }
 
-void ui_menu_plugin_opt::populate()
+void menu_plugin_opt::populate(float &customtop, float &custombottom)
 {
-	std::vector<lua_engine::menu_item> menu_list;
+	std::vector<std::tuple<std::string, std::string, std::string>> menu_list;
 	mame_machine_manager::instance()->lua()->menu_populate(m_menu, menu_list);
-	FPTR i = 1;
+	uintptr_t i = 1;
 	for(auto &item : menu_list)
 	{
-		UINT32 flags = 0;
-		if(item.flags == "off")
-			flags = MENU_FLAG_DISABLE;
-		else if(item.flags == "l")
-			flags = MENU_FLAG_LEFT_ARROW;
-		else if(item.flags == "r")
-			flags = MENU_FLAG_RIGHT_ARROW;
-		else if(item.flags == "lr")
-			flags = MENU_FLAG_RIGHT_ARROW | MENU_FLAG_LEFT_ARROW;
+		const std::string &text = std::get<0>(item);
+		const std::string &subtext = std::get<1>(item);
+		const std::string &tflags = std::get<2>(item);
 
-		item_append(item.text.c_str(), item.subtext.c_str(), flags, (void *)i++);
+		uint32_t flags = 0;
+		if(tflags == "off")
+			flags = FLAG_DISABLE;
+		else if(tflags == "l")
+			flags = FLAG_LEFT_ARROW;
+		else if(tflags == "r")
+			flags = FLAG_RIGHT_ARROW;
+		else if(tflags == "lr")
+			flags = FLAG_RIGHT_ARROW | FLAG_LEFT_ARROW;
+
+		if(text == "---")
+		{
+			item_append(menu_item_type::SEPARATOR);
+			i++;
+		}
+		else
+			item_append(text, subtext, flags, (void *)i++);
 	}
-	item_append(ui_menu_item_type::SEPARATOR);
+	item_append(menu_item_type::SEPARATOR);
 }
 
-ui_menu_plugin_opt::~ui_menu_plugin_opt()
+menu_plugin_opt::~menu_plugin_opt()
 {
 }
+
+} // namespace ui

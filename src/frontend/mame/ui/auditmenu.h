@@ -10,32 +10,38 @@
 
 #pragma once
 
-#ifndef __UI_AUDIT_H__
-#define __UI_AUDIT_H__
+#ifndef MAME_FRONTEND_UI_AUDITMENU_H
+#define MAME_FRONTEND_UI_AUDITMENU_H
 
+#include "ui/menu.h"
+
+namespace ui {
 //-------------------------------------------------
 //  class audit menu
 //-------------------------------------------------
 using vptr_game = std::vector<const game_driver *>;
 
-class ui_menu_audit : public ui_menu
+class menu_audit : public menu
 {
 public:
-	ui_menu_audit(mame_ui_manager &mui, render_container *container, vptr_game &availablesorted, vptr_game &unavailablesorted, int audit_mode);
-	virtual ~ui_menu_audit();
-	virtual void populate() override;
-	virtual void handle() override;
+	menu_audit(mame_ui_manager &mui, render_container &container, vptr_game &availablesorted, vptr_game &unavailablesorted, int audit_mode);
+	virtual ~menu_audit() override;
 
 private:
+	virtual void populate(float &customtop, float &custombottom) override;
+	virtual void handle() override;
+
+	void save_available_machines();
+
 	vptr_game &m_availablesorted;
 	vptr_game &m_unavailablesorted;
 
 	int m_audit_mode;
-	void save_available_machines();
 	bool m_first;
 };
 
-inline int cs_stricmp(const char *s1, const char *s2);
 bool sorted_game_list(const game_driver *x, const game_driver *y);
 
-#endif /* __UI_AUDIT_H__ */
+} // namespace ui
+
+#endif /* MAME_FRONTEND_UI_AUDITMENU_H */

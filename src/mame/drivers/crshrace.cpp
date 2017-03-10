@@ -15,7 +15,7 @@ Stephh's notes (based on the games M68000 code and some tests) :
 
 0) all games
 
-  - There seems to be preliminary support for 3 simulataneous players, but the
+  - There seems to be preliminary support for 3 simultaneous players, but the
     game resets before the race starts if the 3 players don't play against each
     other ! I can't tell however if it's an ingame or an emulation bug.
     To test this, change CRSHRACE_3P_HACK to 1, set the "Reset on P.O.S.T. Error"
@@ -143,14 +143,11 @@ WRITE8_MEMBER(crshrace_state::crshrace_sh_bankswitch_w)
 	m_z80bank->set_entry(data & 0x03);
 }
 
-WRITE16_MEMBER(crshrace_state::sound_command_w)
+WRITE8_MEMBER(crshrace_state::sound_command_w)
 {
-	if (ACCESSING_BITS_0_7)
-	{
-		m_pending_command = 1;
-		soundlatch_byte_w(space, offset, data & 0xff);
-		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
-	}
+	m_pending_command = 1;
+	m_soundlatch->write(space, offset, data & 0xff);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 CUSTOM_INPUT_MEMBER(crshrace_state::country_sndpending_r)
@@ -162,7 +159,6 @@ WRITE8_MEMBER(crshrace_state::pending_command_clear_w)
 {
 	m_pending_command = 0;
 }
-
 
 
 static ADDRESS_MAP_START( crshrace_map, AS_PROGRAM, 16, crshrace_state )
@@ -180,7 +176,7 @@ static ADDRESS_MAP_START( crshrace_map, AS_PROGRAM, 16, crshrace_state )
 	AM_RANGE(0xfff002, 0xfff003) AM_READ_PORT("P2")
 	AM_RANGE(0xfff004, 0xfff005) AM_READ_PORT("DSW0")
 	AM_RANGE(0xfff006, 0xfff007) AM_READ_PORT("DSW2")
-	AM_RANGE(0xfff008, 0xfff009) AM_WRITE(sound_command_w)
+	AM_RANGE(0xfff008, 0xfff009) AM_WRITE8(sound_command_w, 0x00ff)
 	AM_RANGE(0xfff00a, 0xfff00b) AM_READ_PORT("DSW1")
 	AM_RANGE(0xfff00e, 0xfff00f) AM_READ_PORT("P3")
 	AM_RANGE(0xfff020, 0xfff03f) AM_DEVWRITE("k053936", k053936_device, ctrl_w)
@@ -196,7 +192,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_io_map, AS_IO, 8, crshrace_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_WRITE(crshrace_sh_bankswitch_w)
-	AM_RANGE(0x04, 0x04) AM_READ(soundlatch_byte_r) AM_WRITE(pending_command_clear_w)
+	AM_RANGE(0x04, 0x04) AM_DEVREAD("soundlatch", generic_latch_8_device, read) AM_WRITE(pending_command_clear_w)
 	AM_RANGE(0x08, 0x0b) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
 ADDRESS_MAP_END
 
@@ -402,12 +398,6 @@ static GFXDECODE_START( crshrace )
 GFXDECODE_END
 
 
-
-WRITE_LINE_MEMBER(crshrace_state::irqhandler)
-{
-	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
-}
-
 void crshrace_state::machine_start()
 {
 	m_z80bank->configure_entries(0, 4, memregion("audiocpu")->base() + 0x10000, 0x8000);
@@ -466,8 +456,10 @@ static MACHINE_CONFIG_START( crshrace, crshrace_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_YM2610_IRQ_HANDLER(WRITELINE(crshrace_state, irqhandler))
+	MCFG_YM2610_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -545,10 +537,10 @@ ROM_END
 
 
 #ifdef UNUSED_FUNCTION
-void crshrace_state::crshrace_patch_code( UINT16 offset )
+void crshrace_state::crshrace_patch_code( uint16_t offset )
 {
 	/* A hack which shows 3 player mode in code which is disabled */
-	UINT16 *RAM = (UINT16 *)memregion("maincpu")->base();
+	uint16_t *RAM = (uint16_t *)memregion("maincpu")->base();
 	RAM[(offset + 0)/2] = 0x4e71;
 	RAM[(offset + 2)/2] = 0x4e71;
 	RAM[(offset + 4)/2] = 0x4e71;

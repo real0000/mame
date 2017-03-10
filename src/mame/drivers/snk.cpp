@@ -92,7 +92,7 @@ Notes:
   a bug. The service mode functionality is very limited anyway. To get past the
   failed ROM test and see the service mode, use this ROM patch:
 
-    UINT8 *mem = machine.root_device().memregion("maincpu")->base();
+    uint8_t *mem = machine.root_device().memregion("maincpu")->base();
     mem[0x3a5d] = mem[0x3a5e] = mem[0x3a5f] = 0;
 
 - The "SNK Wave" custom sound circuitry is only actually used by marvins and
@@ -116,7 +116,7 @@ Notes:
   multiple times to select the spin. The flyer also says that the game "includes
   the unique feature of 2 distinct styles of game play, selectable by dipswitch
   setting. For the avid golfer, a more challenging style of swing.".
-  This feature only exists when "Language" Dip Swicth is set to "English"
+  This feature only exists when "Language" Dip Switch is set to "English"
 
 - fitegolfu:  An "SNK Fighting Golf Program Update" notice published in a trade
   journal outlines 3 improvements which is supposed to allow game players a bit
@@ -328,14 +328,14 @@ enum
 WRITE8_MEMBER(snk_state::marvins_soundlatch_w)
 {
 	m_marvins_sound_busy_flag = 1;
-	soundlatch_byte_w(space, offset, data);
+	m_soundlatch->write(space, offset, data);
 	m_audiocpu->set_input_line(0, HOLD_LINE);
 }
 
 READ8_MEMBER(snk_state::marvins_soundlatch_r)
 {
 	m_marvins_sound_busy_flag = 0;
-	return soundlatch_byte_r(space, 0);
+	return m_soundlatch->read(space, 0);
 }
 
 CUSTOM_INPUT_MEMBER(snk_state::marvins_sound_busy)
@@ -374,14 +374,14 @@ TIMER_CALLBACK_MEMBER(snk_state::sgladiat_sndirq_update_callback)
 
 WRITE8_MEMBER(snk_state::sgladiat_soundlatch_w)
 {
-	soundlatch_byte_w(space, offset, data);
+	m_soundlatch->write(space, offset, data);
 	machine().scheduler().synchronize(timer_expired_delegate(FUNC(snk_state::sgladiat_sndirq_update_callback),this), CMDIRQ_BUSY_ASSERT);
 }
 
 READ8_MEMBER(snk_state::sgladiat_soundlatch_r)
 {
 	machine().scheduler().synchronize(timer_expired_delegate(FUNC(snk_state::sgladiat_sndirq_update_callback),this), BUSY_CLEAR);
-	return soundlatch_byte_r(space,0);
+	return m_soundlatch->read(space,0);
 }
 
 READ8_MEMBER(snk_state::sgladiat_sound_nmi_ack_r)
@@ -474,7 +474,7 @@ WRITE_LINE_MEMBER(snk_state::ymirq_callback_2)
 
 WRITE8_MEMBER(snk_state::snk_soundlatch_w)
 {
-	soundlatch_byte_w(space, offset, data);
+	m_soundlatch->write(space, offset, data);
 	machine().scheduler().synchronize(timer_expired_delegate(FUNC(snk_state::sndirq_update_callback),this), CMDIRQ_BUSY_ASSERT);
 }
 
@@ -522,7 +522,7 @@ READ8_MEMBER(snk_state::tnk3_ymirq_ack_r)
 READ8_MEMBER(snk_state::tnk3_busy_clear_r)
 {
 	// it's uncertain whether the latch should be cleared here or when it's read
-	soundlatch_clear_byte_w(space, 0, 0);
+	m_soundlatch->clear_w(space, 0, 0);
 	machine().scheduler().synchronize(timer_expired_delegate(FUNC(snk_state::sndirq_update_callback),this), BUSY_CLEAR);
 	return 0xff;
 }
@@ -567,7 +567,7 @@ WRITE8_MEMBER(snk_state::hardflags_scroll_msb_w)
 
 int snk_state::hardflags_check(int num)
 {
-	const UINT8 *sr = &m_spriteram[0x800 + 4*num];
+	const uint8_t *sr = &m_spriteram[0x800 + 4*num];
 	int x = sr[2] + ((sr[3] & 0x80) << 1);
 	int y = sr[0] + ((sr[3] & 0x10) << 4);
 
@@ -659,7 +659,7 @@ WRITE8_MEMBER(snk_state::turbocheck_msb_w)
 
 int snk_state::turbofront_check(int small, int num)
 {
-	const UINT8 *sr = &m_spriteram[0x800*small + 4*num];
+	const uint8_t *sr = &m_spriteram[0x800*small + 4*num];
 	int x = sr[2] + ((sr[3] & 0x80) << 1);
 	int y = sr[0] + ((sr[3] & 0x10) << 4);
 
@@ -719,7 +719,7 @@ hand, always returning 0xf inbetween valid values confuses the game.
 CUSTOM_INPUT_MEMBER(snk_state::gwar_rotary)
 {
 	static const char *const ports[] = { "P1ROT", "P2ROT" };
-	int which = (int)(FPTR)param;
+	int which = (int)(uintptr_t)param;
 	int value = ioport(ports[which])->read();
 
 	if ((m_last_value[which] == 0x5 && value == 0x6) || (m_last_value[which] == 0x6 && value == 0x5))
@@ -795,7 +795,7 @@ CUSTOM_INPUT_MEMBER(snk_state::countryc_trackball_y)
 
 CUSTOM_INPUT_MEMBER(snk_state::snk_bonus_r)
 {
-	int bit_mask = (FPTR)param;
+	int bit_mask = (uintptr_t)param;
 
 	switch (bit_mask)
 	{
@@ -1410,7 +1410,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( tnk3_YM3526_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
-	AM_RANGE(0xa000, 0xa000) AM_READ(soundlatch_byte_r)
+	AM_RANGE(0xa000, 0xa000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
 	AM_RANGE(0xc000, 0xc000) AM_READ(tnk3_busy_clear_r)
 	AM_RANGE(0xe000, 0xe001) AM_DEVREADWRITE("ym1", ym3526_device, read, write)
 	AM_RANGE(0xe004, 0xe004) AM_READ(tnk3_cmdirq_ack_r)
@@ -1420,7 +1420,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( aso_YM3526_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM
-	AM_RANGE(0xd000, 0xd000) AM_READ(soundlatch_byte_r)
+	AM_RANGE(0xd000, 0xd000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
 	AM_RANGE(0xe000, 0xe000) AM_READ(tnk3_busy_clear_r)
 	AM_RANGE(0xf000, 0xf001) AM_DEVREADWRITE("ym1", ym3526_device, read, write)
 //  AM_RANGE(0xf002, 0xf002) AM_READNOP unknown
@@ -1431,7 +1431,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( YM3526_YM3526_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
-	AM_RANGE(0xe000, 0xe000) AM_READ(soundlatch_byte_r)
+	AM_RANGE(0xe000, 0xe000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
 	AM_RANGE(0xe800, 0xe800) AM_DEVREADWRITE("ym1", ym3526_device, status_port_r, control_port_w)
 	AM_RANGE(0xec00, 0xec00) AM_DEVWRITE("ym1", ym3526_device, write_port_w)
 	AM_RANGE(0xf000, 0xf000) AM_DEVREADWRITE("ym2", ym3526_device, status_port_r, control_port_w)
@@ -1442,7 +1442,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( YM3812_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
-	AM_RANGE(0xe000, 0xe000) AM_READ(soundlatch_byte_r)
+	AM_RANGE(0xe000, 0xe000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
 	AM_RANGE(0xe800, 0xe800) AM_DEVREADWRITE("ym1", ym3812_device, status_port_r, control_port_w)
 	AM_RANGE(0xec00, 0xec00) AM_DEVWRITE("ym1", ym3812_device, write_port_w)
 	AM_RANGE(0xf800, 0xf800) AM_READWRITE(snk_sound_status_r, snk_sound_status_w)
@@ -1451,7 +1451,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( YM3526_Y8950_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
-	AM_RANGE(0xe000, 0xe000) AM_READ(soundlatch_byte_r)
+	AM_RANGE(0xe000, 0xe000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
 	AM_RANGE(0xe800, 0xe800) AM_DEVREADWRITE("ym1", ym3526_device, status_port_r, control_port_w)
 	AM_RANGE(0xec00, 0xec00) AM_DEVWRITE("ym1", ym3526_device, write_port_w)
 	AM_RANGE(0xf000, 0xf000) AM_DEVREADWRITE("ym2", y8950_device, status_port_r, control_port_w)
@@ -1462,7 +1462,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( YM3812_Y8950_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
-	AM_RANGE(0xe000, 0xe000) AM_READ(soundlatch_byte_r)
+	AM_RANGE(0xe000, 0xe000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
 	AM_RANGE(0xe800, 0xe800) AM_DEVREADWRITE("ym1", ym3812_device, status_port_r, control_port_w)
 	AM_RANGE(0xec00, 0xec00) AM_DEVWRITE("ym1", ym3812_device, write_port_w)
 	AM_RANGE(0xf000, 0xf000) AM_DEVREADWRITE("ym2", y8950_device, status_port_r, control_port_w)
@@ -1473,7 +1473,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( Y8950_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
-	AM_RANGE(0xe000, 0xe000) AM_READ(soundlatch_byte_r)
+	AM_RANGE(0xe000, 0xe000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
 	AM_RANGE(0xf000, 0xf000) AM_DEVREADWRITE("ym2", y8950_device, status_port_r, control_port_w)
 	AM_RANGE(0xf400, 0xf400) AM_DEVWRITE("ym2", y8950_device, write_port_w)
 	AM_RANGE(0xf800, 0xf800) AM_READWRITE(snk_sound_status_r, snk_sound_status_w)
@@ -3643,6 +3643,8 @@ static MACHINE_CONFIG_START( marvins, snk_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+
 	MCFG_SOUND_ADD("ay1", AY8910, 2000000)  /* verified on schematics */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35)
 
@@ -3712,6 +3714,8 @@ static MACHINE_CONFIG_START( jcross, snk_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 2000000)  /* NOT verified */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35)
@@ -3791,6 +3795,8 @@ static MACHINE_CONFIG_START( tnk3, snk_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
 
 	MCFG_SOUND_ADD("ym1", YM3526, XTAL_8MHz/2) /* verified on pcb */
 	MCFG_YM3526_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_1))
@@ -3881,6 +3887,8 @@ static MACHINE_CONFIG_START( ikari, snk_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+
 	MCFG_SOUND_ADD("ym1", YM3526, XTAL_8MHz/2) /* verified on pcb */
 	MCFG_YM3526_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_1))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 2.0)
@@ -3935,6 +3943,8 @@ static MACHINE_CONFIG_START( bermudat, snk_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
 
 	MCFG_SOUND_ADD("ym1", YM3526, XTAL_8MHz/2) /* verified on pcb */
 	MCFG_YM3526_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_1))
@@ -4033,6 +4043,8 @@ static MACHINE_CONFIG_START( tdfever, snk_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
 
 	MCFG_SOUND_ADD("ym1", YM3526, 4000000)
 	MCFG_YM3526_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_1))
@@ -4244,6 +4256,42 @@ ROM_START( jcross )
 	ROM_LOAD( "jcrossp2.j7",  0x000, 0x400, CRC(b72a96a5) SHA1(20d40e4b6a2652e61dc3ad0c4afaec04e3c7cf74) )
 	ROM_LOAD( "jcrossp1.j8",  0x400, 0x400, CRC(35650448) SHA1(17e4a661ff304c093bb0253efceaf4e9b2498924) )
 	ROM_LOAD( "jcrossp0.j9",  0x800, 0x400, CRC(99f54d48) SHA1(9bd20eaa9706d28eaca9f5e195204d89e302272f) )
+ROM_END
+
+ROM_START( jcrossa )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "snk9.bin",      0x0000, 0x2000, CRC(3c93485d) SHA1(37e319cccd77d21d3ba49a5975eb8075f0f96843) )
+	ROM_LOAD( "snk8.bin",      0x2000, 0x2000, CRC(15a55781) SHA1(03fd131c2df7ebcc6741067e5bc2539697fd5f2a) )
+	ROM_LOAD( "snk7.bin",      0x4000, 0x2000, CRC(ac89e49c) SHA1(9b9a0eec8ad341ce7af58bffe55f10bec696af62) )
+	ROM_LOAD( "snk6.bin",      0x6000, 0x2000, CRC(4fd7848d) SHA1(870aea0b8e027616814df87afd24418fd140f736) )
+	ROM_LOAD( "snk5.bin",      0x8000, 0x2000, CRC(8500575d) SHA1(b8751b86508de484f2eb8a6702c63a47ec882036) )
+
+	ROM_REGION( 0x10000, "sub", 0 )
+	ROM_LOAD( "snk1.bin",      0x0000, 0x2000, CRC(77ed51e7) SHA1(56b457846f71f442da6f99889231d4b71d5fcb6c) )
+	ROM_LOAD( "snk2.bin",      0x2000, 0x2000, CRC(23cf0f70) SHA1(f258e899f332a026eeb0db92330fd60c478218af) )
+	ROM_LOAD( "snk3.bin",      0x4000, 0x2000, CRC(5bed3118) SHA1(f105ca55223a4bfbc8e2d61c365c76cf2153254c) )
+	ROM_LOAD( "snk4.bin",      0x6000, 0x2000, CRC(cd75dc95) SHA1(ef03d2b0f66f30fad5132e7b6aee9ec978650b53) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )
+	ROM_LOAD( "jcrosss0.f1",   0x0000, 0x2000, CRC(9ae8ea93) SHA1(1d824302305a41bf5c354c36e2e11981d1aa5ea4) ) // not dumped, taken from parent
+	ROM_LOAD( "snk11.bin",     0x2000, 0x2000, CRC(83785601) SHA1(cd3d484ef5464090c4b543b1edbbedcc52b15071) )
+
+	ROM_REGION( 0x4000, "tx_tiles", 0 )
+	ROM_LOAD( "jcrossb4.10a",  0x0000, 0x2000, CRC(08ad93fe) SHA1(04baf2d9735b0d794b114abeced5a6b899958ce7) ) // not dumped, taken from parent
+	ROM_LOAD( "jcrosss.d2",    0x2000, 0x2000, CRC(3ebb5beb) SHA1(de0a1f0fdb5b08b76dab9fa64d9ae3047c4ff84b) ) // not dumped, taken from parent
+
+	ROM_REGION( 0x2000, "bg_tiles", 0 )
+	ROM_LOAD( "jcrossb1.a2",   0x0000, 0x2000, CRC(ea3dfbc9) SHA1(eee56acd1c9dbc6c3ecdee4ffe860273e65cc09b) ) // not dumped, taken from parent
+
+	ROM_REGION( 0x6000, "sp16_tiles", 0 )
+	ROM_LOAD( "snk12.bin",     0x0000, 0x2000, CRC(4532509b) SHA1(c99f87e2b06b94d815e6099bccb2aee0edf8c98d) )
+	ROM_LOAD( "snk13.bin",     0x2000, 0x2000, CRC(70d219bf) SHA1(9ff9f88221edd141e8204ac810434b4290db7cff) )
+	ROM_LOAD( "snk14.bin",     0x4000, 0x2000, CRC(42a12b9d) SHA1(9f2bdb1f84f444442282cf0fc1f7b3c7f9a9bf48) )
+
+	ROM_REGION( 0x0c00, "proms", 0 )
+	ROM_LOAD( "jcrossp2.j7",  0x000, 0x400, CRC(b72a96a5) SHA1(20d40e4b6a2652e61dc3ad0c4afaec04e3c7cf74) ) // not dumped, taken from parent
+	ROM_LOAD( "jcrossp1.j8",  0x400, 0x400, CRC(35650448) SHA1(17e4a661ff304c093bb0253efceaf4e9b2498924) ) // not dumped, taken from parent
+	ROM_LOAD( "jcrossp0.j9",  0x800, 0x400, CRC(99f54d48) SHA1(9bd20eaa9706d28eaca9f5e195204d89e302272f) ) // not dumped, taken from parent
 ROM_END
 
 /***********************************************************************/
@@ -6350,7 +6398,8 @@ GAME( 1984, vangrd2,  0,        vangrd2,  vangrd2, driver_device,  0,        ROT
 GAME( 1984, madcrash, 0,        vangrd2,  madcrash, driver_device, 0,        ROT0,   "SNK", "Mad Crasher", 0 )
 GAME( 1984, madcrush, madcrash, madcrush, madcrash, driver_device, 0,        ROT0,   "SNK", "Mad Crusher (Japan)", 0 )
 
-GAME( 1984, jcross,   0,        jcross,   jcross, driver_device,   0,        ROT270, "SNK", "Jumping Cross", 0 )
+GAME( 1984, jcross,   0,        jcross,   jcross, driver_device,   0,        ROT270, "SNK", "Jumping Cross (set 1)", 0 )
+GAME( 1984, jcrossa,  jcross,   jcross,   jcross, driver_device,   0,        ROT270, "SNK", "Jumping Cross (set 2)", 0 )
 GAME( 1984, sgladiat, 0,        sgladiat, sgladiat, driver_device, 0,        ROT0,   "SNK", "Gladiator 1984", 0 )
 GAME( 1985, hal21,    0,        hal21,    hal21, driver_device,    0,        ROT270, "SNK", "HAL21", 0 )
 GAME( 1985, hal21j,   hal21,    hal21,    hal21, driver_device,    0,        ROT270, "SNK", "HAL21 (Japan)", 0 )

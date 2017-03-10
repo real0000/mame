@@ -24,14 +24,16 @@ Boards:
 ***************************************************************************/
 
 #include "emu.h"
+#include "includes/pandoras.h"
+#include "includes/konamipt.h"
 #include "cpu/m6809/m6809.h"
-#include "cpu/z80/z80.h"
 #include "cpu/mcs48/mcs48.h"
+#include "cpu/z80/z80.h"
+#include "machine/gen_latch.h"
 #include "machine/watchdog.h"
 #include "sound/ay8910.h"
 #include "sound/dac.h"
-#include "includes/konamipt.h"
-#include "includes/pandoras.h"
+#include "sound/volt_reg.h"
 
 
 #define MASTER_CLOCK        XTAL_18_432MHz
@@ -131,7 +133,7 @@ static ADDRESS_MAP_START( pandoras_master_map, AS_PROGRAM, 8, pandoras_state )
 	AM_RANGE(0x1800, 0x1807) AM_WRITE(pandoras_int_control_w)                               /* INT control */
 	AM_RANGE(0x1a00, 0x1a00) AM_WRITE(pandoras_scrolly_w)                                   /* bg scroll */
 	AM_RANGE(0x1c00, 0x1c00) AM_WRITE(pandoras_z80_irqtrigger_w)                            /* cause INT on the Z80 */
-	AM_RANGE(0x1e00, 0x1e00) AM_WRITE(soundlatch_byte_w)                                            /* sound command to the Z80 */
+	AM_RANGE(0x1e00, 0x1e00) AM_DEVWRITE("soundlatch", generic_latch_8_device, write)                                            /* sound command to the Z80 */
 	AM_RANGE(0x2000, 0x2000) AM_WRITE(pandoras_cpub_irqtrigger_w)                           /* cause FIRQ on CPU B */
 	AM_RANGE(0x2001, 0x2001) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)        /* watchdog reset */
 	AM_RANGE(0x4000, 0x5fff) AM_ROM                                                         /* space for diagnostic ROM */
@@ -160,21 +162,21 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( pandoras_sound_map, AS_PROGRAM, 8, pandoras_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM                                                         /* ROM */
 	AM_RANGE(0x2000, 0x23ff) AM_RAM                                                         /* RAM */
-	AM_RANGE(0x4000, 0x4000) AM_READ(soundlatch_byte_r)                                         /* soundlatch_byte_r */
+	AM_RANGE(0x4000, 0x4000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
 	AM_RANGE(0x6000, 0x6000) AM_DEVWRITE("aysnd", ay8910_device, address_w)                          /* AY-8910 */
 	AM_RANGE(0x6001, 0x6001) AM_DEVREAD("aysnd", ay8910_device, data_r)                                   /* AY-8910 */
 	AM_RANGE(0x6002, 0x6002) AM_DEVWRITE("aysnd", ay8910_device, data_w)                         /* AY-8910 */
 	AM_RANGE(0x8000, 0x8000) AM_WRITE(pandoras_i8039_irqtrigger_w)                          /* cause INT on the 8039 */
-	AM_RANGE(0xa000, 0xa000) AM_WRITE(soundlatch2_byte_w)                                       /* sound command to the 8039 */
+	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("soundlatch2", generic_latch_8_device, write)      /* sound command to the 8039 */
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( pandoras_i8039_map, AS_PROGRAM, 8, pandoras_state )
-	AM_RANGE(0x0000, 0x1fff) AM_ROM
+	AM_RANGE(0x0000, 0x0fff) AM_ROM
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( pandoras_i8039_io_map, AS_IO, 8, pandoras_state )
-	AM_RANGE(0x00, 0xff) AM_READ(soundlatch2_byte_r)
-	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_DEVWRITE("dac", dac_device, write_unsigned8)
+	AM_RANGE(0x00, 0xff) AM_DEVREAD("soundlatch2", generic_latch_8_device, read)
+	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_DEVWRITE("dac", dac_byte_interface, write)
 	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_WRITE(i8039_irqen_and_status_w)
 ADDRESS_MAP_END
 
@@ -355,15 +357,19 @@ static MACHINE_CONFIG_START( pandoras, pandoras_state )
 	MCFG_PALETTE_INIT_OWNER(pandoras_state, pandoras)
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	MCFG_SPEAKER_STANDARD_MONO("speaker")
+
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch2")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, SOUND_CLOCK/8)
 	MCFG_AY8910_PORT_A_READ_CB(READ8(pandoras_state, pandoras_portA_r))   // not used
 	MCFG_AY8910_PORT_B_READ_CB(READ8(pandoras_state, pandoras_portB_r))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.4)
 
-	MCFG_DAC_ADD("dac")
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.12) // unknown DAC
+	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
+	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
 MACHINE_CONFIG_END
 
 

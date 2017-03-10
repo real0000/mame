@@ -6,6 +6,7 @@
 
 **********************************************************************/
 
+#include "emu.h"
 #include "md_carts.h"
 
 SLOT_INTERFACE_START(md_cart)
@@ -55,6 +56,7 @@ SLOT_INTERFACE_START(md_cart)
 	SLOT_INTERFACE_INTERNAL("rom_lion3",  MD_ROM_LION3)
 	SLOT_INTERFACE_INTERNAL("rom_mcpir",  MD_ROM_MCPIR)
 	SLOT_INTERFACE_INTERNAL("rom_mjlov",  MD_ROM_MJLOV)
+	SLOT_INTERFACE_INTERNAL("rom_cjmjclub",  MD_ROM_CJMJCLUB)
 	SLOT_INTERFACE_INTERNAL("rom_pokea",  MD_ROM_POKEA)
 	SLOT_INTERFACE_INTERNAL("rom_pokestad",  MD_ROM_POKESTAD)
 	SLOT_INTERFACE_INTERNAL("rom_realtec",  MD_ROM_REALTEC)

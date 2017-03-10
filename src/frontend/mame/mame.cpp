@@ -16,14 +16,12 @@
 #include "osdepend.h"
 #include "validity.h"
 #include "clifront.h"
-#include "drivenum.h"
 #include "luaengine.h"
 #include <time.h>
 #include "ui/ui.h"
 #include "ui/selgame.h"
 #include "ui/simpleselgame.h"
 #include "cheat.h"
-#include "ui/datfile.h"
 #include "ui/inifile.h"
 #include "xmlfile.h"
 
@@ -153,6 +151,11 @@ void mame_machine_manager::start_luaengine()
 			}
 		}
 	}
+	if (options().console()) {
+		std::string error_string;
+		m_plugins->set_value("console", "1", OPTION_PRIORITY_CMDLINE, error_string);
+	}
+
 	m_lua->initialize();
 
 	{
@@ -160,7 +163,9 @@ void mame_machine_manager::start_luaengine()
 		osd_file::error filerr = file.open("boot.lua");
 		if (filerr == osd_file::error::NONE)
 		{
-			m_lua->load_script(file.fullpath());
+			std::string exppath;
+			osd_subst_env(exppath, std::string(file.fullpath()));
+			m_lua->load_script(exppath.c_str());
 		}
 	}
 }
@@ -179,9 +184,6 @@ int mame_machine_manager::execute()
 	bool exit_pending = false;
 	int error = EMU_ERR_NONE;
 
-	if (m_options.console()) {
-		m_lua->start_console();
-	}
 	while (error == EMU_ERR_NONE && !exit_pending)
 	{
 		m_new_driver_pending = nullptr;
@@ -272,7 +274,7 @@ ui_manager* mame_machine_manager::create_ui(running_machine& machine)
 	m_ui = std::make_unique<mame_ui_manager>(machine);
 	m_ui->init();
 
-	machine.add_notifier(MACHINE_NOTIFY_RESET, machine_notify_delegate(FUNC(mame_machine_manager::reset), this));
+	machine.add_notifier(MACHINE_NOTIFY_RESET, machine_notify_delegate(&mame_machine_manager::reset, this));
 
 	m_ui->set_startup_text("Initializing...", true);
 
@@ -295,9 +297,6 @@ void mame_machine_manager::create_custom(running_machine& machine)
 	// allocate autoboot timer
 	m_autoboot_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(mame_machine_manager::autoboot_callback), this));
 
-	// start datfile manager
-	m_datfile = std::make_unique<datfile_manager>(machine, m_ui->options());
-
 	// start favorite manager
 	m_favorite = std::make_unique<favorite_manager>(machine, m_ui->options());
 
@@ -312,11 +311,11 @@ void emulator_info::display_ui_chooser(running_machine& machine)
 {
 	// force the UI to show the game select screen
 	mame_ui_manager &mui = mame_machine_manager::instance()->ui();
-	render_container *container = &machine.render().ui_container();
-	if (strcmp(machine.options().ui(), "simple") == 0)
-		ui_simple_menu_select_game::force_game_select(mui, container);
+	render_container &container = machine.render().ui_container();
+	if (machine.options().ui() == emu_options::UI_SIMPLE)
+		ui::simple_menu_select_game::force_game_select(mui, container);
 	else
-		ui_menu_select_game::force_game_select(mui, container);
+		ui::menu_select_game::force_game_select(mui, container);
 }
 
 int emulator_info::start_frontend(emu_options &options, osd_interface &osd, int argc, char *argv[])
@@ -327,12 +326,12 @@ int emulator_info::start_frontend(emu_options &options, osd_interface &osd, int 
 
 void emulator_info::draw_user_interface(running_machine& machine)
 {
-	mame_machine_manager::instance()->ui().update_and_render(&machine.render().ui_container());
+	mame_machine_manager::instance()->ui().update_and_render(machine.render().ui_container());
 }
 
 void emulator_info::periodic_check()
 {
-	mame_machine_manager::instance()->lua()->periodic_check();
+	return mame_machine_manager::instance()->lua()->on_periodic();
 }
 
 bool emulator_info::frame_hook()
@@ -340,14 +339,14 @@ bool emulator_info::frame_hook()
 	return mame_machine_manager::instance()->lua()->frame_hook();
 }
 
-void emulator_info::layout_file_cb(xml_data_node &layout)
+void emulator_info::layout_file_cb(util::xml::data_node &layout)
 {
-	xml_data_node *mamelayout = xml_get_sibling(layout.child, "mamelayout");
-	if(mamelayout)
+	util::xml::data_node const *const mamelayout = layout.get_child("mamelayout");
+	if (mamelayout)
 	{
-		xml_data_node *script = xml_get_sibling(mamelayout->child, "script");
+		util::xml::data_node const *const script = mamelayout->get_child("script");
 		if(script)
-			mame_machine_manager::instance()->lua()->call_plugin(script->value, "layout");
+			mame_machine_manager::instance()->lua()->call_plugin_set("layout", script->get_value());
 	}
 }
 

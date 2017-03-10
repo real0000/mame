@@ -47,7 +47,7 @@ public:
 	required_device<floppy_image_device> m_floppy;
 	required_device<address_map_bank_device> m_ramrombank;
 
-	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
@@ -70,14 +70,14 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( wd2797_intrq_w );
 	DECLARE_WRITE_LINE_MEMBER( wd2797_drq_w );
 
-	required_shared_ptr<UINT16> m_mapram;
-	required_shared_ptr<UINT16> m_videoram;
+	required_shared_ptr<uint16_t> m_mapram;
+	required_shared_ptr<uint16_t> m_videoram;
 
 private:
-	UINT16 *m_ramptr;
-	UINT32 m_ramsize;
-	UINT16 m_diskdmasize;
-	UINT32 m_diskdmaptr;
+	uint16_t *m_ramptr;
+	uint32_t m_ramsize;
+	uint16_t m_diskdmasize;
+	uint32_t m_diskdmaptr;
 	bool m_fdc_intrq;
 };
 
@@ -119,7 +119,7 @@ WRITE16_MEMBER( unixpc_state::ram_mmu_w )
 
 void unixpc_state::machine_start()
 {
-	m_ramptr = (UINT16 *)m_ram->pointer();
+	m_ramptr = (uint16_t *)m_ram->pointer();
 	m_ramsize = m_ram->size();
 }
 
@@ -163,7 +163,7 @@ WRITE16_MEMBER( unixpc_state::rtc_w )
 
 READ16_MEMBER( unixpc_state::line_printer_r )
 {
-	UINT16 data = 0;
+	uint16_t data = 0;
 
 	data |= 1; // no dial tone detected
 	data |= 1 << 1; // no parity error
@@ -255,7 +255,7 @@ WRITE_LINE_MEMBER( unixpc_state::wd2797_drq_w )
     VIDEO
 ***************************************************************************/
 
-UINT32 unixpc_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t unixpc_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	for (int y = 0; y < 348; y++)
 		for (int x = 0; x < 720/16; x++)
@@ -280,7 +280,7 @@ static ADDRESS_MAP_START( unixpc_mem, AS_PROGRAM, 16, unixpc_state )
 	AM_RANGE(0x4a0000, 0x4a0001) AM_WRITE(misc_control_w)
 	AM_RANGE(0x4d0000, 0x4d7fff) AM_WRITE(diskdma_ptr_w)
 	AM_RANGE(0x4e0000, 0x4e0001) AM_WRITE(disk_control_w)
-	AM_RANGE(0x800000, 0xbfffff) AM_MIRROR(0x7fc000) AM_ROM AM_REGION("bootrom", 0)
+	AM_RANGE(0x800000, 0x803fff) AM_MIRROR(0x7fc000) AM_ROM AM_REGION("bootrom", 0)
 	AM_RANGE(0xe10000, 0xe10007) AM_DEVREADWRITE8("wd2797", wd_fdc_t, read, write, 0x00ff)
 	AM_RANGE(0xe30000, 0xe30001) AM_READ(rtc_r)
 	AM_RANGE(0xe40000, 0xe40001) AM_WRITE(error_enable_w)

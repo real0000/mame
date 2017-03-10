@@ -10,21 +10,27 @@
 
 #pragma once
 
-#ifndef __UI_DEVOPT_H__
-#define __UI_DEVOPT_H__
+#ifndef MAME_FRONTEND_UI_DEVOPT_H
+#define MAME_FRONTEND_UI_DEVOPT_H
 
-class ui_menu_device_config : public ui_menu {
+#include "ui/menu.h"
+
+namespace ui {
+class menu_device_config : public menu
+{
 public:
-	ui_menu_device_config(mame_ui_manager &mui, render_container *container, device_slot_interface *slot, device_slot_option *option);
-	virtual ~ui_menu_device_config();
-	virtual void populate() override;
-	virtual void handle() override;
+	menu_device_config(mame_ui_manager &mui, render_container &container, device_slot_interface *slot, device_slot_option *option);
+	virtual ~menu_device_config() override;
 
 private:
+	virtual void populate(float &customtop, float &custombottom) override;
+	virtual void handle() override;
+
 	device_slot_interface *m_owner;
 	device_slot_option *m_option;
 	bool m_mounted;
 };
 
+} // namespace ui
 
-#endif  /* __UI_DEVOPT_H__ */
+#endif  /* MAME_FRONTEND_UI_DEVOPT_H */
