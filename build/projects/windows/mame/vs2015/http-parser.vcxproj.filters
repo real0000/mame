@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="3rdparty">
+      <UniqueIdentifier>{3E7DA5C5-2A4A-00D1-5363-EE783F8F355F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\http-parser">
+      <UniqueIdentifier>{74CC4059-605B-CA22-097A-DE1DF5E7DAC8}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\3rdparty\http-parser\http_parser.c">
+      <Filter>3rdparty\http-parser</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

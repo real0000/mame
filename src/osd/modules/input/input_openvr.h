@@ -7,22 +7,22 @@
 class openvr_helper
 {
 public:
-	openvr_helper();
-	virtual ~openvr_helper();
-	void initVirtualDevice(running_machine &machine, wininput_module &module);
+    openvr_helper();
+    virtual ~openvr_helper();
+    void initVirtualDevice(running_machine &machine, wininput_module &module);
 };
 
 class openvr_device : public device_info
 {
 public:
-	openvr_device(running_machine &machine, const char *name, input_module &module);
-	virtual ~openvr_device();
+    openvr_device(running_machine &machine, const char *name, input_module &module);
+    virtual ~openvr_device();
 
-	void initItems();
+    void initItems();
 
 protected:
-	void poll() override;
-	void reset() override;
+    void poll() override;
+    void reset() override;
 };
 
 #endif

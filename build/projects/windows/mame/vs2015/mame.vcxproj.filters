@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="scripts">
+      <UniqueIdentifier>{6D076287-D9E6-E022-E2FE-6BF94E5D4784}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="scripts\resources">
+      <UniqueIdentifier>{04BC5A24-70D2-58BA-B949-E4DB259F2942}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="scripts\resources\windows">
+      <UniqueIdentifier>{EB2D30C0-57F0-634A-A0A0-F2D60CA23C28}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="scripts\resources\windows\mame">
+      <UniqueIdentifier>{87D73E81-73FD-08E8-5C43-8EB348082EB4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{2DAB880B-99B4-887C-2230-9F7C8E38947C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame">
+      <UniqueIdentifier>{09EE61D2-F5BA-BCDD-1ED4-AA850A00F26B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="generated">
+      <UniqueIdentifier>{54368C0D-C0A0-4084-09DF-F12975881ED9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="generated\mame">
+      <UniqueIdentifier>{90894D26-7C57-412C-65EB-B15251581D91}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="generated\mame\mame">
+      <UniqueIdentifier>{4C42D007-B8A3-AD15-4111-F4C7AD71E4D4}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\src\mame\mame.cpp">
+      <Filter>src\mame</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\version.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\generated\mame\mame\drivlist.cpp">
+      <Filter>generated\mame\mame</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\..\..\..\..\scripts\resources\windows\mame\mame.rc">
+      <Filter>scripts\resources\windows\mame</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\..\..\..\src\mame\mame.lst">
+      <Filter>src\mame</Filter>
+    </CustomBuild>
+  </ItemGroup>
+</Project>

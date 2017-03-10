@@ -9,16 +9,16 @@ void* vr_interface_get_handle_state(int a_Handle);
 // for input module
 enum VRInputDefine : int64_t
 {
-	TRIGGER,
-	MENU,
-	GRIP,
-	CUSTOM_1,
-	CUSTOM_2,
-	CUSTOM_3,
-	CUSTOM_4,
-	CUSTOM_5,
+    TRIGGER,
+    MENU,
+    GRIP,
+    CUSTOM_1,
+    CUSTOM_2,
+    CUSTOM_3,
+    CUSTOM_4,
+    CUSTOM_5,
 
-	NUM_INPUT
+    NUM_INPUT
 };
 int vr_interface_button_get_state(void *device_internal, void *item_internal);
 

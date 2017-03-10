@@ -118,11 +118,12 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>user32.lib;winmm.lib;advapi32.lib;shlwapi.lib;wsock32.lib;ws2_32.lib;psapi.lib;iphlpapi.lib;shell32.lib;userenv.lib;opengl32.lib;gdi32.lib;dsound.lib;dxguid.lib;oleaut32.lib;dinput8.lib;comctl32.lib;comdlg32.lib;ole32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>user32.lib;winmm.lib;advapi32.lib;shlwapi.lib;wsock32.lib;ws2_32.lib;psapi.lib;iphlpapi.lib;shell32.lib;userenv.lib;opengl32.lib;gdi32.lib;dsound.lib;dxguid.lib;oleaut32.lib;dinput8.lib;comctl32.lib;comdlg32.lib;ole32.lib;openvr_api.lib;PhysX3DEBUG_x86.lib;PhysX3CommonDEBUG_x86.lib;PhysX3ExtensionsDEBUG.lib;PhysXProfileSDKDEBUG.lib;PhysXVisualDebuggerSDKDEBUG.lib;libfbxsdk-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)mamed.exe</OutputFile>
       <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
       <TargetMachine>MachineX86</TargetMachine>
       <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalLibraryDirectories>..\..\..\..\..\3rdparty\openvr\lib\win32;..\..\..\..\..\3rdparty\physx\PhysXSDK\Lib\vc14win32;$(ADSK_FBX_SDK_2017)lib\vs2015\x86\debug</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
       <Command>mkdir C:\msys64\src\mame\build\generated\resource\ 2&gt;NUL
@@ -196,11 +197,12 @@ C:\msys64\mingw64\bin\python.exe C:\msys64\src\mame\scripts\build\verinfo.py -r 
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>user32.lib;winmm.lib;advapi32.lib;shlwapi.lib;wsock32.lib;ws2_32.lib;psapi.lib;iphlpapi.lib;shell32.lib;userenv.lib;opengl32.lib;gdi32.lib;dsound.lib;dxguid.lib;oleaut32.lib;dinput8.lib;comctl32.lib;comdlg32.lib;ole32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>user32.lib;winmm.lib;advapi32.lib;shlwapi.lib;wsock32.lib;ws2_32.lib;psapi.lib;iphlpapi.lib;shell32.lib;userenv.lib;opengl32.lib;gdi32.lib;dsound.lib;dxguid.lib;oleaut32.lib;dinput8.lib;comctl32.lib;comdlg32.lib;ole32.lib;openvr_api.lib;PhysX3_x86.lib;PhysX3Common_x86.lib;PhysX3Extensions.lib;PhysXProfileSDK.lib;libfbxsdk-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)mame.exe</OutputFile>
       <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
       <TargetMachine>MachineX86</TargetMachine>
       <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalLibraryDirectories>..\..\..\..\..\3rdparty\openvr\lib\win32;..\..\..\..\..\3rdparty\physx\PhysXSDK\Lib\vc14win32;$(ADSK_FBX_SDK_2017)lib\vs2015\x86\release</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
       <Command>mkdir C:\msys64\src\mame\build\generated\resource\ 2&gt;NUL
