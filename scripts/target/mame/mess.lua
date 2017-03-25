@@ -471,6 +471,7 @@ MACHINES["MIOT6530"] = true
 MACHINES["MM58167"] = true
 MACHINES["MM58274C"] = true
 MACHINES["MM74C922"] = true
+MACHINES["MM5740"] = true
 MACHINES["MOS6526"] = true
 MACHINES["MOS6529"] = true
 MACHINES["MOS6551"] = true
@@ -699,6 +700,7 @@ BUSES["SPC1000"] = true
 BUSES["SUNKBD"] = true
 BUSES["SVI_EXPANDER"] = true
 BUSES["SVI_SLOT"] = true
+BUSES["TI8X"] = true
 BUSES["TI99PEB"] = true
 BUSES["TI99X"] = true
 BUSES["TIKI100"] = true
@@ -879,6 +881,7 @@ function linkProjects_mame_mess(_target, _subtarget)
 		"altos",
 		"ami",
 		"amiga",
+		"ampro",
 		"amstrad",
 		"apf",
 		"apollo",
@@ -911,6 +914,7 @@ function linkProjects_mame_mess(_target, _subtarget)
 		"comx",
 		"concept",
 		"conitec",
+		"cxg",
 		"cybiko",
 		"dai",
 		"ddr",
@@ -1340,6 +1344,11 @@ files {
 	MAME_DIR .. "src/mame/includes/amiga.h",
 }
 
+createMESSProjects(_target, _subtarget, "ampro")
+files {
+	MAME_DIR .. "src/mame/drivers/lb186.cpp",
+}
+
 createMESSProjects(_target, _subtarget, "amstrad")
 files {
 	MAME_DIR .. "src/mame/drivers/amstrad.cpp",
@@ -1690,6 +1699,11 @@ files {
 	MAME_DIR .. "src/mame/includes/prof80.h",
 	MAME_DIR .. "src/mame/machine/prof80mmu.cpp",
 	MAME_DIR .. "src/mame/machine/prof80mmu.h",
+}
+
+createMESSProjects(_target, _subtarget, "cxg")
+files {
+	MAME_DIR .. "src/mame/drivers/cxgz80.cpp",
 }
 
 createMESSProjects(_target, _subtarget, "cybiko")
@@ -2193,7 +2207,6 @@ files {
 createMESSProjects(_target, _subtarget, "mb")
 files {
 	MAME_DIR .. "src/mame/drivers/microvsn.cpp",
-	MAME_DIR .. "src/mame/drivers/phantom.cpp",
 }
 
 createMESSProjects(_target, _subtarget, "mchester")
