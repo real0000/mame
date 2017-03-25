@@ -4324,7 +4324,7 @@ GAME_CUSTOM( 199?, m4hypvip__o,    m4hypvip,   "hyp55",                0x0000, 0
 GAME_CUSTOM( 199?, m4hypvip__p,    m4hypvip,   "hypr58c",              0x0000, 0x010000, CRC(d6028f8f) SHA1(54a3188ddb5196808a1161a0e1e6a8c1fe8bfde3), "hack","Hyper Viper (Barcrest) (MPU4) (HVP 3.0 C, hack, set 4)" )
 GAME_CUSTOM( 199?, m4hypvip__t,    m4hypvip,   "hypv_05_.4",           0x0000, 0x010000, CRC(246f171c) SHA1(7bbefb0cae57cf8097aa6d033df1a428e8bfe744), "hack","Hyper Viper (Barcrest) (MPU4) (HVP 3.0 C, hack, set 5)" )
 GAME_CUSTOM( 199?, m4hypvip__q,    m4hypvip,   "hvip_05_.8",           0x0000, 0x010000, CRC(625f1b9d) SHA1(f8dc0cde774f3fc4fb3d66d014ad47e9576c0f44), "hack","Hyper Viper (Barcrest) (MPU4) (HVP 3.0, hack, set 1)" )
-// "DICK WAS ERE" and "HVP 3.0"
+// "DICK WAS ERE" and "HVP 3.0"
 GAME_CUSTOM( 199?, m4hypvip__i,    m4hypvip,   "hv108c",               0x0000, 0x010000, CRC(4d40ebfe) SHA1(0e355fe5b185ba595c5040335956037b8ed21599), "hack","Hyper Viper (Barcrest) (MPU4) (HVP 3.0 C, hack, set 6)" )
 GAME_CUSTOM( 199?, m4hypvip__j,    m4hypvip,   "hv10_101",             0x0000, 0x010000, CRC(57714454) SHA1(de99f5a66081191a7280c54e875fd17cc94e111b), "hack","Hyper Viper (Barcrest) (MPU4) (HVP 3.0 C, hack, set 7)" )
 GAME_CUSTOM( 199?, m4hypvip__u,    m4hypvip,   "hypv_10_.4",           0x0000, 0x010000, CRC(f85d21a1) SHA1(55ed92147335a1471b7b443f68dd700f579d21f3), "hack","Hyper Viper (Barcrest) (MPU4) (HVP 3.0 C, hack, set 8)" )

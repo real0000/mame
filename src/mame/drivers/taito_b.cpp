@@ -1887,7 +1887,7 @@ WRITE8_MEMBER(taitob_state::mb87078_gain_changed)
 	if (offset == 1)
 	{
 		device_sound_interface *sound;
-		m_ym->interface(sound);
+		m_ym->interface_check(sound);
 		sound->set_output_gain(0, data / 100.0);
 		sound->set_output_gain(1, data / 100.0);
 		sound->set_output_gain(2, data / 100.0);

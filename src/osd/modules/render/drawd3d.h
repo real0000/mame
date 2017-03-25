@@ -13,14 +13,11 @@
 
 #ifdef OSD_WINDOWS
 
-#include <windows.h>
-#include <tchar.h>
-#include <mmsystem.h>
+#include <functional>
 #include <d3d9.h>
 #include <d3dx9.h>
-#include <math.h>
-#undef interface
-
+#include <d3d11.h>
+#include <D3DCompiler.h>
 #include "d3d/d3dcomm.h"
 #include "sliderdirtynotifier.h"
 #include "modules/lib/osdlib.h"
@@ -39,12 +36,19 @@
 struct d3d_base
 {
 	// internal objects
-	IDirect3D9 *d3dobj;
+	IDirect3D9Ex *d3dobj;
 	bool        post_fx_available;
 
 	osd::dynamic_module::ptr d3d9_dll;
 };
 
+struct d3d11_base
+{
+	osd::dynamic_module::ptr dllhandle_d3d11;
+	osd::dynamic_module::ptr dllhandle_compiler;
+};
+
+struct index_buffer;
 class shaders;
 struct hlsl_options;
 
@@ -61,6 +65,9 @@ public:
 	virtual int create() override;
 	virtual render_primitive_list *get_primitives() override;
 	virtual int draw(const int update) override;
+	void normal_draw_process();
+	void vr_draw_process();
+
 	virtual void save() override;
 	virtual void record() override;
 	virtual void toggle_fsfx() override;
@@ -71,6 +78,7 @@ public:
 	int                     initialize();
 
 	int                     device_create(HWND device_HWND);
+	int						device_create11();// for vr
 	int                     device_create_resources();
 	void                    device_delete();
 	void                    device_delete_resources();
@@ -115,6 +123,7 @@ public:
 	int                     get_refresh() const { return m_refresh; }
 
 	IDirect3DDevice9 *      get_device() const { return m_device; }
+	ID3D11Device *			get_device11() const { return m_device11; }
 	D3DPRESENT_PARAMETERS * get_presentation() { return &m_presentation; }
 
 	IDirect3DVertexBuffer9 *get_vertex_buffer() const { return m_vertexbuf; }
@@ -133,6 +142,12 @@ public:
 	shaders *               get_shaders() const { return m_shaders; }
 
 private:
+	HRESULT                 create_vr_render_target(DXGI_FORMAT format, ID3D11RenderTargetView **surface, ID3D11Texture2D **texture, ID3D11ShaderResourceView **view);
+	HRESULT                 create_vr_buffer(UINT length, UINT usage, void *data, ID3D11Buffer **buf);
+
+	void					init_vr_resource();
+	void					draw_vr_machine_model();
+
 	int                     m_adapter;                  // ordinal adapter number
 	int                     m_width;                    // current width
 	int                     m_height;                   // current height
@@ -144,6 +159,9 @@ private:
 	D3DPRESENT_PARAMETERS   m_presentation;             // set of presentation parameters
 	D3DDISPLAYMODE          m_origmode;                 // original display mode for the adapter
 	D3DFORMAT               m_pixformat;                // pixel format we are using
+
+	ID3D11Device *          m_device11;					// d3d 11 device for openvr
+	ID3D11DeviceContext *   m_context11;				// d3d 11 immediate context for openvr
 
 	IDirect3DVertexBuffer9 *m_vertexbuf;                // pointer to the vertex buffer object
 	vertex *                m_lockedbuf;                // pointer to the locked vertex buffer
@@ -172,6 +190,11 @@ private:
 	shaders *               m_shaders;                  // HLSL interface
 
 	d3d_texture_manager *   m_texture_manager;          // texture manager
+
+	std::function<void()>	m_draw_process;
+	typedef std::tuple<ID3D11RenderTargetView *, ID3D11Texture2D *, ID3D11ShaderResourceView *> surface11_pack;
+	IDirect3DTexture9 *		m_game_screen_texture;
+	surface11_pack			m_vr_left_eye, m_vr_left_eye_depth, m_vr_right_eye, m_vr_right_eye_depth;
 };
 
 #endif // OSD_WINDOWS

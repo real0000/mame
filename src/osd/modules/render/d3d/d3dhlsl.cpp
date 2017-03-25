@@ -23,6 +23,7 @@
 #include "modules/render/drawd3d.h"
 #include "d3dcomm.h"
 #include "strconv.h"
+#include "winutf8.h"
 #include "d3dhlsl.h"
 #include "../frontend/mame/ui/slider.h"
 #include <utility>
@@ -47,6 +48,7 @@ public:
 		, m_vid_texture(nullptr), m_vid_surface(nullptr)
 	{
 		HRESULT result;
+#define D3D_SAFE_RELEASE(p) if( nullptr != p ) p->Release(); p = nullptr
 
 		m_avi_writer = std::make_unique<avi_write>(machine, width, height);
 
@@ -420,7 +422,7 @@ void shaders::set_texture(texture_info *texture)
 //  shaders::init
 //============================================================
 
-bool shaders::init(d3d_base *d3dintf, running_machine *machine, renderer_d3d9 *renderer)
+bool shaders::init(d3d_base *d3dintf, d3d11_base *d3d11intf, running_machine *machine, renderer_d3d9 *renderer)
 {
 	osd_printf_verbose("Direct3D: Initialize HLSL\n");
 
@@ -428,6 +430,11 @@ bool shaders::init(d3d_base *d3dintf, running_machine *machine, renderer_d3d9 *r
 	{
 		return false;
 	}
+
+	this->d3dintf = d3dintf;
+	this->d3d11intf = d3d11intf;
+	this->machine = machine;
+	this->d3d = renderer;
 
 	// check if no driver loaded (not all settings might be loaded yet)
 	if (&machine->system() == &GAME_NAME(___empty))
@@ -563,6 +570,22 @@ bool shaders::init(d3d_base *d3dintf, running_machine *machine, renderer_d3d9 *r
 	return true;
 }
 
+void shaders::add_custom_effect(ID3D11Device *dev, ID3D11DeviceContext *con, const char *name, const char *path)
+{
+	effect11 *new_effect = new effect11(d3d11intf, dev, con, name, path);
+	custom_effect_list.push_back(new_effect);
+}
+
+effect11* shaders::get_custom_effect(unsigned int idx)
+{
+	return custom_effect_list[idx];
+}
+
+void shaders::clear_custom_effect()
+{
+	for( unsigned int i=0 ; i<custom_effect_list.size() ; ++i ) delete custom_effect_list[i];
+	custom_effect_list.clear();
+}
 
 //============================================================
 //  shaders::init_fsfx_quad
@@ -731,7 +754,7 @@ int shaders::create_resources()
 		return 1;
 	}
 
-	effect *effects[13] = {
+	effect *effects[] = {
 		default_effect,
 		post_effect,
 		distortion_effect,
@@ -746,8 +769,9 @@ int shaders::create_resources()
 		downsample_effect,
 		vector_effect
 	};
+	const unsigned int c_NumEffect = sizeof(effects) / sizeof(effect);
 
-	for (int i = 0; i < 13; i++)
+	for (int i = 0; i < c_NumEffect; i++)
 	{
 		effects[i]->add_uniform("SourceDims", uniform::UT_VEC2, uniform::CU_SOURCE_DIMS);
 		effects[i]->add_uniform("TargetDims", uniform::UT_VEC2, uniform::CU_TARGET_DIMS);
@@ -1693,6 +1717,7 @@ void shaders::delete_resources()
 
 	m_render_target_list.clear();
 
+	clear_custom_effect();
 	if (downsample_effect != nullptr)
 	{
 		delete downsample_effect;
@@ -2600,4 +2625,250 @@ void effect::set_texture(D3DXHANDLE param, IDirect3DTexture9 *tex)
 D3DXHANDLE effect::get_parameter(D3DXHANDLE param, const char *name)
 {
 	return m_effect->GetParameterByName(param, name);
+}
+
+//============================================================
+//  effect 11 functions
+//============================================================
+effect11::effect11(d3d11_base *d3dptr, ID3D11Device *dev, ID3D11DeviceContext *con, const char *name, const char *path)
+	: m_total_size(0)
+	, m_vertex_shader(nullptr)
+	, m_pixel_shader(nullptr)
+	, m_input_layout(nullptr)
+	, m_contant_buffer(nullptr)
+	, m_depth_state(nullptr), m_rast_state(nullptr), m_blend_state(nullptr)
+	, m_sampler(nullptr)
+	, m_ref_dev((ID3D11Device *)dev)
+	, m_ref_con((ID3D11DeviceContext *)con)
+{
+	memset(m_data_buffer, 0, sizeof(m_data_buffer));
+
+	const char *target_name[] = {"vs", "ps"};
+	const unsigned int num_shader = sizeof(target_name) / sizeof(const char *);
+
+	char name_cstr[1024];
+
+	std::vector<ID3DBlob *> binaries(num_shader, nullptr);
+	for( unsigned int i=0 ; i<num_shader ; ++i )
+	{
+		sprintf(name_cstr, "%s/%s.%s", path, name, target_name[i]);
+		
+		char entry[32], shader_target_name[32];
+		sprintf(entry, "%s_main", target_name[i]);
+		sprintf(shader_target_name, "%s_5_0", target_name[i]);
+		
+		ID3DBlob *binary = nullptr, *error_msg = nullptr;
+		d3dcompilefromfile_ptr compiler = d3dptr->dllhandle_compiler->bind<d3dcompilefromfile_ptr>("D3DCompileFromFile");
+
+		UINT flag = 0;
+#ifdef MAME_DEBUG
+		flag |= D3DCOMPILE_DEBUG;
+#endif
+
+		int char_count = MultiByteToWideChar(CP_UTF8, 0, name_cstr, -1, nullptr, 0);
+		TCHAR *tc_buf = new TCHAR[char_count];
+		assert( nullptr != tc_buf);
+		MultiByteToWideChar(CP_UTF8, 0, name_cstr, -1, tc_buf, char_count);
+		HRESULT result = compiler((LPCWSTR)tc_buf, nullptr, nullptr, entry, shader_target_name, flag, 0, &binary, &error_msg);
+		delete [] tc_buf;
+
+		if( S_OK != result )
+		{
+			if (error_msg != nullptr)
+			{
+				LPVOID compile_errors = error_msg->GetBufferPointer();
+				printf("Unable to compile shader: %s\n", (const char*)compile_errors); fflush(stdout);
+			}
+			else
+			{
+				printf("Shader %s is missing, corrupt or cannot be compiled.\n", (const char*)name); fflush(stdout);
+				continue;
+			}
+		}
+
+		binaries[i] = binary;
+	}
+
+	HRESULT result = m_ref_dev->CreateVertexShader(binaries[0]->GetBufferPointer(), binaries[0]->GetBufferSize(), nullptr, &m_vertex_shader);
+	if( S_OK != result )
+	{
+		printf("Unable to create vertex shader.(error code : %x)\n", (unsigned int)result);
+		fflush(stdout);
+	}
+
+	result = m_ref_dev->CreatePixelShader(binaries[1]->GetBufferPointer(), binaries[1]->GetBufferSize(), nullptr, &m_pixel_shader);
+	if( S_OK != result )
+	{
+		printf("Unable to create pixel shader.(error code : %x)\n", (unsigned int)result);
+		fflush(stdout);
+	}
+
+	D3D11_INPUT_ELEMENT_DESC layout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+	const unsigned int num_layout = sizeof(layout) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	result = m_ref_dev->CreateInputLayout(layout, num_layout, binaries[0]->GetBufferPointer(), binaries[0]->GetBufferSize(), &m_input_layout);
+	if( S_OK != result )
+	{
+		printf("Unable to create input layout.(error code : %x)\n", (unsigned int)result);
+		fflush(stdout);
+	}
+
+	for( unsigned int i=0 ; i<num_shader ; ++i )
+	{
+		if( nullptr != binaries[i] ) binaries[i]->Release();
+	}
+
+	D3D11_SAMPLER_DESC sampler_desc = {};
+	sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sampler_desc.AddressU = sampler_desc.AddressV = sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampler_desc.MipLODBias = 0.0f;
+	sampler_desc.MaxAnisotropy = 1;
+	sampler_desc.ComparisonFunc = D3D11_COMPARISON_LESS;
+	sampler_desc.MinLOD = 0.0f;
+	sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
+	result = m_ref_dev->CreateSamplerState(&sampler_desc, &m_sampler);
+	if( S_OK != result )
+	{
+		printf("Unable to create sampler.(error code : %x)\n", (unsigned int)result);
+		fflush(stdout);
+	}
+
+	D3D11_BLEND_DESC blend_desc = {};
+	blend_desc.AlphaToCoverageEnable = true;
+	blend_desc.IndependentBlendEnable = false;
+	blend_desc.RenderTarget[0].BlendEnable = false;
+	blend_desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	blend_desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	blend_desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blend_desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blend_desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+	blend_desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blend_desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	result = m_ref_dev->CreateBlendState(&blend_desc, &m_blend_state);
+	if( S_OK != result )
+	{
+		printf("Unable to create blend state.(error code : %x)\n", (unsigned int)result);
+		fflush(stdout);
+	}
+
+	D3D11_DEPTH_STENCIL_DESC depth_desc = {};
+	depth_desc.DepthEnable = true;
+	depth_desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	depth_desc.DepthFunc = D3D11_COMPARISON_LESS;
+	depth_desc.StencilEnable = false;
+	depth_desc.StencilReadMask = 0xff;
+	depth_desc.StencilWriteMask = 0xff;
+	depth_desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	depth_desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	depth_desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+	depth_desc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+	depth_desc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	depth_desc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	depth_desc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+	depth_desc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+	result = m_ref_dev->CreateDepthStencilState(&depth_desc, &m_depth_state);
+	if( S_OK != result )
+	{
+		printf("Unable to create depth stencil state.(error code : %x)\n", (unsigned int)result);
+		fflush(stdout);
+	}
+
+	D3D11_RASTERIZER_DESC rasterizer_desc = {};
+	rasterizer_desc.FillMode = D3D11_FILL_SOLID;
+	rasterizer_desc.CullMode = D3D11_CULL_NONE;
+	rasterizer_desc.FrontCounterClockwise = true;
+	rasterizer_desc.DepthBias = 0;
+	rasterizer_desc.DepthBiasClamp = 0.0f;
+	rasterizer_desc.SlopeScaledDepthBias = 0.0f;
+	rasterizer_desc.DepthClipEnable = true;
+	rasterizer_desc.ScissorEnable = false;
+	rasterizer_desc.MultisampleEnable = false;
+	rasterizer_desc.AntialiasedLineEnable = false;
+	result = m_ref_dev->CreateRasterizerState(&rasterizer_desc, &m_rast_state);
+	if( S_OK != result )
+	{
+		printf("Unable to create rasterizer state.(error code : %x)\n", (unsigned int)result);
+		fflush(stdout);
+	}
+}
+
+effect11::~effect11()
+{
+	D3D_SAFE_RELEASE(m_depth_state);
+	D3D_SAFE_RELEASE(m_rast_state);
+	D3D_SAFE_RELEASE(m_blend_state);
+	D3D_SAFE_RELEASE(m_sampler);
+	D3D_SAFE_RELEASE(m_contant_buffer);
+	D3D_SAFE_RELEASE(m_input_layout);
+	D3D_SAFE_RELEASE(m_vertex_shader);
+	D3D_SAFE_RELEASE(m_pixel_shader);
+}
+
+void effect11::begin()
+{
+	float blend_factor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+	
+	m_ref_con->OMSetBlendState(m_blend_state, blend_factor, 0xffffffff);
+	m_ref_con->OMSetDepthStencilState(m_depth_state, 0xffffffff);
+	m_ref_con->RSSetState(m_rast_state);
+
+	m_ref_con->IASetInputLayout(m_input_layout);
+	m_ref_con->VSSetShader(m_vertex_shader, nullptr, 0);
+	m_ref_con->VSSetConstantBuffers(0, 1, &m_contant_buffer);
+	m_ref_con->PSSetShader(m_pixel_shader, nullptr, 0);
+	m_ref_con->PSSetConstantBuffers(0, 1, &m_contant_buffer);
+	m_ref_con->PSSetSamplers(0, 1, &m_sampler);
+}
+
+void effect11::end()
+{
+	m_ref_con->IASetInputLayout(nullptr);
+	m_ref_con->VSSetShader(nullptr, nullptr, 0);
+	m_ref_con->VSSetConstantBuffers(0, 0, nullptr);
+	m_ref_con->PSSetShader(nullptr, nullptr, 0);
+	m_ref_con->PSSetConstantBuffers(0, 0, nullptr);
+	m_ref_con->PSSetSamplers(0, 0, nullptr);
+}
+
+void effect11::add_constant(uniform::uniform_type type, void **output)
+{
+	unsigned int size = 0;
+	switch( type )
+	{
+		case uniform::UT_VEC4:	size = sizeof(float) * 4;	break;
+		case uniform::UT_VEC3:	size = sizeof(float) * 3;	break;
+		case uniform::UT_VEC2:	size = sizeof(float) * 2;	break;
+		case uniform::UT_FLOAT:	size = sizeof(float) * 1;	break;
+		case uniform::UT_INT:	size = sizeof(int);			break;
+		case uniform::UT_BOOL:	size = sizeof(bool);		break;
+		case uniform::UT_MATRIX:size = sizeof(float) * 16;	break;
+		default:break;
+	}
+
+	*output = m_data_buffer + m_total_size;
+	m_total_size += size;
+}
+
+void effect11::init_constant()
+{
+	D3D11_BUFFER_DESC desc = {};
+	desc.Usage = D3D11_USAGE_DEFAULT;
+	desc.ByteWidth = (m_total_size + 0x0000000f) & ~0x0000000f;
+	desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	desc.CPUAccessFlags = 0;
+
+	D3D11_SUBRESOURCE_DATA initdata = {};
+	initdata.pSysMem = m_data_buffer;
+	m_ref_dev->CreateBuffer(&desc, &initdata, &m_contant_buffer);
+}
+
+void effect11::update_constant()
+{
+	m_ref_con->UpdateSubresource(m_contant_buffer, 0, nullptr, m_data_buffer, 0, 0);
 }

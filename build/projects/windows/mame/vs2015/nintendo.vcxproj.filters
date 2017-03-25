@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{2DAB880B-99B4-887C-2230-9F7C8E38947C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame">
+      <UniqueIdentifier>{09EE61D2-F5BA-BCDD-1ED4-AA850A00F26B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame\drivers">
+      <UniqueIdentifier>{64B9D277-50B2-F1C9-79E4-D64E653CD1D5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame\includes">
+      <UniqueIdentifier>{9CBBDECC-08D2-DC62-5149-6884BD9EADEA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame\audio">
+      <UniqueIdentifier>{3753208E-2321-1494-0CB5-84BAF821F0F8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame\video">
+      <UniqueIdentifier>{BCC0958F-A88E-8995-9122-FABB7D8F65FA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame\machine">
+      <UniqueIdentifier>{9AF98204-86F2-A156-AF24-87DB9B7C8162}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\dkong.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\mario.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\nl_mario.h">
+      <Filter>src\mame\audio</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\n8080.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\snes_snd.h">
+      <Filter>src\mame\audio</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\playch10.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\popeye.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\punchout.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\spacefb.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\vsnes.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\gb.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\gba.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\n64.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\nes.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\snes.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\snescx4.h">
+      <Filter>src\mame\machine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\cx4data.hxx">
+      <Filter>src\mame\machine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\cx4fn.hxx">
+      <Filter>src\mame\machine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\cx4oam.hxx">
+      <Filter>src\mame\machine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\cx4ops.hxx">
+      <Filter>src\mame\machine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\vboy.h">
+      <Filter>src\mame\audio</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cham24.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dkong.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\dkong.cpp">
+      <Filter>src\mame\audio</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\dkong.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mario.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\nl_mario.cpp">
+      <Filter>src\mame\audio</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\mario.cpp">
+      <Filter>src\mame\audio</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\mario.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mmagic.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\multigam.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\n8080.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\n8080.cpp">
+      <Filter>src\mame\audio</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\n8080.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\nss.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\snes.cpp">
+      <Filter>src\mame\machine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\snes_snd.cpp">
+      <Filter>src\mame\audio</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\playch10.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\playch10.cpp">
+      <Filter>src\mame\machine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\playch10.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\popeye.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\popeye.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\punchout.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\punchout.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\famibox.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sfcbox.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\snesb.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\spacefb.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\spacefb.cpp">
+      <Filter>src\mame\audio</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\spacefb.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\vsnes.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\vsnes.cpp">
+      <Filter>src\mame\machine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\vsnes.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gb.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\gb.cpp">
+      <Filter>src\mame\machine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gba.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\n64.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\nes.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\nes.cpp">
+      <Filter>src\mame\machine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\nes.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\pokemini.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\snes.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\snescx4.cpp">
+      <Filter>src\mame\machine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\vboy.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\vboy.cpp">
+      <Filter>src\mame\audio</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

@@ -98,6 +98,7 @@
 #include "ui/uimain.h"
 #include "inputdev.h"
 #include "natkeyboard.h"
+#include "vr.h"
 
 #include "osdepend.h"
 
@@ -2051,12 +2052,16 @@ g_profiler.start(PROFILER_INPUT);
 	for (digital_joystick &joystick : m_joystick_list)
 		joystick.frame_update();
 
+	// vive controller hack
+	vr_machine::singleton().handleInput();
+
 	// compute default values for all the ports
 	// two passes to catch conditionals properly
 	for (auto &port : m_portlist)
 		port.second->update_defvalue(true);
 	for (auto &port : m_portlist)
 		port.second->update_defvalue(false);
+
 
 	// loop over all input ports
 	for (auto &port : m_portlist)

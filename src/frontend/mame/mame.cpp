@@ -23,6 +23,7 @@
 #include "ui/simpleselgame.h"
 #include "cheat.h"
 #include "ui/inifile.h"
+#include "vr.h"
 #include "xmlfile.h"
 
 //**************************************************************************

@@ -424,7 +424,7 @@ image_init_result legacy_floppy_image_device::internal_floppy_device_load(bool i
 	int floppy_flags, i;
 
 	device_image_interface *image = nullptr;
-	interface(image);   /* figure out the floppy options */
+	interface_check(image);   /* figure out the floppy options */
 	floppy_options = m_config->formats;
 
 	if (is_create)

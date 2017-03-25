@@ -223,16 +223,16 @@ public:
 	// interface helpers
 	interface_list &interfaces() { return m_interfaces; }
 	const interface_list &interfaces() const { return m_interfaces; }
-	template<class _DeviceClass> bool interface(_DeviceClass *&intf) { intf = dynamic_cast<_DeviceClass *>(this); return (intf != nullptr); }
-	template<class _DeviceClass> bool interface(_DeviceClass *&intf) const { intf = dynamic_cast<const _DeviceClass *>(this); return (intf != nullptr); }
+	template<class _DeviceClass> bool interface_check(_DeviceClass *&intf) { intf = dynamic_cast<_DeviceClass *>(this); return (intf != nullptr); }
+	template<class _DeviceClass> bool interface_check(_DeviceClass *&intf) const { intf = dynamic_cast<const _DeviceClass *>(this); return (intf != nullptr); }
 
 	// specialized helpers for common core interfaces
-	bool interface(device_execute_interface *&intf) { intf = m_interfaces.m_execute; return (intf != nullptr); }
-	bool interface(device_execute_interface *&intf) const { intf = m_interfaces.m_execute; return (intf != nullptr); }
-	bool interface(device_memory_interface *&intf) { intf = m_interfaces.m_memory; return (intf != nullptr); }
-	bool interface(device_memory_interface *&intf) const { intf = m_interfaces.m_memory; return (intf != nullptr); }
-	bool interface(device_state_interface *&intf) { intf = m_interfaces.m_state; return (intf != nullptr); }
-	bool interface(device_state_interface *&intf) const { intf = m_interfaces.m_state; return (intf != nullptr); }
+	bool interface_check(device_execute_interface *&intf) { intf = m_interfaces.m_execute; return (intf != nullptr); }
+	bool interface_check(device_execute_interface *&intf) const { intf = m_interfaces.m_execute; return (intf != nullptr); }
+	bool interface_check(device_memory_interface *&intf) { intf = m_interfaces.m_memory; return (intf != nullptr); }
+	bool interface_check(device_memory_interface *&intf) const { intf = m_interfaces.m_memory; return (intf != nullptr); }
+	bool interface_check(device_state_interface *&intf) { intf = m_interfaces.m_state; return (intf != nullptr); }
+	bool interface_check(device_state_interface *&intf) const { intf = m_interfaces.m_state; return (intf != nullptr); }
 	device_execute_interface &execute() const { assert(m_interfaces.m_execute != nullptr); return *m_interfaces.m_execute; }
 	device_memory_interface &memory() const { assert(m_interfaces.m_memory != nullptr); return *m_interfaces.m_memory; }
 	device_state_interface &state() const { assert(m_interfaces.m_state != nullptr); return *m_interfaces.m_state; }
@@ -667,7 +667,7 @@ private:
 		{
 			// advance until finding a device with the interface
 			for ( ; m_curdevice != nullptr; advance())
-				if (m_curdevice->interface(m_interface))
+				if (m_curdevice->interface_check(m_interface))
 					return;
 
 			// if we run out of devices, make sure the interface pointer is null

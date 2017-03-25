@@ -30,7 +30,14 @@ void el2_3c503_device::device_start() {
 	char mac[7];
 	uint32_t num = rand();
 	memset(m_prom, 0x57, 16);
-	sprintf(mac, "\x02\x60\x8c%c%c%c", (num >> 16) & 0xff, (num >> 8) & 0xff, num & 0xff);
+	//sprintf(mac, "\x02\x60\x8c%c%c%c", (num >> 16) & 0xff, (num >> 8) & 0xff, num & 0xff); c4474, compiler bug ?
+	mac[0] = 0x02;
+	mac[1] = 0x60;
+	mac[2] = -116;//0x8c;
+	mac[3] = (num >> 16) & 0xff;
+	mac[4] = (num >> 8) & 0xff;
+	mac[5] = num & 0xff;
+	mac[6] = 0;
 	memcpy(m_prom, mac, 6);
 	memset(m_rom, 0, 8*1024); // empty
 	m_dp8390->set_mac(mac);

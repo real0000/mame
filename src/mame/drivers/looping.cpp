@@ -437,7 +437,7 @@ WRITE8_MEMBER(looping_state::ay_enable_w)
 	int output;
 
 	device_sound_interface *sound;
-	device->interface(sound);
+	device->interface_check(sound);
 	for (output = 0; output < 3; output++)
 		sound->set_output_gain(output, (data & 1) ? 1.0 : 0.0);
 }
@@ -447,7 +447,7 @@ WRITE8_MEMBER(looping_state::speech_enable_w)
 {
 	device_t *device = machine().device("tms");
 	device_sound_interface *sound;
-	device->interface(sound);
+	device->interface_check(sound);
 	sound->set_output_gain(0, (data & 1) ? 1.0 : 0.0);
 }
 

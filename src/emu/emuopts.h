@@ -38,6 +38,7 @@
 #define OPTION_PLUGINSPATH          "pluginspath"
 #define OPTION_LANGUAGEPATH         "languagepath"
 #define OPTION_SWPATH               "swpath"
+#define OPTION_VRPATH				"vrpath"
 
 // core directory options
 #define OPTION_CFG_DIRECTORY        "cfg_directory"
@@ -232,6 +233,7 @@ public:
 	const char *plugins_path() const { return value(OPTION_PLUGINSPATH); }
 	const char *language_path() const { return value(OPTION_LANGUAGEPATH); }
 	const char *sw_path() const { return value(OPTION_SWPATH); }
+	const char *vr_path() const { return value(OPTION_VRPATH); }
 
 	// core directory options
 	const char *cfg_directory() const { return value(OPTION_CFG_DIRECTORY); }

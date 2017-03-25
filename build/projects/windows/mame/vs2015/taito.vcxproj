@@ -1,0 +1,819 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{DDF2906E-4954-6E7C-D2C1-B42E3E22A53B}</ProjectGuid>
+    <RootNamespace>taito</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>..\..\..\..\vs2015\bin\x32\Debug\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x32\Debug\taito\</IntDir>
+    <TargetName>taito</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>..\..\..\..\vs2015\bin\x64\Debug\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x64\Debug\taito\</IntDir>
+    <TargetName>taito</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>..\..\..\..\vs2015\bin\x32\Release\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x32\Release\taito\</IntDir>
+    <TargetName>taito</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>..\..\..\..\vs2015\bin\x64\Release\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x64\Release\taito\</IntDir>
+    <TargetName>taito</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader></PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ProgramDataBaseFileName>$(OutDir)taito.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+  <Lib>
+    <OutputFile>$(OutDir)taito.lib</OutputFile>
+    <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    <TargetMachine>MachineX86</TargetMachine>
+  </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader></PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ProgramDataBaseFileName>$(OutDir)taito.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+  <Lib>
+    <OutputFile>$(OutDir)taito.lib</OutputFile>
+    <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    <TargetMachine>MachineX64</TargetMachine>
+  </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader></PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat></DebugInformationFormat>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+  <Lib>
+    <OutputFile>$(OutDir)taito.lib</OutputFile>
+    <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    <TargetMachine>MachineX86</TargetMachine>
+  </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader></PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat></DebugInformationFormat>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+  <Lib>
+    <OutputFile>$(OutDir)taito.lib</OutputFile>
+    <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    <TargetMachine>MachineX64</TargetMachine>
+  </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\40love.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\arkanoid.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\ashnojoe.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\asuka.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\bonzeadv.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\bigevglf.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\bking.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\bublbobl.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\buggychl.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\taito68705interface.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\chaknpop.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\changela.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\crbaloon.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\darius.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\exzisus.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\fgoal.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\flstory.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\galastrm.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\gladiatr.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\grchamp.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\groundfx.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\gsword.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\tait8741.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\gunbustr.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\ksayakyu.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\lkage.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\lsasquad.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\mexico86.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\msisaac.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\ninjaw.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\nycaptor.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\opwolf.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\othunder.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\pitnrun.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\qix.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\rbisland.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\rastan.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\retofinv.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\rollrace.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\slapshot.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\ssrj.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\superchs.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\superqix.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\taito_b.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\taitoipt.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\taito_f2.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\taito_f3.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\taito_en.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\taito_h.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\taito_l.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\taito_x.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\cchip.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\taito_z.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\taito_o.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\taitoair.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\taitojc.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\taitosj.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\tnzs.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\topspeed.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\tsamurai.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\undrfire.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\volfied.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\warriorb.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\wgp.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\taitosnd.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\taito_zm.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\taitoio.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\taito_helper.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\pc080sn.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\pc090oj.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\tc0080vco.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\tc0100scn.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\tc0150rod.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\tc0280grd.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\tc0360pri.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\tc0480scp.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\tc0110pcr.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\tc0180vcu.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\tc0780fpa.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\2mindril.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\40love.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\40love.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\arkanoid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\arkanoid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\arkanoid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ashnojoe.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\ashnojoe.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\asuka.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\bonzeadv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\asuka.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bigevglf.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\bigevglf.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bking.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\bking.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bublbobl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\bublbobl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\bublbobl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\buggychl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\taito68705interface.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\buggychl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\capr1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\caprcyc.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cchance.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\chaknpop.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\chaknpop.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\chaknpop.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\champbwl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\changela.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\changela.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\crbaloon.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\crbaloon.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\crbaloon.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cyclemb.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\darius.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\darius.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\exzisus.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\exzisus.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\fgoal.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\fgoal.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\flstory.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\flstory.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\flstory.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\galastrm.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\galastrm.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gladiatr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\gladiatr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\grchamp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\grchamp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\grchamp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\groundfx.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\groundfx.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gsword.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\tait8741.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\gsword.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gunbustr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\gunbustr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\halleys.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\invqix.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\jollyjgr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ksayakyu.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\ksayakyu.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\lgp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\lkage.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\lkage.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\lsasquad.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\lsasquad.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\lsasquad.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\marinedt.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mexico86.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\mexico86.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\mexico86.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\minivadr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\missb2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mlanding.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\msisaac.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\msisaac.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ninjaw.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\ninjaw.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\nycaptor.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\nycaptor.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\opwolf.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\opwolf.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\opwolf.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\othunder.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\othunder.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\pitnrun.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\pitnrun.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\pitnrun.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\qix.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\qix.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\qix.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\qix.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\rbisland.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\rbisland.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\rbisland.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\rastan.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\rastan.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\retofinv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\retofinv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\rollrace.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\rollrace.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sbowling.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\slapshot.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\slapshot.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ssrj.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\ssrj.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\superchs.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\superchs.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\superqix.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\superqix.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taito_b.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\taito_b.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taito_f2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\taito_f2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taito_f3.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\taito_f3.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\taito_en.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taito_h.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\taito_h.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taito_l.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\taito_l.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taito_x.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\cchip.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taito_z.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\taito_z.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taito_o.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\taito_o.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taitoair.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\taitoair.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taitogn.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taitojc.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\taitojc.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taitopjc.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taitosj.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\taitosj.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\taitosj.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taitottl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taitotz.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taitotx.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taitowlf.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tnzs.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\tnzs.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tnzs.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\topspeed.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\topspeed.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tsamurai.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tsamurai.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\undrfire.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\undrfire.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\volfied.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\volfied.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\volfied.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\warriorb.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\warriorb.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\wgp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\wgp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\wyvernf0.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\taitosnd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\taito_zm.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\taitoio.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\taito_helper.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\pc080sn.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\pc090oj.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tc0080vco.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tc0100scn.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tc0150rod.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tc0280grd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tc0360pri.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tc0480scp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tc0110pcr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tc0180vcu.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tc0780fpa.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

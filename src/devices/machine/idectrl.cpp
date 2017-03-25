@@ -194,7 +194,7 @@ void bus_master_ide_controller_device::device_start()
 		if (bmtarget == nullptr)
 			throw emu_fatalerror("IDE controller '%s' bus master target '%s' doesn't exist!", tag(), m_bmcpu);
 		device_memory_interface *memory;
-		if (!bmtarget->interface(memory))
+		if (!bmtarget->interface_check(memory))
 			throw emu_fatalerror("IDE controller '%s' bus master target '%s' has no memory!", tag(), m_bmcpu);
 		m_dma_space = &memory->space(m_bmspace);
 		m_dma_address_xor = (m_dma_space->endianness() == ENDIANNESS_LITTLE) ? 0 : 3;

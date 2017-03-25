@@ -1,0 +1,28 @@
+struct PS_INPUT
+{
+	float2 m_TexCoord : TEXCOORD0;
+	float3 m_WorldPos : TEXCOORD1;
+};
+
+Texture2D u_Diffuse : register(t0);
+Texture2D u_Lightup : register(t1);
+SamplerState u_TextureSampler
+{
+    Filter = MIN_MAG_MIP_LINEAR;
+    AddressU = Wrap;
+    AddressV = Wrap;
+};
+
+cbuffer PadInfo : register(b0)
+{
+	uniform float4x4 u_World;
+	uniform float4x4 u_VP;
+	uniform int u_LightOn;
+}
+
+float4 ps_main(PS_INPUT a_Input) : SV_Target0
+{
+	float3 l_Diff = float3(0.0f, 0.0f, 0.0f);
+	if( 0 == u_LightOn ) return u_Diffuse.Sample(u_TextureSampler, a_Input.m_TexCoord);
+	return u_Lightup.Sample(u_TextureSampler, a_Input.m_TexCoord);
+}

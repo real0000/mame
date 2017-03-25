@@ -6,9 +6,15 @@
 //
 //============================================================
 
+#include <d3d9.h>
+#include <d3dx9.h>
+#include <d3d11.h>
+
 // MAME headers
 #include "emu.h"
 #include "render.h"
+#include "vr.h"
+#include "vrdevice/modelfile.h"
 
 #include "rendutil.h"
 #include "emuopts.h"
@@ -26,8 +32,8 @@
 //  TYPE DEFINITIONS
 //============================================================
 
-typedef IDirect3D9* (WINAPI *d3d9_create_fn)(UINT);
-
+typedef HRESULT (WINAPI *d3d9_create_fn)(UINT, IDirect3D9Ex **);
+typedef HRESULT (WINAPI *d3d11_create_fn)(IDXGIAdapter *adapter, D3D_DRIVER_TYPE driver_type, HMODULE software, UINT Flags, const D3D_FEATURE_LEVEL *feature_levels, UINT num_feature_levels, UINT sdk_version, ID3D11Device **device, D3D_FEATURE_LEVEL *feature_level, ID3D11DeviceContext **context);
 
 //============================================================
 //  CONSTANTS
@@ -119,7 +125,7 @@ static inline uint32_t ycc_to_rgb(uint8_t y, uint8_t cb, uint8_t cr)
 //============================================================
 
 static d3d_base *               d3dintf; // FIX ME
-
+static d3d11_base *             d3d11intf;
 
 //============================================================
 //  drawd3d_window_init
@@ -199,24 +205,39 @@ render_primitive_list *renderer_d3d9::get_primitives()
 bool renderer_d3d9::init(running_machine &machine)
 {
 	d3dintf = global_alloc(d3d_base);
+	d3d11intf = global_alloc(d3d11_base);
 
 	d3dintf->d3d9_dll = osd::dynamic_module::open({ "d3d9.dll" });
 
-	d3d9_create_fn d3d9_create_ptr = d3dintf->d3d9_dll->bind<d3d9_create_fn>("Direct3DCreate9");
+	d3d9_create_fn d3d9_create_ptr = d3dintf->d3d9_dll->bind<d3d9_create_fn>("Direct3DCreate9Ex");
 	if (d3d9_create_ptr == nullptr)
 	{
 		osd_printf_verbose("Direct3D: Unable to find Direct3D 9 runtime library\n");
 		return true;
 	}
 
-	d3dintf->d3dobj = (*d3d9_create_ptr)(D3D_SDK_VERSION);
+	(*d3d9_create_ptr)(D3D_SDK_VERSION, &(d3dintf->d3dobj));
 	if (d3dintf->d3dobj == nullptr)
 	{
 		osd_printf_verbose("Direct3D: Unable to initialize Direct3D 9\n");
 		return true;
 	}
 
-	osd_printf_verbose("Direct3D: Using Direct3D 9\n");
+	d3d11intf->dllhandle_d3d11 = osd::dynamic_module::open({"d3d11.dll"});
+    if(d3d11intf->dllhandle_d3d11 == nullptr)
+    {
+        osd_printf_verbose("Direct3D: Unable to access d3d11.dll\n");
+        return true;
+    }
+
+	d3d11intf->dllhandle_compiler = osd::dynamic_module::open({"d3dcompiler_47.dll"});
+    if(d3d11intf->dllhandle_compiler == nullptr)
+    {
+        osd_printf_verbose("Direct3D: Unable to access d3dcompiler_47.dll\n");
+        return true;
+    }
+
+	osd_printf_verbose("Direct3D: Using Direct3D 9(11 with openvr)\n");
 
 	return false;
 }
@@ -232,11 +253,61 @@ int renderer_d3d9::draw(const int update)
 	if (check >= 0)
 		return check;
 
+	m_draw_process();
+
+	return 0;
+}
+
+void renderer_d3d9::normal_draw_process()
+{
+	begin_frame();
+	process_primitives();
+	end_frame();
+}
+
+void renderer_d3d9::vr_draw_process()
+{
 	begin_frame();
 	process_primitives();
 	end_frame();
 
-	return 0;
+	if( !vr_machine::singleton().isValid() ) return;
+	vr_machine::singleton().update(1);
+
+	IDirect3DSurface9 *l_pOrigin = nullptr;
+	HRESULT result = m_device->GetRenderTarget(0, &l_pOrigin);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device get_render_target call\n", (int)result);
+	
+	IDirect3DSurface9 *l_pTempSurface = nullptr;
+	result = m_game_screen_texture->GetSurfaceLevel(0, &l_pTempSurface);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during texture get_surface_level call\n", (int)result);
+
+	result = m_device->StretchRect(l_pOrigin, NULL, l_pTempSurface, nullptr, D3DTEXF_NONE);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device stretch_rect call\n", (int)result);
+	
+	float clear_color[] = {0.0f, 0.0f, 0.0f, 0.0f};
+	D3D11_VIEWPORT viewport = {0.0f, 0.0f, (float)vr_machine::singleton().getEyeTextureSize().x, (float)vr_machine::singleton().getEyeTextureSize().y, 0.0f, 1.0f};
+	{// draw left eye
+		vr_machine::singleton().setCurrEye(true);
+		m_context11->OMSetRenderTargets(1, &std::get<0>(m_vr_left_eye), (ID3D11DepthStencilView *)std::get<0>(m_vr_left_eye_depth));
+		m_context11->ClearRenderTargetView(std::get<0>(m_vr_left_eye), clear_color);
+		m_context11->ClearDepthStencilView((ID3D11DepthStencilView *)std::get<0>(m_vr_left_eye_depth), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+		m_context11->RSSetViewports(1, &viewport);
+		draw_vr_machine_model();
+	}
+	
+	{// draw right eye
+		vr_machine::singleton().setCurrEye(false);
+		m_context11->OMSetRenderTargets(1, &std::get<0>(m_vr_right_eye), (ID3D11DepthStencilView *)std::get<0>(m_vr_right_eye_depth));
+		m_context11->ClearRenderTargetView(std::get<0>(m_vr_right_eye), clear_color);
+		m_context11->ClearDepthStencilView((ID3D11DepthStencilView *)std::get<0>(m_vr_right_eye_depth), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+		m_context11->RSSetViewports(1, &viewport);
+		draw_vr_machine_model();
+	}
+
+	m_context11->Flush();
+
+	vr_machine::singleton().commit(std::get<1>(m_vr_left_eye), std::get<1>(m_vr_right_eye), vr::TextureType_DirectX);
 }
 
 void renderer_d3d9::set_texture(texture_info *texture)
@@ -508,13 +579,19 @@ renderer_d3d9::renderer_d3d9(std::shared_ptr<osd_window> window)
 	: osd_renderer(window, FLAG_NONE), m_adapter(0), m_width(0), m_height(0), m_refresh(0), m_create_error_count(0), m_device(nullptr), m_gamma_supported(0), m_pixformat(),
 	m_vertexbuf(nullptr), m_lockedbuf(nullptr), m_numverts(0), m_vectorbatch(nullptr), m_batchindex(0), m_numpolys(0), m_toggle(false),
 	m_screen_format(), m_last_texture(nullptr), m_last_texture_flags(0), m_last_blendenable(0), m_last_blendop(0), m_last_blendsrc(0), m_last_blenddst(0), m_last_filter(0),
-	m_last_wrap(), m_last_modmode(0), m_shaders(nullptr), m_texture_manager(nullptr)
+	m_last_wrap(), m_last_modmode(0), m_shaders(nullptr), m_texture_manager(nullptr),
+	m_device11(nullptr), m_context11(nullptr),
+	m_game_screen_texture(nullptr),
+	m_vr_left_eye(std::make_tuple(nullptr, nullptr, nullptr)), m_vr_left_eye_depth(std::make_tuple(nullptr, nullptr, nullptr)),
+	m_vr_right_eye(std::make_tuple(nullptr, nullptr, nullptr)), m_vr_right_eye_depth(std::make_tuple(nullptr, nullptr, nullptr))
 {
 }
 
 int renderer_d3d9::initialize()
 {
 	osd_printf_verbose("Direct3D: Initialize\n");
+
+	m_draw_process = std::bind(&renderer_d3d9::normal_draw_process, this);
 
 	// configure the adapter for the mode we want
 	if (config_adapter_mode())
@@ -873,6 +950,34 @@ try_again:
 	return device_create_resources();
 }
 
+int	renderer_d3d9::device_create11()
+{
+	if( nullptr != m_device11 ) return 0;// just use prev device
+
+	 d3d11_create_fn direct3dcreate11 = d3d11intf->dllhandle_d3d11->bind<d3d11_create_fn>("D3D11CreateDevice");
+
+    UINT flag = 0;
+#ifdef MAME_DEBUG
+    flag = D3D11_CREATE_DEVICE_DEBUG;
+#endif
+    
+    D3D_FEATURE_LEVEL featureLevels[] =
+    {
+        D3D_FEATURE_LEVEL_11_0,
+        D3D_FEATURE_LEVEL_10_1,
+        D3D_FEATURE_LEVEL_10_0,
+    };
+    const unsigned int num_feature = sizeof(featureLevels) / sizeof(D3D_FEATURE_LEVEL);
+	HRESULT result = direct3dcreate11(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flag, featureLevels, num_feature, D3D11_SDK_VERSION, (ID3D11Device **)&m_device11, nullptr, (ID3D11DeviceContext **)&m_context11);
+	if (result != D3D_OK)
+	{
+		//  fatal error if we just can't do it
+		osd_printf_error("Unable to create the Direct3D 11 device (%08X)\n", (UINT32)result);
+		return 1;
+	}
+
+	return 0;
+}
 
 //============================================================
 //  device_create_resources
@@ -888,11 +993,13 @@ int renderer_d3d9::device_create_resources()
 		m_shaders = (shaders*)global_alloc_clear<shaders>();
 	}
 
-	if (m_shaders->init(d3dintf, &win->machine(), this))
+	if (m_shaders->init(d3dintf, d3d11intf, &win->machine(), this))
 	{
 		m_shaders->init_slider_list();
 		m_sliders_dirty = true;
 	}
+
+	init_vr_resource();
 
 	// create resources
 	if (m_shaders->create_resources())
@@ -988,6 +1095,12 @@ void renderer_d3d9::exit()
 		d3dintf->d3dobj->Release();
 		global_free(d3dintf);
 	}
+
+	if( nullptr != d3d11intf )
+	{
+		global_free(d3d11intf);
+		d3d11intf = nullptr;
+	}
 }
 
 void renderer_d3d9::device_delete()
@@ -1009,8 +1122,19 @@ void renderer_d3d9::device_delete()
 		m_device->Release();
 		m_device = nullptr;
 	}
-}
 
+	if( nullptr != m_context11 )
+	{
+		m_context11->Release();
+		m_context11 = nullptr;
+	}
+
+	if( nullptr != m_device11 )
+	{
+		m_device11->Release();
+		m_device11 = nullptr;
+	}
+}
 
 //============================================================
 //  device_delete_resources
@@ -1985,7 +2109,7 @@ texture_info::texture_info(d3d_texture_manager *manager, const render_texinfo* t
 	compute_size(texsource->width, texsource->height);
 
 	// non-screen textures are easy
-	if (!PRIMFLAG_GET_SCREENTEX(flags))
+	/*if (!PRIMFLAG_GET_SCREENTEX(flags))
 	{
 		assert(PRIMFLAG_TEXFORMAT(flags) != TEXFORMAT_YUY16);
 		result = m_renderer->get_device()->CreateTexture(m_rawdims.c.x, m_rawdims.c.y, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &m_d3dtex, nullptr);
@@ -1995,11 +2119,11 @@ texture_info::texture_info(d3d_texture_manager *manager, const render_texinfo* t
 	}
 
 	// screen textures are allocated differently
-	else
+	else*/
 	{
 		D3DFORMAT format;
-		DWORD usage = m_texture_manager->is_dynamic_supported() ? D3DUSAGE_DYNAMIC : 0;
-		D3DPOOL pool = m_texture_manager->is_dynamic_supported() ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED;
+		DWORD usage = D3DUSAGE_DYNAMIC;//m_texture_manager->is_dynamic_supported() ? D3DUSAGE_DYNAMIC : 0;
+		D3DPOOL pool = D3DPOOL_DEFAULT;//m_texture_manager->is_dynamic_supported() ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED;
 		int maxdim = std::max(m_renderer->get_presentation()->BackBufferWidth, m_renderer->get_presentation()->BackBufferHeight);
 
 		// pick the format
@@ -2108,7 +2232,7 @@ texture_info::texture_info(d3d_texture_manager *manager, const render_texinfo* t
 
 	return;
 
-error:
+//error:
 	d3dintf->post_fx_available = false;
 	osd_printf_error("Direct3D: Critical warning: A texture failed to allocate. Expect things to get bad quickly.\n");
 	if (m_d3dsurface != nullptr)
@@ -2745,4 +2869,241 @@ bool d3d_render_target::init(renderer_d3d9 *d3d, int source_width, int source_he
 texture_info *renderer_d3d9::get_default_texture()
 {
 	return m_texture_manager->get_default_texture();
+}
+
+HRESULT renderer_d3d9::create_vr_render_target(DXGI_FORMAT format, ID3D11RenderTargetView **surface, ID3D11Texture2D **texture, ID3D11ShaderResourceView **view)
+{
+    bool is_depth = format == DXGI_FORMAT_D32_FLOAT_S8X24_UINT ||
+                    format == DXGI_FORMAT_D32_FLOAT ||
+                    format == DXGI_FORMAT_D24_UNORM_S8_UINT;
+	
+	glm::uvec2 l_EyeTextureSize(vr_machine::singleton().getEyeTextureSize());
+
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = l_EyeTextureSize.x;
+    desc.Height = l_EyeTextureSize.y;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = format;
+    desc.SampleDesc.Count = 1;
+    desc.SampleDesc.Quality = 0;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = (is_depth ? D3D11_BIND_DEPTH_STENCIL : D3D11_BIND_RENDER_TARGET) | D3D11_BIND_SHADER_RESOURCE;
+    desc.CPUAccessFlags = 0;
+    desc.MiscFlags = 0;
+
+    DXGI_FORMAT depth_view_format = format;
+    switch( format )
+    {
+        case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+            desc.Format = DXGI_FORMAT_R32G8X24_TYPELESS;
+            depth_view_format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+            break;
+
+        case DXGI_FORMAT_D32_FLOAT:
+            desc.Format = DXGI_FORMAT_R32_TYPELESS;
+            depth_view_format = DXGI_FORMAT_R32_FLOAT;
+            break;
+
+        case DXGI_FORMAT_D24_UNORM_S8_UINT:
+            desc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+            depth_view_format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+            break;
+
+        default:break;
+    }
+
+    HRESULT result = m_device11->CreateTexture2D(&desc, nullptr, (ID3D11Texture2D **)texture);
+    if( S_OK != result ) return result;
+    if( !is_depth )
+    {
+        result = m_device11->CreateRenderTargetView(*(ID3D11Texture2D **)texture, nullptr, (ID3D11RenderTargetView **)surface);
+        if( S_OK != result ) return result;
+        result = m_device11->CreateShaderResourceView(*(ID3D11Texture2D **)texture, nullptr, (ID3D11ShaderResourceView **)view);
+        if( S_OK != result ) return result;
+    }
+    else
+    {
+        D3D11_DEPTH_STENCIL_VIEW_DESC depth_desc = {};
+        depth_desc.Format = format;
+        depth_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+        result = m_device11->CreateDepthStencilView(*(ID3D11Texture2D **)texture, &depth_desc, (ID3D11DepthStencilView **)surface);
+        if( S_OK != result ) return result;
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC depth_view_desc = {};
+        depth_view_desc.Format = depth_view_format;
+        depth_view_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
+        result = m_device11->CreateShaderResourceView(*(ID3D11Texture2D **)texture, &depth_view_desc, (ID3D11ShaderResourceView **)view);
+        if( S_OK != result ) return result;
+    }
+    return result;
+}
+
+HRESULT renderer_d3d9::create_vr_buffer(UINT length, UINT usage, void *data, ID3D11Buffer **buf)
+{
+    D3D11_BUFFER_DESC desc = {};
+    desc.Usage = D3D11_USAGE_IMMUTABLE;
+    desc.ByteWidth = length;
+    desc.BindFlags = usage;
+    desc.CPUAccessFlags = 0;
+
+    D3D11_SUBRESOURCE_DATA initdata = {};
+    initdata.pSysMem = data;
+    return m_device11->CreateBuffer(&desc, &initdata, buf);
+}
+
+void renderer_d3d9::init_vr_resource()
+{
+	if( !vr_machine::singleton().isValid() )
+	{
+		m_draw_process = std::bind(&renderer_d3d9::normal_draw_process, this);
+		return;
+	}
+
+	// init d3d 11, since openvr require d3d10/11
+	device_create11();
+
+	glm::uvec2 l_EyeTextureSize(vr_machine::singleton().getEyeTextureSize());
+	// init eye texture
+	HRESULT l_Res = create_vr_render_target(DXGI_FORMAT_R8G8B8A8_UNORM, &std::get<0>(m_vr_left_eye), &std::get<1>(m_vr_left_eye), &std::get<2>(m_vr_left_eye));
+	assert( S_OK == l_Res );
+	l_Res = create_vr_render_target(DXGI_FORMAT_D24_UNORM_S8_UINT, &std::get<0>(m_vr_left_eye_depth), &std::get<1>(m_vr_left_eye_depth), &std::get<2>(m_vr_left_eye_depth));
+	assert( S_OK == l_Res );
+	l_Res = create_vr_render_target(DXGI_FORMAT_R8G8B8A8_UNORM, &std::get<0>(m_vr_right_eye), &std::get<1>(m_vr_right_eye), &std::get<2>(m_vr_right_eye));
+	assert( S_OK == l_Res );
+	l_Res = create_vr_render_target(DXGI_FORMAT_D24_UNORM_S8_UINT, &std::get<0>(m_vr_right_eye_depth), &std::get<1>(m_vr_right_eye_depth), &std::get<2>(m_vr_right_eye_depth));
+	assert( S_OK == l_Res );
+	
+	auto l_MeshMap = vr_machine::singleton().getModels();
+	auto l_RefMesh = vr_machine::singleton().getRefModelFile();
+	for( unsigned int i=0 ; i<l_MeshMap.size() ; ++i )
+	{
+		vr_machine::machine_model *l_pCurrModel = l_MeshMap[i];
+		model_file::model_meshes *l_pRefMeshItem = l_RefMesh->m_Meshes[l_pCurrModel->m_model_index];
+			
+		l_Res = create_vr_buffer(sizeof(model_file::model_vertex) * l_pRefMeshItem->m_Vertex.size(), D3D11_BIND_VERTEX_BUFFER, l_pRefMeshItem->m_Vertex.data(), (ID3D11Buffer **)&l_pCurrModel->m_pVtxBuffer);
+		assert( S_OK == l_Res );
+
+		l_Res = create_vr_buffer(sizeof(unsigned int) * l_pRefMeshItem->m_Indicies.size(), D3D11_BIND_INDEX_BUFFER, l_pRefMeshItem->m_Indicies.data(), (ID3D11Buffer **)&l_pCurrModel->m_pIndexuffer);
+		assert( S_OK == l_Res );
+
+		// 1 : aiTextureType_DIFFUSE
+		if( 0 == strcmp("GameScreen", l_RefMesh->m_ModelNodes[l_pRefMeshItem->m_RefNode.front()]->m_NodeName.c_str()) )
+		{
+			HANDLE sharehandle = NULL;
+			l_Res = m_device->CreateTexture(m_width, m_height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &m_game_screen_texture, &sharehandle);
+			assert( S_OK == l_Res );
+			
+			ID3D11Texture2D *l_pScreenTex = nullptr;
+			ID3D11ShaderResourceView *l_pScreenTexView = nullptr;
+
+			ID3D11Resource *temp_resource = nullptr;
+			l_Res = m_device11->OpenSharedResource(sharehandle, __uuidof(ID3D11Resource), (void**)(&temp_resource)); 
+			assert( S_OK == l_Res );
+
+			l_Res = temp_resource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&l_pScreenTex); 
+			temp_resource->Release();
+			assert( S_OK == l_Res );
+			l_Res = m_device11->CreateShaderResourceView(l_pScreenTex, nullptr, (ID3D11ShaderResourceView **)&l_pScreenTexView);
+			l_pCurrModel->m_Textures.push_back(std::make_pair((texture11 *)l_pScreenTex, (texture11_view *)l_pScreenTexView));
+
+			assert( S_OK == l_Res );
+		}
+		else
+		{
+			const unsigned int c_UsesTypes[] = {TEXUSAGE_DIFFUSE, TEXUSAGE_NORMAL, TEXUSAGE_SPECULAR};
+			const unsigned int c_NumUsesType = sizeof(c_UsesTypes) / sizeof(unsigned int);
+			for( unsigned int i=0 ; i<c_NumUsesType ; ++i )
+			{
+				bitmap_argb32 l_ImageSrc;
+				auto l_TexNameIt = l_pRefMeshItem->m_Texures.find(c_UsesTypes[i]);
+				if( l_TexNameIt == l_pRefMeshItem->m_Texures.end() || l_TexNameIt->second.empty() ) continue;
+
+				emu_file l_File(vr_machine::singleton().getDirPath().c_str(), OPEN_FLAG_READ);
+				render_load_png(l_ImageSrc, l_File, nullptr, l_TexNameIt->second.c_str());
+			
+				int miplevel = 1;//ceil(log2f(max(l_ImageSrc.width(), l_ImageSrc.height())));
+				int pitch = l_ImageSrc.bpp() / 8 * l_ImageSrc.width();
+				
+				ID3D11Texture2D *l_pTex = nullptr;
+				ID3D11ShaderResourceView *l_pTexView = nullptr;
+
+				D3D11_TEXTURE2D_DESC desc = {};
+				desc.Width = l_ImageSrc.width();
+				desc.Height = l_ImageSrc.height();
+				desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+				desc.MipLevels = miplevel;
+				desc.ArraySize = 1;
+				desc.SampleDesc.Count = 1;
+				desc.SampleDesc.Quality = 0;
+				desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+				desc.Usage = D3D11_USAGE_IMMUTABLE;
+				desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
+
+				D3D11_SUBRESOURCE_DATA initdata = {};
+				initdata.pSysMem = l_ImageSrc.raw_pixptr(0);
+				initdata.SysMemPitch = pitch;
+
+				l_Res = m_device11->CreateTexture2D(&desc, &initdata, &l_pTex);
+				assert( S_OK == l_Res );
+    
+				l_Res = m_device11->CreateShaderResourceView(l_pTex, nullptr, &l_pTexView);
+				assert( S_OK == l_Res );
+				
+				l_pCurrModel->m_Textures.push_back(std::make_pair((texture11 *)l_pTex, (texture11_view *)l_pTexView));
+			}
+		}
+	}
+
+	auto l_FxMap = vr_machine::singleton().getFx();
+	for( unsigned int i=0 ; i<l_FxMap.size() ; ++i )
+	{
+		vr_machine::machine_fx *l_pFx = l_FxMap[i];
+
+		m_shaders->add_custom_effect(m_device11, m_context11, l_pFx->m_FxName.c_str(), vr_machine::singleton().getDirPath().c_str());
+		effect11 *curr_effect11 = m_shaders->get_custom_effect(i);
+
+		auto &l_UniformMap = l_pFx->m_UniformMap;
+		for( unsigned int j=0 ; j<l_UniformMap.size() ; ++j )
+		{
+			auto &l_Uniform = l_UniformMap[j];
+			curr_effect11->add_constant((uniform::uniform_type)l_Uniform.m_UniformType, &l_Uniform.m_pRefTarget);
+		}
+		curr_effect11->init_constant();
+	}
+	
+	m_draw_process = std::bind(&renderer_d3d9::vr_draw_process, this);
+}
+
+void renderer_d3d9::draw_vr_machine_model()
+{
+	auto l_ModelList = vr_machine::singleton().getModels();
+	const model_file *l_pRefFile =  vr_machine::singleton().getRefModelFile();
+	UINT l_Stride = sizeof(model_file::model_vertex);
+	UINT l_Offset = 0;
+	for( unsigned int i=0 ; i<l_ModelList.size() ; ++i )
+	{
+		const vr_machine::machine_model *l_pCurrModel = l_ModelList[i];
+		const model_file::model_meshes *l_pCurrMesh = l_pRefFile->m_Meshes[l_pCurrModel->m_model_index];
+
+		effect11 *l_pEffect = m_shaders->get_custom_effect(l_pCurrModel->m_FxIndex);
+		if( l_pCurrModel->m_Textures.empty() ) continue;
+
+		l_pEffect->begin();
+
+		m_context11->IASetVertexBuffers(0, 1, (ID3D11Buffer **)&(l_pCurrModel->m_pVtxBuffer), &l_Stride, &l_Offset);
+		m_context11->IASetIndexBuffer((ID3D11Buffer *)l_pCurrModel->m_pIndexuffer, DXGI_FORMAT_R32_UINT, 0);
+		for( unsigned int j=0 ; j<l_pCurrModel->m_Textures.size() ; ++j ) m_context11->PSSetShaderResources(j, 1, (ID3D11ShaderResourceView **)&(l_pCurrModel->m_Textures[j].second));
+
+		for( unsigned int j=0 ; j<l_pCurrModel->m_pRefWorld.size() ; ++j )
+		{
+			vr_machine::singleton().updateFx(i, j);
+			l_pEffect->update_constant();
+			
+			m_context11->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			m_context11->DrawIndexed(l_pCurrMesh->m_Indicies.size(), 0, 0);
+		}
+
+		l_pEffect->end();
+	}
 }

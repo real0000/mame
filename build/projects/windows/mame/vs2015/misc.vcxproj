@@ -1,0 +1,1235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{48A9E131-348D-A287-9DED-9CDA89F08C09}</ProjectGuid>
+    <RootNamespace>misc</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>..\..\..\..\vs2015\bin\x32\Debug\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x32\Debug\misc\</IntDir>
+    <TargetName>misc</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>..\..\..\..\vs2015\bin\x64\Debug\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x64\Debug\misc\</IntDir>
+    <TargetName>misc</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>..\..\..\..\vs2015\bin\x32\Release\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x32\Release\misc\</IntDir>
+    <TargetName>misc</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>..\..\..\..\vs2015\bin\x64\Release\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x64\Release\misc\</IntDir>
+    <TargetName>misc</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\..\3rdparty\libjpeg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader></PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ProgramDataBaseFileName>$(OutDir)misc.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\..\3rdparty\libjpeg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+  <Lib>
+    <OutputFile>$(OutDir)misc.lib</OutputFile>
+    <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    <TargetMachine>MachineX86</TargetMachine>
+  </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\..\3rdparty\libjpeg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader></PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ProgramDataBaseFileName>$(OutDir)misc.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\..\3rdparty\libjpeg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+  <Lib>
+    <OutputFile>$(OutDir)misc.lib</OutputFile>
+    <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    <TargetMachine>MachineX64</TargetMachine>
+  </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\..\3rdparty\libjpeg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader></PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat></DebugInformationFormat>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\..\3rdparty\libjpeg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+  <Lib>
+    <OutputFile>$(OutDir)misc.lib</OutputFile>
+    <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    <TargetMachine>MachineX86</TargetMachine>
+  </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\..\3rdparty\libjpeg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader></PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat></DebugInformationFormat>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\..\3rdparty\libjpeg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+  <Lib>
+    <OutputFile>$(OutDir)misc.lib</OutputFile>
+    <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    <TargetMachine>MachineX64</TargetMachine>
+  </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\pxa255.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\3do.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\4enraya.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\ampoker2.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\amspdwy.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\artmagic.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\aztarac.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\calomega.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\cave.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\cdi.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\mcd212.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\cdi070.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\cdislave.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\cdicdic.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\coolpool.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\inder_sb.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\inder_vid.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\vrender0.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\dcheese.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\dribling.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\epos.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\esd16.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\esripsys.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\freekick.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\gotcha.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\gumbo.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\homedata.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\kyugo.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\ladyfrog.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\lethalj.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\malzak.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\mcatadv.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\micro3d.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\mosaic.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\mrjong.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\multfish.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\news.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\norautp.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\oneshot.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\pass.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\policetr.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\polyplay.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\rax.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\shangkid.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\taxidriv.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\thedeep.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\truco.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\trucocl.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\usgames.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\vectrex.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\xyonix.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\39in1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\3do.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\3do.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\4enraya.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\4enraya.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\4enlinea.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\5clown.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\a1supply.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\acefruit.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\aces1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\acesp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\adp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\age_candy.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\alinvade.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\amaticmg.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\amerihok.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ampoker2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\ampoker2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\amspdwy.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\amspdwy.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\amusco.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\arachnid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\artmagic.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\artmagic.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\astrafr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\astrcorp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\astropc.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\atronic.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\attckufo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\avt.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\aztarac.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\aztarac.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\aztarac.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bailey.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\beaminv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\belatra.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bgt.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bingoman.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bingor.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\blitz.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\blitz68k.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\buster.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\calomega.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\calomega.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cardline.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\carrera.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\castle.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cave.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\cave.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cavepc.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cv1k.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cb2001.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cdi.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\mcd212.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\cdi070.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\cdislave.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\cdicdic.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\chance32.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\chexx.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\chicago.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\chsuper.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\clowndwn.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cocoloco.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\coinmstr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\coinmvga.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\comebaby.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cupidon.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bntyhunt.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\coolpool.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\megaphx.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\inder_sb.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\inder_vid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\corona.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\amazonlf.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\crystal.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\vrender0.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cubeqst.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cybertnk.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dcheese.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\dcheese.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dfruit.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dgpix.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\discoboy.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dominob.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dorachan.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dreamwld.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dribling.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\dribling.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\drw80pkr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dwarfd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dynadice.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ecoinfr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ecoinf1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ecoinf2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ecoinf3.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\electra.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\epos.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\epos.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\esd16.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\esd16.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\esh.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\esripsys.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\esripsys.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ettrivia.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\extrema.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\fastinvaders.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\fireball.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\flipjack.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\flower.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\fortecar.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\fresh.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\freekick.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\freekick.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\fungames.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\funkball.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gambl186.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\galaxi.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\galgame.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gamecstl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gammagic.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gamtor.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gei.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gkigt.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\globalfr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\globalvr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gluck2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\goldngam.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\goldnpkr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\good.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gotcha.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\gotcha.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gumbo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\gumbo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gunpey.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\hapyfish.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\hideseek.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\hazelgr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\headonb.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\highvdeo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\hitpoker.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\homedata.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\homedata.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\hotblock.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\hotstuff.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ichiban.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\imolagp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\intrscti.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\istellar.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\itgambl2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\itgambl3.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\itgamble.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\jackpool.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\jankenmn.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\jokrwild.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\jongkyo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\joystand.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\jubilee.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\jungleyo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\kas89.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\kingpin.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\koikoi.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\kurukuru.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\kyugo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\kyugo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ladyfrog.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\ladyfrog.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\laserbas.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\laz_awetoss.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\laz_aftrshok.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\laz_ribrac.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\lethalj.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\lethalj.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\limenko.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ltcasino.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\magic10.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\magicard.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\magicfly.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\magictg.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\magtouch.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\majorpkr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\malzak.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\malzak.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\manohman.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\marywu.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mcatadv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\mcatadv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mgavegas.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\meyc8080.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\meyc8088.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\micro3d.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\micro3d.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\micro3d.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\micro3d.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\midas.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\miniboy7.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mirax.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mjsenpu.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mole.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mosaic.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\mosaic.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mpu12wbk.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\mrjong.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\mrjong.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\multfish.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\multfish_boot.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\murogem.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\murogmbl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\neoprint.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\neptunp2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\news.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\news.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\nexus3d.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\nibble.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\norautp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\norautp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\nsmpoker.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\oneshot.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\oneshot.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\onetwo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\othello.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\pachifev.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\pasha2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\pass.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\pass.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\peplus.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\photon.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\piggypas.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\pk8000.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\photon2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\photoply.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\pipeline.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\pkscram.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\pntnpuzl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\policetr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\policetr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\polyplay.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\polyplay.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\polyplay.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\poker72.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\potgoldu.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\proconn.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\pse.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\quizo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\quizpun2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\rax.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\rbmk.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\rcorsair.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\re900.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\rgum.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\roul.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\savquest.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sanremo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sanremmg.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sealy.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\scm_500.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sfbonus.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\shangkid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\shangkid.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\skeetsht.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\skimaxx.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\skyarmy.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\skylncr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sliver.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\smsmcorp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sothello.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\splus.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\spool99.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sprcros2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sshot.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ssingles.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sstrangr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\statriv2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\stellafr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\stuntair.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\su2000.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\subhuntr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\summit.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sumt8035.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\supercrd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\supertnk.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tapatune.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tattack.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\taxidriv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\taxidriv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tcl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\thayers.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\thedeep.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\thedeep.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tickee.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tmspoker.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\truco.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\truco.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\trucocl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\trucocl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\trvmadns.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\trvquest.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ttchamp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tugboat.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ice_bozopail.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ice_tbd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\umipoker.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\unkhorse.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\usgames.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\usgames.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\vamphalf.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\vcombat.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\vectrex.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\vectrex.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\vectrex.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\videopkr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\vlc.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\voyager.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\vp101.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\vpoker.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\vroulet.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\wildpkr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\wms.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\wacky_gator.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\xtom3d.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\xyonix.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\xyonix.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

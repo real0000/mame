@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{2DAB880B-99B4-887C-2230-9F7C8E38947C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame">
+      <UniqueIdentifier>{09EE61D2-F5BA-BCDD-1ED4-AA850A00F26B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame\drivers">
+      <UniqueIdentifier>{64B9D277-50B2-F1C9-79E4-D64E653CD1D5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame\includes">
+      <UniqueIdentifier>{9CBBDECC-08D2-DC62-5149-6884BD9EADEA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame\video">
+      <UniqueIdentifier>{BCC0958F-A88E-8995-9122-FABB7D8F65FA}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\arabian.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\ikki.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\kangaroo.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\markham.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\route16.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\shangha3.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\strnskil.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\arabian.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\arabian.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dai3wksi.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\ikki.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\ikki.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\kangaroo.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\kangaroo.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\markham.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\markham.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\route16.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\route16.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\shanghai.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\shangha3.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\shangha3.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\strnskil.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\strnskil.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tonton.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

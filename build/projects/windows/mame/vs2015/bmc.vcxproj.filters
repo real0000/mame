@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{2DAB880B-99B4-887C-2230-9F7C8E38947C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame">
+      <UniqueIdentifier>{09EE61D2-F5BA-BCDD-1ED4-AA850A00F26B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame\drivers">
+      <UniqueIdentifier>{64B9D277-50B2-F1C9-79E4-D64E653CD1D5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bmcbowl.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\koftball.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\popobear.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bmcpokr.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

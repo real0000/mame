@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{2DAB880B-99B4-887C-2230-9F7C8E38947C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame">
+      <UniqueIdentifier>{09EE61D2-F5BA-BCDD-1ED4-AA850A00F26B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame\drivers">
+      <UniqueIdentifier>{64B9D277-50B2-F1C9-79E4-D64E653CD1D5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame\includes">
+      <UniqueIdentifier>{9CBBDECC-08D2-DC62-5149-6884BD9EADEA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame\video">
+      <UniqueIdentifier>{BCC0958F-A88E-8995-9122-FABB7D8F65FA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame\machine">
+      <UniqueIdentifier>{9AF98204-86F2-A156-AF24-87DB9B7C8162}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mame\audio">
+      <UniqueIdentifier>{3753208E-2321-1494-0CB5-84BAF821F0F8}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\armedf.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\cclimber.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\cclimber.h">
+      <Filter>src\mame\audio</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\clshroad.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\cop01.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\galivan.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\gomoku.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\hyhoo.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\magmax.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\nbmj8688.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\nbmj8891.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\nbmj8900.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\nbmj8991.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\nbmj9195.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\niyanpai.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\pastelg.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\seicross.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\terracre.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\tubep.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\wiping.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\wiping.h">
+      <Filter>src\mame\audio</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\nb1413m3.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\nb1414m4.h">
+      <Filter>src\mame\includes</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\armedf.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\armedf.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cclimber.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\cclimber.cpp">
+      <Filter>src\mame\machine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\cclimber.cpp">
+      <Filter>src\mame\audio</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\cclimber.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\clshroad.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\clshroad.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\csplayh5.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\cop01.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\cop01.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dacholer.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\galivan.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\galivan.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gomoku.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\gomoku.cpp">
+      <Filter>src\mame\audio</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\gomoku.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\hyhoo.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\hyhoo.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\jangou.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\magmax.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\magmax.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\nbmj8688.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\nbmj8688.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\nbmj8891.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\nbmj8891.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\nbmj8900.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\nbmj8900.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\nbmj8991.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\nbmj8991.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\nbmj9195.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\nbmj9195.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\nightgal.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\niyanpai.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\niyanpai.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\pastelg.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\pastelg.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\seicross.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\seicross.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\terracre.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\terracre.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\tubep.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\tubep.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\wiping.cpp">
+      <Filter>src\mame\drivers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\wiping.cpp">
+      <Filter>src\mame\audio</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\wiping.cpp">
+      <Filter>src\mame\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\nb1413m3.cpp">
+      <Filter>src\mame\machine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\nb1414m4.cpp">
+      <Filter>src\mame\machine</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

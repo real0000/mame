@@ -48,7 +48,7 @@ device_gfx_interface::~device_gfx_interface()
 void device_gfx_interface::static_set_info(device_t &device, const gfx_decode_entry *gfxinfo)
 {
 	device_gfx_interface *gfx;
-	if (!device.interface(gfx))
+	if (!device.interface_check(gfx))
 		throw emu_fatalerror("MCFG_GFX_INFO called on device '%s' with no gfx interface\n", device.tag());
 
 	gfx->m_gfxdecodeinfo = gfxinfo;
@@ -63,7 +63,7 @@ void device_gfx_interface::static_set_info(device_t &device, const gfx_decode_en
 void device_gfx_interface::static_set_palette(device_t &device, const char *tag)
 {
 	device_gfx_interface *gfx;
-	if (!device.interface(gfx))
+	if (!device.interface_check(gfx))
 		throw emu_fatalerror("MCFG_GFX_PALETTE called on device '%s' with no gfx interface\n", device.tag());
 
 	gfx->m_palette_tag = tag;

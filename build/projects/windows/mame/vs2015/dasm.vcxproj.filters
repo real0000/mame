@@ -1,0 +1,713 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{2DAB880B-99B4-887C-2230-9F7C8E38947C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices">
+      <UniqueIdentifier>{CC5D779A-3813-F08F-C107-EA662DBCE693}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu">
+      <UniqueIdentifier>{B08A7D9F-1C16-EB63-2527-6E5891314764}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\8x300">
+      <UniqueIdentifier>{8F71D934-FBDD-942F-C4D1-2C8D30FDB697}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\arc">
+      <UniqueIdentifier>{4281D7E3-AEE2-B4F1-3750-FBA3A3B0EBB0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\arcompact">
+      <UniqueIdentifier>{C60B1825-32CE-4BAF-7B7E-DA3BE77F248D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\arm">
+      <UniqueIdentifier>{4C81D7E3-B8E2-B4F1-4150-FBA3ADB0EBB0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\arm7">
+      <UniqueIdentifier>{03ABC75E-EF39-5128-9858-652384C661CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\se3208">
+      <UniqueIdentifier>{B1375058-9D31-79AA-869E-0FBB7237DF16}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\amis2000">
+      <UniqueIdentifier>{F89DFDFA-E4C2-4C7B-0D0E-320BF9914B99}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\alph8201">
+      <UniqueIdentifier>{DCC293BD-C8E7-E23D-F132-C8CDDDB6E15B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\adsp2100">
+      <UniqueIdentifier>{37CC4E5D-23F1-9DDD-4C3C-836D38C09CFB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\sharc">
+      <UniqueIdentifier>{9D1DFD38-098A-B833-D27D-50913EA9DA9B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\apexc">
+      <UniqueIdentifier>{5DD9BB37-C945-7732-9239-0F90FE64999A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\dsp16">
+      <UniqueIdentifier>{7AEDF337-E659-AF32-AF4D-47901B79D19A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\dsp32">
+      <UniqueIdentifier>{B8EDF337-245A-AF32-ED4D-47905979D19A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\asap">
+      <UniqueIdentifier>{F1ADC75E-DD3C-5128-865B-652372C961CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\am29000">
+      <UniqueIdentifier>{95EA590B-0122-A2A2-0A2C-06C676E2C89B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\jaguar">
+      <UniqueIdentifier>{460F2743-3209-5095-1B76-E6A5070FB601}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\cubeqcpu">
+      <UniqueIdentifier>{A427252A-904C-74AA-B997-593AA51B73C8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\esrip">
+      <UniqueIdentifier>{EF150638-5B82-C132-2476-599090A1E39A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\e0c6200">
+      <UniqueIdentifier>{4C436DB4-B87A-B54B-C184-196F2D3BDC44}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\cosmac">
+      <UniqueIdentifier>{62BCD633-4EB6-FF85-3723-969623BC65F2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\cop400">
+      <UniqueIdentifier>{421ED433-2E18-FD85-1785-9396031E63F2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\cp1610">
+      <UniqueIdentifier>{87B3C333-73AD-EC85-5C1A-839648B352F2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\ccpu">
+      <UniqueIdentifier>{9784C85E-8313-5228-2C32-662318A062CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\t11">
+      <UniqueIdentifier>{82C9D7E3-EE2A-B5F1-7798-FBA3E3F8EBB0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\f8">
+      <UniqueIdentifier>{6A616B16-5645-2C6C-BFA5-26BFABA816EE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\g65816">
+      <UniqueIdentifier>{DD020139-C9FC-298B-B269-C09B9E0290F7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\hcd62121">
+      <UniqueIdentifier>{37730A5F-2398-59DF-4CE3-3E6F386758FD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\hmcs40">
+      <UniqueIdentifier>{FBA3533F-E79D-7C91-D00A-13A2BCA3E2FD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\sh2">
+      <UniqueIdentifier>{59CCD7E3-C52D-B5F1-4E9B-FBA3BAFBEBB0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\sh4">
+      <UniqueIdentifier>{5BCCD7E3-C72D-B5F1-509B-FBA3BCFBEBB0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\hphybrid">
+      <UniqueIdentifier>{4603EC55-3228-3BD6-5B73-206647F739F4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\nanoprocessor">
+      <UniqueIdentifier>{F877A4B3-6490-8BDD-2D3D-1B7799142077}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\h6280">
+      <UniqueIdentifier>{84D51938-F041-D532-B935-6D902561F79A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\e132xs">
+      <UniqueIdentifier>{320EFB33-1E08-2486-0775-BA96F30D8AF2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\ie15">
+      <UniqueIdentifier>{00CFCB5E-EC5D-5528-957C-692381EA65CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\i4004">
+      <UniqueIdentifier>{BDCB2A38-2938-E632-F22B-7E905E57089B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\i8008">
+      <UniqueIdentifier>{45FD2C38-B169-E832-7A5D-8090E6880A9B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\scmp">
+      <UniqueIdentifier>{3F4AD15E-2BD9-5A28-D4F7-6E23C0656BCE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\i8085">
+      <UniqueIdentifier>{4AFE2C38-B66A-E832-7F5E-8090EB890A9B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\i8089">
+      <UniqueIdentifier>{4EFE2C38-BA6A-E832-835E-8090EF890A9B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\mcs48">
+      <UniqueIdentifier>{1B118E38-877D-4933-5071-E190BC9C6B9B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\mcs51">
+      <UniqueIdentifier>{35118E38-A17D-4933-6A71-E190D69C6B9B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\i386">
+      <UniqueIdentifier>{36FBCA5E-228A-5428-CBA8-6823B71665CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\i860">
+      <UniqueIdentifier>{3310CB5E-1F9F-5428-C8BD-6823B42B65CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\i960">
+      <UniqueIdentifier>{7414CB5E-60A3-5428-09C2-6823F52F65CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\lh5801">
+      <UniqueIdentifier>{0E973348-FA90-5C9A-E3FD-F2AACF96C206}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\ssem">
+      <UniqueIdentifier>{448DD15E-301C-5B28-D93A-6F23C5A86BCE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\mb88xx">
+      <UniqueIdentifier>{5BDB1D4A-47D5-469C-3042-DDAC1CDBAC08}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\mb86233">
+      <UniqueIdentifier>{81FBD68D-ED32-1F25-F63C-834862F3451E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\mb86235">
+      <UniqueIdentifier>{83FBD68D-EF32-1F25-F83C-834864F3451E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\pic16c5x">
+      <UniqueIdentifier>{7FEA498C-6B0F-990C-945A-7E9C80DE972A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\pic16c62x">
+      <UniqueIdentifier>{12368715-7EF8-BA9F-C7A8-492C33AA937D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\mips">
+      <UniqueIdentifier>{E519CE5E-D1A8-5728-7AC7-6B23663568CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\psx">
+      <UniqueIdentifier>{47C1D7E3-B322-B5F1-3C90-FBA3A8F0EBB0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\melps4">
+      <UniqueIdentifier>{E195714A-CD8F-9A9C-B6FC-30ADA2950009}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\m37710">
+      <UniqueIdentifier>{9BC1CA46-87BB-F398-7028-8AA95CC15905}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\m6800">
+      <UniqueIdentifier>{87687438-F3D4-2F33-BCC8-C79028F4519B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\m6805">
+      <UniqueIdentifier>{8C687438-F8D4-2F33-C1C8-C7902DF4519B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\m6809">
+      <UniqueIdentifier>{90687438-FCD4-2F33-C5C8-C79031F4519B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\mc68hc11">
+      <UniqueIdentifier>{B7F04891-A315-9811-CC60-7DA1B8E4962F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\m68000">
+      <UniqueIdentifier>{97790147-8373-2A99-6CE0-C0A958799005}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\dsp56k">
+      <UniqueIdentifier>{29AE7136-15A8-9A88-FE14-3199EAAD00F5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\pdp1">
+      <UniqueIdentifier>{81A9CF5E-6D38-5928-1657-6D2302C569CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\patinhofeio">
+      <UniqueIdentifier>{C2560DC5-2E64-3BAB-B74A-379623570762}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\powerpc">
+      <UniqueIdentifier>{CCA7A797-38DF-EF2E-41E9-5352AD9F1628}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\nec">
+      <UniqueIdentifier>{E2B6D7E3-4E18-B5F1-D785-FBA343E6EBB0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\v60">
+      <UniqueIdentifier>{A8D2D7E3-1434-B5F1-9DA1-FBA30902ECB0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\v810">
+      <UniqueIdentifier>{7B30D25E-67BF-5B28-10DE-6F23FC4B6CCE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\upd7725">
+      <UniqueIdentifier>{0AF26D19-7629-B6B0-7F33-1AD4EBE9DCA9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\upd7810">
+      <UniqueIdentifier>{25F66D19-912D-B6B0-9A37-1AD406EEDCA9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\ucom4">
+      <UniqueIdentifier>{74CB1E39-E037-DA33-A92B-72911557FC9B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\minx">
+      <UniqueIdentifier>{A819CE5E-94A8-5728-3DC7-6B23293568CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\rsp">
+      <UniqueIdentifier>{C1C9D7E3-2D2B-B5F1-B698-FBA322F9EBB0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\mn10200">
+      <UniqueIdentifier>{DAEC52A9-4624-9B40-4F2E-FF63BBE4C139}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\saturn">
+      <UniqueIdentifier>{09A02C58-F599-55AA-DE06-ECBACA9FBB16}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\sm510">
+      <UniqueIdentifier>{C217FF38-2E84-BA33-F777-529163A3DC9B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\sm8500">
+      <UniqueIdentifier>{59C6E358-45C0-0CAB-2E2D-A3BB1AC67217}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\s2650">
+      <UniqueIdentifier>{2CC2DE38-982E-9A33-6122-3291CD4DBC9B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\sc61860">
+      <UniqueIdentifier>{A7BBE25D-13F3-2AF5-1CFD-8E1888B351EE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\spc700">
+      <UniqueIdentifier>{A9AC3159-95A6-5AAB-7E13-F1BB6AACC017}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\ssp1601">
+      <UniqueIdentifier>{AAC94E87-1601-971E-1F0B-FB418BC1BD17}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\unsp">
+      <UniqueIdentifier>{9292D25E-7E21-5C28-2740-702313AE6CCE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\avr8">
+      <UniqueIdentifier>{ADBCC75E-994B-5128-426A-65232ED861CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\tms1000">
+      <UniqueIdentifier>{A14280C6-0D7A-C85D-1684-2C81823AEF56}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\tms7000">
+      <UniqueIdentifier>{E78C83C6-53C4-CB5D-5CCE-2F81C884F256}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\tms9900">
+      <UniqueIdentifier>{F2CB84C6-5E03-CD5D-670D-3181D3C3F356}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\tms34010">
+      <UniqueIdentifier>{98F9AE96-841E-FE16-AD69-E3A699EDFC34}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\tms32010">
+      <UniqueIdentifier>{D6E0AD96-C205-FD16-EB50-E2A6D7D4FB34}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\tms32025">
+      <UniqueIdentifier>{FCE0AD96-E805-FD16-1151-E2A6FDD4FB34}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\tms32031">
+      <UniqueIdentifier>{19E1AD96-0506-FD16-2E51-E2A61AD5FB34}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\tms32051">
+      <UniqueIdentifier>{5BE1AD96-4706-FD16-7051-E2A65CD5FB34}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\tms32082">
+      <UniqueIdentifier>{BFE1AD96-AB06-FD16-D451-E2A6C0D5FB34}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\tms57002">
+      <UniqueIdentifier>{9ECFD496-8AF4-2317-B33F-09A79FC32235}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\tlcs900">
+      <UniqueIdentifier>{3BE92DC3-A720-765A-B02A-DA7D1CE19C53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\z80">
+      <UniqueIdentifier>{EEE3D7E3-5A45-B5F1-E3B2-FBA34F13ECB0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\lr35902">
+      <UniqueIdentifier>{4D5FD465-B996-1CFD-C2A0-80202E5743F6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\z180">
+      <UniqueIdentifier>{1F45D45E-0BD4-5D28-B4F2-7123A0606ECE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\z8000">
+      <UniqueIdentifier>{CE9D6039-3A0A-1C34-03FE-B3916F293E9C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\z8">
+      <UniqueIdentifier>{FE636B16-EA47-2C6C-53A8-26BF3FAB16EE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\superfx">
+      <UniqueIdentifier>{19A5168C-85DC-5E23-8EE6-C246FA9C851C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\pps4">
+      <UniqueIdentifier>{F3DCCF5E-DF6B-5928-888A-6D2374F869CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\hd61700">
+      <UniqueIdentifier>{F6427711-627A-BFA8-6B84-23CCD73AE6A1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\lc8670">
+      <UniqueIdentifier>{10BADA47-FCB3-039A-E520-9AAAD1B96906}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\scudsp">
+      <UniqueIdentifier>{3E155158-2A0F-7AAA-137C-10BBFF14E016}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\score">
+      <UniqueIdentifier>{489BFA38-B407-B633-7DFB-4D91E926D89B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\alto2">
+      <UniqueIdentifier>{4EE6B937-BA52-7532-8346-0D90EF71979A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\sparc">
+      <UniqueIdentifier>{A5800139-11ED-BC33-DAE0-5491460CDF9B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\devices\cpu\clipper">
+      <UniqueIdentifier>{5BBFFBA6-C7F6-433E-D000-A8613CB76A37}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\src\devices\cpu\i960\i960dis.h">
+      <Filter>src\devices\cpu\i960</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\8x300\8x300dasm.cpp">
+      <Filter>src\devices\cpu\8x300</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\arc\arcdasm.cpp">
+      <Filter>src\devices\cpu\arc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\arcompact\arcompactdasm.cpp">
+      <Filter>src\devices\cpu\arcompact</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\arcompact\arcompactdasm_dispatch.cpp">
+      <Filter>src\devices\cpu\arcompact</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\arcompact\arcompactdasm_ops.cpp">
+      <Filter>src\devices\cpu\arcompact</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\arcompact\arcompact_common.cpp">
+      <Filter>src\devices\cpu\arcompact</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\arm\armdasm.cpp">
+      <Filter>src\devices\cpu\arm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\arm7\arm7dasm.cpp">
+      <Filter>src\devices\cpu\arm7</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\se3208\se3208dis.cpp">
+      <Filter>src\devices\cpu\se3208</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\amis2000\amis2000d.cpp">
+      <Filter>src\devices\cpu\amis2000</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\alph8201\8201dasm.cpp">
+      <Filter>src\devices\cpu\alph8201</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\adsp2100\2100dasm.cpp">
+      <Filter>src\devices\cpu\adsp2100</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\sharc\sharcdsm.cpp">
+      <Filter>src\devices\cpu\sharc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\apexc\apexcdsm.cpp">
+      <Filter>src\devices\cpu\apexc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\dsp16\dsp16dis.cpp">
+      <Filter>src\devices\cpu\dsp16</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\dsp32\dsp32dis.cpp">
+      <Filter>src\devices\cpu\dsp32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\asap\asapdasm.cpp">
+      <Filter>src\devices\cpu\asap</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\am29000\am29dasm.cpp">
+      <Filter>src\devices\cpu\am29000</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\jaguar\jagdasm.cpp">
+      <Filter>src\devices\cpu\jaguar</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\cubeqcpu\cubedasm.cpp">
+      <Filter>src\devices\cpu\cubeqcpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\esrip\esripdsm.cpp">
+      <Filter>src\devices\cpu\esrip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\e0c6200\e0c6200d.cpp">
+      <Filter>src\devices\cpu\e0c6200</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\cosmac\cosdasm.cpp">
+      <Filter>src\devices\cpu\cosmac</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\cop400\cop410ds.cpp">
+      <Filter>src\devices\cpu\cop400</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\cop400\cop420ds.cpp">
+      <Filter>src\devices\cpu\cop400</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\cop400\cop444ds.cpp">
+      <Filter>src\devices\cpu\cop400</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\cop400\cop424ds.cpp">
+      <Filter>src\devices\cpu\cop400</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\cp1610\1610dasm.cpp">
+      <Filter>src\devices\cpu\cp1610</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\ccpu\ccpudasm.cpp">
+      <Filter>src\devices\cpu\ccpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\t11\t11dasm.cpp">
+      <Filter>src\devices\cpu\t11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\f8\f8dasm.cpp">
+      <Filter>src\devices\cpu\f8</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\g65816\g65816ds.cpp">
+      <Filter>src\devices\cpu\g65816</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\hcd62121\hcd62121d.cpp">
+      <Filter>src\devices\cpu\hcd62121</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\hmcs40\hmcs40d.cpp">
+      <Filter>src\devices\cpu\hmcs40</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\sh2\sh2dasm.cpp">
+      <Filter>src\devices\cpu\sh2</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\sh4\sh4dasm.cpp">
+      <Filter>src\devices\cpu\sh4</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\hphybrid\hphybrid_dasm.cpp">
+      <Filter>src\devices\cpu\hphybrid</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\nanoprocessor\nanoprocessor_dasm.cpp">
+      <Filter>src\devices\cpu\nanoprocessor</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\h6280\6280dasm.cpp">
+      <Filter>src\devices\cpu\h6280</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\e132xs\32xsdasm.cpp">
+      <Filter>src\devices\cpu\e132xs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\ie15\ie15dasm.cpp">
+      <Filter>src\devices\cpu\ie15</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\i4004\4004dasm.cpp">
+      <Filter>src\devices\cpu\i4004</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\i8008\8008dasm.cpp">
+      <Filter>src\devices\cpu\i8008</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\scmp\scmpdasm.cpp">
+      <Filter>src\devices\cpu\scmp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\i8085\8085dasm.cpp">
+      <Filter>src\devices\cpu\i8085</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\i8089\i8089_dasm.cpp">
+      <Filter>src\devices\cpu\i8089</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mcs48\mcs48dsm.cpp">
+      <Filter>src\devices\cpu\mcs48</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mcs51\mcs51dasm.cpp">
+      <Filter>src\devices\cpu\mcs51</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\i386\i386dasm.cpp">
+      <Filter>src\devices\cpu\i386</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\i860\i860dis.cpp">
+      <Filter>src\devices\cpu\i860</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\i960\i960dis.cpp">
+      <Filter>src\devices\cpu\i960</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\lh5801\5801dasm.cpp">
+      <Filter>src\devices\cpu\lh5801</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\ssem\ssemdasm.cpp">
+      <Filter>src\devices\cpu\ssem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mb88xx\mb88dasm.cpp">
+      <Filter>src\devices\cpu\mb88xx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mb86233\mb86233d.cpp">
+      <Filter>src\devices\cpu\mb86233</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mb86235\mb86235d.cpp">
+      <Filter>src\devices\cpu\mb86235</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\pic16c5x\16c5xdsm.cpp">
+      <Filter>src\devices\cpu\pic16c5x</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\pic16c62x\16c62xdsm.cpp">
+      <Filter>src\devices\cpu\pic16c62x</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mips\r3kdasm.cpp">
+      <Filter>src\devices\cpu\mips</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mips\mips3dsm.cpp">
+      <Filter>src\devices\cpu\mips</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\psx\psxdasm.cpp">
+      <Filter>src\devices\cpu\psx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\melps4\melps4d.cpp">
+      <Filter>src\devices\cpu\melps4</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\m37710\m7700ds.cpp">
+      <Filter>src\devices\cpu\m37710</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\m6800\6800dasm.cpp">
+      <Filter>src\devices\cpu\m6800</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\m6805\6805dasm.cpp">
+      <Filter>src\devices\cpu\m6805</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\m6809\6x09dasm.cpp">
+      <Filter>src\devices\cpu\m6809</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mc68hc11\hc11dasm.cpp">
+      <Filter>src\devices\cpu\mc68hc11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\m68000\m68kdasm.cpp">
+      <Filter>src\devices\cpu\m68000</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\dsp56k\dsp56dsm.cpp">
+      <Filter>src\devices\cpu\dsp56k</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\dsp56k\opcode.cpp">
+      <Filter>src\devices\cpu\dsp56k</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\dsp56k\inst.cpp">
+      <Filter>src\devices\cpu\dsp56k</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\dsp56k\pmove.cpp">
+      <Filter>src\devices\cpu\dsp56k</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\dsp56k\tables.cpp">
+      <Filter>src\devices\cpu\dsp56k</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\pdp1\pdp1dasm.cpp">
+      <Filter>src\devices\cpu\pdp1</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\pdp1\tx0dasm.cpp">
+      <Filter>src\devices\cpu\pdp1</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\patinhofeio\patinho_feio_dasm.cpp">
+      <Filter>src\devices\cpu\patinhofeio</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\powerpc\ppc_dasm.cpp">
+      <Filter>src\devices\cpu\powerpc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\nec\necdasm.cpp">
+      <Filter>src\devices\cpu\nec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\v60\v60d.cpp">
+      <Filter>src\devices\cpu\v60</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\v810\v810dasm.cpp">
+      <Filter>src\devices\cpu\v810</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\upd7725\dasm7725.cpp">
+      <Filter>src\devices\cpu\upd7725</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\upd7810\upd7810_dasm.cpp">
+      <Filter>src\devices\cpu\upd7810</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\ucom4\ucom4d.cpp">
+      <Filter>src\devices\cpu\ucom4</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\minx\minxd.cpp">
+      <Filter>src\devices\cpu\minx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\rsp\rsp_dasm.cpp">
+      <Filter>src\devices\cpu\rsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\mn10200\mn102dis.cpp">
+      <Filter>src\devices\cpu\mn10200</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\saturn\saturnds.cpp">
+      <Filter>src\devices\cpu\saturn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\sm510\sm510d.cpp">
+      <Filter>src\devices\cpu\sm510</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\sm8500\sm8500d.cpp">
+      <Filter>src\devices\cpu\sm8500</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\s2650\2650dasm.cpp">
+      <Filter>src\devices\cpu\s2650</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\sc61860\scdasm.cpp">
+      <Filter>src\devices\cpu\sc61860</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\spc700\spc700ds.cpp">
+      <Filter>src\devices\cpu\spc700</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\ssp1601\ssp1601d.cpp">
+      <Filter>src\devices\cpu\ssp1601</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\unsp\unspdasm.cpp">
+      <Filter>src\devices\cpu\unsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\avr8\avr8dasm.cpp">
+      <Filter>src\devices\cpu\avr8</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms1000\tms1k_dasm.cpp">
+      <Filter>src\devices\cpu\tms1000</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms7000\7000dasm.cpp">
+      <Filter>src\devices\cpu\tms7000</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms9900\9900dasm.cpp">
+      <Filter>src\devices\cpu\tms9900</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms34010\34010dsm.cpp">
+      <Filter>src\devices\cpu\tms34010</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms32010\32010dsm.cpp">
+      <Filter>src\devices\cpu\tms32010</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms32025\32025dsm.cpp">
+      <Filter>src\devices\cpu\tms32025</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms32031\dis32031.cpp">
+      <Filter>src\devices\cpu\tms32031</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms32051\dis32051.cpp">
+      <Filter>src\devices\cpu\tms32051</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms32082\dis_mp.cpp">
+      <Filter>src\devices\cpu\tms32082</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms32082\dis_pp.cpp">
+      <Filter>src\devices\cpu\tms32082</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tms57002\57002dsm.cpp">
+      <Filter>src\devices\cpu\tms57002</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\tlcs900\dasm900.cpp">
+      <Filter>src\devices\cpu\tlcs900</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\z80\z80dasm.cpp">
+      <Filter>src\devices\cpu\z80</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\lr35902\lr35902d.cpp">
+      <Filter>src\devices\cpu\lr35902</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\z180\z180dasm.cpp">
+      <Filter>src\devices\cpu\z180</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\z8000\8000dasm.cpp">
+      <Filter>src\devices\cpu\z8000</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\z8\z8dasm.cpp">
+      <Filter>src\devices\cpu\z8</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\superfx\sfx_dasm.cpp">
+      <Filter>src\devices\cpu\superfx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\pps4\pps4dasm.cpp">
+      <Filter>src\devices\cpu\pps4</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\hd61700\hd61700d.cpp">
+      <Filter>src\devices\cpu\hd61700</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\lc8670\lc8670dsm.cpp">
+      <Filter>src\devices\cpu\lc8670</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\scudsp\scudspdasm.cpp">
+      <Filter>src\devices\cpu\scudsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\score\scoredsm.cpp">
+      <Filter>src\devices\cpu\score</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\alto2\alto2dsm.cpp">
+      <Filter>src\devices\cpu\alto2</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\sparc\sparcdasm.cpp">
+      <Filter>src\devices\cpu\sparc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\devices\cpu\clipper\clipperd.cpp">
+      <Filter>src\devices\cpu\clipper</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\..\..\..\src\devices\cpu\tms57002\tmsinstr.lst">
+      <Filter>src\devices\cpu\tms57002</Filter>
+    </CustomBuild>
+  </ItemGroup>
+</Project>

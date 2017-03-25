@@ -70,7 +70,7 @@ z80_daisy_chain_interface::~z80_daisy_chain_interface()
 void z80_daisy_chain_interface::static_set_daisy_config(device_t &device, const z80_daisy_config *config)
 {
 	z80_daisy_chain_interface *daisyintf;
-	if (!device.interface(daisyintf))
+	if (!device.interface_check(daisyintf))
 		throw emu_fatalerror("MCFG_Z80_DAISY_CHAIN called on device '%s' with no daisy chain interface", device.tag());
 	daisyintf->m_daisy_config = config;
 }
@@ -106,7 +106,7 @@ void z80_daisy_chain_interface::daisy_init(const z80_daisy_config *daisy)
 
 		// make sure it has an interface
 		device_z80daisy_interface *intf;
-		if (!target->interface(intf))
+		if (!target->interface_check(intf))
 			fatalerror("Device '%s' does not implement the z80daisy interface!\n", daisy->devname);
 
 		// splice it out of the list if it was previously added

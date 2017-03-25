@@ -1,0 +1,754 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{FCE0E431-E8C4-A587-5125-A0DA3D289009}</ProjectGuid>
+    <RootNamespace>sega</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>..\..\..\..\vs2015\bin\x32\Debug\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x32\Debug\sega\</IntDir>
+    <TargetName>sega</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>..\..\..\..\vs2015\bin\x64\Debug\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x64\Debug\sega\</IntDir>
+    <TargetName>sega</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>..\..\..\..\vs2015\bin\x32\Release\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x32\Release\sega\</IntDir>
+    <TargetName>sega</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>..\..\..\..\vs2015\bin\x64\Release\mame_mame\</OutDir>
+    <IntDir>..\..\..\..\vs2015\obj\x64\Release\sega\</IntDir>
+    <TargetName>sega</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader></PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ProgramDataBaseFileName>$(OutDir)sega.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+  <Lib>
+    <OutputFile>$(OutDir)sega.lib</OutputFile>
+    <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    <TargetMachine>MachineX86</TargetMachine>
+  </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader></PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ProgramDataBaseFileName>$(OutDir)sega.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;MAME_DEBUG;MAME_PROFILER;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+  <Lib>
+    <OutputFile>$(OutDir)sega.lib</OutputFile>
+    <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    <TargetMachine>MachineX64</TargetMachine>
+  </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader></PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat></DebugInformationFormat>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x86;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+  <Lib>
+    <OutputFile>$(OutDir)sega.lib</OutputFile>
+    <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    <TargetMachine>MachineX86</TargetMachine>
+  </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalOptions>/WX /wd4025 /wd4003 /wd4018 /wd4061 /wd4100 /wd4127 /wd4131 /wd4141 /wd4146 /wd4150 /wd4189 /wd4191 /wd4201 /wd4232 /wd4242 /wd4244 /wd4250 /wd4255 /wd4296 /wd4306 /wd4310 /wd4312 /wd4324 /wd4347 /wd4435 /wd4510 /wd4512 /wd4514 /wd4571 /wd4610 /wd4611 /wd4619 /wd4625 /wd4626 /wd4640 /wd4668 /wd4702 /wd4706 /wd4710 /wd4711 /wd4805 /wd4820 /wd4826 /wd4365 /wd4389 /wd4245 /wd4388 /wd4267 /wd4005 /wd4350 /wd4996 /wd4060 /wd4065 /wd4290 /wd4355 /wd4800 /wd4371 /wd4548 /wd4334 /wd4456 /wd4457 /wd4458 /wd4459 /wd4838 /wd4091 /wd4463 /wd4297 /wd4319 /wd4592  %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader></PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <DebugInformationFormat></DebugInformationFormat>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>X64_WINDOWS_ABI;PTR64=1;NDEBUG;CRLF=3;LSB_FIRST;FLAC__NO_DLL;NATIVE_DRC=drcbe_x64;LUA_COMPAT_ALL;LUA_COMPAT_5_1;LUA_COMPAT_5_2;_WIN64;XML_STATIC;WIN32;_WIN32;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_STDIO_LEGACY_WIDE_SPECIFIERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\..\..\3rdparty\dxsdk\Include;..\..\..\..\..\src\osd;..\..\..\..\..\src\emu;..\..\..\..\..\src\devices;..\..\..\..\..\src\mame;..\..\..\..\..\src\lib;..\..\..\..\..\src\lib\util;..\..\..\..\..\src\lib\netlist;..\..\..\..\..\3rdparty;..\..\..\..\generated\mame\layout;..\..\..\..\..\3rdparty\libflac\include;..\..\..\..\generated\mess\layout;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+  <Lib>
+    <OutputFile>$(OutDir)sega.lib</OutputFile>
+    <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    <TargetMachine>MachineX64</TargetMachine>
+  </Lib>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\angelkds.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\blockade.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\xbox_nv2a.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\deniam.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\kopunch.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\segabb.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\megadriv.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\megadrvb.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\model1.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\s32comm.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\m1comm.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\m2comm.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\dsbz80.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\model2.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\model2rd.hxx" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\model3.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\naomi.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\dc.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\segasp.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\powervr2.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\naomig1.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\naomibd.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\naomirom.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\naomigd.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\naomim1.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\naomim2.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\naomim4.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\m3comm.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\315-5881_crypt.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\awboard.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\mie.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\maple-dc.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\mapledev.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\dc-ctrl.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\jvs13551.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\sms.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\segag80r.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\segag80.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\segag80v.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\segahang.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\segaorun.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\segas16a.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\segas16b.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\segas18.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\segas24.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\segas32.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\segaxbd.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\segaybd.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\segaipt.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\stactics.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\saturn.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\stv.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\stvprot.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\315-5838_317-0229_comp.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\suprloco.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\system1.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\segacrp2_device.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\system16.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\turbo.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\vicdual.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\vicdual.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\carnival.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\depthch.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\invinco.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\pulsar.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\zaxxon.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\315_5296.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\fd1089.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\fd1094.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\fddebug.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\mc8123.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\segaic16.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\audio\segasnd.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\segaic16.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\segaic16_road.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\sega16sp.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\video\segaic24.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\gdrom.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\dccons.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\includes\sg1000.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\mega32x.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\megacd.h" />
+    <ClInclude Include="..\..\..\..\..\src\mame\machine\megacdcd.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\angelkds.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\angelkds.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\bingoc.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\blockade.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\blockade.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\blockade.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\calorie.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\chihiro.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\xbox_nv2a.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\coolridr.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\deniam.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\deniam.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dotrikun.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\gpworld.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\hikaru.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\hshavoc.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\kopunch.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\kopunch.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\lindbergh.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\segabb.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\megadriv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\megadrvb.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\megaplay.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\megatech.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\model1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\model1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\model1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\s32comm.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\m1comm.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\m2comm.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\dsbz80.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\model2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\model2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\model3.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\model3.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\model3.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\monacogp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\naomi.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segasp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\dc.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\powervr2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\naomi.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\naomig1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\naomibd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\naomirom.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\naomigd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\naomim1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\naomim2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\naomim4.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\m3comm.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\315-5881_crypt.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\awboard.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\mie.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\maple-dc.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\mapledev.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\dc-ctrl.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\jvs13551.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\triforce.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\puckpkmn.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segac2.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segae.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sms.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\sms.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sms_bootleg.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\shtzone.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segacoin.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segag80r.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\segag80.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\segag80r.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\segag80r.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segag80v.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\segag80v.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\segag80v.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segahang.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\segahang.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segajw.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segald.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segaorun.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\segaorun.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segas16a.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\segas16a.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segas16b.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\segas16b.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segas18.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\segas18.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segas24.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\segas24.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segam1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segas32.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\segas32.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\segas32.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segaufo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segaxbd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\segaxbd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segaybd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\segaybd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sg1000a.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\stactics.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\stactics.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\stv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\saturn.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\saturn.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\stvprot.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\315-5838_317-0229_comp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\suprloco.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\suprloco.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\system1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\segacrp2_device.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\system1.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\system16.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\system16.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\timetrv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\turbo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\turbo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\turbo.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\vicdual.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\vicdual.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\vicdual.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\carnival.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\depthch.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\invinco.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\pulsar.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\zaxxon.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\zaxxon.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\zaxxon.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\315_5296.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\fd1089.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\fd1094.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\fddebug.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\mc8123.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\segaic16.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\audio\segasnd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\audio\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\segaic16.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\segaic16_road.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\sega16sp.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\video\segaic24.cpp">
+      <ObjectFileName>$(IntDir)src\mame\video\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\gdrom.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\xbox.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\xbox_usb.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\dccons.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\dccons.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\megadriv.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segapico.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sega_sawatte.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\segapm.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\sg1000.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\drivers\svmu.cpp">
+      <ObjectFileName>$(IntDir)src\mame\drivers\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\mega32x.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\megacd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\src\mame\machine\megacdcd.cpp">
+      <ObjectFileName>$(IntDir)src\mame\machine\</ObjectFileName>
+    </ClCompile>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

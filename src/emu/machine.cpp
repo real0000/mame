@@ -83,6 +83,7 @@
 #include "image.h"
 #include "network.h"
 #include "ui/uimain.h"
+#include "vr.h"
 #include <time.h>
 #include "server_http.hpp"
 #include "rapidjson/include/rapidjson/writer.h"
@@ -206,6 +207,9 @@ void running_machine::start()
 	m_output = std::make_unique<output_manager>(*this);
 	m_render = std::make_unique<render_manager>(*this);
 	m_bookkeeping = std::make_unique<bookkeeping_manager>(*this);
+
+	// init vr enviroment if we have 
+	vr_machine::singleton().init(this); 
 
 	// allocate a soft_reset timer
 	m_soft_reset_timer = m_scheduler.timer_alloc(timer_expired_delegate(FUNC(running_machine::soft_reset), this));
@@ -431,6 +435,8 @@ void running_machine::schedule_exit()
 	// if we're autosaving on exit, schedule a save as well
 	if (options().autosave() && (m_system.flags & MACHINE_SUPPORTS_SAVE) && this->time() > attotime::zero)
 		schedule_save("auto");
+
+	vr_machine::singleton().uninit();
 }
 
 
@@ -1087,7 +1093,7 @@ std::string running_machine::nvram_filename(device_t &device) const
 		for (device_t *dev = &device; dev->owner() != nullptr; dev = dev->owner())
 		{
 			device_image_interface *intf;
-			if (dev->interface(intf))
+			if (dev->interface_check(intf))
 			{
 				software = intf->basename_noext();
 				break;

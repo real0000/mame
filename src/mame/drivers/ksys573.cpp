@@ -365,6 +365,9 @@ G: gun mania only, drives air soft gun (this game uses real BB bullet)
 #include "video/psx.h"
 #include "cdrom.h"
 
+#include "vr_interface.h"
+#include "vrdevice/pnchmn_event.def"
+
 #define VERBOSE_LEVEL ( 0 )
 
 #define ATAPI_CYCLES_PER_SECTOR ( 5000 )  // plenty of time to allow DMA setup etc.  BIOS requires this be at least 2000, individual games may vary.
@@ -1690,13 +1693,13 @@ ADC083X_INPUT_CB(konami573_cassette_xi_device::punchmania_inputs_callback)
 	ksys573_state *state = machine().driver_data<ksys573_state>();
 	double *pad_position = state->m_pad_position;
 	int pads = state->m_pads->read();
-	for( int i = 0; i < 6; i++ )
-	{
-		if( ( pads & ( 1 << i ) ) != 0 )
-		{
-			pad_position[ i ] = 5;
-		}
-	}
+	
+	pad_position[0] = (int64_t)vr_interface_get_handle_state(pnchmn_event::MOTOR_LT);
+	pad_position[1] = (int64_t)vr_interface_get_handle_state(pnchmn_event::MOTOR_LM);
+	pad_position[2] = (int64_t)vr_interface_get_handle_state(pnchmn_event::MOTOR_LB);
+	pad_position[3] = (int64_t)vr_interface_get_handle_state(pnchmn_event::MOTOR_RT);
+	pad_position[4] = (int64_t)vr_interface_get_handle_state(pnchmn_event::MOTOR_RM);
+	pad_position[5] = (int64_t)vr_interface_get_handle_state(pnchmn_event::MOTOR_RB);
 
 	switch( input )
 	{
@@ -1732,7 +1735,6 @@ int pad_light[ 6 ];
 WRITE8_MEMBER( ksys573_state::punchmania_output_callback )
 {
 	double *pad_position = m_pad_position;
-	char pad[ 7 ];
 
 	switch( offset )
 	{
@@ -1742,10 +1744,12 @@ WRITE8_MEMBER( ksys573_state::punchmania_output_callback )
 	case 9:
 		pad_light[ 2 ] = !data;
 		output().set_value( "left bottom lamp", !data );
+		vr_interface_send_message(1, pnchmn_event::LIGHT_SWITCH_LB, pad_light[2]);
 		break;
 	case 10:
 		pad_light[ 1 ] = !data;
 		output().set_value( "left middle lamp", !data );
+		vr_interface_send_message(1, pnchmn_event::LIGHT_SWITCH_LM, pad_light[1]);
 		break;
 	case 11:
 		output().set_value( "start lamp", !data );
@@ -1753,104 +1757,108 @@ WRITE8_MEMBER( ksys573_state::punchmania_output_callback )
 	case 12:
 		pad_light[ 0 ] = !data;
 		output().set_value( "left top lamp", !data );
+		vr_interface_send_message(1, pnchmn_event::LIGHT_SWITCH_LT, pad_light[0]);
 		break;
 	case 13:
 		pad_light[ 4 ] = !data;
 		output().set_value( "right middle lamp", !data );
+		vr_interface_send_message(1, pnchmn_event::LIGHT_SWITCH_RM, pad_light[4]);
 		break;
 	case 14:
 		pad_light[ 3 ] = !data;
 		output().set_value( "right top lamp", !data );
+		vr_interface_send_message(1, pnchmn_event::LIGHT_SWITCH_RT, pad_light[3]);
 		break;
 	case 15:
 		pad_light[ 5 ] = !data;
 		output().set_value( "right bottom lamp", !data );
+		vr_interface_send_message(1, pnchmn_event::LIGHT_SWITCH_RB, pad_light[5]);
 		break;
 	case 16:
 		if( data )
 		{
-			pad_position[ 0 ] = 0; // left top motor +
+			vr_interface_send_message(1, pnchmn_event::MOTOR_LT, false);
+			//pad_position[ 0 ] = 0; // left top motor +
 		}
 		break;
 	case 17:
 		if( data )
 		{
-			pad_position[ 1 ] = 0; // left middle motor +
+			vr_interface_send_message(1, pnchmn_event::MOTOR_LM, false);
+			//pad_position[ 1 ] = 0; // left middle motor +
 		}
 		break;
 	case 18:
 		if( data )
 		{
-			pad_position[ 1 ] = 5; // left middle motor -
+			vr_interface_send_message(1, pnchmn_event::MOTOR_LM, true);
+			//pad_position[ 1 ] = 5; // left middle motor -
 		}
 		break;
 	case 19:
 		if( data )
 		{
-			pad_position[ 0 ] = 5; // left top motor -
+			vr_interface_send_message(1, pnchmn_event::MOTOR_LT, true);
+			//pad_position[ 0 ] = 5; // left top motor -
 		}
 		break;
 	case 20:
 		if( data )
 		{
-			pad_position[ 2 ] = 0; // left bottom motor +
+			vr_interface_send_message(1, pnchmn_event::MOTOR_LB, false);
+			//pad_position[ 2 ] = 0; // left bottom motor +
 		}
 		break;
 	case 21:
 		if( data )
 		{
-			pad_position[ 3 ] = 5; // right top motor -
+			vr_interface_send_message(1, pnchmn_event::MOTOR_RT, true);
+			//pad_position[ 3 ] = 5; // right top motor -
 		}
 		break;
 	case 22:
 		if( data )
 		{
-			pad_position[ 3 ] = 0; // right top motor +
+			vr_interface_send_message(1, pnchmn_event::MOTOR_RT, false);
+			//pad_position[ 3 ] = 0; // right top motor +
 		}
 		break;
 	case 23:
 		if( data )
 		{
-			pad_position[ 2 ] = 5; // left bottom motor -
+			vr_interface_send_message(1, pnchmn_event::MOTOR_LB, true);
+			//pad_position[ 2 ] = 5; // left bottom motor -
 		}
 		break;
 	case 26:
 		if( data )
 		{
-			pad_position[ 5 ] = 0; // right bottom motor +
+			vr_interface_send_message(1, pnchmn_event::MOTOR_RB, false);
+			//pad_position[ 5 ] = 0; // right bottom motor +
 		}
 		break;
 	case 27:
 		if( data )
 		{
-			pad_position[ 4 ] = 0; // right middle motor +
+			vr_interface_send_message(1, pnchmn_event::MOTOR_RM, false);
+			//pad_position[ 4 ] = 0; // right middle motor +
 		}
 		break;
 	case 30:
 		if( data )
 		{
-			pad_position[ 4 ] = 5; // right middle motor -
+			vr_interface_send_message(1, pnchmn_event::MOTOR_RM, true);
+			//pad_position[ 4 ] = 5; // right middle motor -
 		}
 		break;
 	case 31:
 		if( data )
 		{
-			pad_position[ 5 ] = 5; // right bottom motor -
+			vr_interface_send_message(1, pnchmn_event::MOTOR_RB, true);
+			//pad_position[ 5 ] = 5; // right bottom motor -
 		}
 		break;
 	}
-	sprintf( pad, "%d%d%d%d%d%d",
-		( int )pad_position[ 0 ], ( int )pad_position[ 1 ], ( int )pad_position[ 2 ],
-		( int )pad_position[ 3 ], ( int )pad_position[ 4 ], ( int )pad_position[ 5 ] );
-
-	if( pad_light[ 0 ] ) pad[ 0 ] = '*';
-	if( pad_light[ 1 ] ) pad[ 1 ] = '*';
-	if( pad_light[ 2 ] ) pad[ 2 ] = '*';
-	if( pad_light[ 3 ] ) pad[ 3 ] = '*';
-	if( pad_light[ 4 ] ) pad[ 4 ] = '*';
-	if( pad_light[ 5 ] ) pad[ 5 ] = '*';
-
-	popmessage( "%s", pad );
 }
 
 DRIVER_INIT_MEMBER( ksys573_state,pnchmn )
@@ -2366,6 +2374,8 @@ static MACHINE_CONFIG_DERIVED( pnchmn, konami573 )
 
 	MCFG_DEVICE_MODIFY( "cassette" )
 	MCFG_DEVICE_CARD_MACHINE_CONFIG( "game", punchmania_cassette_install )
+
+	MCFG_DEVICE_USE_VR_MACHINE( "pnchmn" )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( pnchmn2, pnchmn )

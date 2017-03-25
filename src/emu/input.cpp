@@ -20,7 +20,7 @@
 #include "emu.h"
 #include "inputdev.h"
 
-
+#include "vr.h"
 
 //**************************************************************************
 //  CONSTANTS

@@ -242,7 +242,7 @@ public:
 
 	static void static_set_user_loadable(device_t &device, bool user_loadable) {
 		device_image_interface *img;
-		if (!device.interface(img))
+		if (!device.interface_check(img))
 			throw emu_fatalerror("MCFG_SET_IMAGE_LOADABLE called on device '%s' with no image interface\n", device.tag());
 
 		img->m_user_loadable = user_loadable;

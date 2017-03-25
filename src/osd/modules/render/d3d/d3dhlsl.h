@@ -20,6 +20,7 @@
 
 // Typedefs for dynamically loaded functions
 typedef HRESULT (WINAPI *d3dx_create_effect_from_file_fn)(LPDIRECT3DDEVICE9, LPCTSTR, const D3DXMACRO *, LPD3DXINCLUDE, DWORD, LPD3DXEFFECTPOOL, LPD3DXEFFECT *, LPD3DXBUFFER *);
+typedef HRESULT (WINAPI *d3dcompilefromfile_ptr)(LPCWSTR fileName, D3D_SHADER_MACRO *defines, ID3DInclude *include, const char *entrypoint, const char *target, UINT flags1, UINT flags2, ID3DBlob **code, ID3DBlob **error_messages);
 
 class effect;
 class shaders;
@@ -142,6 +143,7 @@ public:
 	void        update_uniforms();
 
 	D3DXHANDLE  get_parameter(D3DXHANDLE param, const char *name);
+	uniform*	get_last_uniform();
 
 	shaders*    get_shaders() { return m_shaders; }
 
@@ -154,6 +156,37 @@ private:
 	shaders     *m_shaders;
 
 	bool        m_valid;
+};
+
+class effect11
+{
+public:
+	effect11(d3d11_base *d3dptr, ID3D11Device *dev, ID3D11DeviceContext *con, const char *name, const char *path);
+	virtual ~effect11();
+
+	void begin();
+	void end();
+
+	void add_constant(uniform::uniform_type type, void **output);
+	void init_constant();
+	void update_constant();
+
+private:
+	unsigned int m_total_size;
+
+	char m_data_buffer[1024];
+	ID3D11VertexShader *m_vertex_shader;
+	ID3D11PixelShader *m_pixel_shader;
+	ID3D11InputLayout *m_input_layout;
+	ID3D11Buffer *m_contant_buffer;
+	
+	ID3D11DepthStencilState *m_depth_state;
+	ID3D11RasterizerState *m_rast_state;
+	ID3D11BlendState *m_blend_state;
+	ID3D11SamplerState *m_sampler;
+	
+	ID3D11Device *m_ref_dev;
+	ID3D11DeviceContext *m_ref_con;
 };
 
 class d3d_render_target;
@@ -278,7 +311,10 @@ public:
 	shaders();
 	~shaders();
 
-	bool init(d3d_base *d3dintf, running_machine *machine, renderer_d3d9 *renderer);
+	bool init(d3d_base *d3dintf, d3d11_base *d3d11ptr, running_machine *machine, renderer_d3d9 *renderer);
+	void add_custom_effect(ID3D11Device *dev, ID3D11DeviceContext *con, const char *name, const char *path);
+	effect11* get_custom_effect(unsigned int idx);
+	void clear_custom_effect();
 
 	bool enabled() { return post_fx_enable && d3dintf->post_fx_available; }
 	void toggle() { post_fx_enable = initialized && !post_fx_enable; }
@@ -342,6 +378,7 @@ private:
 	void                    ui_pass(poly_info *poly, int vertnum);
 
 	d3d_base *              d3dintf;                    // D3D interface
+	d3d11_base *            d3d11intf;
 
 	running_machine *       machine;
 	renderer_d3d9 *         d3d;                        // D3D renderer
@@ -396,6 +433,8 @@ private:
 
 	std::vector<slider*>    internal_sliders;
 	std::vector<ui::menu_item> m_sliders;
+
+	std::vector<effect11*>	custom_effect_list;
 
 	static slider_desc      s_sliders[];
 	static hlsl_options     last_options;               // last used options

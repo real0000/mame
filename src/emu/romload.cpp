@@ -1227,7 +1227,7 @@ void rom_load_manager::normalize_flags_for_device(running_machine &machine, cons
 {
 	device_t *device = machine.device(rgntag);
 	device_memory_interface *memory;
-	if (device->interface(memory))
+	if (device->interface_check(memory))
 	{
 		const address_space_config *spaceconfig = memory->space_config();
 		if (spaceconfig != nullptr)

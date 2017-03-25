@@ -68,6 +68,7 @@ public:
 	// public state
 	attotime                m_minimum_quantum;          // minimum scheduling quantum
 	std::string             m_perfect_cpu_quantum;      // tag of CPU to use for "perfect" scheduling
+	std::string				m_vr_machine_name;			// vr machine folder name
 
 	// other parameters
 	const internal_layout *            m_default_layout;           // default layout for this machine
@@ -210,6 +211,8 @@ References an external machine config.
 	device = config.device_remove(owner, _tag);
 #define MCFG_DEVICE_MODIFY(_tag)    \
 	device = config.device_find(owner, _tag);
+#define MCFG_DEVICE_USE_VR_MACHINE(_name) \
+	config.m_vr_machine_name = _name;
 
 #endif  /* MAME_EMU_MCONFIG_H */
 /** @} */

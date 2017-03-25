@@ -15,7 +15,7 @@ device_rom_interface::~device_rom_interface()
 void device_rom_interface::static_set_device_rom_tag(device_t &device, const char *tag)
 {
 	device_rom_interface *romintf;
-	if (!device.interface(romintf))
+	if (!device.interface_check(romintf))
 		throw emu_fatalerror("MCFG_DEVICE_ROM called on device '%s' with no ROM interface\n", device.tag());
 
 	romintf->m_rom_tag = tag;

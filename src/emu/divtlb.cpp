@@ -60,7 +60,7 @@ device_vtlb_interface::~device_vtlb_interface()
 void device_vtlb_interface::interface_validity_check(validity_checker &valid) const
 {
 	const device_memory_interface *intf;
-	if (!device().interface(intf))
+	if (!device().interface_check(intf))
 		osd_printf_error("Device does not have memory interface\n");
 	else
 	{

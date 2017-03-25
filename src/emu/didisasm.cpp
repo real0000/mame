@@ -54,7 +54,7 @@ void device_disasm_interface::interface_pre_start()
 void device_disasm_interface::static_set_dasm_override(device_t &device, dasm_override_delegate dasm_override)
 {
 	device_disasm_interface *dasm;
-	if (!device.interface(dasm))
+	if (!device.interface_check(dasm))
 		throw emu_fatalerror("MCFG_DEVICE_DISASSEMBLE_OVERRIDE called on device '%s' with no disasm interface", device.tag());
 	dasm->m_dasm_override = dasm_override;
 }
@@ -78,7 +78,7 @@ offs_t device_disasm_interface::disassemble(std::ostream &stream, offs_t pc, con
 	assert((result & DASMFLAG_LENGTHMASK) != 0);
 #ifdef MAME_DEBUG
 	device_memory_interface *memory;
-	if (device().interface(memory))
+	if (device().interface_check(memory))
 	{
 		address_space &space = memory->space(AS_PROGRAM);
 		int bytes = space.address_to_byte(result & DASMFLAG_LENGTHMASK);

@@ -36,6 +36,7 @@
 #include "input_windows.h"
 #include "input_xinput.h"
 #include "input_dinput.h"
+#include "input_openvr.h"
 
 using namespace Microsoft::WRL;
 
@@ -142,6 +143,7 @@ class winhybrid_joystick_module : public wininput_module, public device_enum_int
 private:
 	std::shared_ptr<xinput_api_helper> m_xinput_helper;
 	std::unique_ptr<dinput_api_helper> m_dinput_helper;
+	std::unique_ptr<openvr_helper> m_openvr_helper;
 	std::list<DWORD> m_xinput_deviceids;
 	bool m_xinput_detect_failed;
 
@@ -150,6 +152,7 @@ public:
 		: wininput_module(OSD_JOYSTICKINPUT_PROVIDER, "winhybrid"),
 		m_xinput_helper(nullptr),
 		m_dinput_helper(nullptr),
+		m_openvr_helper(nullptr),
 		m_xinput_detect_failed(false)
 	{
 	}
@@ -240,6 +243,8 @@ protected:
 		if (result != DI_OK)
 			fatalerror("DirectInput: Unable to enumerate keyboards (result=%08X)\n", static_cast<uint32_t>(result));
 
+		m_openvr_helper->initVirtualDevice(machine, *this);
+
 		xinput_joystick_device *devinfo;
 
 		// now add all xinput devices
@@ -289,6 +294,11 @@ private:
 				osd_printf_verbose("dinput_api_helper failed to initialize! Error: %u\n", static_cast<unsigned int>(status));
 				return -1;
 			}
+		}
+
+		if (m_openvr_helper == nullptr)
+		{
+			m_openvr_helper = std::make_unique<openvr_helper>();
 		}
 
 		return status;

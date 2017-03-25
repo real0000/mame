@@ -620,7 +620,7 @@ static uint64_t list_run_time(const node_list_t &list)
 	for_each(discrete_base_node **, node, &list)
 	{
 		discrete_step_interface *step;
-		if ((*node)->interface(step))
+		if ((*node)->interface_check(step))
 			total += step->run_time;
 	}
 	return total;
@@ -654,7 +654,7 @@ void discrete_device::display_profiling(void)
 	for_each(discrete_base_node **, node, &m_node_list)
 	{
 		discrete_step_interface *step;
-		if ((*node)->interface(step))
+		if ((*node)->interface_check(step))
 			if (step->run_time > tresh)
 				util::stream_format(std::cout, "%3d: %20s %8.2f %10.2f\n", (*node)->index(), (*node)->module_name(), double(step->run_time) / double(total) * 100.0, double(step->run_time) / double(m_total_samples));
 	}
@@ -770,7 +770,7 @@ void discrete_device::init_nodes(const sound_block_list_t &block_list)
 		/* our running order just follows the order specified */
 		/* does the node step ? */
 		discrete_step_interface *step;
-		if (node->interface(step))
+		if (node->interface_check(step))
 		{
 			/* do we belong to a task? */
 			if (task == nullptr)
@@ -985,7 +985,7 @@ void discrete_sound_device::device_start()
 		}
 		/* if this is an output interface, add it the output list */
 		discrete_sound_output_interface *out;
-		if ((*node)->interface(out))
+		if ((*node)->interface_check(out))
 			m_output_list.add(out);
 	}
 
@@ -1130,7 +1130,7 @@ WRITE8_MEMBER( discrete_device::write )
 	if (node)
 	{
 		discrete_input_interface *intf;
-		if (node->interface(intf))
+		if (node->interface_check(intf))
 				intf->input_write(0, data);
 		else
 			discrete_log("discrete_sound_w write to non-input NODE_%02d\n", offset-NODE_00);
