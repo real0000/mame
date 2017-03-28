@@ -5,7 +5,7 @@
 #include "modelfile.h"
 #include "pnchmn.h"
 #include "pnchmn_event.def"
-#include "glm/gtx/vector_angle.hpp"
+#include "gtx/vector_angle.hpp"
 
 #define PAD_IDENTIFY "Pad"
 #define PUNCH_IDENTIFY "Punch"

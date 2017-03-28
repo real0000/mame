@@ -18,6 +18,7 @@ precompiledheaders()
 options {
 	"ArchiveSplit",
 }
+
 includedirs {
 	MAME_DIR .. "src/osd",
 	MAME_DIR .. "src/emu",
@@ -33,6 +34,10 @@ includedirs {
 	ext_includedir("zlib"),
 	ext_includedir("flac"),
 	ext_includedir("jpeg"),
+	ext_includedir("openvr"),
+	ext_includedir("glm"),
+	ext_includedir("physx"),
+	"$(ADSK_FBX_SDK_2017)/include",
 	MAME_DIR .. "3rdparty/asio/include",
 }
 
@@ -181,6 +186,10 @@ files {
 	MAME_DIR .. "src/emu/validity.h",
 	MAME_DIR .. "src/emu/video.cpp",
 	MAME_DIR .. "src/emu/video.h",
+	MAME_DIR .. "src/emu/vr.cpp",
+	MAME_DIR .. "src/emu/vr.h",
+	MAME_DIR .. "src/emu/vr_interface.cpp",
+	MAME_DIR .. "src/emu/vr_interface.h",
 	MAME_DIR .. "src/emu/rendersw.hxx",
 	MAME_DIR .. "src/emu/ui/uimain.h",
 	MAME_DIR .. "src/emu/ui/cmddata.h",   -- TODO: remove
@@ -223,6 +232,11 @@ files {
 	MAME_DIR .. "src/emu/video/rgbsse.h",
 	MAME_DIR .. "src/emu/video/rgbvmx.cpp",
 	MAME_DIR .. "src/emu/video/rgbvmx.h",
+	MAME_DIR .. "src/emu/vrdevice/modelfile.cpp",
+	MAME_DIR .. "src/emu/vrdevice/modelfile.h",
+	MAME_DIR .. "src/emu/vrdevice/pnchmn.cpp",
+	MAME_DIR .. "src/emu/vrdevice/pnchmn.h",
+	MAME_DIR .. "src/emu/vrdevice/pnchmn_event.def",
 }
 
 dependency {
@@ -289,5 +303,3 @@ files {
 dependency {
 	{ "$(OBJDIR)/src/emu/drivers/empty.o", "$(GCH)", true  },
 }
-
-

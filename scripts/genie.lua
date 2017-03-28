@@ -1301,6 +1301,7 @@ configuration { "vs201*" }
 			"/wd4297", -- warning C4297: 'xxx::~xxx': function assumed not to throw an exception but does
 			"/wd4319", -- warning C4319: 'operator' : zero extending 'type' to 'type' of greater size
 			"/wd4592", -- warning C4592: symbol will be dynamically initialized (implementation limitation)
+			"/wd4819", -- warning C4819: The file contains a character that cannot be represented in the current code page
 		}
 configuration { "winphone8* or winstore8*" }
 	linkoptions {

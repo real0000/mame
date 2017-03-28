@@ -147,6 +147,9 @@ project ("osd_" .. _OPTIONS["osd"])
 		MAME_DIR .. "src/osd/modules/file",
 		MAME_DIR .. "src/osd/modules/render",
 		MAME_DIR .. "3rdparty",
+		ext_includedir("openvr"),
+		ext_includedir("glm"),
+		ext_includedir("physx"),
 	}
 
 	includedirs {

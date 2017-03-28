@@ -108,11 +108,41 @@ end
 		if _OPTIONS["PROFILE"] then
 			targetsuffix "64p"
 		end
+		if _OPTIONS["targetos"]=="windows" then
+			libdirs {
+				MAME_DIR .. "3rdparty/openvr/lib/win64",
+				MAME_DIR .. "3rdparty/physx/PhysXSDK/Lib/vc14win64",
+				"$(ADSK_FBX_SDK_2017)lib/vs2015/x64/release",
+			}
+			links {
+				"openvr_api",
+				"libfbxsdk-mt",
+				"PhysX3_x64",
+				"PhysX3Extensions",
+				"PhysX3Common_x64",
+				"PhysXVisualDebuggerSDK",
+			}
+		end
 
 	configuration { "x64", "Debug" }
 		targetsuffix "64d"
 		if _OPTIONS["PROFILE"] then
 			targetsuffix "64dp"
+		end
+		if _OPTIONS["targetos"]=="windows" then
+			libdirs {
+				MAME_DIR .. "3rdparty/openvr/lib/win64",
+				MAME_DIR .. "3rdparty/physx/PhysXSDK/Lib/vc14win64",
+				"$(ADSK_FBX_SDK_2017)lib/vs2015/x64/debug",
+			}
+			links {
+				"openvr_api",
+				"libfbxsdk-mt",
+				"PhysX3DEBUG_x64",
+				"PhysX3ExtensionsDEBUG",
+				"PhysX3CommonDEBUG_x64",
+				"PhysXVisualDebuggerSDKDEBUG",
+			}
 		end
 
 	configuration { "x32", "Release" }
@@ -120,11 +150,41 @@ end
 		if _OPTIONS["PROFILE"] then
 			targetsuffix "p"
 		end
+		if _OPTIONS["targetos"]=="windows" then
+			libdirs {
+				MAME_DIR .. "3rdparty/openvr/lib/win32",
+				MAME_DIR .. "3rdparty/physx/PhysXSDK/Lib/vc14win32",
+				"$(ADSK_FBX_SDK_2017)lib/vs2015/x86/release",
+			}
+			links {
+				"openvr_api",
+				"libfbxsdk-mt",
+				"PhysX3_x86",
+				"PhysX3Extensions",
+				"PhysX3Common_x86",
+				"PhysXVisualDebuggerSDK",
+			}
+		end
 
 	configuration { "x32", "Debug" }
 		targetsuffix "d"
 		if _OPTIONS["PROFILE"] then
 			targetsuffix "dp"
+		end
+		if _OPTIONS["targetos"]=="windows" then
+			libdirs {
+				MAME_DIR .. "3rdparty/openvr/lib/win32",
+				MAME_DIR .. "3rdparty/physx/PhysXSDK/Lib/vc14win32",
+				"$(ADSK_FBX_SDK_2017)lib/vs2015/x86/debug",
+			}
+			links {
+				"openvr_api",
+				"libfbxsdk-mt",
+				"PhysX3DEBUG_x86",
+				"PhysX3ExtensionsDEBUG",
+				"PhysX3CommonDEBUG_x86",
+				"PhysXVisualDebuggerSDKDEBUG",
+			}
 		end
 
 	configuration { "Native", "Release" }

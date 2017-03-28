@@ -40,6 +40,9 @@ includedirs {
 	ext_includedir("lua"),
 	ext_includedir("zlib"),
 	ext_includedir("flac"),
+	ext_includedir("openvr"),
+	ext_includedir("glm"),
+	ext_includedir("physx"),
 	MAME_DIR .. "3rdparty/asio/include",
 }
 

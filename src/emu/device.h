@@ -229,8 +229,8 @@ std::unique_ptr<device_t> device_type_impl::create_driver(machine_config const &
 
 // device types
 typedef emu::detail::device_type_impl const &device_type;
-template <class DeviceClass> constexpr auto device_creator = &emu::detail::device_tag_func<DeviceClass>;
-template <class DriverClass> constexpr auto driver_device_creator = &emu::detail::driver_tag_func<DriverClass>;
+template <class DeviceClass> auto device_creator = &emu::detail::device_tag_func<DeviceClass>;
+template <class DriverClass> auto driver_device_creator = &emu::detail::driver_tag_func<DriverClass>;
 extern emu::detail::device_registrar const registered_device_types;
 
 

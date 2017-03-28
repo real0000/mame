@@ -101,6 +101,8 @@ function osdmodulesbuild()
 		MAME_DIR .. "src/osd/modules/input/input_windows.h",
 		MAME_DIR .. "src/osd/modules/input/input_xinput.cpp",
 		MAME_DIR .. "src/osd/modules/input/input_xinput.h",
+		MAME_DIR .. "src/osd/modules/input/input_openvr.cpp",
+		MAME_DIR .. "src/osd/modules/input/input_openvr.h",
 		MAME_DIR .. "src/osd/modules/input/input_winhybrid.cpp",
 		MAME_DIR .. "src/osd/modules/input/input_uwp.cpp",
 		MAME_DIR .. "src/osd/modules/output/output_module.h",

@@ -2,8 +2,8 @@
 #define _MODEL_H_
 
 #include <map>
-#include "glm/glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
+#include "glm.hpp"
+#include "gtc/matrix_transform.hpp"
 
 enum
 {

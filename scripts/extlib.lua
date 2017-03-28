@@ -15,6 +15,9 @@ local extlibs = {
 	portaudio  = { "portaudio", "3rdparty/portaudio/include" },
 	lua        = { "lua",       "3rdparty/lua/src" },
 	utf8proc   = { "utf8proc",  "3rdparty/utf8proc" },
+	openvr = {"openvr", "3rdparty/openvr/headers"},
+	glm = {"glm", "3rdparty/glm/glm"},
+	physx = {"physx", "3rdparty/physx/PhysXSDK/Include"},
 }
 
 -- system lib options
