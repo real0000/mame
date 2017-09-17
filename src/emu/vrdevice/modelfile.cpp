@@ -1,14 +1,14 @@
 #include "emu.h"
 #include "fbxsdk.h"
 #include "modelfile.h"
-
+ 
 #pragma region model_file
 
 //
 // fbx sdk help function
 //
 template<typename SrcType, typename TVec>
-static void setupVertexData(FbxMesh *a_pSrcMesh, SrcType *a_pSrcData, model_file::model_meshes *a_pTargetMesh, std::function<void(model_file::model_vertex&, TVec)>a_Lambda)
+static void setupVertexData(FbxMesh *a_pSrcMesh, SrcType *a_pSrcData, model_file::model_meshes *a_pTargetMesh, std::function<void(model_file::model_vertex&, TVec)> a_Lambda)
 {
     if( nullptr == a_pSrcData ) return;
 

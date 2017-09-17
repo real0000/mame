@@ -33,13 +33,15 @@ protected:
 private:
     struct PadData
     {
+		unsigned int m_TestCount;// to skip pad test
+
         int m_LightOn;
         glm::mat4x4 m_Rotation;
         vr_machine::machine_node *m_pRefPadNode;
         glm::vec2 m_OriginVec;
         float m_CurrAngle;
         bool m_bToBack;
-        bool m_bDelaySignal;
+		
         physx::PxRigidActor *m_Joints[2];
         physx::PxRevoluteJoint *m_pBone;
     };
@@ -59,10 +61,11 @@ private:
     physx::PxMaterial *m_pDefMaterial;
 
     // since it is hardly to punch over 100 hit, so....
-    bool m_bAutoFireFlag, m_bAutoFirState;
-
+    //bool m_bAutoFireFlag, m_bAutoFirState;
+	
+	bool m_bAtatatata;
     float m_PadDeadZone, m_PunchFix;
-    float m_PunchWeight, m_DriverSpeed;
+    float m_PunchWeight, m_DriverSpeed[2];
 };
 
 #endif

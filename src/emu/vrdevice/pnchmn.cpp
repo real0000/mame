@@ -30,12 +30,14 @@ vr_device_pnchmn::vr_device_pnchmn()
     : vr_device_interface()
     , m_pRefMachine(nullptr)
     , m_pDefMaterial(nullptr)
-    , m_bAutoFireFlag(false), m_bAutoFirState(false)
+    //, m_bAutoFireFlag(false), m_bAutoFirState(false)
+	, m_bAtatatata(false)
     , m_PadDeadZone(glm::pi<float>() / 4.0f), m_PunchFix(0.0f)
-    , m_PunchWeight(200.0f), m_DriverSpeed(8.0f)
+    , m_PunchWeight(200.0f)
 {
     memset(m_PunchNode, 0, sizeof(m_PunchNode));
     memset(m_Pads, 0, sizeof(m_Pads));
+	memset(m_DriverSpeed, 0, sizeof(m_DriverSpeed));
 }
 
 vr_device_pnchmn::~vr_device_pnchmn()
@@ -61,7 +63,8 @@ vr_device_pnchmn::~vr_device_pnchmn()
 void vr_device_pnchmn::initMachine(vr_option &a_Config, std::vector<vr_machine::machine_model *> &a_Container, vr_machine::machine_node* a_pRoot, std::vector<vr_machine::machine_fx *> &a_Fx)
 {
     m_PunchWeight = a_Config.getParamValue("machine", "punch_weight", 200.0f);
-    m_DriverSpeed = a_Config.getParamValue("machine", "motor_drive", 8.0f);
+    m_DriverSpeed[0] = -std::abs(a_Config.getParamValue("machine", "motor_drive_to_front", 8.0f));
+	m_DriverSpeed[1] = std::abs(a_Config.getParamValue("machine", "motor_drive_to_back", 8.0f));
     m_PadDeadZone = glm::radians(a_Config.getParamValue("machine", "pad_dead_zone", 45.0f));
     m_PunchFix = a_Config.getParamValue("machine", "punch_pos_fix", 0.0f);
     
@@ -235,9 +238,9 @@ void vr_device_pnchmn::initMachine(vr_option &a_Config, std::vector<vr_machine::
         m_Pads[i].m_OriginVec = glm::normalize(m_Pads[i].m_OriginVec);
         m_Pads[i].m_pBone->setRevoluteJointFlag(physx::PxRevoluteJointFlag::eDRIVE_ENABLED, true);
         
-        m_Pads[i].m_pBone->setDriveVelocity(m_DriverSpeed);
+        m_Pads[i].m_pBone->setDriveVelocity(m_DriverSpeed[1]);
         m_Pads[i].m_bToBack = true;
-        m_Pads[i].m_bDelaySignal = false;
+        m_Pads[i].m_TestCount = 2;
         
 #ifdef MAME_DEBUG
         m_Pads[i].m_pBone->setConstraintFlag(physx::PxConstraintFlag::eVISUALIZATION, true);
@@ -279,7 +282,7 @@ void vr_device_pnchmn::initMachine(vr_option &a_Config, std::vector<vr_machine::
 
 void vr_device_pnchmn::update(const int a_Time)
 {
-    if( m_bAutoFireFlag ) m_bAutoFirState = !m_bAutoFirState;
+    //if( m_bAutoFireFlag ) m_bAutoFirState = !m_bAutoFirState;
 
     getPhysxScene()->lockWrite();
     for( auto it=m_PunchMap.begin() ; it!=m_PunchMap.end() ; ++it )
@@ -363,7 +366,7 @@ void vr_device_pnchmn::handleInput(vr::VREvent_t a_VrEvent)
                     }break;
 
                 case vr::k_EButton_Grip:
-                    m_bAutoFireFlag = true;
+                    //m_bAutoFireFlag = true;
                     break;
             }
             }break;
@@ -377,7 +380,7 @@ void vr_device_pnchmn::handleInput(vr::VREvent_t a_VrEvent)
                     }break;
 
                 case vr::k_EButton_Grip:
-                    m_bAutoFireFlag = false;
+                    //m_bAutoFireFlag = false;
                     break;
             }
             }break;
@@ -402,11 +405,12 @@ void vr_device_pnchmn::sendMessage(int a_ArgCount, va_list a_ArgList)
                 int l_State = va_arg(a_ArgList, int);
                 int l_PadIdx = l_EventID - LIGHT_SWITCH_LT;
                 m_Pads[l_PadIdx].m_LightOn = 0 != l_State ? 1 : 0;
-                if( 0 == m_Pads[l_PadIdx].m_LightOn && m_Pads[l_PadIdx].m_bDelaySignal )
-                {
-                    m_Pads[l_PadIdx].m_bDelaySignal = false;
-                    m_Pads[l_PadIdx].m_pBone->setDriveVelocity(m_DriverSpeed);
-                }
+				m_bAtatatata = m_Pads[LIGHT_SWITCH_LT].m_LightOn &&
+								m_Pads[LIGHT_SWITCH_LM].m_LightOn &&
+								m_Pads[LIGHT_SWITCH_LB].m_LightOn &&
+								m_Pads[LIGHT_SWITCH_RT].m_LightOn &&
+								m_Pads[LIGHT_SWITCH_RM].m_LightOn &&
+								m_Pads[LIGHT_SWITCH_RB].m_LightOn;
                 }break;
 
             case MOTOR_LT:
@@ -417,16 +421,13 @@ void vr_device_pnchmn::sendMessage(int a_ArgCount, va_list a_ArgList)
             case MOTOR_RB:{
                 int l_PadIdx = l_EventID - MOTOR_LT;
                 m_Pads[l_PadIdx].m_bToBack = va_arg(a_ArgList, bool);
-                if( m_Pads[l_PadIdx].m_bToBack && 0 != m_Pads[l_PadIdx].m_LightOn )
-                {
-                    m_Pads[l_PadIdx].m_bDelaySignal = true;
-                }
-                else
-                {
-                    m_Pads[l_PadIdx].m_bDelaySignal = false;
-                    physx::PxRigidDynamic *l_pBody = (physx::PxRigidDynamic *)m_Pads[l_PadIdx].m_Joints[1];
-                    m_Pads[l_PadIdx].m_pBone->setDriveVelocity(m_Pads[l_PadIdx].m_bToBack ? m_DriverSpeed : -m_DriverSpeed);
-                }
+                physx::PxRigidDynamic *l_pBody = (physx::PxRigidDynamic *)m_Pads[l_PadIdx].m_Joints[1];
+				if( 0 != m_Pads[l_PadIdx].m_TestCount )
+				{
+					--m_Pads[l_PadIdx].m_TestCount;
+					m_Pads[l_PadIdx].m_pBone->setDriveVelocity(m_Pads[l_PadIdx].m_bToBack ? 2.0f : -2.0f);
+				}
+				else m_Pads[l_PadIdx].m_pBone->setDriveVelocity(m_Pads[l_PadIdx].m_bToBack ? m_DriverSpeed[1] : m_DriverSpeed[0]);
                 }break;
 
             default:break;
@@ -444,18 +445,23 @@ void* vr_device_pnchmn::getHandleState(int a_Handle)
         case MOTOR_RT:
         case MOTOR_RM:
         case MOTOR_RB:{
-            int64_t l_Result = PAD_IO_MAX;
-            if( m_bAutoFireFlag )
-            {
-                int64_t l_Res = m_bAutoFirState ? PAD_IO_MAX : PAD_IO_MIN;
-                return (void *)l_Result;
-            }
-            else
-            {
-                unsigned int l_PadIdx = a_Handle - MOTOR_LT; 
-                l_Result = m_Pads[l_PadIdx].m_CurrAngle <= m_PadDeadZone ? PAD_IO_MIN : PAD_IO_MAX;
-                return (void *)l_Result;
-            }
+            unsigned int l_PadIdx = a_Handle - MOTOR_LT;
+			int64_t l_Result = PAD_IO_MIN;
+			if( m_bAtatatata )
+			{
+				const float c_Angles[] = {glm::radians(22.5f), glm::radians(45.0f), glm::radians(67.5f)};
+				if( m_Pads[l_PadIdx].m_CurrAngle < c_Angles[0] ) l_Result = PAD_IO_MIN;
+				else if( m_Pads[l_PadIdx].m_CurrAngle < c_Angles[1] ) l_Result = PAD_IO_MAX;
+				else if( m_Pads[l_PadIdx].m_CurrAngle < c_Angles[2] ) l_Result = PAD_IO_MIN;
+				else l_Result = PAD_IO_MAX;
+			}
+			else
+			{
+				float l_DeadZone = m_PadDeadZone;
+				if( m_Pads[l_PadIdx].m_bToBack ) l_DeadZone = glm::pi<float>() * 0.5f - m_PadDeadZone;
+				l_Result = m_Pads[l_PadIdx].m_CurrAngle <= l_DeadZone ? PAD_IO_MIN : PAD_IO_MAX;
+			}
+            return (void *)l_Result;
             }
 
         default:break;

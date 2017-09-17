@@ -62,6 +62,7 @@ bool vr_option::parseIni(std::string a_Filename)
         }
 
         // found section
+		if( l_Line.empty() ) continue;
         if( '[' == l_Line.front() )
         {
             size_t l_SectionEnd = l_Line.find_last_of(']');
