@@ -5,27 +5,17 @@
 #include "graphlinkhle.h"
 
 
-device_type const TI8X_GRAPH_LINK_HLE = device_creator<bus::ti8x::graph_link_hle_device>;
+DEFINE_DEVICE_TYPE_NS(TI8X_GRAPH_LINK_HLE, bus::ti8x, graph_link_hle_device, "ti8x_glinkhle", "TI-Graph Link (grey, HLE)")
 
 
 namespace bus { namespace ti8x {
-
-namespace {
-
-MACHINE_CONFIG_FRAGMENT(graph_link_hle)
-	MCFG_RS232_PORT_ADD("rs232", default_rs232_devices, nullptr)
-	MCFG_RS232_RXD_HANDLER(WRITELINE(graph_link_hle_device, rx_w))
-MACHINE_CONFIG_END
-
-} // anonymous namespace
-
 
 graph_link_hle_device::graph_link_hle_device(
 		machine_config const &mconfig,
 		char const *tag,
 		device_t *owner,
 		uint32_t clock)
-	: device_t(mconfig, TI8X_GRAPH_LINK_HLE, "TI-Graph Link (grey, HLE)", tag, owner, clock, "glinkhle", __FILE__)
+	: device_t(mconfig, TI8X_GRAPH_LINK_HLE, tag, owner, clock)
 	, device_ti8x_link_port_byte_interface(mconfig, *this)
 	, device_serial_interface(mconfig, *this)
 	, m_serial_port(*this, "rs232")
@@ -40,11 +30,9 @@ graph_link_hle_device::graph_link_hle_device(
 
 void graph_link_hle_device::device_start()
 {
-	device_serial_interface::register_save_state(machine().save(), this);
-
 	m_buffer = std::make_unique<u8 []>(BUFLEN);
 
-	save_pointer(NAME(m_buffer.get()), BUFLEN);
+	save_pointer(NAME(m_buffer), BUFLEN);
 }
 
 
@@ -61,16 +49,10 @@ void graph_link_hle_device::device_reset()
 }
 
 
-void graph_link_hle_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+void graph_link_hle_device::device_add_mconfig(machine_config &config)
 {
-	device_ti8x_link_port_byte_interface::device_timer(timer, id, param, ptr);
-	device_serial_interface::device_timer(timer, id, param, ptr);
-}
-
-
-machine_config_constructor graph_link_hle_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME(graph_link_hle);
+	RS232_PORT(config, m_serial_port, default_rs232_devices, nullptr);
+	m_serial_port->rxd_handler().set(FUNC(graph_link_hle_device::rx_w));
 }
 
 

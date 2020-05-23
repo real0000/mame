@@ -6,15 +6,15 @@
  *
  ****************************************************************************/
 
-#ifndef __ABC80__
-#define __ABC80__
+#ifndef MAME_INCLUDES_ABC80_H
+#define MAME_INCLUDES_ABC80_H
+
+#pragma once
 
 #include "bus/abcbus/abcbus.h"
 #include "bus/rs232/rs232.h"
 #include "cpu/z80/z80.h"
-#include "cpu/z80/z80daisy.h"
-#include "imagedev/flopdrv.h"
-#include "imagedev/printer.h"
+#include "machine/z80daisy.h"
 #include "imagedev/cassette.h"
 #include "imagedev/snapquik.h"
 #include "machine/abc80kb.h"
@@ -22,7 +22,7 @@
 #include "machine/ram.h"
 #include "machine/z80pio.h"
 #include "sound/sn76477.h"
-#include "sound/wave.h"
+#include "emupal.h"
 
 #define ABC80_HTOTAL    384
 #define ABC80_HBEND     30
@@ -69,9 +69,9 @@ public:
 		driver_device(mconfig, type, tag),
 		m_maincpu(*this, Z80_TAG),
 		m_pio(*this, Z80PIO_TAG),
-		m_psg(*this, SN76477_TAG),
+		m_csg(*this, SN76477_TAG),
 		m_cassette(*this, "cassette"),
-		m_bus(*this, ABCBUS_TAG),
+		m_bus(*this, "bus"),
 		m_kb(*this, ABC80_KEYBOARD_TAG),
 		m_ram(*this, RAM_TAG),
 		m_rs232(*this, RS232_TAG),
@@ -90,11 +90,13 @@ public:
 		m_tape_in_latch(1)
 	{ }
 
-	required_device<cpu_device> m_maincpu;
+	static constexpr feature_type imperfect_features() { return feature::KEYBOARD; }
+
+	required_device<z80_device> m_maincpu;
 	required_device<z80pio_device> m_pio;
-	required_device<sn76477_device> m_psg;
+	required_device<sn76477_device> m_csg;
 	required_device<cassette_image_device> m_cassette;
-	required_device<abcbus_slot_t> m_bus;
+	required_device<abcbus_slot_device> m_bus;
 	required_device<abc80_keyboard_device> m_kb;
 	required_device<ram_device> m_ram;
 	required_device<rs232_port_device> m_rs232;
@@ -107,7 +109,7 @@ public:
 	required_memory_region m_vsync_prom;
 	required_memory_region m_line_prom;
 	required_memory_region m_attr_prom;
-	optional_shared_ptr<uint8_t> m_video_ram;
+	optional_shared_ptr<u8> m_video_ram;
 
 	enum
 	{
@@ -131,23 +133,24 @@ public:
 	virtual void machine_start() override;
 
 	virtual void video_start() override;
-	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	u32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 	void draw_scanline(bitmap_rgb32 &bitmap, int y);
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	u8 read(offs_t offset);
+	void write(offs_t offset, u8 data);
 
 	DECLARE_WRITE_LINE_MEMBER( vco_voltage_w );
 
-	DECLARE_READ8_MEMBER( pio_pa_r );
-	DECLARE_READ8_MEMBER( pio_pb_r );
-	DECLARE_WRITE8_MEMBER( pio_pb_w );
+	u8 pio_pa_r();
+	u8 pio_pb_r();
+	void pio_pb_w(u8 data);
 
 	DECLARE_WRITE_LINE_MEMBER( keydown_w );
-	DECLARE_WRITE8_MEMBER( kbd_w );
+	void kbd_w(u8 data);
+	void csg_w(u8 data);
 
-	DECLARE_QUICKLOAD_LOAD_MEMBER( bac );
+	DECLARE_QUICKLOAD_LOAD_MEMBER(quickload_cb);
 
 	enum
 	{
@@ -164,7 +167,7 @@ public:
 
 	// video state
 	bitmap_rgb32 m_bitmap;
-	uint8_t m_latch;
+	u8 m_latch;
 	int m_blink;
 	int m_c;
 	int m_r;
@@ -181,10 +184,10 @@ public:
 	emu_timer *m_blink_timer;
 	emu_timer *m_vsync_on_timer;
 	emu_timer *m_vsync_off_timer;
+	void abc80(machine_config &config);
+	void abc80_video(machine_config &config);
+	void abc80_io(address_map &map);
+	void abc80_mem(address_map &map);
 };
 
-//----------- defined in video/abc80.c -----------
-
-MACHINE_CONFIG_EXTERN( abc80_video );
-
-#endif
+#endif // MAME_INCLUDES_ABC80_H

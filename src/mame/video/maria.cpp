@@ -55,20 +55,20 @@
 
 #define READ_MEM(x) space.read_byte(x)
 
-const device_type ATARI_MARIA = device_creator<atari_maria_device>;
+DEFINE_DEVICE_TYPE(ATARI_MARIA, atari_maria_device, "atari_maria", "Atari MARIA")
 
 
 
 atari_maria_device::atari_maria_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, ATARI_MARIA, "Atari MARIA", tag, owner, clock, "atari_maria", __FILE__)
+	: device_t(mconfig, ATARI_MARIA, tag, owner, clock)
+	, m_cpu(*this, finder_base::DUMMY_TAG)
+	, m_screen(*this, finder_base::DUMMY_TAG)
 {
 }
 
 
 void atari_maria_device::device_start()
 {
-	m_cpu = machine().device<cpu_device>(m_cpu_tag);
-	m_screen = machine().first_screen();
 	m_screen->register_screen_bitmap(m_bitmap);
 
 	save_item(NAME(m_maria_palette));
@@ -392,7 +392,7 @@ void atari_maria_device::startdma(int lines)
 
 	if (m_nmi)
 	{
-		m_cpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_cpu->pulse_input_line(INPUT_LINE_NMI, attotime::zero);
 		m_nmi = 0;
 	}
 }
@@ -411,7 +411,7 @@ uint32_t atari_maria_device::screen_update(screen_device &screen, bitmap_ind16 &
 }
 
 
-READ8_MEMBER(atari_maria_device::read)
+uint8_t atari_maria_device::read(offs_t offset)
 {
 	switch (offset)
 	{
@@ -424,7 +424,7 @@ READ8_MEMBER(atari_maria_device::read)
 	}
 }
 
-WRITE8_MEMBER(atari_maria_device::write)
+void atari_maria_device::write(offs_t offset, uint8_t data)
 {
 	if ((offset & 3) != 0)
 		m_maria_palette[offset] = data;

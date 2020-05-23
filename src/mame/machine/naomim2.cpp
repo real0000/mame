@@ -109,12 +109,12 @@ note: if ROM is not mounted its area readed as 0xFF
 
 ********************************************************************************************************/
 
-const device_type NAOMI_M2_BOARD = device_creator<naomi_m2_board>;
+DEFINE_DEVICE_TYPE(NAOMI_M2_BOARD, naomi_m2_board, "naomi_m2_board", "Sega NAOMI M2 Board")
 
 naomi_m2_board::naomi_m2_board(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: naomi_board(mconfig, NAOMI_M2_BOARD, "Sega NAOMI M2 Board", tag, owner, clock, "naomi_m2_board", __FILE__),
-	m_cryptdevice(*this, "segam2crypt"),
-	m_region(*this, DEVICE_SELF)
+	: naomi_board(mconfig, NAOMI_M2_BOARD, tag, owner, clock)
+	, m_cryptdevice(*this, "segam2crypt")
+	, m_region(*this, DEVICE_SELF)
 {
 }
 
@@ -125,7 +125,7 @@ void naomi_m2_board::device_start()
 	ram = std::make_unique<uint8_t[]>(RAM_SIZE);
 
 	save_item(NAME(rom_cur_address));
-	save_pointer(NAME(ram.get()), RAM_SIZE);
+	save_pointer(NAME(ram), RAM_SIZE);
 }
 
 void naomi_m2_board::device_reset()
@@ -200,12 +200,8 @@ uint16_t naomi_m2_board::read_callback(uint32_t addr)
 	}
 }
 
-static MACHINE_CONFIG_FRAGMENT( naomim2 )
-	MCFG_DEVICE_ADD("segam2crypt", SEGA315_5881_CRYPT, 0)
-	MCFG_SET_READ_CALLBACK(naomi_m2_board, read_callback)
-MACHINE_CONFIG_END
-
-machine_config_constructor naomi_m2_board::device_mconfig_additions() const
+void naomi_m2_board::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( naomim2 );
+	SEGA315_5881_CRYPT(config, m_cryptdevice, 0);
+	m_cryptdevice->set_read_cb(FUNC(naomi_m2_board::read_callback));
 }

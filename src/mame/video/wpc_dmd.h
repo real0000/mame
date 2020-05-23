@@ -5,12 +5,10 @@
 
 // A 128x32 plasma display with 16 pages and refreshed at 240Hz (for PWM luminosity control)
 
-#ifndef WPC_DMD_H
-#define WPC_DMD_H
+#ifndef MAME_VIDEO_WPC_DMD_H
+#define MAME_VIDEO_WPC_DMD_H
 
-#define MCFG_WPC_DMD_ADD( _tag, _scanline_cb ) \
-	MCFG_DEVICE_ADD( _tag, WPC_DMD, 0 ) \
-	devcb = &wpc_dmd_device::set_scanline_cb(*device, DEVCB_##_scanline_cb);
+#include "machine/timer.h"
 
 class wpc_dmd_device : public device_t
 {
@@ -18,21 +16,18 @@ public:
 	wpc_dmd_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 	virtual ~wpc_dmd_device();
 
-	DECLARE_ADDRESS_MAP(registers, 8);
+	void registers(address_map &map);
 
-	DECLARE_WRITE8_MEMBER(bank0_w);
-	DECLARE_WRITE8_MEMBER(bank2_w);
-	DECLARE_WRITE8_MEMBER(bank4_w);
-	DECLARE_WRITE8_MEMBER(bank6_w);
-	DECLARE_WRITE8_MEMBER(bank8_w);
-	DECLARE_WRITE8_MEMBER(banka_w);
-	DECLARE_WRITE8_MEMBER(visible_page_w);
-	DECLARE_WRITE8_MEMBER(firq_scanline_w);
+	void bank0_w(uint8_t data);
+	void bank2_w(uint8_t data);
+	void bank4_w(uint8_t data);
+	void bank6_w(uint8_t data);
+	void bank8_w(uint8_t data);
+	void banka_w(uint8_t data);
+	void visible_page_w(uint8_t data);
+	void firq_scanline_w(uint8_t data);
 
-	TIMER_DEVICE_CALLBACK_MEMBER(scanline_timer);
-	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-
-	template<class _Object> static devcb_base &set_scanline_cb(device_t &device, _Object object) { return downcast<wpc_dmd_device &>(device).scanline_cb.set_callback(object); }
+	auto scanline_callback() { return scanline_cb.bind(); }
 
 protected:
 	devcb_write_line scanline_cb;
@@ -43,9 +38,13 @@ protected:
 
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
+private:
+	TIMER_DEVICE_CALLBACK_MEMBER(scanline_timer);
+	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 };
 
-extern const device_type WPC_DMD;
+DECLARE_DEVICE_TYPE(WPC_DMD, wpc_dmd_device)
 
-#endif
+#endif // MAME_VIDEO_WPC_DMD_H

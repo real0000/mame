@@ -6,49 +6,49 @@
 
 ***************************************************************************/
 
-#ifndef NMK004_H
-#define NMK004_H
+#ifndef MAME_MACHINE_NMK004_H
+#define MAME_MACHINE_NMK004_H
 
 #include "cpu/tlcs90/tlcs90.h"
-#include "sound/2203intf.h"
-#include "sound/okim6295.h"
 
-#define MCFG_NMK004_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, NMK004, _clock)
+#pragma once
 
-
-/* device get info callback */
 class nmk004_device : public device_t
 {
 public:
 	nmk004_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	WRITE8_MEMBER( write );
-	READ8_MEMBER( read );
+	auto reset_cb() { return m_reset_cb.bind(); }
 
-	DECLARE_WRITE8_MEMBER(nmk004_port4_w);
-	DECLARE_WRITE8_MEMBER(nmk004_oki0_bankswitch_w);
-	DECLARE_WRITE8_MEMBER(nmk004_oki1_bankswitch_w);
-	DECLARE_READ8_MEMBER(nmk004_tonmk004_r);
-	DECLARE_WRITE8_MEMBER(nmk004_tomain_w);
+	// host interface
+	void write(uint8_t data);
+	uint8_t read();
+	DECLARE_WRITE_LINE_MEMBER( nmi_w ) { m_cpu->set_input_line(INPUT_LINE_NMI, state); }
+
+	void port4_w(uint8_t data);
 	void ym2203_irq_handler(int irq);
-	required_device<tlcs90_device> m_cpu;
 
+	void nmk004_sound_mem_map(address_map &map);
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
+	virtual void device_add_mconfig(machine_config &config) override;
 
 private:
 	// internal state
-	required_device<cpu_device> m_systemcpu;
+	required_device<tlcs90_device>  m_cpu;
+	devcb_write_line                m_reset_cb;
+
 	uint8_t to_nmk004;
 	uint8_t to_main;
 
+	void oki0_bankswitch_w(uint8_t data);
+	void oki1_bankswitch_w(uint8_t data);
+	uint8_t tonmk004_r();
+	void tomain_w(uint8_t data);
 };
 
-extern const device_type NMK004;
+DECLARE_DEVICE_TYPE(NMK004, nmk004_device)
 
-#endif  /* NMK004_H */
+#endif // MAME_MACHINE_NMK004_H

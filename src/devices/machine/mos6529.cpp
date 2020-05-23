@@ -9,13 +9,8 @@
 #include "emu.h"
 #include "mos6529.h"
 
-
-
-//**************************************************************************
-//  MACROS / CONSTANTS
-//**************************************************************************
-
-#define LOG 0
+//#define VERBOSE 1
+#include "logmacro.h"
 
 
 
@@ -24,7 +19,7 @@
 //**************************************************************************
 
 // device type definition
-const device_type MOS6529 = device_creator<mos6529_device>;
+DEFINE_DEVICE_TYPE(MOS6529, mos6529_device, "mos6529", "MOS 6529")
 
 
 
@@ -36,17 +31,10 @@ const device_type MOS6529 = device_creator<mos6529_device>;
 //  mos6529_device - constructor
 //-------------------------------------------------
 
-mos6529_device::mos6529_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, MOS6529, "MOS6529", tag, owner, clock, "mos6529", __FILE__),
+mos6529_device::mos6529_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, MOS6529, tag, owner, clock),
 	m_input(0),
-	m_p0_handler(*this),
-	m_p1_handler(*this),
-	m_p2_handler(*this),
-	m_p3_handler(*this),
-	m_p4_handler(*this),
-	m_p5_handler(*this),
-	m_p6_handler(*this),
-	m_p7_handler(*this)
+	m_p_handler(*this)
 {
 }
 
@@ -58,14 +46,7 @@ mos6529_device::mos6529_device(const machine_config &mconfig, const char *tag, d
 void mos6529_device::device_start()
 {
 	// resolve callbacks
-	m_p0_handler.resolve_safe();
-	m_p1_handler.resolve_safe();
-	m_p2_handler.resolve_safe();
-	m_p3_handler.resolve_safe();
-	m_p4_handler.resolve_safe();
-	m_p5_handler.resolve_safe();
-	m_p6_handler.resolve_safe();
-	m_p7_handler.resolve_safe();
+	m_p_handler.resolve_all_safe();
 }
 
 
@@ -73,7 +54,7 @@ void mos6529_device::device_start()
 //  read -
 //-------------------------------------------------
 
-READ8_MEMBER( mos6529_device::read )
+uint8_t mos6529_device::read()
 {
 	return m_input;
 }
@@ -83,14 +64,8 @@ READ8_MEMBER( mos6529_device::read )
 //  write -
 //-------------------------------------------------
 
-WRITE8_MEMBER( mos6529_device::write )
+void mos6529_device::write(uint8_t data)
 {
-	m_p0_handler((data>>0)&1);
-	m_p1_handler((data>>1)&1);
-	m_p2_handler((data>>2)&1);
-	m_p3_handler((data>>3)&1);
-	m_p4_handler((data>>4)&1);
-	m_p5_handler((data>>5)&1);
-	m_p6_handler((data>>6)&1);
-	m_p7_handler((data>>7)&1);
+	for (int bit = 0; bit < 8; bit++)
+		m_p_handler[bit](BIT(data, bit));
 }

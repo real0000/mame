@@ -6,13 +6,13 @@
 
 **********************************************************************/
 
+#ifndef MAME_BUS_ADAMNET_PRINTER_H
+#define MAME_BUS_ADAMNET_PRINTER_H
+
 #pragma once
 
-#ifndef __ADAM_PRN__
-#define __ADAM_PRN__
-
 #include "adamnet.h"
-#include "cpu/m6800/m6800.h"
+#include "cpu/m6800/m6801.h"
 
 
 
@@ -29,32 +29,32 @@ public:
 	// construction/destruction
 	adam_printer_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// optional information overrides
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
-	// not really public
-	DECLARE_WRITE8_MEMBER( p1_w );
-	DECLARE_READ8_MEMBER( p2_r );
-	DECLARE_WRITE8_MEMBER( p2_w );
-	DECLARE_READ8_MEMBER( p3_r );
-	DECLARE_READ8_MEMBER( p4_r );
-	DECLARE_WRITE8_MEMBER( p4_w );
-
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 
+	// optional information overrides
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
 	// device_adamnet_card_interface overrides
 	virtual void adamnet_reset_w(int state) override;
 
-	required_device<cpu_device> m_maincpu;
+private:
+	required_device<m6801_cpu_device> m_maincpu;
+
+	void p1_w(uint8_t data);
+	uint8_t p2_r();
+	void p2_w(uint8_t data);
+	uint8_t p3_r();
+	uint8_t p4_r();
+	void p4_w(uint8_t data);
+
+	void adam_prn_mem(address_map &map);
 };
 
 
 // device type definition
-extern const device_type ADAM_PRN;
+DECLARE_DEVICE_TYPE(ADAM_PRN, adam_printer_device)
 
-
-
-#endif
+#endif // MAME_BUS_ADAMNET_PRINTER_H

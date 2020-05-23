@@ -56,29 +56,26 @@
 
 		-- Visual Studio actions
 		"actions/vstudio/_vstudio.lua",
-		"actions/vstudio/vs200x_vcproj.lua",
-		"actions/vstudio/vs200x_vcproj_user.lua",
-		"actions/vstudio/vs2005_solution.lua",
-		"actions/vstudio/vs2005_csproj.lua",
-		"actions/vstudio/vs2005_csproj_user.lua",
-		"actions/vstudio/vs2010_vcxproj.lua",
-		"actions/vstudio/vs2010_vcxproj_filters.lua",
+		"actions/vstudio/vstudio_solution.lua",
+		"actions/vstudio/vstudio_vcxproj.lua",
+		"actions/vstudio/vstudio_vcxproj_filters.lua",
+		"actions/vstudio/vs2010.lua",
 		"actions/vstudio/vs2012.lua",
 		"actions/vstudio/vs2013.lua",
 		"actions/vstudio/vs2015.lua",
 		"actions/vstudio/vs2017.lua",
+		"actions/vstudio/vs2019.lua",
+		"actions/vstudio/vsllvm.lua",
 
 		-- Xcode action
 		"actions/xcode/_xcode.lua",
 		"actions/xcode/xcode_common.lua",
 		"actions/xcode/xcode_project.lua",
-
-		-- Xcode4 action
-		"actions/xcode/xcode4_workspace.lua",
-
-		-- Xcode6 action
-		"actions/xcode/xcode6_project.lua",
-		"actions/xcode/xcode6_config.lua",
+		"actions/xcode/xcode_scheme.lua",
+		"actions/xcode/xcode_workspace.lua",
+		"actions/xcode/xcode8.lua",
+		"actions/xcode/xcode9.lua",
+		"actions/xcode/xcode10.lua",
 
 		--FASTBuild action
 		"actions/fastbuild/_fastbuild.lua",

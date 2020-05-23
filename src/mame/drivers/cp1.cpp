@@ -13,57 +13,64 @@
 ****************************************************************************/
 
 #include "emu.h"
+
 #include "cpu/mcs48/mcs48.h"
 #include "machine/i8155.h"
 #include "imagedev/cassette.h"
 #include "imagedev/snapquik.h"
+#include "video/pwm.h"
+
+#include "speaker.h"
 #include "cp1.lh"
 
 class cp1_state : public driver_device
 {
 public:
-	cp1_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+	cp1_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_i8155(*this, "i8155"),
 		m_i8155_cp3(*this, "i8155_cp3"),
 		m_cassette(*this, "cassette"),
-		m_io_lines(*this, {"LINE0", "LINE1", "LINE2", "LINE3", "LINE4"}),
+		m_display(*this, "display"),
+		m_io_lines(*this, "LINE%u", 0U),
 		m_io_config(*this, "CONFIG")
 	{ }
+
+	void cp1(machine_config &config);
+private:
+	void cp1_io(address_map &map);
+
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+
+	uint8_t port1_r();
+	uint8_t port2_r();
+	void port1_w(uint8_t data);
+	void port2_w(uint8_t data);
+	DECLARE_QUICKLOAD_LOAD_MEMBER(quickload_cb);
+
+	DECLARE_READ8_MEMBER(i8155_read);
+	DECLARE_WRITE8_MEMBER(i8155_write);
+	void i8155_porta_w(uint8_t data);
+	uint8_t i8155_portb_r();
+	void i8155_portb_w(uint8_t data);
+	void i8155_portc_w(uint8_t data);
 
 	required_device<cpu_device> m_maincpu;
 	required_device<i8155_device> m_i8155;
 	required_device<i8155_device> m_i8155_cp3;
 	required_device<cassette_image_device> m_cassette;
+	required_device<pwm_display_device> m_display;
 	required_ioport_array<5> m_io_lines;
 	required_ioport m_io_config;
 
-	virtual void machine_reset() override;
-	DECLARE_READ8_MEMBER(port1_r);
-	DECLARE_READ8_MEMBER(port2_r);
-	DECLARE_READ8_MEMBER(getbus);
-	DECLARE_READ8_MEMBER(t0_r);
-	DECLARE_READ8_MEMBER(t1_r);
-	DECLARE_WRITE8_MEMBER(port1_w);
-	DECLARE_WRITE8_MEMBER(port2_w);
-	DECLARE_WRITE8_MEMBER(putbus);
-	DECLARE_QUICKLOAD_LOAD_MEMBER(quickload);
-
-	DECLARE_READ8_MEMBER(i8155_read);
-	DECLARE_WRITE8_MEMBER(i8155_write);
-	DECLARE_WRITE8_MEMBER(i8155_porta_w);
-	DECLARE_READ8_MEMBER(i8155_portb_r);
-	DECLARE_WRITE8_MEMBER(i8155_portb_w);
-	DECLARE_WRITE8_MEMBER(i8155_portc_w);
-
-private:
 	uint8_t   m_7seg;
 	uint8_t   m_port2;
 	uint8_t   m_matrix;
 };
 
-READ8_MEMBER(cp1_state::port1_r)
+uint8_t cp1_state::port1_r()
 {
 	logerror("Read from expansion port 1\n");
 
@@ -75,7 +82,7 @@ READ8_MEMBER(cp1_state::port1_r)
 	return data;
 }
 
-WRITE8_MEMBER(cp1_state::port1_w)
+void cp1_state::port1_w(uint8_t data)
 {
 	logerror("Write to expansion port 1 %x\n", data);
 
@@ -83,7 +90,7 @@ WRITE8_MEMBER(cp1_state::port1_w)
 		m_cassette->output(data & 0x80 ? +1.0 : -1.0);
 }
 
-READ8_MEMBER(cp1_state::port2_r)
+uint8_t cp1_state::port2_r()
 {
 	// x--- ----   I8155 IO/M
 	// -x-- ----   I8155 RESET
@@ -100,7 +107,7 @@ READ8_MEMBER(cp1_state::port2_r)
 	return (data & 0x0f) | (m_port2 & 0xf0);
 }
 
-WRITE8_MEMBER(cp1_state::port2_w)
+void cp1_state::port2_w(uint8_t data)
 {
 	if (data & 0x40)
 	{
@@ -113,43 +120,20 @@ WRITE8_MEMBER(cp1_state::port2_w)
 	m_port2 = data;
 }
 
-READ8_MEMBER(cp1_state::t0_r)
-{
-	logerror("t0_r\n");
-	return 0;
-}
-
-READ8_MEMBER(cp1_state::t1_r)
-{
-	logerror("t1_r\n");
-	return 0;
-}
-
-READ8_MEMBER(cp1_state::getbus)
-{
-	logerror("getbus\n");
-	return 0;
-}
-
-WRITE8_MEMBER(cp1_state::putbus)
-{
-	logerror("putbus\n");
-}
-
 READ8_MEMBER(cp1_state::i8155_read)
 {
 	uint8_t data = 0;
 
 	if (!(m_port2 & 0x10))
 	{
-		m_i8155->ale_w(space, BIT(m_port2, 7), offset);
-		data |= m_i8155->read(space, offset);
+		m_i8155->ale_w(BIT(m_port2, 7), offset);
+		data |= m_i8155->data_r();
 	}
 	if ((m_io_config->read() & 0x02) && !(m_port2 & 0x20))
 	{
 		// CP3 RAM expansion
-		m_i8155_cp3->ale_w(space, BIT(m_port2, 7), offset);
-		data |= m_i8155_cp3->read(space, offset);
+		m_i8155_cp3->ale_w(BIT(m_port2, 7), offset);
+		data |= m_i8155_cp3->data_r();
 	}
 
 	return data;
@@ -159,62 +143,47 @@ WRITE8_MEMBER(cp1_state::i8155_write)
 {
 	if (!(m_port2 & 0x10))
 	{
-		m_i8155->ale_w(space, BIT(m_port2, 7), offset);
-		m_i8155->write(space, offset, data);
+		m_i8155->ale_w(BIT(m_port2, 7), offset);
+		m_i8155->data_w(data);
 	}
 	if ((m_io_config->read() & 0x02) && !(m_port2 & 0x20))
 	{
 		// CP3 RAM expansion
-		m_i8155_cp3->ale_w(space, BIT(m_port2, 7), offset);
-		m_i8155_cp3->write(space, offset, data);
+		m_i8155_cp3->ale_w(BIT(m_port2, 7), offset);
+		m_i8155_cp3->data_w(data);
 	}
 }
 
-WRITE8_MEMBER(cp1_state::i8155_porta_w)
+void cp1_state::i8155_porta_w(uint8_t data)
 {
-	data &= 0x7f;   // PA7 is not connected
-
-	if (m_7seg)
-	{
-		if (!(m_matrix & 0x01))     output().set_digit_value(5, data);
-		if (!(m_matrix & 0x02))     output().set_digit_value(4, data);
-		if (!(m_matrix & 0x04))     output().set_digit_value(3, data);
-		if (!(m_matrix & 0x08))     output().set_digit_value(2, data | 0x80);     // this digit has always the dot active
-		if (!(m_matrix & 0x10))     output().set_digit_value(1, data);
-		if (!(m_matrix & 0x20))     output().set_digit_value(0, data);
-	}
-
-	m_7seg ^= 0x01;
+	m_7seg = data & 0x7f; // PA7 is not connected
+	m_display->matrix(~m_matrix, m_7seg);
 }
 
-READ8_MEMBER(cp1_state::i8155_portb_r)
+uint8_t cp1_state::i8155_portb_r()
 {
 	logerror("read from expansion port 2\n");
 	return 0;
 }
 
-WRITE8_MEMBER(cp1_state::i8155_portb_w)
+void cp1_state::i8155_portb_w(uint8_t data)
 {
 	logerror("Write to expansion port 2 %x\n", data);
 }
 
-WRITE8_MEMBER(cp1_state::i8155_portc_w)
+void cp1_state::i8155_portc_w(uint8_t data)
 {
-	// --xx xxxx   keyboard matrix
-
+	// --xx xxxx   keyboard matrix, 7seg select
 	m_matrix = data & 0x3f;
+	m_display->matrix(~m_matrix, m_7seg);
 }
 
 
-static ADDRESS_MAP_START( cp1_io , AS_IO, 8, cp1_state)
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE( 0x00,             0xff )          AM_READWRITE( i8155_read, i8155_write)
-	AM_RANGE( MCS48_PORT_P1,    MCS48_PORT_P1)  AM_READWRITE( port1_r, port1_w )
-	AM_RANGE( MCS48_PORT_P2,    MCS48_PORT_P2)  AM_READWRITE( port2_r, port2_w )
-	AM_RANGE( MCS48_PORT_BUS,   MCS48_PORT_BUS) AM_READWRITE( getbus, putbus )
-	AM_RANGE( MCS48_PORT_T0,    MCS48_PORT_T0)  AM_READ( t0_r )
-	AM_RANGE( MCS48_PORT_T1,    MCS48_PORT_T1)  AM_READ( t1_r )
-ADDRESS_MAP_END
+void cp1_state::cp1_io(address_map &map)
+{
+	map.unmap_value_high();
+	map(0x00, 0xff).rw(FUNC(cp1_state::i8155_read), FUNC(cp1_state::i8155_write));
+}
 
 /* Input ports */
 INPUT_PORTS_START( cp1 )
@@ -253,6 +222,10 @@ INPUT_PORTS_START( cp1 )
 	PORT_CONFSETTING( 0x02, DEF_STR( Yes ) )
 INPUT_PORTS_END
 
+void cp1_state::machine_start()
+{
+}
+
 void cp1_state::machine_reset()
 {
 	m_port2 = 0;
@@ -261,9 +234,8 @@ void cp1_state::machine_reset()
 	m_cassette->change_state(CASSETTE_STOPPED, CASSETTE_MASK_UISTATE);
 }
 
-QUICKLOAD_LOAD_MEMBER( cp1_state, quickload )
+QUICKLOAD_LOAD_MEMBER(cp1_state::quickload_cb)
 {
-	uint8_t *dest = (uint8_t*)m_i8155->space().get_read_ptr(0);
 	char line[0x10];
 	int addr = 0;
 	while (image.fgets(line, 10) && addr < 0x100)
@@ -271,8 +243,8 @@ QUICKLOAD_LOAD_MEMBER( cp1_state, quickload )
 		int op = 0, arg = 0;
 		if (sscanf(line, "%d.%d", &op, &arg) == 2)
 		{
-			dest[addr++] = op;
-			dest[addr++] = arg;
+			m_i8155->memory_w(addr++, op);
+			m_i8155->memory_w(addr++, arg);
 		}
 		else
 		{
@@ -283,25 +255,40 @@ QUICKLOAD_LOAD_MEMBER( cp1_state, quickload )
 	return image_init_result::PASS;
 }
 
-static MACHINE_CONFIG_START( cp1, cp1_state )
+void cp1_state::cp1(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", I8049, XTAL_6MHz)
-	MCFG_CPU_IO_MAP(cp1_io)
+	i8049_device &maincpu(I8049(config, m_maincpu, 6_MHz_XTAL));
+	maincpu.set_addrmap(AS_IO, &cp1_state::cp1_io);
+	maincpu.p1_in_cb().set(FUNC(cp1_state::port1_r));
+	maincpu.p1_out_cb().set(FUNC(cp1_state::port1_w));
+	maincpu.p2_in_cb().set(FUNC(cp1_state::port2_r));
+	maincpu.p2_out_cb().set(FUNC(cp1_state::port2_w));
+	maincpu.bus_in_cb().set_log("getbus");
+	maincpu.bus_out_cb().set_log("putbus");
+	maincpu.t0_in_cb().set_log("t0_r");
+	maincpu.t1_in_cb().set_log("t1_r");
 
-	MCFG_DEVICE_ADD("i8155", I8155, 0)
-	MCFG_I8155_OUT_PORTA_CB(WRITE8(cp1_state, i8155_porta_w))
-	MCFG_I8155_IN_PORTB_CB(READ8(cp1_state, i8155_portb_r))
-	MCFG_I8155_OUT_PORTB_CB(WRITE8(cp1_state, i8155_portb_w))
-	MCFG_I8155_OUT_PORTC_CB(WRITE8(cp1_state, i8155_portc_w))
+	i8155_device &i8155(I8155(config, "i8155", 0));
+	i8155.out_pa_callback().set(FUNC(cp1_state::i8155_porta_w));
+	i8155.in_pb_callback().set(FUNC(cp1_state::i8155_portb_r));
+	i8155.out_pb_callback().set(FUNC(cp1_state::i8155_portb_w));
+	i8155.out_pc_callback().set(FUNC(cp1_state::i8155_portc_w));
 
-	MCFG_DEVICE_ADD("i8155_cp3", I8155, 0)
+	I8155(config, "i8155_cp3", 0);
 
-	MCFG_DEFAULT_LAYOUT(layout_cp1)
+	PWM_DISPLAY(config, m_display).set_size(6, 7);
+	m_display->set_segmask(0x3f, 0x7f);
+	config.set_default_layout(layout_cp1);
 
-	MCFG_CASSETTE_ADD("cassette")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_QUICKLOAD_ADD("quickload", cp1_state, quickload, "obj", 1)
-MACHINE_CONFIG_END
+	CASSETTE(config, m_cassette);
+	m_cassette->set_default_state(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED);
+	m_cassette->add_route(ALL_OUTPUTS, "mono", 0.05);
+
+	QUICKLOAD(config, "quickload", "obj", attotime::from_seconds(1)).set_load_callback(FUNC(cp1_state::quickload_cb));
+}
 
 /* ROM definition */
 /*
@@ -313,13 +300,13 @@ MACHINE_CONFIG_END
 ROM_START( cp1 )
 	ROM_REGION( 0x0800, "maincpu", ROMREGION_ERASEFF )
 	ROM_SYSTEM_BIOS( 0, "b", "b" )
-	ROMX_LOAD( "cp1-kosmos-b.rom", 0x0000, 0x0800, CRC(fea8a2b2) SHA1(c987b79a7b90fcbd58b66a69e95913f2655a1f0d), ROM_BIOS(1))
+	ROMX_LOAD( "cp1-kosmos-b.rom", 0x0000, 0x0800, CRC(fea8a2b2) SHA1(c987b79a7b90fcbd58b66a69e95913f2655a1f0d), ROM_BIOS(0))
 	// This is from 2716 eprom that was on board with I8039 instead of I8049
 	ROM_SYSTEM_BIOS( 1, "2716", "2716" )
-	ROMX_LOAD( "cp1-2716.bin",     0x0000, 0x0800, CRC(3a2caf0e) SHA1(ff4befcf82a664950186d3af1843fdef70d2209f), ROM_BIOS(2))
+	ROMX_LOAD( "cp1-2716.bin",     0x0000, 0x0800, CRC(3a2caf0e) SHA1(ff4befcf82a664950186d3af1843fdef70d2209f), ROM_BIOS(1))
 ROM_END
 
 /* Driver */
 
-/*    YEAR  NAME    PARENT  COMPAT   MACHINE    INPUT    INIT     COMPANY   FULLNAME       FLAGS */
-COMP( 1980, cp1,  0,       0,   cp1,    cp1, driver_device,  0,   "Kosmos",   "CP1 / Computer Praxis",      MACHINE_NOT_WORKING | MACHINE_NO_SOUND)
+//    YEAR  NAME  PARENT  COMPAT  MACHINE  INPUT  CLASS      INIT        COMPANY   FULLNAME                 FLAGS
+COMP( 1980, cp1,  0,      0,      cp1,     cp1,   cp1_state, empty_init, "Kosmos", "CP1 / Computer Praxis", MACHINE_NOT_WORKING | MACHINE_NO_SOUND )

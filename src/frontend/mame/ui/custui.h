@@ -15,7 +15,11 @@
 
 #include "ui/menu.h"
 
+#include <functional>
+
+
 namespace ui {
+
 //-------------------------------------------------
 //  Custom UI menu
 //-------------------------------------------------
@@ -23,7 +27,7 @@ namespace ui {
 class menu_custom_ui : public menu
 {
 public:
-	menu_custom_ui(mame_ui_manager &mui, render_container &container);
+	menu_custom_ui(mame_ui_manager &mui, render_container &container, std::function<void ()> &&handler);
 	virtual ~menu_custom_ui() override;
 
 protected:
@@ -43,6 +47,7 @@ private:
 
 	static const char *const    HIDE_STATUS[];
 
+	std::function<void ()>      m_handler;
 	std::vector<std::string>    m_lang;
 	std::uint16_t               m_currlang;
 };
@@ -54,7 +59,7 @@ private:
 class menu_font_ui : public menu
 {
 public:
-	menu_font_ui(mame_ui_manager &mui, render_container &container);
+	menu_font_ui(mame_ui_manager &mui, render_container &container, std::function<void (bool)> &&handler);
 	virtual ~menu_font_ui() override;
 
 protected:
@@ -75,14 +80,19 @@ private:
 
 	void list();
 
+	std::function<void (bool)> m_handler;
+	std::vector<std::pair<std::string, std::string> > m_fonts;
+	const int m_font_min, m_font_max;
+	int m_font_size;
+	const float m_info_min, m_info_max;
+	float m_info_size;
+	bool m_changed;
+
 	std::uint16_t                                       m_actual;
-	std::vector<std::pair<std::string, std::string> >   m_fonts;
 #ifdef UI_WINDOWS
 	bool                                                m_bold, m_italic;
 #endif
 
-	float m_info_min, m_info_max, m_info_size;
-	int m_font_min, m_font_max, m_font_size;
 };
 
 //-------------------------------------------------
@@ -178,13 +188,7 @@ public:
 	menu_palette_sel(mame_ui_manager &mui, render_container &container, rgb_t &_color);
 	virtual ~menu_palette_sel() override;
 
-protected:
-	virtual void custom_render(void *selectedref, float top, float bottom, float x, float y, float x2, float y2) override;
-
 private:
-	// draw palette menu
-	virtual void draw(uint32_t flags) override;
-
 	virtual void populate(float &customtop, float &custombottom) override;
 	virtual void handle() override;
 

@@ -58,10 +58,10 @@ void hyhoo_state::device_timer(emu_timer &timer, device_timer_id id, int param, 
 	switch (id)
 	{
 	case TIMER_BLITTER:
-		m_nb1413m3->m_busyflag = 1;
+		m_nb1413m3->busyflag_w(1);
 		break;
 	default:
-		assert_always(false, "Unknown id in hyhoo_state::device_timer");
+		throw emu_fatalerror("Unknown id in hyhoo_state::device_timer");
 	}
 }
 
@@ -220,13 +220,15 @@ void hyhoo_state::hyhoo_gfxdraw()
 		}
 	}
 
-	m_nb1413m3->m_busyflag = 0;
-	timer_set(attotime::from_hz(400000) * m_nb1413m3->m_busyctr, TIMER_BLITTER);
+	m_nb1413m3->busyflag_w(0);
+	m_blitter_timer->adjust(attotime::from_hz(400000) * m_nb1413m3->m_busyctr);
 }
 
 
 void hyhoo_state::video_start()
 {
+	m_blitter_timer = timer_alloc(TIMER_BLITTER);
+
 	m_screen->register_screen_bitmap(m_tmpbitmap);
 	save_item(NAME(m_blitter_destx));
 	save_item(NAME(m_blitter_desty));

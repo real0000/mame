@@ -42,6 +42,7 @@
 	"passes": [
 		{
 			"effect": "xbr/xbr-lv2-multipass/xbr-lv2-c-pass0",
+			"applytint": true,
 			"name": "Pass 0",
 			"input": [
 				{ "sampler": "decal", "texture": "screen" }
@@ -52,7 +53,8 @@
 			"effect": "xbr/xbr-lv2-multipass/xbr-lv2-pass1",
 			"name": "Pass 1",
 			"input": [
-				{ "sampler": "decal", "target": "internal" }
+				{ "sampler": "decal", "target": "internal" },
+				{ "sampler": "ORIG_texture", "target": "screen" }
 			],
 			"output": "output"
 		}

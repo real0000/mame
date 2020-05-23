@@ -13,16 +13,16 @@ driver by Chris Moore
 #include "machine/gen_latch.h"
 #include "screen.h"
 
-#define GAMEPLAN_MAIN_MASTER_CLOCK       (XTAL_3_579545MHz)
-#define GAMEPLAN_AUDIO_MASTER_CLOCK      (XTAL_3_579545MHz)
+#define GAMEPLAN_MAIN_MASTER_CLOCK       (XTAL(3'579'545))
+#define GAMEPLAN_AUDIO_MASTER_CLOCK      (XTAL(3'579'545))
 #define GAMEPLAN_MAIN_CPU_CLOCK          (GAMEPLAN_MAIN_MASTER_CLOCK / 4)
 #define GAMEPLAN_AUDIO_CPU_CLOCK         (GAMEPLAN_AUDIO_MASTER_CLOCK / 4)
 #define GAMEPLAN_AY8910_CLOCK            (GAMEPLAN_AUDIO_MASTER_CLOCK / 2)
-#define GAMEPLAN_PIXEL_CLOCK             (XTAL_11_6688MHz / 2)
+#define GAMEPLAN_PIXEL_CLOCK             (XTAL(11'668'800) / 2)
 
 /* Used Leprechaun/Pot of Gold (and Pirate Treasure) - as stated in manual for Pot Of Gold */
 
-#define LEPRECHAUN_MAIN_MASTER_CLOCK     (XTAL_4MHz)
+#define LEPRECHAUN_MAIN_MASTER_CLOCK     (XTAL(4'000'000))
 #define LEPRECHAUN_MAIN_CPU_CLOCK        (LEPRECHAUN_MAIN_MASTER_CLOCK / 4)
 
 
@@ -48,6 +48,18 @@ public:
 			m_screen(*this, "screen"),
 			m_soundlatch(*this, "soundlatch") { }
 
+	void gameplan(machine_config &config);
+	void gameplan_video(machine_config &config);
+	void leprechn(machine_config &config);
+	void leprechn_video(machine_config &config);
+	void trvquest(machine_config &config);
+	void trvquest_video(machine_config &config);
+
+protected:
+	virtual void video_start() override;
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
+
+private:
 	/* machine state */
 	uint8_t   m_current_port;
 	optional_shared_ptr<uint8_t> m_trvquest_question;
@@ -59,7 +71,6 @@ public:
 	uint8_t    m_video_y;
 	uint8_t    m_video_command;
 	uint8_t    m_video_data;
-	emu_timer *m_via_0_ca1_timer;
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
@@ -72,47 +83,35 @@ public:
 	optional_device<generic_latch_8_device> m_soundlatch;
 
 
-	DECLARE_WRITE8_MEMBER(io_select_w);
-	DECLARE_READ8_MEMBER(io_port_r);
+	void io_select_w(uint8_t data);
+	uint8_t io_port_r();
 	DECLARE_WRITE_LINE_MEMBER(coin_w);
 	DECLARE_WRITE_LINE_MEMBER(audio_reset_w);
-	DECLARE_WRITE8_MEMBER(audio_cmd_w);
+	void audio_cmd_w(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER(audio_trigger_w);
 	DECLARE_WRITE_LINE_MEMBER(r6532_irq);
-	DECLARE_WRITE8_MEMBER(r6532_soundlatch_w);
 	DECLARE_MACHINE_START(gameplan);
 	DECLARE_MACHINE_RESET(gameplan);
 	DECLARE_MACHINE_START(trvquest);
 	DECLARE_MACHINE_RESET(trvquest);
-	DECLARE_VIDEO_START(gameplan);
-	DECLARE_VIDEO_RESET(gameplan);
-	DECLARE_VIDEO_START(leprechn);
-	DECLARE_VIDEO_START(trvquest);
-	DECLARE_VIDEO_START(common);
 	uint32_t screen_update_gameplan(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_leprechn(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	INTERRUPT_GEN_MEMBER(trvquest_interrupt);
 	TIMER_CALLBACK_MEMBER(clear_screen_done_callback);
 	TIMER_CALLBACK_MEMBER(via_irq_delayed);
-	TIMER_CALLBACK_MEMBER(via_0_ca1_timer_callback);
-	DECLARE_WRITE8_MEMBER(video_data_w);
-	DECLARE_WRITE8_MEMBER(gameplan_video_command_w);
-	DECLARE_WRITE8_MEMBER(leprechn_video_command_w);
-	DECLARE_READ8_MEMBER(leprechn_videoram_r);
+	void video_data_w(uint8_t data);
+	void gameplan_video_command_w(uint8_t data);
+	void leprechn_video_command_w(uint8_t data);
+	uint8_t leprechn_videoram_r();
 	DECLARE_WRITE_LINE_MEMBER(video_command_trigger_w);
 	void gameplan_get_pens( pen_t *pens );
 	void leprechn_get_pens( pen_t *pens );
 	DECLARE_WRITE_LINE_MEMBER(via_irq);
-	DECLARE_READ8_MEMBER(trvquest_question_r);
+	uint8_t trvquest_question_r(offs_t offset);
 	DECLARE_WRITE_LINE_MEMBER(trvquest_coin_w);
 	DECLARE_WRITE_LINE_MEMBER(trvquest_misc_w);
 
-protected:
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
+	void cpu_map(address_map &map);
+	void gameplan_audio_map(address_map &map);
+	void gameplan_main_map(address_map &map);
+	void leprechn_audio_map(address_map &map);
 };
-
-/*----------- defined in video/gameplan.c -----------*/
-
-MACHINE_CONFIG_EXTERN( gameplan_video );
-MACHINE_CONFIG_EXTERN( leprechn_video );
-MACHINE_CONFIG_EXTERN( trvquest_video );

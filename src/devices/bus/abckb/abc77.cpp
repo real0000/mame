@@ -60,8 +60,8 @@ Notes:
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type ABC77 = device_creator<abc77_device>;
-const device_type ABC55 = device_creator<abc55_device>;
+DEFINE_DEVICE_TYPE(ABC77, abc77_device, "abc77", "Luxor ABC 77")
+DEFINE_DEVICE_TYPE(ABC55, abc55_device, "abc55", "Luxor ABC 55")
 
 
 //-------------------------------------------------
@@ -89,23 +89,21 @@ const tiny_rom_entry *abc77_device::device_rom_region() const
 //  ADDRESS_MAP( abc77_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( abc77_map, AS_PROGRAM, 8, abc77_device )
-	AM_RANGE(0x000, 0xfff) AM_ROM AM_REGION("z16", 0)
-ADDRESS_MAP_END
+void abc77_device::abc77_map(address_map &map)
+{
+	map(0x000, 0xfff).rom().region("z16", 0);
+}
 
 
 //-------------------------------------------------
 //  ADDRESS_MAP( abc77_io )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( abc77_io, AS_IO, 8, abc77_device )
-	AM_RANGE(0x00, 0x00) AM_MIRROR(0xff) AM_WRITE(j3_w)
-	AM_RANGE(0x00, 0x00) AM_MIRROR(0xff) AM_READ_PORT("DSW")
-	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_READ(p1_r)
-	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_WRITE(p2_w)
-	AM_RANGE(MCS48_PORT_T1, MCS48_PORT_T1) AM_READ(t1_r)
-	AM_RANGE(MCS48_PORT_PROG, MCS48_PORT_PROG) AM_WRITE(prog_w)
-ADDRESS_MAP_END
+void abc77_device::abc77_io(address_map &map)
+{
+	map(0x00, 0x00).mirror(0xff).w(FUNC(abc77_device::j3_w));
+	map(0x00, 0x00).mirror(0xff).portr("DSW");
+}
 
 
 //-------------------------------------------------
@@ -120,7 +118,7 @@ static const discrete_555_desc abc77_ne556_a =
 };
 
 
-static DISCRETE_SOUND_START( abc77 )
+static DISCRETE_SOUND_START( abc77_discrete )
 	DISCRETE_INPUT_LOGIC(NODE_01)
 	DISCRETE_555_ASTABLE(NODE_02, NODE_01, (int) RES_K(2.7), (int) RES_K(15), (int) CAP_N(22), &abc77_ne556_a)
 	DISCRETE_OUTPUT(NODE_02, 5000)
@@ -128,35 +126,26 @@ DISCRETE_SOUND_END
 
 
 //-------------------------------------------------
-//  MACHINE_DRIVER( abc77 )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( abc77 )
+void abc77_device::device_add_mconfig(machine_config &config)
+{
 	// keyboard cpu
-	MCFG_CPU_ADD(I8035_TAG, I8035, XTAL_4_608MHz)
-	MCFG_CPU_PROGRAM_MAP(abc77_map)
-	MCFG_CPU_IO_MAP(abc77_io)
+	I8035(config, m_maincpu, XTAL(4'608'000));
+	m_maincpu->set_addrmap(AS_PROGRAM, &abc77_device::abc77_map);
+	m_maincpu->set_addrmap(AS_IO, &abc77_device::abc77_io);
+	m_maincpu->p1_in_cb().set(FUNC(abc77_device::p1_r));
+	m_maincpu->p2_out_cb().set(FUNC(abc77_device::p2_w));
+	m_maincpu->t1_in_cb().set(FUNC(abc77_device::t1_r));
+	m_maincpu->prog_out_cb().set(FUNC(abc77_device::prog_w));
 
 	// watchdog
-	MCFG_WATCHDOG_ADD("watchdog")
-	MCFG_WATCHDOG_TIME_INIT(attotime::from_hz(XTAL_4_608MHz/3/5/4096))
+	WATCHDOG_TIMER(config, m_watchdog).set_time(attotime::from_hz(XTAL(4'608'000)/3/5/4096));
 
 	// discrete sound
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(DISCRETE_TAG, DISCRETE, 0)
-	MCFG_DISCRETE_INTF(abc77)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor abc77_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( abc77 );
+	SPEAKER(config, "mono").front_center();
+	DISCRETE(config, m_discrete, abc77_discrete).add_route(ALL_OUTPUTS, "mono", 0.80);
 }
 
 
@@ -316,7 +305,7 @@ INPUT_PORTS_START( abc55 )
 	PORT_BIT( 0xe0, IP_ACTIVE_LOW, IPT_UNUSED)
 
 	PORT_START("SW1")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_NAME("Keyboard Reset") PORT_CHANGED_MEMBER(DEVICE_SELF, abc77_device, keyboard_reset, nullptr)
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Keyboard Reset") PORT_CHANGED_MEMBER(DEVICE_SELF, abc77_device, keyboard_reset, 0)
 INPUT_PORTS_END
 
 
@@ -424,8 +413,8 @@ inline void abc77_device::key_down(int state)
 //  abc77_device - constructor
 //-------------------------------------------------
 
-abc77_device::abc77_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+abc77_device::abc77_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, type, tag, owner, clock),
 	abc_keyboard_interface(mconfig, *this),
 	m_maincpu(*this, I8035_TAG),
 	m_watchdog(*this, "watchdog"),
@@ -434,16 +423,16 @@ abc77_device::abc77_device(const machine_config &mconfig, device_type type, cons
 	m_dsw(*this, "DSW"),
 	m_txd(1), m_keylatch(0),
 	m_keydown(1),
-	m_clock(0), m_hys(0), m_reset(0),
+	m_clock(0), m_hys(0),
 	m_stb(1), m_j3(0), m_serial_timer(nullptr), m_reset_timer(nullptr)
 {
 }
 
 abc55_device::abc55_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	abc77_device(mconfig, ABC55, "Luxor ABC 55", tag, owner, clock, "abc55", __FILE__) { }
+	abc77_device(mconfig, ABC55, tag, owner, clock) { }
 
 abc77_device::abc77_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	abc77_device(mconfig, ABC77, "Luxor ABC 77", tag, owner, clock, "abc77", __FILE__) { }
+	abc77_device(mconfig, ABC77, tag, owner, clock) { }
 
 
 //-------------------------------------------------
@@ -512,7 +501,7 @@ void abc77_device::txd_w(int state)
 //  p1_r -
 //-------------------------------------------------
 
-READ8_MEMBER( abc77_device::p1_r )
+uint8_t abc77_device::p1_r()
 {
 	/*
 
@@ -547,7 +536,7 @@ READ8_MEMBER( abc77_device::p1_r )
 //  p2_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( abc77_device::p2_w )
+void abc77_device::p2_w(uint8_t data)
 {
 	/*
 
@@ -575,7 +564,7 @@ WRITE8_MEMBER( abc77_device::p2_w )
 	}
 
 	// beep
-	m_discrete->write(space, NODE_01, BIT(data, 4));
+	m_discrete->write(NODE_01, BIT(data, 4));
 
 	// transmit data
 	serial_output(BIT(data, 5));
@@ -592,7 +581,7 @@ WRITE8_MEMBER( abc77_device::p2_w )
 //  t1_r -
 //-------------------------------------------------
 
-READ8_MEMBER( abc77_device::t1_r )
+READ_LINE_MEMBER( abc77_device::t1_r )
 {
 	return m_clock;
 }
@@ -602,9 +591,9 @@ READ8_MEMBER( abc77_device::t1_r )
 //  prog_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( abc77_device::prog_w )
+WRITE_LINE_MEMBER( abc77_device::prog_w )
 {
-	m_stb = BIT(data, 0);
+	m_stb = state;
 }
 
 

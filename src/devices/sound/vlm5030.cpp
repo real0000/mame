@@ -49,7 +49,7 @@ RST not only resets the chip on its rising edge but grabs a byte of mode state d
     9bit DAC is composed of 5bit Physical and 3bitPWM.
 
   todo:
-    Noise Generator circuit without 'machine.rand()' function.
+    Noise Generator circuit without 'machine().rand()' function.
 
 ----------- command format (Analytical result) ----------
 
@@ -157,10 +157,10 @@ static const int vlm5030_speed_table[8] =
 	IP_SIZE_SLOW
 };
 
-const device_type VLM5030 = device_creator<vlm5030_device>;
+DEFINE_DEVICE_TYPE(VLM5030, vlm5030_device, "vlm5030", "Sanyo VLM5030")
 
 vlm5030_device::vlm5030_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, VLM5030, "VLM5030", tag, owner, clock, "vlm5030", __FILE__),
+	: device_t(mconfig, VLM5030, tag, owner, clock),
 		device_sound_interface(mconfig, *this),
 		device_rom_interface(mconfig, *this, 16),
 		m_channel(nullptr),
@@ -235,7 +235,6 @@ void vlm5030_device::device_start()
 	save_item(NAME(m_target_pitch));
 	save_item(NAME(m_target_k));
 	save_item(NAME(m_x));
-	machine().save().register_postload(save_prepost_delegate(FUNC(vlm5030_device::restore_state), this));
 }
 
 //-------------------------------------------------
@@ -261,6 +260,11 @@ void vlm5030_device::device_reset()
 	memset(m_x, 0, sizeof(m_x));
 	/* reset parameters */
 	setup_parameter( 0x00);
+}
+
+void vlm5030_device::device_post_load()
+{
+	restore_state();
 }
 
 void vlm5030_device::rom_bank_updated()
@@ -393,9 +397,9 @@ READ_LINE_MEMBER( vlm5030_device::bsy )
 }
 
 /* latch contoll data */
-WRITE8_MEMBER( vlm5030_device::data_w )
+void vlm5030_device::data_w(uint8_t data)
 {
-	m_latch_data = (uint8_t)data;
+	m_latch_data = data;
 }
 
 /* set RST pin level : reset / set table address A8-A15 */

@@ -41,9 +41,10 @@ control registers
 
 
 #define VERBOSE 0
-#define LOG(x) do { if (VERBOSE) logerror x; } while (0)
+#include "logmacro.h"
 
-const device_type K051316 = device_creator<k051316_device>;
+
+DEFINE_DEVICE_TYPE(K051316, k051316_device, "k051316", "K051316 PSAC")
 
 
 const gfx_layout k051316_device::charlayout4 =
@@ -104,38 +105,37 @@ GFXDECODE_END
 
 
 k051316_device::k051316_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, K051316, "K051316 PSAC", tag, owner, clock, "k051316", __FILE__),
-		device_gfx_interface(mconfig, *this, gfxinfo),
-		m_zoom_rom(*this, DEVICE_SELF),
-		m_dx(0),
-		m_dy(0),
-		m_wrap(0),
-		m_pixels_per_byte(2), // 4bpp layout is default
-		m_layermask(0)
+	: device_t(mconfig, K051316, tag, owner, clock)
+	, device_gfx_interface(mconfig, *this, gfxinfo)
+	, m_zoom_rom(*this, DEVICE_SELF)
+	, m_dx(0)
+	, m_dy(0)
+	, m_wrap(0)
+	, m_pixels_per_byte(2) // 4bpp layout is default
+	, m_layermask(0)
+	, m_k051316_cb(*this)
 {
 }
 
-void k051316_device::set_bpp(device_t &device, int bpp)
+void k051316_device::set_bpp(int bpp)
 {
-	k051316_device &dev = downcast<k051316_device &>(device);
-
 	switch(bpp)
 	{
 		case 4:
-			device_gfx_interface::static_set_info(dev, gfxinfo);
-			dev.m_pixels_per_byte = 2;
+			set_info(gfxinfo);
+			m_pixels_per_byte = 2;
 			break;
 		case 7:
-			device_gfx_interface::static_set_info(dev, gfxinfo7);
-			dev.m_pixels_per_byte = 1;
+			set_info(gfxinfo7);
+			m_pixels_per_byte = 1;
 			break;
 		case 8:
-			device_gfx_interface::static_set_info(dev, gfxinfo8);
-			dev.m_pixels_per_byte = 1;
+			set_info(gfxinfo8);
+			m_pixels_per_byte = 1;
 			break;
 		case -4:
-			device_gfx_interface::static_set_info(dev, gfxinfo4_ram);
-			dev.m_pixels_per_byte = 2;
+			set_info(gfxinfo4_ram);
+			m_pixels_per_byte = 2;
 			break;
 		default:
 			fatalerror("Unsupported bpp\n");
@@ -150,10 +150,16 @@ void k051316_device::set_bpp(device_t &device, int bpp)
 
 void k051316_device::device_start()
 {
+	if (!palette().device().started())
+		throw device_missing_dependencies();
+
+	// bind callbacks
+	m_k051316_cb.resolve();
+
 	decode_gfx();
 	gfx(0)->set_colors(palette().entries() / gfx(0)->depth());
 
-	m_tmap = &machine().tilemap().create(*this, tilemap_get_info_delegate(FUNC(k051316_device::get_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_tmap = &machine().tilemap().create(*this, tilemap_get_info_delegate(*this, FUNC(k051316_device::get_tile_info)), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 	m_ram.resize(0x800);
 	memset(&m_ram[0], 0, 0x800);
 
@@ -164,9 +170,6 @@ void k051316_device::device_start()
 	}
 	else
 		m_tmap->set_transparent_pen(0);
-
-	// bind callbacks
-	m_k051316_cb.bind_relative_to(*owner());
 
 	save_item(NAME(m_ram));
 	save_item(NAME(m_ctrlram));
@@ -187,19 +190,19 @@ void k051316_device::device_reset()
     DEVICE HANDLERS
 *****************************************************************************/
 
-READ8_MEMBER( k051316_device::read )
+u8 k051316_device::read(offs_t offset)
 {
 	return m_ram[offset];
 }
 
-WRITE8_MEMBER( k051316_device::write )
+void k051316_device::write(offs_t offset, u8 data)
 {
 	m_ram[offset] = data;
 	m_tmap->mark_tile_dirty(offset & 0x3ff);
 }
 
 
-READ8_MEMBER( k051316_device::rom_r )
+u8 k051316_device::rom_r(offs_t offset)
 {
 	assert (m_zoom_rom.found());
 
@@ -209,21 +212,21 @@ READ8_MEMBER( k051316_device::rom_r )
 		addr /= m_pixels_per_byte;
 		addr &= m_zoom_rom.mask();
 
-		//  popmessage("%s: offset %04x addr %04x", space.machine().describe_context(), offset, addr);
+		//  popmessage("%s: offset %04x addr %04x", machine().describe_context(), offset, addr);
 
 		return m_zoom_rom[addr];
 	}
 	else
 	{
-		//logerror("%s: read 051316 ROM offset %04x but reg 0x0c bit 0 not clear\n", space.machine().describe_context(), offset);
+		//logerror("%s: read 051316 ROM offset %04x but reg 0x0c bit 0 not clear\n", machine().describe_context(), offset);
 		return 0;
 	}
 }
 
-WRITE8_MEMBER( k051316_device::ctrl_w )
+void k051316_device::ctrl_w(offs_t offset, u8 data)
 {
 	m_ctrlram[offset] = data;
-	//if (offset >= 0x0c) logerror("%s: write %02x to 051316 reg %x\n", space.machine().describe_context(), data, offset);
+	//if (offset >= 0x0c) logerror("%s: write %02x to 051316 reg %x\n", machine().describe_context(), data, offset);
 }
 
 // some games (ajax, rollerg, ultraman, etc.) have external logic that can enable or disable wraparound dynamically
@@ -246,7 +249,7 @@ TILE_GET_INFO_MEMBER(k051316_device::get_tile_info)
 
 	m_k051316_cb(&code, &color, &flags);
 
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 							code,
 							color,
 							flags);

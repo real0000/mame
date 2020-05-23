@@ -57,12 +57,14 @@ TODO:
 #include "cpu/tms7000/tms7000.h"
 //#include "imagedev/cassette.h"
 #include "machine/spchrom.h"
+#include "machine/timer.h"
 #include "sound/tms5220.h"
 #include "video/tms3556.h"
 
 #include "bus/generic/slot.h"
 #include "bus/generic/carts.h"
 
+#include "emupal.h"
 #include "screen.h"
 #include "softlist.h"
 #include "speaker.h"
@@ -79,22 +81,26 @@ public:
 			m_cart(*this, "cartslot")
 	{ }
 
-	required_device<cpu_device> m_maincpu;
+	void exeltel(machine_config &config);
+	void exl100(machine_config &config);
+
+private:
+	required_device<tms7000_device> m_maincpu;
 	required_device<tms3556_device> m_tms3556;
 	required_device<tms5220c_device> m_tms5220c;
 	optional_device<generic_slot_device> m_cart;
 
-	DECLARE_READ8_MEMBER( mailbox_wx319_r );
-	DECLARE_WRITE8_MEMBER( mailbox_wx318_w );
-	DECLARE_READ8_MEMBER( tms7020_porta_r );
-	DECLARE_WRITE8_MEMBER( tms7020_portb_w );
-	DECLARE_READ8_MEMBER( tms7041_porta_r );
-	DECLARE_WRITE8_MEMBER( tms7041_portb_w );
-	DECLARE_READ8_MEMBER( tms7041_portc_r );
-	DECLARE_WRITE8_MEMBER( tms7041_portc_w );
-	DECLARE_READ8_MEMBER( tms7041_portd_r );
-	DECLARE_WRITE8_MEMBER( tms7041_portd_w );
-	DECLARE_READ8_MEMBER( rom_r );
+	uint8_t mailbox_wx319_r();
+	void mailbox_wx318_w(uint8_t data);
+	uint8_t tms7020_porta_r();
+	void tms7020_portb_w(uint8_t data);
+	uint8_t tms7041_porta_r();
+	void tms7041_portb_w(uint8_t data);
+	uint8_t tms7041_portc_r();
+	void tms7041_portc_w(uint8_t data);
+	uint8_t tms7041_portd_r();
+	void tms7041_portd_w(uint8_t data);
+	uint8_t rom_r(offs_t offset);
 
 	DECLARE_MACHINE_START(exl100);
 	DECLARE_MACHINE_START(exeltel);
@@ -114,12 +120,14 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(exelv_hblank_interrupt);
 
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( exelvision_cartridge );
+	void tms7020_mem(address_map &map);
+	void tms7040_mem(address_map &map);
 };
 
 
 TIMER_DEVICE_CALLBACK_MEMBER(exelv_state::exelv_hblank_interrupt)
 {
-	m_tms3556->interrupt(machine());
+	m_tms3556->interrupt();
 }
 
 
@@ -198,14 +206,14 @@ TIMER_DEVICE_CALLBACK_MEMBER(exelv_state::exelv_hblank_interrupt)
 */
 
 
-READ8_MEMBER(exelv_state::mailbox_wx319_r)
+uint8_t exelv_state::mailbox_wx319_r()
 {
 	logerror("[TMS7220] reading mailbox %d\n", m_wx319);
 	return m_wx319;
 }
 
 
-WRITE8_MEMBER(exelv_state::mailbox_wx318_w)
+void exelv_state::mailbox_wx318_w(uint8_t data)
 {
 	logerror("wx318 write 0x%02x\n", data);
 	m_wx318 = data;
@@ -223,7 +231,7 @@ WRITE8_MEMBER(exelv_state::mailbox_wx318_w)
     A6 -
     A7 -
 */
-READ8_MEMBER(exelv_state::tms7020_porta_r)
+uint8_t exelv_state::tms7020_porta_r()
 {
 	logerror("tms7020_porta_r\n");
 	return ( m_tms7041_portb & 0x80 ) ? 0x01 : 0x00;
@@ -241,7 +249,7 @@ READ8_MEMBER(exelv_state::tms7020_porta_r)
     B6 -
     B7 -
 */
-WRITE8_MEMBER(exelv_state::tms7020_portb_w)
+void exelv_state::tms7020_portb_w(uint8_t data)
 {
 	logerror("tms7020_portb_w: data = 0x%02x\n", data);
 	m_tms7020_portb = data;
@@ -259,7 +267,7 @@ WRITE8_MEMBER(exelv_state::tms7020_portb_w)
     A6 - X1 SCLK A9
     A7 - TMS5220 RDY
 */
-READ8_MEMBER(exelv_state::tms7041_porta_r)
+uint8_t exelv_state::tms7041_porta_r()
 {
 	uint8_t data = 0x00;
 	static uint8_t data_last=0;
@@ -294,7 +302,7 @@ READ8_MEMBER(exelv_state::tms7041_porta_r)
     B6 - W - REV6 WX319-11
     B7 - W - TMS7020 port A bit 0 (REV3)
 */
-WRITE8_MEMBER(exelv_state::tms7041_portb_w)
+void exelv_state::tms7041_portb_w(uint8_t data)
 {
 	logerror("tms7041_portb_w: data = 0x%02x\n", data);
 
@@ -318,7 +326,7 @@ WRITE8_MEMBER(exelv_state::tms7041_portb_w)
 /*
     TMS7041 PORT C - connected to mailbox WX318 and WX319 data bits
 */
-READ8_MEMBER(exelv_state::tms7041_portc_r)
+uint8_t exelv_state::tms7041_portc_r()
 {
 	uint8_t data = 0xff;
 	logerror("tms7041_portc_r\n");
@@ -331,7 +339,7 @@ READ8_MEMBER(exelv_state::tms7041_portc_r)
 }
 
 
-WRITE8_MEMBER(exelv_state::tms7041_portc_w)
+void exelv_state::tms7041_portc_w(uint8_t data)
 {
 	logerror("tms7041_portc_w: data = 0x%02x\n", data);
 	m_tms7041_portc = data;
@@ -349,20 +357,19 @@ WRITE8_MEMBER(exelv_state::tms7041_portc_w)
     D6 - TMS5220 D1
     D7 - TMS5220 D0
 */
-READ8_MEMBER(exelv_state::tms7041_portd_r)
+uint8_t exelv_state::tms7041_portd_r()
 {
-	uint8_t data = 0xff;
-	data=m_tms5220c->status_r(space, 0, data);
-	logerror("tms7041_portd_r\n");
+	uint8_t data = m_tms5220c->status_r();
+	logerror("tms7041_portd_r: data = 0x%02x\n", data);
 	return data;
 }
 
 
-WRITE8_MEMBER(exelv_state::tms7041_portd_w)
+void exelv_state::tms7041_portd_w(uint8_t data)
 {
 	logerror("tms7041_portd_w: data = 0x%02x\n", data);
 
-	m_tms5220c->data_w(space, 0, data);
+	m_tms5220c->data_w(data);
 	m_tms7041_portd = data;
 }
 
@@ -370,10 +377,10 @@ WRITE8_MEMBER(exelv_state::tms7041_portd_w)
 /*
     CARTRIDGE ACCESS
 */
-READ8_MEMBER(exelv_state::rom_r)
+uint8_t exelv_state::rom_r(offs_t offset)
 {
 	if (m_cart && m_cart->exists())
-		return m_cart->read_rom(space, offset + 0x200);
+		return m_cart->read_rom(offset + 0x200);
 
 	return 0;
 }
@@ -404,47 +411,37 @@ READ8_MEMBER(exelv_state::rom_r)
     @>f800-@>ffff: tms7020/tms7040 internal ROM
 */
 
-static ADDRESS_MAP_START(tms7020_mem, AS_PROGRAM, 8, exelv_state)
-	AM_RANGE(0x0080, 0x00ff) AM_NOP
-	AM_RANGE(0x0124, 0x0124) AM_DEVREAD("tms3556", tms3556_device, vram_r)
-	AM_RANGE(0x0125, 0x0125) AM_DEVREAD("tms3556", tms3556_device, reg_r)
-	AM_RANGE(0x0128, 0x0128) AM_DEVREAD("tms3556", tms3556_device, initptr_r)
-	AM_RANGE(0x012d, 0x012d) AM_DEVWRITE("tms3556", tms3556_device, reg_w)
-	AM_RANGE(0x012e, 0x012e) AM_DEVWRITE("tms3556", tms3556_device, vram_w)
+void exelv_state::tms7020_mem(address_map &map)
+{
+	map(0x0080, 0x00ff).noprw();
+	map(0x0124, 0x0124).r(m_tms3556, FUNC(tms3556_device::vram_r));
+	map(0x0125, 0x0125).r(m_tms3556, FUNC(tms3556_device::reg_r));
+	map(0x0128, 0x0128).r(m_tms3556, FUNC(tms3556_device::initptr_r));
+	map(0x012d, 0x012d).w(m_tms3556, FUNC(tms3556_device::reg_w));
+	map(0x012e, 0x012e).w(m_tms3556, FUNC(tms3556_device::vram_w));
 
-	AM_RANGE(0x0130, 0x0130) AM_READWRITE(mailbox_wx319_r, mailbox_wx318_w)
-	AM_RANGE(0x0200, 0x7fff) AM_READ(rom_r)
-	AM_RANGE(0x8000, 0xbfff) AM_NOP
-	AM_RANGE(0xc000, 0xc7ff) AM_RAM                                     /* CPU RAM */
-	AM_RANGE(0xc800, 0xf7ff) AM_NOP
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START(tms7020_port, AS_IO, 8, exelv_state)
-	AM_RANGE(TMS7000_PORTA, TMS7000_PORTA) AM_READ(tms7020_porta_r)
-	AM_RANGE(TMS7000_PORTB, TMS7000_PORTB) AM_WRITE(tms7020_portb_w)
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START(tms7041_port, AS_IO, 8, exelv_state)
-	AM_RANGE(TMS7000_PORTA, TMS7000_PORTA) AM_READ(tms7041_porta_r)
-	AM_RANGE(TMS7000_PORTB, TMS7000_PORTB) AM_WRITE(tms7041_portb_w)
-	AM_RANGE(TMS7000_PORTC, TMS7000_PORTC) AM_READWRITE(tms7041_portc_r, tms7041_portc_w)
-	AM_RANGE(TMS7000_PORTD, TMS7000_PORTD) AM_READWRITE(tms7041_portd_r, tms7041_portd_w)
-ADDRESS_MAP_END
+	map(0x0130, 0x0130).rw(FUNC(exelv_state::mailbox_wx319_r), FUNC(exelv_state::mailbox_wx318_w));
+	map(0x0200, 0x7fff).r(FUNC(exelv_state::rom_r));
+	map(0x8000, 0xbfff).noprw();
+	map(0xc000, 0xc7ff).ram();                                     /* CPU RAM */
+	map(0xc800, 0xf7ff).noprw();
+}
 
 
-static ADDRESS_MAP_START(tms7040_mem, AS_PROGRAM, 8, exelv_state)
-	AM_RANGE(0x0080, 0x00ff) AM_NOP
-	AM_RANGE(0x0124, 0x0124) AM_DEVREAD("tms3556", tms3556_device, vram_r)
-	AM_RANGE(0x0125, 0x0125) AM_DEVREAD("tms3556", tms3556_device, reg_r)
-	AM_RANGE(0x0128, 0x0128) AM_DEVREAD("tms3556", tms3556_device, initptr_r)
-	AM_RANGE(0x012d, 0x012d) AM_DEVWRITE("tms3556", tms3556_device, reg_w)
-	AM_RANGE(0x012e, 0x012e) AM_DEVWRITE("tms3556", tms3556_device, vram_w)
-	AM_RANGE(0x0130, 0x0130) AM_READWRITE(mailbox_wx319_r, mailbox_wx318_w)
-	AM_RANGE(0x0200, 0x7fff) AM_ROMBANK("bank1")                                /* system ROM */
-	AM_RANGE(0x8000, 0xbfff) AM_NOP
-	AM_RANGE(0xc000, 0xc7ff) AM_RAM                                     /* CPU RAM */
-	AM_RANGE(0xc800, 0xefff) AM_NOP
-ADDRESS_MAP_END
+void exelv_state::tms7040_mem(address_map &map)
+{
+	map(0x0080, 0x00ff).noprw();
+	map(0x0124, 0x0124).r(m_tms3556, FUNC(tms3556_device::vram_r));
+	map(0x0125, 0x0125).r(m_tms3556, FUNC(tms3556_device::reg_r));
+	map(0x0128, 0x0128).r(m_tms3556, FUNC(tms3556_device::initptr_r));
+	map(0x012d, 0x012d).w(m_tms3556, FUNC(tms3556_device::reg_w));
+	map(0x012e, 0x012e).w(m_tms3556, FUNC(tms3556_device::vram_w));
+	map(0x0130, 0x0130).rw(FUNC(exelv_state::mailbox_wx319_r), FUNC(exelv_state::mailbox_wx318_w));
+	map(0x0200, 0x7fff).bankr("bank1");                                /* system ROM */
+	map(0x8000, 0xbfff).noprw();
+	map(0xc000, 0xc7ff).ram();                                     /* CPU RAM */
+	map(0xc800, 0xefff).noprw();
+}
 
 
 /* keyboard: ??? */
@@ -484,129 +481,143 @@ MACHINE_START_MEMBER( exelv_state, exeltel)
 }
 
 
-static MACHINE_CONFIG_START( exl100, exelv_state )
-
+void exelv_state::exl100(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", TMS7020_EXL, XTAL_4_9152MHz)
-	MCFG_CPU_PROGRAM_MAP(tms7020_mem)
-	MCFG_CPU_IO_MAP(tms7020_port)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", exelv_state, exelv_hblank_interrupt, "screen", 0, 1)
+	TMS7020_EXL(config, m_maincpu, 4.9152_MHz_XTAL);
+	m_maincpu->set_addrmap(AS_PROGRAM, &exelv_state::tms7020_mem);
+	m_maincpu->in_porta().set(FUNC(exelv_state::tms7020_porta_r));
+	m_maincpu->out_portb().set(FUNC(exelv_state::tms7020_portb_w));
+
+	TIMER(config, "scantimer").configure_scanline(FUNC(exelv_state::exelv_hblank_interrupt), "screen", 0, 1);
 	MCFG_MACHINE_START_OVERRIDE(exelv_state, exl100)
 
-	MCFG_CPU_ADD("tms7041", TMS7041, XTAL_4_9152MHz)
-	MCFG_CPU_IO_MAP(tms7041_port)
+	tms7041_device &subcpu(TMS7041(config, "tms7041", 4.9152_MHz_XTAL));
+	subcpu.in_porta().set(FUNC(exelv_state::tms7041_porta_r));
+	subcpu.out_portb().set(FUNC(exelv_state::tms7041_portb_w));
+	subcpu.in_portc().set(FUNC(exelv_state::tms7041_portc_r));
+	subcpu.out_portc().set(FUNC(exelv_state::tms7041_portc_w));
+	subcpu.in_portd().set(FUNC(exelv_state::tms7041_portd_r));
+	subcpu.out_portd().set(FUNC(exelv_state::tms7041_portd_w));
 
-	MCFG_QUANTUM_PERFECT_CPU("maincpu")
+	config.set_perfect_quantum(m_maincpu);
 
-	MCFG_TMS3556_ADD("tms3556")
+	TMS3556(config, m_tms3556, 18_MHz_XTAL);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_SCREEN_UPDATE_DEVICE("tms3556", tms3556_device, screen_update)
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_video_attributes(VIDEO_UPDATE_BEFORE_VBLANK);
+	screen.set_screen_update("tms3556", FUNC(tms3556_device::screen_update));
 #if TMS3556_DOUBLE_WIDTH
-	MCFG_SCREEN_SIZE(TMS3556_TOTAL_WIDTH*2, TMS3556_TOTAL_HEIGHT*2)
-	MCFG_SCREEN_VISIBLE_AREA(0, TMS3556_TOTAL_WIDTH*2-1, 0, TMS3556_TOTAL_HEIGHT*2-1)
+	screen.set_size(tms3556_device::TOTAL_WIDTH*2, tms3556_device::TOTAL_HEIGHT*2);
+	screen.set_visarea(0, tms3556_device::TOTAL_WIDTH*2-1, 0, tms3556_device::TOTAL_HEIGHT*2-1);
 #else
-	MCFG_SCREEN_SIZE(TMS3556_TOTAL_WIDTH, TMS3556_TOTAL_HEIGHT*2)
-	MCFG_SCREEN_VISIBLE_AREA(0, TMS3556_TOTAL_WIDTH-1, 0, TMS3556_TOTAL_HEIGHT-1)
+	screen.set_size(tms3556_device::TOTAL_WIDTH, tms3556_device::TOTAL_HEIGHT*2);
+	screen.set_visarea(0, tms3556_device::TOTAL_WIDTH-1, 0, tms3556_device::TOTAL_HEIGHT-1);
 #endif
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_SCREEN_PALETTE("palette")
+	screen.set_refresh_hz(50);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500)); /* not accurate */
+	screen.set_palette("palette");
 
-	MCFG_PALETTE_ADD_3BIT_RGB("palette")
+	PALETTE(config, "palette", palette_device::RGB_3BIT);
 
-	// MCFG_DEVICE_ADD("vsm", SPEECHROM, 0)
+	//SPEECHROM(config, "vsm", 0);
 
 	/* sound */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("tms5220c", TMS5220C, 640000)
-	// MCFG_TMS52XX_SPEECHROM("vsm")
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
+	SPEAKER(config, "mono").front_center();
+	TMS5220C(config, m_tms5220c, 640000);
+	// m_tms5220c->set_speechrom_tag("vsm");
+	m_tms5220c->add_route(ALL_OUTPUTS, "mono", 1.00);
 
 	/* cartridge */
-	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_linear_slot, "exelvision_cart")
-	MCFG_GENERIC_EXTENSIONS("bin,rom")
+	GENERIC_CARTSLOT(config, "cartslot", generic_linear_slot, "exelvision_cart", "bin,rom");
 
-	MCFG_SOFTWARE_LIST_ADD("cart_list", "exl100")
-MACHINE_CONFIG_END
+	SOFTWARE_LIST(config, "cart_list").set_original("exl100");
+}
 
-
-static MACHINE_CONFIG_START( exeltel, exelv_state )
-
+void exelv_state::exeltel(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", TMS7040, XTAL_4_9152MHz)
-	MCFG_CPU_PROGRAM_MAP(tms7040_mem)
-	MCFG_CPU_IO_MAP(tms7020_port)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", exelv_state, exelv_hblank_interrupt, "screen", 0, 1)
+	TMS7040(config, m_maincpu, 9.8304_MHz_XTAL);
+	m_maincpu->set_divide_by_4();
+	m_maincpu->set_addrmap(AS_PROGRAM, &exelv_state::tms7040_mem);
+	m_maincpu->in_porta().set(FUNC(exelv_state::tms7020_porta_r));
+	m_maincpu->out_portb().set(FUNC(exelv_state::tms7020_portb_w));
+
+	TIMER(config, "scantimer").configure_scanline(FUNC(exelv_state::exelv_hblank_interrupt), "screen", 0, 1);
 	MCFG_MACHINE_START_OVERRIDE(exelv_state, exeltel)
 
-	MCFG_CPU_ADD("tms7042", TMS7042, XTAL_4_9152MHz)
-	MCFG_CPU_IO_MAP(tms7041_port)
+	tms7042_device &subcpu(TMS7042(config, "tms7042", 9.8304_MHz_XTAL));
+	subcpu.set_divide_by_4();
+	subcpu.in_porta().set(FUNC(exelv_state::tms7041_porta_r));
+	subcpu.out_portb().set(FUNC(exelv_state::tms7041_portb_w));
+	subcpu.in_portc().set(FUNC(exelv_state::tms7041_portc_r));
+	subcpu.out_portc().set(FUNC(exelv_state::tms7041_portc_w));
+	subcpu.in_portd().set(FUNC(exelv_state::tms7041_portd_r));
+	subcpu.out_portd().set(FUNC(exelv_state::tms7041_portd_w));
 
-	MCFG_QUANTUM_PERFECT_CPU("maincpu")
+	config.set_perfect_quantum(m_maincpu);
 
-	MCFG_TMS3556_ADD("tms3556")
+	TMS3556(config, m_tms3556, 18_MHz_XTAL);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_SCREEN_UPDATE_DEVICE("tms3556", tms3556_device, screen_update)
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_video_attributes(VIDEO_UPDATE_BEFORE_VBLANK);
+	screen.set_screen_update("tms3556", FUNC(tms3556_device::screen_update));
 #if TMS3556_DOUBLE_WIDTH
-	MCFG_SCREEN_SIZE(TMS3556_TOTAL_WIDTH*2, TMS3556_TOTAL_HEIGHT*2)
-	MCFG_SCREEN_VISIBLE_AREA(0, TMS3556_TOTAL_WIDTH*2-1, 0, TMS3556_TOTAL_HEIGHT*2-1)
+	screen.set_size(tms3556_device::TOTAL_WIDTH*2, tms3556_device::TOTAL_HEIGHT*2);
+	screen.set_visarea(0, tms3556_device::TOTAL_WIDTH*2-1, 0, tms3556_device::TOTAL_HEIGHT*2-1);
 #else
-	MCFG_SCREEN_SIZE(TMS3556_TOTAL_WIDTH, TMS3556_TOTAL_HEIGHT*2)
-	MCFG_SCREEN_VISIBLE_AREA(0, TMS3556_TOTAL_WIDTH-1, 0, TMS3556_TOTAL_HEIGHT-1)
+	screen.set_size(tms3556_device::TOTAL_WIDTH, tms3556_device::TOTAL_HEIGHT*2);
+	screen.set_visarea(0, tms3556_device::TOTAL_WIDTH-1, 0, tms3556_device::TOTAL_HEIGHT-1);
 #endif
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_SCREEN_PALETTE("palette")
+	screen.set_refresh_hz(50);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500)); /* not accurate */
+	screen.set_palette("palette");
 
-	MCFG_PALETTE_ADD_3BIT_RGB("palette")
+	PALETTE(config, "palette", palette_device::RGB_3BIT);
 
-	MCFG_DEVICE_ADD("vsm", SPEECHROM, 0)
+	SPEECHROM(config, "vsm", 0);
 
 	/* sound */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("tms5220c", TMS5220C, 640000)
-	MCFG_TMS52XX_SPEECHROM("vsm")
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-MACHINE_CONFIG_END
+	SPEAKER(config, "mono").front_center();
+	TMS5220C(config, m_tms5220c, 9.8304_MHz_XTAL / 15); // unknown divider for "VSPCLK" (generated by TAHC06 gate array)
+	m_tms5220c->set_speechrom_tag("vsm");
+	m_tms5220c->add_route(ALL_OUTPUTS, "mono", 1.00);
+}
 
 
 /*
   ROM loading
 */
 ROM_START(exl100)
-	ROM_REGION(0x10000, "maincpu", 0)
-	ROM_LOAD("exl100in.bin", 0xf800, 0x0800, CRC(049109a3) SHA1(98a07297dcdacef41c793c197b6496dac1e8e744))      /* TMS7020 ROM, correct */
+	ROM_REGION(0x800, "maincpu", 0)
+	ROM_LOAD("exl100in.bin", 0x000, 0x800, CRC(049109a3) SHA1(98a07297dcdacef41c793c197b6496dac1e8e744))      /* TMS7020 ROM, correct */
 
-	ROM_REGION(0x10000, "tms7041", 0)
-	ROM_LOAD("exl100_7041.bin", 0xf000, 0x1000, CRC(38f6fc7a) SHA1(b71d545664a974d8ad39bdf600c5b9884c3efab6))           /* TMS7041 internal ROM, correct  */
+	ROM_REGION(0x1000, "tms7041", 0)
+	ROM_LOAD("exl100_7041.bin", 0x0000, 0x1000, CRC(38f6fc7a) SHA1(b71d545664a974d8ad39bdf600c5b9884c3efab6))           /* TMS7041 internal ROM, correct  */
 //  ROM_REGION(0x8000, "vsm", 0)
 ROM_END
 
 
 ROM_START(exeltel)
-	ROM_REGION(0x10000, "maincpu", 0)
-	ROM_LOAD("exeltel_7040.bin", 0xf000, 0x1000, CRC(2792f02f) SHA1(442a852eb68ef78974733d169084752a131de23d))      /* TMS7040 internal ROM */
+	ROM_REGION(0x1000, "maincpu", 0)
+	ROM_LOAD("exeltel_7040.bin", 0x0000, 0x1000, CRC(2792f02f) SHA1(442a852eb68ef78974733d169084752a131de23d))      /* TMS7040 internal ROM */
 
-	ROM_REGION(0x10000, "tms7042", 0)
-	ROM_LOAD("exeltel_7042.bin", 0xf000, 0x1000, BAD_DUMP CRC(a0163507) SHA1(8452849df7eac8a89cf03ee98e2306047c1c4c38))         /* TMS7042 internal ROM, needs redump */
+	ROM_REGION(0x1000, "tms7042", 0)
+	ROM_LOAD("exeltel_7042.bin", 0x0000, 0x1000, BAD_DUMP CRC(a0163507) SHA1(8452849df7eac8a89cf03ee98e2306047c1c4c38))         /* TMS7042 internal ROM, needs redump */
 
 	ROM_REGION(0x10000,"user1",0)
 	ROM_SYSTEM_BIOS( 0, "french", "French v1.4" )
-	ROMX_LOAD("exeltel14.bin", 0x0000, 0x10000, CRC(52a80dd4) SHA1(2cb4c784fba3aec52770999bb99a9a303269bf89), ROM_BIOS(1))  /* French system ROM v1.4 */
+	ROMX_LOAD("exeltel14.bin", 0x0000, 0x10000, CRC(52a80dd4) SHA1(2cb4c784fba3aec52770999bb99a9a303269bf89), ROM_BIOS(0))  /* French system ROM v1.4 */
 	ROM_SYSTEM_BIOS( 1, "spanish", "Spanish" )
-	ROMX_LOAD("amper.bin", 0x0000, 0x10000, CRC(45af256c) SHA1(3bff16542f8ac55b9841084ea38034132459facb), ROM_BIOS(2)) /* Spanish system rom */
+	ROMX_LOAD("amper.bin", 0x0000, 0x10000, CRC(45af256c) SHA1(3bff16542f8ac55b9841084ea38034132459facb), ROM_BIOS(1)) /* Spanish system rom */
 
 	ROM_REGION(0x8000, "vsm", 0)
 	ROM_LOAD("cm62312.bin", 0x0000, 0x4000, CRC(93b817de) SHA1(03863087a071b8f22d36a52d18243f1c33e17ff7)) /* system speech ROM */
 ROM_END
 
 
-/*   YEAR   NAME     PARENT      COMPAT  MACHINE     INPUT   INIT    COMPANY         FULLNAME */
-COMP(1984,  exl100,  0,          0,      exl100,     exelv, driver_device,  0,       "Exelvision",   "EXL 100",  MACHINE_NOT_WORKING)
-COMP(1986,  exeltel, exl100,     0,      exeltel,    exelv, driver_device,  0,       "Exelvision",   "Exeltel",  MACHINE_NOT_WORKING)
+//   YEAR   NAME     PARENT  COMPAT  MACHINE  INPUT  CLASS        INIT        COMPANY       FULLNAME   FLAGS
+COMP(1984,  exl100,  0,      0,      exl100,  exelv, exelv_state, empty_init, "Exelvision", "EXL 100", MACHINE_NOT_WORKING)
+COMP(1986,  exeltel, exl100, 0,      exeltel, exelv, exelv_state, empty_init, "Exelvision", "Exeltel", MACHINE_NOT_WORKING)

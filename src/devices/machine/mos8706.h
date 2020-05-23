@@ -23,21 +23,10 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_MOS8706_H
+#define MAME_MACHINE_MOS8706_H
+
 #pragma once
-
-#ifndef __MOS8706__
-#define __MOS8706__
-
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_MOS8706_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD((_tag), MOS8706, _clock)
-
 
 
 //**************************************************************************
@@ -51,8 +40,8 @@ class mos8706_device : public device_t
 public:
 	mos8706_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 
 protected:
 	// device-level overrides
@@ -62,8 +51,7 @@ protected:
 
 
 // device type definition
-extern const device_type MOS8706;
+DECLARE_DEVICE_TYPE(MOS8706, mos8706_device)
 
 
-
-#endif
+#endif // MAME_MACHINE_MOS8706_H

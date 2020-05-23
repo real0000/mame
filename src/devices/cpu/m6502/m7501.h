@@ -8,16 +8,10 @@
 
 ***************************************************************************/
 
-#ifndef __M7501_H__
-#define __M7501_H__
+#ifndef MAME_CPU_M6502_M7501_H
+#define MAME_CPU_M6502_M7501_H
 
 #include "m6510.h"
-
-#define MCFG_M7501_PORT_CALLBACKS(_read, _write) \
-	downcast<m7501_device *>(device)->set_callbacks(DEVCB_##_read, DEVCB_##_write);
-
-#define MCFG_M7501_PORT_PULLS(_up, _down) \
-	downcast<m7501_device *>(device)->set_pulls(_up, _down);
 
 class m7501_device : public m6510_device {
 public:
@@ -29,6 +23,6 @@ enum {
 	M7501_NMI_LINE = m6502_device::NMI_LINE
 };
 
-extern const device_type M7501;
+DECLARE_DEVICE_TYPE(M7501, m7501_device)
 
-#endif
+#endif // MAME_CPU_M6502_M7501_H

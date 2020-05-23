@@ -24,7 +24,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type C64_DQBB = device_creator<c64_dqbb_cartridge_device>;
+DEFINE_DEVICE_TYPE(C64_DQBB, c64_dqbb_cartridge_device, "c64_dqbb", "C64 Double Quick Brown Box cartridge")
 
 
 
@@ -37,7 +37,7 @@ const device_type C64_DQBB = device_creator<c64_dqbb_cartridge_device>;
 //-------------------------------------------------
 
 c64_dqbb_cartridge_device::c64_dqbb_cartridge_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, C64_DQBB, "C64 Double Quick Brown Box cartridge", tag, owner, clock, "c64_dqbb", __FILE__),
+	device_t(mconfig, C64_DQBB, tag, owner, clock),
 	device_c64_expansion_card_interface(mconfig, *this),
 	device_nvram_interface(mconfig, *this),
 	m_cs(0),
@@ -78,7 +78,7 @@ void c64_dqbb_cartridge_device::device_reset()
 //  c64_cd_r - cartridge data read
 //-------------------------------------------------
 
-uint8_t c64_dqbb_cartridge_device::c64_cd_r(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
+uint8_t c64_dqbb_cartridge_device::c64_cd_r(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
 {
 	if (!m_cs && (!roml || !romh))
 	{
@@ -93,7 +93,7 @@ uint8_t c64_dqbb_cartridge_device::c64_cd_r(address_space &space, offs_t offset,
 //  c64_cd_w - cartridge data write
 //-------------------------------------------------
 
-void c64_dqbb_cartridge_device::c64_cd_w(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
+void c64_dqbb_cartridge_device::c64_cd_w(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
 {
 	if (!m_cs && m_we && (offset >= 0x8000 && offset < 0xc000))
 	{

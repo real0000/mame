@@ -17,7 +17,7 @@
 //**************************************************************************
 
 // device type definition
-const device_type MM58167 = device_creator<mm58167_device>;
+DEFINE_DEVICE_TYPE(MM58167, mm58167_device, "mm58167", "National Semiconductor MM58167 RTC")
 
 // registers (0-7 are the live data, 8-f are the setting for the compare IRQ)
 typedef enum
@@ -53,7 +53,7 @@ typedef enum
 //-------------------------------------------------
 
 mm58167_device::mm58167_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, MM58167, "National Semiconductor MM58167", tag, owner, clock, "mm58167", __FILE__),
+	: device_t(mconfig, MM58167, tag, owner, clock),
 		device_rtc_interface(mconfig, *this),
 		m_irq_w(*this)
 {
@@ -180,11 +180,11 @@ void mm58167_device::update_rtc()
 	m_milliseconds = (bcd_to_integer(m_regs[R_CNT_HUNDTENTHS]) * 10) + (bcd_to_integer(m_regs[R_CNT_MILLISECONDS] >> 4) % 10);
 }
 
-READ8_MEMBER(mm58167_device::read)
+uint8_t mm58167_device::read(offs_t offset)
 {
 //  printf("read reg %x = %02x\n", offset, m_regs[offset]);
 
-	if (offset == R_CTL_IRQSTATUS && !machine().side_effect_disabled())
+	if (offset == R_CTL_IRQSTATUS && !machine().side_effects_disabled())
 	{
 		// reading the IRQ status clears IRQ line and IRQ status
 		uint8_t data = m_regs[offset];
@@ -196,7 +196,7 @@ READ8_MEMBER(mm58167_device::read)
 	return m_regs[offset];
 }
 
-WRITE8_MEMBER(mm58167_device::write)
+void mm58167_device::write(offs_t offset, uint8_t data)
 {
 //  printf("%02x to reg %x\n", data, offset);
 

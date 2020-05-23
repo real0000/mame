@@ -68,6 +68,7 @@ function osdmodulesbuild()
 		MAME_DIR .. "src/osd/modules/debugger/none.cpp",
 		MAME_DIR .. "src/osd/modules/debugger/debugwin.cpp",
 		MAME_DIR .. "src/osd/modules/debugger/debugimgui.cpp",
+		MAME_DIR .. "src/osd/modules/debugger/debuggdbstub.cpp",
 		MAME_DIR .. "src/osd/modules/font/font_sdl.cpp",
 		MAME_DIR .. "src/osd/modules/font/font_windows.cpp",
 		MAME_DIR .. "src/osd/modules/font/font_dwrite.cpp",
@@ -105,6 +106,7 @@ function osdmodulesbuild()
 		MAME_DIR .. "src/osd/modules/input/input_openvr.h",
 		MAME_DIR .. "src/osd/modules/input/input_winhybrid.cpp",
 		MAME_DIR .. "src/osd/modules/input/input_uwp.cpp",
+		MAME_DIR .. "src/osd/modules/input/input_mac.cpp",
 		MAME_DIR .. "src/osd/modules/output/output_module.h",
 		MAME_DIR .. "src/osd/modules/output/none.cpp",
 		MAME_DIR .. "src/osd/modules/output/console.cpp",
@@ -116,9 +118,10 @@ function osdmodulesbuild()
 		MAME_DIR .. "src/osd/modules/monitor/monitor_win32.cpp",
 		MAME_DIR .. "src/osd/modules/monitor/monitor_dxgi.cpp",
 		MAME_DIR .. "src/osd/modules/monitor/monitor_sdl.cpp",
+		MAME_DIR .. "src/osd/modules/monitor/monitor_mac.cpp",
 	}
 	includedirs {
-		MAME_DIR .. "3rdparty/asio/include",
+		ext_includedir("asio"),
 	}
 
 	if _OPTIONS["targetos"]=="windows" then
@@ -209,14 +212,16 @@ function osdmodulesbuild()
 		MAME_DIR .. "src/osd/modules/render/bgfx/uniformreader.cpp",
 		MAME_DIR .. "src/osd/modules/render/bgfx/valueuniform.cpp",
 		MAME_DIR .. "src/osd/modules/render/bgfx/valueuniformreader.cpp",
+		MAME_DIR .. "src/osd/modules/render/bgfx/view.cpp",
 		MAME_DIR .. "src/osd/modules/render/bgfx/writereader.cpp",
 	}
 	includedirs {
 		MAME_DIR .. "3rdparty/bgfx/examples/common",
 		MAME_DIR .. "3rdparty/bgfx/include",
 		MAME_DIR .. "3rdparty/bgfx/3rdparty",
+		MAME_DIR .. "3rdparty/bgfx/3rdparty/khronos",
 		MAME_DIR .. "3rdparty/bx/include",
-		MAME_DIR .. "3rdparty/rapidjson/include",
+		ext_includedir("rapidjson")
 	}
 
 	if _OPTIONS["NO_USE_PORTAUDIO"]=="1" then
@@ -412,7 +417,6 @@ function osdmodulestargetconf()
 				"-L$(shell qmake -query QT_INSTALL_LIBS)",
 			}
 			links {
-				"qtmain",
 				"Qt5Core.dll",
 				"Qt5Gui.dll",
 				"Qt5Widgets.dll",
@@ -450,6 +454,7 @@ function osdmodulestargetconf()
 			"dsound",
 			"dxguid",
 			"oleaut32",
+			"winmm",
 		}
 	elseif _OPTIONS["targetos"]=="macosx" then
 		links {
@@ -464,8 +469,21 @@ end
 
 
 newoption {
-	trigger = "DONT_USE_NETWORK",
-	description = "Disable network access",
+	trigger = "USE_TAPTUN",
+	description = "Include tap/tun network module",
+	allowed = {
+		{ "0",  "Don't include tap/tun network module" },
+		{ "1",  "Include tap/tun network module" },
+	},
+}
+
+newoption {
+	trigger = "USE_PCAP",
+	description = "Include pcap network module",
+	allowed = {
+		{ "0",  "Don't include pcap network module" },
+		{ "1",  "Include pcap network module" },
+	},
 }
 
 newoption {
@@ -537,7 +555,7 @@ newoption {
 	trigger = "USE_QTDEBUG",
 	description = "Use QT debugger",
 	allowed = {
-		{ "0",  "Don't use Qt debugger"  },
+		{ "0",  "Don't use Qt debugger" },
 		{ "1",  "Use Qt debugger" },
 	},
 }
@@ -548,8 +566,24 @@ newoption {
 }
 
 
+if not _OPTIONS["USE_TAPTUN"] then
+	if _OPTIONS["targetos"]=="linux" or _OPTIONS["targetos"]=="windows" then
+		_OPTIONS["USE_TAPTUN"] = "1"
+	else
+		_OPTIONS["USE_TAPTUN"] = "0"
+	end
+end
+
+if not _OPTIONS["USE_PCAP"] then
+	if _OPTIONS["targetos"]=="macosx" or _OPTIONS["targetos"]=="netbsd" then
+		_OPTIONS["USE_PCAP"] = "1"
+	else
+		_OPTIONS["USE_PCAP"] = "0"
+	end
+end
+
 if not _OPTIONS["USE_QTDEBUG"] then
-	if _OPTIONS["targetos"]=="windows" or _OPTIONS["targetos"]=="macosx" or _OPTIONS["targetos"]=="solaris" or _OPTIONS["targetos"]=="haiku" or _OPTIONS["targetos"] == "asmjs" then
+	if _OPTIONS["targetos"]=="windows" or _OPTIONS["targetos"]=="macosx" or _OPTIONS["targetos"]=="solaris" or _OPTIONS["targetos"]=="haiku" or _OPTIONS["targetos"]=="asmjs" then
 		_OPTIONS["USE_QTDEBUG"] = "0"
 	else
 		_OPTIONS["USE_QTDEBUG"] = "1"

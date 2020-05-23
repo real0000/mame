@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_POFO_HPC101_H
+#define MAME_BUS_POFO_HPC101_H
 
-#ifndef __HPC101__
-#define __HPC101__
+#pragma once
 
 #include "exp.h"
 #include "bus/centronics/ctronics.h"
@@ -21,28 +21,27 @@
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-// ======================> hpc101_t
+// ======================> pofo_hpc101_device
 
-class hpc101_t :  public device_t,
-					public device_portfolio_expansion_slot_interface
+class pofo_hpc101_device : public device_t, public device_portfolio_expansion_slot_interface
 {
 public:
 	// construction/destruction
-	hpc101_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-
-	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	pofo_hpc101_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
+	// optional information overrides
+	virtual void device_add_mconfig(machine_config &config) override;
+
 	// device_portfolio_expansion_slot_interface overrides
 	bool pdet() override { return 1; }
 
-	virtual uint8_t nrdi_r(address_space &space, offs_t offset, uint8_t data, bool iom, bool bcom, bool ncc1) override;
-	virtual void nwri_w(address_space &space, offs_t offset, uint8_t data, bool iom, bool bcom, bool ncc1) override;
+	virtual uint8_t nrdi_r(offs_t offset, uint8_t data, bool iom, bool bcom, bool ncc1) override;
+	virtual void nwri_w(offs_t offset, uint8_t data, bool iom, bool bcom, bool ncc1) override;
 
 private:
 	required_device<i8255_device> m_ppi;
@@ -50,8 +49,6 @@ private:
 
 
 // device type definition
-extern const device_type HPC101;
+DECLARE_DEVICE_TYPE(POFO_HPC101, pofo_hpc101_device)
 
-
-
-#endif
+#endif // MAME_BUS_POFO_HPC101_H

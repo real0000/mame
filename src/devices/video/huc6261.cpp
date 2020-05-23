@@ -18,21 +18,25 @@
 
 #include "screen.h"
 
+//#define VERBOSE 1
+#include "logmacro.h"
 
-#define LOG 0
 
 #define HUC6261_HSYNC_LENGTH    237
-#define HUC6261_HSYNC_START     ( HUC6261_WPF - HUC6261_HSYNC_LENGTH )
+#define HUC6261_HSYNC_START     ( huc6261_device::WPF - HUC6261_HSYNC_LENGTH )
 
+constexpr unsigned huc6261_device::WPF;
+constexpr unsigned huc6261_device::LPF;
 
-const device_type HUC6261 = device_creator<huc6261_device>;
+DEFINE_DEVICE_TYPE(HUC6261, huc6261_device, "huc6261", "Hudson HuC6261 VCE")
 
 
 huc6261_device::huc6261_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	:   device_t(mconfig, HUC6261, "HuC6261", tag, owner, clock, "huc6261", __FILE__),
+	:   device_t(mconfig, HUC6261, tag, owner, clock),
 		device_video_interface(mconfig, *this),
-		m_huc6270_a_tag(nullptr), m_huc6270_b_tag(nullptr), m_huc6272_tag(nullptr),
-		m_huc6270_a(nullptr), m_huc6270_b(nullptr), m_huc6272(nullptr),
+		m_huc6270_a(*this, finder_base::DUMMY_TAG),
+		m_huc6270_b(*this, finder_base::DUMMY_TAG),
+		m_huc6272(*this, finder_base::DUMMY_TAG),
 		m_last_h(0), m_last_v(0), m_height(0), m_address(0), m_palette_latch(0), m_register(0), m_control(0), m_pixels_per_clock(0), m_pixel_data_a(0), m_pixel_data_b(0), m_pixel_clock(0), m_timer(nullptr), m_bmp(nullptr)
 {
 	// Set up UV lookup table
@@ -92,8 +96,8 @@ void huc6261_device::apply_pal_offs(uint16_t *pix_data)
 
 void huc6261_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	int vpos = m_screen->vpos();
-	int hpos = m_screen->hpos();
+	int vpos = screen().vpos();
+	int hpos = screen().hpos();
 	int h = m_last_h;
 	int v = m_last_v;
 	uint32_t *bitmap_line = &m_bmp->pix32(v);
@@ -104,8 +108,8 @@ void huc6261_device::device_timer(emu_timer &timer, device_timer_id id, int para
 		{
 			g_profiler.start( PROFILER_VIDEO );
 			/* Get next pixel information */
-			m_pixel_data_a = m_huc6270_a->next_pixel( machine().dummy_space(), 0, 0xffff );
-			m_pixel_data_b = m_huc6270_b->next_pixel( machine().dummy_space(), 0, 0xffff );
+			m_pixel_data_a = m_huc6270_a->next_pixel();
+			m_pixel_data_b = m_huc6270_b->next_pixel();
 			apply_pal_offs(&m_pixel_data_a);
 			apply_pal_offs(&m_pixel_data_b);
 
@@ -118,7 +122,7 @@ void huc6261_device::device_timer(emu_timer &timer, device_timer_id id, int para
 			bitmap_line[ h ] = yuv2rgb( m_palette[ m_pixel_data_b ] );
 
 		m_pixel_clock = ( m_pixel_clock + 1 ) % m_pixels_per_clock;
-		h = ( h + 1 ) % HUC6261_WPF;
+		h = ( h + 1 ) % WPF;
 
 		switch( h )
 		{
@@ -128,7 +132,7 @@ void huc6261_device::device_timer(emu_timer &timer, device_timer_id id, int para
 //          if ( v == 0 )
 //          {
 //              /* Check if the screen should be resized */
-//              m_height = HUC6261_LPF - ( m_blur ? 1 : 0 );
+//              m_height = LPF - ( m_blur ? 1 : 0 );
 //              if ( m_height != video_screen_get_height( m_screen ) )
 //              {
 //                  rectangle visible_area;
@@ -139,7 +143,7 @@ void huc6261_device::device_timer(emu_timer &timer, device_timer_id id, int para
 //                  visible_area.max_x = 64 + 1024 + 64 - 1;
 //                  visible_area.max_y = 18 + 242 - 1;
 //
-//                  video_screen_configure( m_screen, HUC6261_WPF, m_height, &visible_area, HZ_TO_ATTOSECONDS( device->clock / ( HUC6261_WPF * m_height ) ) );
+//                  video_screen_configure( m_screen, WPF, m_height, &visible_area, HZ_TO_ATTOSECONDS( device->clock / ( WPF * m_height ) ) );
 //              }
 //          }
 			break;
@@ -189,7 +193,7 @@ void huc6261_device::device_timer(emu_timer &timer, device_timer_id id, int para
 
 	/* Ask our slave device for time until next possible event */
 	{
-		uint16_t next_event_clocks = HUC6261_WPF; //m_get_time_til_next_event( 0, 0xffff );
+		uint16_t next_event_clocks = WPF; //m_get_time_til_next_event( 0, 0xffff );
 		int event_hpos, event_vpos;
 
 		/* Adjust for pixel clocks per pixel */
@@ -200,10 +204,10 @@ void huc6261_device::device_timer(emu_timer &timer, device_timer_id id, int para
 
 		event_hpos = hpos + next_event_clocks;
 		event_vpos = vpos;
-		while ( event_hpos > HUC6261_WPF )
+		while ( event_hpos > WPF )
 		{
 			event_vpos += 1;
-			event_hpos -= HUC6261_WPF;
+			event_hpos -= WPF;
 		}
 
 		if ( event_vpos < v || ( event_vpos == v && event_hpos <= h ) )
@@ -216,7 +220,7 @@ void huc6261_device::device_timer(emu_timer &timer, device_timer_id id, int para
 		}
 	}
 
-	m_timer->adjust( m_screen->time_until_pos( v, h ) );
+	m_timer->adjust( screen().time_until_pos( v, h ) );
 }
 
 
@@ -235,8 +239,8 @@ READ16_MEMBER( huc6261_device::read )
 		/* Status info */
 		case 0x00:
 			{
-				uint16_t vpos = m_screen->vpos();
-				uint16_t hpos = m_screen->hpos();
+				uint16_t vpos = screen().vpos();
+				uint16_t hpos = screen().hpos();
 
 				data = ( vpos << 5 ) | ( m_register & 0x1F);
 
@@ -410,22 +414,9 @@ WRITE16_MEMBER( huc6261_device::write )
 
 void huc6261_device::device_start()
 {
-	/* Make sure we are supplied all our mandatory tags */
-	assert( m_huc6270_a_tag != nullptr );
-	assert( m_huc6270_b_tag != nullptr );
-	assert( m_huc6272_tag != nullptr );
-
 	m_timer = timer_alloc();
-	m_huc6270_a = machine().device<huc6270_device>(m_huc6270_a_tag);
-	m_huc6270_b = machine().device<huc6270_device>(m_huc6270_b_tag);
-	m_huc6272 = machine().device<huc6272_device>(m_huc6272_tag);
 
-	m_bmp = std::make_unique<bitmap_rgb32>(HUC6261_WPF, HUC6261_LPF );
-
-	/* We want to have valid devices */
-	assert( m_huc6270_a != nullptr );
-	assert( m_huc6270_b != nullptr );
-	assert( m_huc6272 != nullptr );
+	m_bmp = std::make_unique<bitmap_rgb32>(WPF, LPF);
 
 	save_item(NAME(m_last_h));
 	save_item(NAME(m_last_v));
@@ -452,7 +443,7 @@ void huc6261_device::device_reset()
 
 	memset(m_palette, 0, sizeof(m_palette));
 
-	m_last_v = m_screen->vpos();
-	m_last_h = m_screen->hpos();
-	m_timer->adjust( m_screen->time_until_pos( ( m_screen->vpos() + 1 ) % 263, 0 ) );
+	m_last_v = screen().vpos();
+	m_last_h = screen().hpos();
+	m_timer->adjust( screen().time_until_pos( ( screen().vpos() + 1 ) % 263, 0 ) );
 }

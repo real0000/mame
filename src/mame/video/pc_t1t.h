@@ -1,47 +1,24 @@
 // license:BSD-3-Clause
 // copyright-holders:Wilbert Pol
-#ifndef PC_T1T_H
-#define PC_T1T_H
+#ifndef MAME_VIDEO_PC_T1T_H
+#define MAME_VIDEO_PC_T1T_H
+
+#pragma once
 
 #include "video/mc6845.h"
 #include "machine/ram.h"
 #include "machine/bankdev.h"
+#include "machine/pic8259.h"
+#include "emupal.h"
 
 #define T1000_SCREEN_NAME   "screen"
 #define T1000_MC6845_NAME   "mc6845_t1000"
 
-// used in tandy1000hx; used in pcjr???
-struct reg
-{
-		reg()
-		{
-			index = 0;
-			memset(&data, 0, sizeof(data));
-		}
-
-	uint8_t index;
-	uint8_t data[0x20];
-	/* see vgadoc
-	   0 mode control 1
-	   1 palette mask
-	   2 border color
-	   3 mode control 2
-	   4 reset
-	   0x10-0x1f palette registers
-	*/
-};
-
-class pc_t1t_device :  public device_t,
-								public device_video_interface
+class pc_t1t_device :  public device_t, public device_video_interface
 {
 public:
-	// construction/destruction
-	pc_t1t_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
-
-	DECLARE_PALETTE_INIT( pcjr );
-
 	DECLARE_WRITE_LINE_MEMBER( t1000_de_changed );
-	DECLARE_READ8_MEMBER( read );
+	uint8_t read(offs_t offset);
 
 	virtual MC6845_UPDATE_ROW( crtc_update_row );
 	MC6845_UPDATE_ROW( t1000_text_inten_update_row );
@@ -51,7 +28,33 @@ public:
 	MC6845_UPDATE_ROW( t1000_gfx_2bpp_tga_update_row );
 	MC6845_UPDATE_ROW( t1000_gfx_1bpp_update_row );
 
+	void vram_map(address_map &map);
+
 protected:
+	// used in tandy1000hx; used in pcjr???
+	struct reg
+	{
+		reg()
+		{
+			index = 0;
+			memset(&data, 0, sizeof(data));
+		}
+
+		uint8_t index;
+		uint8_t data[0x20];
+		/* see vgadoc
+		   0 mode control 1
+		   1 palette mask
+		   2 border color
+		   3 mode control 2
+		   4 reset
+		   0x10-0x1f palette registers
+		*/
+	};
+
+	// construction/destruction
+	pc_t1t_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	required_device<mc6845_device> m_mc6845;
 	uint8_t m_mode_control, m_color_select;
 	uint8_t m_status;
@@ -75,14 +78,16 @@ protected:
 	uint8_t   m_vsync;
 	uint8_t   m_palette_base;
 
-	int mode_control_r(void);
+	void pcjr_palette(palette_device &palette) const;
+
+	int mode_control_r();
 	void color_select_w(int data);
-	int color_select_r(void);
-	int status_r(void);
+	int color_select_r();
+	int status_r();
 	void lightpen_strobe_w(int data);
 	void vga_index_w(int data);
-	int vga_data_r(void);
-	int bank_r(void);
+	int vga_data_r();
+	int bank_r();
 
 	required_device<palette_device> m_palette;
 	required_device<ram_device> m_ram;
@@ -95,26 +100,24 @@ public:
 	// construction/destruction
 	pcvideo_t1000_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_WRITE8_MEMBER( write );
-	DECLARE_WRITE_LINE_MEMBER( t1000_vsync_changed );
+	void write(offs_t offset, uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER( disable_w );
 
 protected:
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 
 private:
-	void mode_switch( void );
+	void mode_switch();
 	void vga_data_w(int data);
 	void bank_w(int data);
 	void mode_control_w(int data);
 	bool m_disable;
+
+	DECLARE_WRITE_LINE_MEMBER( t1000_vsync_changed );
 };
 
-extern const device_type PCVIDEO_T1000;
-
-#define MCFG_PCVIDEO_T1000_ADD(_tag) \
-		MCFG_DEVICE_ADD(_tag, PCVIDEO_T1000, 0)
+DECLARE_DEVICE_TYPE(PCVIDEO_T1000, pcvideo_t1000_device)
 
 class pcvideo_pcjr_device :  public pc_t1t_device
 {
@@ -122,30 +125,29 @@ public:
 	// construction/destruction
 	pcvideo_pcjr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_WRITE8_MEMBER( write );
-	DECLARE_WRITE_LINE_MEMBER( pcjr_vsync_changed );
+	void write(offs_t offset, uint8_t data);
 
-	uint8_t   *m_jxkanji;
-
-	virtual MC6845_UPDATE_ROW( crtc_update_row ) override;
 	MC6845_UPDATE_ROW( pcjx_text_update_row );
 	MC6845_UPDATE_ROW( pcjr_gfx_2bpp_high_update_row );
 
 protected:
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
+
+	required_device<pic8259_device> m_pic8259;
+	uint8_t   *m_jxkanji;
 
 private:
 	void pc_pcjr_mode_switch();
 	void pc_pcjr_vga_data_w(int data);
 	void pc_pcjr_bank_w(int data);
 	void pc_pcjx_bank_w(int data);
+
+	DECLARE_WRITE_LINE_MEMBER( pcjr_vsync_changed );
+
+	virtual MC6845_UPDATE_ROW( crtc_update_row ) override;
 };
 
-extern const device_type PCVIDEO_PCJR;
+DECLARE_DEVICE_TYPE(PCVIDEO_PCJR, pcvideo_pcjr_device)
 
-#define MCFG_PCVIDEO_PCJR_ADD(_tag) \
-		MCFG_DEVICE_ADD(_tag, PCVIDEO_PCJR, 0)
-
-
-#endif /* PC_T1T_H */
+#endif // MAME_VIDEO_PC_T1T_H

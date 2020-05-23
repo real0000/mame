@@ -5,14 +5,14 @@
 //  debugwininfo.h - Win32 debug window handling
 //
 //============================================================
+#ifndef MAME_DEBUGGER_WIN_DEBUGWININFO_H
+#define MAME_DEBUGGER_WIN_DEBUGWININFO_H
 
-#ifndef __DEBUG_WIN_DEBUG_WIN_INFO_H__
-#define __DEBUG_WIN_DEBUG_WIN_INFO_H__
+#pragma once
 
 #include "debugwin.h"
 
 #include "debugbaseinfo.h"
-
 
 
 class debugwin_info : protected debugbase_info
@@ -70,6 +70,7 @@ protected:
 		ID_STEP,
 		ID_STEP_OVER,
 		ID_STEP_OUT,
+		ID_REWIND_STEP,
 		ID_HARD_RESET,
 		ID_SOFT_RESET,
 		ID_EXIT,
@@ -96,6 +97,8 @@ protected:
 
 		ID_SHOW_BREAKPOINTS,
 		ID_SHOW_WATCHPOINTS,
+
+		ID_CLEAR_LOG,
 
 		ID_DEVICE_OPTIONS   // always keep this at the end
 	};

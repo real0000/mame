@@ -1,19 +1,21 @@
 // license:BSD-3-Clause
 // copyright-holders:Curt Coder
-#pragma once
+#ifndef MAME_INCLUDES_BULLET_H
+#define MAME_INCLUDES_BULLET_H
 
-#ifndef __BULLET__
-#define __BULLET__
+#pragma once
 
 #include "cpu/z80/z80.h"
 #include "bus/centronics/ctronics.h"
-#include "machine/ram.h"
 #include "bus/scsi/scsi.h"
+#include "imagedev/floppy.h"
+#include "machine/ram.h"
+#include "machine/timer.h"
 #include "machine/wd_fdc.h"
 #include "machine/z80ctc.h"
-#include "machine/z80dart.h"
 #include "machine/z80dma.h"
 #include "machine/z80pio.h"
+#include "machine/z80sio.h"
 
 #define Z80_TAG         "u20"
 #define Z80CTC_TAG      "u1"
@@ -55,11 +57,47 @@ public:
 	{
 	}
 
-	required_device<cpu_device> m_maincpu;
+	DECLARE_READ8_MEMBER( mreq_r );
+	DECLARE_WRITE8_MEMBER( mreq_w );
+	DECLARE_READ8_MEMBER( info_r );
+	DECLARE_READ8_MEMBER( brom_r );
+	DECLARE_WRITE8_MEMBER( brom_w );
+	DECLARE_READ8_MEMBER( win_r );
+	DECLARE_WRITE8_MEMBER( wstrobe_w );
+	DECLARE_WRITE8_MEMBER( exdsk_w );
+	DECLARE_WRITE8_MEMBER( exdma_w );
+	DECLARE_WRITE8_MEMBER( hdcon_w );
+	DECLARE_WRITE8_MEMBER( segst_w );
+	uint8_t dma_mreq_r(offs_t offset);
+	void dma_mreq_w(offs_t offset, uint8_t data);
+	uint8_t pio_pb_r();
+	DECLARE_WRITE_LINE_MEMBER( dartardy_w );
+	DECLARE_WRITE_LINE_MEMBER( dartbrdy_w );
+	DECLARE_WRITE_LINE_MEMBER( write_centronics_busy );
+	DECLARE_WRITE_LINE_MEMBER( write_centronics_perror );
+	DECLARE_WRITE_LINE_MEMBER( write_centronics_select );
+	DECLARE_WRITE_LINE_MEMBER( write_centronics_fault );
+	DECLARE_WRITE_LINE_MEMBER( fdc_drq_w );
+
+	TIMER_DEVICE_CALLBACK_MEMBER(ctc_tick);
+	DECLARE_WRITE_LINE_MEMBER(dart_rxtxca_w);
+	uint8_t io_read_byte(offs_t offset);
+	void io_write_byte(offs_t offset, uint8_t data);
+
+	void bullet(machine_config &config);
+	void bullet_io(address_map &map);
+	void bullet_mem(address_map &map);
+protected:
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+
+	void update_dma_rdy();
+
+	required_device<z80_device> m_maincpu;
 	required_device<z80ctc_device> m_ctc;
 	required_device<z80dart_device> m_dart;
 	required_device<z80dma_device> m_dmac;
-	required_device<mb8877_t> m_fdc;
+	required_device<mb8877_device> m_fdc;
 	required_device<ram_device> m_ram;
 	required_device<floppy_connector> m_floppy0;
 	required_device<floppy_connector> m_floppy1;
@@ -74,32 +112,6 @@ public:
 	required_memory_region m_rom;
 	required_ioport m_sw1;
 
-	virtual void machine_start() override;
-	virtual void machine_reset() override;
-
-	DECLARE_READ8_MEMBER( mreq_r );
-	DECLARE_WRITE8_MEMBER( mreq_w );
-	DECLARE_READ8_MEMBER( info_r );
-	DECLARE_READ8_MEMBER( brom_r );
-	DECLARE_WRITE8_MEMBER( brom_w );
-	DECLARE_READ8_MEMBER( win_r );
-	DECLARE_WRITE8_MEMBER( wstrobe_w );
-	DECLARE_WRITE8_MEMBER( exdsk_w );
-	DECLARE_WRITE8_MEMBER( exdma_w );
-	DECLARE_WRITE8_MEMBER( hdcon_w );
-	DECLARE_WRITE8_MEMBER( segst_w );
-	DECLARE_READ8_MEMBER( dma_mreq_r );
-	DECLARE_WRITE8_MEMBER( dma_mreq_w );
-	DECLARE_READ8_MEMBER( pio_pb_r );
-	DECLARE_WRITE_LINE_MEMBER( dartardy_w );
-	DECLARE_WRITE_LINE_MEMBER( dartbrdy_w );
-	DECLARE_WRITE_LINE_MEMBER( write_centronics_busy );
-	DECLARE_WRITE_LINE_MEMBER( write_centronics_perror );
-	DECLARE_WRITE_LINE_MEMBER( write_centronics_select );
-	DECLARE_WRITE_LINE_MEMBER( write_centronics_fault );
-	DECLARE_WRITE_LINE_MEMBER( fdc_drq_w );
-
-	void update_dma_rdy();
 	// memory state
 	int m_segst;
 	int m_brom;
@@ -120,11 +132,6 @@ public:
 	int m_centronics_perror;
 	int m_centronics_select;
 	int m_centronics_fault;
-
-	TIMER_DEVICE_CALLBACK_MEMBER(ctc_tick);
-	DECLARE_WRITE_LINE_MEMBER(dart_rxtxca_w);
-	DECLARE_READ8_MEMBER(io_read_byte);
-	DECLARE_WRITE8_MEMBER(io_write_byte);
 };
 
 class bulletf_state : public bullet_state
@@ -141,16 +148,6 @@ public:
 	{
 	}
 
-	required_device<floppy_connector> m_floppy8;
-	required_device<floppy_connector> m_floppy9;
-	required_device<SCSI_PORT_DEVICE> m_scsibus;
-	required_device<input_buffer_device> m_scsi_data_in;
-	required_device<output_latch_device> m_scsi_data_out;
-	required_device<input_buffer_device> m_scsi_ctrl_in;
-
-	virtual void machine_start() override;
-	virtual void machine_reset() override;
-
 	DECLARE_READ8_MEMBER( mreq_r );
 	DECLARE_WRITE8_MEMBER( mreq_w );
 	DECLARE_WRITE8_MEMBER( xdma0_w );
@@ -160,13 +157,27 @@ public:
 	DECLARE_READ8_MEMBER( scsi_r );
 	DECLARE_WRITE8_MEMBER( scsi_w );
 
-	DECLARE_READ8_MEMBER( dma_mreq_r );
-	DECLARE_WRITE8_MEMBER( dma_mreq_w );
-	DECLARE_WRITE8_MEMBER( pio_pa_w );
+	uint8_t dma_mreq_r(offs_t offset);
+	void dma_mreq_w(offs_t offset, uint8_t data);
+	void pio_pa_w(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER( cstrb_w );
 	DECLARE_WRITE_LINE_MEMBER( req_w );
 
+	void bulletf(machine_config &config);
+	void bulletf_io(address_map &map);
+	void bulletf_mem(address_map &map);
+protected:
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+
 	void update_dma_rdy();
+
+	required_device<floppy_connector> m_floppy8;
+	required_device<floppy_connector> m_floppy9;
+	required_device<scsi_port_device> m_scsibus;
+	required_device<input_buffer_device> m_scsi_data_in;
+	required_device<output_latch_device> m_scsi_data_out;
+	required_device<input_buffer_device> m_scsi_ctrl_in;
 
 	int m_rome;
 	uint8_t m_xdma0;
@@ -175,4 +186,4 @@ public:
 	int m_wrdy;
 };
 
-#endif
+#endif // MAME_INCLUDES_BULLET_H

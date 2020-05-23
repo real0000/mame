@@ -8,8 +8,9 @@
  *
  *****************************************************************************/
 #include "emu.h"
-#include "debugger.h"
 #include "i8008.h"
+#include "8008dasm.h"
+#include "debugger.h"
 
 //**************************************************************************
 //  MACROS
@@ -24,7 +25,7 @@
 //**************************************************************************
 
 // device type definition
-const device_type I8008 = device_creator<i8008_device>;
+DEFINE_DEVICE_TYPE(I8008, i8008_device, "i8008", "Intel 8008")
 
 //**************************************************************************
 //  DEVICE INTERFACE
@@ -34,14 +35,14 @@ const device_type I8008 = device_creator<i8008_device>;
 //  i8008_device - constructor
 //-------------------------------------------------
 i8008_device::i8008_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, I8008, "i8008", tag, owner, clock, "i8008", __FILE__),
-		m_program_config("program", ENDIANNESS_LITTLE, 8, 14),
-		m_io_config("io", ENDIANNESS_LITTLE, 8, 8),
-		m_program(nullptr),
-		m_direct(nullptr)
+	: cpu_device(mconfig, I8008, tag, owner, clock)
+	, m_program_config("program", ENDIANNESS_LITTLE, 8, 14)
+	, m_io_config("io", ENDIANNESS_LITTLE, 8, 5)
+	, m_program(nullptr)
+	, m_cache(nullptr)
 {
 	// set our instruction counter
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 }
 
 //-------------------------------------------------
@@ -52,7 +53,7 @@ void i8008_device::device_start()
 {
 	// find address spaces
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_cache = m_program->cache<0, 0, ENDIANNESS_LITTLE>();
 	m_io = &space(AS_IO);
 
 	// save state
@@ -139,11 +140,12 @@ void i8008_device::device_reset()
 //  the space doesn't exist
 //-------------------------------------------------
 
-const address_space_config *i8008_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector i8008_device::memory_space_config() const
 {
-	return  (spacenum == AS_PROGRAM) ? &m_program_config :
-			(spacenum == AS_IO) ? &m_io_config :
-			nullptr;
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_IO,      &m_io_config)
+	};
 }
 
 //-------------------------------------------------
@@ -202,34 +204,13 @@ void i8008_device::state_string_export(const device_state_entry &entry, std::str
 }
 
 //-------------------------------------------------
-//  disasm_min_opcode_bytes - return the length
-//  of the shortest instruction, in bytes
-//-------------------------------------------------
-
-uint32_t i8008_device::disasm_min_opcode_bytes() const
-{
-	return 1;
-}
-
-//-------------------------------------------------
-//  disasm_max_opcode_bytes - return the length
-//  of the longest instruction, in bytes
-//-------------------------------------------------
-
-uint32_t i8008_device::disasm_max_opcode_bytes() const
-{
-	return 3;
-}
-
-//-------------------------------------------------
-//  disasm_disassemble - call the disassembly
+//  disassemble - call the disassembly
 //  helper function
 //-------------------------------------------------
 
-offs_t i8008_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> i8008_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( i8008 );
-	return CPU_DISASSEMBLE_NAME(i8008)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<i8008_disassembler>();
 }
 
 //**************************************************************************
@@ -241,7 +222,7 @@ offs_t i8008_device::disasm_disassemble(std::ostream &stream, offs_t pc, const u
 //  cycles it takes for one instruction to execute
 //-------------------------------------------------
 
-uint32_t i8008_device::execute_min_cycles() const
+uint32_t i8008_device::execute_min_cycles() const noexcept
 {
 	return 8;
 }
@@ -251,7 +232,7 @@ uint32_t i8008_device::execute_min_cycles() const
 //  cycles it takes for one instruction to execute
 //-------------------------------------------------
 
-uint32_t i8008_device::execute_max_cycles() const
+uint32_t i8008_device::execute_max_cycles() const noexcept
 {
 	return 16;
 }
@@ -276,7 +257,7 @@ void i8008_device::execute_run()
 		if (m_irq_state != CLEAR_LINE) {
 			take_interrupt();
 		}
-		debugger_instruction_hook(this, m_PC.d);
+		debugger_instruction_hook(m_PC.d);
 		execute_one(rop());
 	} while (m_icount > 0);
 }
@@ -620,7 +601,7 @@ inline void i8008_device::pop_stack()
 
 inline uint8_t i8008_device::rop()
 {
-	uint8_t retVal = m_direct->read_byte(GET_PC.w.l);
+	uint8_t retVal = m_cache->read_byte(GET_PC.w.l);
 	GET_PC.w.l = (GET_PC.w.l + 1) & 0x3fff;
 	m_PC = GET_PC;
 	return retVal;
@@ -658,7 +639,7 @@ inline void i8008_device::set_reg(uint8_t reg, uint8_t val)
 
 inline uint8_t i8008_device::arg()
 {
-	uint8_t retVal = m_direct->read_byte(GET_PC.w.l);
+	uint8_t retVal = m_cache->read_byte(GET_PC.w.l);
 	GET_PC.w.l = (GET_PC.w.l + 1) & 0x3fff;
 	m_PC = GET_PC;
 	return retVal;

@@ -5,6 +5,7 @@
 
 from __future__ import with_statement
 
+import io
 import re
 import sys
 
@@ -63,7 +64,7 @@ def extract_version(input):
 build, outfmt, srcfile, dstfile = parse_args()
 
 try:
-    fp = open(srcfile, 'rU')
+    fp = io.open(srcfile, 'r')
 except IOError:
     sys.stderr.write("Unable to open source file '%s'\n" % srcfile)
     sys.exit(1)
@@ -90,7 +91,7 @@ if build == "mess":
     author = "MESS Team"
     comments = "Multi Emulation Super System"
     company_name = "MESS Team"
-    file_description = "Multi Emulation Super System"
+    file_description = "MESS"
     internal_name = "MESS"
     original_filename = "MESS"
     product_name = "MESS"
@@ -98,9 +99,9 @@ if build == "mess":
 else:
     # MAME
     author = "Nicola Salmoria and the MAME Team"
-    comments = "Multiple Arcade Machine Emulator"
+    comments = "Multi-purpose emulation framework"
     company_name = "MAME Team"
-    file_description = "Multiple Arcade Machine Emulator"
+    file_description = "MAME"
     internal_name = "MAME" if build == "mame" else build
     original_filename = "MAME" if build == "mame" else build
     product_name = "MAME" if build == "mame" else build
@@ -165,6 +166,8 @@ elif outfmt == 'plist':
     fp.write('\t<string>%s</string>\n' % product_name)
     fp.write('\t<key>CFBundleShortVersionString</key>\n')
     fp.write('\t<string>%s.%s.%s</string>\n' % (version_major, version_minor, version_build))
+    fp.write('\t<key>NSPrincipalClass</key>\n')
+    fp.write('\t<string>NSApplication</string>\n')
     fp.write('</dict>\n')
     fp.write('</plist>\n')
 fp.flush()

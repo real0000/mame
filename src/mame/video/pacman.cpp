@@ -63,58 +63,56 @@
 
 ***************************************************************************/
 
-PALETTE_INIT_MEMBER(pacman_state,pacman)
+void pacman_state::pacman_palette(palette_device &palette) const
 {
 	const uint8_t *color_prom = memregion("proms")->base();
-	static const int resistances[3] = { 1000, 470, 220 };
-	double rweights[3], gweights[3], bweights[2];
-	int i;
+	static constexpr int resistances[3] = { 1000, 470, 220 };
 
-	/* compute the color output resistor weights */
+	// compute the color output resistor weights
+	double rweights[3], gweights[3], bweights[2];
 	compute_resistor_weights(0, 255, -1.0,
 			3, &resistances[0], rweights, 0, 0,
 			3, &resistances[0], gweights, 0, 0,
 			2, &resistances[1], bweights, 0, 0);
 
-	/* create a lookup table for the palette */
-	for (i = 0; i < 32; i++)
+	// create a lookup table for the palette
+	for (int i = 0; i < 32; i++)
 	{
 		int bit0, bit1, bit2;
-		int r, g, b;
 
-		/* red component */
-		bit0 = (color_prom[i] >> 0) & 0x01;
-		bit1 = (color_prom[i] >> 1) & 0x01;
-		bit2 = (color_prom[i] >> 2) & 0x01;
-		r = combine_3_weights(rweights, bit0, bit1, bit2);
+		// red component
+		bit0 = BIT(color_prom[i], 0);
+		bit1 = BIT(color_prom[i], 1);
+		bit2 = BIT(color_prom[i], 2);
+		int const r = combine_weights(rweights, bit0, bit1, bit2);
 
-		/* green component */
-		bit0 = (color_prom[i] >> 3) & 0x01;
-		bit1 = (color_prom[i] >> 4) & 0x01;
-		bit2 = (color_prom[i] >> 5) & 0x01;
-		g = combine_3_weights(gweights, bit0, bit1, bit2);
+		// green component
+		bit0 = BIT(color_prom[i], 3);
+		bit1 = BIT(color_prom[i], 4);
+		bit2 = BIT(color_prom[i], 5);
+		int const g = combine_weights(gweights, bit0, bit1, bit2);
 
-		/* blue component */
-		bit0 = (color_prom[i] >> 6) & 0x01;
-		bit1 = (color_prom[i] >> 7) & 0x01;
-		b = combine_2_weights(bweights, bit0, bit1);
+		// blue component
+		bit0 = BIT(color_prom[i], 6);
+		bit1 = BIT(color_prom[i], 7);
+		int const b = combine_weights(bweights, bit0, bit1);
 
 		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
-	/* color_prom now points to the beginning of the lookup table */
+	// color_prom now points to the beginning of the lookup table
 	color_prom += 32;
 
-	/* allocate the colortable */
-	for (i = 0; i < 64*4; i++)
+	// allocate the colortable
+	for (int i = 0; i < 64*4; i++)
 	{
-		uint8_t ctabentry = color_prom[i] & 0x0f;
+		uint8_t const ctabentry = color_prom[i] & 0x0f;
 
-		/* first palette bank */
+		// first palette bank
 		palette.set_pen_indirect(i, ctabentry);
 
-		/* second palette bank */
-		palette.set_pen_indirect(i + 64*4, 0x10 + ctabentry);
+		// second palette bank
+		palette.set_pen_indirect(i + 64*4, 0x10 | ctabentry);
 	}
 }
 
@@ -137,7 +135,7 @@ TILE_GET_INFO_MEMBER(pacman_state::pacman_get_tile_info)
 	int code = m_videoram[tile_index] | (m_charbank << 8);
 	int attr = (m_colorram[tile_index] & 0x1f) | (m_colortablebank << 5) | (m_palettebank << 6 );
 
-	SET_TILE_INFO_MEMBER(0,code,attr,0);
+	tileinfo.set(0,code,attr,0);
 }
 
 /***************************************************************************
@@ -173,7 +171,7 @@ VIDEO_START_MEMBER(pacman_state,pacman)
 	/* one pixel to the left to get a more correct placement */
 	m_xoffsethack = 1;
 
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(pacman_state::pacman_get_tile_info),this), tilemap_mapper_delegate(FUNC(pacman_state::pacman_scan_rows),this),  8, 8, 36, 28 );
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(pacman_state::pacman_get_tile_info)), tilemap_mapper_delegate(*this, FUNC(pacman_state::pacman_scan_rows)), 8, 8, 36, 28);
 }
 
 VIDEO_START_MEMBER(pacman_state,birdiy)
@@ -195,9 +193,9 @@ WRITE8_MEMBER(pacman_state::pacman_colorram_w)
 	m_bg_tilemap->mark_tile_dirty(offset );
 }
 
-WRITE8_MEMBER(pacman_state::pacman_flipscreen_w)
+WRITE_LINE_MEMBER(pacman_state::flipscreen_w)
 {
-	m_flipscreen = data & 1;
+	m_flipscreen = state;
 	m_bg_tilemap->set_flip(m_flipscreen * ( TILEMAP_FLIPX + TILEMAP_FLIPY ) );
 }
 
@@ -322,35 +320,26 @@ VIDEO_START_MEMBER(pacman_state,pengo)
 	m_inv_spr = 0;
 	m_xoffsethack = 0;
 
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(pacman_state::pacman_get_tile_info),this), tilemap_mapper_delegate(FUNC(pacman_state::pacman_scan_rows),this),  8, 8, 36, 28 );
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(pacman_state::pacman_get_tile_info)), tilemap_mapper_delegate(*this, FUNC(pacman_state::pacman_scan_rows)), 8, 8, 36, 28);
 }
 
-WRITE8_MEMBER(pacman_state::pengo_palettebank_w)
+WRITE_LINE_MEMBER(pacman_state::pengo_palettebank_w)
 {
-	if (m_palettebank != data)
-	{
-		m_palettebank = data;
-		m_bg_tilemap->mark_all_dirty();
-	}
+	m_palettebank = state;
+	m_bg_tilemap->mark_all_dirty();
 }
 
-WRITE8_MEMBER(pacman_state::pengo_colortablebank_w)
+WRITE_LINE_MEMBER(pacman_state::pengo_colortablebank_w)
 {
-	if (m_colortablebank != data)
-	{
-		m_colortablebank = data;
-		m_bg_tilemap->mark_all_dirty();
-	}
+	m_colortablebank = state;
+	m_bg_tilemap->mark_all_dirty();
 }
 
-WRITE8_MEMBER(pacman_state::pengo_gfxbank_w)
+WRITE_LINE_MEMBER(pacman_state::pengo_gfxbank_w)
 {
-	if (m_charbank != (data & 1))
-	{
-		m_spritebank = data & 1;
-		m_charbank = data & 1;
-		m_bg_tilemap->mark_all_dirty();
-	}
+	m_spritebank = state;
+	m_charbank = state;
+	m_bg_tilemap->mark_all_dirty();
 }
 
 
@@ -369,7 +358,7 @@ TILE_GET_INFO_MEMBER(pacman_state::s2650_get_tile_info)
 	code = m_videoram[tile_index] + (colbank << 8);
 	attr = m_colorram[tile_index & 0x1f];
 
-	SET_TILE_INFO_MEMBER(0,code,attr & 0x1f,0);
+	tileinfo.set(0,code,attr & 0x1f,0);
 }
 
 VIDEO_START_MEMBER(pacman_state,s2650games)
@@ -385,7 +374,7 @@ VIDEO_START_MEMBER(pacman_state,s2650games)
 	m_inv_spr = 0;
 	m_xoffsethack = 1;
 
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(pacman_state::s2650_get_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32 );
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(pacman_state::s2650_get_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_bg_tilemap->set_scroll_cols(32);
 }
@@ -514,7 +503,7 @@ TILE_GET_INFO_MEMBER(pacman_state::jrpacman_get_tile_info)
 	code = m_videoram[tile_index] | (m_charbank << 8);
 	attr = (m_videoram[color_index] & 0x1f) | (m_colortablebank << 5) | (m_palettebank << 6 );
 
-	SET_TILE_INFO_MEMBER(0,code,attr,0);
+	tileinfo.set(0,code,attr,0);
 }
 
 void pacman_state::jrpacman_mark_tile_dirty( int offset )
@@ -553,7 +542,7 @@ VIDEO_START_MEMBER(pacman_state,jrpacman)
 	m_inv_spr = 0;
 	m_xoffsethack = 1;
 
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(pacman_state::jrpacman_get_tile_info),this),tilemap_mapper_delegate(FUNC(pacman_state::jrpacman_scan_rows),this),8,8,36,54 );
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(pacman_state::jrpacman_get_tile_info)), tilemap_mapper_delegate(*this, FUNC(pacman_state::jrpacman_scan_rows)), 8, 8, 36, 54);
 
 	m_bg_tilemap->set_transparent_pen(0 );
 	m_bg_tilemap->set_scroll_cols(36 );
@@ -565,18 +554,15 @@ WRITE8_MEMBER(pacman_state::jrpacman_videoram_w)
 	jrpacman_mark_tile_dirty(offset);
 }
 
-WRITE8_MEMBER(pacman_state::jrpacman_charbank_w)
+WRITE_LINE_MEMBER(pacman_state::jrpacman_charbank_w)
 {
-	if (m_charbank != (data & 1))
-	{
-		m_charbank = data & 1;
-		m_bg_tilemap->mark_all_dirty();
-	}
+	m_charbank = state;
+	m_bg_tilemap->mark_all_dirty();
 }
 
-WRITE8_MEMBER(pacman_state::jrpacman_spritebank_w)
+WRITE_LINE_MEMBER(pacman_state::jrpacman_spritebank_w)
 {
-	m_spritebank = (data & 1);
+	m_spritebank = state;
 }
 
 WRITE8_MEMBER(pacman_state::jrpacman_scroll_w)
@@ -588,7 +574,7 @@ WRITE8_MEMBER(pacman_state::jrpacman_scroll_w)
 	}
 }
 
-WRITE8_MEMBER(pacman_state::jrpacman_bgpriority_w)
+WRITE_LINE_MEMBER(pacman_state::jrpacman_bgpriority_w)
 {
-	m_bgpriority = (data & 1);
+	m_bgpriority = state;
 }

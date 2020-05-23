@@ -1,5 +1,8 @@
 <?xml version="1.0"?>
 <!DOCTYPE softwarelist SYSTEM "softwarelist.dtd">
+<!--
+license:CC0
+-->
 <softwarelist name="pcecd" description="NEC PC-Engine / Turbografx 16 CD-ROMs">
 
 <!-- The JPN CHDs have all been converted from the 'PD PC-Engine V2' collection, dated 2007
@@ -215,7 +218,7 @@
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
 			<diskarea name="cdrom">
-				<disk name="asuka 120% maxima burning fest (scd)(jpn)" sha1="27bb73a3372a0189ad9597fc8d9fb546cc466eef"/>
+				<disk name="asuka 120 maxima burning fest (scd)(jpn)" sha1="27bb73a3372a0189ad9597fc8d9fb546cc466eef"/>
 			</diskarea>
 		</part>
 	</software>
@@ -1982,7 +1985,7 @@
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
 			<diskarea name="cdrom">
-				<disk name="go! go! birdie chance (scd)(jpn)" sha1="7ae94f6dc48a3e63683eb765f8c23819ab9f301b"/>
+				<disk name="go go birdie chance (scd)(jpn)" sha1="7ae94f6dc48a3e63683eb765f8c23819ab9f301b"/>
 			</diskarea>
 		</part>
 	</software>
@@ -2184,7 +2187,7 @@
 		<publisher>Tokuma Shoten</publisher>
 		<info name="serial" value="TICD-3001"/>
 		<info name="release" value="19931210"/>
-		<info name="alt_title" value="秘密の花園 "/>
+		<info name="alt_title" value="秘密の花園"/>
 		<info name="usage" value="CD-Rom System Card required" />
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
@@ -2200,7 +2203,7 @@
 		<publisher>NEC Avenue</publisher>
 		<info name="serial" value="NAPR-1027"/>
 		<info name="release" value="19930226"/>
-		<info name="alt_title" value="ホラーストーリー "/>
+		<info name="alt_title" value="ホラーストーリー"/>
 		<info name="usage" value="CD-Rom System Card required" />
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
@@ -2291,7 +2294,7 @@
 	</software>
 
 	<software name="iganin">
-		<description>Iga Ninden Gaiou (SCD)(Jpn)</description>
+		<description>Iga Ninden Gaou (SCD)(Jpn)</description>
 		<year>1993</year>
 		<publisher>Nichibutsu</publisher>
 		<info name="serial" value="NBCD3003"/>
@@ -2301,7 +2304,7 @@
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
 			<diskarea name="cdrom">
-				<disk name="iga ninden gaiou (scd)(jpn)" sha1="b2a975b5d609009bec8a89c5c91e42e2049c982f"/>
+				<disk name="iga ninden gaou (scd)(jpn)" sha1="b2a975b5d609009bec8a89c5c91e42e2049c982f"/>
 			</diskarea>
 		</part>
 	</software>
@@ -2390,7 +2393,7 @@
 		<publisher>NEC Home Electronics</publisher>
 		<info name="serial" value="HECD4017"/>
 		<info name="release" value="19941223"/>
-		<info name="alt_title" value="Jリーグ トリメンダスサッカー'94 "/>
+		<info name="alt_title" value="Jリーグ トリメンダスサッカー'94"/>
 		<info name="usage" value="CD-Rom System Card required" />
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
@@ -2566,7 +2569,7 @@
 		<publisher>Intec</publisher>
 		<info name="serial" value="IGCD3007"/>
 		<info name="release" value="19940128"/>
-		<info name="alt_title" value="格闘覇王伝説アルガノス "/>
+		<info name="alt_title" value="格闘覇王伝説アルガノス"/>
 		<info name="usage" value="CD-Rom System Card required" />
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
@@ -2598,7 +2601,7 @@
 		<publisher>Naxat Soft</publisher>
 		<info name="serial" value="NXCD3025"/>
 		<info name="release" value="19940428"/>
-		<info name="alt_title" value="風霧 "/>
+		<info name="alt_title" value="風霧"/>
 		<info name="usage" value="CD-Rom System Card required" />
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
@@ -2711,7 +2714,7 @@
 		<publisher>NEC Home Electronics</publisher>
 		<info name="serial" value="HECD5021"/>
 		<info name="release" value="19950526"/>
-		<info name="alt_title" value="機装ルーガII "/>
+		<info name="alt_title" value="機装ルーガII"/>
 		<info name="usage" value="CD-Rom System Card required" />
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
@@ -3266,7 +3269,7 @@
 		<publisher>NCS</publisher>
 		<info name="serial" value="NSCD2011"/>
 		<info name="release" value="19920313"/>
-		<info name="alt_title" value="魔物ハンター妖子 ~魔界からの転校生~ "/>
+		<info name="alt_title" value="魔物ハンター妖子 ~魔界からの転校生~"/>
 		<info name="usage" value="CD-Rom System Card required" />
 		<sharedfeat name="requirement" value="cdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
@@ -3314,7 +3317,7 @@
 		<publisher>Kogado Studio</publisher>
 		<info name="serial" value="KSCD1001"/>
 		<info name="release" value="19910322"/>
-		<info name="alt_title" value="魔晶伝記 ラ・ヴァルー "/>
+		<info name="alt_title" value="魔晶伝記 ラ・ヴァルー"/>
 		<info name="usage" value="CD-Rom System Card required" />
 		<sharedfeat name="requirement" value="cdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
@@ -4079,7 +4082,7 @@
 		<publisher>Riverhill Software</publisher>
 		<info name="serial" value="RHCD1002"/>
 		<info name="release" value="19911108"/>
-		<info name="alt_title" value="プリンスオブペルシャ "/>
+		<info name="alt_title" value="プリンスオブペルシャ"/>
 		<info name="usage" value="CD-Rom System Card required" />
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
@@ -4151,7 +4154,7 @@
 		<publisher>NEC Home Electronics</publisher>
 		<info name="serial" value="HECD5019"/>
 		<info name="release" value="19950811"/>
-		<info name="alt_title" value="プライベート アイドル "/>
+		<info name="alt_title" value="プライベート アイドル"/>
 		<info name="usage" value="CD-Rom System Card required" />
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
@@ -4361,7 +4364,7 @@
 		<sharedfeat name="requirement" value="cdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
 			<diskarea name="cdrom">
-				<disk name="quiz marugoto the world ii - time machine ni onegai! (cd)(jpn)" sha1="1c2a663efd7214d274f8cdd33c36789bb03c996e"/>
+				<disk name="quiz marugoto the world ii - time machine ni onegai (cd)(jpn)" sha1="1c2a663efd7214d274f8cdd33c36789bb03c996e"/>
 			</diskarea>
 		</part>
 	</software>
@@ -4457,7 +4460,7 @@
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
 			<diskarea name="cdrom">
-				<disk name="ranma datou, ganso musabetsu kakutou-ryuu! (cd, scd)(jpn)" sha1="d37addaf2cc3a37c8430842570e1846ea6afe02a"/>
+				<disk name="ranma datou, ganso musabetsu kakutou-ryuu (cd, scd)(jpn)" sha1="d37addaf2cc3a37c8430842570e1846ea6afe02a"/>
 			</diskarea>
 		</part>
 	</software>
@@ -4697,7 +4700,7 @@
 		<sharedfeat name="requirement" value="cdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
 			<diskarea name="cdrom">
-				<disk name="rom karaoke - volume iv - choito otona! (cd)(jpn)" sha1="266eb12d8d47c82ad67e85b8076453020eedcc9a"/>
+				<disk name="rom karaoke - volume iv - choito otona (cd)(jpn)" sha1="266eb12d8d47c82ad67e85b8076453020eedcc9a"/>
 			</diskarea>
 		</part>
 	</software>
@@ -5974,7 +5977,7 @@
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
 			<diskarea name="cdrom">
-				<disk name="tenchi muyou! ryououki (scd)(jpn)" sha1="bccd9bbe173ae17c0485a2a75375ab0126be82fb"/>
+				<disk name="tenchi muyou ryououki (scd)(jpn)" sha1="bccd9bbe173ae17c0485a2a75375ab0126be82fb"/>
 			</diskarea>
 		</part>
 	</software>
@@ -6177,7 +6180,6 @@
 		<publisher>Sunsoft</publisher>
 		<info name="serial" value="SSCD0001"/>
 		<info name="release" value="19910322"/>
-		<info name="alt_title" value="ザ･キックボクシング"/>
 		<info name="usage" value="CD-Rom System Card required" />
 		<sharedfeat name="requirement" value="cdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
@@ -6348,7 +6350,7 @@
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
 			<diskarea name="cdrom">
-				<disk name="top o nerae! gunbuster volume i (scd)(jpn)" sha1="82034516ba041a3634b0edbed642518308c10309"/>
+				<disk name="top o nerae gunbuster volume i (scd)(jpn)" sha1="82034516ba041a3634b0edbed642518308c10309"/>
 			</diskarea>
 		</part>
 	</software>
@@ -6364,7 +6366,7 @@
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
 			<diskarea name="cdrom">
-				<disk name="top o nerae! gunbuster volume ii (scd)(jpn)" sha1="9eea2a1d0236a12cfa356e6cde3e64e3cf334f1a"/>
+				<disk name="top o nerae gunbuster volume ii (scd)(jpn)" sha1="9eea2a1d0236a12cfa356e6cde3e64e3cf334f1a"/>
 			</diskarea>
 		</part>
 	</software>
@@ -6396,7 +6398,7 @@
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
 			<diskarea name="cdrom">
-				<disk name="travelers! densetsu wo buttobase [imperfect] (scd)(jpn)" sha1="406c222c6b16af097e088128e03c065f227a1500"/>
+				<disk name="travelers densetsu wo buttobase [imperfect] (scd)(jpn)" sha1="406c222c6b16af097e088128e03c065f227a1500"/>
 			</diskarea>
 		</part>
 	</software>
@@ -6834,7 +6836,7 @@
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
 			<diskarea name="cdrom">
-				<disk name="yawara! (scd)(jpn)" sha1="2da1ea9a6a83f7c8c830836779ab006838759fb9"/>
+				<disk name="yawara (scd)(jpn)" sha1="2da1ea9a6a83f7c8c830836779ab006838759fb9"/>
 			</diskarea>
 		</part>
 	</software>
@@ -6850,7 +6852,7 @@
 		<sharedfeat name="requirement" value="scdsys"/>
 		<part name="cdrom" interface="pce_cdrom">
 			<diskarea name="cdrom">
-				<disk name="yawara! ii (scd)(jpn)" sha1="9c46a0ccdc9cbaeb8d856c801e67fdbb26280af6"/>
+				<disk name="yawara ii (scd)(jpn)" sha1="9c46a0ccdc9cbaeb8d856c801e67fdbb26280af6"/>
 			</diskarea>
 		</part>
 	</software>
@@ -6877,7 +6879,7 @@
 		<publisher>Hudson</publisher>
 		<info name="serial" value="HCD0015"/>
 		<info name="release" value="19910322"/>
-		<info name="alt_title" value="イースIII "/>
+		<info name="alt_title" value="イースIII"/>
 		<info name="usage" value="CD-Rom System Card required" />
 		<sharedfeat name="requirement" value="cdsys"/>
 		<part name="cdrom" interface="pce_cdrom">

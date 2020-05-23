@@ -6,12 +6,20 @@
 
         2009-12-09 Skeleton driver.
 
-        Chips used: i8275, AM9513, i8085, i8237, i8255, 2x 2651. XTAL 20MHz
+        Chips used: i8275, AM9513, AM8085A-2, i8237, i8255, 2x 2651. XTAL 20MHz
 
 ****************************************************************************/
 
 #include "emu.h"
 #include "cpu/i8085/i8085.h"
+#include "machine/am9513.h"
+#include "machine/am9517a.h"
+#include "machine/com8116.h"
+#include "machine/i8255.h"
+#include "machine/input_merger.h"
+#include "machine/scn_pci.h"
+#include "video/i8275.h"
+#include "emupal.h"
 #include "screen.h"
 
 
@@ -21,34 +29,94 @@ public:
 	unistar_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag)
 		, m_maincpu(*this, "maincpu")
-		, m_p_chargen(*this, "chargen")
+		, m_chargen(*this, "chargen")
 	{ }
 
-	DECLARE_PALETTE_INIT(unistar);
-	uint32_t screen_update_unistar(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void unistar(machine_config &config);
+
+protected:
+	virtual void machine_reset() override;
 
 private:
-	virtual void machine_reset() override;
+	u8 dma_mem_r(offs_t offset);
+	void dma_mem_w(offs_t offset, u8 data);
+
+	void unistar_palette(palette_device &palette) const;
+	I8275_DRAW_CHARACTER_MEMBER(draw_character);
+
+	void unistar_io(address_map &map);
+	void unistar_mem(address_map &map);
+
 	required_device<cpu_device> m_maincpu;
-	required_region_ptr<u8> m_p_chargen;
+	required_region_ptr<u8> m_chargen;
 };
 
 
-static ADDRESS_MAP_START(unistar_mem, AS_PROGRAM, 8, unistar_state)
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x0000, 0x2fff) AM_ROM
-	AM_RANGE(0x8000, 0x8fff) AM_RAM
-ADDRESS_MAP_END
+u8 unistar_state::dma_mem_r(offs_t offset)
+{
+	return m_maincpu->space(AS_PROGRAM).read_byte(offset);
+}
 
-static ADDRESS_MAP_START(unistar_io, AS_IO, 8, unistar_state)
-	//ADDRESS_MAP_UNMAP_HIGH
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	// ports used: 00,02,03(W),08(RW),09,0A,0B,0D,0F(W),80,81(R),82,83(W),84(R),8C,8D(W),94(R),97,98(W),99(RW)
-	// if nonzero returned from port 94, it goes into test mode.
-ADDRESS_MAP_END
+void unistar_state::dma_mem_w(offs_t offset, u8 data)
+{
+	m_maincpu->space(AS_PROGRAM).write_byte(offset, data);
+}
+
+void unistar_state::unistar_mem(address_map &map)
+{
+	map.unmap_value_high();
+	map(0x0000, 0x2fff).rom();
+	map(0x8000, 0x97ff).ram();
+}
+
+void unistar_state::unistar_io(address_map &map)
+{
+	//map.unmap_value_high();
+	map(0x00, 0x0f).rw("dmac", FUNC(am9517a_device::read), FUNC(am9517a_device::write));
+	map(0x80, 0x83).rw("pcia", FUNC(scn2651_device::read), FUNC(scn2651_device::write));
+	map(0x84, 0x84).portr("CONFIG");
+	map(0x8c, 0x8d).rw("stc", FUNC(am9513_device::read8), FUNC(am9513_device::write8));
+	map(0x90, 0x93).rw("pcib", FUNC(scn2651_device::read), FUNC(scn2651_device::write));
+	map(0x94, 0x97).rw("pio", FUNC(i8255_device::read), FUNC(i8255_device::write));
+	map(0x98, 0x99).rw("crtc", FUNC(i8275_device::read), FUNC(i8275_device::write));
+	map(0x9c, 0x9c).w("dbrg", FUNC(k1135ab_device::str_stt_w));
+}
 
 /* Input ports */
 static INPUT_PORTS_START( unistar )
+	PORT_START("SW2")
+	PORT_DIPNAME(0x0f, 0x00, "Baud Rate") PORT_DIPLOCATION("SW2:1,2,3,4")
+	PORT_DIPSETTING(0x0e, "50")
+	PORT_DIPSETTING(0x0d, "75")
+	PORT_DIPSETTING(0x0c, "110")
+	PORT_DIPSETTING(0x0b, "134.5")
+	PORT_DIPSETTING(0x0a, "150")
+	PORT_DIPSETTING(0x09, "300")
+	PORT_DIPSETTING(0x08, "600")
+	PORT_DIPSETTING(0x07, "1200")
+	PORT_DIPSETTING(0x06, "1800")
+	PORT_DIPSETTING(0x05, "2000")
+	PORT_DIPSETTING(0x04, "2400")
+	PORT_DIPSETTING(0x03, "3600")
+	PORT_DIPSETTING(0x02, "4800")
+	PORT_DIPSETTING(0x01, "7200")
+	PORT_DIPSETTING(0x00, "9600")
+	PORT_DIPNAME(0x30, 0x00, "Parity") PORT_DIPLOCATION("SW2:5,6")
+	PORT_DIPSETTING(0x00, "None")
+	PORT_DIPSETTING(0x30, "Even")
+	PORT_DIPSETTING(0x10, "Odd")
+	PORT_DIPNAME(0x40, 0x00, "Data Bits") PORT_DIPLOCATION("SW2:7")
+	PORT_DIPSETTING(0x40, "7")
+	PORT_DIPSETTING(0x00, "8")
+	PORT_DIPNAME(0x80, 0x00, "Terminal Mode") PORT_DIPLOCATION("SW2:8")
+	PORT_DIPSETTING(0x80, "Local/Test")
+	PORT_DIPSETTING(0x00, "Online")
+
+	PORT_START("CONFIG")
+	PORT_DIPNAME(0x01, 0x01, "Screen Refresh Rate")
+	PORT_DIPSETTING(0x01, "50 Hz")
+	PORT_DIPSETTING(0x00, "60 Hz")
+	PORT_BIT(0xfe, 0xfe, IPT_UNKNOWN)
 INPUT_PORTS_END
 
 
@@ -56,16 +124,15 @@ void unistar_state::machine_reset()
 {
 }
 
-PALETTE_INIT_MEMBER( unistar_state, unistar )
+void unistar_state::unistar_palette(palette_device &palette) const
 {
-	palette.set_pen_color(0, 0, 0, 0 ); /* Black */
-	palette.set_pen_color(1, 0, 255, 0 );   /* Full */
-	palette.set_pen_color(2, 0, 128, 0 );   /* Dimmed */
+	palette.set_pen_color(0, 0,   0, 0); // Black
+	palette.set_pen_color(1, 0, 255, 0); // Full
+	palette.set_pen_color(2, 0, 128, 0); // Dimmed
 }
 
-uint32_t unistar_state::screen_update_unistar(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+I8275_DRAW_CHARACTER_MEMBER(unistar_state::draw_character)
 {
-	return 0;
 }
 
 /* F4 Character Displayer */
@@ -82,29 +149,64 @@ static const gfx_layout unistar_charlayout =
 	8*16                    /* every char takes 16 bytes */
 };
 
-static GFXDECODE_START( unistar )
+static GFXDECODE_START( gfx_unistar )
 	GFXDECODE_ENTRY( "chargen", 0x0000, unistar_charlayout, 0, 1 )
 GFXDECODE_END
 
-static MACHINE_CONFIG_START( unistar, unistar_state )
+void unistar_state::unistar(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu",I8085A, XTAL_2MHz)
-	MCFG_CPU_PROGRAM_MAP(unistar_mem)
-	MCFG_CPU_IO_MAP(unistar_io)
+	I8085A(config, m_maincpu, 20_MHz_XTAL / 2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &unistar_state::unistar_mem);
+	m_maincpu->set_addrmap(AS_IO, &unistar_state::unistar_io);
+
+	INPUT_MERGER_ANY_HIGH(config, "rst65").output_handler().set_inputline(m_maincpu, I8085_RST65_LINE);
+	INPUT_MERGER_ANY_HIGH(config, "rst75").output_handler().set_inputline(m_maincpu, I8085_RST75_LINE);
+
+	am9517a_device &dmac(AM9517A(config, "dmac", 20_MHz_XTAL / 4)); // Intel P8237A-5
+	dmac.out_hreq_callback().set_inputline(m_maincpu, INPUT_LINE_HALT);
+	dmac.out_hreq_callback().append("dmac", FUNC(am9517a_device::hack_w));
+	dmac.out_eop_callback().set("rst75", FUNC(input_merger_device::in_w<1>));
+	dmac.in_memr_callback().set(FUNC(unistar_state::dma_mem_r));
+	dmac.out_memw_callback().set(FUNC(unistar_state::dma_mem_w));
+	dmac.out_iow_callback<2>().set("crtc", FUNC(i8275_device::dack_w));
+
+	am9513_device &stc(AM9513(config, "stc", 8_MHz_XTAL));
+	stc.fout_cb().set("stc", FUNC(am9513_device::source1_w));
+	// TODO: figure out what OUT1-OUT4 should do (timer 5 is unused)
+
+	scn2651_device &pcia(SCN2651(config, "pcia", 20_MHz_XTAL / 4));
+	pcia.rxrdy_handler().set("rst65", FUNC(input_merger_device::in_w<0>));
+	pcia.txrdy_handler().set("rst65", FUNC(input_merger_device::in_w<1>));
+
+	scn2651_device &pcib(SCN2651(config, "pcib", 20_MHz_XTAL / 4));
+	pcib.rxrdy_handler().set_inputline(m_maincpu, I8085_RST55_LINE);
+
+	k1135ab_device &dbrg(K1135AB(config, "dbrg", 5.0688_MHz_XTAL));
+	dbrg.fr_handler().set("pcia", FUNC(scn2651_device::rxc_w));
+	dbrg.fr_handler().append("pcia", FUNC(scn2651_device::txc_w));
+	dbrg.ft_handler().set("pcib", FUNC(scn2651_device::rxc_w));
+	dbrg.ft_handler().append("pcib", FUNC(scn2651_device::txc_w));
+
+	i8255_device &pio(I8255A(config, "pio"));
+	pio.in_pa_callback().set_ioport("SW2");
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_SCREEN_SIZE(640, 480)
-	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
-	MCFG_SCREEN_UPDATE_DRIVER(unistar_state, screen_update_unistar)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_raw(20_MHz_XTAL, 954, 0, 720, 351, 0, 325);
+	//screen.set_raw(20_MHz_XTAL, 990, 0, 720, 405, 0, 375);
+	screen.set_screen_update("crtc", FUNC(i8275_device::screen_update));
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", unistar)
-	MCFG_PALETTE_ADD("palette", 3)
-	MCFG_PALETTE_INIT_OWNER(unistar_state, unistar)
-MACHINE_CONFIG_END
+	i8275_device &crtc(I8275(config, "crtc", 20_MHz_XTAL / 9));
+	crtc.set_character_width(9);
+	crtc.set_display_callback(FUNC(unistar_state::draw_character));
+	crtc.set_screen("screen");
+	crtc.drq_wr_callback().set("dmac", FUNC(am9517a_device::dreq2_w));
+	crtc.irq_wr_callback().set("rst75", FUNC(input_merger_device::in_w<0>));
+
+	GFXDECODE(config, "gfxdecode", "palette", gfx_unistar);
+	PALETTE(config, "palette", FUNC(unistar_state::unistar_palette), 3);
+}
 
 /* ROM definition */
 ROM_START( unistar )
@@ -119,5 +221,5 @@ ROM_END
 
 /* Driver */
 
-/*    YEAR  NAME     PARENT  COMPAT   MACHINE    INPUT    INIT        COMPANY            FULLNAME              FLAGS */
-COMP( 198?, unistar, 0,      0,       unistar,   unistar, driver_device, 0,  "Callan Data Systems", "Unistar 200 Terminal", MACHINE_IS_SKELETON )
+//    YEAR  NAME     PARENT  COMPAT  MACHINE  INPUT    CLASS          INIT        COMPANY                FULLNAME                FLAGS
+COMP( 198?, unistar, 0,      0,      unistar, unistar, unistar_state, empty_init, "Callan Data Systems", "Unistar 200 Terminal", MACHINE_IS_SKELETON )

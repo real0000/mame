@@ -1,84 +1,92 @@
 // license:BSD-3-Clause
 // copyright-holders:Robbbert
-/***************************************************************************
+/*****************************************************************************************************
 
-        Cromemco C-10 Personal Computer
+Cromemco C-10 Personal Computer
 
-        30/08/2010 Skeleton driver
+2010-08-30 Skeleton driver
 
-        Driver currently gets to a loop where it waits for an interrupt.
-        The interrupt routine presumably writes to FE69 which the loop is
-        constantly looking at.
+Photos show: Intersil 74954-1, Mostek MK3880N-4 (Z80A), CROMEMCO 011-0082-01, CROMEMCO 011-0095,
+             Intel P8275-2, AM92128BPC (16K ROM), NEC D8257C-5, CROMEMCO 011-0083, WDC FD1793B-02,
+             2x 8251. Crystals: 8MHz, 13.028MHz
 
-****************************************************************************/
+Driver currently gets to a loop where it waits for an interrupt.
+The interrupt routine presumably writes to FE69 which the loop is
+constantly looking at.
+
+*****************************************************************************************************/
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
+#include "emupal.h"
 #include "screen.h"
 
 
 class c10_state : public driver_device
 {
 public:
-	enum
-	{
-		TIMER_RESET
-	};
-
 	c10_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag)
 		, m_maincpu(*this, "maincpu")
+		, m_rom(*this, "maincpu")
 		, m_p_videoram(*this, "videoram")
 		, m_p_chargen(*this, "chargen")
+		, m_ram(*this, "mainram")
 	{ }
 
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	DECLARE_DRIVER_INIT(c10);
+	void c10(machine_config &config);
 
 private:
-	required_device<cpu_device> m_maincpu;
-	required_shared_ptr<uint8_t> m_p_videoram;
-	required_region_ptr<u8> m_p_chargen;
+	void c10_io(address_map &map);
+	void c10_mem(address_map &map);
 	virtual void machine_reset() override;
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
+	required_device<z80_device> m_maincpu;
+	required_region_ptr<u8> m_rom;
+	required_shared_ptr<u8> m_p_videoram;
+	required_region_ptr<u8> m_p_chargen;
+	memory_passthrough_handler *m_rom_shadow_tap;
+	required_shared_ptr<u8> m_ram;
 };
 
 
 
-static ADDRESS_MAP_START(c10_mem, AS_PROGRAM, 8, c10_state)
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x0000, 0x0fff) AM_RAMBANK("boot")
-	AM_RANGE(0x1000, 0x7fff) AM_RAM
-	AM_RANGE(0x8000, 0xbfff) AM_ROM
-	AM_RANGE(0xc000, 0xf0a1) AM_RAM
-	AM_RANGE(0xf0a2, 0xffff) AM_RAM AM_SHARE("videoram")
-ADDRESS_MAP_END
+void c10_state::c10_mem(address_map &map)
+{
+	map.unmap_value_high();
+	map(0x0000, 0x7fff).ram().share("mainram");
+	map(0x8000, 0xbfff).rom().region("maincpu", 0);
+	map(0xc000, 0xf0a1).ram();
+	map(0xf0a2, 0xffff).ram().share("videoram");
+}
 
-static ADDRESS_MAP_START( c10_io, AS_IO, 8, c10_state)
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-ADDRESS_MAP_END
+void c10_state::c10_io(address_map &map)
+{
+	map.global_mask(0xff);
+}
 
 /* Input ports */
 static INPUT_PORTS_START( c10 )
 INPUT_PORTS_END
 
-void c10_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
-{
-	switch (id)
-	{
-	case TIMER_RESET:
-		/* after the first 4 bytes have been read from ROM, switch the ram back in */
-		membank("boot")->set_entry(0);
-		break;
-	default:
-		assert_always(false, "Unknown id in c10_state::device_timer");
-	}
-}
-
 void c10_state::machine_reset()
 {
-	membank("boot")->set_entry(1);
-	timer_set(attotime::from_usec(4), TIMER_RESET);
+	address_space &program = m_maincpu->space(AS_PROGRAM);
+	program.install_rom(0x0000, 0x0fff, m_rom);   // do it here for F3
+	m_rom_shadow_tap = program.install_read_tap(0x8000, 0x8fff, "rom_shadow_r",[this](offs_t offset, u8 &data, u8 mem_mask)
+	{
+		if (!machine().side_effects_disabled())
+		{
+			// delete this tap
+			m_rom_shadow_tap->remove();
+
+			// reinstall ram over the rom shadow
+			m_maincpu->space(AS_PROGRAM).install_ram(0x0000, 0x0fff, m_ram);
+		}
+
+		// return the original data
+		return data;
+	});
 }
 
 /* This system appears to have inline attribute bytes of unknown meaning.
@@ -144,45 +152,42 @@ static const gfx_layout c10_charlayout =
 	8*16                    /* every char takes 16 bytes */
 };
 
-static GFXDECODE_START( c10 )
+static GFXDECODE_START( gfx_c10 )
 	GFXDECODE_ENTRY( "chargen", 0x0000, c10_charlayout, 0, 1 )
 GFXDECODE_END
 
 
-static MACHINE_CONFIG_START( c10, c10_state )
+void c10_state::c10(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, XTAL_16MHz / 4)
-	MCFG_CPU_PROGRAM_MAP(c10_mem)
-	MCFG_CPU_IO_MAP(c10_io)
+	Z80(config, m_maincpu, XTAL(8'000'000) / 2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &c10_state::c10_mem);
+	m_maincpu->set_addrmap(AS_IO, &c10_state::c10_io);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_SCREEN_UPDATE_DRIVER(c10_state, screen_update)
-	MCFG_SCREEN_SIZE(640, 250)
-	MCFG_SCREEN_VISIBLE_AREA(0, 639, 0, 249)
-	MCFG_SCREEN_PALETTE("palette")
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", c10)
-	MCFG_PALETTE_ADD_MONOCHROME("palette")
-MACHINE_CONFIG_END
-
-DRIVER_INIT_MEMBER(c10_state,c10)
-{
-	uint8_t *RAM = memregion("maincpu")->base();
-	membank("boot")->configure_entries(0, 2, &RAM[0x0000], 0x8000);
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500)); /* not accurate */
+	screen.set_screen_update(FUNC(c10_state::screen_update));
+	screen.set_size(640, 250);
+	screen.set_visarea_full();
+	screen.set_palette("palette");
+	GFXDECODE(config, "gfxdecode", "palette", gfx_c10);
+	PALETTE(config, "palette", palette_device::MONOCHROME);
 }
+
 
 /* ROM definition */
 ROM_START( c10 )
-	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
-	ROM_LOAD( "c10_cros.bin", 0x8000, 0x4000, CRC(2ccf5983) SHA1(52f7c497f5284bf5df9eb0d6e9142bb1869d8c24))
+	ROM_REGION( 0x4000, "maincpu", 0 )
+	ROM_LOAD( "502-0055.ic16", 0x0000, 0x4000, CRC(2ccf5983) SHA1(52f7c497f5284bf5df9eb0d6e9142bb1869d8c24))
 
 	ROM_REGION( 0x2000, "chargen", 0 )
-	ROM_LOAD( "c10_char.bin", 0x0000, 0x2000, CRC(cb530b6f) SHA1(95590bbb433db9c4317f535723b29516b9b9fcbf))
+	ROM_LOAD( "c10_char.ic9", 0x0000, 0x2000, CRC(cb530b6f) SHA1(95590bbb433db9c4317f535723b29516b9b9fcbf))
 ROM_END
 
 /* Driver */
 
-/*   YEAR   NAME    PARENT  COMPAT   MACHINE  INPUT  INIT        COMPANY   FULLNAME       FLAGS */
-COMP( 1982, c10,    0,      0,       c10,     c10, c10_state,    c10,     "Cromemco", "C-10", MACHINE_NOT_WORKING | MACHINE_NO_SOUND)
+/*   YEAR   NAME  PARENT  COMPAT  MACHINE  INPUT  CLASS      INIT        COMPANY     FULLNAME  FLAGS */
+COMP( 1982, c10,  0,      0,      c10,     c10,   c10_state, empty_init, "Cromemco", "C-10",   MACHINE_NOT_WORKING | MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
+

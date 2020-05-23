@@ -40,8 +40,9 @@
 /*************************************************************/
 
 #include "emu.h"
-#include "debugger.h"
 #include "lr35902.h"
+#include "lr35902d.h"
+#include "debugger.h"
 
 /* Flag bit definitions */
 enum lr35902_flag
@@ -60,11 +61,11 @@ enum lr35902_flag
 //  LR35902 DEVICE
 //**************************************************************************
 
-const device_type LR35902 = device_creator<lr35902_cpu_device>;
+DEFINE_DEVICE_TYPE(LR35902, lr35902_cpu_device, "lr35902", "Sharp LR35902")
 
 
 lr35902_cpu_device::lr35902_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, LR35902, "LR35902", tag, owner, clock, "lr35902", __FILE__)
+	: cpu_device(mconfig, LR35902, tag, owner, clock)
 	, m_program_config("program", ENDIANNESS_LITTLE, 8, 16, 0)
 	, m_A(0)
 	, m_F(0)
@@ -80,12 +81,19 @@ lr35902_cpu_device::lr35902_cpu_device(const machine_config &mconfig, const char
 	, m_IF(0)
 	, m_enable(0)
 	, m_has_halt_bug(false)
+	, m_dma_cycles_to_burn(0)
 	, m_entering_halt(false)
 	, m_timer_func(*this)
 	, m_incdec16_func(*this)
 {
 }
 
+device_memory_interface::space_config_vector lr35902_cpu_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
+}
 
 /****************************************************************************/
 /* Memory functions                                                         */
@@ -130,7 +138,6 @@ inline void lr35902_cpu_device::mem_write_word( uint16_t addr, uint16_t data )
 
 void lr35902_cpu_device::device_start()
 {
-	m_device = this;
 	m_program = &space(AS_PROGRAM);
 
 	// resolve callbacks
@@ -178,7 +185,7 @@ void lr35902_cpu_device::device_start()
 	state_add(STATE_GENPCBASE, "CURPC", m_PC).formatstr("%8s").noshow();
 	state_add(STATE_GENFLAGS, "GENFLAGS",  m_F).mask(0xf0).formatstr("%8s").noshow();
 
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 }
 
 
@@ -225,13 +232,10 @@ void lr35902_cpu_device::device_reset()
 	m_entering_halt = false;
 }
 
-
-offs_t lr35902_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> lr35902_cpu_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( lr35902 );
-	return CPU_DISASSEMBLE_NAME(lr35902)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<lr35902_disassembler>();
 }
-
 
 void lr35902_cpu_device::check_interrupts()
 {
@@ -358,7 +362,7 @@ void lr35902_cpu_device::execute_run()
 				/* Fetch and count cycles */
 				bool was_halted = (m_enable & HALTED);
 				check_interrupts();
-				debugger_instruction_hook(this, m_PC);
+				debugger_instruction_hook(m_PC);
 				if ( m_enable & HALTED ) {
 					cycles_passed(m_has_halt_bug ? 2 : 4);
 					m_execution_state = 1;

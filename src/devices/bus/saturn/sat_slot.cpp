@@ -29,17 +29,18 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type SATURN_CART_SLOT = device_creator<sat_cart_slot_device>;
+DEFINE_DEVICE_TYPE(SATURN_CART_SLOT, sat_cart_slot_device, "sat_cart_slot", "Saturn Cartridge Slot")
 
 
 //-------------------------------------------------
 //  device_sat_cart_interface - constructor
 //-------------------------------------------------
 
-device_sat_cart_interface::device_sat_cart_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig, device), m_cart_type(0),
-		m_rom(nullptr),
-		m_rom_size(0)
+device_sat_cart_interface::device_sat_cart_interface(const machine_config &mconfig, device_t &device, int cart_type) :
+	device_interface(device, "saturncart"),
+	m_cart_type(cart_type),
+	m_rom(nullptr),
+	m_rom_size(0)
 {
 }
 
@@ -102,9 +103,10 @@ void device_sat_cart_interface::dram1_alloc(uint32_t size)
 //  sat_cart_slot_device - constructor
 //-------------------------------------------------
 sat_cart_slot_device::sat_cart_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-						device_t(mconfig, SATURN_CART_SLOT, "Saturn Cartridge Slot", tag, owner, clock, "sat_cart_slot", __FILE__),
-						device_image_interface(mconfig, *this),
-						device_slot_interface(mconfig, *this), m_cart(nullptr)
+	device_t(mconfig, SATURN_CART_SLOT, tag, owner, clock),
+	device_image_interface(mconfig, *this),
+	device_single_card_slot_interface<device_sat_cart_interface>(mconfig, *this),
+	m_cart(nullptr)
 {
 }
 
@@ -123,7 +125,7 @@ sat_cart_slot_device::~sat_cart_slot_device()
 
 void sat_cart_slot_device::device_start()
 {
-	m_cart = dynamic_cast<device_sat_cart_interface *>(get_card_device());
+	m_cart = get_card_device();
 }
 
 
@@ -155,7 +157,7 @@ image_init_result sat_cart_slot_device::call_load()
 
 			// fix endianness....
 			for (int i = 0; i < len/4; i ++)
-				ROM[i] = BITSWAP32(ROM[i],7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,23,22,21,20,19,18,17,16,31,30,29,28,27,26,25,24);
+				ROM[i] = bitswap<32>(ROM[i],7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,23,22,21,20,19,18,17,16,31,30,29,28,27,26,25,24);
 //          {
 //              uint8_t tempa = ROM[i+0];
 //              uint8_t tempb = ROM[i+1];
@@ -196,7 +198,7 @@ void sat_cart_slot_device::call_unload()
  get default card software
  -------------------------------------------------*/
 
-std::string sat_cart_slot_device::get_default_card_software()
+std::string sat_cart_slot_device::get_default_card_software(get_default_card_software_hook &hook) const
 {
 	return software_get_default_slot("rom");
 }

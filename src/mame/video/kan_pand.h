@@ -8,8 +8,10 @@
 
 **************************************************************************/
 
-#ifndef __KAN_PAND_H__
-#define __KAN_PAND_H__
+#ifndef MAME_VIDEO_KAN_PAND_H
+#define MAME_VIDEO_KAN_PAND_H
+
+#pragma once
 
 /***************************************************************************
     TYPE DEFINITIONS
@@ -20,26 +22,25 @@ class kaneko_pandora_device : public device_t,
 {
 public:
 	kaneko_pandora_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~kaneko_pandora_device() {}
 
-	// static configuration
-	static void static_set_gfxdecode_tag(device_t &device, const char *tag);
-	static void set_gfx_region(device_t &device, int gfxregion) { downcast<kaneko_pandora_device &>(device).m_gfx_region = gfxregion; }
-	static void set_offsets(device_t &device, int x_offset, int y_offset)
+	// configuration
+	template <typename T> void set_gfxdecode_tag(T &&tag) { m_gfxdecode.set_tag(std::forward<T>(tag)); }
+	void set_gfx_region(int gfxregion) { m_gfx_region = gfxregion; }
+	void set_offsets(int x_offset, int y_offset)
 	{
-		kaneko_pandora_device &dev = downcast<kaneko_pandora_device &>(device);
-		dev.m_xoffset = x_offset;
-		dev.m_yoffset = y_offset;
+		m_xoffset = x_offset;
+		m_yoffset = y_offset;
 	}
 
-	DECLARE_WRITE8_MEMBER ( spriteram_w );
-	DECLARE_READ8_MEMBER( spriteram_r );
-	DECLARE_WRITE16_MEMBER( spriteram_LSB_w );
-	DECLARE_READ16_MEMBER( spriteram_LSB_r );
+	void spriteram_w(offs_t offset, uint8_t data);
+	uint8_t spriteram_r(offs_t offset);
+	void spriteram_LSB_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
+	uint16_t spriteram_LSB_r(offs_t offset);
 	void update( bitmap_ind16 &bitmap, const rectangle &cliprect );
 	void set_clear_bitmap( int clear );
 	void eof();
 	void set_bg_pen( int pen );
+	void flip_screen_set(bool flip) { m_flip_screen = flip; }
 
 protected:
 	// device-level overrides
@@ -57,23 +58,10 @@ private:
 	uint8_t           m_gfx_region;
 	int             m_xoffset;
 	int             m_yoffset;
+	bool            m_flip_screen;
 	required_device<gfxdecode_device> m_gfxdecode;
 };
 
-extern const device_type KANEKO_PANDORA;
+DECLARE_DEVICE_TYPE(KANEKO_PANDORA, kaneko_pandora_device)
 
-
-/***************************************************************************
-    DEVICE CONFIGURATION MACROS
-***************************************************************************/
-
-#define MCFG_KANEKO_PANDORA_GFX_REGION(_region) \
-	kaneko_pandora_device::set_gfx_region(*device, _region);
-
-#define MCFG_KANEKO_PANDORA_OFFSETS(_xoffs, _yoffs) \
-	kaneko_pandora_device::set_offsets(*device, _xoffs, _yoffs);
-
-#define MCFG_KANEKO_PANDORA_GFXDECODE(_gfxtag) \
-	kaneko_pandora_device::static_set_gfxdecode_tag(*device, "^" _gfxtag);
-
-#endif /* __KAN_PAND_H__ */
+#endif // MAME_VIDEO_KAN_PAND_H

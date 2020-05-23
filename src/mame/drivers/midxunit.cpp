@@ -77,17 +77,48 @@ Notes:                                                         |                
       P10      - 10 pin connector
       P12      - 4 pin connector
 
-There's a separate sound board also, but it wasn't available so is not documented here.
+There's a separate sound board also.
+
+SOUND BOARD - 5766-13959-01 - Williams Electronic Games Inc.
+________________________________________________________________
+|                   __________   __________  ________________   |
+|                   PC74HCT541P  |74HC541N_| |U9 M27C4001    |  |
+|                    __________  __________  |_______________|  |
+|                  CY7C128A-35PC |74HC541N_|   ________________ |
+|                                             |U8 M27C4001     ||
+|                    __________  __________   |________________||
+|                  CY7C128A-35PC SN74HC245N    ________________ |
+|                    __________  __________   |U7 M27C4001     ||
+|                  CY7C128A-35PC |74LS174N_|  |________________||
+|                                              ________________ |
+|                                __________   |U6 M27C4001     ||
+|                                |74HC174N_|  |________________||
+|                   __________                 ________________ |
+|                   |ADSP-2105|  __________   |U5 M27C4001     ||
+|             ____  |         |  M74HC138B1   |________________||
+|             XTAL  |         |  __________    ________________ |
+|        10.0000MHz |_________|  |_74F00PC_|  |U4 M27C4001     ||
+|                   __________   __________   |________________||
+|   __________ U17->|GAL16V8A_|  |_M7406N__|   ________________ |
+|SCC2691AC1N24 _________                      |U3 27C040-10    ||
+|    ________  |AD1851N_|                     |________________||
+|    M74HC14B1                                 ________________ |
+|    ________  _________                      |U2 M27C4001     ||
+|   AM26LS31CN |TL084CN_|                     |________________||
+|    ________  AUX-IN AUX-OUT                          FUSE     |
+|   AM26LS31CN                    _________                     |
+| :::::::::: <-SERIAL  PWR/PPKR-> ···· ····              ·· ··  |
+|_______________________________________________________________|
 
 **************************************************************************/
 
 #include "emu.h"
-#include "includes/midtunit.h"
 #include "includes/midxunit.h"
 #include "audio/dcs.h"
 
 #include "cpu/adsp2100/adsp2100.h"
 #include "cpu/tms34010/tms34010.h"
+#include "machine/adc0844.h"
 #include "machine/nvram.h"
 
 #include "screen.h"
@@ -103,24 +134,28 @@ There's a separate sound board also, but it wasn't available so is not documente
  *
  *************************************/
 
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, midxunit_state )
-	AM_RANGE(0x00000000, 0x003fffff) AM_READWRITE(midtunit_vram_data_r, midtunit_vram_data_w)
-	AM_RANGE(0x00800000, 0x00bfffff) AM_READWRITE(midtunit_vram_color_r, midtunit_vram_color_w)
-	AM_RANGE(0x20000000, 0x20ffffff) AM_RAM
-	AM_RANGE(0x40800000, 0x4fffffff) AM_WRITE(midxunit_unknown_w)
-	AM_RANGE(0x60400000, 0x6040001f) AM_READWRITE(midxunit_status_r, midxunit_security_clock_w)
-	AM_RANGE(0x60c00000, 0x60c0007f) AM_READ(midxunit_io_r)
-	AM_RANGE(0x60c00080, 0x60c000df) AM_WRITE(midxunit_io_w)
-	AM_RANGE(0x60c000e0, 0x60c000ff) AM_READWRITE(midxunit_security_r, midxunit_security_w)
-	AM_RANGE(0x80800000, 0x8080001f) AM_READWRITE(midxunit_analog_r, midxunit_analog_select_w)
-	AM_RANGE(0x80c00000, 0x80c000ff) AM_READWRITE(midxunit_uart_r, midxunit_uart_w)
-	AM_RANGE(0xa0440000, 0xa047ffff) AM_READWRITE(midxunit_cmos_r, midxunit_cmos_w) AM_SHARE("nvram")
-	AM_RANGE(0xa0800000, 0xa08fffff) AM_READWRITE(midxunit_paletteram_r, midxunit_paletteram_w) AM_SHARE("palette")
-	AM_RANGE(0xc0000000, 0xc00003ff) AM_DEVREADWRITE("maincpu", tms34020_device, io_register_r, io_register_w)
-	AM_RANGE(0xc0800000, 0xc08000ff) AM_MIRROR(0x00400000) AM_READWRITE(midtunit_dma_r, midtunit_dma_w)
-	AM_RANGE(0xf8000000, 0xfeffffff) AM_READ(midwunit_gfxrom_r)
-	AM_RANGE(0xff000000, 0xffffffff) AM_ROM AM_REGION("maincpu", 0)
-ADDRESS_MAP_END
+void midxunit_state::main_map(address_map &map)
+{
+	map(0x00000000, 0x003fffff).rw(m_video, FUNC(midxunit_video_device::midtunit_vram_data_r), FUNC(midxunit_video_device::midtunit_vram_data_w));
+	map(0x00800000, 0x00bfffff).rw(m_video, FUNC(midxunit_video_device::midtunit_vram_color_r), FUNC(midxunit_video_device::midtunit_vram_color_w));
+	map(0x20000000, 0x20ffffff).ram();
+	map(0x40800000, 0x4fffffff).w(FUNC(midxunit_state::midxunit_unknown_w));
+	map(0x60400000, 0x6040001f).rw(FUNC(midxunit_state::midxunit_status_r), FUNC(midxunit_state::midxunit_security_clock_w));
+	map(0x60c00000, 0x60c0001f).portr("IN0");
+	map(0x60c00020, 0x60c0003f).portr("IN1");
+	map(0x60c00040, 0x60c0005f).portr("IN2");
+	map(0x60c00060, 0x60c0007f).portr("DSW");
+	map(0x60c00080, 0x60c000df).w(FUNC(midxunit_state::midxunit_io_w));
+	map(0x60c000e0, 0x60c000ff).rw(FUNC(midxunit_state::midxunit_security_r), FUNC(midxunit_state::midxunit_security_w));
+	map(0x80800000, 0x8080000f).r("adc", FUNC(adc0848_device::read)).umask16(0x00ff).w("adc", FUNC(adc0848_device::write)).umask16(0x00ff);
+	map(0x80800010, 0x8080001f).noprw();
+	map(0x80c00000, 0x80c000ff).rw(FUNC(midxunit_state::midxunit_uart_r), FUNC(midxunit_state::midxunit_uart_w));
+	map(0xa0440000, 0xa047ffff).rw(FUNC(midxunit_state::midxunit_cmos_r), FUNC(midxunit_state::midxunit_cmos_w)).share("nvram");
+	map(0xa0800000, 0xa08fffff).rw(m_video, FUNC(midxunit_video_device::midxunit_paletteram_r), FUNC(midxunit_video_device::midxunit_paletteram_w)).share("palette");
+	map(0xc0800000, 0xc08000ff).mirror(0x00400000).rw(m_video, FUNC(midxunit_video_device::midtunit_dma_r), FUNC(midxunit_video_device::midtunit_dma_w));
+	map(0xf8000000, 0xfeffffff).r(m_video, FUNC(midxunit_video_device::midwunit_gfxrom_r));
+	map(0xff000000, 0xffffffff).rom().region("maincpu", 0);
+}
 
 
 
@@ -161,7 +196,7 @@ static INPUT_PORTS_START( revx )
 	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_VOLUME_DOWN )
 	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_VOLUME_UP )
-	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_SPECIAL ) /* coin door */
+	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_CUSTOM ) /* coin door */
 	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_BILL1 ) /* bill validator */
 
@@ -210,28 +245,22 @@ static INPUT_PORTS_START( revx )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ))
 
 	PORT_START("AN0")
-	PORT_BIT( 0x00ff, 0x0080, IPT_AD_STICK_X ) PORT_SENSITIVITY(20) PORT_KEYDELTA(10) PORT_REVERSE PORT_PLAYER(1)
-	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_CROSSHAIR(X, -1.0, 0.0, 0) PORT_SENSITIVITY(20) PORT_KEYDELTA(10) PORT_REVERSE PORT_PLAYER(1)
 
 	PORT_START("AN1")
-	PORT_BIT( 0x00ff, 0x0080, IPT_AD_STICK_Y ) PORT_SENSITIVITY(20) PORT_KEYDELTA(10) PORT_PLAYER(1)
-	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_SENSITIVITY(20) PORT_KEYDELTA(10) PORT_PLAYER(1)
 
 	PORT_START("AN2")
-	PORT_BIT( 0x00ff, 0x0080, IPT_AD_STICK_X ) PORT_SENSITIVITY(20) PORT_KEYDELTA(10) PORT_REVERSE PORT_PLAYER(2)
-	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_CROSSHAIR(X, -1.0, 0.0, 0) PORT_SENSITIVITY(20) PORT_KEYDELTA(10) PORT_REVERSE PORT_PLAYER(2)
 
 	PORT_START("AN3")
-	PORT_BIT( 0x00ff, 0x0080, IPT_AD_STICK_Y ) PORT_SENSITIVITY(20) PORT_KEYDELTA(10) PORT_PLAYER(2)
-	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_SENSITIVITY(20) PORT_KEYDELTA(10) PORT_PLAYER(2)
 
 	PORT_START("AN4")
-	PORT_BIT( 0x00ff, 0x0080, IPT_AD_STICK_X ) PORT_SENSITIVITY(20) PORT_KEYDELTA(10) PORT_REVERSE PORT_PLAYER(3)
-	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_CROSSHAIR(X, -1.0, 0.0, 0) PORT_SENSITIVITY(20) PORT_KEYDELTA(10) PORT_REVERSE PORT_PLAYER(3)
 
 	PORT_START("AN5")
-	PORT_BIT( 0x00ff, 0x0080, IPT_AD_STICK_Y ) PORT_SENSITIVITY(20) PORT_KEYDELTA(10) PORT_PLAYER(3)
-	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_SENSITIVITY(20) PORT_KEYDELTA(10) PORT_PLAYER(3)
 INPUT_PORTS_END
 
 
@@ -241,38 +270,47 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static MACHINE_CONFIG_START( midxunit, midxunit_state )
+void midxunit_state::midxunit(machine_config &config)
+{
+	MIDXUNIT_VIDEO(config, m_video, m_maincpu, m_palette, m_gfxrom);
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", TMS34020, 40000000)
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_TMS340X0_HALT_ON_RESET(false) /* halt on reset */
-	MCFG_TMS340X0_PIXEL_CLOCK(PIXEL_CLOCK) /* pixel clock */
-	MCFG_TMS340X0_PIXELS_PER_CLOCK(1) /* pixels per clock */
-	MCFG_TMS340X0_SCANLINE_IND16_CB(midxunit_state, scanline_update)       /* scanline updater (indexed16) */
-	MCFG_TMS340X0_TO_SHIFTREG_CB(midtunit_state, to_shiftreg)           /* write to shiftreg function */
-	MCFG_TMS340X0_FROM_SHIFTREG_CB(midtunit_state, from_shiftreg)          /* read from shiftreg function */
+	TMS34020(config, m_maincpu, 40000000);
+	m_maincpu->set_addrmap(AS_PROGRAM, &midxunit_state::main_map);
+	m_maincpu->set_halt_on_reset(false);        /* halt on reset */
+	m_maincpu->set_pixel_clock(PIXEL_CLOCK);    /* pixel clock */
+	m_maincpu->set_pixels_per_clock(1);         /* pixels per clock */
+	m_maincpu->set_scanline_ind16_callback("video", FUNC(midxunit_video_device::scanline_update));  /* scanline updater (indexed16) */
+	m_maincpu->set_shiftreg_in_callback("video", FUNC(midxunit_video_device::to_shiftreg));         /* write to shiftreg function */
+	m_maincpu->set_shiftreg_out_callback("video", FUNC(midtunit_video_device::from_shiftreg));      /* read from shiftreg function */
+	m_maincpu->set_screen("screen");
 
-	MCFG_MACHINE_RESET_OVERRIDE(midxunit_state,midxunit)
-	MCFG_NVRAM_ADD_0FILL("nvram")
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
 	/* video hardware */
-	MCFG_PALETTE_ADD("palette", 32768)
-	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+	PALETTE(config, "palette").set_format(palette_device::xRGB_555, 32768);
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 506, 101, 501, 289, 20, 274)
-	MCFG_SCREEN_UPDATE_DEVICE("maincpu", tms34010_device, tms340x0_ind16)
-	MCFG_SCREEN_PALETTE("palette")
-	MCFG_VIDEO_START_OVERRIDE(midxunit_state,midxunit)
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_raw(PIXEL_CLOCK, 506, 101, 501, 289, 20, 274);
+	screen.set_screen_update("maincpu", FUNC(tms34010_device::tms340x0_ind16));
+	screen.set_palette(m_palette);
 
-	MCFG_DEVICE_ADD("serial_pic", MIDWAY_SERIAL_PIC, 0)
+	MIDWAY_SERIAL_PIC(config, m_midway_serial_pic, 0);
 	/* serial prefixes 419, 420 */
-	MCFG_MIDWAY_SERIAL_PIC_UPPER(419);
+	m_midway_serial_pic->set_upper(419);
+
+	adc0848_device &adc(ADC0848(config, "adc"));
+	adc.intr_callback().set(FUNC(midxunit_state::adc_int_w)); // ADC INT passed through PLSI1032
+	adc.ch1_callback().set_ioport("AN0");
+	adc.ch2_callback().set_ioport("AN1");
+	adc.ch3_callback().set_ioport("AN2");
+	adc.ch4_callback().set_ioport("AN3");
+	adc.ch5_callback().set_ioport("AN4");
+	adc.ch6_callback().set_ioport("AN5");
 
 	/* sound hardware */
-	MCFG_DEVICE_ADD("dcs", DCS_AUDIO_2K_UART, 0)
-MACHINE_CONFIG_END
+	DCS_AUDIO_2K_UART(config, m_dcs, 0);
+}
 
 
 
@@ -343,9 +381,10 @@ ROM_START( revx )
 	ROM_LOAD32_BYTE( "revx.53",  0x0e00002, 0x80000, CRC(a045b265) SHA1(b294d3a56e41f5ec4ab9bbcc0088833b1cab1879) )
 	ROM_LOAD32_BYTE( "revx.54",  0x0e00003, 0x80000, CRC(24471269) SHA1(262345bd147402100785459af422dafd1c562787) )
 
-	ROM_REGION( 0x400, "plds", 0 )
+	ROM_REGION( 0x600, "plds", 0 )
 	ROM_LOAD( "a-17722.u1",   0x000, 0x117, CRC(054de7a3) SHA1(bb7abaec50ed704c03b44d5d54296898f7c80d38) )
 	ROM_LOAD( "a-17721.u955", 0x200, 0x117, CRC(033fe902) SHA1(6efb4e519ed3c9d49fff046a679762b506b3a75b) )
+	ROM_LOAD( "snd-gal16v8a.u17", 0x400, 0x117, NO_DUMP ) // Protected
 ROM_END
 
 ROM_START( revxp5 )
@@ -409,11 +448,11 @@ ROM_START( revxp5 )
 	ROM_LOAD32_BYTE( "revx_p5.53",  0xe00002, 0x80000, CRC(fcfcf72a) SHA1(b471afb416e3d348b046b0b40f497d27b0afa470) )
 	ROM_LOAD32_BYTE( "revx_p5.54",  0xe00003, 0x80000, CRC(fd684c31) SHA1(db3453792e4d9fc375297d030f0b3f9cc3cad925) )
 
-	ROM_REGION( 0x400, "plds", 0 )
-	ROM_LOAD( "a-17722.u1",   0x000, 0x117, CRC(054de7a3) SHA1(bb7abaec50ed704c03b44d5d54296898f7c80d38) )
-	ROM_LOAD( "a-17721.u955", 0x200, 0x117, CRC(033fe902) SHA1(6efb4e519ed3c9d49fff046a679762b506b3a75b) )
+	ROM_REGION( 0x600, "plds", 0 )
+	ROM_LOAD( "a-17722.u1",       0x000, 0x117, CRC(054de7a3) SHA1(bb7abaec50ed704c03b44d5d54296898f7c80d38) )
+	ROM_LOAD( "a-17721.u955",     0x200, 0x117, CRC(033fe902) SHA1(6efb4e519ed3c9d49fff046a679762b506b3a75b) )
+	ROM_LOAD( "snd-gal16v8a.u17", 0x400, 0x117, NO_DUMP ) // Protected
 ROM_END
-
 
 
 /*************************************
@@ -422,5 +461,5 @@ ROM_END
  *
  *************************************/
 
-GAME( 1994, revx,     0,    midxunit, revx, midxunit_state, revx, ROT0, "Midway",   "Revolution X (rev 1.0 6/16/94)", MACHINE_SUPPORTS_SAVE )
-GAME( 1994, revxp5,   revx, midxunit, revx, midxunit_state, revx, ROT0, "Midway",   "Revolution X (prototype, rev 5.0 5/23/94)", MACHINE_SUPPORTS_SAVE )
+GAME( 1994, revx,     0,    midxunit, revx, midxunit_state, empty_init, ROT0, "Midway",   "Revolution X (rev 1.0 6/16/94)", MACHINE_SUPPORTS_SAVE )
+GAME( 1994, revxp5,   revx, midxunit, revx, midxunit_state, empty_init, ROT0, "Midway",   "Revolution X (prototype, rev 5.0 5/23/94)", MACHINE_SUPPORTS_SAVE )

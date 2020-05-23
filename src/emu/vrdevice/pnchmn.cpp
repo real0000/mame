@@ -5,7 +5,7 @@
 #include "modelfile.h"
 #include "pnchmn.h"
 #include "pnchmn_event.def"
-#include "gtx/vector_angle.hpp"
+#include "glm/gtx/vector_angle.hpp"
 
 #define PAD_IDENTIFY "Pad"
 #define PUNCH_IDENTIFY "Punch"
@@ -32,6 +32,7 @@ vr_device_pnchmn::vr_device_pnchmn()
     , m_pDefMaterial(nullptr)
     //, m_bAutoFireFlag(false), m_bAutoFirState(false)
 	, m_bAtatatata(false)
+	, m_AtataDiv(6.0f)
     , m_PadDeadZone(glm::pi<float>() / 4.0f), m_PunchFix(0.0f)
     , m_PunchWeight(200.0f)
 {
@@ -65,8 +66,10 @@ void vr_device_pnchmn::initMachine(vr_option &a_Config, std::vector<vr_machine::
     m_PunchWeight = a_Config.getParamValue("machine", "punch_weight", 200.0f);
     m_DriverSpeed[0] = -std::abs(a_Config.getParamValue("machine", "motor_drive_to_front", 8.0f));
 	m_DriverSpeed[1] = std::abs(a_Config.getParamValue("machine", "motor_drive_to_back", 8.0f));
+	m_DriverSpeed[2] = -std::abs(a_Config.getParamValue("machine", "motor_drive_atatatata", 8.0f));
     m_PadDeadZone = glm::radians(a_Config.getParamValue("machine", "pad_dead_zone", 45.0f));
     m_PunchFix = a_Config.getParamValue("machine", "punch_pos_fix", 0.0f);
+	m_AtataDiv = glm::radians(90.0f) / a_Config.getParamValue("machine", "atata_div", 6.0f);
     
     std::map<std::string, int> l_FxMap;
     {// init all fx
@@ -282,8 +285,6 @@ void vr_device_pnchmn::initMachine(vr_option &a_Config, std::vector<vr_machine::
 
 void vr_device_pnchmn::update(const int a_Time)
 {
-    //if( m_bAutoFireFlag ) m_bAutoFirState = !m_bAutoFirState;
-
     getPhysxScene()->lockWrite();
     for( auto it=m_PunchMap.begin() ; it!=m_PunchMap.end() ; ++it )
     {
@@ -366,7 +367,6 @@ void vr_device_pnchmn::handleInput(vr::VREvent_t a_VrEvent)
                     }break;
 
                 case vr::k_EButton_Grip:
-                    //m_bAutoFireFlag = true;
                     break;
             }
             }break;
@@ -380,7 +380,6 @@ void vr_device_pnchmn::handleInput(vr::VREvent_t a_VrEvent)
                     }break;
 
                 case vr::k_EButton_Grip:
-                    //m_bAutoFireFlag = false;
                     break;
             }
             }break;
@@ -411,6 +410,10 @@ void vr_device_pnchmn::sendMessage(int a_ArgCount, va_list a_ArgList)
 								m_Pads[LIGHT_SWITCH_RT].m_LightOn &&
 								m_Pads[LIGHT_SWITCH_RM].m_LightOn &&
 								m_Pads[LIGHT_SWITCH_RB].m_LightOn;
+				if( m_bAtatatata )
+				{
+					for( unsigned int j=0 ; j<PNCHMN_NUMPAD ; ++j ) m_Pads[j].m_pBone->setDriveVelocity(m_DriverSpeed[2]);
+				}
                 }break;
 
             case MOTOR_LT:
@@ -449,10 +452,8 @@ void* vr_device_pnchmn::getHandleState(int a_Handle)
 			int64_t l_Result = PAD_IO_MIN;
 			if( m_bAtatatata )
 			{
-				const float c_Angles[] = {glm::radians(22.5f), glm::radians(45.0f), glm::radians(67.5f)};
-				if( m_Pads[l_PadIdx].m_CurrAngle < c_Angles[0] ) l_Result = PAD_IO_MIN;
-				else if( m_Pads[l_PadIdx].m_CurrAngle < c_Angles[1] ) l_Result = PAD_IO_MAX;
-				else if( m_Pads[l_PadIdx].m_CurrAngle < c_Angles[2] ) l_Result = PAD_IO_MIN;
+				int l_Count = (int)m_Pads[l_PadIdx].m_CurrAngle / m_AtataDiv;
+				if( l_Count % 2 == 0 ) l_Result = PAD_IO_MIN;
 				else l_Result = PAD_IO_MAX;
 			}
 			else

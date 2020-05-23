@@ -22,8 +22,11 @@ namespace ui {
     CONSTANTS
 ***************************************************************************/
 
-/* time (in seconds) to display errors */
+// time (in seconds) to display errors
 #define ERROR_MESSAGE_TIME      5
+
+// item reference for "Switch Item Ordering"
+#define ITEMREF_SWITCH_ITEM_ORDERING    ((void *)1)
 
 
 /***************************************************************************
@@ -72,38 +75,40 @@ menu_software_parts::~menu_software_parts()
 
 void menu_software_parts::populate(float &customtop, float &custombottom)
 {
+	m_entries.clear();
+
 	if (m_other_opt)
 	{
-		software_part_menu_entry *entry1 = (software_part_menu_entry *) m_pool_alloc(sizeof(*entry1));
-		entry1->type = result::EMPTY;
-		entry1->part = nullptr;
-		item_append(_("[empty slot]"), "", 0, entry1);
+		software_part_menu_entry &entry1(*m_entries.emplace(m_entries.end()));
+		entry1.type = result::EMPTY;
+		entry1.part = nullptr;
+		item_append(_("[empty slot]"), "", 0, &entry1);
 
-		software_part_menu_entry *entry2 = (software_part_menu_entry *) m_pool_alloc(sizeof(*entry2));
-		entry2->type = result::FMGR;
-		entry2->part = nullptr;
-		item_append(_("[file manager]"), "", 0, entry2);
+		software_part_menu_entry &entry2(*m_entries.emplace(m_entries.end()));
+		entry2.type = result::FMGR;
+		entry2.part = nullptr;
+		item_append(_("[file manager]"), "", 0, &entry2);
 
 
-		software_part_menu_entry *entry3 = (software_part_menu_entry *) m_pool_alloc(sizeof(*entry3));
-		entry3->type = result::SWLIST;
-		entry3->part = nullptr;
-		item_append(_("[software list]"), "", 0, entry3);
+		software_part_menu_entry &entry3(*m_entries.emplace(m_entries.end()));
+		entry3.type = result::SWLIST;
+		entry3.part = nullptr;
+		item_append(_("[software list]"), "", 0, &entry3);
 	}
 
 	for (const software_part &swpart : m_info->parts())
 	{
 		if (swpart.matches_interface(m_interface))
 		{
-			software_part_menu_entry *entry = (software_part_menu_entry *) m_pool_alloc(sizeof(*entry));
+			software_part_menu_entry &entry(*m_entries.emplace(m_entries.end()));
 			// check if the available parts have specific part_id to be displayed (e.g. "Map Disc", "Bonus Disc", etc.)
 			// if not, we simply display "part_name"; if yes we display "part_name (part_id)"
 			std::string menu_part_name(swpart.name());
 			if (swpart.feature("part_id") != nullptr)
 				menu_part_name.append(" (").append(swpart.feature("part_id")).append(")");
-			entry->type = result::ENTRY;
-			entry->part = &swpart;
-			item_append(m_info->shortname(), menu_part_name, 0, entry);
+			entry.type = result::ENTRY;
+			entry.part = &swpart;
+			item_append(m_info->shortname(), menu_part_name, 0, &entry);
 		}
 	}
 }
@@ -214,12 +219,15 @@ void menu_software_list::append_software_entry(const software_info &swinfo)
 
 void menu_software_list::populate(float &customtop, float &custombottom)
 {
+	// clear all entries before populating
+	m_entrylist.clear();
+
 	// build up the list of entries for the menu
 	for (const software_info &swinfo : m_swlist->get_info())
 		append_software_entry(swinfo);
 
 	// add an entry to change ordering
-	item_append(_("Switch Item Ordering"), "", 0, (void *)1);
+	item_append(_("Switch Item Ordering"), "", 0, ITEMREF_SWITCH_ITEM_ORDERING);
 
 	// append all of the menu entries
 	for (auto &entry : m_entrylist)
@@ -241,7 +249,7 @@ void menu_software_list::handle()
 
 	if (event && event->itemref)
 	{
-		if ((uintptr_t)event->itemref == 1 && event->iptkey == IPT_UI_SELECT)
+		if (event->itemref == ITEMREF_SWITCH_ITEM_ORDERING && event->iptkey == IPT_UI_SELECT)
 		{
 			m_ordered_by_shortname = !m_ordered_by_shortname;
 
@@ -349,7 +357,7 @@ void menu_software::populate(float &customtop, float &custombottom)
 	// Add original software lists for this system
 	software_list_device_iterator iter(machine().config().root_device());
 	for (software_list_device &swlistdev : iter)
-		if (swlistdev.list_type() == SOFTWARE_LIST_ORIGINAL_SYSTEM)
+		if (swlistdev.is_original())
 			if (!swlistdev.get_info().empty() && m_interface != nullptr)
 			{
 				bool found = false;
@@ -366,7 +374,7 @@ void menu_software::populate(float &customtop, float &custombottom)
 
 	// add compatible software lists for this system
 	for (software_list_device &swlistdev : iter)
-		if (swlistdev.list_type() == SOFTWARE_LIST_COMPATIBLE_SYSTEM)
+		if (swlistdev.is_compatible())
 			if (!swlistdev.get_info().empty() && m_interface != nullptr)
 			{
 				bool found = false;

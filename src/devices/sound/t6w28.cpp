@@ -39,7 +39,7 @@ Offset 0:
 
 #define STEP 0x10000
 
-WRITE8_MEMBER( t6w28_device::write )
+void t6w28_device::write(offs_t offset, uint8_t data)
 {
 	int n, r, c;
 
@@ -347,10 +347,11 @@ void t6w28_device::set_enable(bool enable)
 	m_enabled = enable;
 }
 
-const device_type T6W28 = device_creator<t6w28_device>;
+DEFINE_DEVICE_TYPE(T6W28, t6w28_device, "t6w28", "T6W28")
 
 t6w28_device::t6w28_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, T6W28, "T6W28", tag, owner, clock, "t6w28", __FILE__),
-		device_sound_interface(mconfig, *this)
+	: device_t(mconfig, T6W28, tag, owner, clock)
+	, device_sound_interface(mconfig, *this)
+	, m_channel(nullptr)
 {
 }

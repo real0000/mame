@@ -16,22 +16,18 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type ISA8_SIDE116 = device_creator<side116_device>;
+DEFINE_DEVICE_TYPE(ISA8_SIDE116, side116_device, "side116", "Acculogic sIDE-1/16 IDE Disk Controller")
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( side116 )
-	MCFG_ATA_INTERFACE_ADD("ata", ata_devices, "hdd", nullptr, false)
-	MCFG_ATA_INTERFACE_IRQ_HANDLER(WRITELINE(side116_device, ide_interrupt))
-MACHINE_CONFIG_END
-
-machine_config_constructor side116_device::device_mconfig_additions() const
+void side116_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( side116 );
+	ATA_INTERFACE(config, m_ata).options(ata_devices, "hdd", nullptr, false);
+	m_ata->irq_handler().set(FUNC(side116_device::ide_interrupt));
 }
+
 
 //-------------------------------------------------
 //  input_ports - device-specific input ports
@@ -88,7 +84,7 @@ const tiny_rom_entry *side116_device::device_rom_region() const
 //-------------------------------------------------
 
 side116_device::side116_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, ISA8_SIDE116, "Acculogic sIDE-1/16 IDE Disk Controller", tag, owner, clock, "side116", __FILE__),
+	device_t(mconfig, ISA8_SIDE116, tag, owner, clock),
 	device_isa8_card_interface( mconfig, *this ),
 	m_ata(*this, "ata"),
 	m_config(*this, "configuration"),
@@ -125,7 +121,7 @@ void side116_device::device_reset()
 
 	// install io access
 	if ((m_config->read() & 0x20) == 0x20)
-		m_isa->install_device(0x360, 0x36f, read8_delegate(FUNC(side116_device::read), this), write8_delegate(FUNC(side116_device::write), this));
+		m_isa->install_device(0x360, 0x36f, read8_delegate(*this, FUNC(side116_device::read)), write8_delegate(*this, FUNC(side116_device::write)));
 }
 
 
@@ -139,13 +135,13 @@ READ8_MEMBER( side116_device::read )
 
 	if (offset == 0)
 	{
-		uint16_t ide_data = m_ata->read_cs0(space, 0, 0xffff);
+		uint16_t ide_data = m_ata->cs0_r(0);
 		data = ide_data & 0xff;
 		m_latch = ide_data >> 8;
 	}
 	else if (offset < 8)
 	{
-		data = m_ata->read_cs0(space, offset & 7, 0xff);
+		data = m_ata->cs0_r(offset & 7, 0xff);
 	}
 	else if (offset == 8)
 	{
@@ -153,7 +149,7 @@ READ8_MEMBER( side116_device::read )
 	}
 	else
 	{
-		data = m_ata->read_cs1(space, offset & 7, 0xff);
+		data = m_ata->cs1_r(offset & 7, 0xff);
 	}
 
 	return data;
@@ -164,11 +160,11 @@ WRITE8_MEMBER( side116_device::write )
 	if (offset == 0)
 	{
 		uint16_t ide_data = (m_latch << 8) | data;
-		m_ata->write_cs0(space, 0, ide_data, 0xffff);
+		m_ata->cs0_w(0, ide_data);
 	}
 	else if (offset < 8)
 	{
-		m_ata->write_cs0(space, offset & 7, data, 0xff);
+		m_ata->cs0_w(offset & 7, data, 0xff);
 	}
 	else if (offset == 8)
 	{
@@ -176,7 +172,7 @@ WRITE8_MEMBER( side116_device::write )
 	}
 	else
 	{
-		m_ata->write_cs1(space, offset & 7, data, 0xff);
+		m_ata->cs1_w(offset & 7, data, 0xff);
 	}
 }
 

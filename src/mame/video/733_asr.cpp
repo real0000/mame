@@ -27,7 +27,8 @@
 
 #include "emu.h"
 #include "733_asr.h"
-#include "screen.h"
+
+#include <algorithm>
 
 enum
 {
@@ -68,24 +69,19 @@ static const gfx_layout fontlayout =
 	8*8 /* every char takes 8 consecutive bytes */
 };
 
-static GFXDECODE_START( asr733 )
+static GFXDECODE_START( gfx_asr733 )
 	GFXDECODE_ENTRY( asr733_chr_region, 0, fontlayout, 0, 1 )
 GFXDECODE_END
 
-PALETTE_INIT_MEMBER(asr733_device, asr733)
-{
-	palette.set_pen_color(0, rgb_t::white()); /* white */
-	palette.set_pen_color(1, rgb_t::black()); /* black */
-}
 
-
-const device_type ASR733 = device_creator<asr733_device>;
+DEFINE_DEVICE_TYPE(ASR733, asr733_device, "asr733", "733 ASR")
 
 asr733_device::asr733_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, ASR733, "733 ASR", tag, owner, clock, "asr733", __FILE__),
-		device_gfx_interface(mconfig, *this, GFXDECODE_NAME(asr733), "palette"),
-		m_keyint_line(*this),
-		m_lineint_line(*this)
+	: device_t(mconfig, ASR733, tag, owner, clock)
+	, device_gfx_interface(mconfig, *this, gfx_asr733, "palette")
+	, m_screen(*this, "screen")
+	, m_keyint_line(*this)
+	, m_lineint_line(*this)
 {
 }
 
@@ -95,10 +91,9 @@ asr733_device::asr733_device(const machine_config &mconfig, const char *tag, dev
 
 void asr733_device::device_start()
 {
-	screen_device *screen = machine().first_screen();
-	int width = screen->width();
-	int height = screen->height();
-	const rectangle &visarea = screen->visible_area();
+	int width = m_screen->width();
+	int height = m_screen->height();
+	const rectangle &visarea = m_screen->visible_area();
 
 	m_last_key_pressed = 0x80;
 	m_bitmap = std::make_unique<bitmap_ind16>(width, height);
@@ -208,9 +203,11 @@ void asr733_device::linefeed()
 {
 	uint8_t buf[asr_window_width];
 
+	assert(asr_window_offset_x + asr_window_width <= m_bitmap->width());
+	assert(asr_window_offset_y + asr_window_height <= m_bitmap->height());
 	for (int y=asr_window_offset_y; y<asr_window_offset_y+asr_window_height-asr_scroll_step; y++)
 	{
-		extract_scanline8(*m_bitmap, asr_window_offset_x, y+asr_scroll_step, asr_window_width, buf);
+		std::copy_n(&m_bitmap->pix16(y+asr_scroll_step, asr_window_offset_x), asr_window_width, buf);
 		draw_scanline8(*m_bitmap, asr_window_offset_x, y, asr_window_width, buf, palette().pens());
 	}
 
@@ -318,11 +315,11 @@ void asr733_device::receive_callback(int dummy)
     14: DSR data set ready, 1 if online
     15: INT interrupt, 1 if interrupt
 */
-READ8_MEMBER( asr733_device::cru_r )
+uint8_t asr733_device::cru_r(offs_t offset)
 {
 	int reply = 0;
 
-	switch (offset)
+	switch (offset >> 3)
 	{
 	case 0:
 		/* receive buffer */
@@ -335,7 +332,7 @@ READ8_MEMBER( asr733_device::cru_r )
 		break;
 	}
 
-	return reply;
+	return BIT(reply, offset & 7);
 }
 
 /*
@@ -349,7 +346,7 @@ READ8_MEMBER( asr733_device::cru_r )
     14: enable interrupts, 1 to enable interrupts
     15: diagnostic mode, 0 for normal mode
 */
-WRITE8_MEMBER( asr733_device::cru_w )
+void asr733_device::cru_w(offs_t offset, uint8_t data)
 {
 	switch (offset)
 	{
@@ -710,19 +707,6 @@ uint32_t asr733_device::screen_update(screen_device &screen, bitmap_ind16 &bitma
 	return 0;
 }
 
-static MACHINE_CONFIG_FRAGMENT( asr733 )
-	MCFG_PALETTE_ADD("palette", 2)
-	MCFG_PALETTE_INIT_OWNER(asr733_device, asr733)
-
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_SCREEN_UPDATE_DEVICE(DEVICE_SELF, asr733_device, screen_update)
-
-	MCFG_SCREEN_SIZE(640, 480)
-	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
-	MCFG_SCREEN_PALETTE("palette")
-MACHINE_CONFIG_END
 
 INPUT_PORTS_START( asr733 )
 	PORT_START("KEY0")  /* keys 1-16 */                                                                 \
@@ -793,11 +777,19 @@ ioport_constructor asr733_device::device_input_ports() const
 }
 
 //-------------------------------------------------
-//  machine_config_additions - return a pointer to
-//  the device's machine fragment
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor asr733_device::device_mconfig_additions() const
+
+void asr733_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( asr733 );
+	PALETTE(config, "palette", palette_device::MONOCHROME_INVERTED);
+
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_refresh_hz(60);
+	m_screen->set_vblank_time(ATTOSECONDS_IN_USEC(2500)); /* not accurate */
+	m_screen->set_screen_update(FUNC(asr733_device::screen_update));
+	m_screen->set_size(640, 480);
+	m_screen->set_visarea(0, 640-1, 0, 480-1);
+	m_screen->set_palette("palette");
 }

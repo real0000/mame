@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_C64_EXOS_H
+#define MAME_BUS_C64_EXOS_H
 
-#ifndef __EXOS__
-#define __EXOS__
+#pragma once
 
 
 #include "exp.h"
@@ -34,13 +34,13 @@ protected:
 	virtual void device_start() override;
 
 	// device_c64_expansion_card_interface overrides
-	virtual uint8_t c64_cd_r(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2) override;
+	virtual uint8_t c64_cd_r(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2) override;
 	virtual int c64_game_r(offs_t offset, int sphi2, int ba, int rw) override;
 };
 
 
 // device type definition
-extern const device_type C64_EXOS;
+DECLARE_DEVICE_TYPE(C64_EXOS, c64_exos_cartridge_device)
 
 
-#endif
+#endif // MAME_BUS_C64_EXOS_H

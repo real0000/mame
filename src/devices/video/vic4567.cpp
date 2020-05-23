@@ -59,8 +59,8 @@
 #define VIC6567_Y_BEGIN         -6             /* first 6 lines after retrace not for lightpen! */
 #define VIC6569_X_BEGIN         38
 #define VIC6569_Y_BEGIN         -6
-#define VIC2_X_BEGIN            ((m_type == VIC4567_PAL) ? VIC6569_X_BEGIN : VIC6567_X_BEGIN)
-#define VIC2_Y_BEGIN            ((m_type == VIC4567_PAL) ? VIC6569_Y_BEGIN : VIC6567_Y_BEGIN)
+#define VIC2_X_BEGIN            ((m_type == vic3_type::PAL) ? VIC6569_X_BEGIN : VIC6567_X_BEGIN)
+#define VIC2_Y_BEGIN            ((m_type == vic3_type::PAL) ? VIC6569_Y_BEGIN : VIC6567_Y_BEGIN)
 #define VIC2_X_VALUE            ((LIGHTPEN_X_VALUE + VIC2_X_BEGIN + VIC2_MAME_XPOS) / 2)
 #define VIC2_Y_VALUE            ((LIGHTPEN_Y_VALUE + VIC2_Y_BEGIN + VIC2_MAME_YPOS))
 
@@ -127,12 +127,12 @@
 #define FOREGROUNDCOLOR         (m_reg[0x24] & 0x0f)
 
 
-#define VIC2_LINES      (m_type == VIC4567_PAL ? VIC6569_LINES : VIC6567_LINES)
-#define VIC2_VISIBLELINES   (m_type == VIC4567_PAL ? VIC6569_VISIBLELINES : VIC6567_VISIBLELINES)
-#define VIC2_VISIBLECOLUMNS (m_type == VIC4567_PAL ? VIC6569_VISIBLECOLUMNS : VIC6567_VISIBLECOLUMNS)
+#define VIC2_LINES      (m_type == vic3_type::PAL ? VIC6569_LINES : VIC6567_LINES)
+#define VIC2_VISIBLELINES   (m_type == vic3_type::PAL ? VIC6569_VISIBLELINES : VIC6567_VISIBLELINES)
+#define VIC2_VISIBLECOLUMNS (m_type == vic3_type::PAL ? VIC6569_VISIBLECOLUMNS : VIC6567_VISIBLECOLUMNS)
 #define VIC2_STARTVISIBLELINES ((VIC2_LINES - VIC2_VISIBLELINES)/2)
-#define VIC2_FIRSTRASTERLINE  (m_type == VIC4567_PAL ? VIC6569_FIRSTRASTERLINE : VIC6567_FIRSTRASTERLINE)
-#define VIC2_COLUMNS          (m_type == VIC4567_PAL ? VIC6569_COLUMNS : VIC6567_COLUMNS)
+#define VIC2_FIRSTRASTERLINE  (m_type == vic3_type::PAL ? VIC6569_FIRSTRASTERLINE : VIC6567_FIRSTRASTERLINE)
+#define VIC2_COLUMNS          (m_type == vic3_type::PAL ? VIC6569_COLUMNS : VIC6567_COLUMNS)
 #define VIC2_STARTVISIBLECOLUMNS ((VIC2_COLUMNS - VIC2_VISIBLECOLUMNS)/2)
 
 #define VIC3_BITPLANES_MASK (m_reg[0x32])
@@ -145,22 +145,22 @@
 #define VIC3_BITPLANE_IADDR(x) (x & 1 ? VIC3_BITPLANE_IADDR_HELPER(x) + 0x10000 : VIC3_BITPLANE_IADDR_HELPER(x))
 
 
-const device_type VIC3 = device_creator<vic3_device>;
+DEFINE_DEVICE_TYPE(VIC3, vic3_device, "vic3", "CSG 4567 VIC-III")
 
 vic3_device::vic3_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-			: device_t(mconfig, VIC3, "4567 VIC III", tag, owner, clock, "vic3", __FILE__),
-				device_video_interface(mconfig, *this),
-				m_type(VIC4567_NTSC),
-				m_cpu(*this, finder_base::DUMMY_TAG),
-				m_dma_read_cb(*this),
-				m_dma_read_color_cb(*this),
-				m_interrupt_cb(*this),
-				m_port_changed_cb(*this),
-				m_lightpen_button_cb(*this),
-				m_lightpen_x_cb(*this),
-				m_lightpen_y_cb(*this),
-				m_c64_mem_r_cb(*this),
-				m_palette(*this, "palette")
+	: device_t(mconfig, VIC3, tag, owner, clock)
+	, device_palette_interface(mconfig, *this)
+	, device_video_interface(mconfig, *this)
+	, m_type(vic3_type::NTSC)
+	, m_cpu(*this, finder_base::DUMMY_TAG)
+	, m_dma_read_cb(*this)
+	, m_dma_read_color_cb(*this)
+	, m_interrupt_cb(*this)
+	, m_port_changed_cb(*this)
+	, m_lightpen_button_cb(*this)
+	, m_lightpen_x_cb(*this)
+	, m_lightpen_y_cb(*this)
+	, m_c64_mem_r_cb(*this)
 {
 }
 
@@ -172,8 +172,8 @@ void vic3_device::device_start()
 {
 	int width, height;
 
-	width = m_screen->width();
-	height = m_screen->height();
+	width = screen().width();
+	height = screen().height();
 
 	m_bitmap = std::make_unique<bitmap_ind16>(width, height);
 
@@ -354,9 +354,12 @@ void vic3_device::device_reset()
 
 	memset(m_shift, 0, ARRAY_LENGTH(m_shift));
 	memset(m_multi_collision, 0, ARRAY_LENGTH(m_multi_collision));
-	memset(m_palette_red, 0, ARRAY_LENGTH(m_palette_red));
-	memset(m_palette_green, 0, ARRAY_LENGTH(m_palette_green));
-	memset(m_palette_blue, 0, ARRAY_LENGTH(m_palette_blue));
+
+	for (int i = 0; i < 256; i++)
+	{
+		m_palette_red[i] = m_palette_green[i] = m_palette_blue[i] = 0;
+		set_pen_color(i, rgb_t::black());
+	}
 
 	m_palette_dirty = 0;
 }
@@ -1258,7 +1261,7 @@ void vic3_device::vic2_drawlines( int first, int last, int start_x, int end_x )
     I/O HANDLERS
 *****************************************************************************/
 
-WRITE8_MEMBER( vic3_device::palette_w )
+void vic3_device::palette_w(offs_t offset, uint8_t data)
 {
 	if (offset < 0x100)
 		m_palette_red[offset] = data;
@@ -1271,7 +1274,7 @@ WRITE8_MEMBER( vic3_device::palette_w )
 }
 
 
-WRITE8_MEMBER( vic3_device::port_w )
+void vic3_device::port_w(offs_t offset, uint8_t data)
 {
 	DBG_LOG(2, "vic write", ("%.2x:%.2x\n", offset, data));
 	offset &= 0x7f;
@@ -1529,7 +1532,7 @@ WRITE8_MEMBER( vic3_device::port_w )
 	}
 }
 
-READ8_MEMBER( vic3_device::port_r )
+uint8_t vic3_device::port_r(offs_t offset)
 {
 	int val = 0;
 	offset &= 0x7f;
@@ -1868,7 +1871,7 @@ void vic3_device::draw_bitplanes()
 {
 	int x, y, y1s, offset;
 	rectangle vis;
-	const rectangle &visarea = m_screen->visible_area();
+	const rectangle &visarea = screen().visible_area();
 
 	if (VIC3_LINES == 400)
 	{ /* interlaced! */
@@ -1903,25 +1906,25 @@ void vic3_device::draw_bitplanes()
 
 	if (XPOS > 0)
 	{
-		vis.set(0, XPOS - 1, 0, visarea.max_y);
+		vis.set(0, XPOS - 1, 0, visarea.bottom());
 		m_bitmap->fill(FRAMECOLOR, vis);
 	}
 
-	if (XPOS + VIC3_BITPLANES_WIDTH < visarea.max_x)
+	if (XPOS + VIC3_BITPLANES_WIDTH < visarea.right())
 	{
-		vis.set(XPOS + VIC3_BITPLANES_WIDTH, visarea.max_x, 0, visarea.max_y);
+		vis.set(XPOS + VIC3_BITPLANES_WIDTH, visarea.right(), 0, visarea.bottom());
 		m_bitmap->fill(FRAMECOLOR, vis);
 	}
 
 	if (YPOS > 0)
 	{
-		vis.set(0, visarea.max_x, 0, YPOS - 1);
+		vis.set(0, visarea.right(), 0, YPOS - 1);
 		m_bitmap->fill(FRAMECOLOR, vis);
 	}
 
-	if (YPOS + VIC3_LINES < visarea.max_y)
+	if (YPOS + VIC3_LINES < visarea.bottom())
 	{
-		vis.set(0, visarea.max_x, YPOS + VIC3_LINES, visarea.max_y);
+		vis.set(0, visarea.right(), YPOS + VIC3_LINES, visarea.bottom());
 		m_bitmap->fill(FRAMECOLOR, vis);
 	}
 }
@@ -1937,7 +1940,7 @@ void vic3_device::raster_interrupt_gen()
 		m_rasterline = 0;
 		if (m_palette_dirty)
 			for (i = 0; i < 256; i++)
-				m_palette->set_pen_color(i, m_palette_red[i] << 4, m_palette_green[i] << 4, m_palette_blue[i] << 4);
+				set_pen_color(i, m_palette_red[i] << 4, m_palette_green[i] << 4, m_palette_blue[i] << 4);
 
 		if (m_palette_dirty)
 		{
@@ -1971,14 +1974,14 @@ void vic3_device::raster_interrupt_gen()
 		{
 			m_rows = new_rows;
 			m_columns = new_columns;
-			if (m_type == VIC4567_PAL)
-				m_screen->set_visible_area(
+			if (m_type == vic3_type::PAL)
+				screen().set_visible_area(
 									VIC2_STARTVISIBLECOLUMNS + 32,
 									VIC2_STARTVISIBLECOLUMNS + 32 + m_columns + 16 - 1,
 									VIC2_STARTVISIBLELINES + 34,
 									VIC2_STARTVISIBLELINES + 34 + m_rows + 16 - 1);
 			else
-				m_screen->set_visible_area(
+				screen().set_visible_area(
 									VIC2_STARTVISIBLECOLUMNS + 34,
 									VIC2_STARTVISIBLECOLUMNS + 34 + m_columns + 16 - 1,
 									VIC2_STARTVISIBLELINES + 10,
@@ -1990,7 +1993,7 @@ void vic3_device::raster_interrupt_gen()
 		}
 		else
 		{
-			if (m_type == VIC4567_PAL)
+			if (m_type == vic3_type::PAL)
 			{
 				if (m_on)
 					vic2_drawlines(m_lastline, m_lines, VIC2_STARTVISIBLECOLUMNS + 32, VIC2_STARTVISIBLECOLUMNS + 32 + m_columns + 16 - 1);
@@ -2023,7 +2026,7 @@ void vic3_device::raster_interrupt_gen()
 	if (m_on)
 		if ((m_rasterline >= VIC2_FIRSTRASTERLINE) && (m_rasterline < (VIC2_FIRSTRASTERLINE + VIC2_VISIBLELINES)))
 		{
-			if (m_type == VIC4567_PAL)
+			if (m_type == vic3_type::PAL)
 			{
 				if (m_on)
 					vic2_drawlines(m_rasterline - 1, m_rasterline, VIC2_STARTVISIBLECOLUMNS + 32, VIC2_STARTVISIBLECOLUMNS + 32 + m_columns + 16 - 1);
@@ -2040,19 +2043,4 @@ uint32_t vic3_device::video_update( bitmap_ind16 &bitmap, const rectangle &clipr
 {
 	copybitmap(bitmap, *m_bitmap, 0, 0, 0, 0, cliprect);
 	return 0;
-}
-
-
-static MACHINE_CONFIG_FRAGMENT( vic3 )
-	MCFG_PALETTE_ADD_INIT_BLACK("palette", 0x100)
-MACHINE_CONFIG_END
-
-//-------------------------------------------------
-//  machine_config_additions - return a pointer to
-//  the device's machine fragment
-//-------------------------------------------------
-
-machine_config_constructor vic3_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( vic3 );
 }

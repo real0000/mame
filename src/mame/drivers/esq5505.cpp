@@ -2,12 +2,12 @@
 // copyright-holders:R. Belmont, Parduz
 /***************************************************************************
 
-    esq5505.c - Ensoniq ES5505 + ES5510 based synthesizers and samplers
+    esq5505.cpp - Ensoniq ES5505 + ES5510 based synthesizers and samplers
 
     Ensoniq VFX, VFX-SD, EPS, EPS-16 Plus, SD-1, SD-1 32, SQ-1 and SQ-R (SQ-1 Plus,
     SQ-2, and KS-32 are known to also be this architecture).
 
-    The Taito sound system in taito_en.c is directly derived from the 32-voice version
+    The Taito sound system in taito_en.cpp is directly derived from the 32-voice version
     of the SD-1.
 
     Driver by R. Belmont and Parduz with thanks to Christian Brunschen, and Phil Bennett
@@ -124,6 +124,40 @@
     22 = second digit of patch # becomes 6
     23 = first digit of patch # becomes 6
 
+    Ensoniq SQ-2 MIDI keyboard
+    Ensoniq 1992
+    PCB Layout by Guru
+
+
+    PART NO.: 4001018001 REV B
+
+       |--|  |--|  |--|    |--|                       |--|     |--|   |--|   |--|
+    |--|J1|--|J2|--|J3|----|J4|-----------------------|J7|-----|J8|---|J9|---|J10--|
+    | PHONE  RAUD  LAUD    PEDAL      3V_BATT         FOOT     MIDI   MIDI   MIDI  |
+    |                      CV   74LS244 74LS244 74LS245        IN     OUT    THRU  |
+    |                                                                              |
+    |    TL072                  J5                                HP6N138   |---|  |
+    |            7912       4051      CARTRIDGE       LOWER.U27  UPPER.U32  | 6 |LM2926
+    |                 J15         |-------J6------|       62256       62256 | 8 |  |
+    |                             |---------------|   74HC4053              | 0 |7805
+    |            7812           7407                          ENSONIQ       | 0 |  |
+    |    TL072            TL072               ENSONIQ         GLU           | 0 |  |
+    |                                         SUPERGLU                      |---|  |
+    |                                                                              |
+    |                                            16MHz  30.47618MHz                |
+    |                                                                         POWER|
+    |TDA1541A        ROM3.U38   ROM1.U26    74HC74                LM339         J12|
+    |                                                                              |
+    |                    ROM2.U39   ROM0.U25              NCR6500/11  J13          |
+    |                                                                              |
+    |        OTISR2             74LS373      ESP        68681                      |
+    |                                                                              |
+    |7805    74HC74 74F139  6264      6264   ADJ-POT  ESPR6       LM339            |
+    |                                                                              |
+    |7915    74LS174 74HC161    74LS373    LM317T                 J11 J14          |
+    |------------------------------------------------------------------------------|
+    Note: All parts shown.
+
 ***************************************************************************/
 
 #include "emu.h"
@@ -132,6 +166,7 @@
 #include "cpu/es5510/es5510.h"
 #include "cpu/m68000/m68000.h"
 #include "formats/esq16_dsk.h"
+#include "imagedev/floppy.h"
 #include "machine/esqlcd.h"
 #include "machine/esqpanel.h"
 #include "machine/esqvfd.h"
@@ -140,7 +175,7 @@
 #include "machine/wd_fdc.h"
 #include "sound/es5506.h"
 #include "sound/esqpump.h"
-
+#include "emupal.h"
 #include "speaker.h"
 
 #include <cstdio>
@@ -170,24 +205,39 @@ class esq5505_state : public driver_device
 {
 public:
 	esq5505_state(const machine_config &mconfig, device_type type, const char *tag)
-	: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu"),
-		m_duart(*this, "duart"),
-		m_otis(*this, "otis"),
-		m_esp(*this, "esp"),
-		m_pump(*this, "pump"),
-		m_fdc(*this, "wd1772"),
-		m_panel(*this, "panel"),
-		m_dmac(*this, "mc68450"),
-		m_mdout(*this, "mdout")
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_duart(*this, "duart")
+		, m_esp(*this, "esp")
+		, m_pump(*this, "pump")
+		, m_fdc(*this, "wd1772")
+		, m_floppy_connector(*this, "wd1772:0")
+		, m_panel(*this, "panel")
+		, m_dmac(*this, "mc68450")
+		, m_mdout(*this, "mdout")
 	{ }
 
+	void sq1(machine_config &config);
+	void vfx(machine_config &config);
+	void vfxsd(machine_config &config);
+	void eps(machine_config &config);
+	void vfx32(machine_config &config);
+
+	void init_eps();
+	void init_common();
+	void init_sq1();
+	void init_denib();
+	DECLARE_INPUT_CHANGED_MEMBER(key_stroke);
+
+	DECLARE_WRITE_LINE_MEMBER(esq5505_otis_irq);
+
+private:
 	required_device<m68000_device> m_maincpu;
 	required_device<mc68681_device> m_duart;
-	required_device<es5505_device> m_otis;
 	required_device<es5510_device> m_esp;
-	required_device<esq_5505_5510_pump> m_pump;
-	optional_device<wd1772_t> m_fdc;
+	required_device<esq_5505_5510_pump_device> m_pump;
+	optional_device<wd1772_device> m_fdc;
+	optional_device<floppy_connector> m_floppy_connector;
 	required_device<esqpanel_device> m_panel;
 	optional_device<hd63450_device> m_dmac;
 	required_device<midi_port_device> m_mdout;
@@ -198,75 +248,60 @@ public:
 	DECLARE_READ16_MEMBER(lower_r);
 	DECLARE_WRITE16_MEMBER(lower_w);
 
-	DECLARE_READ16_MEMBER(analog_r);
-	DECLARE_WRITE16_MEMBER(analog_w);
+	uint16_t analog_r();
+	void analog_w(offs_t offset, uint16_t data);
 
 	DECLARE_WRITE_LINE_MEMBER(duart_irq_handler);
 	DECLARE_WRITE_LINE_MEMBER(duart_tx_a);
 	DECLARE_WRITE_LINE_MEMBER(duart_tx_b);
-	DECLARE_WRITE8_MEMBER(duart_output);
+	void duart_output(uint8_t data);
+
+	void es5505_clock_changed(u32 data);
 
 	int m_system_type;
 	uint8_t m_duart_io;
 	uint8_t otis_irq_state;
 	uint8_t dmac_irq_state;
-	int dmac_irq_vector;
 	uint8_t duart_irq_state;
-	int duart_irq_vector;
 
 	void update_irq_to_maincpu();
 
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
 
-private:
+	void eps_map(address_map &map);
+	void sq1_map(address_map &map);
+	void vfx_map(address_map &map);
+	void vfxsd_map(address_map &map);
+
+	void cpu_space_map(address_map &map);
+	void eps_cpu_space_map(address_map &map);
+
 	uint16_t  *m_rom, *m_ram;
 	uint16_t m_analog_values[8];
 
-public:
-	DECLARE_DRIVER_INIT(eps);
-	DECLARE_DRIVER_INIT(common);
-	DECLARE_DRIVER_INIT(sq1);
-	DECLARE_DRIVER_INIT(denib);
-	DECLARE_INPUT_CHANGED_MEMBER(key_stroke);
-	IRQ_CALLBACK_MEMBER(maincpu_irq_acknowledge_callback);
-	DECLARE_WRITE_LINE_MEMBER(esq5505_otis_irq);
-
 	//dmac
-	DECLARE_WRITE8_MEMBER(dma_end);
-	DECLARE_WRITE8_MEMBER(dma_error);
-	DECLARE_READ8_MEMBER(fdc_read_byte);
-	DECLARE_WRITE8_MEMBER(fdc_write_byte);
+	DECLARE_WRITE_LINE_MEMBER(dma_irq);
 };
 
 FLOPPY_FORMATS_MEMBER( esq5505_state::floppy_formats )
 	FLOPPY_ESQIMG_FORMAT
 FLOPPY_FORMATS_END
 
-static SLOT_INTERFACE_START( ensoniq_floppies )
-	SLOT_INTERFACE( "35dd", FLOPPY_35_DD )
-SLOT_INTERFACE_END
-
-IRQ_CALLBACK_MEMBER(esq5505_state::maincpu_irq_acknowledge_callback)
+void esq5505_state::cpu_space_map(address_map &map)
 {
-	switch(irqline) {
-	case 1:
-		return M68K_INT_ACK_AUTOVECTOR;
-	case 2:
-		return dmac_irq_vector;
-	case 3:
-		return duart_irq_vector;
-	default:
-		logerror("\nUnexpected IRQ ACK Callback: IRQ %d\n", irqline);
-		return 0;
-	}
+	map(0xfffff0, 0xffffff).m(m_maincpu, FUNC(m68000_base_device::autovectors_map));
+	map(0xfffff7, 0xfffff7).r(m_duart, FUNC(mc68681_device::get_irq_vector));
+}
+
+void esq5505_state::eps_cpu_space_map(address_map &map)
+{
+	cpu_space_map(map);
+	map(0xfffff5, 0xfffff5).r(m_dmac, FUNC(hd63450_device::iack));
 }
 
 void esq5505_state::machine_start()
 {
 	driver_device::machine_start();
-	// tell the pump about the OTIS & ESP chips
-	m_pump->set_otis(m_otis);
-	m_pump->set_esp(m_esp);
 
 	m_rom = (uint16_t *)(void *)memregion("osrom")->base();
 	m_ram = (uint16_t *)(void *)memshare("osram")->ptr();
@@ -274,8 +309,7 @@ void esq5505_state::machine_start()
 
 void esq5505_state::machine_reset()
 {
-	floppy_connector *con = machine().device<floppy_connector>("wd1772:0");
-	floppy_image_device *floppy = con ? con->get_device() : nullptr;
+	floppy_image_device *floppy = m_floppy_connector ? m_floppy_connector->get_device() : nullptr;
 
 	// Default analog values: all values are 10 bits, left-justified within 16 bits.
 	m_analog_values[0] = 0x7fc0; // pitch mod: start in the center
@@ -288,7 +322,7 @@ void esq5505_state::machine_reset()
 	m_analog_values[7] = 0x5540; // vRef to check battery.
 
 	// on VFX, bit 0 is 1 for 'cartridge present'.
-	// on VFX-SD and later, bit 0 is 1 for floppy present, bit 1 is 1 for cartridge present
+	// on VFX-SD and later, bit 0 is2 1 for floppy present, bit 1 is 1 for cartridge present
 	if (core_stricmp(machine().system().name, "vfx") == 0)
 	{
 		// todo: handle VFX cart-in when we support cartridges
@@ -309,21 +343,29 @@ void esq5505_state::machine_reset()
 	}
 }
 
-void esq5505_state::update_irq_to_maincpu() {
+void esq5505_state::update_irq_to_maincpu()
+{
 	// printf("updating IRQ state: have OTIS=%d, DMAC=%d, DUART=%d\n", otis_irq_state, dmac_irq_state, duart_irq_state);
-	if (duart_irq_state) {
+	if (duart_irq_state)
+	{
 		m_maincpu->set_input_line(M68K_IRQ_2, CLEAR_LINE);
 		m_maincpu->set_input_line(M68K_IRQ_1, CLEAR_LINE);
-		m_maincpu->set_input_line_and_vector(M68K_IRQ_3, ASSERT_LINE, duart_irq_vector);
-	} else if (dmac_irq_state) {
+		m_maincpu->set_input_line(M68K_IRQ_3, ASSERT_LINE);
+	}
+	else if (dmac_irq_state)
+	{
 		m_maincpu->set_input_line(M68K_IRQ_3, CLEAR_LINE);
 		m_maincpu->set_input_line(M68K_IRQ_1, CLEAR_LINE);
-		m_maincpu->set_input_line_and_vector(M68K_IRQ_2, ASSERT_LINE, dmac_irq_vector);
-	} else if (otis_irq_state) {
+		m_maincpu->set_input_line(M68K_IRQ_2, ASSERT_LINE);
+	}
+	else if (otis_irq_state)
+	{
 		m_maincpu->set_input_line(M68K_IRQ_3, CLEAR_LINE);
 		m_maincpu->set_input_line(M68K_IRQ_2, CLEAR_LINE);
 		m_maincpu->set_input_line(M68K_IRQ_1, ASSERT_LINE);
-	} else {
+	}
+	else
+	{
 		m_maincpu->set_input_line(M68K_IRQ_3, CLEAR_LINE);
 		m_maincpu->set_input_line(M68K_IRQ_2, CLEAR_LINE);
 		m_maincpu->set_input_line(M68K_IRQ_1, CLEAR_LINE);
@@ -341,7 +383,7 @@ READ16_MEMBER(esq5505_state::lower_r)
 		m_ram = (uint16_t *)(void *)memshare("osram")->ptr();
 	}
 
-	if (!machine().side_effect_disabled() && m_maincpu->get_fc() == 0x6)  // supervisor mode = ROM
+	if (!machine().side_effects_disabled() && m_maincpu->get_fc() == 0x6)  // supervisor mode = ROM
 	{
 		return m_rom[offset];
 	}
@@ -372,46 +414,50 @@ WRITE16_MEMBER(esq5505_state::lower_w)
 	}
 }
 
-static ADDRESS_MAP_START( vfx_map, AS_PROGRAM, 16, esq5505_state )
-	AM_RANGE(0x000000, 0x007fff) AM_READWRITE(lower_r, lower_w)
-	AM_RANGE(0x200000, 0x20001f) AM_DEVREADWRITE("otis", es5505_device, read, write)
-	AM_RANGE(0x280000, 0x28001f) AM_DEVREADWRITE8("duart", mc68681_device, read, write, 0x00ff)
-	AM_RANGE(0x260000, 0x2601ff) AM_DEVREADWRITE8("esp", es5510_device, host_r, host_w, 0x00ff)
-	AM_RANGE(0xc00000, 0xc1ffff) AM_ROM AM_REGION("osrom", 0)
-	AM_RANGE(0xff0000, 0xffffff) AM_RAM AM_SHARE("osram")
-ADDRESS_MAP_END
+void esq5505_state::vfx_map(address_map &map)
+{
+	map(0x000000, 0x007fff).rw(FUNC(esq5505_state::lower_r), FUNC(esq5505_state::lower_w));
+	map(0x200000, 0x20001f).rw("otis", FUNC(es5505_device::read), FUNC(es5505_device::write));
+	map(0x280000, 0x28001f).rw(m_duart, FUNC(mc68681_device::read), FUNC(mc68681_device::write)).umask16(0x00ff);
+	map(0x260000, 0x2601ff).rw(m_esp, FUNC(es5510_device::host_r), FUNC(es5510_device::host_w)).umask16(0x00ff);
+	map(0xc00000, 0xc1ffff).rom().region("osrom", 0);
+	map(0xff0000, 0xffffff).ram().share("osram");
+}
 
-static ADDRESS_MAP_START( vfxsd_map, AS_PROGRAM, 16, esq5505_state )
-	AM_RANGE(0x000000, 0x00ffff) AM_READWRITE(lower_r, lower_w)
-	AM_RANGE(0x200000, 0x20001f) AM_DEVREADWRITE("otis", es5505_device, read, write)
-	AM_RANGE(0x280000, 0x28001f) AM_DEVREADWRITE8("duart", mc68681_device, read, write, 0x00ff)
-	AM_RANGE(0x260000, 0x2601ff) AM_DEVREADWRITE8("esp", es5510_device, host_r, host_w, 0x00ff)
-	AM_RANGE(0x2c0000, 0x2c0007) AM_DEVREADWRITE8("wd1772", wd1772_t, read, write, 0x00ff)
-	AM_RANGE(0x330000, 0x3bffff) AM_RAM // sequencer memory?
-	AM_RANGE(0xc00000, 0xc3ffff) AM_ROM AM_REGION("osrom", 0)
-	AM_RANGE(0xff0000, 0xffffff) AM_RAM AM_SHARE("osram")
-ADDRESS_MAP_END
+void esq5505_state::vfxsd_map(address_map &map)
+{
+	map(0x000000, 0x00ffff).rw(FUNC(esq5505_state::lower_r), FUNC(esq5505_state::lower_w));
+	map(0x200000, 0x20001f).rw("otis", FUNC(es5505_device::read), FUNC(es5505_device::write));
+	map(0x280000, 0x28001f).rw(m_duart, FUNC(mc68681_device::read), FUNC(mc68681_device::write)).umask16(0x00ff);
+	map(0x260000, 0x2601ff).rw(m_esp, FUNC(es5510_device::host_r), FUNC(es5510_device::host_w)).umask16(0x00ff);
+	map(0x2c0000, 0x2c0007).rw(m_fdc, FUNC(wd1772_device::read), FUNC(wd1772_device::write)).umask16(0x00ff);
+	map(0x330000, 0x3bffff).ram(); // sequencer memory?
+	map(0xc00000, 0xc3ffff).rom().region("osrom", 0);
+	map(0xff0000, 0xffffff).ram().share("osram");
+}
 
-static ADDRESS_MAP_START( eps_map, AS_PROGRAM, 16, esq5505_state )
-	AM_RANGE(0x000000, 0x007fff) AM_READWRITE(lower_r, lower_w)
-	AM_RANGE(0x200000, 0x20001f) AM_DEVREADWRITE("otis", es5505_device, read, write)
-	AM_RANGE(0x240000, 0x2400ff) AM_DEVREADWRITE("mc68450", hd63450_device, read, write)
-	AM_RANGE(0x280000, 0x28001f) AM_DEVREADWRITE8("duart", mc68681_device, read, write, 0x00ff)
-	AM_RANGE(0x2c0000, 0x2c0007) AM_DEVREADWRITE8("wd1772", wd1772_t, read, write, 0x00ff)
-	AM_RANGE(0x580000, 0x7fffff) AM_RAM         // sample RAM?
-	AM_RANGE(0xc00000, 0xc1ffff) AM_ROM AM_REGION("osrom", 0)
-	AM_RANGE(0xff0000, 0xffffff) AM_RAM AM_SHARE("osram")
-ADDRESS_MAP_END
+void esq5505_state::eps_map(address_map &map)
+{
+	map(0x000000, 0x007fff).rw(FUNC(esq5505_state::lower_r), FUNC(esq5505_state::lower_w));
+	map(0x200000, 0x20001f).rw("otis", FUNC(es5505_device::read), FUNC(es5505_device::write));
+	map(0x240000, 0x2400ff).rw(m_dmac, FUNC(hd63450_device::read), FUNC(hd63450_device::write));
+	map(0x280000, 0x28001f).rw(m_duart, FUNC(mc68681_device::read), FUNC(mc68681_device::write)).umask16(0x00ff);
+	map(0x2c0000, 0x2c0007).rw(m_fdc, FUNC(wd1772_device::read), FUNC(wd1772_device::write)).umask16(0x00ff);
+	map(0x580000, 0x7fffff).ram();         // sample RAM?
+	map(0xc00000, 0xc1ffff).rom().region("osrom", 0);
+	map(0xff0000, 0xffffff).ram().share("osram");
+}
 
-static ADDRESS_MAP_START( sq1_map, AS_PROGRAM, 16, esq5505_state )
-	AM_RANGE(0x000000, 0x03ffff) AM_READWRITE(lower_r, lower_w)
-	AM_RANGE(0x200000, 0x20001f) AM_DEVREADWRITE("otis", es5505_device, read, write)
-	AM_RANGE(0x260000, 0x2601ff) AM_DEVREADWRITE8("esp", es5510_device, host_r, host_w, 0x0ff)
-	AM_RANGE(0x280000, 0x28001f) AM_DEVREADWRITE8("duart", mc68681_device, read, write, 0x00ff)
-	AM_RANGE(0x330000, 0x3bffff) AM_RAM // sequencer memory?
-	AM_RANGE(0xc00000, 0xc3ffff) AM_ROM AM_REGION("osrom", 0)
-	AM_RANGE(0xff0000, 0xffffff) AM_RAM AM_SHARE("osram")
-ADDRESS_MAP_END
+void esq5505_state::sq1_map(address_map &map)
+{
+	map(0x000000, 0x03ffff).rw(FUNC(esq5505_state::lower_r), FUNC(esq5505_state::lower_w));
+	map(0x200000, 0x20001f).rw("otis", FUNC(es5505_device::read), FUNC(es5505_device::write));
+	map(0x260000, 0x2601ff).rw(m_esp, FUNC(es5510_device::host_r), FUNC(es5510_device::host_w)).umask16(0x00ff);
+	map(0x280000, 0x28001f).rw(m_duart, FUNC(mc68681_device::read), FUNC(mc68681_device::write)).umask16(0x00ff);
+	map(0x330000, 0x3bffff).ram(); // sequencer memory?
+	map(0xc00000, 0xc3ffff).rom().region("osrom", 0);
+	map(0xff0000, 0xffffff).ram().share("osram");
+}
 
 WRITE_LINE_MEMBER(esq5505_state::esq5505_otis_irq)
 {
@@ -419,13 +465,18 @@ WRITE_LINE_MEMBER(esq5505_state::esq5505_otis_irq)
 	update_irq_to_maincpu();
 }
 
-WRITE16_MEMBER(esq5505_state::analog_w)
+void esq5505_state::es5505_clock_changed(u32 data)
+{
+	m_pump->set_unscaled_clock(data);
+}
+
+void esq5505_state::analog_w(offs_t offset, uint16_t data)
 {
 	offset &= 0x7;
 	m_analog_values[offset] = data;
 }
 
-READ16_MEMBER(esq5505_state::analog_r)
+uint16_t esq5505_state::analog_r()
 {
 	return m_analog_values[m_duart_io & 7];
 }
@@ -435,20 +486,18 @@ WRITE_LINE_MEMBER(esq5505_state::duart_irq_handler)
 //    printf("\nDUART IRQ: state %d vector %d\n", state, vector);
 	if (state == ASSERT_LINE)
 	{
-		duart_irq_vector = m_duart->get_irq_vector();
 		duart_irq_state = 1;
 	}
 	else
 	{
-				duart_irq_state = 0;
+		duart_irq_state = 0;
 	}
 	update_irq_to_maincpu();
 }
 
-WRITE8_MEMBER(esq5505_state::duart_output)
+void esq5505_state::duart_output(uint8_t data)
 {
-	floppy_connector *con = machine().device<floppy_connector>("wd1772:0");
-	floppy_image_device *floppy = con ? con->get_device() : nullptr;
+	floppy_image_device *floppy = m_floppy_connector ? m_floppy_connector->get_device() : nullptr;
 
 	m_duart_io = data;
 
@@ -469,13 +518,18 @@ WRITE8_MEMBER(esq5505_state::duart_output)
 	    bit 7 = SACK (?)
 	*/
 
-	if (data & 0x40) {
-		if (!m_pump->get_esp_halted()) {
+	if (data & 0x40)
+	{
+		if (!m_pump->get_esp_halted())
+		{
 			logerror("ESQ5505: Asserting ESPHALT\n");
 			m_pump->set_esp_halted(true);
 		}
-	} else {
-		if (m_pump->get_esp_halted()) {
+	}
+	else
+	{
+		if (m_pump->get_esp_halted())
+		{
 			logerror("ESQ5505: Clearing ESPHALT\n");
 			m_pump->set_esp_halted(false);
 		}
@@ -507,30 +561,12 @@ WRITE_LINE_MEMBER(esq5505_state::duart_tx_b)
 	m_panel->rx_w(state);
 }
 
-WRITE8_MEMBER(esq5505_state::dma_end)
+WRITE_LINE_MEMBER(esq5505_state::dma_irq)
 {
-	if (data != 0)
+	if (state != CLEAR_LINE)
 	{
-		//printf("DMAC IRQ, vector = %x\n", m_dmac->get_vector(offset));
+		logerror("DMAC error, vector = %x\n", m_dmac->iack());
 		dmac_irq_state = 1;
-		dmac_irq_vector = m_dmac->get_vector(offset);
-	}
-	else
-	{
-		dmac_irq_state = 0;
-	}
-
-	// printf("IRQ update from DMAC: have OTIS=%d, DMAC=%d, DUART=%d\n", otis_irq_state, dmac_irq_state, duart_irq_state);
-	update_irq_to_maincpu();
-}
-
-WRITE8_MEMBER(esq5505_state::dma_error)
-{
-	if(data != 0)
-	{
-		logerror("DMAC error, vector = %x\n", m_dmac->get_error_vector(offset));
-		dmac_irq_state = 1;
-		dmac_irq_vector = m_dmac->get_vector(offset);
 	}
 	else
 	{
@@ -538,22 +574,12 @@ WRITE8_MEMBER(esq5505_state::dma_error)
 	}
 
 	update_irq_to_maincpu();
-}
-
-READ8_MEMBER(esq5505_state::fdc_read_byte)
-{
-	return m_fdc->data_r();
-}
-
-WRITE8_MEMBER(esq5505_state::fdc_write_byte)
-{
-	m_fdc->data_w(data & 0xff);
 }
 
 #if KEYBOARD_HACK
 INPUT_CHANGED_MEMBER(esq5505_state::key_stroke)
 {
-	int val = (uint8_t)(uintptr_t)param;
+	int val = (uint8_t)param;
 	int cmp = 0x60;
 
 	if (m_system_type == SQ1)
@@ -596,7 +622,7 @@ INPUT_CHANGED_MEMBER(esq5505_state::key_stroke)
 		}
 		else if (oldval == 1 && newval == 0)
 		{
-	//        printf("key off %x\n", (uint8_t)(uintptr_t)param);
+	//        printf("key off %x\n", (uint8_t)param);
 			m_panel->xmit_char(val&0x7f);
 			m_panel->xmit_char(0x00);
 		}
@@ -604,141 +630,160 @@ INPUT_CHANGED_MEMBER(esq5505_state::key_stroke)
 }
 #endif
 
-static MACHINE_CONFIG_START( vfx, esq5505_state )
-	MCFG_CPU_ADD("maincpu", M68000, XTAL_10MHz)
-	MCFG_CPU_PROGRAM_MAP(vfx_map)
-	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(esq5505_state,maincpu_irq_acknowledge_callback)
+void esq5505_state::vfx(machine_config &config)
+{
+	M68000(config, m_maincpu, 10_MHz_XTAL);
+	m_maincpu->set_addrmap(AS_PROGRAM, &esq5505_state::vfx_map);
+	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &esq5505_state::cpu_space_map);
 
-	MCFG_CPU_ADD("esp", ES5510, XTAL_10MHz)
-	MCFG_DEVICE_DISABLE()
+	ES5510(config, m_esp, 10_MHz_XTAL);
+	m_esp->set_disable();
 
-	MCFG_ESQPANEL2x40_ADD("panel")
-	MCFG_ESQPANEL_TX_CALLBACK(DEVWRITELINE("duart", mc68681_device, rx_b_w))
-	MCFG_ESQPANEL_ANALOG_CALLBACK(WRITE16(esq5505_state, analog_w))
+	ESQPANEL2X40_VFX(config, m_panel);
+	m_panel->write_tx().set(m_duart, FUNC(mc68681_device::rx_b_w));
+	m_panel->write_analog().set(FUNC(esq5505_state::analog_w));
 
-	MCFG_MC68681_ADD("duart", 4000000)
-	MCFG_MC68681_IRQ_CALLBACK(WRITELINE(esq5505_state, duart_irq_handler))
-	MCFG_MC68681_A_TX_CALLBACK(WRITELINE(esq5505_state, duart_tx_a))
-	MCFG_MC68681_B_TX_CALLBACK(WRITELINE(esq5505_state, duart_tx_b))
-	MCFG_MC68681_OUTPORT_CALLBACK(WRITE8(esq5505_state, duart_output))
-	MCFG_MC68681_SET_EXTERNAL_CLOCKS(500000, 500000, 1000000, 1000000)
+	MC68681(config, m_duart, 4000000);
+	m_duart->irq_cb().set(FUNC(esq5505_state::duart_irq_handler));
+	m_duart->a_tx_cb().set(FUNC(esq5505_state::duart_tx_a));
+	m_duart->b_tx_cb().set(FUNC(esq5505_state::duart_tx_b));
+	m_duart->outport_cb().set(FUNC(esq5505_state::duart_output));
+	m_duart->set_clocks(500000, 500000, 1000000, 1000000);
 
-	MCFG_MIDI_PORT_ADD("mdin", midiin_slot, "midiin")
-	MCFG_MIDI_RX_HANDLER(DEVWRITELINE("duart", mc68681_device, rx_a_w)) // route MIDI Tx send directly to 68681 channel A Rx
+	auto &mdin(MIDI_PORT(config, "mdin"));
+	midiin_slot(mdin);
+	mdin.rxd_handler().set(m_duart, FUNC(scn2681_device::rx_a_w)); // route MIDI Tx send directly to 68681 channel A Rx
 
-	MCFG_MIDI_PORT_ADD("mdout", midiout_slot, "midiout")
+	midiout_slot(MIDI_PORT(config, "mdout"));
 
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
 
-	MCFG_SOUND_ADD("pump", ESQ_5505_5510_PUMP, XTAL_10MHz / (16 * 21))
-	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
+	ESQ_5505_5510_PUMP(config, m_pump, 10_MHz_XTAL / (16 * 21));
+	m_pump->set_esp(m_esp);
+	m_pump->add_route(0, "lspeaker", 1.0);
+	m_pump->add_route(1, "rspeaker", 1.0);
 
-	MCFG_SOUND_ADD("otis", ES5505, XTAL_10MHz)
-	MCFG_ES5505_REGION0("waverom")  /* Bank 0 */
-	MCFG_ES5505_REGION1("waverom2") /* Bank 1 */
-	MCFG_ES5505_CHANNELS(4)          /* channels */
-	MCFG_ES5505_IRQ_CB(WRITELINE(esq5505_state, esq5505_otis_irq)) /* irq */
-	MCFG_ES5505_READ_PORT_CB(READ16(esq5505_state, analog_r)) /* ADC */
-	MCFG_SOUND_ROUTE_EX(0, "pump", 1.0, 0)
-	MCFG_SOUND_ROUTE_EX(1, "pump", 1.0, 1)
-	MCFG_SOUND_ROUTE_EX(2, "pump", 1.0, 2)
-	MCFG_SOUND_ROUTE_EX(3, "pump", 1.0, 3)
-	MCFG_SOUND_ROUTE_EX(4, "pump", 1.0, 4)
-	MCFG_SOUND_ROUTE_EX(5, "pump", 1.0, 5)
-	MCFG_SOUND_ROUTE_EX(6, "pump", 1.0, 6)
-	MCFG_SOUND_ROUTE_EX(7, "pump", 1.0, 7)
-MACHINE_CONFIG_END
+	auto &es5505(ES5505(config, "otis", 10_MHz_XTAL));
+	es5505.sample_rate_changed().set(FUNC(esq5505_state::es5505_clock_changed));
+	es5505.set_region0("waverom");  /* Bank 0 */
+	es5505.set_region1("waverom2"); /* Bank 1 */
+	es5505.set_channels(4);          /* channels */
+	es5505.irq_cb().set(FUNC(esq5505_state::esq5505_otis_irq)); /* irq */
+	es5505.read_port_cb().set(FUNC(esq5505_state::analog_r)); /* ADC */
+	es5505.add_route(0, "pump", 1.0, 0);
+	es5505.add_route(1, "pump", 1.0, 1);
+	es5505.add_route(2, "pump", 1.0, 2);
+	es5505.add_route(3, "pump", 1.0, 3);
+	es5505.add_route(4, "pump", 1.0, 4);
+	es5505.add_route(5, "pump", 1.0, 5);
+	es5505.add_route(6, "pump", 1.0, 6);
+	es5505.add_route(7, "pump", 1.0, 7);
+}
 
-static MACHINE_CONFIG_DERIVED(eps, vfx)
-	MCFG_CPU_MODIFY( "maincpu" )
-	MCFG_CPU_PROGRAM_MAP(eps_map)
+void esq5505_state::eps(machine_config &config)
+{
+	vfx(config);
+	m_maincpu->set_addrmap(AS_PROGRAM, &esq5505_state::eps_map);
+	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &esq5505_state::eps_cpu_space_map);
 
-	MCFG_ESQPANEL_2x40_REMOVE("panel")
-	MCFG_ESQPANEL1x22_ADD("panel")
-	MCFG_ESQPANEL_TX_CALLBACK(DEVWRITELINE("duart", mc68681_device, rx_b_w))
-	MCFG_ESQPANEL_ANALOG_CALLBACK(WRITE16(esq5505_state, analog_w))
+	m_duart->set_clock(10_MHz_XTAL / 2);
 
-	MCFG_WD1772_ADD("wd1772", 8000000)
-	MCFG_FLOPPY_DRIVE_ADD("wd1772:0", ensoniq_floppies, "35dd", esq5505_state::floppy_formats)
+	ESQPANEL1X22(config.replace(), m_panel);
+	m_panel->write_tx().set(m_duart, FUNC(mc68681_device::rx_b_w));
+	m_panel->write_analog().set(FUNC(esq5505_state::analog_w));
 
-	MCFG_DEVICE_ADD("mc68450", HD63450, 0)   // MC68450 compatible
-	MCFG_HD63450_CPU("maincpu") // CPU - 68000
-	MCFG_HD63450_CLOCKS(attotime::from_usec(32), attotime::from_nsec(450), attotime::from_usec(4), attotime::from_hz(15625/2))
-	MCFG_HD63450_BURST_CLOCKS(attotime::from_usec(32), attotime::from_nsec(450), attotime::from_nsec(50), attotime::from_nsec(50))
-	MCFG_HD63450_DMA_END_CB(WRITE8(esq5505_state, dma_end))
-	MCFG_HD63450_DMA_ERROR_CB(WRITE8(esq5505_state, dma_error))
-	MCFG_HD63450_DMA_READ_0_CB(READ8(esq5505_state, fdc_read_byte))  // ch 0 = fdc, ch 1 = 340001 (ADC?)
-	MCFG_HD63450_DMA_WRITE_0_CB(WRITE8(esq5505_state, fdc_write_byte))
-MACHINE_CONFIG_END
+	WD1772(config, m_fdc, 8_MHz_XTAL);
+	FLOPPY_CONNECTOR(config, m_floppy_connector);
+	m_floppy_connector->option_add("35dd", FLOPPY_35_DD);
+	m_floppy_connector->set_default_option("35dd");
+	m_floppy_connector->set_formats(esq5505_state::floppy_formats);
 
-static MACHINE_CONFIG_DERIVED(vfxsd, vfx)
-	MCFG_CPU_MODIFY( "maincpu" )
-	MCFG_CPU_PROGRAM_MAP(vfxsd_map)
+	HD63450(config, m_dmac, 10_MHz_XTAL);   // MC68450 compatible
+	m_dmac->set_cpu_tag(m_maincpu);
+	m_dmac->set_clocks(attotime::from_usec(32), attotime::from_nsec(450), attotime::from_usec(4), attotime::from_hz(15625/2));
+	m_dmac->set_burst_clocks(attotime::from_usec(32), attotime::from_nsec(450), attotime::from_nsec(50), attotime::from_nsec(50));
+	m_dmac->irq_callback().set(FUNC(esq5505_state::dma_irq));
+	m_dmac->dma_read<0>().set(m_fdc, FUNC(wd1772_device::data_r));  // ch 0 = fdc, ch 1 = 340001 (ADC?)
+	m_dmac->dma_write<0>().set(m_fdc, FUNC(wd1772_device::data_w));
+}
 
-	MCFG_WD1772_ADD("wd1772", 8000000)
-	MCFG_FLOPPY_DRIVE_ADD("wd1772:0", ensoniq_floppies, "35dd", esq5505_state::floppy_formats)
-MACHINE_CONFIG_END
+void esq5505_state::vfxsd(machine_config &config)
+{
+	vfx(config);
+	m_maincpu->set_addrmap(AS_PROGRAM, &esq5505_state::vfxsd_map);
+
+	WD1772(config, m_fdc, 8000000);
+	FLOPPY_CONNECTOR(config, m_floppy_connector);
+	m_floppy_connector->option_add("35dd", FLOPPY_35_DD);
+	m_floppy_connector->set_default_option("35dd");
+	m_floppy_connector->set_formats(esq5505_state::floppy_formats);
+}
 
 // 32-voice machines with the VFX-SD type config
-static MACHINE_CONFIG_START(vfx32, esq5505_state)
-	MCFG_CPU_ADD("maincpu", M68000, XTAL_30_4761MHz / 2)
-	MCFG_CPU_PROGRAM_MAP(vfxsd_map)
-	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(esq5505_state,maincpu_irq_acknowledge_callback)
+void esq5505_state::vfx32(machine_config &config)
+{
+	M68000(config, m_maincpu, 30.47618_MHz_XTAL / 2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &esq5505_state::vfxsd_map);
+	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &esq5505_state::cpu_space_map);
 
-	MCFG_CPU_ADD("esp", ES5510, XTAL_10MHz)
-	MCFG_DEVICE_DISABLE()
+	ES5510(config, m_esp, 10_MHz_XTAL);
+	m_esp->set_disable();
 
-	MCFG_ESQPANEL2x40_ADD("panel")
-	MCFG_ESQPANEL_TX_CALLBACK(DEVWRITELINE("duart", mc68681_device, rx_b_w))
-	MCFG_ESQPANEL_ANALOG_CALLBACK(WRITE16(esq5505_state, analog_w))
+	ESQPANEL2X40_VFX(config, m_panel);
+	m_panel->write_tx().set(m_duart, FUNC(mc68681_device::rx_b_w));
+	m_panel->write_analog().set(FUNC(esq5505_state::analog_w));
 
-	MCFG_MC68681_ADD("duart", 4000000)
-	MCFG_MC68681_IRQ_CALLBACK(WRITELINE(esq5505_state, duart_irq_handler))
-	MCFG_MC68681_A_TX_CALLBACK(WRITELINE(esq5505_state, duart_tx_a))
-	MCFG_MC68681_B_TX_CALLBACK(WRITELINE(esq5505_state, duart_tx_b))
-	MCFG_MC68681_OUTPORT_CALLBACK(WRITE8(esq5505_state, duart_output))
-	MCFG_MC68681_SET_EXTERNAL_CLOCKS(500000, 500000, 1000000, 1000000)
+	MC68681(config, m_duart,  4000000);
+	m_duart->irq_cb().set(FUNC(esq5505_state::duart_irq_handler));
+	m_duart->a_tx_cb().set(FUNC(esq5505_state::duart_tx_a));
+	m_duart->b_tx_cb().set(FUNC(esq5505_state::duart_tx_b));
+	m_duart->outport_cb().set(FUNC(esq5505_state::duart_output));
+	m_duart->set_clocks(500000, 500000, 1000000, 1000000);
 
-	MCFG_MIDI_PORT_ADD("mdin", midiin_slot, "midiin")
-	MCFG_MIDI_RX_HANDLER(DEVWRITELINE("duart", mc68681_device, rx_a_w)) // route MIDI Tx send directly to 68681 channel A Rx
+	auto &mdin(MIDI_PORT(config, "mdin"));
+	midiin_slot(mdin);
+	mdin.rxd_handler().set(m_duart, FUNC(scn2681_device::rx_a_w)); // route MIDI Tx send directly to 68681 channel A Rx
 
-	MCFG_MIDI_PORT_ADD("mdout", midiout_slot, "midiout")
+	midiout_slot(MIDI_PORT(config, "mdout"));
 
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
 
-	MCFG_SOUND_ADD("pump", ESQ_5505_5510_PUMP, XTAL_30_4761MHz / (2 * 16 * 32))
-	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
+	ESQ_5505_5510_PUMP(config, m_pump, 30.47618_MHz_XTAL / (2 * 16 * 32));
+	m_pump->set_esp(m_esp);
+	m_pump->add_route(0, "lspeaker", 1.0);
+	m_pump->add_route(1, "rspeaker", 1.0);
 
-	MCFG_SOUND_ADD("otis", ES5505, XTAL_30_4761MHz / 2)
-	MCFG_ES5505_REGION0("waverom")  /* Bank 0 */
-	MCFG_ES5505_REGION1("waverom2") /* Bank 1 */
-	MCFG_ES5505_CHANNELS(4)          /* channels */
-	MCFG_ES5505_IRQ_CB(WRITELINE(esq5505_state, esq5505_otis_irq)) /* irq */
-	MCFG_ES5505_READ_PORT_CB(READ16(esq5505_state, analog_r)) /* ADC */
-	MCFG_SOUND_ROUTE_EX(0, "pump", 1.0, 0)
-	MCFG_SOUND_ROUTE_EX(1, "pump", 1.0, 1)
-	MCFG_SOUND_ROUTE_EX(2, "pump", 1.0, 2)
-	MCFG_SOUND_ROUTE_EX(3, "pump", 1.0, 3)
-	MCFG_SOUND_ROUTE_EX(4, "pump", 1.0, 4)
-	MCFG_SOUND_ROUTE_EX(5, "pump", 1.0, 5)
-	MCFG_SOUND_ROUTE_EX(6, "pump", 1.0, 6)
-	MCFG_SOUND_ROUTE_EX(7, "pump", 1.0, 7)
+	auto &es5505(ES5505(config, "otis", 30.47618_MHz_XTAL / 2));
+	es5505.sample_rate_changed().set(FUNC(esq5505_state::es5505_clock_changed));
+	es5505.set_region0("waverom");  /* Bank 0 */
+	es5505.set_region1("waverom2"); /* Bank 1 */
+	es5505.set_channels(4);          /* channels */
+	es5505.irq_cb().set(FUNC(esq5505_state::esq5505_otis_irq)); /* irq */
+	es5505.read_port_cb().set(FUNC(esq5505_state::analog_r)); /* ADC */
+	es5505.add_route(0, "pump", 1.0, 0);
+	es5505.add_route(1, "pump", 1.0, 1);
+	es5505.add_route(2, "pump", 1.0, 2);
+	es5505.add_route(3, "pump", 1.0, 3);
+	es5505.add_route(4, "pump", 1.0, 4);
+	es5505.add_route(5, "pump", 1.0, 5);
+	es5505.add_route(6, "pump", 1.0, 6);
+	es5505.add_route(7, "pump", 1.0, 7);
 
-	MCFG_WD1772_ADD("wd1772", 8000000)
-	MCFG_FLOPPY_DRIVE_ADD("wd1772:0", ensoniq_floppies, "35dd", esq5505_state::floppy_formats)
-MACHINE_CONFIG_END
+	WD1772(config, m_fdc, 8000000);
+	FLOPPY_CONNECTOR(config, m_floppy_connector, "35dd", FLOPPY_35_DD, true, floppy_formats);
+}
 
-static MACHINE_CONFIG_DERIVED(sq1, vfx)
-	MCFG_CPU_MODIFY( "maincpu" )
-	MCFG_CPU_PROGRAM_MAP(sq1_map)
+void esq5505_state::sq1(machine_config &config)
+{
+	vfx(config);
+	m_maincpu->set_addrmap(AS_PROGRAM, &esq5505_state::sq1_map);
 
-	MCFG_ESQPANEL_2x40_REMOVE("panel")
-	MCFG_ESQPANEL2x16_SQ1_ADD("panel")
-	MCFG_ESQPANEL_TX_CALLBACK(DEVWRITELINE("duart", mc68681_device, rx_b_w))
-	MCFG_ESQPANEL_ANALOG_CALLBACK(WRITE16(esq5505_state, analog_w))
-MACHINE_CONFIG_END
+	ESQPANEL2X16_SQ1(config.replace(), m_panel);
+	m_panel->write_tx().set(m_duart, FUNC(mc68681_device::rx_b_w));
+	m_panel->write_analog().set(FUNC(esq5505_state::analog_w));
+}
 
 static INPUT_PORTS_START( vfx )
 #if KEYBOARD_HACK
@@ -834,12 +879,12 @@ static INPUT_PORTS_START( sq1 )
 INPUT_PORTS_END
 
 #define ROM_LOAD16_BYTE_BIOS(bios,name,offset,length,hash) \
-		ROMX_LOAD(name, offset, length, hash, ROM_SKIP(1) | ROM_BIOS(bios+1)) /* Note '+1' */
+		ROMX_LOAD(name, offset, length, hash, ROM_SKIP(1) | ROM_BIOS(bios))
 
 ROM_START( vfx )
-	ROM_REGION(0x40000, "osrom", 0)
-	ROM_LOAD16_BYTE( "vfx210b-low.bin",  0x000000, 0x010000, CRC(c51b19cd) SHA1(2a125b92ffa02ae9d7fb88118d525491d785e87e) )
-	ROM_LOAD16_BYTE( "vfx210b-high.bin", 0x000001, 0x010000, CRC(59853be8) SHA1(8e07f69d53f80885d15f624e0b912aeaf3212ee4) )
+	ROM_REGION16_BE(0x40000, "osrom", 0)
+	ROM_LOAD16_BYTE( "vfx210b-low.bin",  0x000001, 0x010000, CRC(c51b19cd) SHA1(2a125b92ffa02ae9d7fb88118d525491d785e87e) )
+	ROM_LOAD16_BYTE( "vfx210b-high.bin", 0x000000, 0x010000, CRC(59853be8) SHA1(8e07f69d53f80885d15f624e0b912aeaf3212ee4) )
 
 	ROM_REGION(0x200000, "waverom", ROMREGION_ERASE00)
 	ROM_LOAD16_BYTE( "u14.bin", 0x000001, 0x080000, CRC(85592299) SHA1(1aa7cf612f91972baeba15991d9686ccde01599c) )
@@ -850,9 +895,13 @@ ROM_START( vfx )
 ROM_END
 
 ROM_START( vfxsd )
-	ROM_REGION(0x40000, "osrom", 0)
-	ROM_LOAD16_BYTE( "vfxsd_200_lower.bin", 0x000000, 0x010000, CRC(7bd31aea) SHA1(812bf73c4861a5d963f128def14a4a98171c93ad) )
-	ROM_LOAD16_BYTE( "vfxsd_200_upper.bin", 0x000001, 0x010000, CRC(9a40efa2) SHA1(e38a2a4514519c1573361cb1526139bfcf94e45a) )
+	ROM_REGION16_BE(0x40000, "osrom", 0)
+	ROM_SYSTEM_BIOS( 0, "v200", "V200" )
+	ROMX_LOAD( "vfxsd_200_lower.bin", 0x000001, 0x010000, CRC(7bd31aea) SHA1(812bf73c4861a5d963f128def14a4a98171c93ad), ROM_SKIP(1) | ROM_BIOS(0) )
+	ROMX_LOAD( "vfxsd_200_upper.bin", 0x000000, 0x010000, CRC(9a40efa2) SHA1(e38a2a4514519c1573361cb1526139bfcf94e45a), ROM_SKIP(1) | ROM_BIOS(0) )
+	ROM_SYSTEM_BIOS( 1, "v133", "V133" )
+	ROMX_LOAD( "vfxsd_133_lower.bin", 0x000001, 0x010000, CRC(65407fcf) SHA1(83952a19f6f9ae7886ac828d8bd5ea7fee8d0fe3), ROM_SKIP(1) | ROM_BIOS(1) )
+	ROMX_LOAD( "vfxsd_133_upper.bin", 0x000000, 0x010000, CRC(150fcd18) SHA1(e42cf08604b52fab248d15d761de7d835a076940), ROM_SKIP(1) | ROM_BIOS(1) )
 
 	ROM_REGION(0x200000, "waverom", ROMREGION_ERASE00)
 	ROM_LOAD16_BYTE( "u57.bin", 0x000001, 0x080000, CRC(85592299) SHA1(1aa7cf612f91972baeba15991d9686ccde01599c) )
@@ -865,9 +914,9 @@ ROM_START( vfxsd )
 ROM_END
 
 ROM_START( sd1 )
-	ROM_REGION(0x40000, "osrom", 0)
-	ROM_LOAD16_BYTE( "sd1_21_300b_lower.bin", 0x000000, 0x020000, CRC(a1358a0c) SHA1(64ac5358aa46da37ca4195002cf358554e00878a) )
-	ROM_LOAD16_BYTE( "sd1_21_300b_upper.bin", 0x000001, 0x010000, CRC(465ba463) SHA1(899b0e83d0788c8d49c7b09ccf0b4a92b528c6e9) )
+	ROM_REGION16_BE(0x40000, "osrom", 0)
+	ROM_LOAD16_BYTE( "sd1_21_300b_lower.bin", 0x000001, 0x020000, CRC(a1358a0c) SHA1(64ac5358aa46da37ca4195002cf358554e00878a) )
+	ROM_LOAD16_BYTE( "sd1_21_300b_upper.bin", 0x000000, 0x010000, CRC(465ba463) SHA1(899b0e83d0788c8d49c7b09ccf0b4a92b528c6e9) )
 
 	ROM_REGION(0x200000, "waverom", ROMREGION_ERASE00)  // BS=0 region (12-bit)
 	ROM_LOAD16_BYTE( "u34.bin", 0x000001, 0x080000, CRC(85592299) SHA1(1aa7cf612f91972baeba15991d9686ccde01599c) )
@@ -883,13 +932,13 @@ ROM_END
 
 // note: all known 4.xx BIOSes are for the 32-voice SD-1 and play out of tune on 21-voice h/w
 ROM_START( sd132 )
-	ROM_REGION(0x40000, "osrom", 0)
+	ROM_REGION16_BE(0x40000, "osrom", 0)
 	ROM_SYSTEM_BIOS(0, "410", "SD-1 v4.10")
-	ROM_LOAD16_BYTE_BIOS(0, "sd1_410_lo.bin", 0x000000, 0x020000, CRC(faa613a6) SHA1(60066765cddfa9d3b5d09057d8f83fb120f4e65e) )
-	ROM_LOAD16_BYTE_BIOS(0, "sd1_410_hi.bin", 0x000001, 0x010000, CRC(618c0aa8) SHA1(74acf458aa1d04a0a7a0cd5855c49e6855dbd301) )
+	ROM_LOAD16_BYTE_BIOS(0, "sd1_410_lo.bin", 0x000001, 0x020000, CRC(faa613a6) SHA1(60066765cddfa9d3b5d09057d8f83fb120f4e65e) )
+	ROM_LOAD16_BYTE_BIOS(0, "sd1_410_hi.bin", 0x000000, 0x010000, CRC(618c0aa8) SHA1(74acf458aa1d04a0a7a0cd5855c49e6855dbd301) )
 	ROM_SYSTEM_BIOS(1, "402", "SD-1 v4.02")
-	ROM_LOAD16_BYTE_BIOS(1, "sd1_32_402_lo.bin", 0x000000, 0x020000, CRC(5da2572b) SHA1(cb6ddd637ed13bfeb40a99df56000479e63fc8ec) )
-	ROM_LOAD16_BYTE_BIOS(1, "sd1_32_402_hi.bin", 0x000001, 0x010000, CRC(fc45c210) SHA1(23b81ebd9176112e6eae0c7c75b39fcb1656c953) )
+	ROM_LOAD16_BYTE_BIOS(1, "sd1_32_402_lo.bin", 0x000001, 0x020000, CRC(5da2572b) SHA1(cb6ddd637ed13bfeb40a99df56000479e63fc8ec) )
+	ROM_LOAD16_BYTE_BIOS(1, "sd1_32_402_hi.bin", 0x000000, 0x010000, CRC(fc45c210) SHA1(23b81ebd9176112e6eae0c7c75b39fcb1656c953) )
 
 	ROM_REGION(0x200000, "waverom", ROMREGION_ERASE00)  // BS=0 region (12-bit)
 	ROM_LOAD16_BYTE( "u34.bin", 0x000001, 0x080000, CRC(85592299) SHA1(1aa7cf612f91972baeba15991d9686ccde01599c) )
@@ -905,9 +954,9 @@ ROM_END
 
 
 ROM_START( sq1 )
-	ROM_REGION(0x40000, "osrom", 0)
-	ROM_LOAD16_BYTE( "sq1lo.bin",    0x000000, 0x010000, CRC(b004cf05) SHA1(567b0dae2e35b06e39da108f9c041fd9bc38fa35) )
-	ROM_LOAD16_BYTE( "sq1up.bin",    0x000001, 0x010000, CRC(2e927873) SHA1(06a948cb71fa254b23f4b9236f29035d10778da1) )
+	ROM_REGION16_BE(0x40000, "osrom", 0)
+	ROM_LOAD16_BYTE( "sq1lo.bin",    0x000001, 0x010000, CRC(b004cf05) SHA1(567b0dae2e35b06e39da108f9c041fd9bc38fa35) )
+	ROM_LOAD16_BYTE( "sq1up.bin",    0x000000, 0x010000, CRC(2e927873) SHA1(06a948cb71fa254b23f4b9236f29035d10778da1) )
 
 	ROM_REGION(0x200000, "waverom", 0)
 	ROM_LOAD16_BYTE( "sq1-u25.bin",  0x000001, 0x080000, CRC(26312451) SHA1(9f947a11592fd8420fc581914bf16e7ade75390c) )
@@ -917,9 +966,9 @@ ROM_START( sq1 )
 ROM_END
 
 ROM_START( sqrack )
-	ROM_REGION(0x40000, "osrom", 0)
-	ROM_LOAD16_BYTE( "sqr-102-lower.bin", 0x000000, 0x010000, CRC(186c85ad) SHA1(801c5cf82823ce31a88688fbee4c11ea5ffdbc10) )
-	ROM_LOAD16_BYTE( "sqr-102-upper.bin", 0x000001, 0x010000, CRC(088c9d31) SHA1(30627f21d893888b6159c481bea08e3eedd21902) )
+	ROM_REGION16_BE(0x40000, "osrom", 0)
+	ROM_LOAD16_BYTE( "sqr-102-lower.bin", 0x000001, 0x010000, CRC(186c85ad) SHA1(801c5cf82823ce31a88688fbee4c11ea5ffdbc10) )
+	ROM_LOAD16_BYTE( "sqr-102-upper.bin", 0x000000, 0x010000, CRC(088c9d31) SHA1(30627f21d893888b6159c481bea08e3eedd21902) )
 
 	ROM_REGION(0x200000, "waverom", 0)
 	ROM_LOAD16_BYTE( "sq1-u25.bin",  0x000001, 0x080000, CRC(26312451) SHA1(9f947a11592fd8420fc581914bf16e7ade75390c) )
@@ -929,9 +978,9 @@ ROM_START( sqrack )
 ROM_END
 
 ROM_START( sq2 )
-	ROM_REGION(0x40000, "osrom", 0)
-	ROM_LOAD16_BYTE( "sq232_2.03_9193_lower.u27", 0x000000, 0x010000, CRC(e37fbc2c) SHA1(4a74f3540756745073c8768b384905db03da47c0) )
-	ROM_LOAD16_BYTE( "sq232_2.03_cbcd_upper.u32", 0x000001, 0x020000, CRC(5a7dc228) SHA1(d25adecc0dbba93a094c49fae105dcc7aad317f1) )
+	ROM_REGION16_BE(0x40000, "osrom", 0)
+	ROM_LOAD16_BYTE( "sq232_2.03_9193_lower.u27", 0x000001, 0x010000, CRC(e37fbc2c) SHA1(4a74f3540756745073c8768b384905db03da47c0) )
+	ROM_LOAD16_BYTE( "sq232_2.03_cbcd_upper.u32", 0x000000, 0x020000, CRC(5a7dc228) SHA1(d25adecc0dbba93a094c49fae105dcc7aad317f1) )
 
 	ROM_REGION(0x200000, "waverom", 0)
 	ROM_LOAD16_BYTE( "sq1-u25.bin",  0x000001, 0x080000, CRC(26312451) SHA1(9f947a11592fd8420fc581914bf16e7ade75390c) )
@@ -945,9 +994,9 @@ ROM_START( sq2 )
 ROM_END
 
 ROM_START( eps )
-	ROM_REGION(0x20000, "osrom", 0)
-	ROM_LOAD16_BYTE( "eps-l.bin",    0x000000, 0x008000, CRC(382beac1) SHA1(110e31edb03fcf7bbde3e17423b21929e5b32db2) )
-	ROM_LOAD16_BYTE( "eps-h.bin",    0x000001, 0x008000, CRC(d8747420) SHA1(460597751386eb5f08465699b61381c4acd78065) )
+	ROM_REGION16_BE(0x20000, "osrom", 0)
+	ROM_LOAD16_BYTE( "eps-l.bin",    0x000001, 0x008000, CRC(382beac1) SHA1(110e31edb03fcf7bbde3e17423b21929e5b32db2) )
+	ROM_LOAD16_BYTE( "eps-h.bin",    0x000000, 0x008000, CRC(d8747420) SHA1(460597751386eb5f08465699b61381c4acd78065) )
 
 	ROM_REGION(0x200000, "waverom", ROMREGION_ERASE00)  // EPS-16 has no ROM sounds
 
@@ -955,22 +1004,21 @@ ROM_START( eps )
 ROM_END
 
 ROM_START( eps16p )
-	ROM_REGION(0x20000, "osrom", 0)
-	ROM_LOAD16_BYTE( "eps16plus-100f-lower.u27", 0x000000, 0x010000, CRC(78568d3f) SHA1(ac737e093f422e109e8f06d44548629a12d6418c) )
-	ROM_LOAD16_BYTE( "eps16plus-100f-upper.u28", 0x000001, 0x010000, CRC(1264465f) SHA1(71604da091bd90a32f0d93698d70b9e114ec1697) )
+	ROM_REGION16_BE(0x20000, "osrom", 0)
+	ROM_LOAD16_BYTE( "eps16plus-100f-lower.u27", 0x000001, 0x010000, CRC(78568d3f) SHA1(ac737e093f422e109e8f06d44548629a12d6418c) )
+	ROM_LOAD16_BYTE( "eps16plus-100f-upper.u28", 0x000000, 0x010000, CRC(1264465f) SHA1(71604da091bd90a32f0d93698d70b9e114ec1697) )
 
 	ROM_REGION(0x200000, "waverom", ROMREGION_ERASE00)  // EPS-16 Plus has no ROM sounds
 
 	ROM_REGION(0x200000, "waverom2", ROMREGION_ERASE00)
 ROM_END
 
-DRIVER_INIT_MEMBER(esq5505_state,common)
+void esq5505_state::init_common()
 {
 	m_system_type = GENERIC;
 	m_duart_io = 0;
 
-	floppy_connector *con = machine().device<floppy_connector>("wd1772:0");
-	floppy_image_device *floppy = con ? con->get_device() : nullptr;
+	floppy_image_device *floppy = m_floppy_connector ? m_floppy_connector->get_device() : nullptr;
 	if (floppy)
 	{
 		m_fdc->set_floppy(floppy);
@@ -978,28 +1026,28 @@ DRIVER_INIT_MEMBER(esq5505_state,common)
 	}
 }
 
-DRIVER_INIT_MEMBER(esq5505_state,eps)
+void esq5505_state::init_eps()
 {
-	DRIVER_INIT_CALL(common);
+	init_common();
 	m_system_type = EPS;
 }
 
-DRIVER_INIT_MEMBER(esq5505_state,sq1)
+void esq5505_state::init_sq1()
 {
-	DRIVER_INIT_CALL(common);
+	init_common();
 	m_system_type = SQ1;
 #if KEYBOARD_HACK
 	shift = 60;
 #endif
 }
 
-DRIVER_INIT_MEMBER(esq5505_state,denib)
+void esq5505_state::init_denib()
 {
 	uint8_t *pNibbles = (uint8_t *)memregion("nibbles")->base();
 	uint8_t *pBS0L = (uint8_t *)memregion("waverom")->base();
 	uint8_t *pBS0H = pBS0L + 0x100000;
 
-	DRIVER_INIT_CALL(common);
+	init_common();
 
 	// create the 12 bit samples by patching in the nibbles from the nibble ROM
 	// low nibbles go with the lower ROM, high nibbles with the upper ROM
@@ -1013,12 +1061,12 @@ DRIVER_INIT_MEMBER(esq5505_state,denib)
 	}
 }
 
-CONS( 1988, eps,   0, 0,   eps,   vfx, esq5505_state, eps,    "Ensoniq", "EPS", MACHINE_NOT_WORKING )   // custom VFD: one alphanumeric 22-char row, one graphics-capable row (alpha row can also do bar graphs)
-CONS( 1989, vfx,   0, 0,   vfx,   vfx, esq5505_state, denib,  "Ensoniq", "VFX", MACHINE_NOT_WORKING )       // 2x40 VFD
-CONS( 1989, vfxsd, 0, 0,   vfxsd, vfx, esq5505_state, denib,  "Ensoniq", "VFX-SD", MACHINE_NOT_WORKING )    // 2x40 VFD
-CONS( 1990, eps16p,eps, 0, eps,   vfx, esq5505_state, eps,    "Ensoniq", "EPS-16 Plus", MACHINE_NOT_WORKING )   // custom VFD: one alphanumeric 22-char row, one graphics-capable row (alpha row can also do bar graphs)
-CONS( 1990, sd1,   0, 0,   vfxsd, vfx, esq5505_state, denib,  "Ensoniq", "SD-1 (21 voice)", MACHINE_NOT_WORKING )  // 2x40 VFD
-CONS( 1990, sq1,   0, 0,   sq1,   sq1, esq5505_state, sq1,    "Ensoniq", "SQ-1", MACHINE_NOT_WORKING )      // 2x16 LCD
-CONS( 1990, sqrack,sq1, 0, sq1,   sq1, esq5505_state, sq1,    "Ensoniq", "SQ-Rack", MACHINE_NOT_WORKING )   // 2x16 LCD
-CONS( 1991, sq2,   0, 0,   sq1,   sq1, esq5505_state, sq1,    "Ensoniq", "SQ-2", MACHINE_NOT_WORKING )      // 2x16 LCD
-CONS( 1991, sd132, sd1,0,  vfx32, vfx, esq5505_state, denib,  "Ensoniq", "SD-1 (32 voice)", MACHINE_NOT_WORKING )  // 2x40 VFD
+CONS( 1988, eps,    0,   0, eps,   vfx, esq5505_state, init_eps,    "Ensoniq", "EPS",             MACHINE_NOT_WORKING )  // custom VFD: one alphanumeric 22-char row, one graphics-capable row (alpha row can also do bar graphs)
+CONS( 1989, vfx,    0,   0, vfx,   vfx, esq5505_state, init_denib,  "Ensoniq", "VFX",             MACHINE_NOT_WORKING )  // 2x40 VFD
+CONS( 1989, vfxsd,  0,   0, vfxsd, vfx, esq5505_state, init_denib,  "Ensoniq", "VFX-SD",          MACHINE_NOT_WORKING )  // 2x40 VFD
+CONS( 1990, eps16p, eps, 0, eps,   vfx, esq5505_state, init_eps,    "Ensoniq", "EPS-16 Plus",     MACHINE_NOT_WORKING )  // custom VFD: one alphanumeric 22-char row, one graphics-capable row (alpha row can also do bar graphs)
+CONS( 1990, sd1,    0,   0, vfxsd, vfx, esq5505_state, init_denib,  "Ensoniq", "SD-1 (21 voice)", MACHINE_NOT_WORKING )  // 2x40 VFD
+CONS( 1990, sq1,    0,   0, sq1,   sq1, esq5505_state, init_sq1,    "Ensoniq", "SQ-1",            MACHINE_NOT_WORKING )  // 2x16 LCD
+CONS( 1990, sqrack, sq1, 0, sq1,   sq1, esq5505_state, init_sq1,    "Ensoniq", "SQ-Rack",         MACHINE_NOT_WORKING )  // 2x16 LCD
+CONS( 1991, sq2,    0,   0, sq1,   sq1, esq5505_state, init_sq1,    "Ensoniq", "SQ-2",            MACHINE_NOT_WORKING )  // 2x16 LCD
+CONS( 1991, sd132,  sd1, 0, vfx32, vfx, esq5505_state, init_denib,  "Ensoniq", "SD-1 (32 voice)", MACHINE_NOT_WORKING )  // 2x40 VFD

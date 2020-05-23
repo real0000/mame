@@ -8,12 +8,13 @@
 
 *********************************************************************/
 
-#include "emu.h" // emu_fatalerror
 #include "formats/upd765_dsk.h"
 
-upd765_format::upd765_format(const format *_formats) : file_header_skip_bytes(0), file_footer_skip_bytes(0)
+#include "emucore.h" // emu_fatalerror
+
+
+upd765_format::upd765_format(const format *_formats) : file_header_skip_bytes(0), file_footer_skip_bytes(0), formats(_formats)
 {
-	formats = _formats;
 }
 
 int upd765_format::find_size(io_generic *io, uint32_t form_factor) const

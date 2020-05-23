@@ -4,14 +4,13 @@
 
 **********************************************************************/
 
+#ifndef MAME_BUS_NEOGEO_CARTS_H
+#define MAME_BUS_NEOGEO_CARTS_H
+
 #pragma once
-
-#ifndef __NEOGEO_CARTS_H__
-#define __NEOGEO_CARTS_H__
-
 
 
 // supported devices
-SLOT_INTERFACE_EXTERN(neogeo_cart);
+void neogeo_cart(device_slot_interface &device);
 
-#endif // __NEOGEO_CARTS_H__
+#endif // MAME_BUS_NEOGEO_CARTS_H

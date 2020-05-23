@@ -18,6 +18,9 @@
 #include "debug/debugcon.h"
 #include "debug/debugcpu.h"
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 11, 0)
+#define horizontalAdvance width
+#endif
 
 MemoryWindow::MemoryWindow(running_machine* machine, QWidget* parent) :
 	WindowQt(machine, nullptr)
@@ -166,7 +169,7 @@ MemoryWindow::~MemoryWindow()
 
 void MemoryWindow::memoryRegionChanged(int index)
 {
-	m_memTable->view()->set_source(*m_memTable->view()->source_list().find(index));
+	m_memTable->view()->set_source(*m_memTable->view()->source(index));
 	m_memTable->viewport()->update();
 
 	// Update the data format radio buttons to the memory region's default
@@ -283,9 +286,9 @@ void MemoryWindow::populateComboBox()
 		return;
 
 	m_memoryComboBox->clear();
-	for (const debug_view_source &source : m_memTable->view()->source_list())
+	for (auto &source : m_memTable->view()->source_list())
 	{
-		m_memoryComboBox->addItem(source.name());
+		m_memoryComboBox->addItem(source->name());
 	}
 }
 
@@ -293,9 +296,15 @@ void MemoryWindow::populateComboBox()
 void MemoryWindow::setToCurrentCpu()
 {
 	device_t* curCpu = m_machine->debugger().cpu().get_visible_cpu();
-	const debug_view_source *source = m_memTable->view()->source_for_device(curCpu);
-	const int listIndex = m_memTable->view()->source_list().indexof(*source);
-	m_memoryComboBox->setCurrentIndex(listIndex);
+	if (curCpu)
+	{
+		const debug_view_source *source = m_memTable->view()->source_for_device(curCpu);
+		if (source)
+		{
+			const int listIndex = m_memTable->view()->source_index(*source);
+			m_memoryComboBox->setCurrentIndex(listIndex);
+		}
+	}
 }
 
 
@@ -328,8 +337,8 @@ void DebuggerMemView::mousePressEvent(QMouseEvent* event)
 	if (leftClick || rightClick)
 	{
 		QFontMetrics actualFont = fontMetrics();
-		const double fontWidth = actualFont.width(QString(100, '_')) / 100.;
-		const int fontHeight = std::max(1, actualFont.height());
+		const double fontWidth = actualFont.horizontalAdvance(QString(100, '_')) / 100.;
+		const int fontHeight = std::max(1, actualFont.lineSpacing());
 
 		debug_view_xy topLeft = view()->visible_position();
 		debug_view_xy clickViewPosition;

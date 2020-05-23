@@ -1,4 +1,4 @@
-// license:GPL-2.0+
+// license:BSD-3-Clause
 // copyright-holders:Dirk Best
 /***************************************************************************
 
@@ -8,53 +8,39 @@
 
 ***************************************************************************/
 
+#ifndef MAME_VIDEO_I82730_H
+#define MAME_VIDEO_I82730_H
+
 #pragma once
-
-#ifndef __I82730_H__
-#define __I82730_H__
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_I82730_ADD(_tag, _cpu_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, I82730, _clock) \
-	i82730_device::set_cpu_tag(*device, owner, _cpu_tag);
-
-#define MCFG_I82730_SINT_HANDLER(_devcb) \
-	devcb = &i82730_device::set_sint_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_I82730_UPDATE_ROW_CB(_class, _method) \
-	i82730_device::set_update_row_callback(*device, i82730_update_row_delegate(&_class::_method, #_class "::" #_method, downcast<_class *>(owner)));
-
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-typedef device_delegate<void (bitmap_rgb32 &bitmap, uint16_t *data, uint8_t lc, uint16_t y, int x_count)> i82730_update_row_delegate;
-
 #define I82730_UPDATE_ROW(name) \
-	void name(bitmap_rgb32 &bitmap, uint16_t *data, uint8_t lc, uint16_t y, int x_count)
-
+	   void name(bitmap_rgb32 &bitmap, uint16_t *data, uint8_t lc, uint16_t y, int x_count)
 
 // ======================> i82730_device
 
 class i82730_device : public device_t, public device_video_interface
 {
 public:
+	typedef device_delegate<void (bitmap_rgb32 &bitmap, uint16_t *data, uint8_t lc, uint16_t y, int x_count)> update_row_delegate;
+
 	// construction/destruction
+	template <typename T>
+	i82730_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock, T &&cpu_tag)
+		: i82730_device(mconfig, tag, owner, clock)
+	{
+		m_cpu.set_tag(std::forward<T>(cpu_tag));
+	}
 	i82730_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// callbacks
-	template<class _Object> static devcb_base &set_sint_handler(device_t &device, _Object object)
-		{ return downcast<i82730_device &>(device).m_sint_handler.set_callback(object); }
+	auto sint() { return m_sint_handler.bind(); }
 
 	// inline configuration
-	static void set_cpu_tag(device_t &device, device_t *owner, const char *tag);
-	static void set_update_row_callback(device_t &device, i82730_update_row_delegate callback) { downcast<i82730_device &>(device).m_update_row_cb = callback; }
+	template <typename... T> void set_update_row_callback(T &&... args) { m_update_row_cb.set(std::forward<T>(args)...); }
 
 	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
@@ -80,7 +66,7 @@ private:
 		VDIP = 0x100   // virtual display in progress
 	};
 
-	static const char* m_command_names[];
+	static const char *const s_command_names[];
 
 	bool sysbus_16bit() { return BIT(m_sysbus, 0); }
 
@@ -97,9 +83,9 @@ private:
 	TIMER_CALLBACK_MEMBER(row_update);
 
 	devcb_write_line m_sint_handler;
-	i82730_update_row_delegate m_update_row_cb;
+	update_row_delegate m_update_row_cb;
 
-	const char *m_cpu_tag;
+	required_device<cpu_device> m_cpu;
 	address_space *m_program;
 
 	emu_timer *m_row_timer;
@@ -151,6 +137,6 @@ private:
 };
 
 // device type definition
-extern const device_type I82730;
+DECLARE_DEVICE_TYPE(I82730, i82730_device)
 
-#endif // __I82730_H__
+#endif // MAME_VIDEO_I82730_H

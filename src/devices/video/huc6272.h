@@ -6,28 +6,15 @@
 
 ***************************************************************************/
 
-#pragma once
+#ifndef MAME_VIDEO_HUC6272_H
+#define MAME_VIDEO_HUC6272_H
 
-#ifndef __huc6272DEV_H__
-#define __huc6272DEV_H__
+#pragma once
 
 #include "bus/scsi/scsi.h"
 #include "bus/scsi/scsicd.h"
 #include "video/huc6271.h"
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_HUC6272_ADD(_tag,_freq) \
-	MCFG_DEVICE_ADD(_tag, huc6272, _freq)
-
-#define MCFG_HUC6272_IRQ_CHANGED_CB(_devcb) \
-	devcb = &huc6272_device::set_irq_changed_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_HUC6272_RAINBOW(_tag) \
-	huc6272_device::set_rainbow_tag(*device, _tag);
+#include "speaker.h"
 
 
 //**************************************************************************
@@ -40,28 +27,39 @@ class huc6272_device :  public device_t,
 						public device_memory_interface
 {
 public:
+	static constexpr feature_type imperfect_features() { return feature::SOUND | feature::GRAPHICS; } // Incorrect ADPCM and Graphics
+
 	// construction/destruction
 	huc6272_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_irq_changed_callback(device_t &device, _Object object) { return downcast<huc6272_device &>(device).m_irq_changed_cb.set_callback(object); }
-	static void set_rainbow_tag(device_t &device, const char *tag) { downcast<huc6272_device &>(device).m_huc6271_tag = tag; }
+	auto irq_changed_callback() { return m_irq_changed_cb.bind(); }
+	template <typename T> void set_rainbow_tag(T &&tag) { m_huc6271.set_tag(std::forward<T>(tag)); }
 
 	// I/O operations
 	DECLARE_WRITE32_MEMBER( write );
 	DECLARE_READ32_MEMBER( read );
+
+	// ADPCM operations
+	uint8_t adpcm_update_0();
+	uint8_t adpcm_update_1();
+
+	// CD-DA operations
+	void cdda_update(offs_t offset, uint8_t data);
+
+	static void cdrom_config(device_t *device);
 
 protected:
 	// device-level overrides
 	virtual void device_validity_check(validity_checker &valid) const override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_PROGRAM) const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+	virtual space_config_vector memory_space_config() const override;
 
 private:
-	const char *m_huc6271_tag;
-
-	huc6271_device *m_huc6271;
+	required_device<huc6271_device> m_huc6271;
+	required_device<speaker_device> m_cdda_l;
+	required_device<speaker_device> m_cdda_r;
 
 	uint8_t m_register;
 	uint32_t m_kram_addr_r, m_kram_addr_w;
@@ -92,12 +90,27 @@ private:
 		uint8_t ctrl;
 	}m_micro_prg;
 
+	struct{
+		uint8_t rate;
+		uint32_t status;
+		int interrupt;
+		uint8_t playing[2];
+		uint8_t control[2];
+		uint32_t start[2];
+		uint32_t end[2];
+		uint32_t imm[2];
+		uint32_t input[2];
+		int nibble[2];
+		uint32_t pos[2];
+		uint32_t addr[2];
+	}m_adpcm;
+
 	const address_space_config      m_program_space_config;
 	const address_space_config      m_data_space_config;
 	required_shared_ptr<uint16_t>   m_microprg_ram;
 	required_shared_ptr<uint32_t>   m_kram_page0;
 	required_shared_ptr<uint32_t>   m_kram_page1;
-	required_device<SCSI_PORT_DEVICE> m_scsibus;
+	required_device<scsi_port_device> m_scsibus;
 	required_device<input_buffer_device> m_scsi_data_in;
 	required_device<output_latch_device> m_scsi_data_out;
 	required_device<input_buffer_device> m_scsi_ctrl_in;
@@ -108,17 +121,15 @@ private:
 	uint32_t read_dword(offs_t address);
 	void write_dword(offs_t address, uint32_t data);
 	void write_microprg_data(offs_t address, uint16_t data);
+
+	uint8_t adpcm_update(int chan);
+	void interrupt_update();
+
+	void kram_map(address_map &map);
+	void microprg_map(address_map &map);
 };
 
 // device type definition
-extern const device_type huc6272;
+DECLARE_DEVICE_TYPE(HUC6272, huc6272_device)
 
-
-
-//**************************************************************************
-//  GLOBAL VARIABLES
-//**************************************************************************
-
-
-
-#endif
+#endif // MAME_VIDEO_HUC6272_H

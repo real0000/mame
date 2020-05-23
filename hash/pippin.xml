@@ -1,7 +1,9 @@
 <?xml version="1.0"?>
 <!DOCTYPE softwarelist SYSTEM "softwarelist.dtd">
 <!--
-NOTE: This list is here only to document available dumps and it's not used (yet) by MESS!
+license:CC0
+
+NOTE: This list is here only to document available dumps and it's not used (yet) by MAME!
 -->
 <softwarelist name="pippin" description="Pippin CD-ROMs">
 
@@ -10,7 +12,7 @@ NOTE: This list is here only to document available dumps and it's not used (yet)
     Undumped (to be confirmed):
     Name                                              Publisher         Serial        Date
     @World Registration                               ?                 01348C        ?
-    Anime Designer - DragonBall Z (Sample disc)       Bandai            ?             ?
+    Anime Designer - Dragon Ball Z (Sample disc)      Bandai            ?             ?
     B no Kaidan                                       ?                 ?             ?
     Chibikko Club                                     ?                 BDS-20009     ?
     CineNoir                                          Bandai            31158C        ?
@@ -143,7 +145,7 @@ NOTE: This list is here only to document available dumps and it's not used (yet)
 	</software>
 
 	<software name="animedbz">
-		<description>AnimeDesigner - DragonBall Z (Jpn)</description>
+		<description>AnimeDesigner - Dragon Ball Z (Jpn)</description>
 		<year>1996</year>
 		<publisher>Bandai</publisher>
 		<info name="serial" value="BDE-10019" />

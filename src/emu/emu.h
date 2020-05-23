@@ -19,6 +19,7 @@
 #define __EMU_H__
 
 #include <list>
+#include <forward_list>
 #include <vector>
 #include <memory>
 #include <map>
@@ -26,10 +27,15 @@
 #include <unordered_map>
 #include <unordered_set>
 
-// core emulator headers -- must be first
+// core emulator headers -- must be first (profiler needs attotime, attotime needs xtal)
 #include "emucore.h"
 #include "eminline.h"
+#include "xtal.h"
+#include "attotime.h"
 #include "profiler.h"
+
+// http interface helpers
+#include "http.h"
 
 // commonly-referenced utilities imported from lib/util
 #include "palette.h"
@@ -38,7 +44,6 @@
 #include "vecstream.h"
 
 // emulator-specific utilities
-#include "attotime.h"
 #include "hash.h"
 #include "fileio.h"
 #include "delegate.h"
@@ -46,17 +51,11 @@
 
 // memory and address spaces
 #include "emumem.h"
-#include "addrmap.h"
 #include "memarray.h"
 
 // machine-wide utilities
-#include "romload.h"
+#include "romentry.h"
 #include "save.h"
-
-// define machine_config_constructor here due to circular dependency
-// between devices and the machine config
-class machine_config;
-typedef device_t * (*machine_config_constructor)(machine_config &config, device_t *owner, device_t *device);
 
 // I/O
 #include "input.h"
@@ -66,42 +65,37 @@ typedef device_t * (*machine_config_constructor)(machine_config &config, device_
 // devices and callbacks
 #include "device.h"
 #include "devfind.h"
+#include "addrmap.h" // Needs optional_device<> and required_device<>
 #include "distate.h"
 #include "dimemory.h"
 #include "dirom.h"
-#include "diexec.h"
 #include "opresolv.h"
+#include "dipalette.h"
 #include "digfx.h"
 #include "diimage.h"
-#include "dioutput.h"
-#include "diserial.h"
 #include "dislot.h"
 #include "disound.h"
 #include "divideo.h"
 #include "dinvram.h"
-#include "didisasm.h"
 #include "schedule.h"
-#include "timer.h"
 #include "dinetwork.h"
-#include "dipty.h"
 
 // machine and driver configuration
 #include "mconfig.h"
 #include "gamedrv.h"
 #include "parameters.h"
 
-// timers, CPU and scheduling
-#include "devcpu.h"
-
 // the running machine
 #include "main.h"
 #include "machine.h"
 #include "driver.h"
 
+// common device interfaces
+#include "diexec.h"
+#include "devcpu.h"
+
 // video-related
 #include "drawgfx.h"
-#include "emupal.h"
-#include "tilemap.h"
 #include "video.h"
 
 // sound-related
@@ -109,11 +103,10 @@ typedef device_t * (*machine_config_constructor)(machine_config &config, device_
 
 // generic helpers
 #include "devcb.h"
-#include "drivers/xtal.h"
 #include "bookkeeping.h"
 #include "video/generic.h"
 
 // member templates that don't like incomplete types
 #include "device.ipp"
 
-#endif  /* __EMU_H__ */
+#endif // __EMU_H__

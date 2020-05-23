@@ -49,20 +49,20 @@ OPTION_GUIDE_START( datapack_option_guide )
 	OPTION_INT('C', "copy", "Copyable" )
 OPTION_GUIDE_END
 
-static const char *datapack_option_spec =
+static char const *const datapack_option_spec =
 	"S1/2/4/[8]/16;R0/[1];P[0]/1;W[0]/1;B[0]/1;C0/[1]";
 
 
 // device type definition
-const device_type PSION_DATAPACK = device_creator<datapack_device>;
+DEFINE_DEVICE_TYPE(PSION_DATAPACK, datapack_device, "datapack", "Psion Datapack")
 
 //-------------------------------------------------
 //  datapack_device - constructor
 //-------------------------------------------------
 
 datapack_device::datapack_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, PSION_DATAPACK, "Psion Datapack", tag, owner, clock, "datapack", __FILE__),
-		device_image_interface(mconfig, *this)
+	: device_t(mconfig, PSION_DATAPACK, tag, owner, clock)
+	, device_image_interface(mconfig, *this)
 {
 }
 

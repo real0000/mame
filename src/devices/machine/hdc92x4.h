@@ -4,95 +4,59 @@
     HDC9224 / HDC9234 Hard and Floppy Disk Controller
     For details see hdc92x4.c
 */
-#ifndef __HDC92X4_H__
-#define __HDC92X4_H__
+#ifndef MAME_MACHINE_HDC92X4_H
+#define MAME_MACHINE_HDC92X4_H
 
 #include "imagedev/floppy.h"
 #include "imagedev/mfmhd.h"
 #include "fdc_pll.h"
 
-extern const device_type HDC9224;
-extern const device_type HDC9234;
-
-/*
-    Enumeration of the latches outside of the controller
-*/
-enum
-{
-	HDC_INPUT_STATUS    = 0x00,
-	HDC_OUTPUT_DMA_ADDR = 0x01,
-	HDC_OUTPUT_1        = 0x02,
-	HDC_OUTPUT_2        = 0x03
-};
-
-
-/*
-    Definition of bits in the Disk-Status register
-*/
-enum
-{
-	HDC_DS_ECCERR  = 0x80,        // ECC error
-	HDC_DS_INDEX   = 0x40,        // index hole
-	HDC_DS_SKCOM   = 0x20,        // seek complete
-	HDC_DS_TRK00   = 0x10,        // track 0
-	HDC_DS_UDEF    = 0x08,        // user-defined
-	HDC_DS_WRPROT  = 0x04,        // write-protected
-	HDC_DS_READY   = 0x02,        // drive ready bit
-	HDC_DS_WRFAULT = 0x01         // write fault
-};
-
-//===================================================================
-
-/* Interrupt line. To be connected with the controller PCB. */
-#define MCFG_HDC92X4_INTRQ_CALLBACK(_write) \
-	devcb = &hdc92x4_device::set_intrq_wr_callback(*device, DEVCB_##_write);
-
-/* DMA request line. To be connected with the controller PCB. */
-#define MCFG_HDC92X4_DMARQ_CALLBACK(_write) \
-	devcb = &hdc92x4_device::set_dmarq_wr_callback(*device, DEVCB_##_write);
-
-/* DMA in progress line. To be connected with the controller PCB. */
-#define MCFG_HDC92X4_DIP_CALLBACK(_write) \
-	devcb = &hdc92x4_device::set_dip_wr_callback(*device, DEVCB_##_write);
-
-/* Auxiliary Bus. These 8 lines need to be connected to external latches
-   and to a counter circuitry which works together with the external RAM.
-   We use the S0/S1 lines as address lines. */
-#define MCFG_HDC92X4_AUXBUS_OUT_CALLBACK(_write) \
-	devcb = &hdc92x4_device::set_auxbus_wr_callback(*device, DEVCB_##_write);
-
-/* Callback to read the contents of the external RAM via the data bus.
-   Note that the address must be set and automatically increased
-   by external circuitry. */
-#define MCFG_HDC92X4_DMA_IN_CALLBACK(_read) \
-	devcb = &hdc92x4_device::set_dma_rd_callback(*device, DEVCB_##_read);
-
-/* Callback to write the contents of the external RAM via the data bus.
-   Note that the address must be set and automatically increased
-   by external circuitry. */
-#define MCFG_HDC92X4_DMA_OUT_CALLBACK(_write) \
-	devcb = &hdc92x4_device::set_dma_wr_callback(*device, DEVCB_##_write);
-
-//===================================================================
+DECLARE_DEVICE_TYPE(HDC9224, hdc9224_device)
+DECLARE_DEVICE_TYPE(HDC9234, hdc9234_device)
 
 class hdc92x4_device : public device_t
 {
 public:
-	hdc92x4_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
+	/*
+	    Enumeration of the latches outside of the controller
+	*/
+	enum
+	{
+		INPUT_STATUS    = 0x00,
+		OUTPUT_DMA_ADDR = 0x01,
+		OUTPUT_1        = 0x02,
+		OUTPUT_2        = 0x03
+	};
+
+
+	/*
+	    Definition of bits in the Disk-Status register
+	*/
+	enum
+	{
+		DS_ECCERR  = 0x80,        // ECC error
+		DS_INDEX   = 0x40,        // index hole
+		DS_SKCOM   = 0x20,        // seek complete
+		DS_TRK00   = 0x10,        // track 0
+		DS_UDEF    = 0x08,        // user-defined
+		DS_WRPROT  = 0x04,        // write-protected
+		DS_READY   = 0x02,        // drive ready bit
+		DS_WRFAULT = 0x01         // write fault
+	};
 
 	// Accessors from the CPU side
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER( reset );
 	DECLARE_WRITE_LINE_MEMBER( dmaack );
 
 	// Callbacks
-	template<class _Object> static devcb_base &set_intrq_wr_callback(device_t &device, _Object object) { return downcast<hdc92x4_device &>(device).m_out_intrq.set_callback(object); }
-	template<class _Object> static devcb_base &set_dmarq_wr_callback(device_t &device, _Object object) { return downcast<hdc92x4_device &>(device).m_out_dmarq.set_callback(object); }
-	template<class _Object> static devcb_base &set_dip_wr_callback(device_t &device, _Object object) { return downcast<hdc92x4_device &>(device).m_out_dip.set_callback(object); }
-	template<class _Object> static devcb_base &set_auxbus_wr_callback(device_t &device, _Object object) { return downcast<hdc92x4_device &>(device).m_out_auxbus.set_callback(object); }
-	template<class _Object> static devcb_base &set_dma_rd_callback(device_t &device, _Object object) { return downcast<hdc92x4_device &>(device).m_in_dma.set_callback(object); }
-	template<class _Object> static devcb_base &set_dma_wr_callback(device_t &device, _Object object) { return downcast<hdc92x4_device &>(device).m_out_dma.set_callback(object); }
+	auto intrq_cb() { return m_out_intrq.bind(); }
+	auto dmarq_cb() { return m_out_dmarq.bind(); }
+	auto dip_cb() { return m_out_dip.bind(); }
+	auto auxbus_cb() { return m_out_auxbus.bind(); }
+	auto dmain_cb() { return m_in_dma.bind(); }
+	auto dmaout_cb() { return m_out_dma.bind(); }
 
 	// auxbus_in is intended to read events from the drives
 	// In the real chip the status is polled; to avoid unnecessary load
@@ -114,10 +78,12 @@ public:
 	void connect_hard_drive(mfm_harddisk_device *harddisk);
 
 protected:
+	hdc92x4_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, bool is_hdc9234);
+
 	void device_start() override;
 	void device_reset() override;
 
-	bool m_is_hdc9234;
+	const bool m_is_hdc9234;
 
 	devcb_write_line   m_out_intrq;    // INT line
 	devcb_write_line   m_out_dmarq;    // DMA request line
@@ -506,4 +472,4 @@ protected:
 	int header_length() override;
 };
 
-#endif
+#endif // MAME_MACHINE_HDC92X4_H

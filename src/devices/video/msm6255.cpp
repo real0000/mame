@@ -9,14 +9,13 @@
 #include "emu.h"
 #include "msm6255.h"
 
+//#define VERBOSE 1
+#include "logmacro.h"
 
 
 //**************************************************************************
 //  MACROS / CONSTANTS
 //**************************************************************************
-
-#define LOG 0
-
 
 #define MOR_GRAPHICS        0x01
 #define MOR_4_BIT_PARALLEL  0x02
@@ -52,18 +51,21 @@
 //**************************************************************************
 
 // device type definition
-const device_type MSM6255 = device_creator<msm6255_device>;
+DEFINE_DEVICE_TYPE(MSM6255, msm6255_device, "msm6255", "Oki MSM6255 LCD Controller")
 
 // I/O map
-DEVICE_ADDRESS_MAP_START( map, 8, msm6255_device )
-	AM_RANGE(0x00, 0x00) AM_READWRITE(dr_r, dr_w)
-	AM_RANGE(0x01, 0x01) AM_READWRITE(ir_r, ir_w)
-ADDRESS_MAP_END
+void msm6255_device::map(address_map &map)
+{
+	map(0x00, 0x00).rw(FUNC(msm6255_device::dr_r), FUNC(msm6255_device::dr_w));
+	map(0x01, 0x01).rw(FUNC(msm6255_device::ir_r), FUNC(msm6255_device::ir_w));
+}
 
 // default address map
-static ADDRESS_MAP_START( msm6255, AS_0, 8, msm6255_device )
-	AM_RANGE(0x00000, 0xfffff) AM_RAM
-ADDRESS_MAP_END
+void msm6255_device::msm6255(address_map &map)
+{
+	if (!has_configured_map(0))
+		map(0x00000, 0xfffff).ram();
+}
 
 
 
@@ -76,10 +78,10 @@ ADDRESS_MAP_END
 //-------------------------------------------------
 
 msm6255_device::msm6255_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, MSM6255, "MSM6255", tag, owner, clock, "msm6255", __FILE__),
+	device_t(mconfig, MSM6255, tag, owner, clock),
 	device_memory_interface(mconfig, *this),
 	device_video_interface(mconfig, *this),
-	m_space_config("videoram", ENDIANNESS_LITTLE, 8, 20, 0, nullptr, *ADDRESS_MAP_NAME(msm6255)),
+	m_space_config("videoram", ENDIANNESS_LITTLE, 8, 20, 0, address_map_constructor(FUNC(msm6255_device::msm6255), this)),
 	m_cursor(0)
 {
 }
@@ -122,9 +124,11 @@ void msm6255_device::device_reset()
 //  any address spaces owned by this device
 //-------------------------------------------------
 
-const address_space_config *msm6255_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector msm6255_device::memory_space_config() const
 {
-	return (spacenum == AS_0) ? &m_space_config : nullptr;
+	return space_config_vector {
+		std::make_pair(0, &m_space_config)
+	};
 }
 
 
@@ -132,7 +136,7 @@ const address_space_config *msm6255_device::memory_space_config(address_spacenum
 //  ir_r -
 //-------------------------------------------------
 
-READ8_MEMBER( msm6255_device::ir_r )
+uint8_t msm6255_device::ir_r()
 {
 	return m_ir;
 }
@@ -142,7 +146,7 @@ READ8_MEMBER( msm6255_device::ir_r )
 //  ir_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( msm6255_device::ir_w )
+void msm6255_device::ir_w(uint8_t data)
 {
 	m_ir = data & 0x0f;
 }
@@ -152,7 +156,7 @@ WRITE8_MEMBER( msm6255_device::ir_w )
 //  dr_r -
 //-------------------------------------------------
 
-READ8_MEMBER( msm6255_device::dr_r )
+uint8_t msm6255_device::dr_r()
 {
 	uint8_t data = 0;
 
@@ -201,7 +205,7 @@ READ8_MEMBER( msm6255_device::dr_r )
 //  dr_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( msm6255_device::dr_w )
+void msm6255_device::dr_w(uint8_t data)
 {
 	switch (m_ir)
 	{

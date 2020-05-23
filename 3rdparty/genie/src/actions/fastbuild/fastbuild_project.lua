@@ -30,7 +30,7 @@ local function compile(indentlevel, prj, cfg, commonbasepath)
 
 	local firstflag = true
 	for _, cfgexclude in ipairs(cfg.excludes) do
-		if path.isSourceFile(cfgexclude) then
+		if path.issourcefile(cfgexclude) then
 			if firstflag then
 				_p(indentlevel, '// Excluded files:')
 				firstflag = false
@@ -54,17 +54,7 @@ local function compile(indentlevel, prj, cfg, commonbasepath)
 	end
 
 	_p(indentlevel, ".IncludeDirs = ''")
-	local sortedincdirs = {}
-	for _, includedir in ipairs(cfg.userincludedirs) do
-		if includedir ~= nil then
-			table.insert(sortedincdirs, includedir)
-		end
-	end
-	for _, includedir in ipairs(cfg.includedirs) do
-		if includedir ~= nil then
-			table.insert(sortedincdirs, includedir)
-		end
-	end
+	local sortedincdirs = table.join(cfg.userincludedirs, cfg.includedirs, cfg.systemincludedirs)
 
 	-- Setup for special include dir sort to ensure that 'nearby' dirs get precedence over others.
 	-- Gets the relative path from commonbasepath and counts the steps in that path.
@@ -104,7 +94,6 @@ local function compile(indentlevel, prj, cfg, commonbasepath)
 		'"%1"',
 		'/nologo',
 		'/c',
-		'/Gy',
 		'/Gm-',
 		'/Zc:inline',
 		'/errorReport:prompt',
@@ -115,7 +104,9 @@ local function compile(indentlevel, prj, cfg, commonbasepath)
 		table.insert(compileroptions, '/TP')
 	end
 
-	if cfg.flags.ExtraWarnings then
+	if cfg.flags.PedanticWarnings
+	or cfg.flags.ExtraWarnings
+	then
 		table.insert(compileroptions, '/W4')
 	end
 
@@ -165,11 +156,10 @@ local function compile(indentlevel, prj, cfg, commonbasepath)
 		if (cfg.flags.C7DebugInfo) then
 			table.insert(compileroptions, '/Z7')
 		else
-			if (premake.config.isoptimizedbuild(cfg.flags)
-				or cfg.flags.NoEditAndContinue) then
-				table.insert(compileroptions, '/Zi')
-			else
+			if premake.config.iseditandcontinue(cfg) then
 				table.insert(compileroptions, '/ZI')
+			else
+				table.insert(compileroptions, '/Zi')
 			end
 			local targetdir = add_trailing_backslash(cfg.buildtarget.directory)
 			table.insert(compileroptions, string.format("/Fd\"%s%s.pdb\"", targetdir, cfg.buildtarget.basename))
@@ -188,8 +178,16 @@ local function compile(indentlevel, prj, cfg, commonbasepath)
 	end
 
 	if isoptimised then
-		table.insert(compileroptions, '/GF')
+		-- Refer to vstudio.vcxproj.lua about FunctionLevelLinking
+		if cfg.flags.NoOptimizeLink and cfg.flags.NoEditAndContinue then
+			table.insert(compileroptions, '/GF-')
+			table.insert(compileroptions, '/Gy-')
+		else
+			table.insert(compileroptions, '/GF')
+			table.insert(compileroptions, '/Gy')
+		end
 	else
+		table.insert(compileroptions, '/Gy')
 		table.insert(compileroptions, '/Od')
 		table.insert(compileroptions, '/RTC1')
 	end
@@ -362,7 +360,7 @@ local function binary(prj, cfg, useconfig, bintype, commonbasepath)
 		table.insert(linkeroptions, '/DEBUG')
 	end
 
-	if premake.config.isoptimizedbuild(cfg.flags) then
+	if premake.config.islinkeroptimizedbuild(cfg.flags) then
 		table.insert(linkeroptions, '/OPT:REF')
 		table.insert(linkeroptions, '/OPT:ICF')
 	end
@@ -418,7 +416,7 @@ function premake.fastbuild.project(prj)
 
 	local cppfiles = {}
 	for file in premake.project.eachfile(prj) do
-		if path.isSourceFile(file.name) then
+		if path.issourcefile(file.name) then
 			table.insert(cppfiles, file.name)
 		end
 	end

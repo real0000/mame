@@ -8,19 +8,23 @@
 #include "bus/scsi/sa1403d.h"
 #include "bus/rs232/rs232.h"
 #include "cpu/z80/z80.h"
-#include "cpu/z80/z80daisy.h"
+#include "machine/z80daisy.h"
 #include "cpu/i86/i86.h"
 #include "machine/com8116.h"
 #include "machine/ram.h"
 #include "bus/scsi/scsi.h"
 #include "bus/scsi/scsihd.h"
+#include "machine/timer.h"
 #include "machine/wd_fdc.h"
 #include "machine/x820kb.h"
 #include "machine/z80pio.h"
 #include "machine/z80ctc.h"
-#include "machine/z80dart.h"
+#include "machine/z80sio.h"
 #include "sound/spkrdev.h"
 #include "sound/beep.h"
+#include "imagedev/floppy.h"
+#include "imagedev/snapquik.h"
+#include "emupal.h"
 
 #define SCREEN_TAG      "screen"
 
@@ -66,35 +70,47 @@ public:
 		m_400_460(0)
 	{ }
 
-	virtual void machine_start() override;
-	virtual void machine_reset() override;
+	void mk83(machine_config &config);
+	void xerox820(machine_config &config);
 
-	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-
-	required_device<cpu_device> m_maincpu;
-	required_device<z80pio_device> m_kbpio;
-	required_device<z80ctc_device> m_ctc;
-	required_device<z80sio0_device> m_sio;
-	required_device<wd_fdc_t> m_fdc;
-	required_device<ram_device> m_ram;
-	required_device<palette_device> m_palette;
-	required_device<floppy_connector> m_floppy0;
-	required_device<floppy_connector> m_floppy1;
-	required_device<xerox_820_keyboard_t> m_kb;
-	required_memory_region m_rom;
-	required_memory_region m_char_rom;
-	required_shared_ptr<uint8_t> m_video_ram;
+	DECLARE_QUICKLOAD_LOAD_MEMBER(quickload_cb);
 
 	DECLARE_READ8_MEMBER( fdc_r );
 	DECLARE_WRITE8_MEMBER( fdc_w );
 	DECLARE_WRITE8_MEMBER( scroll_w );
 	//DECLARE_WRITE8_MEMBER( x120_system_w );
-	DECLARE_READ8_MEMBER( kbpio_pa_r );
-	DECLARE_WRITE8_MEMBER( kbpio_pa_w );
-	DECLARE_READ8_MEMBER( kbpio_pb_r );
-	DECLARE_WRITE_LINE_MEMBER( fr_w );
+	uint8_t kbpio_pa_r();
+	void kbpio_pa_w(uint8_t data);
+	uint8_t kbpio_pb_r();
 	DECLARE_WRITE_LINE_MEMBER( fdc_intrq_w );
 	DECLARE_WRITE_LINE_MEMBER( fdc_drq_w );
+
+protected:
+	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+
+
+	TIMER_DEVICE_CALLBACK_MEMBER(ctc_tick);
+
+	void mk83_mem(address_map &map);
+	void xerox820_io(address_map &map);
+	void xerox820_mem(address_map &map);
+
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+
+	required_device<z80_device> m_maincpu;
+	required_device<z80pio_device> m_kbpio;
+	required_device<z80ctc_device> m_ctc;
+	required_device<z80sio_device> m_sio;
+	required_device<wd_fdc_device_base> m_fdc;
+	required_device<ram_device> m_ram;
+	required_device<palette_device> m_palette;
+	required_device<floppy_connector> m_floppy0;
+	required_device<floppy_connector> m_floppy1;
+	required_device<xerox_820_keyboard_device> m_kb;
+	required_memory_region m_rom;
+	required_memory_region m_char_rom;
+	required_shared_ptr<uint8_t> m_video_ram;
 
 	virtual void bankswitch(int bank);
 	void update_nmi();
@@ -112,27 +128,27 @@ public:
 	bool m_fdc_drq;                     /* data request */
 	int m_8n5;                          /* 5.25" / 8" drive select */
 	int m_400_460;                      /* double sided disk detect */
-
-	TIMER_DEVICE_CALLBACK_MEMBER(ctc_tick);
 };
 
 class bigboard_state : public xerox820_state
 {
 public:
 	bigboard_state(const machine_config &mconfig, device_type type, const char *tag)
-		: xerox820_state(mconfig, type, tag),
-			m_beeper(*this, "beeper")
+		: xerox820_state(mconfig, type, tag)
+		, m_beeper(*this, "beeper")
 	{ }
+
+	void kbpio_pa_w(uint8_t data);
+
+	void bigboard(machine_config &config);
+protected:
+	virtual void machine_reset() override;
+
+	TIMER_CALLBACK_MEMBER(bigboard_beepoff);
 
 	required_device<beep_device> m_beeper;
 
-	virtual void machine_reset() override;
-
-	DECLARE_WRITE8_MEMBER( kbpio_pa_w );
-
 	bool m_bit5;
-
-	TIMER_CALLBACK_MEMBER(bigboard_beepoff);
 };
 
 class xerox820ii_state : public xerox820_state
@@ -145,21 +161,27 @@ public:
 	{
 	}
 
-	required_device<speaker_sound_device> m_speaker;
-	required_device<SCSI_PORT_DEVICE> m_sasibus;
-
-	virtual void machine_reset() override;
-
 	DECLARE_WRITE8_MEMBER( bell_w );
 	DECLARE_WRITE8_MEMBER( slden_w );
 	DECLARE_WRITE8_MEMBER( chrom_w );
 	DECLARE_WRITE8_MEMBER( lowlite_w );
 	DECLARE_WRITE8_MEMBER( sync_w );
 
-	DECLARE_WRITE8_MEMBER( rdpio_pb_w );
+	void rdpio_pb_w(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER( rdpio_pardy_w );
 
+	void xerox168(machine_config &config);
+	void xerox820ii(machine_config &config);
+	void xerox168_mem(address_map &map);
+	void xerox820ii_io(address_map &map);
+	void xerox820ii_mem(address_map &map);
+protected:
+	virtual void machine_reset() override;
+
 	void bankswitch(int bank) override;
+
+	required_device<speaker_sound_device> m_speaker;
+	required_device<scsi_port_device> m_sasibus;
 };
 
 #endif // MAME_INCLUDES_XEROX820_H

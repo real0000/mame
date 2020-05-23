@@ -15,34 +15,33 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type A800_ROM_OSS8K = device_creator<a800_rom_oss8k_device>;
-const device_type A800_ROM_OSS34 = device_creator<a800_rom_oss34_device>;
-const device_type A800_ROM_OSS43 = device_creator<a800_rom_oss43_device>;
-const device_type A800_ROM_OSS91 = device_creator<a800_rom_oss91_device>;
+DEFINE_DEVICE_TYPE(A800_ROM_OSS8K, a800_rom_oss8k_device, "a800_oss8k", "Atari 800 ROM Carts OSS 8K")
+DEFINE_DEVICE_TYPE(A800_ROM_OSS34, a800_rom_oss34_device, "a800_034m",  "Atari 800 ROM Carts OSS-034M")
+DEFINE_DEVICE_TYPE(A800_ROM_OSS43, a800_rom_oss43_device, "a800_043m",  "Atari 800 ROM Carts OSS-043M")
+DEFINE_DEVICE_TYPE(A800_ROM_OSS91, a800_rom_oss91_device, "a800_m091",  "Atari 800 ROM Carts OSS-M091")
 
 
 a800_rom_oss8k_device::a800_rom_oss8k_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a800_rom_device(mconfig, A800_ROM_OSS8K, "Atari 800 ROM Carts OSS 8K", tag, owner, clock, "a800_oss8k", __FILE__),
-	m_bank(0)
-				{
+	: a800_rom_device(mconfig, A800_ROM_OSS8K, tag, owner, clock), m_bank(0)
+{
 }
 
 
 a800_rom_oss34_device::a800_rom_oss34_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a800_rom_device(mconfig, A800_ROM_OSS34, "Atari 800 ROM Carts OSS-034M", tag, owner, clock, "a800_034m", __FILE__), m_bank(0)
-				{
+	: a800_rom_device(mconfig, A800_ROM_OSS34, tag, owner, clock), m_bank(0)
+{
 }
 
 
 a800_rom_oss43_device::a800_rom_oss43_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a800_rom_device(mconfig, A800_ROM_OSS43, "Atari 800 ROM Carts OSS-043M", tag, owner, clock, "a800_043m", __FILE__), m_bank(0)
-				{
+	: a800_rom_device(mconfig, A800_ROM_OSS43, tag, owner, clock), m_bank(0)
+{
 }
 
 
 a800_rom_oss91_device::a800_rom_oss91_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a800_rom_device(mconfig, A800_ROM_OSS91, "Atari 800 ROM Carts OSS-M091", tag, owner, clock, "a800_m091", __FILE__), m_bank(0)
-				{
+	: a800_rom_device(mconfig, A800_ROM_OSS91, tag, owner, clock), m_bank(0)
+{
 }
 
 
@@ -103,7 +102,7 @@ void a800_rom_oss91_device::device_reset()
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a800_rom_oss8k_device::read_80xx)
+uint8_t a800_rom_oss8k_device::read_80xx(offs_t offset)
 {
 	if (offset >= 0x1000)
 		return m_rom[offset & 0xfff];
@@ -111,7 +110,7 @@ READ8_MEMBER(a800_rom_oss8k_device::read_80xx)
 		return m_rom[(offset & 0xfff) + (m_bank * 0x1000)];
 }
 
-WRITE8_MEMBER(a800_rom_oss8k_device::write_d5xx)
+void a800_rom_oss8k_device::write_d5xx(offs_t offset, uint8_t data)
 {
 	switch (offset & 0x09)
 	{
@@ -137,7 +136,7 @@ WRITE8_MEMBER(a800_rom_oss8k_device::write_d5xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a800_rom_oss34_device::read_80xx)
+uint8_t a800_rom_oss34_device::read_80xx(offs_t offset)
 {
 	if (offset >= 0x1000)
 		return m_rom[(offset & 0xfff) + 0x3000];
@@ -147,7 +146,7 @@ READ8_MEMBER(a800_rom_oss34_device::read_80xx)
 		return m_rom[(offset & 0xfff) + (m_bank * 0x1000)];
 }
 
-WRITE8_MEMBER(a800_rom_oss34_device::write_d5xx)
+void a800_rom_oss34_device::write_d5xx(offs_t offset, uint8_t data)
 {
 	switch (offset & 0x0f)
 	{
@@ -181,7 +180,7 @@ WRITE8_MEMBER(a800_rom_oss34_device::write_d5xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a800_rom_oss43_device::read_80xx)
+uint8_t a800_rom_oss43_device::read_80xx(offs_t offset)
 {
 	if (offset >= 0x1000)
 		return m_rom[(offset & 0xfff) + 0x3000];
@@ -191,7 +190,7 @@ READ8_MEMBER(a800_rom_oss43_device::read_80xx)
 		return m_rom[(offset & 0xfff) + (m_bank * 0x1000)];
 }
 
-WRITE8_MEMBER(a800_rom_oss43_device::write_d5xx)
+void a800_rom_oss43_device::write_d5xx(offs_t offset, uint8_t data)
 {
 	switch (offset & 0x0f)
 	{
@@ -226,7 +225,7 @@ WRITE8_MEMBER(a800_rom_oss43_device::write_d5xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a800_rom_oss91_device::read_80xx)
+uint8_t a800_rom_oss91_device::read_80xx(offs_t offset)
 {
 	if (offset >= 0x1000)
 		return m_rom[offset & 0xfff];
@@ -234,7 +233,7 @@ READ8_MEMBER(a800_rom_oss91_device::read_80xx)
 		return m_rom[(offset & 0xfff) + (m_bank * 0x1000)];
 }
 
-WRITE8_MEMBER(a800_rom_oss91_device::write_d5xx)
+void a800_rom_oss91_device::write_d5xx(offs_t offset, uint8_t data)
 {
 	switch (offset & 0x09)
 	{

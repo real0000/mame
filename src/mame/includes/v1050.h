@@ -1,25 +1,28 @@
 // license:BSD-3-Clause
 // copyright-holders:Curt Coder
-#pragma once
+#ifndef MAME_INCLUDES_V1050_H
+#define MAME_INCLUDES_V1050_H
 
-#ifndef __V1050__
-#define __V1050__
+#pragma once
 
 #include "cpu/z80/z80.h"
 #include "cpu/m6502/m6502.h"
 #include "bus/centronics/ctronics.h"
 #include "bus/scsi/s1410.h"
+#include "imagedev/floppy.h"
 #include "machine/clock.h"
 #include "machine/i8214.h"
 #include "machine/i8251.h"
 #include "machine/i8255.h"
 #include "machine/msm58321.h"
 #include "machine/ram.h"
+#include "machine/timer.h"
 #include "bus/scsi/scsi.h"
 #include "bus/scsi/scsihd.h"
 #include "machine/v1050kb.h"
 #include "machine/wd_fdc.h"
 #include "video/mc6845.h"
+#include "emupal.h"
 
 #define SCREEN_TAG              "screen"
 
@@ -60,8 +63,8 @@
 class v1050_state : public driver_device
 {
 public:
-	v1050_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	v1050_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_maincpu(*this, Z80_TAG),
 		m_subcpu(*this, M6502_TAG),
 		m_pic(*this, UPB8214_TAG),
@@ -96,6 +99,10 @@ public:
 	{
 	}
 
+	void v1050(machine_config &config);
+	void v1050_video(machine_config &config);
+
+private:
 	DECLARE_READ8_MEMBER( kb_data_r );
 	DECLARE_READ8_MEMBER( kb_status_r );
 	DECLARE_WRITE8_MEMBER( v1050_i8214_w );
@@ -106,13 +113,13 @@ public:
 	DECLARE_WRITE8_MEMBER( bank_w );
 	DECLARE_WRITE8_MEMBER( dint_w );
 	DECLARE_WRITE8_MEMBER( dvint_clr_w );
-	DECLARE_WRITE8_MEMBER( misc_ppi_pa_w );
-	DECLARE_WRITE8_MEMBER( misc_ppi_pc_w );
-	DECLARE_READ8_MEMBER( rtc_ppi_pa_r );
-	DECLARE_WRITE8_MEMBER( rtc_ppi_pa_w );
-	DECLARE_WRITE8_MEMBER( rtc_ppi_pb_w );
-	DECLARE_READ8_MEMBER( rtc_ppi_pc_r );
-	DECLARE_WRITE8_MEMBER( rtc_ppi_pc_w );
+	void misc_ppi_pa_w(uint8_t data);
+	void misc_ppi_pc_w(uint8_t data);
+	uint8_t rtc_ppi_pa_r();
+	void rtc_ppi_pa_w(uint8_t data);
+	void rtc_ppi_pb_w(uint8_t data);
+	uint8_t rtc_ppi_pc_r();
+	void rtc_ppi_pc_w(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER( kb_rxrdy_w );
 	DECLARE_WRITE_LINE_MEMBER( sio_rxrdy_w );
 	DECLARE_WRITE_LINE_MEMBER( sio_txrdy_w );
@@ -139,9 +146,9 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(write_keyboard_clock);
 	DECLARE_WRITE_LINE_MEMBER(write_sio_clock);
 	DECLARE_WRITE_LINE_MEMBER(pic_int_w);
-	DECLARE_WRITE8_MEMBER(disp_ppi_pc_w);
-	DECLARE_WRITE8_MEMBER(m6502_ppi_pc_w);
-	DECLARE_READ8_MEMBER(misc_ppi_pc_r);
+	void disp_ppi_pc_w(uint8_t data);
+	void m6502_ppi_pc_w(uint8_t data);
+	uint8_t misc_ppi_pc_r();
 	IRQ_CALLBACK_MEMBER(v1050_int_ack);
 
 	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
@@ -149,20 +156,21 @@ public:
 
 	MC6845_UPDATE_ROW(crtc_update_row);
 
-protected:
+	void v1050_crt_mem(address_map &map);
+	void v1050_io(address_map &map);
+	void v1050_mem(address_map &map);
+
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
 
 	virtual void video_start() override;
 
-private:
 	void bankswitch();
 	void update_fdc();
 	void set_interrupt(int line, int state);
 	void scan_keyboard();
 	void set_baud_sel(int sel);
 
-public: // HACK for MC6845
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_subcpu;
 	required_device<i8214_device> m_pic;
@@ -171,7 +179,7 @@ public: // HACK for MC6845
 	required_device<msm58321_device> m_rtc;
 	required_device<i8251_device> m_uart_kb;
 	required_device<i8251_device> m_uart_sio;
-	required_device<mb8877_t> m_fdc;
+	required_device<mb8877_device> m_fdc;
 	required_device<mc6845_device> m_crtc;
 	required_device<palette_device> m_palette;
 	required_device<centronics_device> m_centronics;
@@ -183,7 +191,7 @@ public: // HACK for MC6845
 	required_device<clock_device> m_clock_sio;
 	required_device<timer_device> m_timer_ack;
 	required_device<timer_device> m_timer_rst;
-	required_device<SCSI_PORT_DEVICE> m_sasibus;
+	required_device<scsi_port_device> m_sasibus;
 	required_device<output_latch_device> m_sasi_data_out;
 	required_device<input_buffer_device> m_sasi_data_in;
 	required_device<input_buffer_device> m_sasi_ctrl_in;
@@ -225,8 +233,4 @@ public: // HACK for MC6845
 	int m_centronics_perror;
 };
 
-//----------- defined in video/v1050.c -----------
-
-MACHINE_CONFIG_EXTERN( v1050_video );
-
-#endif
+#endif // MAME_INCLUDES_V1050_H

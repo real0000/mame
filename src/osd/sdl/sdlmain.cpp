@@ -18,6 +18,7 @@
 #endif
 #endif
 #ifdef SDLMAME_MACOSX
+#define __ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORES 0
 #include <Carbon/Carbon.h>
 #endif
 #endif
@@ -108,7 +109,7 @@ const options_entry sdl_options::s_option_entries[] =
 	{ SDLOPTION_JOYINDEX "6",                OSDOPTVAL_AUTO, OPTION_STRING,         "name of joystick mapped to joystick #6" },
 	{ SDLOPTION_JOYINDEX "7",                OSDOPTVAL_AUTO, OPTION_STRING,         "name of joystick mapped to joystick #7" },
 	{ SDLOPTION_JOYINDEX "8",                OSDOPTVAL_AUTO, OPTION_STRING,         "name of joystick mapped to joystick #8" },
-	{ SDLOPTION_SIXAXIS,                     "0",    OPTION_BOOLEAN,    "Use special handling for PS3 Sixaxis controllers" },
+	{ SDLOPTION_SIXAXIS,                     "0",    OPTION_BOOLEAN,    "use special handling for PS3 Sixaxis controllers" },
 
 #if (USE_XINPUT)
 	// lightgun mapping
@@ -144,10 +145,10 @@ const options_entry sdl_options::s_option_entries[] =
 	{ SDLOPTION_KEYBINDEX "8",               OSDOPTVAL_AUTO, OPTION_STRING,         "name of keyboard mapped to keyboard #8" },
 
 	// SDL low level driver options
-	{ nullptr,                               nullptr,   OPTION_HEADER,     "SDL LOWLEVEL DRIVER OPTIONS" },
-	{ SDLOPTION_VIDEODRIVER ";vd",           OSDOPTVAL_AUTO,  OPTION_STRING,        "sdl video driver to use ('x11', 'directfb', ... or 'auto' for SDL default" },
-	{ SDLOPTION_RENDERDRIVER ";rd",          OSDOPTVAL_AUTO,  OPTION_STRING,        "sdl render driver to use ('software', 'opengl', 'directfb' ... or 'auto' for SDL default" },
-	{ SDLOPTION_AUDIODRIVER ";ad",           OSDOPTVAL_AUTO,  OPTION_STRING,        "sdl audio driver to use ('alsa', 'arts', ... or 'auto' for SDL default" },
+	{ nullptr,                               nullptr,   OPTION_HEADER,     "SDL LOW-LEVEL DRIVER OPTIONS" },
+	{ SDLOPTION_VIDEODRIVER ";vd",           OSDOPTVAL_AUTO,  OPTION_STRING,        "SDL video driver to use ('x11', 'directfb', ... or 'auto' for SDL default" },
+	{ SDLOPTION_RENDERDRIVER ";rd",          OSDOPTVAL_AUTO,  OPTION_STRING,        "SDL render driver to use ('software', 'opengl', 'directfb' ... or 'auto' for SDL default" },
+	{ SDLOPTION_AUDIODRIVER ";ad",           OSDOPTVAL_AUTO,  OPTION_STRING,        "SDL audio driver to use ('alsa', 'arts', ... or 'auto' for SDL default" },
 #if USE_OPENGL
 	{ SDLOPTION_GL_LIB,                      SDLOPTVAL_GLLIB, OPTION_STRING,        "alternative libGL.so to use; 'auto' for system default" },
 #endif
@@ -163,6 +164,9 @@ const options_entry sdl_options::s_option_entries[] =
 sdl_options::sdl_options()
 : osd_options()
 {
+#if defined (SDLMAME_ANDROID)
+	chdir (SDL_AndroidGetExternalStoragePath());
+#endif
 	std::string ini_path(INI_PATH);
 	add_entries(sdl_options::s_option_entries);
 	strreplace(ini_path,"APP_NAME", emulator_info::get_appname_lower());
@@ -180,9 +184,9 @@ sdl_options::sdl_options()
 extern "C" DECLSPEC void SDLCALL SDL_SetModuleHandle(void *hInst);
 #endif
 
-// translated to utf8_main
-int main(int argc, char *argv[])
+int main(int argc, char** argv)
 {
+	std::vector<std::string> args = osd_get_command_line(argc, argv);
 	int res = 0;
 
 	// disable I/O buffering
@@ -210,7 +214,7 @@ int main(int argc, char *argv[])
 		sdl_options options;
 		sdl_osd_interface osd(options);
 		osd.register_options();
-		res = emulator_info::start_frontend(options, osd, argc, argv);
+		res = emulator_info::start_frontend(options, osd, args);
 	}
 
 #ifdef SDLMAME_UNIX
@@ -371,6 +375,7 @@ static void osd_sdl_info(void)
 void sdl_osd_interface::video_register()
 {
 	video_options_add("soft", nullptr);
+	video_options_add("accel", nullptr);
 #if USE_OPENGL
 	video_options_add("opengl", nullptr);
 #endif
@@ -390,6 +395,16 @@ void sdl_osd_interface::output_oslog(const char *buffer)
 
 
 //============================================================
+//  osd_setup_osd_specific_emu_options
+//============================================================
+
+void osd_setup_osd_specific_emu_options(emu_options &opts)
+{
+	opts.add_entries(osd_options::s_option_entries);
+}
+
+
+//============================================================
 //  init
 //============================================================
 
@@ -402,14 +417,12 @@ void sdl_osd_interface::init(running_machine &machine)
 
 	// determine if we are benchmarking, and adjust options appropriately
 	int bench = options().bench();
-	std::string error_string;
 	if (bench > 0)
 	{
-		options().set_value(OPTION_THROTTLE, false, OPTION_PRIORITY_MAXIMUM, error_string);
-		options().set_value(OSDOPTION_SOUND, "none", OPTION_PRIORITY_MAXIMUM, error_string);
-		options().set_value(OSDOPTION_VIDEO, "none", OPTION_PRIORITY_MAXIMUM, error_string);
-		options().set_value(OPTION_SECONDS_TO_RUN, bench, OPTION_PRIORITY_MAXIMUM, error_string);
-		assert(error_string.c_str()[0] == 0);
+		options().set_value(OPTION_THROTTLE, false, OPTION_PRIORITY_MAXIMUM);
+		options().set_value(OSDOPTION_SOUND, "none", OPTION_PRIORITY_MAXIMUM);
+		options().set_value(OSDOPTION_VIDEO, "none", OPTION_PRIORITY_MAXIMUM);
+		options().set_value(OPTION_SECONDS_TO_RUN, bench, OPTION_PRIORITY_MAXIMUM);
 	}
 
 	// Some driver options - must be before audio init!

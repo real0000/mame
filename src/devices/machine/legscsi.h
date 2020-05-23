@@ -1,23 +1,21 @@
 // license:BSD-3-Clause
 // copyright-holders:smf
-#ifndef _LEGSCSI_H_
-#define _LEGSCSI_H_
+#ifndef MAME_MACHINE_LEGSCSI_H
+#define MAME_MACHINE_LEGSCSI_H
 
 #pragma once
 
 #include "bus/scsi/scsihle.h"
 
-#define MCFG_LEGACY_SCSI_PORT(_tag) \
-	legacy_scsi_host_adapter::set_scsi_port(*device, "^" _tag);
 
 class legacy_scsi_host_adapter : public device_t
 {
 public:
-	legacy_scsi_host_adapter(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
-
-	static void set_scsi_port(device_t &device, const char *tag) { downcast<legacy_scsi_host_adapter &>(device).m_scsi_port.set_tag(tag); }
+	template <typename T> void set_scsi_port(T && tag) { m_scsi_port.set_tag(std::forward<T>(tag)); }
 
 protected:
+	legacy_scsi_host_adapter(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	virtual void device_start() override;
 
 	void reset_bus();
@@ -33,7 +31,7 @@ private:
 	int m_selected;
 	scsihle_device *get_device(int id);
 
-	required_device<SCSI_PORT_DEVICE> m_scsi_port;
+	required_device<scsi_port_device> m_scsi_port;
 };
 
-#endif
+#endif // MAME_MACHINE_LEGSCSI_H

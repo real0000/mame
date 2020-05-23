@@ -5,9 +5,10 @@
 //  editwininfo.h - Win32 debug window handling
 //
 //============================================================
+#ifndef MAME_DEBUGGER_WIN_EDITWININFO_H
+#define MAME_DEBUGGER_WIN_EDITWININFO_H
 
-#ifndef MAME_DEBUG_WIN_EDIT_WIN_INFO_H
-#define MAME_DEBUG_WIN_EDIT_WIN_INFO_H
+#pragma once
 
 #include "debugwin.h"
 
@@ -34,14 +35,14 @@ protected:
 	void set_editwnd_bounds(RECT const &bounds);
 	void set_editwnd_text(char const *text);
 	void editwnd_select_all();
-	void set_edit_defstr(char const *string) { m_edit_defstr = string; }
+	void set_edit_defstr(const std::string &string) { m_edit_defstr = string; }
 
 	virtual void draw_contents(HDC dc) override;
 
 private:
 	typedef std::deque<std::basic_string<TCHAR> > history_deque;
 
-	virtual void process_string(char const *string) = 0;
+	virtual void process_string(const std::string &string) = 0;
 
 	LRESULT edit_proc(UINT message, WPARAM wparam, LPARAM lparam);
 

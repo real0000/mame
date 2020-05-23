@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_IEEE488_HARDBOX_H
+#define MAME_BUS_IEEE488_HARDBOX_H
 
-#ifndef __PET_HARDBOX__
-#define __PET_HARDBOX__
+#pragma once
 
 #include "ieee488.h"
 #include "cpu/z80/z80.h"
@@ -33,45 +33,48 @@ public:
 	// construction/destruction
 	hardbox_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// optional information overrides
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	virtual ioport_constructor device_input_ports() const override;
-
-	DECLARE_READ8_MEMBER( ppi0_pa_r );
-	DECLARE_WRITE8_MEMBER( ppi0_pb_w );
-	DECLARE_READ8_MEMBER( ppi0_pc_r );
-
-	DECLARE_READ8_MEMBER( ppi1_pa_r );
-	DECLARE_WRITE8_MEMBER( ppi1_pb_w );
-	DECLARE_READ8_MEMBER( ppi1_pc_r );
-	DECLARE_WRITE8_MEMBER( ppi1_pc_w );
-
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset_after_children() override;
 
+	// optional information overrides
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+	virtual ioport_constructor device_input_ports() const override;
+
 	// device_ieee488_interface overrides
 	virtual void ieee488_ifc(int state) override;
 
 private:
+	uint8_t ppi0_pa_r();
+	void ppi0_pb_w(uint8_t data);
+	uint8_t ppi0_pc_r();
+
+	uint8_t ppi1_pa_r();
+	void ppi1_pb_w(uint8_t data);
+	uint8_t ppi1_pc_r();
+	void ppi1_pc_w(uint8_t data);
+
+	void hardbox_io(address_map &map);
+	void hardbox_mem(address_map &map);
+
 	enum
 	{
-		LED_A,
+		LED_A = 0,
 		LED_B,
 		LED_READY
 	};
 
 	required_device<cpu_device> m_maincpu;
-	required_device<corvus_hdc_t> m_hdc;
+	required_device<corvus_hdc_device> m_hdc;
+	output_finder<3> m_leds;
 
 	int m_ifc;  // Tracks previous state of IEEE-488 IFC line
 };
 
 // device type definition
-extern const device_type HARDBOX;
+DECLARE_DEVICE_TYPE(HARDBOX, hardbox_device)
 
 
-
-#endif
+#endif // MAME_BUS_IEEE488_HARDBOX_H

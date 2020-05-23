@@ -32,23 +32,23 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type NES_CNE_DECATHL = device_creator<nes_cne_decathl_device>;
-const device_type NES_CNE_FSB = device_creator<nes_cne_fsb_device>;
-const device_type NES_CNE_SHLZ = device_creator<nes_cne_shlz_device>;
+DEFINE_DEVICE_TYPE(NES_CNE_DECATHL, nes_cne_decathl_device, "nes_cne_deca", "NES Cart C&E Decathlon PCB")
+DEFINE_DEVICE_TYPE(NES_CNE_FSB,     nes_cne_fsb_device,     "nes_cne_fsb",  "NES Cart C&E Feng Shen Bang PCB")
+DEFINE_DEVICE_TYPE(NES_CNE_SHLZ,    nes_cne_shlz_device,    "nes_cne_shlz", "NES Cart C&E Sheng Huo Lie Zhuan PCB")
 
 
 nes_cne_decathl_device::nes_cne_decathl_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_CNE_DECATHL, "NES Cart C&E Decathlon PCB", tag, owner, clock, "nes_cne_deca", __FILE__)
+	: nes_nrom_device(mconfig, NES_CNE_DECATHL, tag, owner, clock)
 {
 }
 
 nes_cne_fsb_device::nes_cne_fsb_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_CNE_FSB, "NES Cart C&E Feng Shen Bang PCB", tag, owner, clock, "nes_cne_fsb", __FILE__)
+	: nes_nrom_device(mconfig, NES_CNE_FSB, tag, owner, clock)
 {
 }
 
 nes_cne_shlz_device::nes_cne_shlz_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_CNE_SHLZ, "NES Cart C&E Sheng Huo Lie Zhuan PCB", tag, owner, clock, "nes_cne_shlz", __FILE__)
+	: nes_nrom_device(mconfig, NES_CNE_SHLZ, tag, owner, clock)
 {
 }
 
@@ -112,7 +112,7 @@ void nes_cne_shlz_device::pcb_reset()
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_cne_decathl_device::write_h)
+void nes_cne_decathl_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("cne_decathl_w, offset: %04x, data: %02x\n", offset, data));
 
@@ -146,7 +146,7 @@ WRITE8_MEMBER(nes_cne_decathl_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_cne_fsb_device::write_m)
+void nes_cne_fsb_device::write_m(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("cne_fsb write_m, offset: %04x, data: %02x\n", offset, data));
 
@@ -184,7 +184,7 @@ WRITE8_MEMBER(nes_cne_fsb_device::write_m)
 		m_battery[offset] = data;
 }
 
-READ8_MEMBER(nes_cne_fsb_device::read_m)
+uint8_t nes_cne_fsb_device::read_m(offs_t offset)
 {
 	LOG_MMC(("cne_fsb read_m, offset: %04x\n", offset));
 
@@ -211,7 +211,7 @@ READ8_MEMBER(nes_cne_fsb_device::read_m)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_cne_shlz_device::write_l)
+void nes_cne_shlz_device::write_l(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("cne_shlz write_l, offset: %04x, data: %02x\n", offset, data));
 

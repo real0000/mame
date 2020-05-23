@@ -1,5 +1,6 @@
 // license:BSD-3-Clause
 // copyright-holders:Sandro Ronco
+// thanks-to:rfka01
 /***************************************************************************
 
     NCR DMV K220 Diagnostic module
@@ -64,31 +65,18 @@
 ROM_START( dmv_k220 )
 	ROM_REGION(0x4000, "rom", 0)
 	ROM_SYSTEM_BIOS(0, "v4", "V 04.00")
-	ROMX_LOAD("34014.u17", 0x0000, 0x2000, CRC(552c2247) SHA1(7babd264ead2e04afe624c3035f211279c203f41), ROM_BIOS(1))
-	ROMX_LOAD("34015.u18", 0x2000, 0x2000, CRC(d714f2d8) SHA1(1a7095401d63951ba9189bc3e384c26996113815), ROM_BIOS(1))
+	ROMX_LOAD("34014.u17", 0x0000, 0x2000, CRC(552c2247) SHA1(7babd264ead2e04afe624c3035f211279c203f41), ROM_BIOS(0))
+	ROMX_LOAD("34015.u18", 0x2000, 0x2000, CRC(d714f2d8) SHA1(1a7095401d63951ba9189bc3e384c26996113815), ROM_BIOS(0))
 
 	ROM_SYSTEM_BIOS(1, "v2", "V 02.00")
-	ROMX_LOAD("32563.u17", 0x0000, 0x2000, CRC(57445768) SHA1(59b615437444789bf10ba6768cd3c43a69c7ed7b), ROM_BIOS(2))
-	ROMX_LOAD("32564.u18", 0x2000, 0x2000, CRC(172e0c60) SHA1(eedae538636009a5b86fc78e50a03c72eeb0e73b), ROM_BIOS(2))
+	ROMX_LOAD("32563.u17", 0x0000, 0x2000, CRC(57445768) SHA1(59b615437444789bf10ba6768cd3c43a69c7ed7b), ROM_BIOS(1))
+	ROMX_LOAD("32564.u18", 0x2000, 0x2000, CRC(172e0c60) SHA1(eedae538636009a5b86fc78e50a03c72eeb0e73b), ROM_BIOS(1))
 
 	ROM_REGION(0x0080, "prom", 0)
 	ROM_LOAD( "u11.bin", 0x0000, 0x0080, NO_DUMP)   // used for address decoding
 
 	ROM_REGION(0x0800, "ram", ROMREGION_ERASE)
 ROM_END
-
-static MACHINE_CONFIG_FRAGMENT( dmv_k220 )
-	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
-	MCFG_I8255_OUT_PORTA_CB(WRITE8(dmv_k220_device, porta_w))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("SWITCH"))
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(dmv_k220_device, portc_w))
-
-	MCFG_DEVICE_ADD("pit8253", PIT8253, 0)
-	MCFG_PIT8253_CLK0(XTAL_1MHz)  // CLK1
-	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(dmv_k220_device, write_out0))
-	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(dmv_k220_device, write_out1))
-	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(dmv_k220_device, write_out2))
-MACHINE_CONFIG_END
 
 static INPUT_PORTS_START( dmv_k220 )
 	PORT_START("SWITCH")
@@ -122,7 +110,7 @@ INPUT_PORTS_END
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type DMV_K220 = device_creator<dmv_k220_device>;
+DEFINE_DEVICE_TYPE(DMV_K220, dmv_k220_device, "dmv_k220", "K220 diagnostic")
 
 //**************************************************************************
 //  LIVE DEVICE
@@ -133,13 +121,15 @@ const device_type DMV_K220 = device_creator<dmv_k220_device>;
 //-------------------------------------------------
 
 dmv_k220_device::dmv_k220_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-		: device_t(mconfig, DMV_K220, "K220 diagnostic", tag, owner, clock, "dmv_k220", __FILE__),
-		device_dmvslot_interface( mconfig, *this ),
-		m_pit(*this, "pit8253"),
-		m_ppi(*this, "ppi8255"),
-		m_ram(*this, "ram"),
-		m_rom(*this, "rom"), m_portc(0)
-	{
+	: device_t(mconfig, DMV_K220, tag, owner, clock)
+	, device_dmvslot_interface(mconfig, *this)
+	, m_pit(*this, "pit8253")
+	, m_ppi(*this, "ppi8255")
+	, m_ram(*this, "ram")
+	, m_rom(*this, "rom")
+	, m_digits(*this, "digit%u", 0U)
+	, m_portc(0)
+{
 }
 
 //-------------------------------------------------
@@ -148,9 +138,15 @@ dmv_k220_device::dmv_k220_device(const machine_config &mconfig, const char *tag,
 
 void dmv_k220_device::device_start()
 {
-	address_space &space = machine().device<cpu_device>("maincpu")->space(AS_IO);
-	space.install_readwrite_handler(0x08, 0x0b, read8_delegate(FUNC(pit8253_device::read), &(*m_pit)), write8_delegate(FUNC(pit8253_device::write), &(*m_pit)), 0);
-	space.install_readwrite_handler(0x0c, 0x0f, read8_delegate(FUNC(i8255_device::read), &(*m_ppi)), write8_delegate(FUNC(i8255_device::write), &(*m_ppi)), 0);
+	address_space &space = iospace();
+	space.install_readwrite_handler(0x08, 0x0b, read8sm_delegate(*m_pit, FUNC(pit8253_device::read)), write8sm_delegate(*m_pit, FUNC(pit8253_device::write)), 0);
+	space.install_readwrite_handler(0x0c, 0x0f, read8sm_delegate(*m_ppi, FUNC(i8255_device::read)), write8sm_delegate(*m_ppi, FUNC(i8255_device::write)), 0);
+
+	m_digits.resolve();
+
+	// register for state saving
+	save_item(NAME(m_portc));
+	save_pointer(NAME(m_ram->base()), m_ram->bytes());
 }
 
 //-------------------------------------------------
@@ -160,17 +156,27 @@ void dmv_k220_device::device_start()
 void dmv_k220_device::device_reset()
 {
 	// active the correct layout
+	// FIXME: this is a very bad idea - you have no idea what view the user has loaded externally or from other devices,
+	// and it won't allow selected view to be saved/restored correctly
 	machine().render().first_target()->set_view(1);
 }
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor dmv_k220_device::device_mconfig_additions() const
+void dmv_k220_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( dmv_k220 );
+	I8255(config, m_ppi);
+	m_ppi->out_pa_callback().set(FUNC(dmv_k220_device::porta_w));
+	m_ppi->in_pb_callback().set_ioport("SWITCH");
+	m_ppi->out_pc_callback().set(FUNC(dmv_k220_device::portc_w));
+
+	PIT8253(config, m_pit, 0);
+	m_pit->set_clk<0>(XTAL(1'000'000));  // CLK1
+	m_pit->out_handler<0>().set(FUNC(dmv_k220_device::write_out0));
+	m_pit->out_handler<1>().set(FUNC(dmv_k220_device::write_out1));
+	m_pit->out_handler<2>().set(FUNC(dmv_k220_device::write_out2));
 }
 
 //-------------------------------------------------
@@ -231,17 +237,17 @@ bool dmv_k220_device::write(offs_t offset, uint8_t data)
 	return false;
 }
 
-WRITE8_MEMBER( dmv_k220_device::porta_w )
+void dmv_k220_device::porta_w(uint8_t data)
 {
 	// 74LS247 BCD-to-Seven-Segment Decoder
 	static uint8_t bcd2hex[] = { 0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x6f, 0x58, 0x4c, 0x62, 0x69, 0x78, 0x00 };
 
-	machine().output().set_digit_value(0, bcd2hex[(data >> 4) & 0x0f]);
-	machine().output().set_digit_value(1, bcd2hex[data & 0x0f]);
+	m_digits[0] = bcd2hex[(data >> 4) & 0x0f];
+	m_digits[1] = bcd2hex[data & 0x0f];
 }
 
 
-WRITE8_MEMBER( dmv_k220_device::portc_w )
+void dmv_k220_device::portc_w(uint8_t data)
 {
 	/*
 	    xxxx ---- not connected

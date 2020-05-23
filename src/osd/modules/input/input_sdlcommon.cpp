@@ -15,8 +15,8 @@
 
 // standard sdl header
 #include <SDL2/SDL.h>
-#include <ctype.h>
-#include <stddef.h>
+#include <cctype>
+#include <cstddef>
 #include <mutex>
 #include <memory>
 #include <algorithm>
@@ -79,7 +79,8 @@ void sdl_event_manager::process_window_event(running_machine &machine, SDL_Event
 
 	if (window == nullptr)
 	{
-		osd_printf_warning("Skipped window event due to missing window param from SDL\n");
+		// This condition may occur when the fullscreen toggle is used
+		osd_printf_verbose("Skipped window event due to missing window param from SDL\n");
 		return;
 	}
 
@@ -141,7 +142,7 @@ void sdl_event_manager::process_window_event(running_machine &machine, SDL_Event
 //  customize_input_type_list
 //============================================================
 
-void sdl_osd_interface::customize_input_type_list(simple_list<input_type_entry> &typelist)
+void sdl_osd_interface::customize_input_type_list(std::vector<input_type_entry> &typelist)
 {
 	input_item_id mameid_code;
 	input_code ui_code;

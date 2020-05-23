@@ -31,12 +31,12 @@ static inline void ATTR_PRINTF(3,4) verboselog( device_t &device, int n_level, c
 #define GF4500_FRAMEBUF_OFFSET 0x20000
 
 
-const device_type GF4500 = device_creator<gf4500_device>;
+DEFINE_DEVICE_TYPE(GF4500, gf4500_device, "gf4500", "NVIDIA GoForce 4500")
 
 
 gf4500_device::gf4500_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-				: device_t(mconfig, GF4500, "NVIDIA GoForce 4500", tag, owner, clock, "gf4500", __FILE__), m_data(nullptr), m_screen_x(0), m_screen_y(0), m_screen_x_max(0), m_screen_y_max(0), m_screen_x_min(0), m_screen_y_min(0)
-			{
+	: device_t(mconfig, GF4500, tag, owner, clock), m_data(nullptr), m_screen_x(0), m_screen_y(0), m_screen_x_max(0), m_screen_y_max(0), m_screen_x_min(0), m_screen_y_min(0)
+{
 }
 
 
@@ -48,7 +48,7 @@ void gf4500_device::device_start()
 {
 	m_data = make_unique_clear<uint32_t[]>(0x140000/4);
 
-	save_pointer(NAME(m_data.get()), 0x140000/4);
+	save_pointer(NAME(m_data), 0x140000/4);
 	save_item(NAME(m_screen_x));
 	save_item(NAME(m_screen_y));
 	save_item(NAME(m_screen_x_max));

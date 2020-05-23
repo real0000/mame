@@ -35,8 +35,8 @@
 //-------------------------------------------------
 
 ntb_cart_interface::ntb_cart_interface(const machine_config &mconfig, device_t &device)
-					: device_slot_card_interface(mconfig, device),
-						m_rom(nullptr)
+	: device_interface(device, "ntbcart")
+	, m_rom(nullptr)
 {
 }
 
@@ -48,12 +48,13 @@ ntb_cart_interface::~ntb_cart_interface()
 //  sub-cart slot device
 //-------------------------------------------------
 
-const device_type NES_NTB_SLOT = device_creator<nes_ntb_slot_device>;
+DEFINE_DEVICE_TYPE(NES_NTB_SLOT, nes_ntb_slot_device, "nes_ntb_slot", "NES NTB Cartridge Slot")
 
-nes_ntb_slot_device::nes_ntb_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-						device_t(mconfig, NES_NTB_SLOT, "NES NTB Cartridge Slot", tag, owner, clock, "nes_ntb_slot", __FILE__),
-						device_image_interface(mconfig, *this),
-						device_slot_interface(mconfig, *this), m_cart(nullptr)
+nes_ntb_slot_device::nes_ntb_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, NES_NTB_SLOT, tag, owner, clock)
+	, device_image_interface(mconfig, *this)
+	, device_single_card_slot_interface<ntb_cart_interface>(mconfig, *this)
+	, m_cart(nullptr)
 {
 }
 
@@ -64,15 +65,15 @@ nes_ntb_slot_device::~nes_ntb_slot_device()
 
 void nes_ntb_slot_device::device_start()
 {
-	m_cart = dynamic_cast<ntb_cart_interface *>(get_card_device());
+	m_cart = get_card_device();
 }
 
-READ8_MEMBER(nes_ntb_slot_device::read)
+uint8_t nes_ntb_slot_device::read(offs_t offset)
 {
 	if (m_cart)
-		return m_cart->read(space, offset, mem_mask);
-
-	return 0xff;
+		return m_cart->read(offset);
+	else
+		return 0xff;
 }
 
 
@@ -105,7 +106,7 @@ image_init_result nes_ntb_slot_device::call_load()
 }
 
 
-std::string nes_ntb_slot_device::get_default_card_software()
+std::string nes_ntb_slot_device::get_default_card_software(get_default_card_software_hook &hook) const
 {
 	return software_get_default_slot("ntbrom");
 }
@@ -120,11 +121,11 @@ ROM_START( ntb_rom )
 	ROM_REGION(0x4000, "ntbrom", ROMREGION_ERASEFF)
 ROM_END
 
-const device_type NES_NTB_ROM = device_creator<nes_ntb_rom_device>;
+DEFINE_DEVICE_TYPE(NES_NTB_ROM, nes_ntb_rom_device, "nes_ntbrom", "NES NTB ROM")
 
 nes_ntb_rom_device::nes_ntb_rom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, NES_NTB_ROM, "NES NTB ROM", tag, owner, clock, "nes_ntbrom", __FILE__),
-						ntb_cart_interface( mconfig, *this )
+	: device_t(mconfig, NES_NTB_ROM, tag, owner, clock)
+	, ntb_cart_interface(mconfig, *this)
 {
 }
 
@@ -153,13 +154,13 @@ uint8_t *nes_ntb_rom_device::get_cart_base()
 //
 //------------------------------------------------
 
-const device_type NES_SUNSOFT_DCS = device_creator<nes_sunsoft_dcs_device>;
+DEFINE_DEVICE_TYPE(NES_SUNSOFT_DCS, nes_sunsoft_dcs_device, "nes_dcs", "NES Cart Sunsoft DCS PCB")
 
 
 nes_sunsoft_dcs_device::nes_sunsoft_dcs_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_sunsoft_4_device(mconfig, NES_SUNSOFT_DCS, "NES Cart Sunsoft DCS PCB", tag, owner, clock, "nes_dcs", __FILE__), m_timer_on(0), m_exrom_enable(0),
-						m_subslot(*this, "ntb_slot"), ntb_enable_timer(nullptr)
-				{
+	: nes_sunsoft_4_device(mconfig, NES_SUNSOFT_DCS, tag, owner, clock), m_timer_on(0), m_exrom_enable(0)
+	, m_subslot(*this, "ntb_slot"), ntb_enable_timer(nullptr)
+{
 }
 
 
@@ -168,7 +169,7 @@ void nes_sunsoft_dcs_device::device_start()
 	common_start();
 	ntb_enable_timer = timer_alloc(TIMER_PROTECT);
 	ntb_enable_timer->reset();
-	timer_freq = machine().device<cpu_device>("maincpu")->cycles_to_attotime(107520);
+	timer_freq = clocks_to_attotime(107520);
 
 	save_item(NAME(m_latch1));
 	save_item(NAME(m_latch2));
@@ -211,7 +212,7 @@ void nes_sunsoft_dcs_device::pcb_reset()
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_sunsoft_dcs_device::write_h)
+void nes_sunsoft_dcs_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("Sunsoft DCS write_h, offset %04x, data: %02x\n", offset, data));
 
@@ -223,27 +224,27 @@ WRITE8_MEMBER(nes_sunsoft_dcs_device::write_h)
 			m_wram_enable = BIT(data, 4);
 			break;
 		default:
-			sun4_write(space, offset, data, mem_mask);
+			sun4_write(offset, data);
 			break;
 	}
 }
 
-READ8_MEMBER(nes_sunsoft_dcs_device::read_h)
+uint8_t nes_sunsoft_dcs_device::read_h(offs_t offset)
 {
 	LOG_MMC(("Sunsoft DCS read_h, offset: %04x\n", offset));
 
 	if (m_exrom_enable && m_subslot->m_cart && offset < 0x4000)
 	{
 		if (m_timer_on)
-			return m_subslot->m_cart->read(space, offset, mem_mask);
+			return m_subslot->m_cart->read(offset);
 		else
-			return m_open_bus;   // after the timer is off, this returns open bus...
+			return get_open_bus();   // after the timer is off, this returns open bus...
 	}
 	else
 		return hi_access_rom(offset);
 }
 
-WRITE8_MEMBER(nes_sunsoft_dcs_device::write_m)
+void nes_sunsoft_dcs_device::write_m(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("Sunsoft DCS write_m, offset: %04x, data: %02x\n", offset, data));
 
@@ -259,7 +260,7 @@ WRITE8_MEMBER(nes_sunsoft_dcs_device::write_m)
 	}
 }
 
-READ8_MEMBER(nes_sunsoft_dcs_device::read_m)
+uint8_t nes_sunsoft_dcs_device::read_m(offs_t offset)
 {
 	LOG_MMC(("Sunsoft DCS read_m, offset: %04x\n", offset));
 
@@ -268,30 +269,25 @@ READ8_MEMBER(nes_sunsoft_dcs_device::read_m)
 	if (!m_prgram.empty() && m_wram_enable)
 		return m_prgram[offset & (m_prgram.size() - 1)];
 
-	return m_open_bus;   // open bus
+	return get_open_bus();   // open bus
 }
 
-//-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( sub_slot )
-//-------------------------------------------------
 
-static SLOT_INTERFACE_START(ntb_cart)
-	SLOT_INTERFACE_INTERNAL("ntbrom", NES_NTB_ROM)
-SLOT_INTERFACE_END
-
-static MACHINE_CONFIG_FRAGMENT( sub_slot )
-	MCFG_NTB_MINICART_ADD("ntb_slot", ntb_cart)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor nes_sunsoft_dcs_device::device_mconfig_additions() const
+static void ntb_cart(device_slot_interface &device)
 {
-	return MACHINE_CONFIG_NAME( sub_slot );
+	device.option_add_internal("ntbrom", NES_NTB_ROM);
+}
+
+
+
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void nes_sunsoft_dcs_device::device_add_mconfig(machine_config &config)
+{
+	NES_NTB_SLOT(config, m_subslot, ntb_cart);
 }
 
 

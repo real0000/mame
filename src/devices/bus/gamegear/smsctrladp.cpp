@@ -16,7 +16,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type SMS_CTRL_ADAPTOR = device_creator<sms_ctrl_adaptor_device>;
+DEFINE_DEVICE_TYPE(SMS_CTRL_ADAPTOR, sms_ctrl_adaptor_device, "sms_ctrl_adaptor", "SMS Controller Adaptor")
 
 
 //**************************************************************************
@@ -28,7 +28,7 @@ const device_type SMS_CTRL_ADAPTOR = device_creator<sms_ctrl_adaptor_device>;
 //-------------------------------------------------
 
 sms_ctrl_adaptor_device::sms_ctrl_adaptor_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, SMS_CTRL_ADAPTOR, "SMS Controller Adaptor", tag, owner, clock, "sms_ctrl_adaptor", __FILE__),
+	device_t(mconfig, SMS_CTRL_ADAPTOR, tag, owner, clock),
 	device_gg_ext_port_interface(mconfig, *this),
 	m_subctrl_port(*this, "ctrl")
 {
@@ -41,7 +41,6 @@ sms_ctrl_adaptor_device::sms_ctrl_adaptor_device(const machine_config &mconfig, 
 
 void sms_ctrl_adaptor_device::device_start()
 {
-	m_subctrl_port->device_start();
 }
 
 
@@ -65,31 +64,21 @@ void sms_ctrl_adaptor_device::peripheral_w(uint8_t data)
 }
 
 
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
 WRITE_LINE_MEMBER( sms_ctrl_adaptor_device::th_pin_w )
 {
 	m_port->th_pin_w(state);
 }
 
 
-READ32_MEMBER( sms_ctrl_adaptor_device::pixel_r )
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void sms_ctrl_adaptor_device::device_add_mconfig(machine_config &config)
 {
-	return m_port->pixel_r();
+	SMS_CONTROL_PORT(config, m_subctrl_port, sms_control_port_devices, "joypad");
+	if (m_port != nullptr)
+		m_subctrl_port->set_screen_tag(m_port->m_screen);
+	m_subctrl_port->th_input_handler().set(FUNC(sms_ctrl_adaptor_device::th_pin_w));
 }
 
-
-static MACHINE_CONFIG_FRAGMENT( sms_adp_slot )
-	MCFG_SMS_CONTROL_PORT_ADD("ctrl", sms_control_port_devices, "joypad")
-	MCFG_SMS_CONTROL_PORT_TH_INPUT_HANDLER(WRITELINE(sms_ctrl_adaptor_device, th_pin_w))
-	MCFG_SMS_CONTROL_PORT_PIXEL_HANDLER(READ32(sms_ctrl_adaptor_device, pixel_r))
-MACHINE_CONFIG_END
-
-
-machine_config_constructor sms_ctrl_adaptor_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( sms_adp_slot );
-}

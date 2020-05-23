@@ -8,12 +8,16 @@
 
 ***************************************************************************/
 
-#pragma once
-
 #ifndef MAME_FRONTEND_UI_MAINMENU_H
 #define MAME_FRONTEND_UI_MAINMENU_H
 
+#pragma once
+
+#include "ui/menu.h"
+
+
 namespace ui {
+
 class menu_main : public menu
 {
 public:
@@ -21,36 +25,6 @@ public:
 	virtual ~menu_main();
 
 private:
-	enum {
-		INPUT_GROUPS,
-		INPUT_SPECIFIC,
-		SETTINGS_DIP_SWITCHES,
-		SETTINGS_DRIVER_CONFIG,
-		ANALOG,
-		BOOKKEEPING,
-		GAME_INFO,
-		IMAGE_MENU_IMAGE_INFO,
-		IMAGE_MENU_FILE_MANAGER,
-		TAPE_CONTROL,
-		SLOT_DEVICES,
-		NETWORK_DEVICES,
-		KEYBOARD_MODE,
-		SLIDERS,
-		VIDEO_TARGETS,
-		VIDEO_OPTIONS,
-		CROSSHAIR,
-		CHEAT,
-		PLUGINS,
-		SELECT_GAME,
-		BIOS_SELECTION,
-		BARCODE_READ,
-		PTY_INFO,
-		EXTERNAL_DATS,
-		ADD_FAVORITE,
-		REMOVE_FAVORITE,
-		QUIT_GAME
-	};
-
 	virtual void populate(float &customtop, float &custombottom) override;
 	virtual void handle() override;
 };

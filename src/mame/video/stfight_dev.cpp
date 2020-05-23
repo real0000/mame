@@ -9,11 +9,11 @@
 #include "screen.h"
 
 
-const device_type STFIGHT_VIDEO = device_creator<stfight_video_device>;
+DEFINE_DEVICE_TYPE(STFIGHT_VIDEO, stfight_video_device, "stfight_vid", "Seibu Street Fight Video")
 
 
-stfight_video_device::stfight_video_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, STFIGHT_VIDEO, "Seibu Street Fight Video", tag, owner, clock, "stfight_vid", __FILE__),
+stfight_video_device::stfight_video_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, STFIGHT_VIDEO, tag, owner, clock),
 	m_gfxdecode(*this, "gfxdecode"),
 	m_palette(*this,"^palette"),
 	m_screen(*this, "screen"),
@@ -101,30 +101,26 @@ static const gfx_layout spritelayout =
 	64*8        /* every sprite takes 64 consecutive bytes */
 };
 
-static GFXDECODE_START( stfight )
-	GFXDECODE_ENTRY( "tx_gfx", 0x0000, charlayout,   0,                16 )
-	GFXDECODE_ENTRY( "fg_gfx", 0x0000, fglayout,     0,             16 )
-	GFXDECODE_ENTRY( "bg_gfx", 0x0000, bglayout,     0,       16 )
-	GFXDECODE_ENTRY( "bg_gfx", 0x0020, bglayout,     0,       16 )
+static GFXDECODE_START( gfx_stfight )
+	GFXDECODE_ENTRY( "tx_gfx", 0x0000,  charlayout,   0, 16 )
+	GFXDECODE_ENTRY( "fg_gfx", 0x0000,  fglayout,     0, 16 )
+	GFXDECODE_ENTRY( "bg_gfx", 0x0000,  bglayout,     0, 16 )
+	GFXDECODE_ENTRY( "bg_gfx", 0x0020,  bglayout,     0, 16 )
 	GFXDECODE_ENTRY( "spr_gfx", 0x0000, spritelayout, 0, 32 )
 GFXDECODE_END
 
-static MACHINE_CONFIG_FRAGMENT( stfight_vid )
-	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(stfight_video_device, screen_update_stfight)
-	MCFG_SCREEN_PALETTE("^palette")
-
-	MCFG_GFXDECODE_ADD("gfxdecode", "^palette", stfight)
-MACHINE_CONFIG_END
-
-machine_config_constructor stfight_video_device::device_mconfig_additions() const
+void stfight_video_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( stfight_vid );
+	/* video hardware */
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_refresh_hz(60);
+	m_screen->set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	m_screen->set_size(32*8, 32*8);
+	m_screen->set_visarea(0*8, 32*8-1, 2*8, 30*8-1);
+	m_screen->set_screen_update(FUNC(stfight_video_device::screen_update_stfight));
+	m_screen->set_palette(m_palette);
+
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_stfight);
 }
 
 /*
@@ -160,7 +156,7 @@ TILE_GET_INFO_MEMBER(stfight_video_device::get_fg_tile_info)
 	attr = m_fgmap[0x8000+tile_index];
 	tile_base = ((attr & 0x80) << 2) | ((attr & 0x20) << 3);
 
-	SET_TILE_INFO_MEMBER(1,
+	tileinfo.set(1,
 			tile_base + m_fgmap[tile_index],
 			attr & 0x07,
 			0);
@@ -182,7 +178,7 @@ TILE_GET_INFO_MEMBER(stfight_video_device::get_bg_tile_info)
 	tile_bank = (attr & 0x20) >> 5;
 	tile_base = (attr & 0x80) << 1;
 
-	SET_TILE_INFO_MEMBER(2+tile_bank,
+	tileinfo.set(2+tile_bank,
 			tile_base + m_bgmap[tile_index],
 			attr & 0x07,
 			0);
@@ -195,7 +191,7 @@ TILE_GET_INFO_MEMBER(stfight_video_device::get_tx_tile_info)
 
 	tileinfo.group = color;
 
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 			m_txram[tile_index] + ((attr & 0x80) << 1),
 			attr & 0x0f,
 			TILE_FLIPYX((attr & 0x60) >> 5));
@@ -256,21 +252,30 @@ uint32_t stfight_video_device::screen_update_stfight(screen_device &screen, bitm
 	m_temp_sprite_bitmap.fill(-1, cliprect);
 	draw_sprites(screen, m_temp_sprite_bitmap, cliprect);
 
-	m_temp_bitmap.fill(-1, cliprect);
-	m_bg_tilemap->draw(screen, m_temp_bitmap, cliprect, 0, 0);
-	mix_txlayer(screen, bitmap, m_temp_bitmap, cliprect, m_bg_clut, 0x00, 0x00, 0x00, false);
+	if (m_bg_tilemap->enabled())
+	{
+		m_temp_bitmap.fill(-1, cliprect);
+		m_bg_tilemap->draw(screen, m_temp_bitmap, cliprect, 0, 0);
+		mix_txlayer(screen, bitmap, m_temp_bitmap, cliprect, m_bg_clut, 0x00, 0x00, 0x00, false);
+	}
 
 	if (m_vregs[0x07] & 0x40) mix_txlayer(screen, bitmap, m_temp_sprite_bitmap, cliprect, m_spr_clut, 0x80, 0x100, 0x100, false); // low priority sprites
 
-	m_temp_bitmap.fill(-1, cliprect);
-	m_fg_tilemap->draw(screen, m_temp_bitmap, cliprect, 0, 0);
-	mix_txlayer(screen, bitmap, m_temp_bitmap, cliprect, m_fg_clut, 0x40, 0x00, 0x00, false);
+	if (m_fg_tilemap->enabled())
+	{
+		m_temp_bitmap.fill(-1, cliprect);
+		m_fg_tilemap->draw(screen, m_temp_bitmap, cliprect, 0, 0);
+		mix_txlayer(screen, bitmap, m_temp_bitmap, cliprect, m_fg_clut, 0x40, 0x00, 0x00, false);
+	}
 
 	if (m_vregs[0x07] & 0x40) mix_txlayer(screen, bitmap, m_temp_sprite_bitmap, cliprect, m_spr_clut, 0x80, 0x100, 0x000, false); // high priority sprites
 
-	m_temp_bitmap.fill(-1, cliprect);
-	m_tx_tilemap->draw(screen, m_temp_bitmap, cliprect, 0, 0);
-	mix_txlayer(screen, bitmap, m_temp_bitmap, cliprect, m_tx_clut, 0xc0, 0x00, 0x00, true);
+	if (m_tx_tilemap->enabled())
+	{
+		m_temp_bitmap.fill(-1, cliprect);
+		m_tx_tilemap->draw(screen, m_temp_bitmap, cliprect, 0, 0);
+		mix_txlayer(screen, bitmap, m_temp_bitmap, cliprect, m_tx_clut, 0xc0, 0x00, 0x00, true);
+	}
 	//
 	return 0;
 }
@@ -315,9 +320,9 @@ void stfight_video_device::device_start()
 
 	save_item(NAME(m_sprite_base));
 
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(stfight_video_device::get_bg_tile_info),this),tilemap_mapper_delegate(FUNC(stfight_video_device::bg_scan),this),16,16,128,256);
-	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(stfight_video_device::get_fg_tile_info),this),tilemap_mapper_delegate(FUNC(stfight_video_device::fg_scan),this),16,16,128,256);
-	m_tx_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(stfight_video_device::get_tx_tile_info),this),TILEMAP_SCAN_ROWS, 8,8,32,32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(stfight_video_device::get_bg_tile_info)), tilemap_mapper_delegate(*this, FUNC(stfight_video_device::bg_scan)), 16,16, 128,256);
+	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(stfight_video_device::get_fg_tile_info)), tilemap_mapper_delegate(*this, FUNC(stfight_video_device::fg_scan)), 16,16, 128,256);
+	m_tx_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(stfight_video_device::get_tx_tile_info)), TILEMAP_SCAN_ROWS, 8,8, 32,32);
 
 	// we do manual mixing using a temp bitmap
 	m_screen->register_screen_bitmap(m_temp_sprite_bitmap);
@@ -330,20 +335,20 @@ void stfight_video_device::device_reset()
 
 // public functions
 
-WRITE8_MEMBER(stfight_video_device::stfight_text_char_w)
+void stfight_video_device::stfight_text_char_w(offs_t offset, uint8_t data)
 {
 	m_txram[offset] = data;
 	m_tx_tilemap->mark_tile_dirty(offset&0x3ff);
 }
 
 
-WRITE8_MEMBER(stfight_video_device::stfight_sprite_bank_w)
+void stfight_video_device::stfight_sprite_bank_w(uint8_t data)
 {
 	m_sprite_base = ( ( data & 0x04 ) << 7 ) |
 							( ( data & 0x01 ) << 8 );
 }
 
-WRITE8_MEMBER(stfight_video_device::stfight_vh_latch_w)
+void stfight_video_device::stfight_vh_latch_w(offs_t offset, uint8_t data)
 {
 	int scroll;
 

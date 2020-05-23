@@ -1,4 +1,7 @@
 <?xml version="1.0"?>
+<!--
+license:CC0
+-->
 <mamelayout version="2">
 
 <!-- define elements -->
@@ -172,7 +175,6 @@
 		<bezel name="13.7" element="plate"><bounds x="13" y="7" width="0.4" height="0.8" /></bezel>
 		<bezel name="13.8" element="plate"><bounds x="13" y="8" width="0.4" height="0.8" /></bezel>
 		<bezel name="13.9" element="plate"><bounds x="13" y="9" width="0.4" height="0.8" /></bezel>
-
 
 	</view>
 </mamelayout>

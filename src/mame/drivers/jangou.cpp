@@ -30,30 +30,48 @@ $c088-$c095 player tiles
 #include "cpu/z80/z80.h"
 #include "machine/gen_latch.h"
 #include "machine/nvram.h"
+#include "machine/segacrpt_device.h"
 #include "sound/ay8910.h"
 #include "sound/hc55516.h"
 #include "sound/msm5205.h"
 #include "video/jangou_blitter.h"
 #include "video/resnet.h"
+#include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
 
-#define MASTER_CLOCK    XTAL_19_968MHz
+#define MASTER_CLOCK    XTAL(19'968'000)
 
 class jangou_state : public driver_device
 {
 public:
 	jangou_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_cpu_0(*this, "cpu0"),
-		m_cpu_1(*this, "cpu1"),
-		m_nsc(*this, "nsc"),
-		m_msm(*this, "msm"),
-		m_cvsd(*this, "cvsd"),
-		m_palette(*this, "palette"),
-		m_blitter(*this, "blitter"),
-		m_soundlatch(*this, "soundlatch") { }
+		: driver_device(mconfig, type, tag)
+		, m_cpu_0(*this, "cpu0")
+		, m_cpu_1(*this, "cpu1")
+		, m_nsc(*this, "nsc")
+		, m_msm(*this, "msm")
+		, m_cvsd(*this, "cvsd")
+		, m_palette(*this, "palette")
+		, m_blitter(*this, "blitter")
+		, m_soundlatch(*this, "soundlatch")
+	{
+	}
 
+	void jngolady(machine_config &config);
+	void roylcrdn(machine_config &config);
+	void cntrygrl(machine_config &config);
+	void jangou(machine_config &config);
+	void luckygrl(machine_config &config);
+
+	void init_jngolady();
+
+protected:
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+	virtual void video_start() override;
+
+private:
 	/* sound-related */
 	// Jangou CVSD Sound
 	emu_timer    *m_cvsd_bit_timer;
@@ -67,6 +85,8 @@ public:
 	uint8_t        m_mux_data;
 	uint8_t        m_nsc_latch;
 	uint8_t        m_z80_latch;
+
+	std::unique_ptr<bitmap_ind16> m_tmp_bitmap;
 
 	/* devices */
 	required_device<cpu_device> m_cpu_0;
@@ -90,14 +110,9 @@ public:
 	DECLARE_READ8_MEMBER(slave_com_r);
 	DECLARE_WRITE8_MEMBER(slave_com_w);
 	DECLARE_READ8_MEMBER(jngolady_rng_r);
-	DECLARE_READ8_MEMBER(input_mux_r);
-	DECLARE_READ8_MEMBER(input_system_r);
-	DECLARE_DRIVER_INIT(jngolady);
-	DECLARE_DRIVER_INIT(luckygrl);
-	virtual void machine_start() override;
-	virtual void machine_reset() override;
-	virtual void video_start() override;
-	DECLARE_PALETTE_INIT(jangou);
+	uint8_t input_mux_r();
+
+	void jangou_palette(palette_device &palette) const;
 	DECLARE_MACHINE_START(jngolady);
 	DECLARE_MACHINE_RESET(jngolady);
 	DECLARE_MACHINE_START(common);
@@ -106,7 +121,20 @@ public:
 	TIMER_CALLBACK_MEMBER(cvsd_bit_timer_callback);
 	DECLARE_WRITE_LINE_MEMBER(jngolady_vclk_cb);
 
-	std::unique_ptr<bitmap_ind16> m_tmp_bitmap;
+	void cntrygrl_cpu0_io(address_map &map);
+	void cntrygrl_cpu0_map(address_map &map);
+	void cpu0_io(address_map &map);
+	void cpu0_map(address_map &map);
+	void cpu1_io(address_map &map);
+	void cpu1_map(address_map &map);
+	void jngolady_cpu0_map(address_map &map);
+	void jngolady_cpu1_io(address_map &map);
+	void jngolady_cpu1_map(address_map &map);
+	void nsc_map(address_map &map);
+	void roylcrdn_cpu0_io(address_map &map);
+	void roylcrdn_cpu0_map(address_map &map);
+	void luckygrl_cpu0_map(address_map &map);
+	void decrypted_opcodes_map(address_map &map);
 };
 
 
@@ -116,42 +144,40 @@ public:
  *
  *************************************/
 
-/* guess: use the same resistor values as Crazy Climber (needs checking on the real HW) */
-PALETTE_INIT_MEMBER(jangou_state, jangou)
+// guess: use the same resistor values as Crazy Climber (needs checking on the real hardware)
+void jangou_state::jangou_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	static const int resistances_rg[3] = { 1000, 470, 220 };
-	static const int resistances_b [2] = { 470, 220 };
-	double weights_rg[3], weights_b[2];
-	int i;
+	uint8_t const *const color_prom = memregion("proms")->base();
+	static constexpr int resistances_rg[3] = { 1000, 470, 220 };
+	static constexpr int resistances_b [2] = { 470, 220 };
 
-	/* compute the color output resistor weights */
+	// compute the color output resistor weights
+	double weights_rg[3], weights_b[2];
 	compute_resistor_weights(0, 255, -1.0,
 			3, resistances_rg, weights_rg, 0, 0,
 			2, resistances_b,  weights_b,  0, 0,
 			0, nullptr, nullptr, 0, 0);
 
-	for (i = 0;i < palette.entries(); i++)
+	for (int i = 0;i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2;
-		int r, g, b;
 
-		/* red component */
-		bit0 = (color_prom[i] >> 0) & 0x01;
-		bit1 = (color_prom[i] >> 1) & 0x01;
-		bit2 = (color_prom[i] >> 2) & 0x01;
-		r = combine_3_weights(weights_rg, bit0, bit1, bit2);
+		// red component
+		bit0 = BIT(color_prom[i], 0);
+		bit1 = BIT(color_prom[i], 1);
+		bit2 = BIT(color_prom[i], 2);
+		int const r = combine_weights(weights_rg, bit0, bit1, bit2);
 
-		/* green component */
-		bit0 = (color_prom[i] >> 3) & 0x01;
-		bit1 = (color_prom[i] >> 4) & 0x01;
-		bit2 = (color_prom[i] >> 5) & 0x01;
-		g = combine_3_weights(weights_rg, bit0, bit1, bit2);
+		// green component
+		bit0 = BIT(color_prom[i], 3);
+		bit1 = BIT(color_prom[i], 4);
+		bit2 = BIT(color_prom[i], 5);
+		int const g = combine_weights(weights_rg, bit0, bit1, bit2);
 
-		/* blue component */
-		bit0 = (color_prom[i] >> 6) & 0x01;
-		bit1 = (color_prom[i] >> 7) & 0x01;
-		b = combine_2_weights(weights_b, bit0, bit1);
+		// blue component
+		bit0 = BIT(color_prom[i], 6);
+		bit1 = BIT(color_prom[i], 7);
+		int const b = combine_weights(weights_b, bit0, bit1);
 
 		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
@@ -164,16 +190,14 @@ void jangou_state::video_start()
 
 uint32_t jangou_state::screen_update_jangou(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	int x, y;
-
-	for (y = cliprect.min_y; y <= cliprect.max_y; ++y)
+	for (int y = cliprect.min_y; y <= cliprect.max_y; ++y)
 	{
-		uint8_t *src = &m_blitter->m_blit_buffer[y * 256 + cliprect.min_x];
+		const uint8_t *src = &m_blitter->blit_buffer(y, cliprect.min_x);
 		uint16_t *dst = &m_tmp_bitmap->pix16(y, cliprect.min_x);
 
-		for (x = cliprect.min_x; x <= cliprect.max_x; x += 2)
+		for (int x = cliprect.min_x; x <= cliprect.max_x; x += 2)
 		{
-			uint32_t srcpix = *src++;
+			uint32_t const srcpix = *src++;
 			*dst++ = m_palette->pen(srcpix & 0xf);
 			*dst++ = m_palette->pen((srcpix >> 4) & 0xf);
 		}
@@ -209,7 +233,7 @@ WRITE8_MEMBER(jangou_state::output_w)
 //  machine().bookkeeping().coin_lockout_w(0, ~data & 0x20);
 }
 
-READ8_MEMBER(jangou_state::input_mux_r)
+uint8_t jangou_state::input_mux_r()
 {
 	switch(m_mux_data)
 	{
@@ -224,11 +248,6 @@ READ8_MEMBER(jangou_state::input_mux_r)
 	return ioport("IN_NOMUX")->read();
 }
 
-READ8_MEMBER(jangou_state::input_system_r)
-{
-	return ioport("SYSTEM")->read();
-}
-
 
 /*************************************
  *
@@ -238,14 +257,14 @@ READ8_MEMBER(jangou_state::input_system_r)
 
 WRITE8_MEMBER(jangou_state::sound_latch_w)
 {
-	m_soundlatch->write(space, 0, data & 0xff);
+	m_soundlatch->write(data & 0xff);
 	m_cpu_1->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }
 
 READ8_MEMBER(jangou_state::sound_latch_r)
 {
 	m_cpu_1->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-	return m_soundlatch->read(space, 0);
+	return m_soundlatch->read();
 }
 
 /* Jangou HC-55516 CVSD */
@@ -320,34 +339,38 @@ WRITE8_MEMBER(jangou_state::slave_com_w)
  *
  *************************************/
 
-static ADDRESS_MAP_START( cpu0_map, AS_PROGRAM, 8, jangou_state )
-	AM_RANGE(0x0000, 0x9fff) AM_ROM
-	AM_RANGE(0xc000, 0xc7ff) AM_RAM
-ADDRESS_MAP_END
+void jangou_state::cpu0_map(address_map &map)
+{
+	map(0x0000, 0x9fff).rom();
+	map(0xc000, 0xc7ff).ram();
+}
 
-static ADDRESS_MAP_START( cpu0_io, AS_IO, 8, jangou_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x01,0x01) AM_DEVREAD("aysnd", ay8910_device, data_r)
-	AM_RANGE(0x02,0x03) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
-	AM_RANGE(0x10,0x10) AM_READ_PORT("DSW") AM_WRITE(output_w) //dsw + blitter busy flag
-	AM_RANGE(0x11,0x11) AM_WRITE(mux_w)
-	AM_RANGE(0x12,0x17) AM_DEVWRITE("blitter",jangou_blitter_device, process_w)
-	AM_RANGE(0x20,0x2f) AM_DEVWRITE("blitter",jangou_blitter_device, vregs_w)
-	AM_RANGE(0x30,0x30) AM_WRITENOP //? polls 0x03 continuously
-	AM_RANGE(0x31,0x31) AM_WRITE(sound_latch_w)
-ADDRESS_MAP_END
+void jangou_state::cpu0_io(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x01, 0x01).r("aysnd", FUNC(ay8910_device::data_r));
+	map(0x02, 0x03).w("aysnd", FUNC(ay8910_device::data_address_w));
+	map(0x10, 0x10).portr("DSW").w(FUNC(jangou_state::output_w)); //dsw + blitter busy flag
+	map(0x11, 0x11).w(FUNC(jangou_state::mux_w));
+	map(0x12, 0x17).m(m_blitter, FUNC(jangou_blitter_device::blit_v1_regs));
+	map(0x20, 0x2f).w(m_blitter, FUNC(jangou_blitter_device::vregs_w));
+	map(0x30, 0x30).nopw(); //? polls 0x03 continuously
+	map(0x31, 0x31).w(FUNC(jangou_state::sound_latch_w));
+}
 
 
-static ADDRESS_MAP_START( cpu1_map, AS_PROGRAM, 8, jangou_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM AM_WRITENOP
-ADDRESS_MAP_END
+void jangou_state::cpu1_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom().nopw();
+}
 
-static ADDRESS_MAP_START( cpu1_io, AS_IO, 8, jangou_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00,0x00) AM_READ(sound_latch_r)
-	AM_RANGE(0x01,0x01) AM_WRITE(cvsd_w)
-	AM_RANGE(0x02,0x02) AM_WRITENOP // Echoes sound command - acknowledge?
-ADDRESS_MAP_END
+void jangou_state::cpu1_io(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).r(FUNC(jangou_state::sound_latch_r));
+	map(0x01, 0x01).w(FUNC(jangou_state::cvsd_w));
+	map(0x02, 0x02).nopw(); // Echoes sound command - acknowledge?
+}
 
 
 /*************************************
@@ -356,32 +379,35 @@ ADDRESS_MAP_END
  *
  *************************************/
 
-static ADDRESS_MAP_START( jngolady_cpu0_map, AS_PROGRAM, 8, jangou_state )
-	AM_RANGE(0x0000, 0x9fff) AM_ROM
-	AM_RANGE(0xc000, 0xc7ff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0xe000, 0xe000) AM_READWRITE(master_com_r,master_com_w)
-ADDRESS_MAP_END
+void jangou_state::jngolady_cpu0_map(address_map &map)
+{
+	map(0x0000, 0x9fff).rom();
+	map(0xc000, 0xc7ff).ram().share("share1");
+	map(0xe000, 0xe000).rw(FUNC(jangou_state::master_com_r), FUNC(jangou_state::master_com_w));
+}
 
 
-static ADDRESS_MAP_START( jngolady_cpu1_map, AS_PROGRAM, 8, jangou_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM AM_WRITENOP
-ADDRESS_MAP_END
+void jangou_state::jngolady_cpu1_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom().nopw();
+}
 
-static ADDRESS_MAP_START( jngolady_cpu1_io, AS_IO, 8, jangou_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00,0x00) AM_READ(sound_latch_r)
-	AM_RANGE(0x01,0x01) AM_WRITE(adpcm_w)
-	AM_RANGE(0x02,0x02) AM_WRITENOP
-ADDRESS_MAP_END
+void jangou_state::jngolady_cpu1_io(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).r(FUNC(jangou_state::sound_latch_r));
+	map(0x01, 0x01).w(FUNC(jangou_state::adpcm_w));
+	map(0x02, 0x02).nopw();
+}
 
 
-static ADDRESS_MAP_START( nsc_map, AS_PROGRAM, 8, jangou_state )
-	AM_RANGE(0x0000, 0x007f) AM_RAM //internal ram for irq etc.
-	AM_RANGE(0x8000, 0x8000) AM_WRITENOP //write-only,irq related?
-	AM_RANGE(0x9000, 0x9000) AM_READWRITE(slave_com_r,slave_com_w)
-	AM_RANGE(0xc000, 0xc7ff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0xf000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void jangou_state::nsc_map(address_map &map)
+{
+	map(0x8000, 0x8000).nopw(); //write-only,irq related?
+	map(0x9000, 0x9000).rw(FUNC(jangou_state::slave_com_r), FUNC(jangou_state::slave_com_w));
+	map(0xc000, 0xc7ff).ram().share("share1");
+	map(0xf000, 0xffff).rom();
+}
 
 /*************************************
  *
@@ -389,24 +415,43 @@ ADDRESS_MAP_END
  *
  *************************************/
 
-static ADDRESS_MAP_START( cntrygrl_cpu0_map, AS_PROGRAM, 8, jangou_state )
-	AM_RANGE(0x0000, 0x3fff) AM_ROM
-//  AM_RANGE(0xc000, 0xc7ff) AM_RAM
-	AM_RANGE(0xe000, 0xefff) AM_RAM
-ADDRESS_MAP_END
+void jangou_state::cntrygrl_cpu0_map(address_map &map)
+{
+	map(0x0000, 0x3fff).rom();
+//  map(0xc000, 0xc7ff).ram();
+	map(0xe000, 0xefff).ram();
+}
 
-static ADDRESS_MAP_START( cntrygrl_cpu0_io, AS_IO, 8, jangou_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x01,0x01) AM_DEVREAD("aysnd", ay8910_device, data_r)
-	AM_RANGE(0x02,0x03) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
-	AM_RANGE(0x10,0x10) AM_READ_PORT("DSW") //dsw + blitter busy flag
-	AM_RANGE(0x10,0x10) AM_WRITE(output_w)
-	AM_RANGE(0x11,0x11) AM_WRITE(mux_w)
-	AM_RANGE(0x12,0x17) AM_DEVWRITE("blitter",jangou_blitter_device, process_w)
-	AM_RANGE(0x20,0x2f) AM_DEVWRITE("blitter",jangou_blitter_device, vregs_w)
-	AM_RANGE(0x30,0x30) AM_WRITENOP //? polls 0x03 continuously
-//  AM_RANGE(0x31,0x31) AM_WRITE(sound_latch_w)
-ADDRESS_MAP_END
+void jangou_state::cntrygrl_cpu0_io(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x01, 0x01).r("aysnd", FUNC(ay8910_device::data_r));
+	map(0x02, 0x03).w("aysnd", FUNC(ay8910_device::data_address_w));
+	map(0x10, 0x10).portr("DSW"); //dsw + blitter busy flag
+	map(0x10, 0x10).w(FUNC(jangou_state::output_w));
+	map(0x11, 0x11).w(FUNC(jangou_state::mux_w));
+	map(0x12, 0x17).m(m_blitter, FUNC(jangou_blitter_device::blit_v1_regs));
+	map(0x20, 0x2f).w(m_blitter, FUNC(jangou_blitter_device::vregs_w));
+	map(0x30, 0x30).nopw(); //? polls 0x03 continuously
+//  map(0x31, 0x31).w(FUNC(jangou_state::sound_latch_w));
+}
+
+/*************************************
+ *
+ *  Lucky Girl Memory Map
+ *
+ *************************************/
+
+void jangou_state::luckygrl_cpu0_map(address_map &map)
+{
+	map(0x0000, 0x4fff).rom();
+	map(0xc000, 0xc7ff).ram();
+}
+
+void jangou_state::decrypted_opcodes_map(address_map &map)
+{
+	map(0x0000, 0x4fff).rom().share("decrypted_opcodes");
+}
 
 /*************************************
  *
@@ -414,23 +459,25 @@ ADDRESS_MAP_END
  *
  *************************************/
 
-static ADDRESS_MAP_START( roylcrdn_cpu0_map, AS_PROGRAM, 8, jangou_state )
-	AM_RANGE(0x0000, 0x2fff) AM_ROM
-	AM_RANGE(0x7000, 0x77ff) AM_RAM AM_SHARE("nvram")   /* MK48Z02B-15 ZEROPOWER RAM */
-ADDRESS_MAP_END
+void jangou_state::roylcrdn_cpu0_map(address_map &map)
+{
+	map(0x0000, 0x2fff).rom();
+	map(0x7000, 0x77ff).ram().share("nvram");   /* MK48Z02B-15 ZEROPOWER RAM */
+}
 
-static ADDRESS_MAP_START( roylcrdn_cpu0_io, AS_IO, 8, jangou_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x01,0x01) AM_DEVREAD("aysnd", ay8910_device, data_r)
-	AM_RANGE(0x02,0x03) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
-	AM_RANGE(0x10,0x10) AM_READ_PORT("DSW")         /* DSW + blitter busy flag */
-	AM_RANGE(0x10,0x10) AM_WRITENOP                 /* Writes continuosly 0's in attract mode, and 1's in game */
-	AM_RANGE(0x11,0x11) AM_WRITE(mux_w)
-	AM_RANGE(0x13,0x13) AM_READNOP                  /* Often reads bit7 with unknown purposes */
-	AM_RANGE(0x12,0x17) AM_DEVWRITE("blitter",jangou_blitter_device, process_w)
-	AM_RANGE(0x20,0x2f) AM_DEVWRITE("blitter",jangou_blitter_device, vregs_w)
-	AM_RANGE(0x30,0x30) AM_WRITENOP                 /* Seems to write 0x10 on each sound event */
-ADDRESS_MAP_END
+void jangou_state::roylcrdn_cpu0_io(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x01, 0x01).r("aysnd", FUNC(ay8910_device::data_r));
+	map(0x02, 0x03).w("aysnd", FUNC(ay8910_device::data_address_w));
+	map(0x10, 0x10).portr("DSW");         /* DSW + blitter busy flag */
+	map(0x10, 0x10).nopw();                 /* Writes continuosly 0's in attract mode, and 1's in game */
+	map(0x11, 0x11).w(FUNC(jangou_state::mux_w));
+	map(0x12, 0x17).m(m_blitter, FUNC(jangou_blitter_device::blit_v1_regs));
+	map(0x13, 0x13).nopr();                  /* Often reads bit7 with unknown purposes */
+	map(0x20, 0x2f).w(m_blitter, FUNC(jangou_blitter_device::vregs_w));
+	map(0x30, 0x30).nopw();                 /* Seems to write 0x10 on each sound event */
+}
 
 
 /*************************************
@@ -526,7 +573,7 @@ static INPUT_PORTS_START( jangou )
 	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen") // guess
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("blitter", jangou_blitter_device, status_r)
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("blitter", jangou_blitter_device, status_r)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( macha )
@@ -587,7 +634,7 @@ static INPUT_PORTS_START( macha )
 	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen") // guess
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("blitter", jangou_blitter_device, status_r)
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("blitter", jangou_blitter_device, status_r)
 INPUT_PORTS_END
 
 
@@ -672,7 +719,7 @@ static INPUT_PORTS_START( cntrygrl )
 	PORT_DIPNAME( 0x40, 0x40, "Coin B setting"  )  PORT_DIPLOCATION("SW1:7")
 	PORT_DIPSETTING(    0x40, DEF_STR( 1C_5C ) )
 	PORT_DIPSETTING(    0x00, "1 Coin / 10 Credits"  )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("blitter", jangou_blitter_device, status_r)
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("blitter", jangou_blitter_device, status_r)
 
 	PORT_START("IN_NOMUX")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -712,7 +759,7 @@ static INPUT_PORTS_START( jngolady )
 	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen")
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("blitter", jangou_blitter_device, status_r)
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("blitter", jangou_blitter_device, status_r)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( roylcrdn )
@@ -772,7 +819,76 @@ static INPUT_PORTS_START( roylcrdn )
 
 	PORT_START("DSW")
 	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("blitter", jangou_blitter_device, status_r)
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("blitter", jangou_blitter_device, status_r)
+
+	PORT_START("IN_NOMUX")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
+INPUT_PORTS_END
+
+static INPUT_PORTS_START( luckygrl )
+	PORT_START("PL1_1")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_Z) PORT_NAME("1P Bet1")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_X) PORT_NAME("1P Bet2")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_C) PORT_NAME("1P Bet3")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_V) PORT_NAME("1P Bet4")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_B) PORT_NAME("1P Bet5")
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_N) PORT_NAME("1P Bet6")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_1) PORT_NAME("1P Start")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_LCONTROL) PORT_NAME("1P Flip-Flop")
+
+	PORT_START("PL1_2")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_4) PORT_NAME("1P Take Score")          /* 1P Take Score */
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_3) PORT_NAME("1P Hi-Lo (W-Up)")        /* 1P W-Up */
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_A) PORT_NAME("1P Hi (Big)")            /* 1P Big */
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_S) PORT_NAME("1P Lo (Small)")          /* 1P Small */
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_F) PORT_NAME("1P Stand")               /* 1P Stand */
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_D) PORT_NAME("1P Hit")                 /* 1P Hit */
+	PORT_BIT( 0xc0, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_START("PL2_1")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_1_PAD) PORT_NAME("2P Bet1")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_2_PAD) PORT_NAME("2P Bet2")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_3_PAD) PORT_NAME("2P Bet3")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_4_PAD) PORT_NAME("2P Bet4")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_5_PAD) PORT_NAME("2P Bet5")
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_6_PAD) PORT_NAME("2P Bet6")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_0_PAD) PORT_NAME("2P Start")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_RCONTROL) PORT_NAME("2P Flip-Flop")
+
+	PORT_START("PL2_2")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_LEFT)  PORT_NAME("2P Take Score")      /* 2P Take Score */
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_RIGHT) PORT_NAME("2P Hi-Lo (W-Up)")    /* 2P W-Up */
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_UP)    PORT_NAME("2P Hi (Big)")        /* 2P Big */
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_DOWN)  PORT_NAME("2P Lo (Small)")      /* 2P Small */
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_8_PAD) PORT_NAME("2P Stand")           /* 2P Stand */
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_7_PAD) PORT_NAME("2P Hit")             /* 2P Hit */
+	PORT_BIT( 0xc0, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_START("PL1_3")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_START("PL2_3")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_START("SYSTEM")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNUSED )                                                                 /* Spare 2 */
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )                                      PORT_NAME("Note In")        /* Note In */
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_MEMORY_RESET ) PORT_TOGGLE  PORT_CODE(KEYCODE_9)                         /* Memory Reset */
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_TOGGLE  PORT_CODE(KEYCODE_0)  PORT_NAME("Analyzer")       /* Analyzer */
+	PORT_SERVICE( 0x10, IP_ACTIVE_LOW )                                                                         /* Test Mode */
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_COIN1 )                                      PORT_NAME("Coin In")        /* Coin In */
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_GAMBLE_KEYOUT )                              PORT_NAME("Credit Clear")   /* Credit Clear */
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNUSED )                                                                 /* Spare 1 */
+
+	PORT_START("DSW") // 6 dips bank
+	PORT_DIPUNKNOWN_DIPLOC(0x01, 0x01, "SW1:1")
+	PORT_DIPUNKNOWN_DIPLOC(0x02, 0x02, "SW1:2")
+	PORT_DIPUNKNOWN_DIPLOC(0x04, 0x04, "SW1:3")
+	PORT_DIPUNKNOWN_DIPLOC(0x08, 0x08, "SW1:4")
+	PORT_DIPUNKNOWN_DIPLOC(0x10, 0x10, "SW1:5")
+	PORT_DIPUNKNOWN_DIPLOC(0x20, 0x20, "SW1:6")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("blitter", jangou_blitter_device, status_r)
 
 	PORT_START("IN_NOMUX")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -836,106 +952,116 @@ MACHINE_RESET_MEMBER(jangou_state,jngolady)
 }
 
 /* Note: All frequencies and dividers are unverified */
-static MACHINE_CONFIG_START( jangou, jangou_state )
-
+void jangou_state::jangou(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("cpu0", Z80, MASTER_CLOCK / 8)
-	MCFG_CPU_PROGRAM_MAP(cpu0_map)
-	MCFG_CPU_IO_MAP(cpu0_io)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", jangou_state,  irq0_line_hold)
+	Z80(config, m_cpu_0, MASTER_CLOCK / 8);
+	m_cpu_0->set_addrmap(AS_PROGRAM, &jangou_state::cpu0_map);
+	m_cpu_0->set_addrmap(AS_IO, &jangou_state::cpu0_io);
+	m_cpu_0->set_vblank_int("screen", FUNC(jangou_state::irq0_line_hold));
 
-	MCFG_CPU_ADD("cpu1", Z80, MASTER_CLOCK / 8)
-	MCFG_CPU_PROGRAM_MAP(cpu1_map)
-	MCFG_CPU_IO_MAP(cpu1_io)
+	Z80(config, m_cpu_1, MASTER_CLOCK / 8);
+	m_cpu_1->set_addrmap(AS_PROGRAM, &jangou_state::cpu1_map);
+	m_cpu_1->set_addrmap(AS_IO, &jangou_state::cpu1_io);
 
-	MCFG_JANGOU_BLITTER_ADD("blitter", MASTER_CLOCK/4)
+	JANGOU_BLITTER(config, "blitter", MASTER_CLOCK/4);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/4,320,0,256,264,16,240) // assume same as nightgal.cpp
-	MCFG_SCREEN_UPDATE_DRIVER(jangou_state, screen_update_jangou)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_raw(MASTER_CLOCK/4,320,0,256,264,16,240); // assume same as nightgal.cpp
+	screen.set_screen_update(FUNC(jangou_state::screen_update_jangou));
+	screen.set_palette(m_palette);
 
-	MCFG_PALETTE_ADD("palette", 32)
-	MCFG_PALETTE_INIT_OWNER(jangou_state, jangou)
+	PALETTE(config, m_palette, FUNC(jangou_state::jangou_palette), 32);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	GENERIC_LATCH_8(config, m_soundlatch);
 
-	MCFG_SOUND_ADD("aysnd", AY8910, MASTER_CLOCK / 16)
-	MCFG_AY8910_PORT_A_READ_CB(READ8(jangou_state, input_mux_r))
-	MCFG_AY8910_PORT_B_READ_CB(READ8(jangou_state, input_system_r))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
+	ay8910_device &aysnd(AY8910(config, "aysnd", MASTER_CLOCK / 16));
+	aysnd.port_a_read_callback().set(FUNC(jangou_state::input_mux_r));
+	aysnd.port_b_read_callback().set_ioport("SYSTEM");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.40);
 
-	MCFG_SOUND_ADD("cvsd", HC55516, MASTER_CLOCK / 1024)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
-MACHINE_CONFIG_END
+	HC55516(config, m_cvsd, MASTER_CLOCK / 1024);
+	m_cvsd->add_route(ALL_OUTPUTS, "mono", 0.60);
+}
 
-static MACHINE_CONFIG_DERIVED( jngolady, jangou )
+void jangou_state::jngolady(machine_config &config)
+{
+	jangou(config);
 
 	/* basic machine hardware */
+	m_cpu_0->set_addrmap(AS_PROGRAM, &jangou_state::jngolady_cpu0_map);
 
-	MCFG_CPU_MODIFY("cpu0")
-	MCFG_CPU_PROGRAM_MAP(jngolady_cpu0_map)
+	m_cpu_1->set_addrmap(AS_PROGRAM, &jangou_state::jngolady_cpu1_map);
+	m_cpu_1->set_addrmap(AS_IO, &jangou_state::jngolady_cpu1_io);
 
-	MCFG_CPU_MODIFY("cpu1")
-	MCFG_CPU_PROGRAM_MAP(jngolady_cpu1_map)
-	MCFG_CPU_IO_MAP(jngolady_cpu1_io)
-
-	MCFG_CPU_ADD("nsc", NSC8105, MASTER_CLOCK / 8)
-	MCFG_CPU_PROGRAM_MAP(nsc_map)
+	NSC8105(config, m_nsc, MASTER_CLOCK / 8);
+	m_nsc->set_addrmap(AS_PROGRAM, &jangou_state::nsc_map);
 
 	MCFG_MACHINE_START_OVERRIDE(jangou_state,jngolady)
 	MCFG_MACHINE_RESET_OVERRIDE(jangou_state,jngolady)
 
 	/* sound hardware */
-	MCFG_DEVICE_REMOVE("cvsd")
+	config.device_remove("cvsd");
 
-	MCFG_SOUND_ADD("msm", MSM5205, XTAL_400kHz)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(jangou_state, jngolady_vclk_cb))
-	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S96_4B)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
-MACHINE_CONFIG_END
+	MSM5205(config, m_msm, XTAL(400'000));
+	m_msm->vck_legacy_callback().set(FUNC(jangou_state::jngolady_vclk_cb));
+	m_msm->set_prescaler_selector(msm5205_device::S96_4B);
+	m_msm->add_route(ALL_OUTPUTS, "mono", 0.80);
+}
 
-static MACHINE_CONFIG_DERIVED( cntrygrl, jangou )
+void jangou_state::cntrygrl(machine_config &config)
+{
+	jangou(config);
 
 	/* basic machine hardware */
+	m_cpu_0->set_addrmap(AS_PROGRAM, &jangou_state::cntrygrl_cpu0_map);
+	m_cpu_0->set_addrmap(AS_IO, &jangou_state::cntrygrl_cpu0_io);
 
-	MCFG_CPU_MODIFY("cpu0")
-	MCFG_CPU_PROGRAM_MAP(cntrygrl_cpu0_map )
-	MCFG_CPU_IO_MAP(cntrygrl_cpu0_io )
-
-	MCFG_DEVICE_REMOVE("cpu1")
+	config.device_remove("cpu1");
 
 	MCFG_MACHINE_START_OVERRIDE(jangou_state,common)
 	MCFG_MACHINE_RESET_OVERRIDE(jangou_state,common)
 
 	/* sound hardware */
-	MCFG_DEVICE_REMOVE("cvsd")
-	MCFG_DEVICE_REMOVE("soundlatch")
-MACHINE_CONFIG_END
+	config.device_remove("cvsd");
+	config.device_remove("soundlatch");
+}
 
-static MACHINE_CONFIG_DERIVED( roylcrdn, jangou )
+void jangou_state::roylcrdn(machine_config &config)
+{
+	jangou(config);
 
 	/* basic machine hardware */
+	m_cpu_0->set_addrmap(AS_PROGRAM, &jangou_state::roylcrdn_cpu0_map);
+	m_cpu_0->set_addrmap(AS_IO, &jangou_state::roylcrdn_cpu0_io);
 
-	MCFG_CPU_MODIFY("cpu0")
-	MCFG_CPU_PROGRAM_MAP(roylcrdn_cpu0_map )
-	MCFG_CPU_IO_MAP(roylcrdn_cpu0_io )
+	config.device_remove("cpu1");
 
-	MCFG_DEVICE_REMOVE("cpu1")
-
-	MCFG_NVRAM_ADD_0FILL("nvram")
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
 	MCFG_MACHINE_START_OVERRIDE(jangou_state,common)
 	MCFG_MACHINE_RESET_OVERRIDE(jangou_state,common)
 
 	/* sound hardware */
-	MCFG_DEVICE_REMOVE("cvsd")
-	MCFG_DEVICE_REMOVE("soundlatch")
-MACHINE_CONFIG_END
+	config.device_remove("cvsd");
+	config.device_remove("soundlatch");
+}
+
+void jangou_state::luckygrl(machine_config &config)
+{
+	cntrygrl(config);
+
+	sega_315_spat_device &maincpu(SEGA_315_SPAT(config.replace(), m_cpu_0, MASTER_CLOCK / 8)); // actually Falcon 03155096 encrypted Z80
+	maincpu.set_addrmap(AS_PROGRAM, &jangou_state::luckygrl_cpu0_map);
+	maincpu.set_addrmap(AS_IO, &jangou_state::cntrygrl_cpu0_io);
+	maincpu.set_addrmap(AS_OPCODES, &jangou_state::decrypted_opcodes_map);
+	maincpu.set_decrypted_tag(":decrypted_opcodes");
+	maincpu.set_vblank_int("screen", FUNC(jangou_state::irq0_line_hold));
+}
 
 
 /*************************************
@@ -1154,7 +1280,10 @@ ROM_END
 
 /****************************************
 
-  Royal Card (amusement).
+  Royal Card.
+  Amusement.
+  1985-01-01
+
   PCB silkscreened "FD-510"
 
   1x Z80 @ 2.5 MHz. (measured)
@@ -1181,12 +1310,36 @@ ROM_START( roylcrdn )
 	ROM_LOAD( "mb7051.3h",  0x0000, 0x0020, CRC(cb6f1aec) SHA1(84136393f9cf8bd836123a31483e9a746ca00cdc) )
 ROM_END
 
+/*
+  Royal Card (Part Two)
+  Miki Corp
+  Ver. 1.02
+  1982-04-10
+
+  PCB silkscreened (c) MIKI CORP
+
+*/
+ROM_START( roylcrdna )
+	ROM_REGION( 0x10000, "cpu0", 0 )
+	ROM_LOAD( "rc4.ic11",     0x0000, 0x1000, CRC(4a7d9479) SHA1(0c695128b0a66c077013991d062c28a3f00857d1) )
+	ROM_LOAD( "rc5.ic12",     0x1000, 0x1000, CRC(577ca478) SHA1(ab138673f74a618f6842f8a6bdf840ef661f27b8) )
+	ROM_LOAD( "rc6.ic13",     0x2000, 0x1000, CRC(42507bb5) SHA1(458b5580d9d20687972cccb12490bd58d9b09175) )
+
+	ROM_REGION( 0x10000, "gfx", 0 )
+	ROM_LOAD( "rc1.k5", 0x0000, 0x1000, CRC(935d0e1c) SHA1(0d5b067f6931585c8138b211cf73e5f585af8101) )
+	ROM_LOAD( "rc2.l5", 0x1000, 0x1000, CRC(4429362e) SHA1(0bbb6dedf919e0453be2db6343827c5787d139f3) )
+	ROM_LOAD( "rc3.n5", 0x2000, 0x1000, CRC(50562072) SHA1(7f2ef4f4237d55198af307f6b81af6306c07ce95) )
+
+	ROM_REGION( 0x0020, "proms", 0 )
+	ROM_LOAD( "mb7051.h3",  0x0000, 0x0020, CRC(cb6f1aec) SHA1(84136393f9cf8bd836123a31483e9a746ca00cdc) )
+ROM_END
+
 
 ROM_START( luckygrl )
-	ROM_REGION( 0x10000, "cpu0", 0 ) //encrypted z80 cpu
+	ROM_REGION( 0x10000, "cpu0", 0 )
 	ROM_LOAD( "5.9c", 0x00000, 0x01000, CRC(79b34eb2) SHA1(4b4916e09bfd6573fd2c7a7254fa4419164e0c4d) )
-	ROM_LOAD( "7.9f", 0x01000, 0x01000, CRC(14a44d23) SHA1(4f84a8f986a8fd9d5ac0636be1bb036c3b2746c2) )
 	ROM_LOAD( "6.9e", 0x02000, 0x01000, CRC(06850aa8) SHA1(c23cb6b7b26d5586b1a095dee88228d1613ae7d0) )
+	ROM_LOAD( "7.9f", 0x04000, 0x01000, CRC(14a44d23) SHA1(4f84a8f986a8fd9d5ac0636be1bb036c3b2746c2) )
 
 	ROM_REGION( 0x10000, "gfx", 0 )
 	ROM_LOAD( "1.5r",      0x00000, 0x2000, CRC(fb429678) SHA1(00e37e90550d9190d06977a5f5ed75b691750cc1) )
@@ -1211,51 +1364,9 @@ READ8_MEMBER(jangou_state::jngolady_rng_r)
 	return machine().rand();
 }
 
-DRIVER_INIT_MEMBER(jangou_state,jngolady)
+void jangou_state::init_jngolady()
 {
-	m_nsc->space(AS_PROGRAM).install_read_handler(0x08, 0x08, read8_delegate(FUNC(jangou_state::jngolady_rng_r),this) );
-}
-
-DRIVER_INIT_MEMBER(jangou_state,luckygrl)
-{
-	// this is WRONG
-	int A;
-	uint8_t *ROM = memregion("cpu0")->base();
-
-	unsigned char patn1[32] = {
-		0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0,
-		0x88, 0x28, 0x88, 0x28, 0x88, 0x28, 0x88, 0x28, 0x88, 0x28, 0x88, 0x28, 0x88, 0x28, 0x88, 0x28,
-	};
-
-	unsigned char patn2[32] = {
-		0x28, 0x20, 0x28, 0x20, 0x28, 0x20, 0x28, 0x20, 0x28, 0x20, 0x28, 0x20, 0x28, 0x20, 0x28, 0x20,
-		0x28, 0x88, 0x28, 0x88, 0x28, 0x88, 0x28, 0x88, 0x28, 0x88, 0x28, 0x88, 0x28, 0x88, 0x28, 0x88
-	};
-
-	for (A = 0; A < 0x3000; A++)
-	{
-		uint8_t dat = ROM[A];
-		if (A&0x100) dat = dat ^ patn2[A & 0x1f];
-		else dat = dat ^ patn1[A & 0x1f];
-
-		ROM[A] = dat;
-	}
-
-
-	#if 0
-	{
-		FILE *fp;
-		char filename[256];
-		sprintf(filename,"decrypted_%s", machine().system().name);
-		fp=fopen(filename, "w+b");
-		if (fp)
-		{
-			fwrite(ROM, 0x3000, 1, fp);
-			fclose(fp);
-		}
-	}
-	#endif
-
+	m_nsc->space(AS_PROGRAM).install_read_handler(0x08, 0x08, read8_delegate(*this, FUNC(jangou_state::jngolady_rng_r)));
 }
 
 
@@ -1265,16 +1376,15 @@ DRIVER_INIT_MEMBER(jangou_state,luckygrl)
  *
  *************************************/
 
-GAME( 1983,  jangou,     0,        jangou,   jangou, driver_device,    0,        ROT0, "Nichibutsu",     "Jangou [BET] (Japan)", MACHINE_SUPPORTS_SAVE )
-GAME( 1983,  macha,      0,        jangou,   macha,  driver_device,     0,        ROT0, "Logitec",        "Monoshiri Quiz Osyaberi Macha (Japan)", MACHINE_SUPPORTS_SAVE )
-GAME( 1984,  jngolady,   0,        jngolady, jngolady, jangou_state,  jngolady, ROT0, "Nichibutsu",     "Jangou Lady (Japan)", MACHINE_SUPPORTS_SAVE )
-GAME( 1984,  cntrygrl,   0,        cntrygrl, cntrygrl, driver_device,  0,        ROT0, "Royal Denshi",   "Country Girl (Japan set 1)",  MACHINE_SUPPORTS_SAVE )
-GAME( 1984,  cntrygrla,  cntrygrl, cntrygrl, cntrygrl, driver_device,  0,        ROT0, "Nichibutsu",     "Country Girl (Japan set 2)",  MACHINE_SUPPORTS_SAVE )
-GAME( 1984,  fruitbun,   cntrygrl, cntrygrl, cntrygrl, driver_device,  0,        ROT0, "Nichibutsu",     "Fruits & Bunny (World?)",  MACHINE_SUPPORTS_SAVE )
-GAME( 1985,  roylcrdn,   0,        roylcrdn, roylcrdn, driver_device,  0,        ROT0, "Nichibutsu",     "Royal Card (Nichibutsu)", MACHINE_SUPPORTS_SAVE )
-
-/* The following might not run there... */
-GAME( 1984?, luckygrl,   0,        cntrygrl, cntrygrl, jangou_state,  luckygrl, ROT0, "Wing Co., Ltd.", "Lucky Girl? (Wing)", MACHINE_NOT_WORKING | MACHINE_SUPPORTS_SAVE )
+GAME( 1983,  jangou,    0,        jangou,   jangou,   jangou_state,  empty_init,    ROT0, "Nichibutsu",     "Jangou [BET] (Japan)",                  MACHINE_SUPPORTS_SAVE )
+GAME( 1983,  macha,     0,        jangou,   macha,    jangou_state,  empty_init,    ROT0, "Logitec",        "Monoshiri Quiz Osyaberi Macha (Japan)", MACHINE_SUPPORTS_SAVE )
+GAME( 1984,  jngolady,  0,        jngolady, jngolady, jangou_state,  init_jngolady, ROT0, "Nichibutsu",     "Jangou Lady (Japan)",                   MACHINE_SUPPORTS_SAVE )
+GAME( 1984,  cntrygrl,  0,        cntrygrl, cntrygrl, jangou_state,  empty_init,    ROT0, "Royal Denshi",   "Country Girl (Japan set 1)",            MACHINE_SUPPORTS_SAVE )
+GAME( 1984,  cntrygrla, cntrygrl, cntrygrl, cntrygrl, jangou_state,  empty_init,    ROT0, "Nichibutsu",     "Country Girl (Japan set 2)",            MACHINE_SUPPORTS_SAVE )
+GAME( 1984,  fruitbun,  cntrygrl, cntrygrl, cntrygrl, jangou_state,  empty_init,    ROT0, "Nichibutsu",     "Fruits & Bunny (World?)",               MACHINE_SUPPORTS_SAVE )
+GAME( 1985,  roylcrdn,  0,        roylcrdn, roylcrdn, jangou_state,  empty_init,    ROT0, "Amusement",      "Royal Card (Nichibutsu HW)",            MACHINE_SUPPORTS_SAVE )
+GAME( 1982,  roylcrdna, roylcrdn, roylcrdn, roylcrdn, jangou_state,  empty_init,    ROT0, "Miki Corp.",     "Royal Card Part-Two (Nichibutsu HW, Ver. 1.02)",  MACHINE_SUPPORTS_SAVE )
+GAME( 1985,  luckygrl,  0,        luckygrl, luckygrl, jangou_state,  empty_init,    ROT0, "Wing Co., Ltd.", "Lucky Girl (Wing)",                     MACHINE_SUPPORTS_SAVE )
 
 /*
 Some other games that might run on this HW:

@@ -28,7 +28,7 @@ static int verbose = VERBOSE;
 #define LOG3(x) { if (verbose > 2) LOG(x)}
 
 #define SC499_CTAPE_TAG "sc499_ctape"
-extern const device_type SC499_CTAPE;
+DECLARE_DEVICE_TYPE(SC499_CTAPE, sc499_ctape_image_device)
 
 static INPUT_PORTS_START( sc499_port )
 	PORT_START("IO_BASE")
@@ -177,20 +177,17 @@ static INPUT_PORTS_START( sc499_port )
 
 INPUT_PORTS_END
 
-MACHINE_CONFIG_FRAGMENT( sc499_ctape )
-	MCFG_DEVICE_ADD(SC499_CTAPE_TAG, SC499_CTAPE, 0)
-MACHINE_CONFIG_END
-
-machine_config_constructor sc499_device::device_mconfig_additions() const
+void sc499_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( sc499_ctape );
+	SC499_CTAPE(config, m_image, 0);
 }
+
 
 //**************************************************************************
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type ISA8_SC499 = device_creator<sc499_device>;
+DEFINE_DEVICE_TYPE(ISA8_SC499, sc499_device, "sc499", "Archive SC-499")
 
 //**************************************************************************
 //  CONSTANTS
@@ -313,7 +310,7 @@ const device_type ISA8_SC499 = device_creator<sc499_device>;
 //-------------------------------------------------
 
 sc499_device::sc499_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, ISA8_SC499, "Archive SC-499", tag, owner, clock, "sc499", __FILE__),
+	: device_t(mconfig, ISA8_SC499, tag, owner, clock),
 	device_isa8_card_interface(mconfig, *this),
 	m_iobase(*this, "IO_BASE"),
 	m_irqdrq(*this, "IRQ_DRQ"), m_data(0), m_command(0), m_status(0), m_control(0), m_has_cartridge(0), m_is_writable(0), m_current_command(0), m_first_block_hack(0), m_nasty_readahead(0), m_read_block_pending(0),
@@ -392,7 +389,7 @@ void sc499_device::device_reset()
 		m_irq = m_irqdrq->read() & 7;
 		m_drq = m_irqdrq->read()>>4;
 
-		m_isa->install_device(base, base+7, read8_delegate(FUNC(sc499_device::read), this), write8_delegate(FUNC(sc499_device::write), this));
+		m_isa->install_device(base, base+7, read8_delegate(*this, FUNC(sc499_device::read)), write8_delegate(*this, FUNC(sc499_device::write)));
 		m_isa->set_dma_channel(m_drq, this, true);
 
 		m_installed = true;
@@ -403,26 +400,13 @@ void sc499_device::device_reset()
  cpu_context - return a string describing the current CPU context
  -------------------------------------------------*/
 
-const char *sc499_device::cpu_context()
+std::string sc499_device::cpu_context() const
 {
-	static char statebuf[64]; /* string buffer containing state description */
-
-	device_t *cpu = machine().firstcpu;
 	osd_ticks_t t = osd_ticks();
 	int s = (t / osd_ticks_per_second()) % 3600;
 	int ms = (t / (osd_ticks_per_second() / 1000)) % 1000;
 
-	/* if we have an executing CPU, output data */
-	if (cpu != nullptr)
-	{
-		sprintf(statebuf, "%d.%03d %s pc=%08x - %s", s, ms, cpu->tag(),
-				cpu->safe_pcbase(), tag());
-	}
-	else
-	{
-		sprintf(statebuf, "%d.%03d", s, ms);
-	}
-	return statebuf;
+	return string_format("%d.%03d %s", s, ms, machine().describe_context());
 }
 
 /*-------------------------------------------------
@@ -1298,11 +1282,11 @@ void sc499_device::block_set_filemark()
 
 //##########################################################################
 
-const device_type SC499_CTAPE = device_creator<sc499_ctape_image_device>;
+DEFINE_DEVICE_TYPE(SC499_CTAPE, sc499_ctape_image_device, "sc499_ctape", "SC-499 Cartridge Tape")
 
 sc499_ctape_image_device::sc499_ctape_image_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, SC499_CTAPE, "Cartridge Tape", tag, owner, clock, "sc499_ctape", __FILE__),
-		device_image_interface(mconfig, *this)
+	: device_t(mconfig, SC499_CTAPE, tag, owner, clock)
+	, device_image_interface(mconfig, *this)
 {
 }
 

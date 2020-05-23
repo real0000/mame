@@ -15,7 +15,7 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type CRVISION_CART_SLOT = device_creator<crvision_cart_slot_device>;
+DEFINE_DEVICE_TYPE(CRVISION_CART_SLOT, crvision_cart_slot_device, "crvision_cart_slot", "CreatiVision Cartridge Slot")
 
 //**************************************************************************
 //    CreatiVision Cartridges Interface
@@ -25,10 +25,10 @@ const device_type CRVISION_CART_SLOT = device_creator<crvision_cart_slot_device>
 //  device_crvision_cart_interface - constructor
 //-------------------------------------------------
 
-device_crvision_cart_interface::device_crvision_cart_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig, device),
-		m_rom(nullptr),
-		m_rom_size(0)
+device_crvision_cart_interface::device_crvision_cart_interface(const machine_config &mconfig, device_t &device) :
+	device_interface(device, "crvisioncart"),
+	m_rom(nullptr),
+	m_rom_size(0)
 {
 }
 
@@ -63,10 +63,10 @@ void device_crvision_cart_interface::rom_alloc(uint32_t size, const char *tag)
 //  crvision_cart_slot_device - constructor
 //-------------------------------------------------
 crvision_cart_slot_device::crvision_cart_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-						device_t(mconfig, CRVISION_CART_SLOT, "CreatiVision Cartridge Slot", tag, owner, clock, "crvision_cart_slot", __FILE__),
-						device_image_interface(mconfig, *this),
-						device_slot_interface(mconfig, *this),
-						m_type(CRV_4K), m_cart(nullptr)
+	device_t(mconfig, CRVISION_CART_SLOT, tag, owner, clock),
+	device_image_interface(mconfig, *this),
+	device_single_card_slot_interface<device_crvision_cart_interface>(mconfig, *this),
+	m_type(CRV_4K), m_cart(nullptr)
 {
 }
 
@@ -85,7 +85,7 @@ crvision_cart_slot_device::~crvision_cart_slot_device()
 
 void crvision_cart_slot_device::device_start()
 {
-	m_cart = dynamic_cast<device_crvision_cart_interface *>(get_card_device());
+	m_cart = get_card_device();
 }
 
 
@@ -206,12 +206,12 @@ image_init_result crvision_cart_slot_device::call_load()
  get default card software
  -------------------------------------------------*/
 
-std::string crvision_cart_slot_device::get_default_card_software()
+std::string crvision_cart_slot_device::get_default_card_software(get_default_card_software_hook &hook) const
 {
-	if (open_image_file(mconfig().options()))
+	if (hook.image_file())
 	{
 		const char *slot_string;
-		uint32_t size = m_file->size();
+		uint32_t size = hook.image_file()->size();
 		int type = CRV_4K;
 
 		switch (size)
@@ -242,7 +242,6 @@ std::string crvision_cart_slot_device::get_default_card_software()
 		slot_string = crvision_get_slot(type);
 
 		//printf("type: %s\n", slot_string);
-		clear();
 
 		return std::string(slot_string);
 	}
@@ -254,18 +253,18 @@ std::string crvision_cart_slot_device::get_default_card_software()
  read_rom
  -------------------------------------------------*/
 
-READ8_MEMBER(crvision_cart_slot_device::read_rom40)
+uint8_t crvision_cart_slot_device::read_rom40(offs_t offset)
 {
 	if (m_cart)
-		return m_cart->read_rom40(space, offset);
+		return m_cart->read_rom40(offset);
 	else
 		return 0xff;
 }
 
-READ8_MEMBER(crvision_cart_slot_device::read_rom80)
+uint8_t crvision_cart_slot_device::read_rom80(offs_t offset)
 {
 	if (m_cart)
-		return m_cart->read_rom80(space, offset);
+		return m_cart->read_rom80(offset);
 	else
 		return 0xff;
 }

@@ -1,8 +1,12 @@
 // license:BSD-3-Clause
 // copyright-holders:David Haywood
+#ifndef MAME_VIDEO_K053936_H
+#define MAME_VIDEO_K053936_H
+
 #pragma once
-#ifndef __K053936_H__
-#define __K053936_H__
+
+#include "emupal.h"
+#include "tilemap.h"
 
 
 void K053936_0_zoom_draw(screen_device &screen, bitmap_ind16 &bitmap,const rectangle &cliprect,tilemap_t *tmap,int flags,uint32_t priority, int glfgreat_hack);
@@ -22,13 +26,12 @@ public:
 	k053936_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 	~k053936_device() {}
 
-	// static configuration
-	static void set_wrap(device_t &device, int wrap) { downcast<k053936_device &>(device).m_wrap = wrap; }
-	static void set_offsets(device_t &device, int x_offset, int y_offset)
+	// configuration
+	void set_wrap(int wrap) { m_wrap = wrap; }
+	void set_offsets(int x_offset, int y_offset)
 	{
-		k053936_device &dev = downcast<k053936_device &>(device);
-		dev.m_xoff = x_offset;
-		dev.m_yoff = y_offset;
+		m_xoff = x_offset;
+		m_yoff = y_offset;
 	}
 
 	DECLARE_WRITE16_MEMBER( ctrl_w );
@@ -36,6 +39,7 @@ public:
 	DECLARE_WRITE16_MEMBER( linectrl_w );
 	DECLARE_READ16_MEMBER( linectrl_r );
 	void zoom_draw(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, tilemap_t *tmap, int flags, uint32_t priority, int glfgreat_hack);
+	void zoom_draw(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, tilemap_t *tmap, int flags, uint32_t priority, int glfgreat_hack);
 	// void wraparound_enable(int status);   unused? // shall we merge this into the configuration intf?
 	// void set_offset(int xoffs, int yoffs); unused?   // shall we merge this into the configuration intf?
 
@@ -51,12 +55,6 @@ private:
 	int       m_wrap, m_xoff, m_yoff;
 };
 
-extern const device_type K053936;
+DECLARE_DEVICE_TYPE(K053936, k053936_device)
 
-#define MCFG_K053936_WRAP(_wrap) \
-	k053936_device::set_wrap(*device, _wrap);
-
-#define MCFG_K053936_OFFSETS(_xoffs, _yoffs) \
-	k053936_device::set_offsets(*device, _xoffs, _yoffs);
-
-#endif
+#endif // MAME_VIDEO_K053936_H

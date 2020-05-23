@@ -9,13 +9,8 @@
 #include "emu.h"
 #include "upd7227.h"
 
-
-
-//**************************************************************************
-//  MACROS / CONSTANTS
-//**************************************************************************
-
-#define LOG 0
+//#define VERBOSE 1
+#include "logmacro.h"
 
 
 
@@ -23,13 +18,14 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type UPD7227 = device_creator<upd7227_device>;
+DEFINE_DEVICE_TYPE(UPD7227, upd7227_device, "upd7227", "NEC uPD7227")
 
 
-static ADDRESS_MAP_START( upd7227_map, AS_PROGRAM, 8, upd7227_device )
-	AM_RANGE(0x00, 0x27) AM_RAM
-	AM_RANGE(0x40, 0x67) AM_RAM
-ADDRESS_MAP_END
+void upd7227_device::upd7227_map(address_map &map)
+{
+	map(0x00, 0x27).ram();
+	map(0x40, 0x67).ram();
+}
 
 
 
@@ -42,28 +38,15 @@ ADDRESS_MAP_END
 //-------------------------------------------------
 
 upd7227_device::upd7227_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, UPD7227, "uPD7227", tag, owner, clock, "upd7227", __FILE__),
-		device_memory_interface(mconfig, *this),
-		m_space_config("videoram", ENDIANNESS_BIG, 8, 7, 0, *ADDRESS_MAP_NAME(upd7227_map)),
-		m_cs(1),
-		m_cd(1),
-		m_sck(1),
-		m_si(1),
-		m_so(1)
+	: device_t(mconfig, UPD7227, tag, owner, clock)
+	, device_memory_interface(mconfig, *this)
+	, m_space_config("videoram", ENDIANNESS_BIG, 8, 7, 0, address_map_constructor(FUNC(upd7227_device::upd7227_map), this))
+	, m_cs(1)
+	, m_cd(1)
+	, m_sck(1)
+	, m_si(1)
+	, m_so(1)
 {
-}
-
-
-//-------------------------------------------------
-//  static_set_offsets - configuration helper
-//-------------------------------------------------
-
-void upd7227_device::static_set_offsets(device_t &device, int sx, int sy)
-{
-	upd7227_device &upd7227 = downcast<upd7227_device &>(device);
-
-	upd7227.m_sx = sx;
-	upd7227.m_sy = sy;
 }
 
 
@@ -96,9 +79,11 @@ void upd7227_device::device_reset()
 //  any address spaces owned by this device
 //-------------------------------------------------
 
-const address_space_config *upd7227_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector upd7227_device::memory_space_config() const
 {
-	return (spacenum == 0) ? &m_space_config : nullptr;
+	return space_config_vector {
+		std::make_pair(0, &m_space_config)
+	};
 }
 
 

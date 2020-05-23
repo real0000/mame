@@ -6,8 +6,10 @@
 
 *********************************************************************/
 
-#ifndef FLOPPY_H
-#define FLOPPY_H
+#ifndef MAME_DEVICES_IMAGEDEV_FLOPPY_H
+#define MAME_DEVICES_IMAGEDEV_FLOPPY_H
+
+#pragma once
 
 #include "formats/flopimg.h"
 #include "formats/d88_dsk.h"
@@ -22,14 +24,6 @@
 #include "formats/dsk_dsk.h"
 #include "sound/samples.h"
 #include "softlist_dev.h"
-
-#define MCFG_FLOPPY_DRIVE_ADD(_tag, _slot_intf, _def_slot, _formats)  \
-	MCFG_DEVICE_ADD(_tag, FLOPPY_CONNECTOR, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false) \
-	static_cast<floppy_connector *>(device)->set_formats(_formats);
-
-#define MCFG_FLOPPY_DRIVE_SOUND(_doit) \
-	static_cast<floppy_connector *>(device)->enable_sound(_doit);
 
 #define DECLARE_FLOPPY_FORMATS(_name) \
 	static const floppy_format_type _name []
@@ -60,8 +54,7 @@ class floppy_sound_device;
 ***************************************************************************/
 
 class floppy_image_device : public device_t,
-							public device_image_interface,
-							public device_slot_card_interface
+							public device_image_interface
 {
 public:
 	typedef delegate<image_init_result (floppy_image_device *)> load_cb;
@@ -69,9 +62,9 @@ public:
 	typedef delegate<void (floppy_image_device *, int)> index_pulse_cb;
 	typedef delegate<void (floppy_image_device *, int)> ready_cb;
 	typedef delegate<void (floppy_image_device *, int)> wpt_cb;
+	typedef delegate<void (floppy_image_device *, int)> led_cb;
 
 	// construction/destruction
-	floppy_image_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
 	virtual ~floppy_image_device();
 
 	virtual void handled_variants(uint32_t *variants, int &var_count) const = 0;
@@ -86,16 +79,15 @@ public:
 	virtual image_init_result call_load() override;
 	virtual void call_unload() override;
 	virtual image_init_result call_create(int format_type, util::option_resolution *format_options) override;
-	virtual const software_list_loader &get_software_list_loader() const override { return image_software_list_loader::instance(); }
-	virtual const char *image_interface() const override = 0;
-	virtual iodevice_t image_type() const override { return IO_FLOPPY; }
+	virtual const char *image_interface() const noexcept override = 0;
+	virtual iodevice_t image_type() const noexcept override { return IO_FLOPPY; }
 
-	virtual bool is_readable()  const override { return true; }
-	virtual bool is_writeable() const override { return true; }
-	virtual bool is_creatable() const override { return true; }
-	virtual bool must_be_loaded() const override { return false; }
-	virtual bool is_reset_on_load() const override { return false; }
-	virtual const char *file_extensions() const override { return extension_list; }
+	virtual bool is_readable()  const noexcept override { return true; }
+	virtual bool is_writeable() const noexcept override { return true; }
+	virtual bool is_creatable() const noexcept override { return true; }
+	virtual bool must_be_loaded() const noexcept override { return false; }
+	virtual bool is_reset_on_load() const noexcept override { return false; }
+	virtual const char *file_extensions() const noexcept override { return extension_list; }
 	void setup_write(floppy_image_format_t *output_format);
 
 	void setup_load_cb(load_cb cb);
@@ -103,12 +95,14 @@ public:
 	void setup_index_pulse_cb(index_pulse_cb cb);
 	void setup_ready_cb(ready_cb cb);
 	void setup_wpt_cb(wpt_cb cb);
+	void setup_led_cb(led_cb cb);
 
 	std::vector<uint32_t> &get_buffer() { return image->get_buffer(cyl, ss, subcyl); }
 	int get_cyl() { return cyl; }
 
 	void mon_w(int state);
 	bool ready_r();
+	void set_ready(bool state);
 	double get_pos();
 
 	bool wpt_r() { return wpt; }
@@ -122,9 +116,10 @@ public:
 	void seek_phase_w(int phases);
 	void stp_w(int state);
 	void dir_w(int state) { dir = state; }
-	void ss_w(int state) { ss = state; }
+	void ss_w(int state) { if (sides > 1) ss = state; }
 	void inuse_w(int state) { }
 	void dskchg_w(int state) { if (dskchg_writable) dskchg = state; }
+	void ds_w(int state) { ds = state; check_led(); }
 
 	void index_resync();
 	attotime time_next_index();
@@ -141,14 +136,21 @@ public:
 	void    enable_sound(bool doit) { m_make_sound = doit; }
 
 protected:
+	floppy_image_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
+	// device_image_interface implementation
+	virtual const software_list_loader &get_software_list_loader() const override { return image_software_list_loader::instance(); }
 
 	virtual void setup_characteristics() = 0;
+
+	void init_floppy_load(bool write_supported);
 
 	floppy_image_format_t *input_format;
 	floppy_image_format_t *output_format;
@@ -165,12 +167,15 @@ protected:
 	bool dskchg_writable;
 	bool has_trk00_sensor;
 
+	int drive_index;
+
 	/* state of input lines */
 	int dir;  /* direction */
 	int stp;  /* step */
 	int wtg;  /* write gate */
 	int mon;  /* motor on */
 	int ss; /* side select */
+	int ds; /* drive select */
 
 	/* state of output lines */
 	int idx;  /* index pulse */
@@ -187,6 +192,12 @@ protected:
 	uint32_t revolution_count;
 	int cyl, subcyl;
 
+	/* Current floppy zone cache */
+	attotime cache_start_time, cache_end_time, cache_weak_start;
+	int cache_index;
+	u32 cache_entry;
+	bool cache_weak;
+
 	bool image_dirty;
 	int ready_counter;
 
@@ -195,61 +206,74 @@ protected:
 	index_pulse_cb cur_index_pulse_cb;
 	ready_cb cur_ready_cb;
 	wpt_cb cur_wpt_cb;
+	led_cb cur_led_cb;
 
+	void check_led();
 	uint32_t find_position(attotime &base, const attotime &when);
-	int find_index(uint32_t position, const std::vector<uint32_t> &buf);
+	int find_index(uint32_t position, const std::vector<uint32_t> &buf) const;
+	bool test_track_last_entry_warps(const std::vector<uint32_t> &buf) const;
+	attotime position_to_time(const attotime &base, int position) const;
+
 	void write_zone(uint32_t *buf, int &cells, int &index, uint32_t spos, uint32_t epos, uint32_t mg);
 	void commit_image();
-	attotime get_next_index_time(std::vector<uint32_t> &buf, int index, int delta, attotime base);
+
+	u32 hash32(u32 val) const;
+
+	void cache_clear();
+	void cache_fill_index(const std::vector<uint32_t> &buf, int &index, attotime &base);
+	void cache_fill(const attotime &when);
+	void cache_weakness_setup();
 
 	// Sound
 	bool    m_make_sound;
 	floppy_sound_device* m_sound_out;
 };
 
-#define DECLARE_FLOPPY_IMAGE_DEVICE(_name, _interface) \
-	class _name : public floppy_image_device { \
+#define DECLARE_FLOPPY_IMAGE_DEVICE(Type, Name, Interface) \
+	class Name : public floppy_image_device { \
 	public: \
-		_name(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock); \
-		virtual ~_name(); \
+		Name(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock); \
+		virtual ~Name(); \
 		virtual void handled_variants(uint32_t *variants, int &var_count) const override; \
-		virtual const char *image_interface() const override { return _interface; } \
+		virtual const char *image_interface() const noexcept override { return Interface; } \
 	protected: \
 		virtual void setup_characteristics() override; \
-	};
+	}; \
+	DECLARE_DEVICE_TYPE(Type, Name)
 
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_3_ssdd, "floppy_3")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_3_dsdd, "floppy_3")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_35_ssdd, "floppy_3_5")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_35_dd, "floppy_3_5")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_35_hd, "floppy_3_5")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_35_ed, "floppy_3_5")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_525_sssd_35t, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_525_sd_35t, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_525_sssd, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_525_sd, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_525_ssdd, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_525_dd, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_525_ssqd, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_525_qd, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_525_hd, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_8_sssd, "floppy_8")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_8_dssd, "floppy_8")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_8_ssdd, "floppy_8")
-DECLARE_FLOPPY_IMAGE_DEVICE(floppy_8_dsdd, "floppy_8")
-DECLARE_FLOPPY_IMAGE_DEVICE(epson_smd_165, "floppy_3_5")
-DECLARE_FLOPPY_IMAGE_DEVICE(epson_sd_320, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(epson_sd_321, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(sony_oa_d31v, "floppy_3_5")
-DECLARE_FLOPPY_IMAGE_DEVICE(sony_oa_d32w, "floppy_3_5")
-DECLARE_FLOPPY_IMAGE_DEVICE(sony_oa_d32v, "floppy_3_5")
-DECLARE_FLOPPY_IMAGE_DEVICE(teac_fd_55e, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(teac_fd_55f, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(teac_fd_55g, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(alps_3255190x, "floppy_5_25")
-DECLARE_FLOPPY_IMAGE_DEVICE(ibm_6360, "floppy_8")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_3_SSDD,       floppy_3_ssdd,       "floppy_3")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_3_DSDD,       floppy_3_dsdd,       "floppy_3")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_35_SSDD,      floppy_35_ssdd,      "floppy_3_5")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_35_DD,        floppy_35_dd,        "floppy_3_5")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_35_HD,        floppy_35_hd,        "floppy_3_5")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_35_ED,        floppy_35_ed,        "floppy_3_5")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_525_SSSD_35T, floppy_525_sssd_35t, "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_525_SD_35T,   floppy_525_sd_35t,   "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_525_SSSD,     floppy_525_sssd,     "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_525_SD,       floppy_525_sd,       "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_525_SSDD,     floppy_525_ssdd,     "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_525_DD,       floppy_525_dd,       "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_525_SSQD,     floppy_525_ssqd,     "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_525_QD,       floppy_525_qd,       "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_525_HD,       floppy_525_hd,       "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_8_SSSD,       floppy_8_sssd,       "floppy_8")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_8_DSSD,       floppy_8_dssd,       "floppy_8")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_8_SSDD,       floppy_8_ssdd,       "floppy_8")
+DECLARE_FLOPPY_IMAGE_DEVICE(FLOPPY_8_DSDD,       floppy_8_dsdd,       "floppy_8")
+DECLARE_FLOPPY_IMAGE_DEVICE(EPSON_SMD_165,       epson_smd_165,       "floppy_3_5")
+DECLARE_FLOPPY_IMAGE_DEVICE(EPSON_SD_320,        epson_sd_320,        "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(EPSON_SD_321,        epson_sd_321,        "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(SONY_OA_D31V,        sony_oa_d31v,        "floppy_3_5")
+DECLARE_FLOPPY_IMAGE_DEVICE(SONY_OA_D32W,        sony_oa_d32w,        "floppy_3_5")
+DECLARE_FLOPPY_IMAGE_DEVICE(SONY_OA_D32V,        sony_oa_d32v,        "floppy_3_5")
+DECLARE_FLOPPY_IMAGE_DEVICE(TEAC_FD_30A,         teac_fd_30a,         "floppy_3")
+DECLARE_FLOPPY_IMAGE_DEVICE(TEAC_FD_55E,         teac_fd_55e,         "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(TEAC_FD_55F,         teac_fd_55f,         "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(TEAC_FD_55G,         teac_fd_55g,         "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(ALPS_3255190X,       alps_3255190x,       "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(IBM_6360,            ibm_6360,            "floppy_8")
 
-extern const device_type FLOPPYSOUND;
+DECLARE_DEVICE_TYPE(FLOPPYSOUND, floppy_sound_device)
 
 
 /*
@@ -295,10 +319,30 @@ class floppy_connector: public device_t,
 						public device_slot_interface
 {
 public:
-	floppy_connector(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	template <typename T>
+	floppy_connector(const machine_config &mconfig, const char *tag, device_t *owner, T &&opts, const char *dflt, const floppy_format_type formats[], bool fixed = false)
+		: floppy_connector(mconfig, tag, owner, 0)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(fixed);
+		set_formats(formats);
+	}
+	floppy_connector(const machine_config &mconfig, const char *tag, device_t *owner, const char *option, const device_type &devtype, bool is_default, const floppy_format_type formats[])
+		: floppy_connector(mconfig, tag, owner, 0)
+	{
+		option_reset();
+		option_add(option, devtype);
+		if(is_default)
+			set_default_option(option);
+		set_fixed(false);
+		set_formats(formats);
+	}
+	floppy_connector(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 	virtual ~floppy_connector();
 
-	void set_formats(const floppy_format_type *formats);
+	void set_formats(const floppy_format_type formats[]);
 	floppy_image_device *get_device();
 	void enable_sound(bool doit) { m_enable_sound = doit; }
 
@@ -313,39 +357,9 @@ private:
 
 
 // device type definition
-extern const device_type FLOPPY_CONNECTOR;
-extern const device_type FLOPPY_3_SSDD;
-extern const device_type FLOPPY_3_DSDD;
-extern const device_type FLOPPY_35_SSDD;
-extern const device_type FLOPPY_35_DD;
-extern const device_type FLOPPY_35_HD;
-extern const device_type FLOPPY_35_ED;
-extern const device_type FLOPPY_525_SSSD_35T;
-extern const device_type FLOPPY_525_SD_35T;
-extern const device_type FLOPPY_525_SSSD;
-extern const device_type FLOPPY_525_SD;
-extern const device_type FLOPPY_525_SSDD;
-extern const device_type FLOPPY_525_DD;
-extern const device_type FLOPPY_525_SSQD;
-extern const device_type FLOPPY_525_QD;
-extern const device_type FLOPPY_525_HD;
-extern const device_type FLOPPY_8_SSSD;
-extern const device_type FLOPPY_8_DSSD;
-extern const device_type FLOPPY_8_SSDD;
-extern const device_type FLOPPY_8_DSDD;
-extern const device_type EPSON_SMD_165;
-extern const device_type EPSON_SD_320;
-extern const device_type EPSON_SD_321;
-extern const device_type SONY_OA_D31V;
-extern const device_type SONY_OA_D32W;
-extern const device_type SONY_OA_D32V;
-extern const device_type TEAC_FD_55E;
-extern const device_type TEAC_FD_55F;
-extern const device_type TEAC_FD_55G;
-extern const device_type ALPS_3255190x;
-extern const device_type IBM_6360;
+DECLARE_DEVICE_TYPE(FLOPPY_CONNECTOR, floppy_connector)
 
 extern template class device_finder<floppy_connector, false>;
 extern template class device_finder<floppy_connector, true>;
 
-#endif /* FLOPPY_H */
+#endif // MAME_DEVICES_IMAGEDEV_FLOPPY_H

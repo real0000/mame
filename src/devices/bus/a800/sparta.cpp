@@ -15,14 +15,14 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type A800_ROM_SPARTADOS = device_creator<a800_rom_spartados_device>;
+DEFINE_DEVICE_TYPE(A800_ROM_SPARTADOS, a800_rom_spartados_device, "a800_sparta", "Atari 800 SpartaDOS ROM Carts")
 
 
 a800_rom_spartados_device::a800_rom_spartados_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a800_rom_device(mconfig, A800_ROM_SPARTADOS, "Atari 800 SpartaDOS ROM Carts", tag, owner, clock, "a800_sparta", __FILE__),
-	m_bank(0),
-	m_subslot_enabled(0)
-				{
+	: a800_rom_device(mconfig, A800_ROM_SPARTADOS, tag, owner, clock)
+	, m_bank(0)
+	, m_subslot_enabled(0)
+{
 }
 
 
@@ -55,7 +55,7 @@ void a800_rom_spartados_device::device_reset()
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a800_rom_spartados_device::read_80xx)
+uint8_t a800_rom_spartados_device::read_80xx(offs_t offset)
 {
 	if (!m_subslot_enabled)
 		return m_rom[(offset & 0x1fff) + (m_bank * 0x2000)];
@@ -63,7 +63,7 @@ READ8_MEMBER(a800_rom_spartados_device::read_80xx)
 		return 0xff;    // subslot, currently not implemented
 }
 
-WRITE8_MEMBER(a800_rom_spartados_device::write_d5xx)
+void a800_rom_spartados_device::write_d5xx(offs_t offset, uint8_t data)
 {
 	if (offset & 0x08)
 		m_subslot_enabled = !BIT(offset, 2);

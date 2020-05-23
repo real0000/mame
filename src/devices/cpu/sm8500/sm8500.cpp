@@ -20,29 +20,37 @@ they are internally.
 */
 
 #include "emu.h"
-#include "debugger.h"
 #include "sm8500.h"
+#include "sm8500d.h"
+#include "debugger.h"
 
 
-const device_type SM8500 = device_creator<sm8500_cpu_device>;
+DEFINE_DEVICE_TYPE(SM8500, sm8500_cpu_device, "sm8500", "Sharp SM8500")
 
 
-static const uint8_t sm8500_b2w[8] = {
+static constexpr uint8_t sm8500_b2w[8] = {
 		0, 8, 2, 10, 4, 12, 6, 14
 };
 
 
 sm8500_cpu_device::sm8500_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, SM8500, "SM8500", tag, owner, clock, "sm8500", __FILE__)
+	: cpu_device(mconfig, SM8500, tag, owner, clock)
 	, m_program_config("program", ENDIANNESS_BIG, 8, 16, 0)
 	, m_dma_func(*this)
 	, m_timer_func(*this)
 	, m_PC(0), m_IE0(0), m_IE1(0), m_IR0(0), m_IR1(0)
-		, m_SYS(0), m_CKC(0), m_clock_changed(0)
-		, m_SP(0)
+	, m_SYS(0), m_CKC(0), m_clock_changed(0)
+	, m_SP(0)
 	, m_PS0(0)
 	, m_PS1(0), m_IFLAGS(0), m_CheckInterrupts(0), m_halted(0), m_icount(0), m_program(nullptr), m_oldpc(0)
 {
+}
+
+device_memory_interface::space_config_vector sm8500_cpu_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+	};
 }
 
 
@@ -138,7 +146,7 @@ void sm8500_cpu_device::device_start()
 	state_add(STATE_GENPCBASE, "CURPC", m_PC).formatstr("%8s").noshow();
 	state_add(STATE_GENFLAGS, "GENFLAGS", m_PS1).formatstr("%8s").noshow();
 
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 }
 
 
@@ -276,56 +284,56 @@ void sm8500_cpu_device::process_interrupts()
 					break;
 				case DMA_INT:
 					m_IR0 |= 0x80;
-					if ( ( m_IE0 & 0x80 ) && ( ( m_PS0 & 0x07 ) < 8 ) && ( m_PS1 & 0x01 ) )
+					if ( BIT( m_IE0, 7) && BIT( m_PS1, 0) )
 					{
 						take_interrupt( 0x1000 );
 					}
 					break;
 				case TIM0_INT:
 					m_IR0 |= 0x40;
-					if ( ( m_IE0 & 0x40 ) && ( ( m_PS0 & 0x07 ) < 8 ) && ( m_PS1 & 0x01 ) )
+					if ( BIT( m_IE0, 6) && BIT( m_PS1, 0) )
 					{
 						take_interrupt( 0x1002 );
 					}
 					break;
 				case EXT_INT:
 					m_IR0 |= 0x10;
-					if ( ( m_IE0 & 0x10 ) && ( ( m_PS0 & 0x07 ) < 7 ) && ( m_PS1 & 0x01 ) )
+					if ( BIT( m_IE0, 4) && ( ( m_PS0 & 0x07 ) < 7 ) && BIT( m_PS1, 0) )
 					{
 						take_interrupt( 0x1006 );
 					}
 					break;
 				case UART_INT:
 					m_IR0 |= 0x08;
-					if ( ( m_IE0 & 0x08 ) && ( ( m_PS0 & 0x07 ) < 6 ) && ( m_PS1 & 0x01 ) )
+					if ( BIT( m_IE0, 3) && ( ( m_PS0 & 0x07 ) < 6 ) && BIT( m_PS1, 0) )
 					{
 						take_interrupt( 0x1008 );
 					}
 					break;
 				case LCDC_INT:
 					m_IR0 |= 0x01;
-					if ( ( m_IE0 & 0x01 ) && ( ( m_PS0 & 0x07 ) < 5 ) && ( m_PS1 & 0x01 ) )
+					if ( BIT( m_IE0, 0) && ( ( m_PS0 & 0x07 ) < 5 ) && BIT( m_PS1, 0) )
 					{
 						take_interrupt( 0x100E );
 					}
 					break;
 				case TIM1_INT:
 					m_IR1 |= 0x40;
-					if ( ( m_IE1 & 0x40 ) && ( ( m_PS0 & 0x07 ) < 4 ) && ( m_PS1 & 0x01 ) )
+					if ( BIT( m_IE1, 6) && ( ( m_PS0 & 0x07 ) < 4 ) && BIT( m_PS1, 0) )
 					{
 						take_interrupt( 0x1012 );
 					}
 					break;
 				case CK_INT:
 					m_IR1 |= 0x10;
-					if ( ( m_IE1 & 0x10 ) && ( ( m_PS0 & 0x07 ) < 3 ) && ( m_PS1 & 0x01 ) )
+					if ( BIT( m_IE1, 4) && ( ( m_PS0 & 0x07 ) < 3 ) && BIT( m_PS1, 0) )
 					{
 						take_interrupt( 0x1016 );
 					}
 					break;
 				case PIO_INT:
 					m_IR1 |= 0x04;
-					if ( ( m_IE1 & 0x04 ) && ( ( m_PS0 & 0x07 ) < 2 ) && ( m_PS1 & 0x01 ) )
+					if ( BIT( m_IE1, 2) && ( ( m_PS0 & 0x07 ) < 2 ) && BIT( m_PS1, 0) )
 					{
 						take_interrupt( 0x101A );
 					}
@@ -341,10 +349,9 @@ void sm8500_cpu_device::process_interrupts()
 }
 
 
-offs_t sm8500_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> sm8500_cpu_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( sm8500 );
-	return CPU_DISASSEMBLE_NAME(sm8500)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<sm8500_disassembler>();
 }
 
 
@@ -358,7 +365,7 @@ void sm8500_cpu_device::execute_run()
 		uint32_t  d1,d2;
 		uint32_t  res;
 
-		debugger_instruction_hook(this, m_PC);
+		debugger_instruction_hook(m_PC);
 		m_oldpc = m_PC;
 		process_interrupts();
 		if ( !m_halted ) {

@@ -1,42 +1,39 @@
 // license:BSD-3-Clause
 // copyright-holders:Olivier Galibert
-#ifndef NEXTMO_H
-#define NEXTMO_H
+#ifndef MAME_MACHINE_NEXTMO_H
+#define MAME_MACHINE_NEXTMO_H
 
-#define MCFG_NEXTMO_IRQ_CALLBACK(_write) \
-	devcb = &nextmo_device::set_irq_wr_callback(*device, DEVCB_##_write);
+#pragma once
 
-#define MCFG_NEXTMO_DRQ_CALLBACK(_write) \
-	devcb = &nextmo_device::set_drq_wr_callback(*device, DEVCB_##_write);
 
 class nextmo_device : public device_t
 {
 public:
 	nextmo_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_irq_wr_callback(device_t &device, _Object object) { return downcast<nextmo_device &>(device).irq_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_drq_wr_callback(device_t &device, _Object object) { return downcast<nextmo_device &>(device).drq_cb.set_callback(object); }
+	auto irq_wr_callback() { return irq_cb.bind(); }
+	auto drq_wr_callback() { return drq_cb.bind(); }
 
-	DECLARE_ADDRESS_MAP(map, 32);
+	void map(address_map &map);
 
-	DECLARE_READ8_MEMBER(r4_r);
-	DECLARE_WRITE8_MEMBER(r4_w);
-	DECLARE_READ8_MEMBER(r5_r);
-	DECLARE_WRITE8_MEMBER(r5_w);
-	DECLARE_READ8_MEMBER(r6_r);
-	DECLARE_WRITE8_MEMBER(r6_w);
-	DECLARE_READ8_MEMBER(r7_r);
-	DECLARE_WRITE8_MEMBER(r7_w);
-	DECLARE_READ8_MEMBER(r8_r);
-	DECLARE_WRITE8_MEMBER(r8_w);
-	DECLARE_READ8_MEMBER(r9_r);
-	DECLARE_WRITE8_MEMBER(r9_w);
-	DECLARE_READ8_MEMBER(ra_r);
-	DECLARE_WRITE8_MEMBER(ra_w);
-	DECLARE_READ8_MEMBER(rb_r);
-	DECLARE_WRITE8_MEMBER(rb_w);
-	DECLARE_READ8_MEMBER(r10_r);
-	DECLARE_WRITE8_MEMBER(r10_w);
+	uint8_t r4_r();
+	void r4_w(uint8_t data);
+	uint8_t r5_r();
+	void r5_w(uint8_t data);
+	uint8_t r6_r();
+	void r6_w(uint8_t data);
+	uint8_t r7_r();
+	void r7_w(uint8_t data);
+	uint8_t r8_r();
+	void r8_w(uint8_t data);
+	uint8_t r9_r();
+	void r9_w(uint8_t data);
+	uint8_t ra_r();
+	void ra_w(uint8_t data);
+	uint8_t rb_r();
+	void rb_w(uint8_t data);
+	uint8_t r10_r(offs_t offset);
+	void r10_w(offs_t offset, uint8_t data);
 
 	uint8_t dma_r();
 	void dma_w(uint8_t data);
@@ -56,6 +53,6 @@ private:
 	void compute_ecc();
 };
 
-extern const device_type NEXTMO;
+DECLARE_DEVICE_TYPE(NEXTMO, nextmo_device)
 
-#endif
+#endif // MAME_MACHINE_NEXTMO_H

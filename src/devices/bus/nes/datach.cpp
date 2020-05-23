@@ -16,7 +16,6 @@
 
 #include "emu.h"
 #include "datach.h"
-#include "cpu/m6502/m6502.h"
 
 #ifdef NES_PCB_DEBUG
 #define VERBOSE 1
@@ -43,17 +42,17 @@
 //-------------------------------------------------
 
 datach_cart_interface::datach_cart_interface(const machine_config &mconfig, device_t &device)
-					: device_slot_card_interface(mconfig, device),
-						m_i2cmem(*this, "i2cmem"),
-						m_rom(nullptr), m_bank(0)
-				{
+	: device_interface(device, "datachcart")
+	, m_i2cmem(*this, "i2cmem")
+	, m_rom(nullptr), m_bank(0)
+{
 }
 
 datach_cart_interface::~datach_cart_interface()
 {
 }
 
-READ8_MEMBER(datach_cart_interface::read)
+uint8_t datach_cart_interface::read(offs_t offset)
 {
 	if (offset < 0x4000)
 		return m_rom[(m_bank * 0x4000) + (offset & 0x3fff)];
@@ -65,12 +64,13 @@ READ8_MEMBER(datach_cart_interface::read)
 //  sub-cart slot device
 //-------------------------------------------------
 
-const device_type NES_DATACH_SLOT = device_creator<nes_datach_slot_device>;
+DEFINE_DEVICE_TYPE(NES_DATACH_SLOT, nes_datach_slot_device, "nes_datach_slot", "NES Datach Cartridge Slot")
 
-nes_datach_slot_device::nes_datach_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-						device_t(mconfig, NES_DATACH_SLOT, "NES Datach Cartridge Slot", tag, owner, clock, "nes_datach_slot", __FILE__),
-						device_image_interface(mconfig, *this),
-						device_slot_interface(mconfig, *this), m_cart(nullptr)
+nes_datach_slot_device::nes_datach_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, NES_DATACH_SLOT, tag, owner, clock)
+	, device_image_interface(mconfig, *this)
+	, device_single_card_slot_interface<datach_cart_interface>(mconfig, *this)
+	, m_cart(nullptr)
 {
 }
 
@@ -81,15 +81,15 @@ nes_datach_slot_device::~nes_datach_slot_device()
 
 void nes_datach_slot_device::device_start()
 {
-	m_cart = dynamic_cast<datach_cart_interface *>(get_card_device());
+	m_cart = get_card_device();
 }
 
-READ8_MEMBER(nes_datach_slot_device::read)
+uint8_t nes_datach_slot_device::read(offs_t offset)
 {
 	if (m_cart)
-		return m_cart->read(space, offset, mem_mask);
-
-	return 0xff;
+		return m_cart->read(offset);
+	else
+		return 0xff;
 }
 
 image_init_result nes_datach_slot_device::call_load()
@@ -137,7 +137,7 @@ image_init_result nes_datach_slot_device::call_load()
 }
 
 
-std::string nes_datach_slot_device::get_default_card_software()
+std::string nes_datach_slot_device::get_default_card_software(get_default_card_software_hook &hook) const
 {
 	// any way to detect the game with X24C01?
 	return software_get_default_slot("datach_rom");
@@ -159,23 +159,22 @@ ROM_START( datach_rom )
 	ROM_REGION(0x40000, "datachrom", ROMREGION_ERASEFF)
 ROM_END
 
-const device_type NES_DATACH_ROM = device_creator<nes_datach_rom_device>;
-const device_type NES_DATACH_24C01 = device_creator<nes_datach_24c01_device>;
+DEFINE_DEVICE_TYPE(NES_DATACH_ROM,   nes_datach_rom_device,   "nes_datach_rom", "NES Datach ROM")
+DEFINE_DEVICE_TYPE(NES_DATACH_24C01, nes_datach_24c01_device, "nes_datach_ep1", "NES Datach + 24C01 PCB")
 
-nes_datach_rom_device::nes_datach_rom_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-						datach_cart_interface( mconfig, *this )
+nes_datach_rom_device::nes_datach_rom_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock)
+	, datach_cart_interface(mconfig, *this)
 {
 }
 
 nes_datach_rom_device::nes_datach_rom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, NES_DATACH_ROM, "NES Datach ROM", tag, owner, clock, "nes_datach_rom", __FILE__),
-						datach_cart_interface( mconfig, *this )
+	: nes_datach_rom_device(mconfig, NES_DATACH_ROM, tag, owner, clock)
 {
 }
 
 nes_datach_24c01_device::nes_datach_24c01_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_datach_rom_device(mconfig, NES_DATACH_24C01, "NES Datach + 24C01 PCB", tag, owner, clock, "nes_datach_ep1", __FILE__)
+	: nes_datach_rom_device(mconfig, NES_DATACH_24C01, tag, owner, clock)
 {
 }
 
@@ -202,13 +201,9 @@ uint8_t *nes_datach_rom_device::get_cart_base()
 }
 
 
-MACHINE_CONFIG_FRAGMENT( subcart_i2c_24c01 )
-	MCFG_24C01_ADD("i2cmem")
-MACHINE_CONFIG_END
-
-machine_config_constructor nes_datach_24c01_device::device_mconfig_additions() const
+void nes_datach_24c01_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( subcart_i2c_24c01 );
+	I2C_24C01(config, m_i2cmem);
 }
 
 
@@ -218,15 +213,18 @@ machine_config_constructor nes_datach_24c01_device::device_mconfig_additions() c
 //
 //---------------------------------
 
-const device_type NES_DATACH = device_creator<nes_datach_device>;
+DEFINE_DEVICE_TYPE(NES_DATACH, nes_datach_device, "nes_datach", "NES Cart Bandai Datach PCB")
 
 
 nes_datach_device::nes_datach_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_lz93d50_device(mconfig, NES_DATACH, "NES Cart Bandai Datach PCB", tag, owner, clock, "nes_datach", __FILE__), m_datach_latch(0),
-						m_i2cmem(*this, "i2cmem"),
-						m_reader(*this, "datach"),
-						m_subslot(*this, "datach_slot"), m_i2c_dir(0), m_i2c_in_use(0), serial_timer(nullptr)
-				{
+	: nes_lz93d50_device(mconfig, NES_DATACH, tag, owner, clock)
+	, m_datach_latch(0)
+	, m_i2cmem(*this, "i2cmem")
+	, m_reader(*this, "datach")
+	, m_subslot(*this, "datach_slot")
+	, m_i2c_dir(0), m_i2c_in_use(0)
+	, serial_timer(nullptr)
+{
 }
 
 
@@ -235,8 +233,8 @@ void nes_datach_device::device_start()
 	common_start();
 	irq_timer = timer_alloc(TIMER_IRQ);
 	serial_timer = timer_alloc(TIMER_SERIAL);
-	irq_timer->adjust(attotime::zero, 0, machine().device<cpu_device>("maincpu")->cycles_to_attotime(1));
-	serial_timer->adjust(attotime::zero, 0, machine().device<cpu_device>("maincpu")->cycles_to_attotime(1000));
+	irq_timer->adjust(attotime::zero, 0, clocks_to_attotime(1));
+	serial_timer->adjust(attotime::zero, 0, clocks_to_attotime(1000));
 
 	save_item(NAME(m_irq_enable));
 	save_item(NAME(m_irq_count));
@@ -286,7 +284,7 @@ void nes_datach_device::pcb_reset()
  -------------------------------------------------*/
 
 
-READ8_MEMBER(nes_datach_device::read_m)
+uint8_t nes_datach_device::read_m(offs_t offset)
 {
 	LOG_MMC(("Datach read_m, offset: %04x\n", offset));
 	uint8_t i2c_val = 0;
@@ -303,19 +301,19 @@ READ8_MEMBER(nes_datach_device::read_m)
 }
 
 
-READ8_MEMBER(nes_datach_device::read_h)
+uint8_t nes_datach_device::read_h(offs_t offset)
 {
 	LOG_MMC(("Datach read_h, offset: %04x\n", offset));
 	// this shall be the proper code, but it's a bit slower, so we access directly the subcart below
-	//return m_subslot->read(space, offset, mem_mask);
+	//return m_subslot->read(offset);
 
 	if (m_subslot->m_cart)
-		return m_subslot->m_cart->read(space, offset, mem_mask);
+		return m_subslot->m_cart->read(offset);
 	else    // this is "fake" in the sense that we fill CPU space with 0xff if no Datach cart is loaded
 		return hi_access_rom(offset);
 }
 
-WRITE8_MEMBER(nes_datach_device::write_h)
+void nes_datach_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("Datach write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -355,7 +353,7 @@ WRITE8_MEMBER(nes_datach_device::write_h)
 #endif
 			break;
 		default:
-			fcg_write(space, offset & 0x0f, data, mem_mask);
+			fcg_write(offset & 0x0f, data);
 			break;
 	}
 }
@@ -364,21 +362,18 @@ WRITE8_MEMBER(nes_datach_device::write_h)
 //  BARCODE READER + CART SLOT + X24C02
 //-------------------------------------------------
 
-static SLOT_INTERFACE_START(datach_cart)
-	SLOT_INTERFACE_INTERNAL("datach_rom", NES_DATACH_ROM)
-	SLOT_INTERFACE_INTERNAL("datach_ep1", NES_DATACH_24C01)
-SLOT_INTERFACE_END
-
-
-MACHINE_CONFIG_FRAGMENT( bandai_datach )
-	MCFG_BARCODE_READER_ADD("datach")
-	MCFG_DATACH_MINICART_ADD("datach_slot", datach_cart)
-	MCFG_24C02_ADD("i2cmem")
-MACHINE_CONFIG_END
-
-machine_config_constructor nes_datach_device::device_mconfig_additions() const
+static void datach_cart(device_slot_interface &device)
 {
-	return MACHINE_CONFIG_NAME( bandai_datach );
+	device.option_add_internal("datach_rom", NES_DATACH_ROM);
+	device.option_add_internal("datach_ep1", NES_DATACH_24C01);
+}
+
+
+void nes_datach_device::device_add_mconfig(machine_config &config)
+{
+	BARCODE_READER(config, m_reader, 0);
+	NES_DATACH_SLOT(config, m_subslot, 0, datach_cart);
+	I2C_24C02(config, m_i2cmem);
 }
 
 
@@ -402,7 +397,7 @@ void nes_datach_device::device_timer(emu_timer &timer, device_timer_id id, int p
 
 			if (!m_irq_count)
 			{
-				m_maincpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+				set_irq_line(ASSERT_LINE);
 				m_irq_enable = 0;
 			}
 		}

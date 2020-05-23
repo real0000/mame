@@ -15,7 +15,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type VIC1111 = device_creator<vic1111_device>;
+DEFINE_DEVICE_TYPE(VIC1111, vic1111_device, "vic1111", "VIC-1111 16K RAM Expansion")
 
 
 
@@ -28,9 +28,9 @@ const device_type VIC1111 = device_creator<vic1111_device>;
 //-------------------------------------------------
 
 vic1111_device::vic1111_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, VIC1111, "VIC1111", tag, owner, clock, "vic1111", __FILE__),
-		device_vic20_expansion_card_interface(mconfig, *this),
-		m_ram(*this, "ram")
+	: device_t(mconfig, VIC1111, tag, owner, clock)
+	, device_vic20_expansion_card_interface(mconfig, *this)
+	, m_ram(*this, "ram")
 {
 }
 
@@ -50,7 +50,7 @@ void vic1111_device::device_start()
 //  vic20_cd_r - cartridge data read
 //-------------------------------------------------
 
-uint8_t vic1111_device::vic20_cd_r(address_space &space, offs_t offset, uint8_t data, int ram1, int ram2, int ram3, int blk1, int blk2, int blk3, int blk5, int io2, int io3)
+uint8_t vic1111_device::vic20_cd_r(offs_t offset, uint8_t data, int ram1, int ram2, int ram3, int blk1, int blk2, int blk3, int blk5, int io2, int io3)
 {
 	if (!blk1)
 	{
@@ -69,7 +69,7 @@ uint8_t vic1111_device::vic20_cd_r(address_space &space, offs_t offset, uint8_t 
 //  vic20_cd_w - cartridge data write
 //-------------------------------------------------
 
-void vic1111_device::vic20_cd_w(address_space &space, offs_t offset, uint8_t data, int ram1, int ram2, int ram3, int blk1, int blk2, int blk3, int blk5, int io2, int io3)
+void vic1111_device::vic20_cd_w(offs_t offset, uint8_t data, int ram1, int ram2, int ram3, int blk1, int blk2, int blk3, int blk5, int io2, int io3)
 {
 	if (!blk1)
 	{

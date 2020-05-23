@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_COMX35_JOYCARD_H
+#define MAME_BUS_COMX35_JOYCARD_H
 
-#ifndef __COMX_JOY__
-#define __COMX_JOY__
+#pragma once
 
 #include "exp.h"
 
@@ -37,7 +37,7 @@ protected:
 	virtual void device_reset() override;
 
 	// device_comx_expansion_card_interface overrides
-	virtual uint8_t comx_io_r(address_space &space, offs_t offset) override;
+	virtual uint8_t comx_io_r(offs_t offset) override;
 
 private:
 	required_ioport m_joy1;
@@ -46,7 +46,7 @@ private:
 
 
 // device type definition
-extern const device_type COMX_JOY;
+DECLARE_DEVICE_TYPE(COMX_JOY, comx_joy_device)
 
 
-#endif
+#endif // MAME_BUS_COMX35_JOYCARD_H

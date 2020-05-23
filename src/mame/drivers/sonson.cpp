@@ -54,62 +54,56 @@ TODO:
 #include "includes/sonson.h"
 
 #include "cpu/m6809/m6809.h"
+#include "machine/74259.h"
 #include "machine/gen_latch.h"
 #include "sound/ay8910.h"
 #include "screen.h"
 #include "speaker.h"
 
 
-WRITE8_MEMBER(sonson_state::sonson_sh_irqtrigger_w)
+WRITE_LINE_MEMBER(sonson_state::sh_irqtrigger_w)
 {
-	data &= 1;
-
-	if (m_last_irq == 0 && data == 1)
-	{
-		/* setting bit 0 low then high triggers IRQ on the sound CPU */
+	// setting bit 0 low then high triggers IRQ on the sound CPU
+	if (state)
 		m_audiocpu->set_input_line(M6809_FIRQ_LINE, HOLD_LINE);
-	}
-
-	m_last_irq = data;
 }
 
-WRITE8_MEMBER(sonson_state::sonson_coin1_counter_w)
+WRITE_LINE_MEMBER(sonson_state::coin1_counter_w)
 {
-	machine().bookkeeping().coin_counter_w(0, data & 1);
+	machine().bookkeeping().coin_counter_w(0, state);
 }
 
-WRITE8_MEMBER(sonson_state::sonson_coin2_counter_w)
+WRITE_LINE_MEMBER(sonson_state::coin2_counter_w)
 {
-	machine().bookkeeping().coin_counter_w(1, data & 1);
+	machine().bookkeeping().coin_counter_w(1, state);
 }
 
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, sonson_state )
-	AM_RANGE(0x0000, 0x0fff) AM_RAM
-	AM_RANGE(0x1000, 0x13ff) AM_RAM_WRITE(sonson_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0x1400, 0x17ff) AM_RAM_WRITE(sonson_colorram_w) AM_SHARE("colorram")
-	AM_RANGE(0x2020, 0x207f) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x3000, 0x3000) AM_WRITE(sonson_scrollx_w)
-	AM_RANGE(0x3002, 0x3002) AM_READ_PORT("P1")
-	AM_RANGE(0x3003, 0x3003) AM_READ_PORT("P2")
-	AM_RANGE(0x3004, 0x3004) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0x3005, 0x3005) AM_READ_PORT("DSW1")
-	AM_RANGE(0x3006, 0x3006) AM_READ_PORT("DSW2")
-	AM_RANGE(0x3008, 0x3008) AM_WRITENOP    // might be Y scroll, but the game always sets it to 0
-	AM_RANGE(0x3010, 0x3010) AM_DEVWRITE("soundlatch", generic_latch_8_device, write)
-	AM_RANGE(0x3018, 0x3018) AM_WRITE(sonson_flipscreen_w)
-	AM_RANGE(0x3019, 0x3019) AM_WRITE(sonson_sh_irqtrigger_w)
-	AM_RANGE(0x301e, 0x301e) AM_WRITE(sonson_coin2_counter_w)
-	AM_RANGE(0x301f, 0x301f) AM_WRITE(sonson_coin1_counter_w)
-	AM_RANGE(0x4000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void sonson_state::main_map(address_map &map)
+{
+	map(0x0000, 0x0fff).ram();
+	map(0x1000, 0x13ff).ram().w(FUNC(sonson_state::sonson_videoram_w)).share("videoram");
+	map(0x1400, 0x17ff).ram().w(FUNC(sonson_state::sonson_colorram_w)).share("colorram");
+	map(0x2020, 0x207f).ram().share("spriteram");
+	map(0x3000, 0x3000).w(FUNC(sonson_state::sonson_scrollx_w));
+	map(0x3002, 0x3002).portr("P1");
+	map(0x3003, 0x3003).portr("P2");
+	map(0x3004, 0x3004).portr("SYSTEM");
+	map(0x3005, 0x3005).portr("DSW1");
+	map(0x3006, 0x3006).portr("DSW2");
+	map(0x3008, 0x3008).nopw();    // might be Y scroll, but the game always sets it to 0
+	map(0x3010, 0x3010).w("soundlatch", FUNC(generic_latch_8_device::write));
+	map(0x3018, 0x301f).w("mainlatch", FUNC(ls259_device::write_d0));
+	map(0x4000, 0xffff).rom();
+}
 
-static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, sonson_state )
-	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
-	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
-	AM_RANGE(0xa000, 0xa000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
-	AM_RANGE(0xe000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void sonson_state::sound_map(address_map &map)
+{
+	map(0x0000, 0x07ff).ram();
+	map(0x2000, 0x2001).w("ay1", FUNC(ay8910_device::address_data_w));
+	map(0x4000, 0x4001).w("ay2", FUNC(ay8910_device::address_data_w));
+	map(0xa000, 0xa000).r("soundlatch", FUNC(generic_latch_8_device::read));
+	map(0xe000, 0xffff).rom();
+}
 
 
 
@@ -117,20 +111,20 @@ static INPUT_PORTS_START( sonson )
 	PORT_START("P1")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* probably unused */
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_4WAY
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_4WAY
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_4WAY
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_4WAY
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* probably unused */
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* probably unused */
 
 	PORT_START("P2")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* probably unused */
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(2)
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(2)
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(2)
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(2)
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_4WAY PORT_PLAYER(2)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_4WAY PORT_PLAYER(2)
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_4WAY PORT_PLAYER(2)
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_4WAY PORT_PLAYER(2)
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* probably unused */
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* probably unused */
 
@@ -223,7 +217,7 @@ static const gfx_layout spritelayout =
 	32*8
 };
 
-static GFXDECODE_START( sonson )
+static GFXDECODE_START( gfx_sonson )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout,      0, 64 )
 	GFXDECODE_ENTRY( "gfx2", 0, spritelayout, 64*4, 32 )
 GFXDECODE_END
@@ -231,53 +225,44 @@ GFXDECODE_END
 
 
 
-void sonson_state::machine_start()
+void sonson_state::sonson(machine_config &config)
 {
-	save_item(NAME(m_last_irq));
-}
-
-void sonson_state::machine_reset()
-{
-	m_last_irq = 0;
-}
-
-static MACHINE_CONFIG_START( sonson, sonson_state )
-
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6809, XTAL_12MHz/8)   /* 1.5 MHz */
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", sonson_state,  irq0_line_hold)
+	MC6809(config, m_maincpu, XTAL(12'000'000)/2); // HD68B09P (/4 internally)
+	m_maincpu->set_addrmap(AS_PROGRAM, &sonson_state::main_map);
+	m_maincpu->set_vblank_int("screen", FUNC(sonson_state::irq0_line_hold));
 
-	MCFG_CPU_ADD("audiocpu", M6809, XTAL_12MHz/8)  /* 1.5 MHz */
-	MCFG_CPU_PROGRAM_MAP(sound_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(sonson_state, irq0_line_hold, 4*60)    /* FIRQs are triggered by the main CPU */
+	MC6809(config, m_audiocpu, XTAL(12'000'000)/2); // HD68B09P (/4 internally)
+	m_audiocpu->set_addrmap(AS_PROGRAM, &sonson_state::sound_map);
+	m_audiocpu->set_periodic_int(FUNC(sonson_state::irq0_line_hold), attotime::from_hz(4*60));    /* FIRQs are triggered by the main CPU */
 
+	ls259_device &mainlatch(LS259(config, "mainlatch")); // A9
+	mainlatch.q_out_cb<0>().set(FUNC(sonson_state::flipscreen_w));
+	mainlatch.q_out_cb<1>().set(FUNC(sonson_state::sh_irqtrigger_w));
+	mainlatch.q_out_cb<6>().set(FUNC(sonson_state::coin2_counter_w));
+	mainlatch.q_out_cb<7>().set(FUNC(sonson_state::coin1_counter_w));
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(57.37)
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(1*8, 31*8-1, 1*8, 31*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(sonson_state, screen_update_sonson)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(57.37);
+	screen.set_size(32*8, 32*8);
+	screen.set_visarea(1*8, 31*8-1, 1*8, 31*8-1);
+	screen.set_screen_update(FUNC(sonson_state::screen_update_sonson));
+	screen.set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sonson)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_sonson);
 
-	MCFG_PALETTE_ADD("palette", 64*4+32*8)
-	MCFG_PALETTE_INDIRECT_ENTRIES(32)
-	MCFG_PALETTE_INIT_OWNER(sonson_state, sonson)
+	PALETTE(config, m_palette, FUNC(sonson_state::sonson_palette), 64*4 + 32*8, 32);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	GENERIC_LATCH_8(config, "soundlatch");
 
-	MCFG_SOUND_ADD("ay1", AY8910, XTAL_12MHz/8)   /* 1.5 MHz */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
+	AY8910(config, "ay1", XTAL(12'000'000)/8).add_route(ALL_OUTPUTS, "mono", 0.30);   /* 1.5 MHz */
 
-	MCFG_SOUND_ADD("ay2", AY8910, XTAL_12MHz/8)   /* 1.5 MHz */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
-MACHINE_CONFIG_END
+	AY8910(config, "ay2", XTAL(12'000'000)/8).add_route(ALL_OUTPUTS, "mono", 0.30);   /* 1.5 MHz */
+}
 
 
 
@@ -349,5 +334,5 @@ ROM_START( sonsonj )
 ROM_END
 
 
-GAME( 1984, sonson,  0,      sonson, sonson, driver_device, 0, ROT0, "Capcom", "Son Son", MACHINE_SUPPORTS_SAVE )
-GAME( 1984, sonsonj, sonson, sonson, sonson, driver_device, 0, ROT0, "Capcom", "Son Son (Japan)", MACHINE_SUPPORTS_SAVE )
+GAME( 1984, sonson,  0,      sonson, sonson, sonson_state, empty_init, ROT0, "Capcom", "Son Son",         MACHINE_SUPPORTS_SAVE )
+GAME( 1984, sonsonj, sonson, sonson, sonson, sonson_state, empty_init, ROT0, "Capcom", "Son Son (Japan)", MACHINE_SUPPORTS_SAVE )

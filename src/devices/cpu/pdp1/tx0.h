@@ -1,9 +1,9 @@
 // license:BSD-3-Clause
 // copyright-holders:Raphael Nabet
-#pragma once
+#ifndef MAME_CPU_PDP1_TX0_H
+#define MAME_CPU_PDP1_TX0_H
 
-#ifndef __TX0_H__
-#define __TX0_H__
+#pragma once
 
 
 
@@ -21,55 +21,38 @@ enum
 };
 
 
-#define MCFG_TX0_CONFIG(_cpy_devcb, _r1l_devcb, _dis_devcb, _r3l_devcb, _prt_devcb, _rsv_devcb, _p6h_devcb, _p7h_devcb, _sel_devcb, _res_devcb) \
-	tx0_device::set_cpy_cb(*device, DEVCB_##_cpy_devcb); \
-	tx0_device::set_r1l_cb(*device, DEVCB_##_r1l_devcb); \
-	tx0_device::set_dis_cb(*device, DEVCB_##_dis_devcb); \
-	tx0_device::set_r3l_cb(*device, DEVCB_##_r3l_devcb); \
-	tx0_device::set_prt_cb(*device, DEVCB_##_prt_devcb); \
-	tx0_device::set_rsv_cb(*device, DEVCB_##_rsv_devcb); \
-	tx0_device::set_p6h_cb(*device, DEVCB_##_p6h_devcb); \
-	tx0_device::set_p7h_cb(*device, DEVCB_##_p7h_devcb); \
-	tx0_device::set_sel_cb(*device, DEVCB_##_sel_devcb); \
-	tx0_device::set_res_cb(*device, DEVCB_##_res_devcb);
-
-
 class tx0_device : public cpu_device
 {
 public:
-	// construction/destruction
-	tx0_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source, int addr_bits, int address_mask, int ir_mask);
-
-	// static configuration helpers
-	template<class _Object> static devcb_base &set_cpy_cb(device_t &device, _Object object) { return downcast<tx0_device &>(device).m_cpy_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_r1l_cb(device_t &device, _Object object) { return downcast<tx0_device &>(device).m_r1l_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_dis_cb(device_t &device, _Object object) { return downcast<tx0_device &>(device).m_dis_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_r3l_cb(device_t &device, _Object object) { return downcast<tx0_device &>(device).m_r3l_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_prt_cb(device_t &device, _Object object) { return downcast<tx0_device &>(device).m_prt_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_rsv_cb(device_t &device, _Object object) { return downcast<tx0_device &>(device).m_rsv_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_p6h_cb(device_t &device, _Object object) { return downcast<tx0_device &>(device).m_p6h_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_p7h_cb(device_t &device, _Object object) { return downcast<tx0_device &>(device).m_p7h_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_sel_cb(device_t &device, _Object object) { return downcast<tx0_device &>(device).m_sel_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_res_cb(device_t &device, _Object object) { return downcast<tx0_device &>(device).m_io_reset_callback.set_callback(object); }
+	// configuration helpers
+	auto cpy() { return m_cpy_handler.bind(); }
+	auto r1l() { return m_r1l_handler.bind(); }
+	auto dis() { return m_dis_handler.bind(); }
+	auto r3l() { return m_r3l_handler.bind(); }
+	auto prt() { return m_prt_handler.bind(); }
+	auto rsv() { return m_rsv_handler.bind(); }
+	auto p6h() { return m_p6h_handler.bind(); }
+	auto p7h() { return m_p7h_handler.bind(); }
+	auto sel() { return m_sel_handler.bind(); }
+	auto res() { return m_io_reset_callback.bind(); }
 
 	void pulse_reset();
 	void io_complete();
 
 protected:
+	// construction/destruction
+	tx0_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, int addr_bits, int address_mask, int ir_mask);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 1; }
-	virtual uint32_t execute_max_cycles() const override { return 3; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 3; }
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : nullptr; }
-
-	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 4; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 4; }
+	virtual space_config_vector memory_space_config() const override;
 
 protected:
 	address_space_config m_program_config;
@@ -151,7 +134,7 @@ public:
 
 protected:
 	virtual void execute_run() override;
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 private:
 	void execute_instruction_8kw();
@@ -166,14 +149,14 @@ public:
 
 protected:
 	virtual void execute_run() override;
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 private:
 	void execute_instruction_64kw();
 };
 
 
-extern const device_type TX0_64KW;
-extern const device_type TX0_8KW;
+DECLARE_DEVICE_TYPE(TX0_64KW, tx0_64kw_device)
+DECLARE_DEVICE_TYPE(TX0_8KW,  tx0_8kw_device)
 
-#endif /* __TX0_H__ */
+#endif // MAME_CPU_PDP1_TX0_H

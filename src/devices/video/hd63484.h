@@ -7,63 +7,41 @@
 
 **************************************************************************/
 
+#ifndef MAME_VIDEO_HD63484_H
+#define MAME_VIDEO_HD63484_H
+
 #pragma once
 
-#ifndef __HD63484__
-#define __HD63484__
-
-
-
-
-typedef device_delegate<void (bitmap_ind16 &bitmap, const rectangle &cliprect, int y, int x, uint16_t data)> hd63484_display_delegate;
-
-
-/***************************************************************************
-    DEVICE CONFIGURATION MACROS
-***************************************************************************/
-
-#define MCFG_HD63484_ADD(_tag, _clock, _map) \
-	MCFG_DEVICE_ADD(_tag, HD63484, _clock) \
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, _map)
-
-#define MCFG_HD63484_ADDRESS_MAP(_map) \
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, _map)
-
-#define MCFG_HD63484_DISPLAY_CALLBACK_OWNER(_class, _method) \
-	hd63484_device::static_set_display_callback(*device, hd63484_display_delegate(&_class::_method, #_class "::" #_method, downcast<_class *>(owner)));
-
-#define MCFG_HD63484_AUTO_CONFIGURE_SCREEN(_val) \
-	hd63484_device::static_set_auto_configure_screen(*device, _val);
 
 #define HD63484_DISPLAY_PIXELS_MEMBER(_name) void _name(bitmap_ind16 &bitmap, const rectangle &cliprect, int y, int x, uint16_t data)
 
-
 // ======================> hd63484_device
 
-class hd63484_device :   public device_t,
+class hd63484_device :  public device_t,
 						public device_memory_interface,
 						public device_video_interface
 {
 public:
+	typedef device_delegate<void (bitmap_ind16 &bitmap, const rectangle &cliprect, int y, int x, uint16_t data)> display_delegate;
+
 	// construction/destruction
 	hd63484_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	static void static_set_display_callback(device_t &device, hd63484_display_delegate callback) { downcast<hd63484_device &>(device).m_display_cb = callback; }
-	static void static_set_auto_configure_screen(device_t &device, bool auto_configure_screen) { downcast<hd63484_device &>(device).m_auto_configure_screen = auto_configure_screen; }
+	template <typename... T> void set_display_callback(T &&... args) { m_display_cb.set(std::forward<T>(args)...); }
+	void set_auto_configure_screen(bool auto_configure_screen) { m_auto_configure_screen = auto_configure_screen; }
+	void set_external_skew(int skew) { m_external_skew = skew; }
 
-	DECLARE_WRITE16_MEMBER( address_w );
-	DECLARE_WRITE16_MEMBER( data_w );
-	DECLARE_READ16_MEMBER( status_r );
-	DECLARE_READ16_MEMBER( data_r );
+	// 16-bit bus interface
+	void write16(offs_t offset, uint16_t data);
+	uint16_t read16(offs_t offset);
 
-	DECLARE_WRITE8_MEMBER( address_w );
-	DECLARE_WRITE8_MEMBER( data_w );
-	DECLARE_READ8_MEMBER( status_r );
-	DECLARE_READ8_MEMBER( data_r );
+	// 8-bit bus interface
+	void write8(offs_t offset, uint8_t data);
+	uint8_t read8(offs_t offset);
 
 	uint32_t update_screen(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 protected:
 	// device-level overrides
@@ -115,8 +93,9 @@ private:
 
 	void register_save_state();
 
-	hd63484_display_delegate  m_display_cb;
+	display_delegate  m_display_cb;
 	bool m_auto_configure_screen;
+	int m_external_skew;
 
 	uint8_t m_ar;
 	uint8_t m_vreg[0x100];
@@ -188,6 +167,6 @@ private:
 };
 
 // device type definition
-extern const device_type HD63484;
+DECLARE_DEVICE_TYPE(HD63484, hd63484_device)
 
-#endif /* __HD63484_H__ */
+#endif // MAME_VIDEO_HD63484_H

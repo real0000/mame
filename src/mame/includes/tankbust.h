@@ -1,10 +1,18 @@
 // license:GPL-2.0+
 // copyright-holders:Jarek Burczynski
+#ifndef MAME_INCLUDES_TANKBUST_H
+#define MAME_INCLUDES_TANKBUST_H
+
+#pragma once
+
+#include "emupal.h"
+#include "tilemap.h"
+
 class tankbust_state : public driver_device
 {
 public:
-	tankbust_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	tankbust_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_subcpu(*this, "sub"),
 		m_gfxdecode(*this, "gfxdecode"),
@@ -12,8 +20,17 @@ public:
 		m_txtram(*this, "txtram"),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_spriteram(*this, "spriteram") { }
+		m_spriteram(*this, "spriteram")
+	{ }
 
+	void tankbust(machine_config &config);
+
+protected:
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+	virtual void video_start() override;
+
+private:
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_subcpu;
 	required_device<gfxdecode_device> m_gfxdecode;
@@ -43,16 +60,13 @@ public:
 	DECLARE_WRITE8_MEMBER(txtram_w);
 	DECLARE_WRITE8_MEMBER(xscroll_w);
 	DECLARE_WRITE8_MEMBER(yscroll_w);
-	DECLARE_READ8_MEMBER(soundlatch_r);
-	DECLARE_READ8_MEMBER(soundtimer_r);
+	uint8_t soundlatch_r();
+	uint8_t soundtimer_r();
 
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	TILE_GET_INFO_MEMBER(get_txt_tile_info);
 
-	virtual void machine_start() override;
-	virtual void machine_reset() override;
-	virtual void video_start() override;
-	DECLARE_PALETTE_INIT(tankbust);
+	void tankbust_palette(palette_device &palette) const;
 
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -60,4 +74,10 @@ public:
 	INTERRUPT_GEN_MEMBER(vblank_irq);
 	TIMER_CALLBACK_MEMBER(soundlatch_callback);
 	TIMER_CALLBACK_MEMBER(soundirqline_callback);
+
+	void main_map(address_map &map);
+	void map_cpu2(address_map &map);
+	void port_map_cpu2(address_map &map);
 };
+
+#endif // MAME_INCLUDES_TANKBUST_H

@@ -40,6 +40,7 @@ dip: 6.7 7.7
 #include "audio/wiping.h"
 
 #include "cpu/z80/z80.h"
+#include "machine/74259.h"
 #include "machine/watchdog.h"
 #include "screen.h"
 #include "speaker.h"
@@ -67,44 +68,39 @@ READ8_MEMBER(wiping_state::ports_r)
 
 // irq/reset controls like in clshroad.cpp
 
-WRITE8_MEMBER(wiping_state::subcpu_reset_w)
+WRITE_LINE_MEMBER(wiping_state::main_irq_mask_w)
 {
-	m_audiocpu->set_input_line(INPUT_LINE_RESET, (data & 1) ? CLEAR_LINE : ASSERT_LINE);
+	m_main_irq_mask = state;
 }
 
-WRITE8_MEMBER(wiping_state::main_irq_mask_w)
+WRITE_LINE_MEMBER(wiping_state::sound_irq_mask_w)
 {
-	m_main_irq_mask = data & 1;
+	m_sound_irq_mask = state;
 }
 
-WRITE8_MEMBER(wiping_state::sound_irq_mask_w)
+void wiping_state::main_map(address_map &map)
 {
-	m_sound_irq_mask = data & 1;
+	map(0x0000, 0x5fff).rom();
+	map(0x8000, 0x83ff).ram().share("videoram");
+	map(0x8400, 0x87ff).ram().share("colorram");
+	map(0x8800, 0x88ff).ram().share("spriteram");
+	map(0x8900, 0x8bff).ram();
+	map(0x9000, 0x93ff).ram().share("share1");
+	map(0x9800, 0x9bff).ram().share("share2");
+	map(0xa000, 0xa007).w("mainlatch", FUNC(ls259_device::write_d0));
+	map(0xa800, 0xa807).r(FUNC(wiping_state::ports_r));
+	map(0xb000, 0xb7ff).ram();
+	map(0xb800, 0xb800).w("watchdog", FUNC(watchdog_timer_device::reset_w));
 }
 
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, wiping_state )
-	AM_RANGE(0x0000, 0x5fff) AM_ROM
-	AM_RANGE(0x8000, 0x83ff) AM_SHARE("videoram")
-	AM_RANGE(0x8400, 0x87ff) AM_SHARE("colorram")
-	AM_RANGE(0x8800, 0x88ff) AM_SHARE("spriteram")
-	AM_RANGE(0x8000, 0x8bff) AM_RAM
-	AM_RANGE(0x9000, 0x93ff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0x9800, 0x9bff) AM_RAM AM_SHARE("share2")
-	AM_RANGE(0xa000, 0xa000) AM_WRITE(main_irq_mask_w)
-	AM_RANGE(0xa002, 0xa002) AM_WRITE(flipscreen_w)
-	AM_RANGE(0xa003, 0xa003) AM_WRITE(subcpu_reset_w)
-	AM_RANGE(0xa800, 0xa807) AM_READ(ports_r)
-	AM_RANGE(0xb000, 0xb7ff) AM_RAM
-	AM_RANGE(0xb800, 0xb800) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, wiping_state )
-	AM_RANGE(0x0000, 0x1fff) AM_ROM
-	AM_RANGE(0x4000, 0x7fff) AM_DEVWRITE("wiping", wiping_sound_device, sound_w)
-	AM_RANGE(0x9000, 0x93ff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0x9800, 0x9bff) AM_RAM AM_SHARE("share2")
-	AM_RANGE(0xa001, 0xa001) AM_WRITE(sound_irq_mask_w)
-ADDRESS_MAP_END
+void wiping_state::sound_map(address_map &map)
+{
+	map(0x0000, 0x1fff).rom();
+	map(0x4000, 0x7fff).w("wiping", FUNC(wiping_sound_device::sound_w));
+	map(0x9000, 0x93ff).ram().share("share1");
+	map(0x9800, 0x9bff).ram().share("share2");
+	map(0xa000, 0xa007).w("mainlatch", FUNC(ls259_device::write_d0));
+}
 
 
 static INPUT_PORTS_START( wiping )
@@ -270,7 +266,7 @@ static const gfx_layout spritelayout =
 	64*8    /* every sprite takes 64 consecutive bytes */
 };
 
-static GFXDECODE_START( wiping )
+static GFXDECODE_START( gfx_wiping )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout,      0, 64 )
 	GFXDECODE_ENTRY( "gfx2", 0, spritelayout, 64*4, 64 )
 GFXDECODE_END
@@ -289,39 +285,42 @@ INTERRUPT_GEN_MEMBER(wiping_state::sound_timer_irq)
 
 
 
-static MACHINE_CONFIG_START( wiping, wiping_state )
-
+void wiping_state::wiping(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80,18432000/6) /* 3.072 MHz */
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", wiping_state,  vblank_irq)
+	Z80(config, m_maincpu, 18432000/6); /* 3.072 MHz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &wiping_state::main_map);
+	m_maincpu->set_vblank_int("screen", FUNC(wiping_state::vblank_irq));
 
-	MCFG_CPU_ADD("audiocpu", Z80,18432000/6)    /* 3.072 MHz */
-	MCFG_CPU_PROGRAM_MAP(sound_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(wiping_state, sound_timer_irq, 120)    /* periodic interrupt, don't know about the frequency */
+	Z80(config, m_audiocpu, 18432000/6);    /* 3.072 MHz */
+	m_audiocpu->set_addrmap(AS_PROGRAM, &wiping_state::sound_map);
+	m_audiocpu->set_periodic_int(FUNC(wiping_state::sound_timer_irq), attotime::from_hz(120));    /* periodic interrupt, don't know about the frequency */
 
-	MCFG_WATCHDOG_ADD("watchdog")
+	ls259_device &mainlatch(LS259(config, "mainlatch")); // 5A
+	mainlatch.q_out_cb<0>().set(FUNC(wiping_state::main_irq_mask_w)); // INT1
+	mainlatch.q_out_cb<1>().set(FUNC(wiping_state::sound_irq_mask_w)); // INT2
+	mainlatch.q_out_cb<2>().set(FUNC(wiping_state::flipscreen_w)); // INV
+	mainlatch.q_out_cb<3>().set_inputline(m_audiocpu, INPUT_LINE_RESET).invert(); // CP2RE
+
+	WATCHDOG_TIMER(config, "watchdog");
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(36*8, 28*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 0*8, 28*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(wiping_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(36*8, 28*8);
+	screen.set_visarea(0*8, 36*8-1, 0*8, 28*8-1);
+	screen.set_screen_update(FUNC(wiping_state::screen_update));
+	screen.set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", wiping)
-	MCFG_PALETTE_ADD("palette", 64*4+64*4)
-	MCFG_PALETTE_INDIRECT_ENTRIES(32)
-	MCFG_PALETTE_INIT_OWNER(wiping_state, wiping)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_wiping);
+	PALETTE(config, m_palette, FUNC(wiping_state::wiping_palette), 64*4+64*4, 32);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("wiping", WIPING, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	WIPING_CUSTOM(config, "wiping", 96000).add_route(ALL_OUTPUTS, "mono", 1.0);
+}
 
 
 
@@ -362,34 +361,34 @@ ROM_END
 
 ROM_START( rugrats )
 	ROM_REGION( 0x10000, "maincpu", 0 ) /* main cpu code */
-	ROM_LOAD( "rugr1d1",      0x0000, 0x2000, CRC(e7e1bd6d) SHA1(985799b1bfd001c6304e6166180745cb019f834e) )
-	ROM_LOAD( "rugr2d2",      0x2000, 0x2000, CRC(5f47b9ad) SHA1(2d3eb737ea8e86691293e432e866d2623d6b6b1b) )
-	ROM_LOAD( "rugr3d3",      0x4000, 0x2000, CRC(3d748d1a) SHA1(2b301119b6eb3f0f9bb2ad734cff1d25365dfe99) )
+	ROM_LOAD( "1.1d",      0x0000, 0x2000, CRC(e7e1bd6d) SHA1(985799b1bfd001c6304e6166180745cb019f834e) )
+	ROM_LOAD( "2.2d",      0x2000, 0x2000, CRC(5f47b9ad) SHA1(2d3eb737ea8e86691293e432e866d2623d6b6b1b) )
+	ROM_LOAD( "3.3d",      0x4000, 0x2000, CRC(3d748d1a) SHA1(2b301119b6eb3f0f9bb2ad734cff1d25365dfe99) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* sound cpu */
-	ROM_LOAD( "rugr4c4",      0x0000, 0x2000, CRC(d4a92c38) SHA1(4a31cfef9f084b4d2934595155bf0f3dd589efb3) )
+	ROM_LOAD( "4.3b",      0x0000, 0x2000, CRC(d4a92c38) SHA1(4a31cfef9f084b4d2934595155bf0f3dd589efb3) )
 
 	ROM_REGION( 0x1000, "gfx1", 0 )
-	ROM_LOAD( "rugr8d2",      0x0000, 0x1000, CRC(a3dcaca5) SHA1(d71f9090bf95dfd035ee0e0619a1cce575033cf3) ) /* chars */
+	ROM_LOAD( "8.2d",      0x0000, 0x1000, CRC(a3dcaca5) SHA1(d71f9090bf95dfd035ee0e0619a1cce575033cf3) ) /* chars */
 
 	ROM_REGION( 0x2000, "gfx2", 0 )
-	ROM_LOAD( "rugr7c13",     0x0000, 0x2000, CRC(fe1191dd) SHA1(80ebf093f7a32f4cc9dc89dcc44cab6e3db4fca1) ) /* sprites */
+	ROM_LOAD( "7.13c",     0x0000, 0x2000, CRC(fe1191dd) SHA1(80ebf093f7a32f4cc9dc89dcc44cab6e3db4fca1) ) /* sprites */
 
 	ROM_REGION( 0x0220, "proms", 0 )
-	ROM_LOAD( "prom.13g",     0x0000, 0x0020, CRC(f21238f0) SHA1(944627d1551453c7f828d96b83fd4eeb038b20ad) )    /* palette */
-	ROM_LOAD( "prom.4f",      0x0020, 0x0100, CRC(cfc90f3d) SHA1(99f7dc0d14c62d4c676c96310c219c696c9a7897) )    /* char lookup table */
-	ROM_LOAD( "prom.11e",     0x0120, 0x0100, CRC(cfc90f3d) SHA1(99f7dc0d14c62d4c676c96310c219c696c9a7897) )    /* sprite lookup table */
+	ROM_LOAD( "g13.13g",   0x0000, 0x0020, CRC(f21238f0) SHA1(944627d1551453c7f828d96b83fd4eeb038b20ad) )    /* palette */
+	ROM_LOAD( "eiif4.4f",  0x0020, 0x0100, CRC(cfc90f3d) SHA1(99f7dc0d14c62d4c676c96310c219c696c9a7897) )    /* char lookup table */
+	ROM_LOAD( "eiif4.11e", 0x0120, 0x0100, CRC(cfc90f3d) SHA1(99f7dc0d14c62d4c676c96310c219c696c9a7897) )    /* sprite lookup table */
 
 	ROM_REGION( 0x4000, "samples", 0 )  /* samples */
-	ROM_LOAD( "rugr5c8",      0x0000, 0x2000, CRC(67bafbbf) SHA1(2085492b58ce44f61a42320c54595b79fdf7a91c) )
-	ROM_LOAD( "rugr6c9",      0x2000, 0x2000, CRC(cac84a87) SHA1(90f6c514d0cdbeb4c8c979597db79ebcdf443df4) )
+	ROM_LOAD( "5.8c",      0x0000, 0x2000, CRC(67bafbbf) SHA1(2085492b58ce44f61a42320c54595b79fdf7a91c) )
+	ROM_LOAD( "6.9c",      0x2000, 0x2000, CRC(cac84a87) SHA1(90f6c514d0cdbeb4c8c979597db79ebcdf443df4) )
 
 	ROM_REGION( 0x0200, "soundproms", 0 )   /* 4bit->8bit sample expansion PROMs */
-	ROM_LOAD( "wip-e8.bin",   0x0000, 0x0100, CRC(bd2c080b) SHA1(9782bb5001e96db56bc29df398187f700bce4f8e) )    /* low 4 bits */
-	ROM_LOAD( "wip-e9.bin",   0x0100, 0x0100, CRC(4017a2a6) SHA1(dadef2de7a1119758c8e6d397aa42815b0218889) )    /* high 4 bits */
+	ROM_LOAD( "e8.8e",     0x0000, 0x0100, CRC(bd2c080b) SHA1(9782bb5001e96db56bc29df398187f700bce4f8e) )    /* low 4 bits */
+	ROM_LOAD( "e9.9e",     0x0100, 0x0100, CRC(4017a2a6) SHA1(dadef2de7a1119758c8e6d397aa42815b0218889) )    /* high 4 bits */
 ROM_END
 
 
 
-GAME( 1982, wiping,  0,      wiping, wiping, driver_device,  0, ROT90, "Nichibutsu", "Wiping", MACHINE_SUPPORTS_SAVE )
-GAME( 1983, rugrats, wiping, wiping, rugrats, driver_device, 0, ROT90, "Nichibutsu", "Rug Rats", MACHINE_SUPPORTS_SAVE )
+GAME( 1982, wiping,  0,      wiping, wiping,  wiping_state, empty_init, ROT90, "Nichibutsu", "Wiping",   MACHINE_SUPPORTS_SAVE )
+GAME( 1983, rugrats, wiping, wiping, rugrats, wiping_state, empty_init, ROT90, "Nichibutsu", "Rug Rats", MACHINE_SUPPORTS_SAVE )

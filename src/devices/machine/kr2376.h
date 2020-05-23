@@ -29,50 +29,50 @@
 
 **********************************************************************/
 
-#ifndef __KR2376__
-#define __KR2376__
+#ifndef MAME_MACHINE_KR2376_H
+#define MAME_MACHINE_KR2376_H
 
-
-#define MCFG_KR2376_STROBE_CALLBACK(_write) \
-	devcb = &kr2376_device::set_strobe_wr_callback(*device, DEVCB_##_write);
-
-/*
- * Input pins
- */
-enum kr2376_input_pin_t
-{
-	KR2376_DSII=20,         /* DSII  - Pin 20 - Data & Strobe Invert Input */
-	KR2376_PII=6            /* PII   - Pin  6 - Parity Invert Input */
-};
-
-enum kr2376_output_pin_t
-{
-	KR2376_SO=16,           /* SO    - Pin 16 - Strobe Output */
-	KR2376_PO=7         /* PO    - Pin  7 - Parity Output */
-};
+#pragma once
 
 class kr2376_device : public device_t
 {
 public:
-	kr2376_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~kr2376_device() {}
+	/*
+	 * Input pins
+	 */
+	enum input_pin_t
+	{
+		KR2376_DSII=20,         /* DSII  - Pin 20 - Data & Strobe Invert Input */
+		KR2376_PII=6            /* PII   - Pin  6 - Parity Invert Input */
+	};
 
-	template<class _Object> static devcb_base &set_strobe_wr_callback(device_t &device, _Object object) { return downcast<kr2376_device &>(device).m_write_strobe.set_callback(object); }
+	enum output_pin_t
+	{
+		KR2376_SO=16,           /* SO    - Pin 16 - Strobe Output */
+		KR2376_PO=7             /* PO    - Pin  7 - Parity Output */
+	};
+
+	kr2376_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
+	template <unsigned N> auto x() { return m_read_x[N].bind(); }
+	auto shift() { return m_read_shift.bind(); }
+	auto control() { return m_read_control.bind(); }
+	auto strobe() { return m_write_strobe.bind(); }
 
 	/* keyboard data */
-	DECLARE_READ8_MEMBER( data_r );
+	uint8_t data_r();
 
 	/* Set an input pin */
-	void set_input_pin( kr2376_input_pin_t pin, int data );
+	void set_input_pin( input_pin_t pin, int data );
 
 	/* Get an output pin */
-	int get_output_pin( kr2376_output_pin_t pin );
+	int get_output_pin( output_pin_t pin );
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
-	virtual ioport_constructor device_input_ports() const override;
+	virtual uint8_t key_codes(int mode, int x, int y) { return 0x00; }
 
 private:
 	// internal state
@@ -80,7 +80,6 @@ private:
 
 	int m_ring11;                     /* sense input scan counter */
 	int m_ring8;                      /* drive output scan counter */
-	int m_modifiers;                  /* modifier inputs */
 
 	int m_strobe;                     /* strobe output */
 	int m_strobe_old;
@@ -89,6 +88,8 @@ private:
 
 	/* timers */
 	emu_timer *m_scan_timer;          /* keyboard scan timer */
+	devcb_read16::array<8> m_read_x;
+	devcb_read_line m_read_shift, m_read_control;
 	devcb_write_line m_write_strobe;
 
 	enum
@@ -101,6 +102,24 @@ private:
 	void detect_keypress();
 };
 
-extern const device_type KR2376;
+class kr2376_st_device : public kr2376_device
+{
+public:
+	kr2376_st_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+protected:
+	virtual uint8_t key_codes(int mode, int x, int y) override;
+};
 
-#endif
+//class kr2376_12_device : public kr2376_device
+//{
+//public:
+//  // construction/destruction
+//  kr2376_12_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+//protected:
+//  virtual uint8_t key_codes(int mode, int x, int y) override;
+//};
+
+DECLARE_DEVICE_TYPE(KR2376_ST, kr2376_st_device)
+//DECLARE_DEVICE_TYPE(KR2376_12, kr2376_12_device)
+
+#endif // MAME_MACHINE_KR2376_H

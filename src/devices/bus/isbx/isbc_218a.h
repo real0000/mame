@@ -6,13 +6,14 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_ISBX_ISBC_218A_H
+#define MAME_BUS_ISBX_ISBC_218A_H
 
-#ifndef __ISBC_218A__
-#define __ISBC_218A__
+#pragma once
 
 #include "isbx.h"
 #include "formats/pc_dsk.h"
+#include "imagedev/floppy.h"
 #include "machine/upd765.h"
 
 
@@ -30,28 +31,28 @@ public:
 	// construction/destruction
 	isbc_218a_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
-	DECLARE_WRITE_LINE_MEMBER( fdc_irq );
-	DECLARE_WRITE_LINE_MEMBER( fdc_drq );
-	DECLARE_FLOPPY_FORMATS( floppy_formats );
-
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
+	// optional information overrides
+	virtual void device_add_mconfig(machine_config &config) override;
+
 	// device_isbx_card_interface overrides
-	virtual uint8_t mcs0_r(address_space &space, offs_t offset) override;
-	virtual void mcs0_w(address_space &space, offs_t offset, uint8_t data) override;
-	virtual uint8_t mcs1_r(address_space &space, offs_t offset) override;
-	virtual void mcs1_w(address_space &space, offs_t offset, uint8_t data) override;
-	virtual uint8_t mdack_r(address_space &space, offs_t offset) override;
-	virtual void mdack_w(address_space &space, offs_t offset, uint8_t data) override;
+	virtual uint8_t mcs0_r(offs_t offset) override;
+	virtual void mcs0_w(offs_t offset, uint8_t data) override;
+	virtual uint8_t mcs1_r(offs_t offset) override;
+	virtual void mcs1_w(offs_t offset, uint8_t data) override;
+	virtual uint8_t mdack_r(offs_t offset) override;
+	virtual void mdack_w(offs_t offset, uint8_t data) override;
 	virtual void opt0_w(int state) override;
 
 private:
+	DECLARE_WRITE_LINE_MEMBER( fdc_irq );
+	DECLARE_WRITE_LINE_MEMBER( fdc_drq );
+	DECLARE_FLOPPY_FORMATS( floppy_formats );
+
 	required_device<i8272a_device> m_fdc;
 	required_device<floppy_connector> m_floppy0;
 
@@ -60,7 +61,7 @@ private:
 
 
 // device type definition
-extern const device_type ISBC_218A;
+DECLARE_DEVICE_TYPE(ISBC_218A, isbc_218a_device)
 
 
-#endif
+#endif // MAME_BUS_ISBX_ISBC_218A_H

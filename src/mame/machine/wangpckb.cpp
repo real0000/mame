@@ -70,7 +70,7 @@ Notes:
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type WANGPC_KEYBOARD = device_creator<wangpc_keyboard_t>;
+DEFINE_DEVICE_TYPE(WANGPC_KEYBOARD, wangpc_keyboard_device, "wangpckb", "Wang PC Keyboard")
 
 
 
@@ -88,7 +88,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *wangpc_keyboard_t::device_rom_region() const
+const tiny_rom_entry *wangpc_keyboard_device::device_rom_region() const
 {
 	return ROM_NAME( wangpc_keyboard );
 }
@@ -98,41 +98,32 @@ const tiny_rom_entry *wangpc_keyboard_t::device_rom_region() const
 //  ADDRESS_MAP( wangpc_keyboard_io )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( wangpc_keyboard_io, AS_IO, 8, wangpc_keyboard_t )
-	//AM_RANGE(0x0000, 0xfeff) AM_READNOP
-	AM_RANGE(0x47, 0x58) AM_MIRROR(0xff00) AM_READNOP
-	AM_RANGE(0x00, 0x00) AM_MIRROR(0xff00) AM_DEVWRITE(SN76496_TAG, sn76496_device, write)
-	AM_RANGE(MCS51_PORT_P1, MCS51_PORT_P1) AM_READWRITE(kb_p1_r, kb_p1_w)
-	AM_RANGE(MCS51_PORT_P2, MCS51_PORT_P2) AM_WRITE(kb_p2_w)
-	AM_RANGE(MCS51_PORT_P3, MCS51_PORT_P3) AM_WRITE(kb_p3_w)
-ADDRESS_MAP_END
+void wangpc_keyboard_device::wangpc_keyboard_io(address_map &map)
+{
+	//map(0x0000, 0xfeff).nopr();
+	map(0x47, 0x58).mirror(0xff00).nopr();
+	map(0x00, 0x00).mirror(0xff00).w(SN76496_TAG, FUNC(sn76496_device::write));
+}
 
 
 //-------------------------------------------------
-//  MACHINE_DRIVER( wangpc_keyboard )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( wangpc_keyboard )
-	MCFG_CPU_ADD(I8051_TAG, I8051, XTAL_4MHz)
-	MCFG_CPU_IO_MAP(wangpc_keyboard_io)
-	MCFG_MCS51_SERIAL_TX_CB(WRITE8(wangpc_keyboard_t, mcs51_tx_callback))
-	MCFG_MCS51_SERIAL_RX_CB(READ8(wangpc_keyboard_t, mcs51_rx_callback))
+void wangpc_keyboard_device::device_add_mconfig(machine_config &config)
+{
+	I8051(config, m_maincpu, XTAL(4'000'000));
+	m_maincpu->set_addrmap(AS_IO, &wangpc_keyboard_device::wangpc_keyboard_io);
+	m_maincpu->port_in_cb<1>().set(FUNC(wangpc_keyboard_device::kb_p1_r));
+	m_maincpu->port_out_cb<1>().set(FUNC(wangpc_keyboard_device::kb_p1_w));
+	m_maincpu->port_out_cb<2>().set(FUNC(wangpc_keyboard_device::kb_p2_w));
+	m_maincpu->port_out_cb<3>().set(FUNC(wangpc_keyboard_device::kb_p3_w));
+	m_maincpu->serial_tx_cb().set(FUNC(wangpc_keyboard_device::mcs51_tx_callback));
+	m_maincpu->serial_rx_cb().set(FUNC(wangpc_keyboard_device::mcs51_rx_callback));
 
 	// sound hardware
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SN76496_TAG, SN76496, 2000000) // ???
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor wangpc_keyboard_t::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( wangpc_keyboard );
+	SPEAKER(config, "mono").front_center();
+	SN76496(config, SN76496_TAG, 2000000).add_route(ALL_OUTPUTS, "mono", 1.00); // ???
 }
 
 
@@ -359,7 +350,7 @@ INPUT_PORTS_END
 //  input_ports - device-specific input ports
 //-------------------------------------------------
 
-ioport_constructor wangpc_keyboard_t::device_input_ports() const
+ioport_constructor wangpc_keyboard_device::device_input_ports() const
 {
 	return INPUT_PORTS_NAME( wangpc_keyboard );
 }
@@ -371,15 +362,16 @@ ioport_constructor wangpc_keyboard_t::device_input_ports() const
 //**************************************************************************
 
 //-------------------------------------------------
-//  wangpc_keyboard_t - constructor
+//  wangpc_keyboard_device - constructor
 //-------------------------------------------------
 
-wangpc_keyboard_t::wangpc_keyboard_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, WANGPC_KEYBOARD, "Wang PC Keyboard", tag, owner, clock, "wangpckb", __FILE__),
+wangpc_keyboard_device::wangpc_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, WANGPC_KEYBOARD, tag, owner, clock),
 	device_serial_interface(mconfig, *this),
 	m_maincpu(*this, I8051_TAG),
 	m_y(*this, "Y%u", 0),
 	m_txd_handler(*this),
+	m_leds(*this, "led%u", 0U),
 	m_keylatch(0),
 	m_rxd(1)
 {
@@ -390,9 +382,10 @@ wangpc_keyboard_t::wangpc_keyboard_t(const machine_config &mconfig, const char *
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void wangpc_keyboard_t::device_start()
+void wangpc_keyboard_device::device_start()
 {
 	m_txd_handler.resolve_safe();
+	m_leds.resolve();
 
 	set_data_frame(1, 8, PARITY_NONE, STOP_BITS_2);
 
@@ -408,7 +401,7 @@ void wangpc_keyboard_t::device_start()
 //  device_reset - device-specific reset
 //-------------------------------------------------
 
-void wangpc_keyboard_t::device_reset()
+void wangpc_keyboard_device::device_reset()
 {
 	receive_register_reset();
 	transmit_register_reset();
@@ -418,20 +411,10 @@ void wangpc_keyboard_t::device_reset()
 
 
 //-------------------------------------------------
-//  device_timer - handler timer events
-//-------------------------------------------------
-
-void wangpc_keyboard_t::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
-{
-	device_serial_interface::device_timer(timer, id, param, ptr);
-}
-
-
-//-------------------------------------------------
 //  tra_callback -
 //-------------------------------------------------
 
-void wangpc_keyboard_t::tra_callback()
+void wangpc_keyboard_device::tra_callback()
 {
 	int bit = transmit_register_get_data_bit();
 
@@ -445,7 +428,7 @@ void wangpc_keyboard_t::tra_callback()
 //  tra_complete -
 //-------------------------------------------------
 
-void wangpc_keyboard_t::tra_complete()
+void wangpc_keyboard_device::tra_complete()
 {
 }
 
@@ -454,7 +437,7 @@ void wangpc_keyboard_t::tra_complete()
 //  rcv_callback -
 //-------------------------------------------------
 
-void wangpc_keyboard_t::rcv_callback()
+void wangpc_keyboard_device::rcv_callback()
 {
 	if (LOG) logerror("KB '%s' Receive Bit %u\n", tag(), m_rxd);
 
@@ -466,7 +449,7 @@ void wangpc_keyboard_t::rcv_callback()
 //  rcv_complete -
 //-------------------------------------------------
 
-void wangpc_keyboard_t::rcv_complete()
+void wangpc_keyboard_device::rcv_complete()
 {
 	receive_register_extract();
 
@@ -481,7 +464,7 @@ void wangpc_keyboard_t::rcv_complete()
 //  write_rxd -
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER(wangpc_keyboard_t::write_rxd)
+WRITE_LINE_MEMBER(wangpc_keyboard_device::write_rxd)
 {
 	m_rxd = state;
 
@@ -493,7 +476,7 @@ WRITE_LINE_MEMBER(wangpc_keyboard_t::write_rxd)
 //  mcs51_rx_callback -
 //-------------------------------------------------
 
-READ8_MEMBER(wangpc_keyboard_t::mcs51_rx_callback)
+uint8_t wangpc_keyboard_device::mcs51_rx_callback()
 {
 	if (LOG) logerror("KB '%s' CPU Receive Data %02x\n", tag(), get_received_char());
 
@@ -505,7 +488,7 @@ READ8_MEMBER(wangpc_keyboard_t::mcs51_rx_callback)
 //  mcs51_tx_callback -
 //-------------------------------------------------
 
-WRITE8_MEMBER(wangpc_keyboard_t::mcs51_tx_callback)
+void wangpc_keyboard_device::mcs51_tx_callback(uint8_t data)
 {
 	if (LOG) logerror("KB '%s' CPU Transmit Data %02x\n", tag(), data);
 
@@ -523,7 +506,7 @@ WRITE8_MEMBER(wangpc_keyboard_t::mcs51_tx_callback)
 //  kb_p1_r -
 //-------------------------------------------------
 
-READ8_MEMBER( wangpc_keyboard_t::kb_p1_r )
+uint8_t wangpc_keyboard_device::kb_p1_r()
 {
 	return m_y[m_keylatch]->read();
 }
@@ -533,7 +516,7 @@ READ8_MEMBER( wangpc_keyboard_t::kb_p1_r )
 //  kb_p1_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( wangpc_keyboard_t::kb_p1_w )
+void wangpc_keyboard_device::kb_p1_w(uint8_t data)
 {
 	/*
 
@@ -552,7 +535,7 @@ WRITE8_MEMBER( wangpc_keyboard_t::kb_p1_w )
 
 	for (int i = 0; i < 6; i++)
 	{
-		machine().output().set_led_value(i, !BIT(data, i));
+		m_leds[i] = BIT(~data, i);
 	}
 
 	//if (LOG) logerror("P1 %02x\n", data);
@@ -563,7 +546,7 @@ WRITE8_MEMBER( wangpc_keyboard_t::kb_p1_w )
 //  kb_p2_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( wangpc_keyboard_t::kb_p2_w )
+void wangpc_keyboard_device::kb_p2_w(uint8_t data)
 {
 	/*
 
@@ -590,7 +573,7 @@ WRITE8_MEMBER( wangpc_keyboard_t::kb_p2_w )
 //  kb_p3_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( wangpc_keyboard_t::kb_p3_w )
+void wangpc_keyboard_device::kb_p3_w(uint8_t data)
 {
 	/*
 

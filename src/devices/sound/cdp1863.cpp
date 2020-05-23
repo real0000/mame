@@ -17,14 +17,14 @@
 #include "emu.h"
 #include "cdp1863.h"
 
+//#define VERBOSE 1
+#include "logmacro.h"
+
 
 
 //**************************************************************************
 //  MACROS / CONSTANTS
 //**************************************************************************
-
-#define LOG 0
-
 
 #define CDP1863_DEFAULT_LATCH   0x35
 
@@ -35,7 +35,7 @@
 //**************************************************************************
 
 // devices
-const device_type CDP1863 = device_creator<cdp1863_device>;
+DEFINE_DEVICE_TYPE(CDP1863, cdp1863_device, "cdp1863", "RCA CDP1863")
 
 
 
@@ -48,24 +48,12 @@ const device_type CDP1863 = device_creator<cdp1863_device>;
 //-------------------------------------------------
 
 cdp1863_device::cdp1863_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, CDP1863, "CDP1863", tag, owner, clock, "cdp1863", __FILE__),
-		device_sound_interface(mconfig, *this),
-		m_stream(nullptr),
-		m_clock1(clock),
-		m_clock2(0)
+	: device_t(mconfig, CDP1863, tag, owner, clock)
+	, device_sound_interface(mconfig, *this)
+	, m_stream(nullptr)
+	, m_clock1(clock)
+	, m_clock2(0)
 {
-}
-
-
-//-------------------------------------------------
-//  static_set_clock2 - configuration helper
-//-------------------------------------------------
-
-void cdp1863_device::static_set_clock2(device_t &device, int clock2)
-{
-	cdp1863_device &cdp1863 = downcast<cdp1863_device &>(device);
-
-	cdp1863.m_clock2 = clock2;
 }
 
 
@@ -150,30 +138,10 @@ void cdp1863_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 
 
 //-------------------------------------------------
-//  str_w - latch write
-//-------------------------------------------------
-
-WRITE8_MEMBER( cdp1863_device::str_w )
-{
-	m_latch = data;
-}
-
-
-//-------------------------------------------------
-//  str_w - latch write
-//-------------------------------------------------
-
-void cdp1863_device::str_w(uint8_t data)
-{
-	m_latch = data;
-}
-
-
-//-------------------------------------------------
 //  oe_w - output enable write
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( cdp1863_device::oe_w )
+void cdp1863_device::oe_w(int state)
 {
 	m_oe = state;
 }

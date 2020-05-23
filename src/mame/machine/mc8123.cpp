@@ -59,20 +59,24 @@ The known games that use this CPU are:
 
 CPU #    Game                      Notes              Seed   Upper Limit
 -------- ------------------------- ------------------ ------ -----
-317-5014 DakkoChan Jansoh          NEC MC-8123B       206850  1C00
 317-0029 Block Gal                 NEC MC-8123B 651   091755  1800?
 317-0030 Perfect Billiard                             9451EC  1C00
+317-0040 Toki no Senshi - Chrono Soldier              068713  1c00
 317-0042 Opa Opa                                      B31FD0  1C00
 317-0043 Wonder Boy Monster Land                      640708  1C00
 317-0054 Shinobi (sound CPU)       NEC MC-8123B 652   088992  1800
 317-0057 Fantasy Zone 2                               ADFACE  1800
 317-0064 Ufo Senshi Yohko Chan                        880603  1C00
 317-0066 Altered Beast (sound CPU) NEC MC-8123B 704   ED8600  1800
-317-5002 Gigas                     NEC MC-8123 638    234567  1C00
+317-5002 Gigas 1 & 2               NEC MC-8123 638    234567  1C00
+317-5004 Eagle Writer              Not Dumped
+317-5005 Astro Flash               Not Dumped
+317-5008 Perfect Billiard                             9451EC  1C00
 317-5012 Ganbare Chinsan Ooshoubu  NEC MC-8123A       804B54  1C00
+317-5014 DakkoChan Jansoh          NEC MC-8123B       206850  1C00
 317-5??? Ninja Kid II (sound CPU)  NEC MC-8123A 646   27998D  1800
 317-???? Center Court (sound CPU)  NEC MC-8123B 703   640506  1800
-312-???? Omega                                        861226  1C00?
+317-???? Omega                                        861226  1C00?
 
 ***************************************************************************/
 
@@ -80,17 +84,32 @@ CPU #    Game                      Notes              Seed   Upper Limit
 #include "mc8123.h"
 
 
+DEFINE_DEVICE_TYPE(MC8123, mc8123_device, "mc8123", "MC-8123")
+
+//-------------------------------------------------
+//  mc8123_device - constructor
+//-------------------------------------------------
+
+mc8123_device::mc8123_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)
+	: z80_device(mconfig, MC8123, tag, owner, clock)
+	, m_key(*this, "key", 0x2000)
+{
+}
+
+
 namespace {
 
 template <typename T> constexpr u8 BITS(T b) { return u8(1) << b; }
 template <typename T, typename... U> constexpr u8 BITS(T b, U... c) { return (u8(1) << b) | BITS(c...); }
 
-u8 decrypt_type0(u8 val, u8 param, unsigned swap)
+} // anonymous namespace
+
+u8 mc8123_device::decrypt_type0(u8 val, u8 param, unsigned swap)
 {
-	if (swap == 0) val = BITSWAP8(val,7,5,3,1,2,0,6,4);
-	if (swap == 1) val = BITSWAP8(val,5,3,7,2,1,0,4,6);
-	if (swap == 2) val = BITSWAP8(val,0,3,4,6,7,1,5,2);
-	if (swap == 3) val = BITSWAP8(val,0,7,3,2,6,4,1,5);
+	if (swap == 0) val = bitswap<8>(val,7,5,3,1,2,0,6,4);
+	if (swap == 1) val = bitswap<8>(val,5,3,7,2,1,0,4,6);
+	if (swap == 2) val = bitswap<8>(val,0,3,4,6,7,1,5,2);
+	if (swap == 3) val = bitswap<8>(val,0,7,3,2,6,4,1,5);
 
 	if (BIT(param,3) && BIT(val,7))
 		val ^= BITS(5,3,0);
@@ -111,20 +130,20 @@ u8 decrypt_type0(u8 val, u8 param, unsigned swap)
 	if (BIT(param,1)) val ^= BITS(7,6);
 	if (BIT(param,0)) val ^= BITS(5,0);
 
-	if (BIT(param,0)) val = BITSWAP8(val,7,6,5,1,4,3,2,0);
+	if (BIT(param,0)) val = bitswap<8>(val,7,6,5,1,4,3,2,0);
 
 	return val;
 }
 
 
-u8 decrypt_type1a(u8 val, u8 param, unsigned swap)
+u8 mc8123_device::decrypt_type1a(u8 val, u8 param, unsigned swap)
 {
-	if (swap == 0) val = BITSWAP8(val,4,2,6,5,3,7,1,0);
-	if (swap == 1) val = BITSWAP8(val,6,0,5,4,3,2,1,7);
-	if (swap == 2) val = BITSWAP8(val,2,3,6,1,4,0,7,5);
-	if (swap == 3) val = BITSWAP8(val,6,5,1,3,2,7,0,4);
+	if (swap == 0) val = bitswap<8>(val,4,2,6,5,3,7,1,0);
+	if (swap == 1) val = bitswap<8>(val,6,0,5,4,3,2,1,7);
+	if (swap == 2) val = bitswap<8>(val,2,3,6,1,4,0,7,5);
+	if (swap == 3) val = bitswap<8>(val,6,5,1,3,2,7,0,4);
 
-	if (BIT(param,2)) val = BITSWAP8(val,7,6,1,5,3,2,4,0);
+	if (BIT(param,2)) val = bitswap<8>(val,7,6,1,5,3,2,4,0);
 
 	if (BIT(val,1)) val ^= BITS(0);
 	if (BIT(val,6)) val ^= BITS(3);
@@ -140,17 +159,17 @@ u8 decrypt_type1a(u8 val, u8 param, unsigned swap)
 	if (BIT(param,3)) val ^= BITS(7,2);
 	if (BIT(param,1)) val ^= BITS(6,3);
 
-	if (BIT(param,0)) val = BITSWAP8(val,7,6,1,4,3,2,5,0);
+	if (BIT(param,0)) val = bitswap<8>(val,7,6,1,4,3,2,5,0);
 
 	return val;
 }
 
-u8 decrypt_type1b(u8 val, u8 param, unsigned swap)
+u8 mc8123_device::decrypt_type1b(u8 val, u8 param, unsigned swap)
 {
-	if (swap == 0) val = BITSWAP8(val,1,0,3,2,5,6,4,7);
-	if (swap == 1) val = BITSWAP8(val,2,0,5,1,7,4,6,3);
-	if (swap == 2) val = BITSWAP8(val,6,4,7,2,0,5,1,3);
-	if (swap == 3) val = BITSWAP8(val,7,1,3,6,0,2,5,4);
+	if (swap == 0) val = bitswap<8>(val,1,0,3,2,5,6,4,7);
+	if (swap == 1) val = bitswap<8>(val,2,0,5,1,7,4,6,3);
+	if (swap == 2) val = bitswap<8>(val,6,4,7,2,0,5,1,3);
+	if (swap == 3) val = bitswap<8>(val,7,1,3,6,0,2,5,4);
 
 	if (BIT(val,2) && BIT(val,0))
 		val ^= BITS(7,4);
@@ -173,15 +192,15 @@ u8 decrypt_type1b(u8 val, u8 param, unsigned swap)
 	return val;
 }
 
-u8 decrypt_type2a(u8 val, u8 param, unsigned swap)
+u8 mc8123_device::decrypt_type2a(u8 val, u8 param, unsigned swap)
 {
-	if (swap == 0) val = BITSWAP8(val,0,1,4,3,5,6,2,7);
-	if (swap == 1) val = BITSWAP8(val,6,3,0,5,7,4,1,2);
-	if (swap == 2) val = BITSWAP8(val,1,6,4,5,0,3,7,2);
-	if (swap == 3) val = BITSWAP8(val,4,6,7,5,2,3,1,0);
+	if (swap == 0) val = bitswap<8>(val,0,1,4,3,5,6,2,7);
+	if (swap == 1) val = bitswap<8>(val,6,3,0,5,7,4,1,2);
+	if (swap == 2) val = bitswap<8>(val,1,6,4,5,0,3,7,2);
+	if (swap == 3) val = bitswap<8>(val,4,6,7,5,2,3,1,0);
 
 	if (BIT(val,3) || (BIT(param,1) && BIT(val,2)))
-		val = BITSWAP8(val,6,0,7,4,3,2,1,5);
+		val = bitswap<8>(val,6,0,7,4,3,2,1,5);
 
 	if (BIT(val,5)) val ^= BITS(7);
 	if (BIT(val,6)) val ^= BITS(5);
@@ -196,27 +215,27 @@ u8 decrypt_type2a(u8 val, u8 param, unsigned swap)
 	if (BIT(param,3))
 	{
 		if (BIT(param,0))
-			val = BITSWAP8(val,7,6,5,3,4,1,2,0);
+			val = bitswap<8>(val,7,6,5,3,4,1,2,0);
 		else
-			val = BITSWAP8(val,7,6,5,1,2,4,3,0);
+			val = bitswap<8>(val,7,6,5,1,2,4,3,0);
 	}
 	else if (BIT(param,0))
 	{
-		val = BITSWAP8(val,7,6,5,2,1,3,4,0);
+		val = bitswap<8>(val,7,6,5,2,1,3,4,0);
 	}
 
 	return val;
 }
 
-u8 decrypt_type2b(u8 val, u8 param, unsigned swap)
+u8 mc8123_device::decrypt_type2b(u8 val, u8 param, unsigned swap)
 {
 	// only 0x20 possible encryptions for this method - all others have 0x40
 	// this happens because BIT(param,2) cancels the other three
 
-	if (swap == 0) val = BITSWAP8(val,1,3,4,6,5,7,0,2);
-	if (swap == 1) val = BITSWAP8(val,0,1,5,4,7,3,2,6);
-	if (swap == 2) val = BITSWAP8(val,3,5,4,1,6,2,0,7);
-	if (swap == 3) val = BITSWAP8(val,5,2,3,0,4,7,6,1);
+	if (swap == 0) val = bitswap<8>(val,1,3,4,6,5,7,0,2);
+	if (swap == 1) val = bitswap<8>(val,0,1,5,4,7,3,2,6);
+	if (swap == 2) val = bitswap<8>(val,3,5,4,1,6,2,0,7);
+	if (swap == 3) val = bitswap<8>(val,5,2,3,0,4,7,6,1);
 
 	if (BIT(val,7) && BIT(val,3))
 		val ^= BITS(6,4,0);
@@ -246,24 +265,24 @@ u8 decrypt_type2b(u8 val, u8 param, unsigned swap)
 	return val;
 }
 
-u8 decrypt_type3a(u8 val, u8 param, unsigned swap)
+u8 mc8123_device::decrypt_type3a(u8 val, u8 param, unsigned swap)
 {
-	if (swap == 0) val = BITSWAP8(val,5,3,1,7,0,2,6,4);
-	if (swap == 1) val = BITSWAP8(val,3,1,2,5,4,7,0,6);
-	if (swap == 2) val = BITSWAP8(val,5,6,1,2,7,0,4,3);
-	if (swap == 3) val = BITSWAP8(val,5,6,7,0,4,2,1,3);
+	if (swap == 0) val = bitswap<8>(val,5,3,1,7,0,2,6,4);
+	if (swap == 1) val = bitswap<8>(val,3,1,2,5,4,7,0,6);
+	if (swap == 2) val = bitswap<8>(val,5,6,1,2,7,0,4,3);
+	if (swap == 3) val = bitswap<8>(val,5,6,7,0,4,2,1,3);
 
 	if (BIT(val,2)) val ^= BITS(7,5,4);
 	if (BIT(val,3)) val ^= BITS(0);
 
-	if (BIT(param,0)) val = BITSWAP8(val,7,2,5,4,3,1,0,6);
+	if (BIT(param,0)) val = bitswap<8>(val,7,2,5,4,3,1,0,6);
 
 	if (BIT(val,1)) val ^= BITS(6,0);
 	if (BIT(val,3)) val ^= BITS(4,2,1);
 
 	if (BIT(param,3)) val ^= BITS(4,3);
 
-	if (BIT(val,3)) val = BITSWAP8(val,5,6,7,4,3,2,1,0);
+	if (BIT(val,3)) val = bitswap<8>(val,5,6,7,4,3,2,1,0);
 
 	if (BIT(val,5)) val ^= BITS(2,1);
 
@@ -276,16 +295,16 @@ u8 decrypt_type3a(u8 val, u8 param, unsigned swap)
 	return val;
 }
 
-u8 decrypt_type3b(u8 val, u8 param, unsigned swap)
+u8 mc8123_device::decrypt_type3b(u8 val, u8 param, unsigned swap)
 {
-	if (swap == 0) val = BITSWAP8(val,3,7,5,4,0,6,2,1);
-	if (swap == 1) val = BITSWAP8(val,7,5,4,6,1,2,0,3);
-	if (swap == 2) val = BITSWAP8(val,7,4,3,0,5,1,6,2);
-	if (swap == 3) val = BITSWAP8(val,2,6,4,1,3,7,0,5);
+	if (swap == 0) val = bitswap<8>(val,3,7,5,4,0,6,2,1);
+	if (swap == 1) val = bitswap<8>(val,7,5,4,6,1,2,0,3);
+	if (swap == 2) val = bitswap<8>(val,7,4,3,0,5,1,6,2);
+	if (swap == 3) val = bitswap<8>(val,2,6,4,1,3,7,0,5);
 
 	if (BIT(val,2)) val ^= BITS(7);
 
-	if (BIT(val,7)) val = BITSWAP8(val,7,6,3,4,5,2,1,0);
+	if (BIT(val,7)) val = bitswap<8>(val,7,6,3,4,5,2,1,0);
 
 	if (BIT(param,3)) val ^= BITS(7);
 
@@ -300,7 +319,7 @@ u8 decrypt_type3b(u8 val, u8 param, unsigned swap)
 	if (BIT(param,3)) val ^= BITS(7);
 	if (BIT(param,2)) val ^= BITS(0);
 
-	if (BIT(param,3)) val = BITSWAP8(val,4,6,3,2,5,0,1,7);
+	if (BIT(param,3)) val = bitswap<8>(val,4,6,3,2,5,0,1,7);
 
 	if (BIT(val,4)) val ^= BITS(1);
 	if (BIT(val,5)) val ^= BITS(4);
@@ -314,7 +333,7 @@ u8 decrypt_type3b(u8 val, u8 param, unsigned swap)
 	return val;
 }
 
-u8 decrypt(u8 val, u8 key, bool opcode)
+u8 mc8123_device::decrypt_internal(u8 val, u8 key, bool opcode)
 {
 	unsigned type = 0;
 	unsigned swap = 0;
@@ -372,18 +391,16 @@ u8 decrypt(u8 val, u8 key, bool opcode)
 }
 
 
-u8 mc8123_decrypt(offs_t addr, u8 val, u8 const *key, bool opcode)
+u8 mc8123_device::decrypt(offs_t addr, u8 val, bool opcode)
 {
 	// pick the translation table from bits fd57 of the address
 	offs_t const tbl_num = bitswap<12>(addr,15,14,13,12,11,10,8,6,4,2,1,0);
 
-	return decrypt(val, key[tbl_num | (opcode ? 0x0000 : 0x1000)], opcode);
+	return decrypt_internal(val, m_key[tbl_num | (opcode ? 0x0000 : 0x1000)], opcode);
 }
 
-} // anonymous namespace
 
-
-void mc8123_decode(u8 *rom, u8 *opcodes, u8 const *key, unsigned length)
+void mc8123_device::decode(u8 *rom, u8 *opcodes, unsigned length)
 {
 	for (unsigned i = 0; i < length; i++)
 	{
@@ -391,9 +408,9 @@ void mc8123_decode(u8 *rom, u8 *opcodes, u8 const *key, unsigned length)
 		u8 const src = rom[i];
 
 		// decode the opcodes
-		opcodes[i] = mc8123_decrypt(adr, src, key, true);
+		opcodes[i] = decrypt(adr, src, true);
 
 		// decode the data
-		rom[i] = mc8123_decrypt(adr, src, key, false);
+		rom[i] = decrypt(adr, src, false);
 	}
 }

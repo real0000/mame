@@ -7,10 +7,13 @@
     Natural keyboard input support.
 
 ***************************************************************************/
-#ifndef EMU_NATKEYBOARD_H
-#define EMU_NATKEYBOARD_H
+#ifndef MAME_EMU_NATKEYBOARD_H
+#define MAME_EMU_NATKEYBOARD_H
 
 #pragma once
+
+#include <iosfwd>
+#include <unordered_map>
 
 
 //**************************************************************************
@@ -47,13 +50,17 @@ public:
 	void set_in_use(bool usage);
 
 	// posting
-	void post(char32_t ch);
+	void post_char(char32_t ch, bool normalize_crlf = false);
 	void post(const char32_t *text, size_t length = 0, const attotime &rate = attotime::zero);
 	void post_utf8(const char *text, size_t length = 0, const attotime &rate = attotime::zero);
+	void post_utf8(const std::string &text, const attotime &rate = attotime::zero);
 	void post_coded(const char *text, size_t length = 0, const attotime &rate = attotime::zero);
+	void post_coded(const std::string &text, const attotime &rate = attotime::zero);
+	void paste();
 
 	// debugging
-	std::string dump();
+	void dump(std::ostream &str) const;
+	std::string dump() const;
 
 private:
 	enum
@@ -65,9 +72,12 @@ private:
 	// internal keyboard code information
 	struct keycode_map_entry
 	{
-		char32_t        ch;
-		ioport_field *  field[SHIFT_COUNT + 1];
+		std::array<ioport_field *, SHIFT_COUNT + 1> field;
+		unsigned                                    shift;
+		ioport_condition                        condition;
 	};
+	typedef std::list<keycode_map_entry> keycode_map_list;
+	typedef std::unordered_map<char32_t, keycode_map_list> keycode_map;
 
 	// internal helpers
 	void build_codes(ioport_manager &manager);
@@ -76,7 +86,7 @@ private:
 	attotime choose_delay(char32_t ch);
 	void internal_post(char32_t ch);
 	void timer(void *ptr, int param);
-	std::string unicode_to_string(char32_t ch);
+	std::string unicode_to_string(char32_t ch) const;
 	const keycode_map_entry *find_code(char32_t ch) const;
 
 	// internal state
@@ -93,7 +103,10 @@ private:
 	ioport_queue_chars_delegate     m_queue_chars;      // queue characters callback
 	ioport_accept_char_delegate     m_accept_char;      // accept character callback
 	ioport_charqueue_empty_delegate m_charqueue_empty;  // character queue empty callback
-	std::vector<keycode_map_entry>  m_keycode_map;      // keycode map
+	keycode_map                     m_keycode_map;      // keycode map
 };
 
-#endif
+
+inline std::ostream &operator<<(std::ostream &str, natural_keyboard const &kbd) { kbd.dump(str); return str; }
+
+#endif // MAME_EMU_NATKEYBOARD_H

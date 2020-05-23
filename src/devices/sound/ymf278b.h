@@ -1,36 +1,29 @@
 // license:BSD-3-Clause
 // copyright-holders:R. Belmont, Olivier Galibert, hap
+#ifndef MAME_SOUND_YMF278B_H
+#define MAME_SOUND_YMF278B_H
+
 #pragma once
 
-#ifndef __YMF278B_H__
-#define __YMF278B_H__
 
-
-#define YMF278B_STD_CLOCK (33868800)            /* standard clock for OPL4 */
-
-#define MCFG_YMF278B_IRQ_HANDLER(_devcb) \
-	devcb = &ymf278b_device::set_irq_handler(*device, DEVCB_##_devcb);
-
-class ymf278b_device : public device_t,
-						public device_sound_interface,
-						public device_rom_interface
+class ymf278b_device : public device_t, public device_sound_interface, public device_rom_interface
 {
 public:
 	ymf278b_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// static configuration helpers
-	template<class _Object> static devcb_base &set_irq_handler(device_t &device, _Object object) { return downcast<ymf278b_device &>(device).m_irq_handler.set_callback(object); }
+	// configuration helpers
+	auto irq_handler() { return m_irq_handler.bind(); }
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
-
-	void ymf262_update_request();
+	u8 read(offs_t offset);
+	void write(offs_t offset, u8 data);
 
 protected:
 	// device-level overrides
+	virtual void device_post_load() override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_stop() override;
+	virtual void device_clock_changed() override;
 
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
@@ -95,6 +88,12 @@ private:
 	void precompute_rate_tables();
 	void register_save_state();
 
+	void update_request() { m_stream->update(); }
+
+	static void static_irq_handler(device_t *param, int irq) { }
+	static void static_timer_handler(device_t *param, int c, const attotime &period) { }
+	static void static_update_request(device_t *param, int interval) { downcast<ymf278b_device *>(param)->update_request(); }
+
 	// internal state
 	uint8_t m_pcmregs[256];
 	YMF278BSlot m_slots[24];
@@ -126,18 +125,17 @@ private:
 
 	emu_timer *m_timer_a, *m_timer_b;
 	int m_clock;
+	int m_rate;
 
 	sound_stream * m_stream;
-	std::unique_ptr<int32_t[]> m_mix_buffer;
+	std::vector<int32_t> m_mix_buffer;
 	devcb_write_line m_irq_handler;
 	uint8_t m_last_fm_data;
 
 	// ymf262
 	void *m_ymf262;
-	sound_stream * m_stream_ymf262;
 };
 
-extern const device_type YMF278B;
+DECLARE_DEVICE_TYPE(YMF278B, ymf278b_device)
 
-
-#endif /* __YMF278B_H__ */
+#endif // MAME_SOUND_YMF278B_H

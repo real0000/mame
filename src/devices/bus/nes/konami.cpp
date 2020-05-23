@@ -27,7 +27,6 @@
 #include "emu.h"
 #include "konami.h"
 
-#include "cpu/m6502/m6502.h"
 #include "speaker.h"
 
 
@@ -39,54 +38,50 @@
 
 #define LOG_MMC(x) do { if (VERBOSE) logerror x; } while (0)
 
-#define N2A03_DEFAULTCLOCK (21477272.724 / 12)
-
 //-------------------------------------------------
 //  constructor
 //-------------------------------------------------
 
-const device_type NES_VRC1 = device_creator<nes_konami_vrc1_device>;
-const device_type NES_VRC2 = device_creator<nes_konami_vrc2_device>;
-const device_type NES_VRC3 = device_creator<nes_konami_vrc3_device>;
-const device_type NES_VRC4 = device_creator<nes_konami_vrc4_device>;
-const device_type NES_VRC6 = device_creator<nes_konami_vrc6_device>;
-const device_type NES_VRC7 = device_creator<nes_konami_vrc7_device>;
+DEFINE_DEVICE_TYPE(NES_VRC1, nes_konami_vrc1_device, "nes_vrc1", "NES Cart Konami VRC-1 PCB")
+DEFINE_DEVICE_TYPE(NES_VRC2, nes_konami_vrc2_device, "nes_vrc2", "NES Cart Konami VRC-2 PCB")
+DEFINE_DEVICE_TYPE(NES_VRC3, nes_konami_vrc3_device, "nes_vrc3", "NES Cart Konami VRC-3 PCB")
+DEFINE_DEVICE_TYPE(NES_VRC4, nes_konami_vrc4_device, "nes_vrc4", "NES Cart Konami VRC-4 PCB")
+DEFINE_DEVICE_TYPE(NES_VRC6, nes_konami_vrc6_device, "nes_vrc6", "NES Cart Konami VRC-6 PCB")
+DEFINE_DEVICE_TYPE(NES_VRC7, nes_konami_vrc7_device, "nes_vrc7", "NES Cart Konami VRC-7 PCB")
 
 
 nes_konami_vrc1_device::nes_konami_vrc1_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_VRC1, "NES Cart Konami VRC-1 PCB", tag, owner, clock, "nes_vrc1", __FILE__)
+	: nes_nrom_device(mconfig, NES_VRC1, tag, owner, clock)
 {
 }
 
 nes_konami_vrc2_device::nes_konami_vrc2_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_VRC2, "NES Cart Konami VRC-2 PCB", tag, owner, clock, "nes_vrc2", __FILE__), m_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_VRC2, tag, owner, clock), m_latch(0)
+{
 }
 
 nes_konami_vrc3_device::nes_konami_vrc3_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_VRC3, "NES Cart Konami VRC-3 PCB", tag, owner, clock, "nes_vrc3", __FILE__), m_irq_count(0), m_irq_count_latch(0), m_irq_enable(0), m_irq_enable_latch(0), m_irq_mode(0), irq_timer(nullptr)
-				{
+	: nes_nrom_device(mconfig, NES_VRC3, tag, owner, clock), m_irq_count(0), m_irq_count_latch(0), m_irq_enable(0), m_irq_enable_latch(0), m_irq_mode(0), irq_timer(nullptr)
+{
 }
 
-nes_konami_vrc4_device::nes_konami_vrc4_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: nes_nrom_device(mconfig, type, name, tag, owner, clock, shortname, source), m_latch(0), m_mmc_prg_bank(0), m_irq_count(0), m_irq_count_latch(0), m_irq_enable(0), m_irq_enable_latch(0), m_irq_mode(0), m_irq_prescale(0), irq_timer(nullptr)
-				{
+nes_konami_vrc4_device::nes_konami_vrc4_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: nes_nrom_device(mconfig, type, tag, owner, clock), m_latch(0), m_mmc_prg_bank(0), m_irq_count(0), m_irq_count_latch(0), m_irq_enable(0), m_irq_enable_latch(0), m_irq_mode(0), m_irq_prescale(0), irq_timer(nullptr)
+{
 }
 
 nes_konami_vrc4_device::nes_konami_vrc4_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_VRC4, "NES Cart Konami VRC-4 PCB", tag, owner, clock, "nes_vrc4", __FILE__), m_latch(0), m_mmc_prg_bank(0), m_irq_count(0), m_irq_count_latch(0), m_irq_enable(0), m_irq_enable_latch(0), m_irq_mode(0), m_irq_prescale(0), irq_timer(nullptr)
-				{
+	: nes_konami_vrc4_device(mconfig, NES_VRC4, tag, owner, clock)
+{
 }
 
 nes_konami_vrc6_device::nes_konami_vrc6_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_konami_vrc4_device(mconfig, NES_VRC6, "NES Cart Konami VRC-6 PCB", tag, owner, clock, "nes_vrc6", __FILE__),
-					m_vrc6snd(*this, "vrc6snd")
+	: nes_konami_vrc4_device(mconfig, NES_VRC6, tag, owner, clock), m_vrc6snd(*this, "vrc6snd")
 {
 }
 
 nes_konami_vrc7_device::nes_konami_vrc7_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_konami_vrc4_device(mconfig, NES_VRC7, "NES Cart Konami VRC-7 PCB", tag, owner, clock, "nes_vrc7", __FILE__),
-					m_ym2413(*this, "ym")
+	: nes_konami_vrc4_device(mconfig, NES_VRC7, tag, owner, clock), m_vrc7snd(*this, "vrc7snd")
 {
 }
 
@@ -130,7 +125,7 @@ void nes_konami_vrc3_device::device_start()
 {
 	common_start();
 	irq_timer = timer_alloc(TIMER_IRQ);
-	irq_timer->adjust(attotime::zero, 0, machine().device<cpu_device>("maincpu")->cycles_to_attotime(1));
+	irq_timer->adjust(attotime::zero, 0, clocks_to_attotime(1));
 
 	save_item(NAME(m_irq_mode));
 	save_item(NAME(m_irq_enable));
@@ -158,7 +153,7 @@ void nes_konami_vrc4_device::device_start()
 {
 	common_start();
 	irq_timer = timer_alloc(TIMER_IRQ);
-	irq_timer->adjust(attotime::zero, 0, machine().device<cpu_device>("maincpu")->cycles_to_attotime(1));
+	irq_timer->adjust(attotime::zero, 0, clocks_to_attotime(1));
 
 	save_item(NAME(m_irq_mode));
 	save_item(NAME(m_irq_prescale));
@@ -199,7 +194,7 @@ void nes_konami_vrc7_device::device_start()
 {
 	common_start();
 	irq_timer = timer_alloc(TIMER_IRQ);
-	irq_timer->adjust(attotime::zero, 0, machine().device<cpu_device>("maincpu")->cycles_to_attotime(1));
+	irq_timer->adjust(attotime::zero, 0, clocks_to_attotime(1));
 
 	save_item(NAME(m_irq_mode));
 	save_item(NAME(m_irq_prescale));
@@ -244,7 +239,7 @@ void nes_konami_vrc7_device::pcb_reset()
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_konami_vrc1_device::write_h)
+void nes_konami_vrc1_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("VRC-1 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -285,7 +280,7 @@ WRITE8_MEMBER(nes_konami_vrc1_device::write_h)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(nes_konami_vrc2_device::read_m)
+uint8_t nes_konami_vrc2_device::read_m(offs_t offset)
 {
 	LOG_MMC(("VRC-2 read_m, offset: %04x\n", offset));
 
@@ -294,10 +289,10 @@ READ8_MEMBER(nes_konami_vrc2_device::read_m)
 	else if (!m_prgram.empty())
 		return m_prgram[offset & (m_prgram.size() - 1)];
 	else    // sort of protection? it returns open bus in $7000-$7fff and (open bus & 0xfe) | m_latch in $6000-$6fff
-		return (offset < 0x1000) ? ((m_open_bus & 0xfe) | (m_latch & 1)) : m_open_bus;
+		return (offset < 0x1000) ? ((get_open_bus() & 0xfe) | (m_latch & 1)) : get_open_bus();
 }
 
-WRITE8_MEMBER(nes_konami_vrc2_device::write_m)
+void nes_konami_vrc2_device::write_m(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("VRC-2 write_m, offset: %04x, data: %02x\n", offset, data));
 
@@ -309,7 +304,7 @@ WRITE8_MEMBER(nes_konami_vrc2_device::write_m)
 		m_latch = data;
 }
 
-WRITE8_MEMBER(nes_konami_vrc2_device::write_h)
+void nes_konami_vrc2_device::write_h(offs_t offset, uint8_t data)
 {
 	uint8_t bank, shift, mask;
 	uint16_t add_lines = ((offset << (9 - m_vrc_ls_prg_a)) & 0x200) | ((offset << (8 - m_vrc_ls_prg_b)) & 0x100);
@@ -370,7 +365,7 @@ void nes_konami_vrc3_device::device_timer(emu_timer &timer, device_timer_id id, 
 			{
 				if ((m_irq_count & 0x00ff) == 0xff)
 				{
-					m_maincpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+					set_irq_line(ASSERT_LINE);
 					m_irq_count = m_irq_count_latch;
 				}
 				else
@@ -380,7 +375,7 @@ void nes_konami_vrc3_device::device_timer(emu_timer &timer, device_timer_id id, 
 			{
 				if (m_irq_count == 0xffff)
 				{
-					m_maincpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+					set_irq_line(ASSERT_LINE);
 					m_irq_count = m_irq_count_latch;
 				}
 				else
@@ -390,7 +385,7 @@ void nes_konami_vrc3_device::device_timer(emu_timer &timer, device_timer_id id, 
 	}
 }
 
-WRITE8_MEMBER(nes_konami_vrc3_device::write_h)
+void nes_konami_vrc3_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("VRC-3 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -414,11 +409,11 @@ WRITE8_MEMBER(nes_konami_vrc3_device::write_h)
 			m_irq_enable_latch = data & 0x01;
 			if (data & 0x02)
 				m_irq_count = m_irq_count_latch;
-			m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+			set_irq_line(CLEAR_LINE);
 			break;
 		case 0x5000:
 			m_irq_enable = m_irq_enable_latch;
-			m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+			set_irq_line(CLEAR_LINE);
 			break;
 		case 0x7000:
 			prg16_89ab(data);
@@ -442,7 +437,7 @@ void nes_konami_vrc4_device::irq_tick()
 	if (m_irq_count == 0xff)
 	{
 		m_irq_count = m_irq_count_latch;
-		m_maincpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+		set_irq_line(ASSERT_LINE);
 	}
 	else
 		m_irq_count++;
@@ -487,7 +482,7 @@ void nes_konami_vrc4_device::set_prg()
 	}
 }
 
-WRITE8_MEMBER(nes_konami_vrc4_device::write_h)
+void nes_konami_vrc4_device::write_h(offs_t offset, uint8_t data)
 {
 	uint8_t bank, shift, mask;
 	uint16_t add_lines = ((offset << (9 - m_vrc_ls_prg_a)) & 0x200) | ((offset << (8 - m_vrc_ls_prg_b)) & 0x100);
@@ -544,11 +539,11 @@ WRITE8_MEMBER(nes_konami_vrc4_device::write_h)
 					m_irq_enable_latch = data & 0x01;
 					if (data & 0x02)
 						m_irq_count = m_irq_count_latch;
-					m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+					set_irq_line(CLEAR_LINE);
 					break;
 				case 0x300:
 					m_irq_enable = m_irq_enable_latch;
-					m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+					set_irq_line(CLEAR_LINE);
 					break;
 			}
 			break;
@@ -565,11 +560,9 @@ WRITE8_MEMBER(nes_konami_vrc4_device::write_h)
  In MESS: Supported. It also uses konami_irq (there are IRQ
  issues though: see Akumajou Densetsu intro).
 
- TODO: Add sound capabilities support!
-
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_konami_vrc6_device::write_h)
+void nes_konami_vrc6_device::write_h(offs_t offset, uint8_t data)
 {
 	uint8_t bank;
 	uint16_t add_lines = ((offset << (9 - m_vrc_ls_prg_a)) & 0x200) | ((offset << (8 - m_vrc_ls_prg_b)) & 0x100);
@@ -584,10 +577,10 @@ WRITE8_MEMBER(nes_konami_vrc6_device::write_h)
 			prg8_cd(data);
 			break;
 		case 0x1000:    // pulse 1 & global control
-			m_vrc6snd->write(space, add_lines>>8, data);
+			m_vrc6snd->write(add_lines>>8, data);
 			break;
 		case 0x2000:    // pulse 2
-			m_vrc6snd->write(space, (add_lines>>8) | 0x100, data);
+			m_vrc6snd->write((add_lines>>8) | 0x100, data);
 			break;
 		case 0x3000:
 			if (add_lines == 0x300)
@@ -601,7 +594,7 @@ WRITE8_MEMBER(nes_konami_vrc6_device::write_h)
 				}
 			}
 			else    // saw
-				m_vrc6snd->write(space, (add_lines>>8) | 0x200, data);
+				m_vrc6snd->write((add_lines>>8) | 0x200, data);
 			break;
 		case 0x5000:
 		case 0x6000:
@@ -620,11 +613,11 @@ WRITE8_MEMBER(nes_konami_vrc6_device::write_h)
 					m_irq_enable_latch = data & 0x01;
 					if (data & 0x02)
 						m_irq_count = m_irq_count_latch;
-					m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+					set_irq_line(CLEAR_LINE);
 					break;
 				case 0x200:
 					m_irq_enable = m_irq_enable_latch;
-					m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+					set_irq_line(CLEAR_LINE);
 					break;
 				default:
 					logerror("VRC-6 write_h uncaught write, addr: %04x value: %02x\n", ((offset & 0x7000) | add_lines) + 0x8000, data);
@@ -637,23 +630,19 @@ WRITE8_MEMBER(nes_konami_vrc6_device::write_h)
 	}
 }
 
-static MACHINE_CONFIG_FRAGMENT( vrc6 )
-
-	// additional sound hardware
-	MCFG_SPEAKER_STANDARD_MONO("addon")
-
-	MCFG_SOUND_ADD("vrc6snd", VRC6, N2A03_DEFAULTCLOCK)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "addon", 0.5)
-MACHINE_CONFIG_END
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor nes_konami_vrc6_device::device_mconfig_additions() const
+void nes_konami_vrc6_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( vrc6 );
+	// additional sound hardware
+	SPEAKER(config, "addon").front_center();
+
+	// TODO: this is not how VRC6 clock signaling works!
+	// The board uses the CLK pin in reality, not hardcoded NTSC values!
+	VRC6(config, m_vrc6snd, XTAL(21'477'272)/12).add_route(ALL_OUTPUTS, "addon", 1.0);
 }
 
 /*-------------------------------------------------
@@ -668,7 +657,7 @@ machine_config_constructor nes_konami_vrc6_device::device_mconfig_additions() co
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_konami_vrc7_device::write_h)
+void nes_konami_vrc7_device::write_h(offs_t offset, uint8_t data)
 {
 	uint8_t bank;
 	LOG_MMC(("VRC-7 write_h, offset: %04x, data: %02x\n", offset, data));
@@ -690,11 +679,11 @@ WRITE8_MEMBER(nes_konami_vrc7_device::write_h)
 
 		case 0x1010:
 		case 0x1018:
-			m_ym2413->register_port_w(space, 0, data);
+			m_vrc7snd->register_port_w(data);
 			break;
 		case 0x1030:
 		case 0x1038:
-			m_ym2413->data_port_w(space, 0, data);
+			m_vrc7snd->data_port_w(data);
 			break;
 
 		case 0x2000:
@@ -735,11 +724,11 @@ WRITE8_MEMBER(nes_konami_vrc7_device::write_h)
 			m_irq_enable_latch = data & 0x01;
 			if (data & 0x02)
 				m_irq_count = m_irq_count_latch;
-			m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+			set_irq_line(CLEAR_LINE);
 			break;
 		case 0x7008: case 0x7010: case 0x7018:
 			m_irq_enable = m_irq_enable_latch;
-			m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+			set_irq_line(CLEAR_LINE);
 			break;
 
 		default:
@@ -767,23 +756,12 @@ WRITE8_MEMBER(nes_konami_vrc7_device::write_h)
 //   and has one output pin for audio, multiplexed for all 6 channels; OPLL has two output pins, one for
 //   FM and one for Rhythm, and has no special status pin.
 
-// FIXME: we currently emulate this as a base YM2413!
-
-static MACHINE_CONFIG_FRAGMENT( vrc7 )
-
-	// additional sound hardware
-	MCFG_SPEAKER_STANDARD_MONO("addon")
-
-	MCFG_SOUND_ADD("ym", YM2413, N2A03_DEFAULTCLOCK)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "addon", 0.5)
-MACHINE_CONFIG_END
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor nes_konami_vrc7_device::device_mconfig_additions() const
+void nes_konami_vrc7_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( vrc7 );
+	// additional sound hardware
+	SPEAKER(config, "addon").front_center();
+
+	// TODO: this is not how VRC7 clock signaling works!
+	// The board uses the CLK pin in reality, not hardcoded NTSC values!
+	VRC7(config, m_vrc7snd, XTAL(21'477'272)/6).add_route(0, "addon", 1.0).add_route(1, "addon", 0.0);
 }

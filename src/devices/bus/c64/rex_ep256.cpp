@@ -15,41 +15,17 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type C64_REX_EP256 = device_creator<c64_rex_ep256_cartridge_device>;
+DEFINE_DEVICE_TYPE(C64_REX_EP256, c64_rex_ep256_cartridge_device, "c64_rex_ep256", "C64 Rex 256KB EPROM cartridge")
 
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( c64_rex_ep256 )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( c64_rex_ep256 )
-	MCFG_GENERIC_SOCKET_ADD("rom1", generic_linear_slot, nullptr)
-	MCFG_GENERIC_EXTENSIONS("bin,rom")
-	MCFG_GENERIC_SOCKET_ADD("rom2", generic_linear_slot, nullptr)
-	MCFG_GENERIC_EXTENSIONS("bin,rom")
-	MCFG_GENERIC_SOCKET_ADD("rom3", generic_linear_slot, nullptr)
-	MCFG_GENERIC_EXTENSIONS("bin,rom")
-	MCFG_GENERIC_SOCKET_ADD("rom4", generic_linear_slot, nullptr)
-	MCFG_GENERIC_EXTENSIONS("bin,rom")
-	MCFG_GENERIC_SOCKET_ADD("rom5", generic_linear_slot, nullptr)
-	MCFG_GENERIC_EXTENSIONS("bin,rom")
-	MCFG_GENERIC_SOCKET_ADD("rom6", generic_linear_slot, nullptr)
-	MCFG_GENERIC_EXTENSIONS("bin,rom")
-	MCFG_GENERIC_SOCKET_ADD("rom7", generic_linear_slot, nullptr)
-	MCFG_GENERIC_EXTENSIONS("bin,rom")
-	MCFG_GENERIC_SOCKET_ADD("rom8", generic_linear_slot, nullptr)
-	MCFG_GENERIC_EXTENSIONS("bin,rom")
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor c64_rex_ep256_cartridge_device::device_mconfig_additions() const
+void c64_rex_ep256_cartridge_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( c64_rex_ep256 );
+	for (auto &eprom : m_eproms)
+		GENERIC_SOCKET(config, eprom, generic_linear_slot, nullptr, "bin,rom");
 }
 
 
@@ -63,15 +39,10 @@ machine_config_constructor c64_rex_ep256_cartridge_device::device_mconfig_additi
 //-------------------------------------------------
 
 c64_rex_ep256_cartridge_device::c64_rex_ep256_cartridge_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, C64_REX_EP256, "C64 Rex 256KB EPROM cartridge", tag, owner, clock, "rexep256", __FILE__),
-	device_c64_expansion_card_interface(mconfig, *this)
+	device_t(mconfig, C64_REX_EP256, tag, owner, clock),
+	device_c64_expansion_card_interface(mconfig, *this),
+	m_eproms(*this, "rom%u", 1U)
 {
-	for (int i = 0; i < 8; i++)
-	{
-		char str[6];
-		sprintf(str, "rom%i", i + 1);
-		m_eproms[i] = subdevice<generic_slot_device>(str);
-	}
 }
 
 
@@ -105,7 +76,7 @@ void c64_rex_ep256_cartridge_device::device_reset()
 //  c64_cd_r - cartridge data read
 //-------------------------------------------------
 
-uint8_t c64_rex_ep256_cartridge_device::c64_cd_r(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
+uint8_t c64_rex_ep256_cartridge_device::c64_cd_r(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
 {
 	if (!roml)
 	{
@@ -116,7 +87,7 @@ uint8_t c64_rex_ep256_cartridge_device::c64_cd_r(address_space &space, offs_t of
 		else
 		{
 			offs_t addr = (m_bank << 13) | (offset & 0x1fff);
-			data = m_eproms[m_socket]->read_rom(space, addr);
+			data = m_eproms[m_socket]->read_rom(addr);
 		}
 	}
 	else if (!io2)
@@ -139,7 +110,7 @@ uint8_t c64_rex_ep256_cartridge_device::c64_cd_r(address_space &space, offs_t of
 //  c64_cd_w - cartridge data write
 //-------------------------------------------------
 
-void c64_rex_ep256_cartridge_device::c64_cd_w(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
+void c64_rex_ep256_cartridge_device::c64_cd_w(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
 {
 	if (!io2 && ((offset & 0xf0) == 0xa0))
 	{

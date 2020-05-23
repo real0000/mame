@@ -1,9 +1,9 @@
 // license:BSD-3-Clause
 // copyright-holders:R. Belmont
-#pragma once
+#ifndef MAME_MACHINE_CUDA_H
+#define MAME_MACHINE_CUDA_H
 
-#ifndef __CUDA_H__
-#define __CUDA_H__
+#pragma once
 
 
 //**************************************************************************
@@ -16,38 +16,6 @@
 #define CUDA_341S0788   0x2200  // v2.37 (LC 475/575/Quadra 605, Quadra 660AV/840AV, PowerMac x200)
 #define CUDA_341S0417   0x3300  // v2.35 (Color Classic)
 
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_CUDA_ADD(_type) \
-	MCFG_DEVICE_ADD(CUDA_TAG, CUDA, 0) \
-	MCFG_CUDA_TYPE(_type)
-
-#define MCFG_CUDA_REPLACE(_type) \
-	MCFG_DEVICE_REPLACE(CUDA_TAG, CUDA, 0) \
-	MCFG_CUDA_TYPE(_type)
-
-#define MCFG_CUDA_REMOVE() \
-	MCFG_DEVICE_REMOVE(CUDA_TAG)
-
-#define MCFG_CUDA_TYPE(_type) \
-	cuda_device::static_set_type(*device, _type);
-
-#define MCFG_CUDA_REMOVE() \
-	MCFG_DEVICE_REMOVE(CUDA_TAG)
-
-#define MCFG_CUDA_RESET_CALLBACK(_cb) \
-	devcb = &cuda_device::set_reset_cb(*device, DEVCB_##_cb);
-
-#define MCFG_CUDA_LINECHANGE_CALLBACK(_cb) \
-	devcb = &cuda_device::set_linechange_cb(*device, DEVCB_##_cb);
-
-#define MCFG_CUDA_VIA_CLOCK_CALLBACK(_cb) \
-	devcb = &cuda_device::set_via_clock_cb(*device, DEVCB_##_cb);
-
-#define MCFG_CUDA_VIA_DATA_CALLBACK(_cb) \
-	devcb = &cuda_device::set_via_data_cb(*device, DEVCB_##_cb);
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -59,30 +27,36 @@ class cuda_device :  public device_t, public device_nvram_interface
 {
 public:
 	// construction/destruction
+	cuda_device(const machine_config &mconfig, const char *tag, device_t *owner, int type)
+		: cuda_device(mconfig, tag, owner, (uint32_t)0)
+	{
+		set_type(type);
+	}
+
 	cuda_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// inline configuration helpers
-	static void static_set_type(device_t &device, int type);
+	void set_type(int type) { rom_offset = type; }
 
 	// device_config_nvram_interface overrides
 	virtual void nvram_default() override;
 	virtual void nvram_read(emu_file &file) override;
 	virtual void nvram_write(emu_file &file) override;
 
-	DECLARE_READ8_MEMBER( ddr_r );
-	DECLARE_WRITE8_MEMBER( ddr_w );
-	DECLARE_READ8_MEMBER( ports_r );
-	DECLARE_WRITE8_MEMBER( ports_w );
-	DECLARE_READ8_MEMBER( pll_r );
-	DECLARE_WRITE8_MEMBER( pll_w );
-	DECLARE_READ8_MEMBER( timer_ctrl_r );
-	DECLARE_WRITE8_MEMBER( timer_ctrl_w );
-	DECLARE_READ8_MEMBER( timer_counter_r );
-	DECLARE_WRITE8_MEMBER( timer_counter_w );
-	DECLARE_READ8_MEMBER( onesec_r );
-	DECLARE_WRITE8_MEMBER( onesec_w );
-	DECLARE_READ8_MEMBER( pram_r );
-	DECLARE_WRITE8_MEMBER( pram_w );
+	uint8_t ddr_r(offs_t offset);
+	void ddr_w(offs_t offset, uint8_t data);
+	uint8_t ports_r(offs_t offset);
+	void ports_w(offs_t offset, uint8_t data);
+	uint8_t pll_r();
+	void pll_w(uint8_t data);
+	uint8_t timer_ctrl_r();
+	void timer_ctrl_w(uint8_t data);
+	uint8_t timer_counter_r();
+	void timer_counter_w(uint8_t data);
+	uint8_t onesec_r();
+	void onesec_w(uint8_t data);
+	uint8_t pram_r(offs_t offset);
+	void pram_w(offs_t offset, uint8_t data);
 
 	// VIA interface routines
 	uint8_t get_treq() { return treq; }
@@ -96,18 +70,19 @@ public:
 
 	int rom_offset;
 
-	template<class _Object> static devcb_base &set_reset_cb(device_t &device, _Object wr) { return downcast<cuda_device &>(device).write_reset.set_callback(wr); }
-	template<class _Object> static devcb_base &set_linechange_cb(device_t &device, _Object wr) { return downcast<cuda_device &>(device).write_linechange.set_callback(wr); }
-	template<class _Object> static devcb_base &set_via_clock_cb(device_t &device, _Object wr) { return downcast<cuda_device &>(device).write_via_clock.set_callback(wr); }
-	template<class _Object> static devcb_base &set_via_data_cb(device_t &device, _Object wr) { return downcast<cuda_device &>(device).write_via_data.set_callback(wr); }
+	auto reset_callback() { return write_reset.bind(); }
+	auto linechange_callback() { return write_linechange.bind(); }
+	auto via_clock_callback() { return write_via_clock.bind(); }
+	auto via_data_callback() { return write_via_data.bind(); }
 
 	devcb_write_line write_reset, write_linechange, write_via_clock, write_via_data;
 
+	void cuda_map(address_map &map);
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual const tiny_rom_entry *device_rom_region() const override;
 
 	required_device<cpu_device> m_maincpu;
@@ -131,10 +106,10 @@ private:
 	uint8_t pram[0x100], disk_pram[0x100];
 	bool pram_loaded;
 
-	void send_port(address_space &space, uint8_t offset, uint8_t data);
+	void send_port(uint8_t offset, uint8_t data);
 };
 
 // device type definition
-extern const device_type CUDA;
+DECLARE_DEVICE_TYPE(CUDA, cuda_device)
 
-#endif
+#endif // MAME_MACHINE_CUDA_H

@@ -1,20 +1,23 @@
 // license:BSD-3-Clause
 // copyright-holders:Olivier Galibert
-#ifndef AMIGAFDC_H
-#define AMIGAFDC_H
+#ifndef MAME_MACHINE_AMIGAFDC_H
+#define MAME_MACHINE_AMIGAFDC_H
+
+#pragma once
 
 #include "imagedev/floppy.h"
 
-#define MCFG_AMIGA_FDC_INDEX_CALLBACK(_write) \
-	devcb = &amiga_fdc::set_index_wr_callback(*device, DEVCB_##_write);
-
-class amiga_fdc : public device_t {
+class amiga_fdc_device : public device_t {
 public:
-	amiga_fdc(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	amiga_fdc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_index_wr_callback(device_t &device, _Object object) { return downcast<amiga_fdc &>(device).m_write_index.set_callback(object); }
+	auto index_callback() { return m_write_index.bind(); }
+	auto read_dma_callback() { return m_read_dma.bind(); }
+	auto write_dma_callback() { return m_write_dma.bind(); }
+	auto dskblk_callback() { return m_write_dskblk.bind(); }
+	auto dsksyn_callback() { return m_write_dsksyn.bind(); }
 
-	DECLARE_WRITE8_MEMBER(ciaaprb_w);
+	void ciaaprb_w(uint8_t data);
 
 	uint8_t ciaapra_r();
 	uint16_t dskbytr_r();
@@ -85,6 +88,12 @@ private:
 	};
 
 	devcb_write_line m_write_index;
+	devcb_read16 m_read_dma;
+	devcb_write16 m_write_dma;
+	devcb_write_line m_write_dskblk;
+	devcb_write_line m_write_dsksyn;
+	output_finder<2> m_leds;
+	output_finder<> m_fdc_led;
 
 	floppy_image_device *floppy;
 	floppy_image_device *floppy_devices[4];
@@ -115,6 +124,6 @@ private:
 	void live_run(const attotime &limit = attotime::never);
 };
 
-extern const device_type AMIGA_FDC;
+DECLARE_DEVICE_TYPE(AMIGA_FDC, amiga_fdc_device)
 
-#endif /* AMIGAFDC_H */
+#endif // MAME_MACHINE_AMIGAFDC_H

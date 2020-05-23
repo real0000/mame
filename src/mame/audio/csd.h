@@ -5,11 +5,11 @@
     Cheap Squeak Deluxe / Artificial Artist Sound Board
 
 ***************************************************************************/
+#ifndef MAME_AUDIO_CSD_H
+#define MAME_AUDIO_CSD_H
 
 #pragma once
 
-#ifndef MAME_AUDIO_CSD_H
-#define MAME_AUDIO_CSD_H
 
 #include "cpu/m68000/m68000.h"
 #include "machine/6821pia.h"
@@ -26,22 +26,21 @@ class midway_cheap_squeak_deluxe_device : public device_t, public device_mixer_i
 {
 public:
 	// construction/destruction
-	midway_cheap_squeak_deluxe_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	midway_cheap_squeak_deluxe_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 16'000'000);
+
+	// helpers
+	void suspend_cpu();
 
 	// read/write
-	DECLARE_READ8_MEMBER(stat_r);
-	DECLARE_WRITE8_MEMBER(sr_w);
+	u8 stat_r();
+	void sr_w(u8 data);
 	DECLARE_WRITE_LINE_MEMBER(sirq_w);
 	DECLARE_WRITE_LINE_MEMBER(reset_w);
 
-	// internal communications
-	DECLARE_WRITE8_MEMBER(porta_w);
-	DECLARE_WRITE8_MEMBER(portb_w);
-	DECLARE_WRITE_LINE_MEMBER(irq_w);
-
+	void csdeluxe_map(address_map &map);
 protected:
 	// device-level overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual const tiny_rom_entry *device_rom_region() const override;
 	virtual void device_start() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
@@ -55,9 +54,14 @@ private:
 	// internal state
 	uint8_t m_status;
 	uint16_t m_dacval;
+
+	// internal communications
+	void porta_w(uint8_t data);
+	void portb_w(uint8_t data);
+	DECLARE_WRITE_LINE_MEMBER(irq_w);
 };
 
 // device type definition
-extern const device_type MIDWAY_CHEAP_SQUEAK_DELUXE;
+DECLARE_DEVICE_TYPE(MIDWAY_CHEAP_SQUEAK_DELUXE, midway_cheap_squeak_deluxe_device)
 
 #endif // MAME_AUDIO_CSD_H

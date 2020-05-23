@@ -17,7 +17,7 @@
   the CPU is an Intel Atom D525 CPU with 2GB of RAM (but based on hardware images this is incorrect, they clearly show the CPU Xing Xing states is used)
 
 
-  the card images (except v105) seem to have encrypted data up to the C2000000 mark, then
+  the card images seem to have encrypted data up to the C2000000 mark, then
   some text string about a non-bootable disk followed by mostly blank data
 
   Offset(h)  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F
@@ -35,10 +35,6 @@
 0C20000A0  65 73 73 20 61 6E 79 20 6B 65 79 20 74 6F 20 74  ess any key to t
 0C20000B0  72 79 20 61 67 61 69 6E 20 2E 2E 2E 20 0D 0A 00  ry again ... ...
 
-  the v105 image has the encrypted data starting at 400000 and the above at C2400000
-  and is overall slightly shorter.  it was probably dumped using a different method?
-  assuming one is the correct method the others will need adjusting.
-
 
   DSW:
     1: OFF = Game mode / ON = Test mode
@@ -53,6 +49,7 @@
 #include "emu.h"
 #include "cpu/arm7/arm7.h"
 #include "cpu/arm7/arm7core.h"
+#include "emupal.h"
 #include "screen.h"
 
 
@@ -63,19 +60,25 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu") { }
 
-	DECLARE_DRIVER_INIT(kov3hd);
+	void pgm3(machine_config &config);
+
+	void init_kov3hd();
+
+private:
 
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
 	virtual void video_start() override;
 	uint32_t screen_update_pgm3(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void screen_eof_pgm3(screen_device &screen, bool state);
+	DECLARE_WRITE_LINE_MEMBER(screen_vblank_pgm3);
 	required_device<cpu_device> m_maincpu;
+	void pgm3_map(address_map &map);
 };
 
-static ADDRESS_MAP_START( pgm3_map, AS_PROGRAM, 32, pgm3_state )
-	AM_RANGE(0x00000000, 0x00003fff) AM_ROM
-ADDRESS_MAP_END
+void pgm3_state::pgm3_map(address_map &map)
+{
+	map(0x00000000, 0x00003fff).rom();
+}
 
 static INPUT_PORTS_START( pgm3 )
 INPUT_PORTS_END
@@ -85,7 +88,7 @@ uint32_t pgm3_state::screen_update_pgm3(screen_device &screen, bitmap_ind16 &bit
 	return 0;
 }
 
-void pgm3_state::screen_eof_pgm3(screen_device &screen, bool state)
+WRITE_LINE_MEMBER(pgm3_state::screen_vblank_pgm3)
 {
 }
 
@@ -101,32 +104,33 @@ void pgm3_state::machine_reset()
 {
 }
 
-static MACHINE_CONFIG_START( pgm3, pgm3_state )
-
+void pgm3_state::pgm3(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", ARM9, 800000000) // wrong, see notes at top of driver
-	MCFG_CPU_PROGRAM_MAP(pgm3_map)
-	MCFG_DEVICE_DISABLE()
+	ARM9(config, m_maincpu, 800000000); // wrong, see notes at top of driver
+	m_maincpu->set_addrmap(AS_PROGRAM, &pgm3_state::pgm3_map);
+	m_maincpu->set_disable();
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(1280, 720)
-	MCFG_SCREEN_VISIBLE_AREA(0, 1280-1, 0, 720-1)
-	MCFG_SCREEN_UPDATE_DRIVER(pgm3_state, screen_update_pgm3)
-	MCFG_SCREEN_VBLANK_DRIVER(pgm3_state, screen_eof_pgm3)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(1280, 720);
+	screen.set_visarea(0, 1280-1, 0, 720-1);
+	screen.set_screen_update(FUNC(pgm3_state::screen_update_pgm3));
+	screen.screen_vblank().set(FUNC(pgm3_state::screen_vblank_pgm3));
+	screen.set_palette("palette");
 
-	MCFG_PALETTE_ADD("palette", 0x1000)
-MACHINE_CONFIG_END
+	PALETTE(config, "palette").set_entries(0x1000);
+}
 
 ROM_START( kov3hd )
 	ROM_REGION( 0x04000, "maincpu", ROMREGION_ERASE00 )
 	// does it boot from the card, or is there an internal rom?
 
 	DISK_REGION( "card" )
-	DISK_IMAGE( "kov3hd_v105", 0, SHA1(c185888c59880805bb76b5c0a42b05c614dcff37) )
+	DISK_IMAGE( "kov3hd_m105", 0, SHA1(81af30aa6e1a34b2a8fab8c5c23a313a7164767c) )
+	//DISK_IMAGE( "kov3hd_v105", 0, SHA1(c185888c59880805bb76b5c0a42b05c614dcff37) ) bad dump, doesn't work on real hardware
 ROM_END
 
 ROM_START( kov3hd104 )
@@ -162,14 +166,14 @@ ROM_START( kov3hd101 )
 ROM_END
 
 
-DRIVER_INIT_MEMBER(pgm3_state,kov3hd)
+void pgm3_state::init_kov3hd()
 {
 }
 
 
 // all dumped sets might be China region, unless region info comes from elsewhere
-GAME( 2011, kov3hd,     0,      pgm3,    pgm3, pgm3_state,     kov3hd,       ROT0, "IGS", "Knights of Valour 3 HD (V105)", MACHINE_IS_SKELETON )
-GAME( 2011, kov3hd104,  kov3hd, pgm3,    pgm3, pgm3_state,     kov3hd,       ROT0, "IGS", "Knights of Valour 3 HD (V104)", MACHINE_IS_SKELETON )
-GAME( 2011, kov3hd103,  kov3hd, pgm3,    pgm3, pgm3_state,     kov3hd,       ROT0, "IGS", "Knights of Valour 3 HD (V103)", MACHINE_IS_SKELETON )
-GAME( 2011, kov3hd102,  kov3hd, pgm3,    pgm3, pgm3_state,     kov3hd,       ROT0, "IGS", "Knights of Valour 3 HD (V102)", MACHINE_IS_SKELETON )
-GAME( 2011, kov3hd101,  kov3hd, pgm3,    pgm3, pgm3_state,     kov3hd,       ROT0, "IGS", "Knights of Valour 3 HD (V101)", MACHINE_IS_SKELETON )
+GAME( 2011, kov3hd,     0,      pgm3,    pgm3, pgm3_state, init_kov3hd, ROT0, "IGS", "Knights of Valour 3 HD (M-105CN 13-07-04 18:54:01)", MACHINE_IS_SKELETON )
+GAME( 2011, kov3hd104,  kov3hd, pgm3,    pgm3, pgm3_state, init_kov3hd, ROT0, "IGS", "Knights of Valour 3 HD (V104)", MACHINE_IS_SKELETON )
+GAME( 2011, kov3hd103,  kov3hd, pgm3,    pgm3, pgm3_state, init_kov3hd, ROT0, "IGS", "Knights of Valour 3 HD (V103)", MACHINE_IS_SKELETON )
+GAME( 2011, kov3hd102,  kov3hd, pgm3,    pgm3, pgm3_state, init_kov3hd, ROT0, "IGS", "Knights of Valour 3 HD (V102)", MACHINE_IS_SKELETON )
+GAME( 2011, kov3hd101,  kov3hd, pgm3,    pgm3, pgm3_state, init_kov3hd, ROT0, "IGS", "Knights of Valour 3 HD (V101)", MACHINE_IS_SKELETON )

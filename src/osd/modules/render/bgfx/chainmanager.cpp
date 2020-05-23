@@ -10,7 +10,7 @@
 //============================================================
 
 #include <bx/readerwriter.h>
-#include <bx/crtimpl.h>
+#include <bx/file.h>
 
 #include "emu.h"
 #include "../frontend/mame/ui/slider.h"
@@ -49,6 +49,7 @@ chain_manager::chain_manager(running_machine& machine, osd_options& options, tex
 {
 	refresh_available_chains();
 	parse_chain_selections(options.bgfx_screen_chains());
+	init_texture_converters();
 }
 
 chain_manager::~chain_manager()
@@ -56,12 +57,24 @@ chain_manager::~chain_manager()
 	destroy_chains();
 }
 
+void chain_manager::init_texture_converters()
+{
+	m_converters.push_back(nullptr);
+	m_converters.push_back(m_effects.effect("misc/texconv_palette16"));
+	m_converters.push_back(m_effects.effect("misc/texconv_rgb32"));
+	m_converters.push_back(nullptr);
+	m_converters.push_back(m_effects.effect("misc/texconv_yuy16"));
+	m_adjuster = m_effects.effect("misc/bcg_adjust");
+}
+
 void chain_manager::refresh_available_chains()
 {
 	m_available_chains.clear();
 	m_available_chains.push_back(chain_desc("none", ""));
 
-	find_available_chains(std::string(m_options.bgfx_path()) + "/chains", "");
+	std::string chains_path;
+	osd_subst_env(chains_path, util::string_format("%s" PATH_SEPARATOR "chains", m_options.bgfx_path()));
+	find_available_chains(chains_path, "");
 
 	destroy_unloaded_chains();
 }
@@ -133,16 +146,18 @@ void chain_manager::find_available_chains(std::string root, std::string path)
 
 bgfx_chain* chain_manager::load_chain(std::string name, uint32_t screen_index)
 {
-	if (name.length() < 5 || (name.compare(name.length() - 5, 5, ".json")!= 0))
+	if (name.length() < 5 || (name.compare(name.length() - 5, 5, ".json") != 0))
 	{
 		name = name + ".json";
 	}
-	std::string path = std::string(m_options.bgfx_path()) + "/chains/" + name;
+	std::string path;
+	osd_subst_env(path, util::string_format("%s" PATH_SEPARATOR "chains" PATH_SEPARATOR, m_options.bgfx_path()));
+	path += name;
 
-	bx::CrtFileReader reader;
+	bx::FileReader reader;
 	if (!bx::open(&reader, path.c_str()))
 	{
-		printf("Unable to open chain file %s, falling back to no post processing\n", path.c_str());
+		osd_printf_warning("Unable to open chain file %s, falling back to no post processing\n", path.c_str());
 		return nullptr;
 	}
 
@@ -161,8 +176,8 @@ bgfx_chain* chain_manager::load_chain(std::string name, uint32_t screen_index)
 	if (document.HasParseError())
 	{
 		std::string error(GetParseError_En(document.GetParseError()));
-		printf("Unable to parse chain %s. Errors returned:\n", path.c_str());
-		printf("%s\n", error.c_str());
+		osd_printf_warning("Unable to parse chain %s. Errors returned:\n", path.c_str());
+		osd_printf_warning("%s\n", error.c_str());
 		return nullptr;
 	}
 
@@ -170,7 +185,7 @@ bgfx_chain* chain_manager::load_chain(std::string name, uint32_t screen_index)
 
 	if (chain == nullptr)
 	{
-		printf("Unable to load chain %s, falling back to no post processing\n", path.c_str());
+		osd_printf_warning("Unable to load chain %s, falling back to no post processing\n", path.c_str());
 		return nullptr;
 	}
 
@@ -180,6 +195,9 @@ bgfx_chain* chain_manager::load_chain(std::string name, uint32_t screen_index)
 void chain_manager::parse_chain_selections(std::string chain_str)
 {
 	std::vector<std::string> chain_names = split_option_string(chain_str);
+
+	if (chain_names.empty())
+		chain_names.push_back("default");
 
 	while (m_current_chain.size() != chain_names.size())
 	{
@@ -281,19 +299,9 @@ bgfx_chain* chain_manager::screen_chain(uint32_t screen)
 	}
 }
 
-void chain_manager::process_screen_quad(uint32_t view, uint32_t screen, render_primitive* prim, osd_window &window)
+void chain_manager::process_screen_quad(uint32_t view, uint32_t screen, screen_prim &prim, osd_window& window)
 {
-	uint16_t tex_width(prim->texture.width);
-	uint16_t tex_height(prim->texture.height);
-
-	const bgfx::Memory* mem = bgfx_util::mame_texture_data_to_bgfx_texture_data(prim->flags & PRIMFLAG_TEXFORMAT_MASK,
-		tex_width, tex_height, prim->texture.rowpixels, prim->texture.palette, prim->texture.base);
-
-	std::string full_name = "screen" + std::to_string(screen);
-	bgfx_texture *texture = new bgfx_texture(full_name, bgfx::TextureFormat::RGBA8, tex_width, tex_height, mem, BGFX_TEXTURE_U_CLAMP | BGFX_TEXTURE_V_CLAMP | BGFX_TEXTURE_MIN_POINT | BGFX_TEXTURE_MAG_POINT | BGFX_TEXTURE_MIP_POINT);
-	m_textures.add_provider(full_name, texture);
-
-	const bool any_targets_rebuilt = m_targets.update_target_sizes(screen, tex_width, tex_height, TARGET_STYLE_GUEST);
+	const bool any_targets_rebuilt = m_targets.update_target_sizes(screen, prim.m_tex_width, prim.m_tex_height, TARGET_STYLE_GUEST);
 	if (any_targets_rebuilt)
 	{
 		for (bgfx_chain* chain : m_screen_chains)
@@ -306,24 +314,26 @@ void chain_manager::process_screen_quad(uint32_t view, uint32_t screen, render_p
 	}
 
 	bgfx_chain* chain = screen_chain(screen);
-	chain->process(prim, view, screen, m_textures, window, bgfx_util::get_blend_state(PRIMFLAG_GET_BLENDMODE(prim->flags)));
+	chain->process(prim, view, screen, m_textures, window, bgfx_util::get_blend_state(PRIMFLAG_GET_BLENDMODE(prim.m_flags)));
 	view += chain->applicable_passes();
-
-	m_textures.add_provider(full_name, nullptr);
-	delete texture;
 }
 
-std::vector<render_primitive*> chain_manager::count_screens(render_primitive* prim)
+uint32_t chain_manager::count_screens(render_primitive* prim)
 {
-	std::vector<render_primitive*> screens;
-
-	int screen_count = 0;
+	uint32_t screen_count = 0;
 	while (prim != nullptr)
 	{
 		if (PRIMFLAG_GET_SCREENTEX(prim->flags))
 		{
+			if (screen_count < m_screen_prims.size())
+			{
+				m_screen_prims[screen_count] = prim;
+			}
+			else
+			{
+				m_screen_prims.push_back(prim);
+			}
 			screen_count++;
-			screens.push_back(prim);
 		}
 		prim = prim->next();
 	}
@@ -334,7 +344,12 @@ std::vector<render_primitive*> chain_manager::count_screens(render_primitive* pr
 		m_targets.update_screen_count(screen_count);
 	}
 
-	return screens;
+	if (screen_count < m_screen_prims.size())
+	{
+		m_screen_prims.resize(screen_count);
+	}
+
+	return screen_count;
 }
 
 void chain_manager::update_screen_count(uint32_t screen_count)
@@ -390,9 +405,7 @@ void chain_manager::create_selection_slider(uint32_t screen_index)
 		return;
 	}
 
-	std::string description = "Window " + std::to_string(m_window_index) + ", Screen " + std::to_string(screen_index) + " Effect:";
-	size_t size = sizeof(slider_state) + description.length();
-	slider_state *state = reinterpret_cast<slider_state *>(auto_alloc_array_clear(m_machine, uint8_t, size));
+	std::unique_ptr<slider_state> state = make_unique_clear<slider_state>();
 
 	state->minval = 0;
 	state->defval = m_current_chain[screen_index];
@@ -403,30 +416,142 @@ void chain_manager::create_selection_slider(uint32_t screen_index)
 	state->update = std::bind(&chain_manager::slider_changed, this, _1, _2, _3, _4, _5);
 	state->arg = this;
 	state->id = screen_index;
-	strcpy(state->description, description.c_str());
+	state->description = "Window " + std::to_string(m_window_index) + ", Screen " + std::to_string(screen_index) + " Effect:";
 
 	ui::menu_item item;
 	item.text = state->description;
 	item.subtext = "";
 	item.flags = 0;
-	item.ref = state;
+	item.ref = state.get();
 	item.type = ui::menu_item_type::SLIDER;
 	m_selection_sliders.push_back(item);
+	m_core_sliders.push_back(std::move(state));
 }
 
-uint32_t chain_manager::handle_screen_chains(uint32_t view, render_primitive *starting_prim, osd_window& window)
+uint32_t chain_manager::update_screen_textures(uint32_t view, render_primitive *starting_prim, osd_window& window)
 {
-	std::vector<render_primitive*> screens = count_screens(starting_prim);
-
-	if (screens.size() == 0)
-	{
+	if (!count_screens(starting_prim))
 		return 0;
+
+	for (int screen = 0; screen < m_screen_prims.size(); screen++)
+	{
+		screen_prim &prim = m_screen_prims[screen];
+		uint16_t tex_width(prim.m_tex_width);
+		uint16_t tex_height(prim.m_tex_height);
+
+		bgfx_texture* texture = screen < m_screen_textures.size() ? m_screen_textures[screen] : nullptr;
+		bgfx_texture* palette = screen < m_screen_palettes.size() ? m_screen_palettes[screen] : nullptr;
+
+		const uint32_t src_format = (prim.m_flags & PRIMFLAG_TEXFORMAT_MASK) >> PRIMFLAG_TEXFORMAT_SHIFT;
+		const bool needs_conversion = m_converters[src_format] != nullptr;
+		const bool needs_adjust = prim.m_prim->texture.palette != nullptr && src_format != TEXFORMAT_PALETTE16;
+		std::string screen_index = std::to_string(screen);
+		std::string source_name = "source" + screen_index;
+		std::string screen_name = "screen" + screen_index;
+		std::string palette_name = "palette" + screen_index;
+		std::string full_name = (needs_conversion || needs_adjust) ? source_name : screen_name;
+		if (texture && (texture->width() != tex_width || texture->height() != tex_height))
+		{
+			m_textures.add_provider(full_name, nullptr);
+			delete texture;
+			texture = nullptr;
+
+			if (palette)
+			{
+				m_textures.add_provider(palette_name, nullptr);
+				delete palette;
+				palette = nullptr;
+			}
+		}
+
+		bgfx::TextureFormat::Enum dst_format = bgfx::TextureFormat::RGBA8;
+		uint16_t pitch = tex_width;
+		const bgfx::Memory* mem = bgfx_util::mame_texture_data_to_bgfx_texture_data(dst_format, prim.m_flags & PRIMFLAG_TEXFORMAT_MASK,
+			tex_width, tex_height, prim.m_rowpixels, prim.m_prim->texture.palette, prim.m_prim->texture.base, &pitch);
+
+		if (texture == nullptr)
+		{
+			bgfx_texture *texture = new bgfx_texture(full_name, dst_format, tex_width, tex_height, mem, BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP | BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT | BGFX_SAMPLER_MIP_POINT, pitch);
+			m_textures.add_provider(full_name, texture);
+
+			if (prim.m_prim->texture.palette)
+			{
+				uint16_t palette_width = (uint16_t)std::min(prim.m_palette_length, 256U);
+				uint16_t palette_height = (uint16_t)std::max((prim.m_palette_length + 255) / 256, 1U);
+				m_palette_temp.resize(palette_width * palette_height * 4);
+				memcpy(&m_palette_temp[0], prim.m_prim->texture.palette, prim.m_palette_length * 4);
+				const bgfx::Memory *palmem = bgfx::copy(&m_palette_temp[0], palette_width * palette_height * 4);
+				palette = new bgfx_texture(palette_name, bgfx::TextureFormat::BGRA8, palette_width, palette_height, palmem, BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP | BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT | BGFX_SAMPLER_MIP_POINT, palette_width * 4);
+				m_textures.add_provider(palette_name, palette);
+			}
+
+			while (screen >= m_screen_textures.size())
+			{
+				m_screen_textures.push_back(nullptr);
+			}
+			m_screen_textures[screen] = texture;
+
+			while (screen >= m_screen_palettes.size())
+			{
+				m_screen_palettes.push_back(nullptr);
+			}
+			if (palette)
+			{
+				m_screen_palettes[screen] = palette;
+			}
+		}
+		else
+		{
+			texture->update(mem, pitch);
+
+			if (prim.m_prim->texture.palette)
+			{
+				uint16_t palette_width = (uint16_t)std::min(prim.m_palette_length, 256U);
+				uint16_t palette_height = (uint16_t)std::max((prim.m_palette_length + 255) / 256, 1U);
+				const uint32_t palette_size = palette_width * palette_height * 4;
+				m_palette_temp.resize(palette_size);
+				memcpy(&m_palette_temp[0], prim.m_prim->texture.palette, prim.m_palette_length * 4);
+				const bgfx::Memory *palmem = bgfx::copy(&m_palette_temp[0], palette_size);
+
+				if (palette)
+				{
+					palette->update(palmem);
+				}
+				else
+				{
+					palette = new bgfx_texture(palette_name, bgfx::TextureFormat::BGRA8, palette_width, palette_height, palmem, BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP | BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT | BGFX_SAMPLER_MIP_POINT, palette_width * 4);
+					m_textures.add_provider(palette_name, palette);
+					while (screen >= m_screen_palettes.size())
+					{
+						m_screen_palettes.push_back(nullptr);
+					}
+					m_screen_palettes[screen] = palette;
+				}
+			}
+		}
+
+		bgfx_chain* chain = screen_chain(screen);
+		if (chain && needs_adjust && !chain->has_adjuster())
+		{
+			chain->insert_effect(chain->has_converter() ? 1 : 0, m_adjuster, "XXadjust", needs_conversion ? "screen" : "source", *this);
+			chain->set_has_adjuster(true);
+		}
+		if (chain && needs_conversion && !chain->has_converter())
+		{
+			chain->insert_effect(0, m_converters[src_format], "XXconvert", "source", *this);
+			chain->set_has_converter(true);
+		}
 	}
 
+	return m_screen_prims.size();
+}
+
+uint32_t chain_manager::process_screen_chains(uint32_t view, osd_window& window)
+{
 	// Process each screen as necessary
 	uint32_t used_views = 0;
 	uint32_t screen_index = 0;
-	for (render_primitive* prim : screens)
+	for (screen_prim &prim : m_screen_prims)
 	{
 		if (m_current_chain[screen_index] == CHAIN_NONE || screen_chain(screen_index) == nullptr)
 		{
@@ -434,8 +559,8 @@ uint32_t chain_manager::handle_screen_chains(uint32_t view, render_primitive *st
 			continue;
 		}
 
-		uint16_t screen_width(floorf(prim->get_full_quad_width() + 0.5f));
-		uint16_t screen_height(floorf(prim->get_full_quad_height() + 0.5f));
+		uint16_t screen_width = prim.m_screen_width;
+		uint16_t screen_height = prim.m_screen_height;
 		if (window.swap_xy())
 		{
 			std::swap(screen_width, screen_height);

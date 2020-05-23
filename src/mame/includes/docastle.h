@@ -5,23 +5,28 @@
   Mr. Do's Castle hardware
 
 ***************************************************************************/
+#ifndef MAME_INCLUDES_DOCASTLE_H
+#define MAME_INCLUDES_DOCASTLE_H
+
+#pragma once
 
 #include "machine/tms1024.h"
 #include "video/mc6845.h"
 #include "sound/msm5205.h"
+#include "emupal.h"
+#include "tilemap.h"
 
 class docastle_state : public driver_device
 {
 public:
-	docastle_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	docastle_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_slave(*this, "slave"),
 		m_cpu3(*this, "cpu3"),
 		m_crtc(*this, "crtc"),
 		m_msm(*this, "msm"),
-		m_inp1(*this, "inp1"),
-		m_inp2(*this, "inp2"),
+		m_inp(*this, "inp%u", 1),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
 		m_spriteram(*this, "spriteram"),
@@ -29,14 +34,23 @@ public:
 		m_palette(*this, "palette")
 	{ }
 
+	void dorunrun(machine_config &config);
+	void idsoccer(machine_config &config);
+	void docastle(machine_config &config);
+
+protected:
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+	virtual void video_start() override;
+
+private:
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_slave;
 	required_device<cpu_device> m_cpu3;
-	required_device<h46505_device> m_crtc;
+	required_device<hd6845s_device> m_crtc;
 	optional_device<msm5205_device> m_msm;
-	required_device<tms1025_device> m_inp1;
-	required_device<tms1025_device> m_inp2;
+	required_device_array<tms1025_device, 2> m_inp;
 
 	/* memory pointers */
 	required_shared_ptr<uint8_t> m_videoram;
@@ -70,14 +84,20 @@ public:
 	DECLARE_READ8_MEMBER(idsoccer_adpcm_status_r);
 	DECLARE_WRITE8_MEMBER(idsoccer_adpcm_w);
 	TILE_GET_INFO_MEMBER(get_tile_info);
-	virtual void machine_start() override;
-	virtual void machine_reset() override;
-	virtual void video_start() override;
-	DECLARE_PALETTE_INIT(docastle);
+	void docastle_palette(palette_device &palette) const;
 	DECLARE_VIDEO_START(dorunrun);
-	uint32_t screen_update_docastle(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update_docastle(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void video_start_common( uint32_t tile_transmask );
-	void draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void draw_sprites( screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect );
 	DECLARE_WRITE_LINE_MEMBER(docastle_tint);
 	DECLARE_WRITE_LINE_MEMBER(idsoccer_adpcm_int);
+	void docastle_io_map(address_map &map);
+	void docastle_map(address_map &map);
+	void docastle_map2(address_map &map);
+	void docastle_map3(address_map &map);
+	void dorunrun_map(address_map &map);
+	void dorunrun_map2(address_map &map);
+	void idsoccer_map(address_map &map);
 };
+
+#endif // MAME_INCLUDES_DOCASTLE_H

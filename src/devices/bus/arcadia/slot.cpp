@@ -15,7 +15,7 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type EA2001_CART_SLOT = device_creator<arcadia_cart_slot_device>;
+DEFINE_DEVICE_TYPE(EA2001_CART_SLOT, arcadia_cart_slot_device, "arcadia_cart_slot", "Emerson Arcadia Cartridge Slot")
 
 //**************************************************************************
 //    ARCADIA Cartridges Interface
@@ -25,10 +25,10 @@ const device_type EA2001_CART_SLOT = device_creator<arcadia_cart_slot_device>;
 //  device_arcadia_cart_interface - constructor
 //-------------------------------------------------
 
-device_arcadia_cart_interface::device_arcadia_cart_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig, device),
-		m_rom(nullptr),
-		m_rom_size(0)
+device_arcadia_cart_interface::device_arcadia_cart_interface(const machine_config &mconfig, device_t &device) :
+	device_interface(device, "arcadiacart"),
+	m_rom(nullptr),
+	m_rom_size(0)
 {
 }
 
@@ -63,10 +63,10 @@ void device_arcadia_cart_interface::rom_alloc(uint32_t size, const char *tag)
 //  arcadia_cart_slot_device - constructor
 //-------------------------------------------------
 arcadia_cart_slot_device::arcadia_cart_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-						device_t(mconfig, EA2001_CART_SLOT, "Emerson Arcadia Cartridge Slot", tag, owner, clock, "arcadia_cart_slot", __FILE__),
-						device_image_interface(mconfig, *this),
-						device_slot_interface(mconfig, *this),
-						m_type(ARCADIA_STD), m_cart(nullptr)
+	device_t(mconfig, EA2001_CART_SLOT, tag, owner, clock),
+	device_image_interface(mconfig, *this),
+	device_single_card_slot_interface<device_arcadia_cart_interface>(mconfig, *this),
+	m_type(ARCADIA_STD), m_cart(nullptr)
 {
 }
 
@@ -85,7 +85,7 @@ arcadia_cart_slot_device::~arcadia_cart_slot_device()
 
 void arcadia_cart_slot_device::device_start()
 {
-	m_cart = dynamic_cast<device_arcadia_cart_interface *>(get_card_device());
+	m_cart = get_card_device();
 }
 
 
@@ -206,7 +206,7 @@ image_init_result arcadia_cart_slot_device::call_load()
  get default card software
  -------------------------------------------------*/
 
-std::string arcadia_cart_slot_device::get_default_card_software()
+std::string arcadia_cart_slot_device::get_default_card_software(get_default_card_software_hook &hook) const
 {
 	return software_get_default_slot("std");
 }
@@ -215,10 +215,10 @@ std::string arcadia_cart_slot_device::get_default_card_software()
  read
  -------------------------------------------------*/
 
-READ8_MEMBER(arcadia_cart_slot_device::read_rom)
+uint8_t arcadia_cart_slot_device::read_rom(offs_t offset)
 {
 	if (m_cart)
-		return m_cart->read_rom(space, offset);
+		return m_cart->read_rom(offset);
 	else
 		return 0xff;
 }
@@ -227,10 +227,10 @@ READ8_MEMBER(arcadia_cart_slot_device::read_rom)
  write
  -------------------------------------------------*/
 
-READ8_MEMBER(arcadia_cart_slot_device::extra_rom)
+uint8_t arcadia_cart_slot_device::extra_rom(offs_t offset)
 {
 	if (m_cart)
-		return m_cart->extra_rom(space, offset);
+		return m_cart->extra_rom(offset);
 	else
 		return 0xff;
 }

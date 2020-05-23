@@ -30,11 +30,11 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type NES_HES = device_creator<nes_hes_device>;
+DEFINE_DEVICE_TYPE(NES_HES, nes_hes_device, "nes_hes", "NES Cart HES PCB")
 
 
 nes_hes_device::nes_hes_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_HES, "NES Cart HES PCB", tag, owner, clock, "nes_hes", __FILE__)
+	: nes_nrom_device(mconfig, NES_HES, tag, owner, clock)
 {
 }
 
@@ -73,7 +73,7 @@ void nes_hes_device::pcb_reset()
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_hes_device::write_l)
+void nes_hes_device::write_l(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("hes write_l, offset: %04x, data: %02x\n", offset, data));
 

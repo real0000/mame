@@ -24,7 +24,7 @@ void mbee_state::device_timer(emu_timer &timer, device_timer_id id, int param, v
 		timer_newkb(ptr, param);
 		break;
 	default:
-		assert_always(false, "Unknown id in mbee_state::device_timer");
+		throw emu_fatalerror("Unknown id in mbee_state::device_timer");
 	}
 }
 
@@ -40,7 +40,7 @@ WRITE_LINE_MEMBER( mbee_state::pio_ardy )
 	m_centronics->write_strobe((state) ? 0 : 1);
 }
 
-WRITE8_MEMBER( mbee_state::pio_port_b_w )
+void mbee_state::pio_port_b_w(uint8_t data)
 {
 /*  PIO port B - d5..d2 not emulated
     d7 interrupt from network or rtc or vsync or not used (see config switch)
@@ -56,7 +56,7 @@ WRITE8_MEMBER( mbee_state::pio_port_b_w )
 	m_speaker->level_w(BIT(data, 6));
 }
 
-READ8_MEMBER( mbee_state::pio_port_b_r )
+uint8_t mbee_state::pio_port_b_r()
 {
 	uint8_t data = 0;
 
@@ -101,7 +101,7 @@ WRITE_LINE_MEMBER( mbee_state::fdc_drq_w )
 	m_fdc_rq = (m_fdc_rq & 1) | (state << 1);
 }
 
-READ8_MEMBER( mbee_state::fdc_status_r )
+uint8_t mbee_state::fdc_status_r()
 {
 /*  d7 indicate if IRQ or DRQ is occurring (1=happening)
     d6..d0 not used */
@@ -109,7 +109,7 @@ READ8_MEMBER( mbee_state::fdc_status_r )
 	return m_fdc_rq ? 0xff : 0x7f;
 }
 
-WRITE8_MEMBER( mbee_state::fdc_motor_w )
+void mbee_state::fdc_motor_w(uint8_t data)
 {
 /*  d7..d4 not used
     d3 density (1=MFM)
@@ -185,12 +185,12 @@ TIMER_CALLBACK_MEMBER( mbee_state::timer_newkb )
 		m_b2 = 1; // set irq
 
 	if (m_b2)
-		m_pio->port_b_write(pio_port_b_r(generic_space(),0,0xff));
+		m_pio->port_b_write(pio_port_b_r());
 
 	timer_set(attotime::from_hz(50), TIMER_MBEE_NEWKB);
 }
 
-READ8_MEMBER( mbee_state::port18_r )
+uint8_t mbee_state::port18_r()
 {
 	uint8_t i, data = m_mbee256_q[0]; // get oldest key
 
@@ -211,13 +211,13 @@ READ8_MEMBER( mbee_state::port18_r )
 
 ************************************************************/
 
-READ8_MEMBER( mbee_state::speed_low_r )
+uint8_t mbee_state::speed_low_r()
 {
 	m_maincpu->set_unscaled_clock(3375000);
 	return 0xff;
 }
 
-READ8_MEMBER( mbee_state::speed_high_r )
+uint8_t mbee_state::speed_high_r()
 {
 	m_maincpu->set_unscaled_clock(6750000);
 	return 0xff;
@@ -231,19 +231,19 @@ READ8_MEMBER( mbee_state::speed_high_r )
 
 ************************************************************/
 
-WRITE8_MEMBER( mbee_state::port04_w )  // address
+void mbee_state::port04_w(uint8_t data)  // address
 {
-	m_rtc->write(space, 0, data);
+	m_rtc->write(0, data);
 }
 
-WRITE8_MEMBER( mbee_state::port06_w )  // write
+void mbee_state::port06_w(uint8_t data)  // write
 {
-	m_rtc->write(space, 1, data);
+	m_rtc->write(1, data);
 }
 
-READ8_MEMBER( mbee_state::port07_r )   // read
+uint8_t mbee_state::port07_r()   // read
 {
-	return m_rtc->read(space, 1);
+	return m_rtc->read(1);
 }
 
 // See it work: Run mbeett, choose RTC in the config switches, run the F3 test, press Esc.
@@ -252,7 +252,7 @@ WRITE_LINE_MEMBER( mbee_state::rtc_irq_w )
 	m_b7_rtc = (state) ? 0 : 1; // inverted by IC15 (pins 8,9,10)
 
 	if ((m_io_config->read() & 0xc0) == 0x40) // RTC selected in config menu
-		m_pio->port_b_write(pio_port_b_r(generic_space(),0,0xff));
+		m_pio->port_b_write(pio_port_b_r());
 }
 
 
@@ -279,7 +279,7 @@ void mbee_state::setup_banks(uint8_t data, bool first_time, uint8_t b_mask)
 	data &= 0x3f; // (bits 0-5 are referred to as S0-S5)
 	address_space &mem = m_maincpu->space(AS_PROGRAM);
 	uint8_t *prom = memregion("pals")->base();
-	uint8_t b_data = BITSWAP8(data, 7,5,3,2,4,6,1,0) & 0x3b; // arrange data bits to S0,S1,-,S4,S2,S3
+	uint8_t b_data = bitswap<8>(data, 7,5,3,2,4,6,1,0) & 0x3b; // arrange data bits to S0,S1,-,S4,S2,S3
 	uint8_t b_bank, b_byte, b_byte_t, b_addr, p_bank = 1;
 	uint16_t b_vid;
 	char banktag[10];
@@ -291,11 +291,11 @@ void mbee_state::setup_banks(uint8_t data, bool first_time, uint8_t b_mask)
 		for (b_bank = 0; b_bank < 16; b_bank++)
 		{
 			b_vid = b_bank << 12;
-			b_addr = BITSWAP8(b_bank, 7,4,5,3,1,2,6,0) & 0x1f; // arrange address bits to A12,-,A14,A13,A15
+			b_addr = bitswap<8>(b_bank, 7,4,5,3,1,2,6,0) & 0x1f; // arrange address bits to A12,-,A14,A13,A15
 
 			// Calculate read-bank
 			b_byte_t = prom[b_addr | (b_data << 8) | 0x82]; // read-bank (RDS and MREQ are low, RFSH is high)
-			b_byte = BITSWAP8(b_byte_t, 7,5,0,3,6,2,1,4); // rearrange so that bits 0-2 are rambank, bit 3 = rom select, bit 4 = video select, others not used
+			b_byte = bitswap<8>(b_byte_t, 7,5,0,3,6,2,1,4); // rearrange so that bits 0-2 are rambank, bit 3 = rom select, bit 4 = video select, others not used
 
 			if (first_time || (b_byte != m_bank_array[p_bank]))
 			{
@@ -309,8 +309,8 @@ void mbee_state::setup_banks(uint8_t data, bool first_time, uint8_t b_mask)
 				if (!BIT(b_byte, 4))
 				{
 					// select video
-					mem.install_read_handler (b_vid, b_vid + 0x7ff, read8_delegate(FUNC(mbee_state::video_low_r), this));
-					mem.install_read_handler (b_vid + 0x800, b_vid + 0xfff, read8_delegate(FUNC(mbee_state::video_high_r), this));
+					mem.install_read_handler (b_vid, b_vid + 0x7ff, read8sm_delegate(*this, FUNC(mbee_state::video_low_r)));
+					mem.install_read_handler (b_vid + 0x800, b_vid + 0xfff, read8sm_delegate(*this, FUNC(mbee_state::video_high_r)));
 				}
 				else
 				{
@@ -327,7 +327,7 @@ void mbee_state::setup_banks(uint8_t data, bool first_time, uint8_t b_mask)
 
 			// Calculate write-bank
 			b_byte_t = prom[b_addr | (b_data << 8) | 0xc0]; // write-bank (XWR and MREQ are low, RFSH is high)
-			b_byte = BITSWAP8(b_byte_t, 7,5,0,3,6,2,1,4); // rearrange so that bits 0-2 are rambank, bit 3 = rom select, bit 4 = video select, others not used
+			b_byte = bitswap<8>(b_byte_t, 7,5,0,3,6,2,1,4); // rearrange so that bits 0-2 are rambank, bit 3 = rom select, bit 4 = video select, others not used
 
 			if (first_time || (b_byte != m_bank_array[p_bank]))
 			{
@@ -341,8 +341,8 @@ void mbee_state::setup_banks(uint8_t data, bool first_time, uint8_t b_mask)
 				if (!BIT(b_byte, 4))
 				{
 					// select video
-					mem.install_write_handler (b_vid, b_vid + 0x7ff, write8_delegate(FUNC(mbee_state::video_low_w), this));
-					mem.install_write_handler (b_vid + 0x800, b_vid + 0xfff, write8_delegate(FUNC(mbee_state::video_high_w), this));
+					mem.install_write_handler (b_vid, b_vid + 0x7ff, write8sm_delegate(*this, FUNC(mbee_state::video_low_w)));
+					mem.install_write_handler (b_vid + 0x800, b_vid + 0xfff, write8sm_delegate(*this, FUNC(mbee_state::video_high_w)));
 				}
 				else
 				{
@@ -360,7 +360,7 @@ void mbee_state::setup_banks(uint8_t data, bool first_time, uint8_t b_mask)
 	}
 }
 
-WRITE8_MEMBER( mbee_state::mbee256_50_w )
+void mbee_state::mbee256_50_w(uint8_t data)
 {
 	setup_banks(data, 0, 7);
 }
@@ -378,7 +378,7 @@ WRITE8_MEMBER( mbee_state::mbee256_50_w )
 
 ************************************************************/
 
-WRITE8_MEMBER( mbee_state::mbee128_50_w )
+void mbee_state::mbee128_50_w(uint8_t data)
 {
 	setup_banks(data, 0, 3);
 }
@@ -399,7 +399,7 @@ WRITE8_MEMBER( mbee_state::mbee128_50_w )
 
 ************************************************************/
 
-WRITE8_MEMBER( mbee_state::port0a_w )
+void mbee_state::port0a_w(uint8_t data)
 {
 	m_0a = data;
 
@@ -407,7 +407,7 @@ WRITE8_MEMBER( mbee_state::port0a_w )
 		m_pak->set_entry(data & 15);
 }
 
-READ8_MEMBER( mbee_state::telcom_low_r )
+uint8_t mbee_state::telcom_low_r()
 {
 /* Read of port 0A - set Telcom rom to first half */
 	if (m_telcom)
@@ -416,7 +416,7 @@ READ8_MEMBER( mbee_state::telcom_low_r )
 	return m_0a;
 }
 
-READ8_MEMBER( mbee_state::telcom_high_r )
+uint8_t mbee_state::telcom_high_r()
 {
 /* Read of port 10A - set Telcom rom to 2nd half */
 	if (m_telcom)
@@ -487,13 +487,13 @@ MACHINE_RESET_MEMBER( mbee_state, mbeett )
 	m_maincpu->set_pc(0x8000);
 }
 
-DRIVER_INIT_MEMBER( mbee_state, mbee )
+void mbee_state::init_mbee()
 {
 	m_size = 0x8000;
 	m_has_oldkb = 1;
 }
 
-DRIVER_INIT_MEMBER( mbee_state, mbeeic )
+void mbee_state::init_mbeeic()
 {
 	uint8_t *RAM = memregion("pakrom")->base();
 	m_pak->configure_entries(0, 16, &RAM[0x0000], 0x2000);
@@ -503,7 +503,7 @@ DRIVER_INIT_MEMBER( mbee_state, mbeeic )
 	m_has_oldkb = 1;
 }
 
-DRIVER_INIT_MEMBER( mbee_state, mbeepc )
+void mbee_state::init_mbeepc()
 {
 	uint8_t *RAM = memregion("telcomrom")->base();
 	m_telcom->configure_entries(0, 2, &RAM[0x0000], 0x1000);
@@ -516,7 +516,7 @@ DRIVER_INIT_MEMBER( mbee_state, mbeepc )
 	m_has_oldkb = 1;
 }
 
-DRIVER_INIT_MEMBER( mbee_state, mbeepc85 )
+void mbee_state::init_mbeepc85()
 {
 	uint8_t *RAM = memregion("telcomrom")->base();
 	m_telcom->configure_entries(0, 2, &RAM[0x0000], 0x1000);
@@ -529,7 +529,7 @@ DRIVER_INIT_MEMBER( mbee_state, mbeepc85 )
 	m_has_oldkb = 1;
 }
 
-DRIVER_INIT_MEMBER( mbee_state, mbeeppc )
+void mbee_state::init_mbeeppc()
 {
 	uint8_t *RAM = memregion("basicrom")->base();
 	m_basic->configure_entries(0, 2, &RAM[0x0000], 0x2000);
@@ -545,7 +545,7 @@ DRIVER_INIT_MEMBER( mbee_state, mbeeppc )
 	m_has_oldkb = 1;
 }
 
-DRIVER_INIT_MEMBER( mbee_state, mbee56 )
+void mbee_state::init_mbee56()
 {
 	m_size = 0xe000;
 	m_has_oldkb = 1;
@@ -553,7 +553,7 @@ DRIVER_INIT_MEMBER( mbee_state, mbee56 )
 
 // 128k uses 32 RAM banks.
 // PP has 1024k which is 256 banks, but having 64 banks stops it crashing during the self-test. Need a schematic before we can fix it.
-DRIVER_INIT_MEMBER( mbee_state, mbee128 )
+void mbee_state::init_mbee128()
 {
 	uint8_t *RAM = memregion("rams")->base();
 	uint8_t *ROM = memregion("roms")->base();
@@ -574,7 +574,7 @@ DRIVER_INIT_MEMBER( mbee_state, mbee128 )
 	m_has_oldkb = 1;
 }
 
-DRIVER_INIT_MEMBER( mbee_state, mbee256 )
+void mbee_state::init_mbee256()
 {
 	uint8_t *RAM = memregion("rams")->base();
 	uint8_t *ROM = memregion("roms")->base();
@@ -597,7 +597,7 @@ DRIVER_INIT_MEMBER( mbee_state, mbee256 )
 	m_has_oldkb = 0;
 }
 
-DRIVER_INIT_MEMBER( mbee_state, mbeett )
+void mbee_state::init_mbeett()
 {
 	uint8_t *RAM = memregion("telcomrom")->base();
 	m_telcom->configure_entries(0, 2, &RAM[0x0000], 0x1000);
@@ -622,7 +622,7 @@ DRIVER_INIT_MEMBER( mbee_state, mbeett )
 
 ************************************************************/
 
-QUICKLOAD_LOAD_MEMBER( mbee_state, mbee )
+QUICKLOAD_LOAD_MEMBER(mbee_state::quickload_bee)
 {
 	address_space &space = m_maincpu->space(AS_PROGRAM);
 	uint16_t i, j;
@@ -712,10 +712,10 @@ QUICKLOAD_LOAD_MEMBER( mbee_state, mbee )
 
 
 /*-------------------------------------------------
-    QUICKLOAD_LOAD_MEMBER( mbee_state, mbee_z80bin )
+    QUICKLOAD_LOAD_MEMBER( mbee_state::quickload_bin )
 -------------------------------------------------*/
 
-QUICKLOAD_LOAD_MEMBER( mbee_state, mbee_z80bin )
+QUICKLOAD_LOAD_MEMBER(mbee_state::quickload_bin)
 {
 	uint16_t execute_address, start_addr, end_addr;
 	int autorun;

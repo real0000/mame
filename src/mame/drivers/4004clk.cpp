@@ -9,101 +9,108 @@
 ****************************************************************************/
 
 #include "emu.h"
-#include "cpu/i4004/i4004.h"
+#include "cpu/mcs40/mcs40.h"
+#include "machine/clock.h"
 #include "sound/dac.h"
 #include "sound/volt_reg.h"
 #include "speaker.h"
 
 #include "4004clk.lh"
 
+
 class nixieclock_state : public driver_device
 {
 public:
 	nixieclock_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu"),
-		m_input(*this, "INPUT")
+		: driver_device(mconfig, type, tag)
+		, m_nixie_out(*this, "nixie%u", 0U)
+		, m_neon_out(*this, "neon%u", 0U)
 	{ }
 
-	required_device<i4004_cpu_device> m_maincpu;
-	required_ioport m_input;
-	DECLARE_READ8_MEMBER( data_r );
-	DECLARE_WRITE8_MEMBER( nixie_w );
-	DECLARE_WRITE8_MEMBER( neon_w );
-	uint16_t m_nixie[16];
-	uint8_t m_timer;
+	void _4004clk(machine_config &config);
+
+protected:
 	virtual void machine_start() override;
-	TIMER_DEVICE_CALLBACK_MEMBER(timer_callback);
-	uint8_t nixie_to_num(uint16_t val);
-	inline void output_set_nixie_value(int index, int value);
-	inline void output_set_neon_value(int index, int value);
+
+private:
+	void nixie_w(offs_t offset, uint8_t data);
+	void neon_w(uint8_t data);
+
+	void _4004clk_mem(address_map &map);
+	void _4004clk_mp(address_map &map);
+	void _4004clk_rom(address_map &map);
+	void _4004clk_rp(address_map &map);
+	void _4004clk_stat(address_map &map);
+
+	static constexpr uint8_t nixie_to_num(uint16_t val)
+	{
+		return
+				(BIT(val, 0)) ? 0 :
+				(BIT(val, 1)) ? 1 :
+				(BIT(val, 2)) ? 2 :
+				(BIT(val, 3)) ? 3 :
+				(BIT(val, 4)) ? 4 :
+				(BIT(val, 5)) ? 5 :
+				(BIT(val, 6)) ? 6 :
+				(BIT(val, 7)) ? 7 :
+				(BIT(val, 8)) ? 8 :
+				(BIT(val, 9)) ? 9 :
+				10;
+	}
+
+	uint16_t m_nixie[16];
+	output_finder<6> m_nixie_out;
+	output_finder<4> m_neon_out;
 };
 
-READ8_MEMBER(nixieclock_state::data_r)
+void nixieclock_state::nixie_w(offs_t offset, uint8_t data)
 {
-	return m_input->read() & 0x0f;
+	m_nixie[offset >> 4] = data;
+	m_nixie_out[5] = nixie_to_num(((m_nixie[2] & 3)<<8) | (m_nixie[1] << 4) | m_nixie[0]);
+	m_nixie_out[4] = nixie_to_num((m_nixie[4] << 6) | (m_nixie[3] << 2) | (m_nixie[2] >>2));
+	m_nixie_out[3] = nixie_to_num(((m_nixie[7] & 3)<<8) | (m_nixie[6] << 4) | m_nixie[5]);
+	m_nixie_out[2] = nixie_to_num((m_nixie[9] << 6) | (m_nixie[8] << 2) | (m_nixie[7] >>2));
+	m_nixie_out[1] = nixie_to_num(((m_nixie[12] & 3)<<8) | (m_nixie[11] << 4) | m_nixie[10]);
+	m_nixie_out[0] = nixie_to_num((m_nixie[14] << 6) | (m_nixie[13] << 2) | (m_nixie[12] >>2));
 }
 
-uint8_t nixieclock_state::nixie_to_num(uint16_t val)
+void nixieclock_state::neon_w(uint8_t data)
 {
-	if (BIT(val,0)) return 0;
-	if (BIT(val,1)) return 1;
-	if (BIT(val,2)) return 2;
-	if (BIT(val,3)) return 3;
-	if (BIT(val,4)) return 4;
-	if (BIT(val,5)) return 5;
-	if (BIT(val,6)) return 6;
-	if (BIT(val,7)) return 7;
-	if (BIT(val,8)) return 8;
-	if (BIT(val,9)) return 9;
-	return 10;
+	m_neon_out[0] = BIT(data,3);
+	m_neon_out[1] = BIT(data,2);
+	m_neon_out[2] = BIT(data,1);
+	m_neon_out[3] = BIT(data,0);
 }
 
-inline void nixieclock_state::output_set_nixie_value(int index, int value)
+void nixieclock_state::_4004clk_rom(address_map &map)
 {
-	output().set_indexed_value("nixie", index, value);
+	map(0x0000, 0x0fff).rom().region("maincpu", 0);
 }
 
-inline void nixieclock_state::output_set_neon_value(int index, int value)
+void nixieclock_state::_4004clk_mem(address_map &map)
 {
-	output().set_indexed_value("neon", index, value);
+	map.unmap_value_high();
+	map(0x0000, 0x007f).ram();
 }
 
-WRITE8_MEMBER(nixieclock_state::nixie_w)
+void nixieclock_state::_4004clk_stat(address_map &map)
 {
-	m_nixie[offset] = data;
-	output_set_nixie_value(5,nixie_to_num(((m_nixie[2] & 3)<<8) | (m_nixie[1] << 4) | m_nixie[0]));
-	output_set_nixie_value(4,nixie_to_num((m_nixie[4] << 6) | (m_nixie[3] << 2) | (m_nixie[2] >>2)));
-	output_set_nixie_value(3,nixie_to_num(((m_nixie[7] & 3)<<8) | (m_nixie[6] << 4) | m_nixie[5]));
-	output_set_nixie_value(2,nixie_to_num((m_nixie[9] << 6) | (m_nixie[8] << 2) | (m_nixie[7] >>2)));
-	output_set_nixie_value(1,nixie_to_num(((m_nixie[12] & 3)<<8) | (m_nixie[11] << 4) | m_nixie[10]));
-	output_set_nixie_value(0,nixie_to_num((m_nixie[14] << 6) | (m_nixie[13] << 2) | (m_nixie[12] >>2)));
+	map.unmap_value_high();
+	map(0x0000, 0x001f).ram();
 }
 
-WRITE8_MEMBER(nixieclock_state::neon_w)
+void nixieclock_state::_4004clk_rp(address_map &map)
 {
-	output_set_neon_value(0,BIT(data,3));
-	output_set_neon_value(1,BIT(data,2));
-	output_set_neon_value(2,BIT(data,1));
-	output_set_neon_value(3,BIT(data,0));
+	map.unmap_value_high();
+	map(0x0000, 0x000f).mirror(0x0700).portr("INPUT");
+	map(0x0000, 0x00ef).mirror(0x0700).w(FUNC(nixieclock_state::nixie_w));
+	map(0x00f0, 0x00ff).mirror(0x0700).w(FUNC(nixieclock_state::neon_w));
 }
 
-static ADDRESS_MAP_START(4004clk_rom, AS_PROGRAM, 8, nixieclock_state)
-	AM_RANGE(0x0000, 0x0FFF) AM_ROM
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START(4004clk_mem, AS_DATA, 8, nixieclock_state)
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x0000, 0x007F) AM_RAM
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( 4004clk_io, AS_IO, 8, nixieclock_state)
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x00, 0x0e) AM_WRITE(nixie_w)
-	AM_RANGE(0x00, 0x00) AM_READ(data_r)
-	AM_RANGE(0x0f, 0x0f) AM_WRITE(neon_w)
-	AM_RANGE(0x10, 0x10) AM_DEVWRITE("dac", dac_bit_interface, write)
-ADDRESS_MAP_END
+void nixieclock_state::_4004clk_mp(address_map &map)
+{
+	map(0x00, 0x00).w("dac", FUNC(dac_bit_interface::data_w));
+}
 
 /* Input ports */
 static INPUT_PORTS_START( 4004clk )
@@ -119,48 +126,37 @@ static INPUT_PORTS_START( 4004clk )
 	PORT_CONFSETTING( 0x08, "60 Hz" )
 INPUT_PORTS_END
 
-/*
-        16ms Int generator
-          __  __
-        _| |_|
-        0 1 0 1
-
-*/
-
-TIMER_DEVICE_CALLBACK_MEMBER(nixieclock_state::timer_callback)
-{
-	m_maincpu->set_test(m_timer);
-	m_timer^=1;
-}
-
 void nixieclock_state::machine_start()
 {
-	m_timer = 0;
+	m_nixie_out.resolve();
+	m_neon_out.resolve();
 
 	/* register for state saving */
-	save_item(NAME(m_timer));
 	save_pointer(NAME(m_nixie), 6);
 }
 
-static MACHINE_CONFIG_START( 4004clk, nixieclock_state )
-
+void nixieclock_state::_4004clk(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu",I4004, XTAL_5MHz / 8)
-	MCFG_CPU_PROGRAM_MAP(4004clk_rom)
-	MCFG_CPU_DATA_MAP(4004clk_mem)
-	MCFG_CPU_IO_MAP(4004clk_io)
+	i4004_cpu_device &cpu(I4004(config, "maincpu", 5_MHz_XTAL / 8));
+	cpu.set_rom_map(&nixieclock_state::_4004clk_rom);
+	cpu.set_ram_memory_map(&nixieclock_state::_4004clk_mem);
+	cpu.set_rom_ports_map(&nixieclock_state::_4004clk_rp);
+	cpu.set_ram_status_map(&nixieclock_state::_4004clk_stat);
+	cpu.set_ram_ports_map(&nixieclock_state::_4004clk_mp);
 
 	/* video hardware */
-	MCFG_DEFAULT_LAYOUT(layout_4004clk)
+	config.set_default_layout(layout_4004clk);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("speaker")
-	MCFG_SOUND_ADD("dac", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25)
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT)
+	SPEAKER(config, "speaker").front_center();
+	DAC_1BIT(config, "dac", 0).add_route(ALL_OUTPUTS, "speaker", 0.25);
+	voltage_regulator_device &vref(VOLTAGE_REGULATOR(config, "vref", 0));
+	vref.add_route(0, "dac", 1.0, DAC_VREF_POS_INPUT);
 
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("4004clk_timer", nixieclock_state, timer_callback, attotime::from_hz(120))
-MACHINE_CONFIG_END
+	clock_device &clk(CLOCK(config, "clk", 60));
+	clk.signal_handler().set_inputline("maincpu", I4004_TEST_LINE);
+}
 
 /* ROM definition */
 ROM_START( 4004clk )
@@ -185,5 +181,5 @@ ROM_END
 
 /* Driver */
 
-/*    YEAR  NAME      PARENT  COMPAT   MACHINE    INPUT    INIT              COMPANY             FULLNAME            FLAGS */
-SYST( 2008, 4004clk,  0,      0,       4004clk,   4004clk, driver_device, 0, "John L. Weinrich", "4004 Nixie Clock", MACHINE_SUPPORTS_SAVE )
+//    YEAR  NAME     PARENT  COMPAT  MACHINE   INPUT    CLASS             INIT        COMPANY             FULLNAME            FLAGS
+SYST( 2008, 4004clk, 0,      0,      _4004clk, 4004clk, nixieclock_state, empty_init, "John L. Weinrich", "4004 Nixie Clock", MACHINE_SUPPORTS_SAVE )

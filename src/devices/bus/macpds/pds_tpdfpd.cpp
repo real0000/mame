@@ -41,14 +41,6 @@
 
 #define VRAM_SIZE   (256*1024)  // PCB has a jumper for 1MByte; may require different EPROMs
 
-MACHINE_CONFIG_FRAGMENT( sedisplay )
-	MCFG_SCREEN_ADD( SEDISPLAY_SCREEN_NAME, RASTER)
-	MCFG_SCREEN_UPDATE_DEVICE(DEVICE_SELF, macpds_sedisplay_device, screen_update)
-	MCFG_SCREEN_SIZE(1280, 960)
-	MCFG_SCREEN_REFRESH_RATE(70)
-	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 870-1)
-MACHINE_CONFIG_END
-
 ROM_START( sedisplay )
 	ROM_REGION(0x10000, SEDISPLAY_ROM_REGION, ROMREGION_16BIT|ROMREGION_BE)
 	ROM_LOAD16_BYTE( "tfd_fpd-asic_u6_297-0205-a_v4_1", 0x0000, 0x8000, CRC(fd363f45) SHA1(3c4c596654647ee6ce1880de329aa675d298dc26) )
@@ -59,17 +51,18 @@ ROM_END
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type PDS_SEDISPLAY = device_creator<macpds_sedisplay_device>;
+DEFINE_DEVICE_TYPE(PDS_SEDISPLAY, macpds_sedisplay_device, "pds_sefp", "Radius SE Full Page Display")
 
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor macpds_sedisplay_device::device_mconfig_additions() const
+void macpds_sedisplay_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( sedisplay );
+	screen_device &screen(SCREEN(config, SEDISPLAY_SCREEN_NAME, SCREEN_TYPE_RASTER));
+	screen.set_screen_update(FUNC(macpds_sedisplay_device::screen_update));
+	screen.set_raw(55_MHz_XTAL, 800, 0, 640, 1024, 0, 870);
 }
 
 //-------------------------------------------------
@@ -90,21 +83,17 @@ const tiny_rom_entry *macpds_sedisplay_device::device_rom_region() const
 //-------------------------------------------------
 
 macpds_sedisplay_device::macpds_sedisplay_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-		device_t(mconfig, PDS_SEDISPLAY, "Radius SE Full Page Display", tag, owner, clock, "pds_sefp", __FILE__),
-		device_video_interface(mconfig, *this),
-		device_macpds_card_interface(mconfig, *this), m_vram(nullptr), m_vbl_disable(0), m_count(0), m_clutoffs(0), m_timer(nullptr)
+	macpds_sedisplay_device(mconfig, PDS_SEDISPLAY, tag, owner, clock)
 {
-	m_assembled_tag = std::string(tag).append(":").append(SEDISPLAY_SCREEN_NAME);
-	m_screen_tag = m_assembled_tag.c_str();
 }
 
-macpds_sedisplay_device::macpds_sedisplay_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-		device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-		device_video_interface(mconfig, *this),
-		device_macpds_card_interface(mconfig, *this), m_vram(nullptr), m_vbl_disable(0), m_count(0), m_clutoffs(0), m_timer(nullptr)
+macpds_sedisplay_device::macpds_sedisplay_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, type, tag, owner, clock),
+	device_video_interface(mconfig, *this),
+	device_macpds_card_interface(mconfig, *this),
+	m_vram(nullptr), m_vbl_disable(0), m_count(0), m_clutoffs(0), m_timer(nullptr)
 {
-	m_assembled_tag = std::string(tag).append(":").append(SEDISPLAY_SCREEN_NAME);
-	m_screen_tag = m_assembled_tag.c_str();
+	set_screen(*this, SEDISPLAY_SCREEN_NAME);
 }
 
 //-------------------------------------------------
@@ -123,11 +112,11 @@ void macpds_sedisplay_device::device_start()
 	static const char bankname[] = { "radpds_ram" };
 	m_macpds->install_bank(0xc40000, 0xc40000+VRAM_SIZE-1, bankname, m_vram.get());
 
-	m_macpds->install_device(0x770000, 0x77000f, read16_delegate(FUNC(macpds_sedisplay_device::ramdac_r), this), write16_delegate(FUNC(macpds_sedisplay_device::ramdac_w), this));
-	m_macpds->install_device(0xc10000, 0xc2ffff, read16_delegate(FUNC(macpds_sedisplay_device::sedisplay_r), this), write16_delegate(FUNC(macpds_sedisplay_device::sedisplay_w), this));
+	m_macpds->install_device(0x770000, 0x77000f, read16_delegate(*this, FUNC(macpds_sedisplay_device::ramdac_r)), write16_delegate(*this, FUNC(macpds_sedisplay_device::ramdac_w)));
+	m_macpds->install_device(0xc10000, 0xc2ffff, read16_delegate(*this, FUNC(macpds_sedisplay_device::sedisplay_r)), write16_delegate(*this, FUNC(macpds_sedisplay_device::sedisplay_w)));
 
 	m_timer = timer_alloc(0, nullptr);
-	m_timer->adjust(m_screen->time_until_pos(879, 0), 0);
+	m_timer->adjust(screen().time_until_pos(879, 0), 0);
 }
 
 //-------------------------------------------------
@@ -154,7 +143,7 @@ void macpds_sedisplay_device::device_timer(emu_timer &timer, device_timer_id tid
 		m_macpds->set_irq_line(M68K_IRQ_2, ASSERT_LINE);
 	}
 
-	m_timer->adjust(m_screen->time_until_pos(879, 0), 0);
+	m_timer->adjust(screen().time_until_pos(879, 0), 0);
 }
 
 /***************************************************************************

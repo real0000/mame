@@ -16,434 +16,183 @@
 
 #include "cpu/m6805/m6805.h"
 #include "cpu/z80/z80.h"
-#include "sound/ay8910.h"
 #include "sound/dac.h"
 #include "sound/volt_reg.h"
 #include "screen.h"
 #include "speaker.h"
 
 
-READ8_MEMBER(flstory_state::from_snd_r)
-{
-	m_snd_flag = 0;
-	return m_snd_data;
-}
-
 READ8_MEMBER(flstory_state::snd_flag_r)
 {
-	return m_snd_flag | 0xfd;
+	return (m_soundlatch->pending_r() ? 0 : 1) | (m_soundlatch2->pending_r() ? 2 : 0);
 }
 
-WRITE8_MEMBER(flstory_state::to_main_w)
+WRITE8_MEMBER(flstory_state::snd_reset_w)
 {
-	m_snd_data = data;
-	m_snd_flag = 2;
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, (data & 1 ) ? ASSERT_LINE : CLEAR_LINE);
 }
 
-TIMER_CALLBACK_MEMBER(flstory_state::nmi_callback)
+READ8_MEMBER(flstory_state::flstory_mcu_status_r)
 {
-	if (m_sound_nmi_enable)
-		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
-	else
-		m_pending_nmi = 1;
+	// bit 0 = when 1, MCU is ready to receive data from main CPU
+	// bit 1 = when 1, MCU has sent data to the main CPU
+	return
+		((CLEAR_LINE == m_bmcu->host_semaphore_r()) ? 0x01 : 0x00) |
+		((CLEAR_LINE != m_bmcu->mcu_semaphore_r()) ? 0x02 : 0x00);
 }
 
-WRITE8_MEMBER(flstory_state::sound_command_w)
+
+READ8_MEMBER(flstory_state::victnine_mcu_status_r)
 {
-	m_soundlatch->write(space, 0, data);
-	machine().scheduler().synchronize(timer_expired_delegate(FUNC(flstory_state::nmi_callback),this), data);
+	uint8_t ret = flstory_mcu_status_r(space, offset) & 0x03;
+	ret |= m_extraio1->read() & 0xfc;
+	return ret;
 }
 
-
-WRITE8_MEMBER(flstory_state::nmi_disable_w)
+void flstory_state::base_map(address_map &map)
 {
-	m_sound_nmi_enable = 0;
+	map(0x0000, 0xbfff).rom();
+
+	// rumba lumber reads area 0xc800-0xcfff
+	// onna34ro checks the whole range during POST but having a mirror or not doesn't make any difference for the check to pass
+	map(0xc000, 0xc7ff).mirror(0x800).ram().w(FUNC(flstory_state::flstory_videoram_w)).share("videoram");
+
+	map(0xd001, 0xd001).nopw();    /* watchdog */
+	map(0xd002, 0xd002).noprw();         /* unknown read & coin lock out? */
+
+	map(0xd400, 0xd400).r(m_soundlatch2, FUNC(generic_latch_8_device::read));
+	map(0xd400, 0xd400).w(m_soundlatch, FUNC(generic_latch_8_device::write));
+	map(0xd403, 0xd403).nopr().w(FUNC(flstory_state::snd_reset_w)); // unknown read (set/clr side effect?)
+
+	map(0xd401, 0xd401).r(FUNC(flstory_state::snd_flag_r));
+	map(0xd800, 0xd800).portr("SWA");
+	map(0xd801, 0xd801).portr("SWB");
+	map(0xd802, 0xd802).portr("SWC");
+	map(0xd803, 0xd803).portr("SYSTEM");
+	map(0xd804, 0xd804).portr("P1");
+	map(0xd806, 0xd806).portr("P2");
+
+	map(0xdc00, 0xdc9f).ram().share("spriteram");
+	map(0xdca0, 0xdcbf).ram().w(FUNC(flstory_state::flstory_scrlram_w)).share("scrlram");
+
+	map(0xdd00, 0xdeff).rw(FUNC(flstory_state::flstory_palette_r), FUNC(flstory_state::flstory_palette_w));
+
+	// victorious nine read 0xf80a during attract, unknown purpose
+	map(0xe000, 0xe7ff).mirror(0x1800).ram().share("workram"); /* work RAM */
 }
 
-WRITE8_MEMBER(flstory_state::nmi_enable_w)
+void flstory_state::flstory_map(address_map &map)
 {
-	m_sound_nmi_enable = 1;
-	if (m_pending_nmi)
-	{
-		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
-		m_pending_nmi = 0;
-	}
+	base_map(map);
+	map(0xd000, 0xd000).rw(m_bmcu, FUNC(taito68705_mcu_device::data_r), FUNC(taito68705_mcu_device::data_w));
+
+	map(0xd805, 0xd805).r(FUNC(flstory_state::flstory_mcu_status_r));
+//  map(0xda00, 0xda00).writeonly();
+	map(0xdcc0, 0xdcff).ram(); /* unknown */
+	map(0xdf03, 0xdf03).w(FUNC(flstory_state::flstory_gfxctrl_w));
 }
 
-static ADDRESS_MAP_START( flstory_map, AS_PROGRAM, 8, flstory_state )
-	AM_RANGE(0x0000, 0xbfff) AM_ROM
-	AM_RANGE(0xc000, 0xc7ff) AM_RAM_WRITE(flstory_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0xc800, 0xcfff) AM_RAM /* unknown */
-	AM_RANGE(0xd000, 0xd000) AM_DEVREADWRITE("bmcu", taito68705_mcu_device, data_r, data_w)
-	AM_RANGE(0xd001, 0xd001) AM_WRITENOP    /* watchdog? */
-	AM_RANGE(0xd002, 0xd002) AM_WRITENOP    /* coin lock out? */
-	AM_RANGE(0xd400, 0xd400) AM_READWRITE(from_snd_r, sound_command_w)
-	AM_RANGE(0xd401, 0xd401) AM_READ(snd_flag_r)
-	AM_RANGE(0xd403, 0xd403) AM_NOP /* unknown */
-	AM_RANGE(0xd800, 0xd800) AM_READ_PORT("DSW0")
-	AM_RANGE(0xd801, 0xd801) AM_READ_PORT("DSW1")
-	AM_RANGE(0xd802, 0xd802) AM_READ_PORT("DSW2")
-	AM_RANGE(0xd803, 0xd803) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0xd804, 0xd804) AM_READ_PORT("P1")
-	AM_RANGE(0xd805, 0xd805) AM_READ(flstory_mcu_status_r)
-	AM_RANGE(0xd806, 0xd806) AM_READ_PORT("P2")
-//  AM_RANGE(0xda00, 0xda00) AM_WRITEONLY
-	AM_RANGE(0xdc00, 0xdc9f) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0xdca0, 0xdcbf) AM_RAM_WRITE(flstory_scrlram_w) AM_SHARE("scrlram")
-	AM_RANGE(0xdcc0, 0xdcff) AM_RAM /* unknown */
-	AM_RANGE(0xdd00, 0xdeff) AM_READWRITE(flstory_palette_r, flstory_palette_w)
-	AM_RANGE(0xdf03, 0xdf03) AM_WRITE(flstory_gfxctrl_w)
-	AM_RANGE(0xe000, 0xe7ff) AM_RAM /* work RAM */
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( onna34ro_map, AS_PROGRAM, 8, flstory_state )
-	AM_RANGE(0x0000, 0xbfff) AM_ROM
-	AM_RANGE(0xc000, 0xc7ff) AM_RAM_WRITE(flstory_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0xc800, 0xcfff) AM_RAM /* unknown */
-	AM_RANGE(0xd000, 0xd000) AM_READWRITE(onna34ro_mcu_r, onna34ro_mcu_w)
-	AM_RANGE(0xd001, 0xd001) AM_WRITENOP    /* watchdog? */
-	AM_RANGE(0xd002, 0xd002) AM_WRITENOP    /* coin lock out? */
-	AM_RANGE(0xd400, 0xd400) AM_READWRITE(from_snd_r, sound_command_w)
-	AM_RANGE(0xd401, 0xd401) AM_READ(snd_flag_r)
-	AM_RANGE(0xd403, 0xd403) AM_NOP /* unknown */
-	AM_RANGE(0xd800, 0xd800) AM_READ_PORT("DSW0")
-	AM_RANGE(0xd801, 0xd801) AM_READ_PORT("DSW1")
-	AM_RANGE(0xd802, 0xd802) AM_READ_PORT("DSW2")
-	AM_RANGE(0xd803, 0xd803) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0xd804, 0xd804) AM_READ_PORT("P1")
-	AM_RANGE(0xd805, 0xd805) AM_READ(onna34ro_mcu_status_r)
-	AM_RANGE(0xd806, 0xd806) AM_READ_PORT("P2")
-//  AM_RANGE(0xda00, 0xda00) AM_WRITEONLY
-	AM_RANGE(0xdc00, 0xdc9f) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0xdca0, 0xdcbf) AM_RAM_WRITE(flstory_scrlram_w) AM_SHARE("scrlram")
-	AM_RANGE(0xdcc0, 0xdcff) AM_RAM /* unknown */
-	AM_RANGE(0xdd00, 0xdeff) AM_READWRITE(flstory_palette_r, flstory_palette_w)
-	AM_RANGE(0xdf03, 0xdf03) AM_WRITE(flstory_gfxctrl_w)
-	AM_RANGE(0xe000, 0xe7ff) AM_RAM AM_SHARE("workram") /* work RAM */
-ADDRESS_MAP_END
-
-CUSTOM_INPUT_MEMBER(flstory_state::victnine_mcu_status_bit01_r)
+void flstory_state::onna34ro_map(address_map &map)
 {
-	address_space &space = m_maincpu->space(AS_PROGRAM);
-
-	return (victnine_mcu_status_r(space, 0) & 3);
+	base_map(map);
+//  map(0xd000, 0xd000).rw("bmcu", FUNC(taito68705_mcu_device::data_r), FUNC(taito68705_mcu_device::data_w));
+//  map(0xd805, 0xd805).r(FUNC(flstory_state::flstory_mcu_status_r));
+//  map(0xda00, 0xda00).writeonly();
+	map(0xdcc0, 0xdcff).ram(); /* unknown */
+	map(0xdf03, 0xdf03).w(FUNC(flstory_state::flstory_gfxctrl_w));
 }
 
-static ADDRESS_MAP_START( victnine_map, AS_PROGRAM, 8, flstory_state )
-	AM_RANGE(0x0000, 0xbfff) AM_ROM
-	AM_RANGE(0xc000, 0xc7ff) AM_RAM_WRITE(flstory_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0xc800, 0xcfff) AM_RAM /* unknown */
-	AM_RANGE(0xd000, 0xd000) AM_READWRITE(victnine_mcu_r, victnine_mcu_w)
-	AM_RANGE(0xd001, 0xd001) AM_WRITENOP    /* watchdog? */
-	AM_RANGE(0xd002, 0xd002) AM_NOP /* unknown read & coin lock out? */
-	AM_RANGE(0xd400, 0xd400) AM_READWRITE(from_snd_r, sound_command_w)
-	AM_RANGE(0xd401, 0xd401) AM_READ(snd_flag_r)
-	AM_RANGE(0xd403, 0xd403) AM_READNOP /* unknown */
-	AM_RANGE(0xd800, 0xd800) AM_READ_PORT("DSW0")
-	AM_RANGE(0xd801, 0xd801) AM_READ_PORT("DSW1")
-	AM_RANGE(0xd802, 0xd802) AM_READ_PORT("DSW2")
-	AM_RANGE(0xd803, 0xd803) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0xd804, 0xd804) AM_READ_PORT("P1")
-	AM_RANGE(0xd805, 0xd805) AM_READ_PORT("EXTRA_P1")   /* also mcu */
-	AM_RANGE(0xd806, 0xd806) AM_READ_PORT("P2")
-	AM_RANGE(0xd807, 0xd807) AM_READ_PORT("EXTRA_P2")
-//  AM_RANGE(0xda00, 0xda00) AM_WRITEONLY
-	AM_RANGE(0xdc00, 0xdc9f) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0xdca0, 0xdcbf) AM_RAM_WRITE(flstory_scrlram_w) AM_SHARE("scrlram")
-	AM_RANGE(0xdce0, 0xdce0) AM_READWRITE(victnine_gfxctrl_r, victnine_gfxctrl_w)
-	AM_RANGE(0xdce1, 0xdce1) AM_WRITENOP    /* unknown */
-	AM_RANGE(0xdd00, 0xdeff) AM_READWRITE(flstory_palette_r, flstory_palette_w)
-	AM_RANGE(0xe000, 0xe7ff) AM_RAM AM_SHARE("workram") /* work RAM */
-ADDRESS_MAP_END
-
-
-READ8_MEMBER(flstory_state::rumba_mcu_r)
+void flstory_state::onna34ro_mcu_map(address_map &map)
 {
-	//printf("PC=%04x R %02x\n",space.device().safe_pc(),m_mcu_cmd);
-
-	if((m_mcu_cmd & 0xf0) == 0x00) // end packet cmd, value returned is meaningless (probably used for main <-> mcu comms syncronization)
-		return 0;
-
-	switch(m_mcu_cmd)
-	{
-		case 0x73: return 0xa4; //initial MCU check
-		case 0x33: return m_mcu_b2_res; //0xb2 result
-		case 0x31: return m_mcu_b1_res; //0xb1 result
-
-		case 0x35: m_mcu_b5_res = 1; m_mcu_b6_res = 1; return 0;
-		case 0x36: return m_mcu_b4_cmd; //0xb4 command, extra protection for lives (first play only), otherwise game gives one extra life at start-up (!)
-		case 0x37: return m_mcu_b5_res; //0xb4 / 0xb5 / 0xb6 result y value
-		case 0x38: return m_mcu_b6_res; //x value
-
-		case 0x3b: return m_mcu_bb_res; //0xbb result
-		case 0x40: return 0;
-		case 0x41: return 0;
-		case 0x42:
-		{
-			/* TODO: subtle behaviour for transitioning from level 16 to level 17 (loop clear?). Command is:
-			0xc0 -> param -> 0xc1 -> param -> ... 0xc7 -> param -> 0x0e (end of packet) then reads at 0x40 -> 0x41 and 0x42
-
-			Params written doesn't make any sense, they are copies from RAM addresses at 0xe450-7 and they looks like ... garbage.
-			It's possible that all of this it just increments by one an internal RAM address in the MCU and then it sends a six when this counter
-			has bits 0-3 == 0 (BCD operation?), but then the question is ... how it determines game over?
-
-			According to a PCB test, game should roll back to level 1 layout but level counter should say "17" instead of current "11". Some of these ports also appears to control
-			game-play speed and who is playing between player 1 and 2.
-			*/
-			//static uint8_t level_val;
-
-			//level_val = read_byte(0xe247);
-
-			//popmessage("%02x",level_val);
-
-			//if((level_val & 0x0f) == 0x00)
-			//  return 0; //6
-
-			return 0;
-		}
-		//case 0x42: return 0x06;
-		//default:  printf("PC=%04x R %02x\n",space.device().safe_pc(),m_mcu_cmd); break;
-	}
-
-	return 0;
+	onna34ro_map(map);
+	map(0xd000, 0xd000).rw(m_bmcu, FUNC(taito68705_mcu_device::data_r), FUNC(taito68705_mcu_device::data_w));
+	map(0xd805, 0xd805).r(FUNC(flstory_state::flstory_mcu_status_r));
 }
 
-WRITE8_MEMBER(flstory_state::rumba_mcu_w)
+void flstory_state::victnine_map(address_map &map)
 {
-	//if((m_mcu_cmd & 0xf0) == 0xc0)
-	//  printf("%02x ",data);
+	base_map(map);
+	map(0xd000, 0xd000).rw(m_bmcu, FUNC(taito68705_mcu_device::data_r), FUNC(taito68705_mcu_device::data_w));
 
-	//if(m_mcu_cmd == 0x42)
-	//  printf("\n");
-
-	if(m_mcu_param)
-	{
-		m_mcu_param = 0; // clear param
-
-		//printf("%02x %02x\n",m_mcu_cmd,data);
-
-		switch(m_mcu_cmd)
-		{
-			case 0xb0: // counter, used by command 0xb1 (and something else?
-			{
-				/*
-				sends 0xb0 -> param then 0xb1 -> param -> 0x01 (end of cmd packet?) finally 0x31 for reply
-				*/
-
-				m_mcu_counter = data;
-
-				break;
-			}
-			case 0xb1: // player death sequence, controls X position
-			{
-				m_mcu_b1_res = data;
-
-				/* TODO: this is pretty hard to simulate ... */
-				if(m_mcu_counter >= 0x10)
-					m_mcu_b1_res++; // left
-				else if(m_mcu_counter >= 0x08)
-					m_mcu_b1_res--; // right
-				else
-					m_mcu_b1_res++; // left again
-
-				break;
-			}
-			case 0xb2: // player sprite hook-up param when he throws the wheel
-			{
-				/*
-				sends 0xb2 -> param -> 0x02 (end of cmd packet?) then 0x33 for reply
-				*/
-
-				switch(data)
-				{
-					case 1: m_mcu_b2_res = 0xaa; break; //left
-					case 2: m_mcu_b2_res = 0xaa; break; //right
-					case 4: m_mcu_b2_res = 0xab; break; //down
-					case 8: m_mcu_b2_res = 0xa9; break; //up
-				}
-				break;
-			}
-			case 0xbb: // when you start a level, lives
-			{
-				/*
-				sends 0xbb -> param -> 0x04 (end of cmd packet?) then 0x3b for reply
-				*/
-
-				m_mcu_bb_res = data;
-				//printf("PC=%04x W %02x -> %02x\n",space.device().safe_pc(),m_mcu_cmd,data);
-				break;
-			}
-			case 0xb4: // when the bird touches the top / bottom / left / right of the screen, for correct repositioning
-			{
-				m_mcu_b4_cmd = data;
-
-				//popmessage("%02x",m_mcu_b4_cmd);
-
-				/*
-				sends 0xb4 -> param -> 0xb5 -> param (bird X coord) -> 0xb6 -> param (bird Y coord) ->
-				*/
-
-				#if 0
-				switch(data)
-				{
-					case 1: break; // from up to down
-					case 2: break; // from left to right
-					case 3: break; // from right to left
-					case 4: break; // from down to up
-				}
-				#endif
-				break;
-			}
-			case 0xb5: // bird X coord
-			{
-				/* TODO: values might be off by one */
-				m_mcu_b5_res = data;
-
-				if(m_mcu_b4_cmd == 3) // from right to left
-					m_mcu_b5_res = 0x0d;
-
-				if(m_mcu_b4_cmd == 2) // from left to right
-					m_mcu_b5_res = 0xe4;
-
-				break;
-			}
-			case 0xb6: // bird Y coord
-			{
-				m_mcu_b6_res = data;
-
-				if(m_mcu_b4_cmd == 1) // from up to down
-					m_mcu_b6_res = 0x04;
-
-				if(m_mcu_b4_cmd == 4) // from down to up
-					m_mcu_b6_res = 0xdc;
-
-				break;
-			}
-		}
-
-		//if((m_mcu_cmd & 0xf0) == 0xc0)
-		//  printf("%02x ",data);
-
-		//if(m_mcu_cmd == 0xc7)
-		//  printf("\n");
-
-		return;
-	}
-
-	m_mcu_cmd = data;
-
-	if(((data & 0xf0) == 0xb0 || (data & 0xf0) == 0xc0) && m_mcu_param == 0)
-		m_mcu_param = 1;
+	map(0xd805, 0xd805).r(FUNC(flstory_state::victnine_mcu_status_r));
+	map(0xd807, 0xd807).portr("EXTRA_P2");
+//  map(0xda00, 0xda00).writeonly();
+	map(0xdce0, 0xdce0).rw(FUNC(flstory_state::victnine_gfxctrl_r), FUNC(flstory_state::victnine_gfxctrl_w));
+	map(0xdce1, 0xdce1).nopw();    /* unknown */
 }
 
-static ADDRESS_MAP_START( rumba_map, AS_PROGRAM, 8, flstory_state )
-	AM_RANGE(0x0000, 0xbfff) AM_ROM
-	AM_RANGE(0xc000, 0xc7ff) AM_RAM_WRITE(flstory_videoram_w) AM_SHARE("videoram")
-//  AM_RANGE(0xc800, 0xcfff) AM_RAM /* unknown */
-	AM_RANGE(0xd000, 0xd000) AM_READWRITE(rumba_mcu_r, rumba_mcu_w)
-	AM_RANGE(0xd001, 0xd001) AM_WRITENOP    /* watchdog? */
-//  AM_RANGE(0xd002, 0xd002) AM_NOP /* unknown read & coin lock out? */
-	AM_RANGE(0xd400, 0xd400) AM_READWRITE(from_snd_r, sound_command_w)
-	AM_RANGE(0xd401, 0xd401) AM_READ(snd_flag_r)
-//  AM_RANGE(0xd403, 0xd403) AM_READNOP /* unknown */
-	AM_RANGE(0xd800, 0xd800) AM_READ_PORT("DSW0")
-	AM_RANGE(0xd801, 0xd801) AM_READ_PORT("DSW1")
-	AM_RANGE(0xd802, 0xd802) AM_READ_PORT("DSW2")
-	AM_RANGE(0xd803, 0xd803) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0xd804, 0xd804) AM_READ_PORT("P1")
-	AM_RANGE(0xd805, 0xd805) AM_READ_PORT("EXTRA_P1")   /* also mcu */
-	AM_RANGE(0xd806, 0xd806) AM_READ_PORT("P2")
-	AM_RANGE(0xd807, 0xd807) AM_READ_PORT("EXTRA_P2")
-//  AM_RANGE(0xda00, 0xda00) AM_WRITEONLY
-	AM_RANGE(0xdc00, 0xdc9f) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0xdca0, 0xdcbf) AM_RAM_WRITE(flstory_scrlram_w) AM_SHARE("scrlram")
-	AM_RANGE(0xdce0, 0xdce0) AM_READWRITE(victnine_gfxctrl_r, victnine_gfxctrl_w)
-//  AM_RANGE(0xdce1, 0xdce1) AM_WRITENOP    /* unknown */
-	AM_RANGE(0xdd00, 0xdeff) AM_READWRITE(flstory_palette_r, flstory_palette_w)
-	AM_RANGE(0xe000, 0xe7ff) AM_RAM AM_SHARE("workram") /* work RAM */
-ADDRESS_MAP_END
-
-
-MACHINE_RESET_MEMBER(flstory_state,ta7630)
+void flstory_state::rumba_map(address_map &map)
 {
-	int i;
+	base_map(map);
+	map(0xd000, 0xd000).rw(m_bmcu, FUNC(taito68705_mcu_device::data_r), FUNC(taito68705_mcu_device::data_w));
 
-	double db           = 0.0;
-	double db_step      = 1.50; /* 1.50 dB step (at least, maybe more) */
-	double db_step_inc  = 0.125;
-	for (i = 0; i < 16; i++)
-	{
-		double max = 100.0 / pow(10.0, db/20.0 );
-		m_vol_ctrl[15 - i] = max;
-		/*logerror("vol_ctrl[%x] = %i (%f dB)\n", 15 - i, m_vol_ctrl[15 - i], db);*/
-		db += db_step;
-		db_step += db_step_inc;
-	}
-
-	/* for (i = 0; i < 8; i++)
-	    logerror("SOUND Chan#%i name=%s\n", i, mixer_get_name(i)); */
-/*
-  channels 0-2 AY#0
-  channels 3,4 MSM5232 group1,group2
-*/
+	map(0xd805, 0xd805).r(FUNC(flstory_state::flstory_mcu_status_r));
+	map(0xd807, 0xd807).portr("EXTRA_P2");
+//  map(0xda00, 0xda00).writeonly();
+	map(0xdce0, 0xdce0).rw(FUNC(flstory_state::victnine_gfxctrl_r), FUNC(flstory_state::victnine_gfxctrl_w));
+//  map(0xdce1, 0xdce1).nopw();    /* unknown */
 }
 
-WRITE8_MEMBER(flstory_state::sound_control_0_w)
+
+
+void flstory_state::sound_control_0_w(uint8_t data)
 {
 	m_snd_ctrl0 = data & 0xff;
 	//  popmessage("SND0 0=%02x 1=%02x 2=%02x 3=%02x", m_snd_ctrl0, m_snd_ctrl1, m_snd_ctrl2, m_snd_ctrl3);
 
 	/* this definitely controls main melody voice on 2'-1 and 4'-1 outputs */
-	m_msm->set_output_gain(0, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
-	m_msm->set_output_gain(1, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
-	m_msm->set_output_gain(2, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
-	m_msm->set_output_gain(3, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
+	for(int i=0;i<4;i++)
+		m_ta7630->set_channel_volume(m_msm,i,m_snd_ctrl0 >> 4);
+	//m_msm->set_output_gain(0, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
+	//m_msm->set_output_gain(1, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
+	//m_msm->set_output_gain(2, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
+	//m_msm->set_output_gain(3, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
 
 }
-WRITE8_MEMBER(flstory_state::sound_control_1_w)
+void flstory_state::sound_control_1_w(uint8_t data)
 {
 	m_snd_ctrl1 = data & 0xff;
 	//  popmessage("SND1 0=%02x 1=%02x 2=%02x 3=%02x", m_snd_ctrl0, m_snd_ctrl1, m_snd_ctrl2, m_snd_ctrl3);
-	m_msm->set_output_gain(4, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
-	m_msm->set_output_gain(5, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
-	m_msm->set_output_gain(6, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
-	m_msm->set_output_gain(7, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
+	for(int i=0;i<4;i++)
+		m_ta7630->set_channel_volume(m_msm,i+4,m_snd_ctrl1 >> 4);
+
+//  m_msm->set_output_gain(4, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
+//  m_msm->set_output_gain(5, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
+//  m_msm->set_output_gain(6, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
+//  m_msm->set_output_gain(7, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
 }
 
-WRITE8_MEMBER(flstory_state::sound_control_2_w)
+void flstory_state::sound_control_2_w(uint8_t data)
 {
-	device_t *device = machine().device("aysnd");
-	int i;
-
 	m_snd_ctrl2 = data & 0xff;
 	//  popmessage("SND2 0=%02x 1=%02x 2=%02x 3=%02x", m_snd_ctrl0, m_snd_ctrl1, m_snd_ctrl2, m_snd_ctrl3);
 
-	device_sound_interface *sound;
-	device->interface_check(sound);
-	for (i = 0; i < 3; i++)
-		sound->set_output_gain(i, m_vol_ctrl[(m_snd_ctrl2 >> 4) & 15] / 100.0); /* ym2149f all */
+	m_ta7630->set_device_volume(m_ay,m_snd_ctrl2 >> 4);
 }
 
-WRITE8_MEMBER(flstory_state::sound_control_3_w)/* unknown */
+// ta7630 bass / treble for AY?
+void flstory_state::sound_control_3_w(uint8_t data)
 {
 	m_snd_ctrl3 = data & 0xff;
 	//  popmessage("SND3 0=%02x 1=%02x 2=%02x 3=%02x", m_snd_ctrl0, m_snd_ctrl1, m_snd_ctrl2, m_snd_ctrl3);
 }
 
 
-static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, flstory_state )
-	AM_RANGE(0x0000, 0xbfff) AM_ROM
-	AM_RANGE(0xc000, 0xc7ff) AM_RAM
-	AM_RANGE(0xc800, 0xc801) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
-	AM_RANGE(0xca00, 0xca0d) AM_DEVWRITE("msm", msm5232_device, write)
-	AM_RANGE(0xcc00, 0xcc00) AM_WRITE(sound_control_0_w)
-	AM_RANGE(0xce00, 0xce00) AM_WRITE(sound_control_1_w)
-	AM_RANGE(0xd800, 0xd800) AM_DEVREAD("soundlatch", generic_latch_8_device, read) AM_WRITE(to_main_w)
-	AM_RANGE(0xda00, 0xda00) AM_READNOP AM_WRITE(nmi_enable_w)          /* unknown read*/
-	AM_RANGE(0xdc00, 0xdc00) AM_WRITE(nmi_disable_w)
-	AM_RANGE(0xde00, 0xde00) AM_READNOP AM_DEVWRITE("dac", dac_byte_interface, write) /* signed 8-bit DAC &  unknown read */
-	AM_RANGE(0xe000, 0xefff) AM_ROM                                         /* space for diagnostics ROM */
-ADDRESS_MAP_END
+void flstory_state::sound_map(address_map &map)
+{
+	map(0x0000, 0xbfff).rom();
+	map(0xc000, 0xc7ff).ram();
+	map(0xc800, 0xc801).w(m_ay, FUNC(ym2149_device::address_data_w));
+	map(0xca00, 0xca0d).w(m_msm, FUNC(msm5232_device::write));
+	map(0xcc00, 0xcc00).w(FUNC(flstory_state::sound_control_0_w));
+	map(0xce00, 0xce00).w(FUNC(flstory_state::sound_control_1_w));
+	map(0xd800, 0xd800).r(m_soundlatch, FUNC(generic_latch_8_device::read));
+	map(0xd800, 0xd800).w(m_soundlatch2, FUNC(generic_latch_8_device::write));
+	map(0xda00, 0xda00).r(FUNC(flstory_state::snd_flag_r)).w(m_soundnmi, FUNC(input_merger_device::in_set<1>));
+	map(0xdc00, 0xdc00).w(m_soundnmi, FUNC(input_merger_device::in_clear<1>));
+	map(0xde00, 0xde00).nopr().w("dac", FUNC(dac_byte_interface::data_w)); /* signed 8-bit DAC &  unknown read */
+	map(0xe000, 0xefff).rom();                                         /* space for diagnostics ROM */
+}
 
 
 
@@ -457,32 +206,32 @@ ADDRESS_MAP_END
 */
 
 static INPUT_PORTS_START( flstory )
-	PORT_START("DSW0")      /*D800*/
-	PORT_DIPNAME( 0x03, 0x00, DEF_STR( Bonus_Life ) )
+	PORT_START("SWA")      /*D800*/
+	PORT_DIPNAME( 0x03, 0x00, DEF_STR( Bonus_Life ) )   PORT_DIPLOCATION("SWA:1,2")
 	PORT_DIPSETTING(    0x00, "30000 100000" )
 	PORT_DIPSETTING(    0x01, "30000 150000" )
 	PORT_DIPSETTING(    0x02, "50000 150000" )
 	PORT_DIPSETTING(    0x03, "70000 150000" )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Free_Play ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Free_Play ) )    PORT_DIPLOCATION("SWA:3")
 	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x18, 0x08, DEF_STR( Lives ) )
+	PORT_DIPNAME( 0x18, 0x08, DEF_STR( Lives ) )        PORT_DIPLOCATION("SWA:4,5")
 	PORT_DIPSETTING(    0x08, "3" )
 	PORT_DIPSETTING(    0x10, "4" )
 	PORT_DIPSETTING(    0x18, "5" )
 	PORT_DIPSETTING(    0x00, "Infinite (Cheat)")
-	PORT_DIPNAME( 0x20, 0x20, "Debug Mode" )            // Check code at 0x0679
+	PORT_DIPNAME( 0x20, 0x20, "Debug Mode" )            PORT_DIPLOCATION("SWA:6")  // Check code at 0x0679
 	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Flip_Screen ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Flip_Screen ) )  PORT_DIPLOCATION("SWA:7")
 	PORT_DIPSETTING(    0x40, DEF_STR( Off ))
 	PORT_DIPSETTING(    0x00, DEF_STR( On ))
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Cabinet ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Cabinet ) )      PORT_DIPLOCATION("SWA:8")
 	PORT_DIPSETTING(    0x80, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Cocktail ) )
 
-	PORT_START("DSW1")      /*D801*/
-	PORT_DIPNAME( 0x0f, 0x00, DEF_STR( Coin_A ) )
+	PORT_START("SWB")      /*D801*/
+	PORT_DIPNAME( 0x0f, 0x00, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("SWB:1,2,3,4")
 	PORT_DIPSETTING(    0x0f, DEF_STR( 9C_1C ) )
 	PORT_DIPSETTING(    0x0e, DEF_STR( 8C_1C ) )
 	PORT_DIPSETTING(    0x0d, DEF_STR( 7C_1C ) )
@@ -499,7 +248,7 @@ static INPUT_PORTS_START( flstory )
 	PORT_DIPSETTING(    0x05, DEF_STR( 1C_6C ) )
 	PORT_DIPSETTING(    0x06, DEF_STR( 1C_7C ) )
 	PORT_DIPSETTING(    0x07, DEF_STR( 1C_8C ) )
-	PORT_DIPNAME( 0xf0, 0x00, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0xf0, 0x00, DEF_STR( Coin_B ) )       PORT_DIPLOCATION("SWB:5,6,7,8")
 	PORT_DIPSETTING(    0xf0, DEF_STR( 9C_1C ) )
 	PORT_DIPSETTING(    0xe0, DEF_STR( 8C_1C ) )
 	PORT_DIPSETTING(    0xd0, DEF_STR( 7C_1C ) )
@@ -517,21 +266,21 @@ static INPUT_PORTS_START( flstory )
 	PORT_DIPSETTING(    0x60, DEF_STR( 1C_7C ) )
 	PORT_DIPSETTING(    0x70, DEF_STR( 1C_8C ) )
 
-	PORT_START("DSW2")      /* D802 */
-	PORT_BIT( 0x07, IP_ACTIVE_HIGH, IPT_UNUSED )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Allow_Continue ) )
+	PORT_START("SWC")      /* D802 */
+	PORT_DIPUNUSED_DIPLOC( 0x07, IP_ACTIVE_HIGH, "SWC:1,2,3" )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Allow_Continue ) )   PORT_DIPLOCATION("SWC:4")
 	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( Yes ) )
-	PORT_DIPNAME( 0x10, 0x10, "Attract Animation" )
+	PORT_DIPNAME( 0x10, 0x10, "Attract Animation" )         PORT_DIPLOCATION("SWC:5")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, "Leave Off")              // Check code at 0x7859
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )          // (must be OFF or the game will
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )           // hang after the game is over !)
-	PORT_DIPNAME( 0x40, 0x40, "Invulnerability (Cheat)" )
+	PORT_DIPNAME( 0x20, 0x20, "Leave Off")                  PORT_DIPLOCATION("SWC:6")   // Check code at 0x7859
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )                                          // must be OFF or the game will
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )                                           // hang after the game is over !
+	PORT_DIPNAME( 0x40, 0x40, "Invulnerability (Cheat)" )   PORT_DIPLOCATION("SWC:7")
 	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, "Coin Slots" )
+	PORT_DIPNAME( 0x80, 0x80, "Coin Slots" )                PORT_DIPLOCATION("SWC:8")
 	PORT_DIPSETTING(    0x00, "1" )
 	PORT_DIPSETTING(    0x80, "2" )
 
@@ -561,32 +310,32 @@ static INPUT_PORTS_START( flstory )
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( onna34ro )
-	PORT_START("DSW0")      /* D800*/
-	PORT_DIPNAME(0x03, 0x00, DEF_STR( Bonus_Life ) )
+	PORT_START("SWA")      /* D800*/
+	PORT_DIPNAME(0x03, 0x00, DEF_STR( Bonus_Life ) )    PORT_DIPLOCATION("SWA:1,2")
 	PORT_DIPSETTING(   0x00, "200000 200000" )
 	PORT_DIPSETTING(   0x01, "200000 300000" )
 	PORT_DIPSETTING(   0x02, "100000 200000" )
 	PORT_DIPSETTING(   0x03, "200000 100000" )
-	PORT_DIPNAME(0x04, 0x00, DEF_STR( Free_Play ) )
+	PORT_DIPNAME(0x04, 0x00, DEF_STR( Free_Play ) )     PORT_DIPLOCATION("SWA:3")
 	PORT_DIPSETTING(   0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(   0x04, DEF_STR( On ) )
-	PORT_DIPNAME(0x18, 0x00, DEF_STR( Lives ) )
+	PORT_DIPNAME(0x18, 0x00, DEF_STR( Lives ) )         PORT_DIPLOCATION("SWA:4,5")
 	PORT_DIPSETTING(   0x10, "1" )
 	PORT_DIPSETTING(   0x08, "2" )
 	PORT_DIPSETTING(   0x00, "3" )
 	PORT_DIPSETTING(   0x18, "Endless (Cheat)")
-	PORT_DIPNAME(0x20, 0x00, DEF_STR( Unknown ) )
+	PORT_DIPNAME(0x20, 0x00, DEF_STR( Unknown ) )       PORT_DIPLOCATION("SWA:6")
 	PORT_DIPSETTING(   0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(   0x00, DEF_STR( On ) )
-	PORT_DIPNAME(0x40, 0x40, DEF_STR( Flip_Screen ) )
+	PORT_DIPNAME(0x40, 0x40, DEF_STR( Flip_Screen ) )   PORT_DIPLOCATION("SWA:7")
 	PORT_DIPSETTING(   0x40, DEF_STR( Off ) )
 	PORT_DIPSETTING(   0x00, DEF_STR( On ) )
-	PORT_DIPNAME(0x80, 0x80, DEF_STR( Cabinet ) )
+	PORT_DIPNAME(0x80, 0x80, DEF_STR( Cabinet ) )       PORT_DIPLOCATION("SWA:8")
 	PORT_DIPSETTING(   0x80, DEF_STR( Upright ) )
 	PORT_DIPSETTING(   0x00, DEF_STR( Cocktail ) )
 
-	PORT_START("DSW1")      /* D801 */
-	PORT_DIPNAME(0x0f, 0x00, DEF_STR( Coin_A ) )
+	PORT_START("SWB")      /* D801 */
+	PORT_DIPNAME(0x0f, 0x00, DEF_STR( Coin_A ) )        PORT_DIPLOCATION("SWB:1,2,3,4")
 	PORT_DIPSETTING(   0x0f, DEF_STR( 9C_1C ) )
 	PORT_DIPSETTING(   0x0e, DEF_STR( 8C_1C ) )
 	PORT_DIPSETTING(   0x0d, DEF_STR( 7C_1C ) )
@@ -603,7 +352,7 @@ static INPUT_PORTS_START( onna34ro )
 	PORT_DIPSETTING(   0x05, DEF_STR( 1C_6C ) )
 	PORT_DIPSETTING(   0x06, DEF_STR( 1C_7C ) )
 	PORT_DIPSETTING(   0x07, DEF_STR( 1C_8C ) )
-	PORT_DIPNAME(0xf0, 0x00, DEF_STR( Coin_B ) )
+	PORT_DIPNAME(0xf0, 0x00, DEF_STR( Coin_B ) )        PORT_DIPLOCATION("SWB:5,6,7,8")
 	PORT_DIPSETTING(   0xf0, DEF_STR( 9C_1C ) )
 	PORT_DIPSETTING(   0xe0, DEF_STR( 8C_1C ) )
 	PORT_DIPSETTING(   0xd0, DEF_STR( 7C_1C ) )
@@ -621,28 +370,28 @@ static INPUT_PORTS_START( onna34ro )
 	PORT_DIPSETTING(   0x60, DEF_STR( 1C_7C ) )
 	PORT_DIPSETTING(   0x70, DEF_STR( 1C_8C ) )
 
-	PORT_START("DSW2")      /* D802 */
-	PORT_DIPNAME(0x01, 0x00, "Invulnerability (Cheat)")
+	PORT_START("SWC")      /* D802 */
+	PORT_DIPNAME(0x01, 0x00, "Invulnerability (Cheat)") PORT_DIPLOCATION("SWC:1")
 	PORT_DIPSETTING(   0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(   0x01, DEF_STR( On ) )
-	PORT_DIPNAME(0x02, 0x00, "Rack Test" )
+	PORT_DIPNAME(0x02, 0x00, "Rack Test" )              PORT_DIPLOCATION("SWC:2")
 	PORT_DIPSETTING(   0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(   0x02, DEF_STR( On ) )
-	PORT_DIPNAME(0x04, 0x00, DEF_STR( Unknown ) ) /* demo sounds */
+	PORT_DIPNAME(0x04, 0x00, DEF_STR( Unknown ) )       PORT_DIPLOCATION("SWC:3")
 	PORT_DIPSETTING(   0x04, DEF_STR( Off ) )
 	PORT_DIPSETTING(   0x00, DEF_STR( On ) )
-	PORT_DIPNAME(0x08, 0x00, "Freeze" )
+	PORT_DIPNAME(0x08, 0x00, "Freeze" )                 PORT_DIPLOCATION("SWC:4")
 	PORT_DIPSETTING(   0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(   0x08, DEF_STR( On ) )
-	PORT_DIPNAME(0x10, 0x00, "Coinage Display" )
+	PORT_DIPNAME(0x10, 0x00, "Coinage Display" )        PORT_DIPLOCATION("SWC:5")
 	PORT_DIPSETTING(   0x10, DEF_STR( Off ) )
 	PORT_DIPSETTING(   0x00, DEF_STR( On ) )
-	PORT_DIPNAME(0x60, 0x00, DEF_STR( Difficulty ) )
+	PORT_DIPNAME(0x60, 0x00, DEF_STR( Difficulty ) )    PORT_DIPLOCATION("SWC:6,7")
 	PORT_DIPSETTING(   0x20, DEF_STR( Easy ) )
 	PORT_DIPSETTING(   0x00, DEF_STR( Normal ) )
 	PORT_DIPSETTING(   0x40, DEF_STR( Difficult ) )
 	PORT_DIPSETTING(   0x60, DEF_STR( Very_Difficult ) )
-	PORT_DIPNAME(0x80, 0x80, DEF_STR( Coinage ) )
+	PORT_DIPNAME(0x80, 0x80, DEF_STR( Coinage ) )       PORT_DIPLOCATION("SWC:8")
 	PORT_DIPSETTING(   0x80, "A and B" )
 	PORT_DIPSETTING(   0x00, "A only" )
 
@@ -678,22 +427,23 @@ static INPUT_PORTS_START( onna34ro )
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( victnine )
-	PORT_START("DSW0")      /* D800 */
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Free_Play ) )
+	PORT_START("SWA")      /* D800 */
+	PORT_DIPUNUSED_DIPLOC( 0x03, IP_ACTIVE_LOW, "SWA:1,2" )  // manual says 'No Use Set OFF'
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Free_Play ) )    PORT_DIPLOCATION("SWA:3")
 	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Flip_Screen ) )
+	PORT_DIPUNUSED_DIPLOC( 0x18, IP_ACTIVE_LOW, "SWA:4,5" )  // manual says 'No Use Set OFF'
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Flip_Screen ) )  PORT_DIPLOCATION("SWA:7")
 	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0xa0, 0x20, DEF_STR( Cabinet ) )
+	PORT_DIPNAME( 0xa0, 0x20, DEF_STR( Cabinet ) )      PORT_DIPLOCATION("SWA:6,8")
 	PORT_DIPSETTING(    0x20, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0xa0, DEF_STR( Cocktail ) )
-	PORT_DIPSETTING(    0x00, "MA / MB" )
+	PORT_DIPSETTING(    0x00, "MA / MB" )  // This is a small single player sit-down cab called 'Taito MA' or 'Taito MB', with only 1 joystick and 3 buttons.
+										   // Only Player 1 can play and only buttons A, C and c are active.
 
-	PORT_START("DSW1")      /* D801 */
-	PORT_DIPNAME( 0x0f, 0x00, DEF_STR( Coin_A ) )
+	PORT_START("SWB")      /* D801 */
+	PORT_DIPNAME( 0x0f, 0x00, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("SWB:1,2,3,4")
 	PORT_DIPSETTING(    0x0f, DEF_STR( 9C_1C ) )
 	PORT_DIPSETTING(    0x0e, DEF_STR( 8C_1C ) )
 	PORT_DIPSETTING(    0x0d, DEF_STR( 7C_1C ) )
@@ -710,7 +460,7 @@ static INPUT_PORTS_START( victnine )
 	PORT_DIPSETTING(    0x05, DEF_STR( 1C_6C ) )
 	PORT_DIPSETTING(    0x06, DEF_STR( 1C_7C ) )
 	PORT_DIPSETTING(    0x07, DEF_STR( 1C_8C ) )
-	PORT_DIPNAME( 0xf0, 0x00, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0xf0, 0x00, DEF_STR( Coin_B ) )       PORT_DIPLOCATION("SWB:5,6,7,8")
 	PORT_DIPSETTING(    0xf0, DEF_STR( 9C_1C ) )
 	PORT_DIPSETTING(    0xe0, DEF_STR( 8C_1C ) )
 	PORT_DIPSETTING(    0xd0, DEF_STR( 7C_1C ) )
@@ -728,24 +478,24 @@ static INPUT_PORTS_START( victnine )
 	PORT_DIPSETTING(    0x60, DEF_STR( 1C_7C ) )
 	PORT_DIPSETTING(    0x70, DEF_STR( 1C_8C ) )
 
-	PORT_START("DSW2")      /* D802 */
-	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_DIPNAME( 0x10, 0x10, "Coinage Display" )
+	PORT_START("SWC")      /* D802 */
+	PORT_DIPUNUSED_DIPLOC( 0x0f, IP_ACTIVE_LOW, "SWC:1,2,3,4" )  // manual says 'No Use Set OFF'
+	PORT_DIPNAME( 0x10, 0x10, "Coinage Display" )       PORT_DIPLOCATION("SWC:5")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, "Show Year" )
+	PORT_DIPNAME( 0x20, 0x20, "Show Year" )             PORT_DIPLOCATION("SWC:6")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, "No hit" )
+	PORT_DIPNAME( 0x40, 0x40, "No Hit" )                PORT_DIPLOCATION("SWC:7")    // Allows playing the game regardless of the score until the 9th innings.
 	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x00, DEF_STR( Coinage ) )
-	PORT_DIPSETTING(    0x80, "A and B" )
-	PORT_DIPSETTING(    0x00, "A only" )
+	PORT_DIPNAME( 0x80, 0x00, DEF_STR( Coinage ) )      PORT_DIPLOCATION("SWC:8")
+	PORT_DIPSETTING(    0x80, "2-Way" )
+	PORT_DIPSETTING(    0x00, "1-Way" )
 
 	PORT_START("SYSTEM")      /* D803 */
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_START1 )
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_START2 )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_START2 ) PORT_CONDITION("SWA", 0xa0, NOTEQUALS, 0x00)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_TILT )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_COIN1 )
@@ -754,8 +504,8 @@ static INPUT_PORTS_START( victnine )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("P1")      /* D804 */
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 )    // A
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 )    // C
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 )    // button A = substitute player
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 )    // button C = select new player when subbing or swing bat when batting. When fielding, this picks up the ball.
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY
@@ -767,63 +517,62 @@ static INPUT_PORTS_START( victnine )
 	/* bits 0,1 are MCU related:
 	    - bit 0: mcu is ready to receive data from main cpu
 	    - bit 1: mcu has sent data to the main cpu       */
-	PORT_BIT( 0x03, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, flstory_state,victnine_mcu_status_bit01_r, nullptr)
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 )
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON4 )
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON5 )
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON6 )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_CONDITION("SWA", 0xa0, NOTEQUALS, 0x00)  // button a = 1st base
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_CONDITION("SWA", 0xa0, NOTEQUALS, 0x00)  // button b = 2nd base  |  Used to throw the ball back to a specific base when fielding
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON5 )                                               // button c = 3rd base  |  On MA/MB cab, only button 'c' is active and throws only to 3rd base
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON6 ) PORT_CONDITION("SWA", 0xa0, NOTEQUALS, 0x00)  // button d = home base
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("P2")      /* D806 */
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_COCKTAIL  // A
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_COCKTAIL  // C
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_COCKTAIL
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_COCKTAIL
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_COCKTAIL
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_COCKTAIL
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_COCKTAIL PORT_CONDITION("SWA", 0xa0, NOTEQUALS, 0x00)// A
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_COCKTAIL PORT_CONDITION("SWA", 0xa0, NOTEQUALS, 0x00) // C
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_COCKTAIL PORT_CONDITION("SWA", 0xa0, NOTEQUALS, 0x00)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_COCKTAIL PORT_CONDITION("SWA", 0xa0, NOTEQUALS, 0x00)
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_COCKTAIL PORT_CONDITION("SWA", 0xa0, NOTEQUALS, 0x00)
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_COCKTAIL PORT_CONDITION("SWA", 0xa0, NOTEQUALS, 0x00)
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("EXTRA_P2")      /* D807 */
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_COCKTAIL
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_COCKTAIL
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON5 ) PORT_COCKTAIL
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON6 ) PORT_COCKTAIL
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_COCKTAIL PORT_CONDITION("SWA", 0xa0, NOTEQUALS, 0x00)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_COCKTAIL PORT_CONDITION("SWA", 0xa0, NOTEQUALS, 0x00)
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON5 ) PORT_COCKTAIL PORT_CONDITION("SWA", 0xa0, NOTEQUALS, 0x00)
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON6 ) PORT_COCKTAIL PORT_CONDITION("SWA", 0xa0, NOTEQUALS, 0x00)
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 INPUT_PORTS_END
 
 
 static INPUT_PORTS_START( rumba )
-	PORT_START("DSW0")      /* D800 */
-	PORT_DIPNAME( 0x03, 0x00, DEF_STR( Bonus_Life ) )
+	PORT_START("SWA")      /* D800 */
+	PORT_DIPNAME( 0x03, 0x00, DEF_STR( Bonus_Life ) )   PORT_DIPLOCATION("SWA:1,2")
 	PORT_DIPSETTING(    0x00, "20000 50000" )
 	PORT_DIPSETTING(    0x01, "10000 60000" )
 	PORT_DIPSETTING(    0x02, "10000 40000" )
 	PORT_DIPSETTING(    0x03, "10000 20000" )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Free_Play ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Free_Play ) )    PORT_DIPLOCATION("SWA:3")
 	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x18, 0x18, DEF_STR( Lives ) )
+	PORT_DIPNAME( 0x18, 0x18, DEF_STR( Lives ) )        PORT_DIPLOCATION("SWA:4,5")
 	PORT_DIPSETTING(    0x18, "3" )
 	PORT_DIPSETTING(    0x10, "4" )
 	PORT_DIPSETTING(    0x08, "5" )
 	PORT_DIPSETTING(    0x00, "6")
-	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )      PORT_DIPLOCATION("SWA:6")
 	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )      PORT_DIPLOCATION("SWA:7")
 	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Cabinet ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Cabinet ) )      PORT_DIPLOCATION("SWA:8")
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x80, DEF_STR( Cocktail ) )
 
-	PORT_START("DSW1")      /* D801 */
-	PORT_DIPNAME( 0x0f, 0x00, DEF_STR( Coin_A ) )
+	PORT_START("SWB")      /* D801 */
+	PORT_DIPNAME( 0x0f, 0x00, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("SWB:1,2,3,4")
 	PORT_DIPSETTING(    0x0f, DEF_STR( 9C_1C ) )
 	PORT_DIPSETTING(    0x0e, DEF_STR( 8C_1C ) )
 	PORT_DIPSETTING(    0x0d, DEF_STR( 7C_1C ) )
@@ -840,7 +589,7 @@ static INPUT_PORTS_START( rumba )
 	PORT_DIPSETTING(    0x05, DEF_STR( 1C_6C ) )
 	PORT_DIPSETTING(    0x06, DEF_STR( 1C_7C ) )
 	PORT_DIPSETTING(    0x07, DEF_STR( 1C_8C ) )
-	PORT_DIPNAME( 0xf0, 0x00, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0xf0, 0x00, DEF_STR( Coin_B ) )       PORT_DIPLOCATION("SWB:5,6,7,8")
 	PORT_DIPSETTING(    0xf0, DEF_STR( 9C_1C ) )
 	PORT_DIPSETTING(    0xe0, DEF_STR( 8C_1C ) )
 	PORT_DIPSETTING(    0xd0, DEF_STR( 7C_1C ) )
@@ -858,29 +607,29 @@ static INPUT_PORTS_START( rumba )
 	PORT_DIPSETTING(    0x60, DEF_STR( 1C_7C ) )
 	PORT_DIPSETTING(    0x70, DEF_STR( 1C_8C ) )
 
-	PORT_START("DSW2")      /* D802 */
-	PORT_DIPNAME( 0x01, 0x01, "Training Stage" )
+	PORT_START("SWC")      /* D802 */
+	PORT_DIPNAME( 0x01, 0x01, "Training Stage" )                 PORT_DIPLOCATION("SWC:1")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )               PORT_DIPLOCATION("SWC:2")
 	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x00, DEF_STR( Language ) )
+	PORT_DIPNAME( 0x04, 0x00, DEF_STR( Language ) )              PORT_DIPLOCATION("SWC:3")
 	PORT_DIPSETTING(    0x04, DEF_STR( Japanese ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( English ) )
-	PORT_DIPNAME( 0x08, 0x00, "Attract Sound" ) /* At title sequence only - NOT Demo Sounds */
+	PORT_DIPNAME( 0x08, 0x00, "Attract Sound on Title Screen" )  PORT_DIPLOCATION("SWC:4")   /* At title sequence only - NOT Demo Sounds */
 	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x00, "Coinage Display" )
+	PORT_DIPNAME( 0x10, 0x00, "Coinage Display" )                PORT_DIPLOCATION("SWC:5")
 	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, "Copyright String" )
+	PORT_DIPNAME( 0x20, 0x20, "Copyright String" )               PORT_DIPLOCATION("SWC:6")
 	PORT_DIPSETTING(    0x20, "Taito Corp. MCMLXXXIV" )
 	PORT_DIPSETTING(    0x00, "Taito Corporation" )
-	PORT_DIPNAME( 0x40, 0x40, "Infinite Lives" ) //???
+	PORT_DIPNAME( 0x40, 0x40, "Infinite Lives" )                 PORT_DIPLOCATION("SWC:7")
 	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )               PORT_DIPLOCATION("SWC:8")
 	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 
@@ -901,18 +650,6 @@ static INPUT_PORTS_START( rumba )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
-
-	PORT_START("EXTRA_P1")      /* D805 */
-	/* bits 0,1 are MCU related:
-	    - bit 0: mcu is ready to receive data from main cpu
-	    - bit 1: mcu has sent data to the main cpu       */
-	PORT_BIT( 0x03, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, flstory_state,victnine_mcu_status_bit01_r, nullptr)
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
@@ -962,7 +699,7 @@ static const gfx_layout spritelayout =
 	64*8
 };
 
-static GFXDECODE_START( flstory )
+static GFXDECODE_START( gfx_flstory )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout,     0, 16 )
 	GFXDECODE_ENTRY( "gfx1", 0, spritelayout, 256, 16 )
 GFXDECODE_END
@@ -975,11 +712,6 @@ void flstory_state::machine_start()
 	save_item(NAME(m_char_bank));
 	save_item(NAME(m_palette_bank));
 	/* sound */
-	save_item(NAME(m_snd_data));
-	save_item(NAME(m_snd_flag));
-	save_item(NAME(m_sound_nmi_enable));
-	save_item(NAME(m_pending_nmi));
-	save_item(NAME(m_vol_ctrl));
 	save_item(NAME(m_snd_ctrl0));
 	save_item(NAME(m_snd_ctrl1));
 	save_item(NAME(m_snd_ctrl2));
@@ -993,17 +725,15 @@ void flstory_state::machine_start()
 
 MACHINE_RESET_MEMBER(flstory_state,flstory)
 {
-	MACHINE_RESET_CALL_MEMBER(ta7630);
+//  MACHINE_RESET_CALL_MEMBER(ta7630);
 
 	/* video */
 	m_gfxctrl = 0;
-	m_char_bank = 0;
+//  onna34ro doesn't set this up when checking RAM/VRAM (available by keeping pressed service button at startup)
+//  so we invert the logic here
+	m_char_bank = 1;
 	m_palette_bank = 0;
 	/* sound */
-	m_snd_data = 0;
-	m_snd_flag = 0;
-	m_sound_nmi_enable = 0;
-	m_pending_nmi = 0;
 	m_snd_ctrl0 = 0;
 	m_snd_ctrl1 = 0;
 	m_snd_ctrl2 = 0;
@@ -1013,262 +743,131 @@ MACHINE_RESET_MEMBER(flstory_state,flstory)
 	m_from_mcu = 0;
 }
 
-static MACHINE_CONFIG_START( flstory, flstory_state )
+void flstory_state::common(machine_config &config)
+{
+	Z80(config, m_maincpu, XTAL(10'733'000)/2); /* verified on pcb */
+	m_maincpu->set_vblank_int("screen", FUNC(flstory_state::irq0_line_hold));
 
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, XTAL_10_733MHz/2) /* verified on pcb */
-	MCFG_CPU_PROGRAM_MAP(flstory_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", flstory_state,  irq0_line_hold)
+	Z80(config, m_audiocpu, XTAL(8'000'000)/2); /* verified on pcb */
+	m_audiocpu->set_addrmap(AS_PROGRAM, &flstory_state::sound_map);
+	/* IRQ generated by ???, NMI generated by the main CPU */
+	m_audiocpu->set_periodic_int(FUNC(flstory_state::irq0_line_hold), attotime::from_hz(2*60));
 
-	MCFG_CPU_ADD("audiocpu", Z80, XTAL_8MHz/2) /* verified on pcb */
-	MCFG_CPU_PROGRAM_MAP(sound_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(flstory_state, irq0_line_hold, 2*60)   /* IRQ generated by ??? */
-						/* NMI generated by the main CPU */
-
-	MCFG_DEVICE_ADD("bmcu", TAITO68705_MCU, XTAL_18_432MHz/6)    /* verified on pcb */
-
-	MCFG_QUANTUM_TIME(attotime::from_hz(6000))  /* 100 CPU slices per frame - an high value to ensure proper */
-							/* synchronization of the CPUs */
-	MCFG_MACHINE_RESET_OVERRIDE(flstory_state,flstory)
+	/* 100 CPU slices per frame - a high value to ensure proper synchronization of the CPUs */
+	config.set_maximum_quantum(attotime::from_hz(6000));
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(flstory_state, screen_update_flstory)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	// derived from ladyfrog.cpp, guess
+	screen.set_raw(XTAL(8'000'000), 510, 0, 256, 262, 2*8, 30*8); // pixel clock appears to run at 8 MHz
+	screen.set_screen_update(FUNC(flstory_state::screen_update_flstory));
+	screen.set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", flstory)
-	MCFG_PALETTE_ADD("palette", 512)
-	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
-
-	MCFG_VIDEO_START_OVERRIDE(flstory_state,flstory)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_flstory);
+	PALETTE(config, m_palette).set_format(palette_device::xBGR_444, 512);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("speaker")
+	SPEAKER(config, "speaker").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set("soundnmi", FUNC(input_merger_device::in_w<0>));
 
-	MCFG_SOUND_ADD("aysnd", AY8910, XTAL_8MHz/4) /* verified on pcb */
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(flstory_state, sound_control_2_w))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(flstory_state, sound_control_3_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.1)
+	INPUT_MERGER_ALL_HIGH(config, "soundnmi").output_handler().set_inputline(m_audiocpu, INPUT_LINE_NMI);
 
-	MCFG_SOUND_ADD("msm", MSM5232, XTAL_8MHz/4) /* verified on pcb */
-	MCFG_MSM5232_SET_CAPACITORS(1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6) /* 1.0 uF capacitors (verified on real PCB) */
-	MCFG_SOUND_ROUTE(0, "speaker", 1.0)    // pin 28  2'-1
-	MCFG_SOUND_ROUTE(1, "speaker", 1.0)    // pin 29  4'-1
-	MCFG_SOUND_ROUTE(2, "speaker", 1.0)    // pin 30  8'-1
-	MCFG_SOUND_ROUTE(3, "speaker", 1.0)    // pin 31 16'-1
-	MCFG_SOUND_ROUTE(4, "speaker", 1.0)    // pin 36  2'-2
-	MCFG_SOUND_ROUTE(5, "speaker", 1.0)    // pin 35  4'-2
-	MCFG_SOUND_ROUTE(6, "speaker", 1.0)    // pin 34  8'-2
-	MCFG_SOUND_ROUTE(7, "speaker", 1.0)    // pin 33 16'-2
+	GENERIC_LATCH_8(config, m_soundlatch2);
+	TA7630(config, m_ta7630);
+
+	YM2149(config, m_ay, XTAL(8'000'000)/4); /* verified on pcb */
+	m_ay->port_a_write_callback().set(FUNC(flstory_state::sound_control_2_w));
+	m_ay->port_b_write_callback().set(FUNC(flstory_state::sound_control_3_w));
+	m_ay->add_route(ALL_OUTPUTS, "speaker", 0.1);
+
+	MSM5232(config, m_msm, XTAL(8'000'000)/4); /* verified on pcb */
+	m_msm->set_capacitors(1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6); /* 1.0 uF capacitors (verified on real PCB) */
+	m_msm->add_route(0, "speaker", 1.0);   // pin 28  2'-1
+	m_msm->add_route(1, "speaker", 1.0);   // pin 29  4'-1
+	m_msm->add_route(2, "speaker", 1.0);   // pin 30  8'-1
+	m_msm->add_route(3, "speaker", 1.0);   // pin 31 16'-1
+	m_msm->add_route(4, "speaker", 1.0);   // pin 36  2'-2
+	m_msm->add_route(5, "speaker", 1.0);   // pin 35  4'-2
+	m_msm->add_route(6, "speaker", 1.0);   // pin 34  8'-2
+	m_msm->add_route(7, "speaker", 1.0);   // pin 33 16'-2
 	// pin 1 SOLO  8'       not mapped
 	// pin 2 SOLO 16'       not mapped
 	// pin 22 Noise Output  not mapped
 
-	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.1) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
-MACHINE_CONFIG_END
+	DAC_8BIT_R2R(config, "dac", 0).add_route(ALL_OUTPUTS, "speaker", 0.1); // unknown DAC
+	voltage_regulator_device &vref(VOLTAGE_REGULATOR(config, "vref", 0));
+	vref.add_route(0, "dac", 1.0, DAC_VREF_POS_INPUT);
+	vref.add_route(0, "dac", -1.0, DAC_VREF_NEG_INPUT);
+}
 
-static MACHINE_CONFIG_START( onna34ro, flstory_state )
+void flstory_state::flstory(machine_config &config)
+{
+	common(config);
 
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, 10733000/2)     /* ??? */
-	MCFG_CPU_PROGRAM_MAP(onna34ro_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", flstory_state,  irq0_line_hold)
+	m_maincpu->set_addrmap(AS_PROGRAM, &flstory_state::flstory_map);
 
-	MCFG_CPU_ADD("audiocpu", Z80, 8000000/2)     /* 4 MHz */
-	MCFG_CPU_PROGRAM_MAP(sound_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(flstory_state, irq0_line_hold, 2*60)   /* IRQ generated by ??? */
-						/* NMI generated by the main CPU */
+	TAITO68705_MCU(config, m_bmcu, XTAL(18'432'000)/6);    /* verified on pcb */
 
-//  MCFG_CPU_ADD("mcu", M68705, XTAL_18_432MHz/6)  /* ??? */
-//  MCFG_CPU_PROGRAM_MAP(m68705_map)
-
-	MCFG_QUANTUM_TIME(attotime::from_hz(6000))  /* 100 CPU slices per frame - an high value to ensure proper */
-							/* synchronization of the CPUs */
 	MCFG_MACHINE_RESET_OVERRIDE(flstory_state,flstory)
-
-	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(flstory_state, screen_update_flstory)
-	MCFG_SCREEN_PALETTE("palette")
-
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", flstory)
-	MCFG_PALETTE_ADD("palette", 512)
-	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
-
 	MCFG_VIDEO_START_OVERRIDE(flstory_state,flstory)
+}
 
-	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("speaker")
+void flstory_state::onna34ro(machine_config &config)
+{
+	common(config);
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	m_maincpu->set_addrmap(AS_PROGRAM, &flstory_state::onna34ro_map);
 
-	MCFG_SOUND_ADD("aysnd", AY8910, 8000000/4)
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(flstory_state, sound_control_2_w))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(flstory_state, sound_control_3_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.1)
+	MCFG_MACHINE_RESET_OVERRIDE(flstory_state,flstory)
+	MCFG_VIDEO_START_OVERRIDE(flstory_state,flstory)
+}
 
-	MCFG_SOUND_ADD("msm", MSM5232, 8000000/4)
-	MCFG_MSM5232_SET_CAPACITORS(1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6) /* 1.0 uF capacitors (verified on real PCB) */
-	MCFG_SOUND_ROUTE(0, "speaker", 1.0)    // pin 28  2'-1
-	MCFG_SOUND_ROUTE(1, "speaker", 1.0)    // pin 29  4'-1
-	MCFG_SOUND_ROUTE(2, "speaker", 1.0)    // pin 30  8'-1
-	MCFG_SOUND_ROUTE(3, "speaker", 1.0)    // pin 31 16'-1
-	MCFG_SOUND_ROUTE(4, "speaker", 1.0)    // pin 36  2'-2
-	MCFG_SOUND_ROUTE(5, "speaker", 1.0)    // pin 35  4'-2
-	MCFG_SOUND_ROUTE(6, "speaker", 1.0)    // pin 34  8'-2
-	MCFG_SOUND_ROUTE(7, "speaker", 1.0)    // pin 33 16'-2
-	// pin 1 SOLO  8'       not mapped
-	// pin 2 SOLO 16'       not mapped
-	// pin 22 Noise Output  not mapped
+void flstory_state::onna34ro_mcu(machine_config &config)
+{
+	onna34ro(config);
+	m_maincpu->set_addrmap(AS_PROGRAM, &flstory_state::onna34ro_mcu_map);
 
-	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.1) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
-MACHINE_CONFIG_END
+	TAITO68705_MCU(config, m_bmcu, XTAL(18'432'000)/6);    /* ? */
+}
 
-static MACHINE_CONFIG_START( victnine, flstory_state )
+void flstory_state::victnine(machine_config &config)
+{
+	common(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, 8000000/2)      /* 4 MHz */
-	MCFG_CPU_PROGRAM_MAP(victnine_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", flstory_state,  irq0_line_hold)
+	m_maincpu->set_clock(XTAL(8'000'000)/2);      /* 4 MHz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &flstory_state::victnine_map);
 
-	MCFG_CPU_ADD("audiocpu", Z80, 8000000/2)     /* 4 MHz */
-	MCFG_CPU_PROGRAM_MAP(sound_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(flstory_state, irq0_line_hold, 2*60)   /* IRQ generated by ??? */
-						/* NMI generated by the main CPU */
+	TAITO68705_MCU(config, m_bmcu, XTAL(18'432'000)/6);
 
-//  MCFG_CPU_ADD("mcu", M68705, XTAL_18_432MHz/6)  /* ??? */
-//  MCFG_CPU_PROGRAM_MAP(m68705_map)
-
-	MCFG_QUANTUM_TIME(attotime::from_hz(6000))  /* 100 CPU slices per frame - an high value to ensure proper */
-							/* synchronization of the CPUs */
 	MCFG_MACHINE_RESET_OVERRIDE(flstory_state,flstory)
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(flstory_state, screen_update_victnine)
-	MCFG_SCREEN_PALETTE("palette")
-
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", flstory)
-	MCFG_PALETTE_ADD("palette", 512)
-	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
-
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(flstory_state::screen_update_victnine));
 	MCFG_VIDEO_START_OVERRIDE(flstory_state,victnine)
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("speaker")
-
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-
-	MCFG_SOUND_ADD("aysnd", AY8910, 8000000/4)
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(flstory_state, sound_control_2_w))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(flstory_state, sound_control_3_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5)
-
-	MCFG_SOUND_ADD("msm", MSM5232, 8000000/4)
-	MCFG_MSM5232_SET_CAPACITORS(1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6) /* 1.0 uF capacitors (verified on real PCB) */
-	MCFG_SOUND_ROUTE(0, "speaker", 1.0)    // pin 28  2'-1
-	MCFG_SOUND_ROUTE(1, "speaker", 1.0)    // pin 29  4'-1
-	MCFG_SOUND_ROUTE(2, "speaker", 1.0)    // pin 30  8'-1
-	MCFG_SOUND_ROUTE(3, "speaker", 1.0)    // pin 31 16'-1
-	MCFG_SOUND_ROUTE(4, "speaker", 1.0)    // pin 36  2'-2
-	MCFG_SOUND_ROUTE(5, "speaker", 1.0)    // pin 35  4'-2
-	MCFG_SOUND_ROUTE(6, "speaker", 1.0)    // pin 34  8'-2
-	MCFG_SOUND_ROUTE(7, "speaker", 1.0)    // pin 33 16'-2
-	// pin 1 SOLO  8'       not mapped
-	// pin 2 SOLO 16'       not mapped
-	// pin 22 Noise Output  not mapped
-
-	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.1) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
-MACHINE_CONFIG_END
-
-MACHINE_RESET_MEMBER(flstory_state,rumba)
-{
-	MACHINE_RESET_CALL_MEMBER(flstory);
-	m_mcu_cmd = 0;
+	m_ay->reset_routes();
+	m_ay->add_route(ALL_OUTPUTS, "speaker", 0.5);
 }
 
-static MACHINE_CONFIG_START( rumba, flstory_state )
+void flstory_state::rumba(machine_config &config)
+{
+	common(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, XTAL_8MHz/2) /* verified on pcb */
-	MCFG_CPU_PROGRAM_MAP(rumba_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", flstory_state,  irq0_line_hold)
+	m_maincpu->set_addrmap(AS_PROGRAM, &flstory_state::rumba_map);
 
-	MCFG_CPU_ADD("audiocpu", Z80, XTAL_8MHz/2) /* verified on pcb */
-	MCFG_CPU_PROGRAM_MAP(sound_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(flstory_state, irq0_line_hold, 2*60)   /* IRQ generated by ??? */
-						/* NMI generated by the main CPU */
+	TAITO68705_MCU(config, m_bmcu, XTAL(18'432'000)/6); /* ? */
 
-//  MCFG_CPU_ADD("mcu", M68705, XTAL_18_432MHz/6) /* verified on pcb */
-//  MCFG_CPU_PROGRAM_MAP(m68705_map)
-
-	MCFG_QUANTUM_TIME(attotime::from_hz(6000))  /* 100 CPU slices per frame - an high value to ensure proper */
-							/* synchronization of the CPUs */
-	MCFG_MACHINE_RESET_OVERRIDE(flstory_state,rumba)
+	MCFG_MACHINE_RESET_OVERRIDE(flstory_state,flstory)
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(flstory_state, screen_update_rumba)
-	MCFG_SCREEN_PALETTE("palette")
-
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", flstory)
-	MCFG_PALETTE_ADD("palette", 512)
-	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
-
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(flstory_state::screen_update_rumba));
 	MCFG_VIDEO_START_OVERRIDE(flstory_state,rumba)
-
-	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("speaker")
-
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-
-	MCFG_SOUND_ADD("aysnd", AY8910, XTAL_8MHz/4) /* verified on pcb */
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(flstory_state, sound_control_2_w))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(flstory_state, sound_control_3_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5)
-
-	MCFG_SOUND_ADD("msm", MSM5232, XTAL_8MHz/4) /* verified on pcb */
-	MCFG_MSM5232_SET_CAPACITORS(1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6) /* 1.0 uF capacitors (verified on real PCB) */
-	MCFG_SOUND_ROUTE(0, "speaker", 1.0)    // pin 28  2'-1
-	MCFG_SOUND_ROUTE(1, "speaker", 1.0)    // pin 29  4'-1
-	MCFG_SOUND_ROUTE(2, "speaker", 1.0)    // pin 30  8'-1
-	MCFG_SOUND_ROUTE(3, "speaker", 1.0)    // pin 31 16'-1
-	MCFG_SOUND_ROUTE(4, "speaker", 1.0)    // pin 36  2'-2
-	MCFG_SOUND_ROUTE(5, "speaker", 1.0)    // pin 35  4'-2
-	MCFG_SOUND_ROUTE(6, "speaker", 1.0)    // pin 34  8'-2
-	MCFG_SOUND_ROUTE(7, "speaker", 1.0)    // pin 33 16'-2
-	// pin 1 SOLO  8'       not mapped
-	// pin 2 SOLO 16'       not mapped
-	// pin 22 Noise Output  not mapped
-
-	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.1) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
-MACHINE_CONFIG_END
+}
 
 /***************************************************************************
 
@@ -1287,7 +886,7 @@ ROM_START( flstory )
 	ROM_LOAD( "snd.23",       0x2000, 0x2000, CRC(25e7fd9d) SHA1(b9237459e3d8acf8502a693914e50714a37d515e) )
 
 	ROM_REGION( 0x0800, "bmcu:mcu", 0 )  /* 2k for the microcontroller */
-	ROM_LOAD( "a45.mcu",      0x0000, 0x0800, CRC(5378253c) SHA1(e1ae1ab01e470b896c1d74ad4088928602a21a1b) )
+	ROM_LOAD( "a45-20.mcu",   0x0000, 0x0800, CRC(7d2cdd9b) SHA1(b9a7b4c7d9d58b4b7cab1304beaa9d17f9559419) )
 
 	ROM_REGION( 0x20000, "gfx1", ROMREGION_INVERT )
 	ROM_LOAD( "vid-a45.18",   0x00000, 0x4000, CRC(6f08f69e) SHA1(8f1b7e63a38f855cf26d57aed678da7cf1378fdf) )
@@ -1311,7 +910,7 @@ ROM_START( flstoryj )
 	ROM_LOAD( "a45_13.9",     0x2000, 0x2000, CRC(451f92f9) SHA1(f4196e6d3420983b74001303936d086a48b10827) )
 
 	ROM_REGION( 0x0800, "bmcu:mcu", 0 )  /* 2k for the microcontroller */
-	ROM_LOAD( "a45.mcu",      0x0000, 0x0800, CRC(5378253c) SHA1(e1ae1ab01e470b896c1d74ad4088928602a21a1b) )
+	ROM_LOAD( "a45-20.mcu",   0x0000, 0x0800, CRC(7d2cdd9b) SHA1(b9a7b4c7d9d58b4b7cab1304beaa9d17f9559419) )
 
 	ROM_REGION( 0x20000, "gfx1", ROMREGION_INVERT )
 	ROM_LOAD( "vid-a45.18",   0x00000, 0x4000, CRC(6f08f69e) SHA1(8f1b7e63a38f855cf26d57aed678da7cf1378fdf) )
@@ -1324,6 +923,11 @@ ROM_START( flstoryj )
 	ROM_LOAD( "vid-a45.21",   0x1c000, 0x4000, CRC(fc382bd1) SHA1(a773c87454a3d7b80374a6d38ecb8633af2cd990) )
 ROM_END
 
+/*
+女三四郎
+(Onna Sanshirou)
+Taito, 1985
+*/
 ROM_START( onna34ro )
 	ROM_REGION( 0x10000, "maincpu", 0 ) /* 64k for the first CPU */
 	ROM_LOAD( "a52-01-1.40c", 0x0000, 0x4000, CRC(ffddcb02) SHA1(d7002e8a577a5f9c2f63ec8d93076cd720443e05) )
@@ -1337,8 +941,8 @@ ROM_START( onna34ro )
 	ROM_LOAD( "a52-15.37s",   0x6000, 0x2000, CRC(5afc21d0) SHA1(317d5fb3a48ce5e13e02c5c6431fa08ada115d27) )
 	ROM_LOAD( "a52-16.38s",   0x8000, 0x2000, CRC(ccf42aee) SHA1(a6eb01c5384724999631b55700dade430b71ca95) )
 
-	ROM_REGION( 0x0800, "bmcu:mcu", 0 ) /* 2k for the microcontroller */
-	ROM_LOAD( "a52-17.54c",   0x0000, 0x0800, NO_DUMP )
+	ROM_REGION( 0x0800, "bmcu:mcu", 0 )  /* 2k for the microcontroller */
+	ROM_LOAD( "a52_17.54c",   0x0000, 0x0800, CRC(0ab2612e) SHA1(2bc74e9ef5b9dd51d733dc62902d92c269f7d6a7) )
 
 	ROM_REGION( 0x20000, "gfx1", ROMREGION_INVERT )
 	ROM_LOAD( "a52-04.11v",   0x00000, 0x4000, CRC(5b126294) SHA1(fc31e062e665f7313f923e84d6497716f0658ac0) )
@@ -1364,9 +968,6 @@ ROM_START( onna34roa )
 	ROM_LOAD( "a52-15.37s",   0x6000, 0x2000, CRC(5afc21d0) SHA1(317d5fb3a48ce5e13e02c5c6431fa08ada115d27) )
 	ROM_LOAD( "a52-16.38s",   0x8000, 0x2000, CRC(ccf42aee) SHA1(a6eb01c5384724999631b55700dade430b71ca95) )
 
-	ROM_REGION( 0x0800, "bmcu:mcu", 0 ) /* 2k for the microcontroller */
-	ROM_LOAD( "a52-17.54c",   0x0000, 0x0800, NO_DUMP )
-
 	ROM_REGION( 0x20000, "gfx1", ROMREGION_INVERT )
 	ROM_LOAD( "a52-04.11v",   0x00000, 0x4000, CRC(5b126294) SHA1(fc31e062e665f7313f923e84d6497716f0658ac0) )
 	ROM_LOAD( "a52-06.10v",   0x04000, 0x4000, CRC(78114721) SHA1(d0e52544e05ab4fd1b131ed49beb252048bcbe31) )
@@ -1380,7 +981,7 @@ ROM_END
 
 
 /*
-Victorious Nine
+Victorious Nine hardware info by Guru
 Taito, 1984
 
 Hardware is similar to Elevator Action (uses same pinouts for wiring harness also)
@@ -1433,7 +1034,7 @@ PCB No: J1100007A K1100013A (plus 2 stickers... K1100027A  M4300007B)
 CPU   : NEC D780 (Z80, plus one unpopulated socket for another Z80 CPU)
 XTAL  : 8.000MHz
 RAM   : M5M5517 (=6116, x1)
-OTHER : MC68705P5S (labelled "A16 18", read-protected and not dumped)
+OTHER : MC68705P5S (labelled "A16 18", read-protected and not dumped - many years later dumped via m68705 dumper)
 DIPSW : 8 position (x3, see archive for DSW info)
 PALs  : None
 PROMs : None
@@ -1480,7 +1081,7 @@ ROM_START( victnine )
 	ROM_LOAD( "a16-17.39",    0xa000, 0x2000, CRC(872270b3) SHA1(2298cb8ced6c3e9afb430faab1b38ba8f2fa93b5) )
 
 	ROM_REGION( 0x0800, "bmcu:mcu", 0 ) /* 2k for the microcontroller */
-	ROM_LOAD( "a16-18.mcu",   0x0000, 0x0800, NO_DUMP )
+	ROM_LOAD( "a16-18.54",   0x0000, 0x0800, BAD_DUMP CRC(5198ef59) SHA1(05bde731ff580984dcf5a66e8465377c6dc03ec0) ) // dumped via m68705 dumper and hand-verified. Might still be imperfect but confirmed working on real PCB.
 
 	ROM_REGION( 0x10000, "gfx1", ROMREGION_INVERT )
 	ROM_LOAD( "a16-06-1.7",   0x00000, 0x2000, CRC(b708134d) SHA1(9732be463cfbbe81ea0ad06da5a48b660ca429d0) )
@@ -1537,19 +1138,20 @@ Dumped by Corrado Tomaselli on 9/12/2010
 
 */
 
+
 ROM_START( rumba )
 	ROM_REGION( 0x10000, "maincpu", 0 ) /* 64k for the first CPU */
-	ROM_LOAD( "a23_01-1.bin",   0x0000, 0x4000, CRC(4bea6e18) SHA1(b9a85e65105773b5f93dcc5fc1e7c588b2d25056) )
-	ROM_LOAD( "a23_02-1.bin",   0x4000, 0x4000, CRC(08f98c6f) SHA1(f2a850b1138cfefab6ff1d1adcda9e084f52e9c2) )
-	ROM_LOAD( "a23_03-1.bin",   0x8000, 0x4000, CRC(ab595427) SHA1(1ff51740e1c7915e1f79a55801d11c8fdce764c8) )
+	ROM_LOAD( "a23_01-1.bin",  0x0000, 0x4000, CRC(4bea6e18) SHA1(b9a85e65105773b5f93dcc5fc1e7c588b2d25056) )
+	ROM_LOAD( "a23_02-1.bin",  0x4000, 0x4000, CRC(08f98c6f) SHA1(f2a850b1138cfefab6ff1d1adcda9e084f52e9c2) )
+	ROM_LOAD( "a23_03-1.bin",  0x8000, 0x4000, CRC(ab595427) SHA1(1ff51740e1c7915e1f79a55801d11c8fdce764c8) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for the second CPU */
-	ROM_LOAD( "a23_08-1.bin",     0x0000, 0x2000, CRC(a18eae00) SHA1(6ac1ad07bb5a97c6edaaf0e1fb842e1741f4cf1e) )
-	ROM_LOAD( "a23_09.bin",       0x2000, 0x2000, CRC(d0a101d3) SHA1(c92bb1ce67bec394fd8ce303d9e61eac12493b5d) )
-	ROM_LOAD( "a23_10.bin",       0x4000, 0x2000, CRC(f9447bd4) SHA1(68c02249ca0e5b923cddb4bff8d090963b9c78e4) )
+	ROM_LOAD( "a23_08-1.bin",  0x0000, 0x2000, CRC(a18eae00) SHA1(6ac1ad07bb5a97c6edaaf0e1fb842e1741f4cf1e) )
+	ROM_LOAD( "a23_09.bin",    0x2000, 0x2000, CRC(d0a101d3) SHA1(c92bb1ce67bec394fd8ce303d9e61eac12493b5d) )
+	ROM_LOAD( "a23_10.bin",    0x4000, 0x2000, CRC(f9447bd4) SHA1(68c02249ca0e5b923cddb4bff8d090963b9c78e4) )
 
 	ROM_REGION( 0x0800, "bmcu:mcu", 0 )  /* 2k for the microcontroller */
-	ROM_LOAD( "a23-11.mc68705p5s", 0x0000, 0x0800, NO_DUMP )
+	ROM_LOAD( "a23_11.bin",    0x0000, 0x0800, CRC(fddc99ce) SHA1(a9c7f76752ce74a780ca74004106c969d78ba931) )
 
 	ROM_REGION( 0x8000, "gfx1", ROMREGION_INVERT )
 	ROM_LOAD( "a23_07.bin",   0x02000, 0x2000, CRC(c98fbea6) SHA1(edd1e0b2551f726018ca6e0b2cf629046a482711) )
@@ -1559,9 +1161,9 @@ ROM_START( rumba )
 ROM_END
 
 
-GAME( 1985, flstory,   0,        flstory,  flstory, driver_device,  0, ROT180, "Taito", "The FairyLand Story", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1985, flstoryj,  flstory,  flstory,  flstory, driver_device,  0, ROT180, "Taito", "The FairyLand Story (Japan)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1985, onna34ro,  0,        onna34ro, onna34ro, driver_device, 0, ROT0,   "Taito", "Onna Sansirou - Typhoon Gal (set 1)", MACHINE_UNEMULATED_PROTECTION | MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1985, onna34roa, onna34ro, onna34ro, onna34ro, driver_device, 0, ROT0,   "Taito", "Onna Sansirou - Typhoon Gal (set 2)", MACHINE_UNEMULATED_PROTECTION | MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1984, victnine,  0,        victnine, victnine, driver_device, 0, ROT0,   "Taito", "Victorious Nine", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1984, rumba,     0,        rumba,    rumba, driver_device,    0, ROT270, "Taito", "Rumba Lumber", MACHINE_IMPERFECT_SOUND | MACHINE_UNEMULATED_PROTECTION )
+GAME( 1985, flstory,   0,        flstory,      flstory,  flstory_state, empty_init, ROT180, "Taito", "The FairyLand Story",                    MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1985, flstoryj,  flstory,  flstory,      flstory,  flstory_state, empty_init, ROT180, "Taito", "The FairyLand Story (Japan)",            MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1985, onna34ro,  0,        onna34ro_mcu, onna34ro, flstory_state, empty_init, ROT0,   "Taito", "Onna Sanshirou - Typhoon Gal",           MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1985, onna34roa, onna34ro, onna34ro,     onna34ro, flstory_state, empty_init, ROT0,   "Taito", "Onna Sanshirou - Typhoon Gal (bootleg)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1984, victnine,  0,        victnine,     victnine, flstory_state, empty_init, ROT0,   "Taito", "Victorious Nine",                        MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1984, rumba,     0,        rumba,        rumba,    flstory_state, empty_init, ROT270, "Taito", "Rumba Lumber",                           MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )

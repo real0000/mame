@@ -60,12 +60,13 @@ reads from 0x0006, and only uses bit 1.
 #include "konami_helper.h"
 
 #define VERBOSE 0
-#define LOG(x) do { if (VERBOSE) logerror x; } while (0)
+#include "logmacro.h"
 
-const device_type K051733 = device_creator<k051733_device>;
+
+DEFINE_DEVICE_TYPE(K051733, k051733_device, "k051733", "K051733 Protection")
 
 k051733_device::k051733_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, K051733, "K051733 Protection", tag, owner, clock, "k051733", __FILE__),
+	: device_t(mconfig, K051733, tag, owner, clock),
 	//m_ram[0x20],
 	m_rng(0)
 {
@@ -99,9 +100,9 @@ void k051733_device::device_reset()
     DEVICE HANDLERS
 *****************************************************************************/
 
-WRITE8_MEMBER( k051733_device::write )
+void k051733_device::write(offs_t offset, uint8_t data)
 {
-	//logerror("%04x: write %02x to 051733 address %02x\n", space.device().safe_pc(), data, offset);
+	//logerror("%s: write %02x to 051733 address %02x\n", m_maincpu->pc(), data, offset);
 
 	m_ram[offset] = data;
 }
@@ -125,7 +126,7 @@ static int k051733_int_sqrt( uint32_t op )
 	return i;
 }
 
-READ8_MEMBER( k051733_device::read )
+uint8_t k051733_device::read(offs_t offset)
 {
 	int op1 = (m_ram[0x00] << 8) | m_ram[0x01];
 	int op2 = (m_ram[0x02] << 8) | m_ram[0x03];

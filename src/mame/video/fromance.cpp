@@ -28,7 +28,7 @@ inline void fromance_state::get_fromance_tile_info( tile_data &tileinfo, int til
 				m_local_videoram[layer][0x2000 + tile_index];
 	int color = m_local_videoram[layer][tile_index] & 0x7f;
 
-	SET_TILE_INFO_MEMBER(layer, tile, color, 0);
+	tileinfo.set(layer, tile, color, 0);
 }
 
 TILE_GET_INFO_MEMBER(fromance_state::get_fromance_bg_tile_info){ get_fromance_tile_info(tileinfo, tile_index, 0); }
@@ -41,7 +41,7 @@ inline void fromance_state::get_nekkyoku_tile_info( tile_data &tileinfo, int til
 				m_local_videoram[layer][0x1000 + tile_index];
 	int color = m_local_videoram[layer][tile_index + 0x2000] & 0x3f;
 
-	SET_TILE_INFO_MEMBER(layer, tile, color, 0);
+	tileinfo.set(layer, tile, color, 0);
 }
 
 TILE_GET_INFO_MEMBER(fromance_state::get_nekkyoku_bg_tile_info){ get_nekkyoku_tile_info(tileinfo, tile_index, 0); }
@@ -72,8 +72,8 @@ void fromance_state::init_common(  )
 
 	/* state save */
 	save_item(NAME(m_selected_videoram));
-	save_pointer(NAME(m_local_videoram[0].get()), 0x1000 * 3);
-	save_pointer(NAME(m_local_videoram[1].get()), 0x1000 * 3);
+	save_pointer(NAME(m_local_videoram[0]), 0x1000 * 3);
+	save_pointer(NAME(m_local_videoram[1]), 0x1000 * 3);
 	save_item(NAME(m_selected_paletteram));
 	save_item(NAME(m_scrollx));
 	save_item(NAME(m_scrolly));
@@ -82,16 +82,14 @@ void fromance_state::init_common(  )
 	save_item(NAME(m_flipscreen_old));
 	save_item(NAME(m_scrollx_ofs));
 	save_item(NAME(m_scrolly_ofs));
-	save_item(NAME(m_crtc_register));
-	save_item(NAME(m_crtc_data));
-	save_pointer(NAME(m_local_paletteram.get()), 0x800 * 2);
+	save_pointer(NAME(m_local_paletteram), 0x800 * 2);
 }
 
 VIDEO_START_MEMBER(fromance_state,fromance)
 {
 	/* allocate tilemaps */
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(fromance_state::get_fromance_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
-	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(fromance_state::get_fromance_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(fromance_state::get_fromance_bg_tile_info)), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
+	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(fromance_state::get_fromance_fg_tile_info)), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
 
 	init_common();
 }
@@ -99,8 +97,8 @@ VIDEO_START_MEMBER(fromance_state,fromance)
 VIDEO_START_MEMBER(fromance_state,nekkyoku)
 {
 	/* allocate tilemaps */
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(fromance_state::get_nekkyoku_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
-	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(fromance_state::get_nekkyoku_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(fromance_state::get_nekkyoku_bg_tile_info)), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
+	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(fromance_state::get_nekkyoku_fg_tile_info)), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
 
 	init_common();
 }
@@ -263,7 +261,7 @@ TIMER_CALLBACK_MEMBER(fromance_state::crtc_interrupt_gen)
 // TODO: guesswork, looks fully programmable
 void fromance_state::crtc_refresh()
 {
-	if(m_crtc_data[0] == 0) // sanity check
+	if (m_gga->reg(0) == 0) // sanity check
 		return;
 
 	rectangle visarea;
@@ -271,7 +269,7 @@ void fromance_state::crtc_refresh()
 
 	visarea.min_x = 0;
 	visarea.min_y = 0;
-	visarea.max_x = ((m_crtc_data[0]+1)*4) - 1;
+	visarea.max_x = ((m_gga->reg(0)+1)*4) - 1;
 	visarea.max_y = 240 - 1;
 
 	refresh = HZ_TO_ATTOSECONDS(60);
@@ -279,11 +277,9 @@ void fromance_state::crtc_refresh()
 	m_screen->configure(512, 256, visarea, refresh);
 }
 
-WRITE8_MEMBER(fromance_state::fromance_crtc_data_w)
+void fromance_state::fromance_gga_data_w(offs_t offset, uint8_t data)
 {
-	m_crtc_data[m_crtc_register] = data;
-
-	switch (m_crtc_register)
+	switch (offset)
 	{
 		case 0x00:
 			crtc_refresh();
@@ -295,15 +291,9 @@ WRITE8_MEMBER(fromance_state::fromance_crtc_data_w)
 			break;
 
 		default:
-			logerror("CRTC register %02X = %02X\n", m_crtc_register, data & 0xff);
+			logerror("CRTC register %02X = %02X\n", offset, data);
 			break;
 	}
-}
-
-
-WRITE8_MEMBER(fromance_state::fromance_crtc_register_w)
-{
-	m_crtc_register = data & 0x0f;
 }
 
 

@@ -44,10 +44,10 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type C1570 = device_creator<c1570_t>;
-const device_type C1571 = device_creator<c1571_t>;
-const device_type C1571CR = device_creator<c1571cr_t>;
-const device_type MINI_CHIEF = device_creator<mini_chief_t>;
+DEFINE_DEVICE_TYPE(C1570,      c1570_device,      "c1570",    "Commodore 1570 Disk Drive")
+DEFINE_DEVICE_TYPE(C1571,      c1571_device,      "c1571",    "Commodore 1571 Disk Drive")
+DEFINE_DEVICE_TYPE(C1571CR,    c1571cr_device,    "c1571cr",  "Commodore 1571CR Disk Drive")
+DEFINE_DEVICE_TYPE(MINI_CHIEF, mini_chief_device, "minichif", "ICT Mini Chief Disk Drive")
 
 
 //-------------------------------------------------
@@ -64,7 +64,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *c1570_t::device_rom_region() const
+const tiny_rom_entry *c1570_device::device_rom_region() const
 {
 	return ROM_NAME( c1570 );
 }
@@ -78,11 +78,11 @@ ROM_START( c1571 )
 	ROM_REGION( 0x8000, M6502_TAG, 0 )
 	ROM_DEFAULT_BIOS("r5")
 	ROM_SYSTEM_BIOS( 0, "r3", "Revision 3" )
-	ROMX_LOAD( "310654-03.u2", 0x0000, 0x8000, CRC(3889b8b8) SHA1(e649ef4419d65829d2afd65e07d31f3ce147d6eb), ROM_BIOS(1) )
+	ROMX_LOAD( "310654-03.u2", 0x0000, 0x8000, CRC(3889b8b8) SHA1(e649ef4419d65829d2afd65e07d31f3ce147d6eb), ROM_BIOS(0) )
 	ROM_SYSTEM_BIOS( 1, "r5", "Revision 5" )
-	ROMX_LOAD( "310654-05.u2", 0x0000, 0x8000, CRC(5755bae3) SHA1(f1be619c106641a685f6609e4d43d6fc9eac1e70), ROM_BIOS(2) )
+	ROMX_LOAD( "310654-05.u2", 0x0000, 0x8000, CRC(5755bae3) SHA1(f1be619c106641a685f6609e4d43d6fc9eac1e70), ROM_BIOS(1) )
 	ROM_SYSTEM_BIOS( 2, "jiffydos", "JiffyDOS v6.01" )
-	ROMX_LOAD( "jiffydos 1571.u2", 0x0000, 0x8000, CRC(fe6cac6d) SHA1(d4b79b60cf1eaa399d0932200eb7811e00455249), ROM_BIOS(3) )
+	ROMX_LOAD( "jiffydos 1571.u2", 0x0000, 0x8000, CRC(fe6cac6d) SHA1(d4b79b60cf1eaa399d0932200eb7811e00455249), ROM_BIOS(2) )
 ROM_END
 
 
@@ -90,7 +90,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *c1571_t::device_rom_region() const
+const tiny_rom_entry *c1571_device::device_rom_region() const
 {
 	return ROM_NAME( c1571 );
 }
@@ -104,9 +104,9 @@ ROM_START( c1571cr )
 	ROM_REGION( 0x8000, M6502_TAG, 0 )
 	ROM_DEFAULT_BIOS("cbm")
 	ROM_SYSTEM_BIOS( 0, "cbm", "Commodore" )
-	ROMX_LOAD( "318047-01.u102", 0x0000, 0x8000, CRC(f24efcc4) SHA1(14ee7a0fb7e1c59c51fbf781f944387037daa3ee), ROM_BIOS(1) )
+	ROMX_LOAD( "318047-01.u102", 0x0000, 0x8000, CRC(f24efcc4) SHA1(14ee7a0fb7e1c59c51fbf781f944387037daa3ee), ROM_BIOS(0) )
 	ROM_SYSTEM_BIOS( 1, "jiffydos", "JiffyDOS v6.01" )
-	ROMX_LOAD( "jiffydos 1571d.u102", 0x0000, 0x8000, CRC(9cba146d) SHA1(823b178561302b403e6bfd8dd741d757efef3958), ROM_BIOS(2) )
+	ROMX_LOAD( "jiffydos 1571d.u102", 0x0000, 0x8000, CRC(9cba146d) SHA1(823b178561302b403e6bfd8dd741d757efef3958), ROM_BIOS(1) )
 ROM_END
 
 
@@ -114,7 +114,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *c1571cr_t::device_rom_region() const
+const tiny_rom_entry *c1571cr_device::device_rom_region() const
 {
 	return ROM_NAME( c1571cr );
 }
@@ -134,7 +134,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *mini_chief_t::device_rom_region() const
+const tiny_rom_entry *mini_chief_device::device_rom_region() const
 {
 	return ROM_NAME( minichief );
 }
@@ -144,40 +144,42 @@ const tiny_rom_entry *mini_chief_t::device_rom_region() const
 //  ADDRESS_MAP( c1571_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( c1571_mem, AS_PROGRAM, 8, c1571_t )
-	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x1800, 0x180f) AM_MIRROR(0x03f0) AM_DEVREADWRITE(M6522_0_TAG, via6522_device, read, write)
-	AM_RANGE(0x1c00, 0x1c0f) AM_MIRROR(0x03f0) AM_READWRITE(via1_r, via1_w)
-	AM_RANGE(0x2000, 0x2003) AM_MIRROR(0x1ffc) AM_DEVREADWRITE(WD1770_TAG, wd1770_t, read, write)
-	AM_RANGE(0x4000, 0x400f) AM_MIRROR(0x3ff0) AM_DEVREADWRITE(M6526_TAG, mos6526_device, read, write)
-	AM_RANGE(0x8000, 0xffff) AM_ROM AM_REGION(M6502_TAG, 0)
-ADDRESS_MAP_END
+void c1571_device::c1571_mem(address_map &map)
+{
+	map(0x0000, 0x07ff).ram();
+	map(0x1800, 0x180f).mirror(0x03f0).m(M6522_0_TAG, FUNC(via6522_device::map));
+	map(0x1c00, 0x1c0f).mirror(0x03f0).rw(FUNC(c1571_device::via1_r), FUNC(c1571_device::via1_w));
+	map(0x2000, 0x2003).mirror(0x1ffc).rw(WD1770_TAG, FUNC(wd1770_device::read), FUNC(wd1770_device::write));
+	map(0x4000, 0x400f).mirror(0x3ff0).rw(M6526_TAG, FUNC(mos6526_device::read), FUNC(mos6526_device::write));
+	map(0x8000, 0xffff).rom().region(M6502_TAG, 0);
+}
 
 
 //-------------------------------------------------
 //  ADDRESS_MAP( mini_chief_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( mini_chief_mem, AS_PROGRAM, 8, mini_chief_t )
-	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x1800, 0x180f) AM_MIRROR(0x03f0) AM_DEVREADWRITE(M6522_0_TAG, via6522_device, read, write)
-	AM_RANGE(0x1c00, 0x1c0f) AM_MIRROR(0x03f0) AM_READWRITE(via1_r, via1_w)
-	AM_RANGE(0x2000, 0x2003) AM_MIRROR(0x1ffc) AM_DEVREADWRITE(WD1770_TAG, wd1770_t, read, write)
-	AM_RANGE(0x4000, 0x400f) AM_MIRROR(0xff0) AM_DEVREADWRITE(M6526_TAG, mos6526_device, read, write)
-	AM_RANGE(0x5000, 0x5fff) AM_MIRROR(0x2000) AM_RAM
-	AM_RANGE(0x6000, 0x6fff) AM_RAM
-	AM_RANGE(0x8000, 0xffff) AM_ROM AM_REGION(M6502_TAG, 0)
-ADDRESS_MAP_END
+void mini_chief_device::mini_chief_mem(address_map &map)
+{
+	map(0x0000, 0x07ff).ram();
+	map(0x1800, 0x180f).mirror(0x03f0).m(M6522_0_TAG, FUNC(via6522_device::map));
+	map(0x1c00, 0x1c0f).mirror(0x03f0).rw(FUNC(mini_chief_device::via1_r), FUNC(mini_chief_device::via1_w));
+	map(0x2000, 0x2003).mirror(0x1ffc).rw(WD1770_TAG, FUNC(wd1770_device::read), FUNC(wd1770_device::write));
+	map(0x4000, 0x400f).mirror(0xff0).rw(M6526_TAG, FUNC(mos6526_device::read), FUNC(mos6526_device::write));
+	map(0x5000, 0x5fff).mirror(0x2000).ram();
+	map(0x6000, 0x6fff).ram();
+	map(0x8000, 0xffff).rom().region(M6502_TAG, 0);
+}
 
 
-WRITE_LINE_MEMBER( c1571_t::via0_irq_w )
+WRITE_LINE_MEMBER( c1571_device::via0_irq_w )
 {
 	m_via0_irq = state;
 
 	m_maincpu->set_input_line(INPUT_LINE_IRQ0, (m_via0_irq || m_via1_irq || m_cia_irq) ? ASSERT_LINE : CLEAR_LINE);
 }
 
-READ8_MEMBER( c1571_t::via0_pa_r )
+uint8_t c1571_device::via0_pa_r()
 {
 	/*
 
@@ -205,7 +207,7 @@ READ8_MEMBER( c1571_t::via0_pa_r )
 	return data;
 }
 
-WRITE8_MEMBER( c1571_t::via0_pa_w )
+void c1571_device::via0_pa_w(uint8_t data)
 {
 	/*
 
@@ -233,7 +235,7 @@ WRITE8_MEMBER( c1571_t::via0_pa_w )
 
 	if (m_1_2mhz != clock_1_2)
 	{
-		uint32_t clock = clock_1_2 ? XTAL_16MHz/8 : XTAL_16MHz/16;
+		const XTAL clock = 16_MHz_XTAL / (clock_1_2 ? 8 : 16);
 
 		m_maincpu->set_unscaled_clock(clock);
 		m_cia->set_unscaled_clock(clock);
@@ -250,7 +252,7 @@ WRITE8_MEMBER( c1571_t::via0_pa_w )
 	update_iec();
 }
 
-WRITE8_MEMBER( c1571cr_t::via0_pa_w )
+void c1571cr_device::via0_pa_w(uint8_t data)
 {
 	/*
 
@@ -275,7 +277,7 @@ WRITE8_MEMBER( c1571cr_t::via0_pa_w )
 
 	if (m_1_2mhz != clock_1_2)
 	{
-		uint32_t clock = clock_1_2 ? XTAL_16MHz/8 : XTAL_16MHz/16;
+		const XTAL clock = 16_MHz_XTAL / (clock_1_2 ? 8 : 16);
 
 		m_maincpu->set_unscaled_clock(clock);
 		m_cia->set_unscaled_clock(clock);
@@ -287,7 +289,7 @@ WRITE8_MEMBER( c1571cr_t::via0_pa_w )
 	}
 }
 
-READ8_MEMBER( c1571_t::via0_pb_r )
+uint8_t c1571_device::via0_pb_r()
 {
 	/*
 
@@ -321,7 +323,7 @@ READ8_MEMBER( c1571_t::via0_pb_r )
 	return data;
 }
 
-WRITE8_MEMBER( c1571_t::via0_pb_w )
+void c1571_device::via0_pb_w(uint8_t data)
 {
 	/*
 
@@ -350,7 +352,7 @@ WRITE8_MEMBER( c1571_t::via0_pb_w )
 	update_iec();
 }
 
-WRITE8_MEMBER( c1571cr_t::via0_pb_w )
+void c1571cr_device::via0_pb_w(uint8_t data)
 {
 	/*
 
@@ -380,9 +382,9 @@ WRITE8_MEMBER( c1571cr_t::via0_pb_w )
 }
 
 
-READ8_MEMBER( c1571_t::via1_r )
+READ8_MEMBER( c1571_device::via1_r )
 {
-	uint8_t data = m_via1->read(space, offset);
+	uint8_t data = m_via1->read(offset);
 
 	m_ga->ted_w(!m_1_2mhz);
 	m_ga->ted_w(1);
@@ -390,22 +392,22 @@ READ8_MEMBER( c1571_t::via1_r )
 	return data;
 }
 
-WRITE8_MEMBER( c1571_t::via1_w )
+WRITE8_MEMBER( c1571_device::via1_w )
 {
-	m_via1->write(space, offset, data);
+	m_via1->write(offset, data);
 
 	m_ga->ted_w(!m_1_2mhz);
 	m_ga->ted_w(1);
 }
 
-WRITE_LINE_MEMBER( c1571_t::via1_irq_w )
+WRITE_LINE_MEMBER( c1571_device::via1_irq_w )
 {
 	m_via1_irq = state;
 
 	m_maincpu->set_input_line(INPUT_LINE_IRQ0, (m_via0_irq || m_via1_irq || m_cia_irq) ? ASSERT_LINE : CLEAR_LINE);
 }
 
-READ8_MEMBER( c1571_t::via1_pb_r )
+uint8_t c1571_device::via1_pb_r()
 {
 	/*
 
@@ -433,7 +435,7 @@ READ8_MEMBER( c1571_t::via1_pb_r )
 	return data;
 }
 
-WRITE8_MEMBER( c1571_t::via1_pb_w )
+void c1571_device::via1_pb_w(uint8_t data)
 {
 	/*
 
@@ -457,7 +459,7 @@ WRITE8_MEMBER( c1571_t::via1_pb_w )
 	m_ga->stp_w(data & 0x03); // TODO actually STP1=0, STP0=!(PB0^PB1), Y0=PB1, Y2=!PB1
 
 	// activity LED
-	machine().output().set_led_value(LED_ACT, BIT(data, 3));
+	m_leds[LED_ACT] = BIT(data, 3);
 
 	// density select
 	m_ga->ds_w((data >> 5) & 0x03);
@@ -468,14 +470,14 @@ WRITE8_MEMBER( c1571_t::via1_pb_w )
 //  MOS6526_INTERFACE( cia_intf )
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( c1571_t::cia_irq_w )
+WRITE_LINE_MEMBER( c1571_device::cia_irq_w )
 {
 	m_cia_irq = state;
 
 	m_maincpu->set_input_line(INPUT_LINE_IRQ0, (m_via0_irq || m_via1_irq || m_cia_irq) ? ASSERT_LINE : CLEAR_LINE);
 }
 
-WRITE_LINE_MEMBER( c1571_t::cia_pc_w )
+WRITE_LINE_MEMBER( c1571_device::cia_pc_w )
 {
 	if (m_other != nullptr)
 	{
@@ -483,26 +485,26 @@ WRITE_LINE_MEMBER( c1571_t::cia_pc_w )
 	}
 }
 
-WRITE_LINE_MEMBER( c1571_t::cia_cnt_w )
+WRITE_LINE_MEMBER( c1571_device::cia_cnt_w )
 {
 	m_cnt_out = state;
 
 	update_iec();
 }
 
-WRITE_LINE_MEMBER( c1571_t::cia_sp_w )
+WRITE_LINE_MEMBER( c1571_device::cia_sp_w )
 {
 	m_sp_out = state;
 
 	update_iec();
 }
 
-READ8_MEMBER( c1571_t::cia_pb_r )
+uint8_t c1571_device::cia_pb_r()
 {
 	return m_parallel_data;
 }
 
-WRITE8_MEMBER( c1571_t::cia_pb_w )
+void c1571_device::cia_pb_w(uint8_t data)
 {
 	if (m_other != nullptr)
 	{
@@ -515,19 +517,19 @@ WRITE8_MEMBER( c1571_t::cia_pb_w )
 //  MOS6526_INTERFACE( mini_chief_cia_intf )
 //-------------------------------------------------
 
-READ8_MEMBER( mini_chief_t::cia_pa_r )
+uint8_t mini_chief_device::cia_pa_r()
 {
 	// TODO read from ISA bus @ 0x320 | A2 A1 A0
 
 	return 0;
 }
 
-WRITE8_MEMBER( mini_chief_t::cia_pa_w )
+void mini_chief_device::cia_pa_w(uint8_t data)
 {
 	// TODO write to ISA bus @ 0x320 | A2 A1 A0
 }
 
-WRITE8_MEMBER( mini_chief_t::cia_pb_w )
+void mini_chief_device::cia_pb_w(uint8_t data)
 {
 	/*
 
@@ -550,7 +552,7 @@ WRITE8_MEMBER( mini_chief_t::cia_pb_w )
 //  C64H156_INTERFACE( ga_intf )
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( c1571_t::byte_w )
+WRITE_LINE_MEMBER( c1571_device::byte_w )
 {
 	m_via1->write_ca1(state);
 
@@ -559,19 +561,10 @@ WRITE_LINE_MEMBER( c1571_t::byte_w )
 
 
 //-------------------------------------------------
-//  SLOT_INTERFACE( c1571_floppies )
-//-------------------------------------------------
-
-static SLOT_INTERFACE_START( c1571_floppies )
-	SLOT_INTERFACE( "525qd", FLOPPY_525_QD )
-SLOT_INTERFACE_END
-
-
-//-------------------------------------------------
 //  floppy_interface c1571_floppy_interface
 //-------------------------------------------------
 
-void c1571_t::wpt_callback(floppy_image_device *floppy, int state)
+void c1571_device::wpt_callback(floppy_image_device *floppy, int state)
 {
 	m_via0->write_ca2(!state);
 }
@@ -581,7 +574,7 @@ void c1571_t::wpt_callback(floppy_image_device *floppy, int state)
 //  FLOPPY_FORMATS( floppy_formats )
 //-------------------------------------------------
 
-FLOPPY_FORMATS_MEMBER( c1571_t::floppy_formats )
+FLOPPY_FORMATS_MEMBER( c1571_device::floppy_formats )
 	FLOPPY_D64_FORMAT,
 	FLOPPY_G64_FORMAT,
 	FLOPPY_D71_FORMAT
@@ -592,209 +585,96 @@ FLOPPY_FORMATS_END
 //  isa8bus_interface isabus_intf
 //-------------------------------------------------
 
-static SLOT_INTERFACE_START( mini_chief_isa8_cards )
-	SLOT_INTERFACE("wd1002a_wx1", ISA8_WD1002A_WX1)
-SLOT_INTERFACE_END
-
-//-------------------------------------------------
-//  MACHINE_DRIVER( c1570 )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( c1570 )
-	MCFG_CPU_ADD(M6502_TAG, M6502, XTAL_16MHz/16)
-	MCFG_CPU_PROGRAM_MAP(c1571_mem)
-	MCFG_QUANTUM_PERFECT_CPU(M6502_TAG)
-
-	MCFG_DEVICE_ADD(M6522_0_TAG, VIA6522, XTAL_16MHz/16)
-	MCFG_VIA6522_READPA_HANDLER(READ8(c1571_t, via0_pa_r))
-	MCFG_VIA6522_READPB_HANDLER(READ8(c1571_t, via0_pb_r))
-	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(c1571_t, via0_pa_w))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(c1571_t, via0_pb_w))
-	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(c1571_t, via0_irq_w))
-
-	MCFG_DEVICE_ADD(M6522_1_TAG, VIA6522, XTAL_16MHz/16)
-	MCFG_VIA6522_READPA_HANDLER(DEVREAD8(C64H156_TAG, c64h156_device, yb_r))
-	MCFG_VIA6522_READPB_HANDLER(READ8(c1571_t, via1_pb_r))
-	MCFG_VIA6522_WRITEPA_HANDLER(DEVWRITE8(C64H156_TAG, c64h156_device, yb_w))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(c1571_t, via1_pb_w))
-	MCFG_VIA6522_CA2_HANDLER(DEVWRITELINE(C64H156_TAG, c64h156_device, soe_w))
-	MCFG_VIA6522_CB2_HANDLER(DEVWRITELINE(C64H156_TAG, c64h156_device, oe_w))
-	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(c1571_t, via1_irq_w))
-
-	MCFG_DEVICE_ADD(M6526_TAG, MOS6526, XTAL_16MHz/16)
-	MCFG_MOS6526_IRQ_CALLBACK(WRITELINE(c1571_t, cia_irq_w))
-	MCFG_MOS6526_CNT_CALLBACK(WRITELINE(c1571_t, cia_cnt_w))
-	MCFG_MOS6526_SP_CALLBACK(WRITELINE(c1571_t, cia_sp_w))
-	MCFG_MOS6526_PB_INPUT_CALLBACK(READ8(c1571_t, cia_pb_r))
-	MCFG_MOS6526_PB_OUTPUT_CALLBACK(WRITE8(c1571_t, cia_pb_w))
-	MCFG_MOS6526_PC_CALLBACK(WRITELINE(c1571_t, cia_pc_w))
-
-	MCFG_WD1770_ADD(WD1770_TAG, XTAL_16MHz/2)
-	MCFG_DEVICE_ADD(C64H156_TAG, C64H156, XTAL_16MHz)
-	MCFG_64H156_BYTE_CALLBACK(WRITELINE(c1571_t, byte_w))
-	MCFG_FLOPPY_DRIVE_ADD(C64H156_TAG":0", c1571_floppies, "525qd", c1571_t::floppy_formats)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor c1570_t::device_mconfig_additions() const
+static void mini_chief_isa8_cards(device_slot_interface &device)
 {
-	return MACHINE_CONFIG_NAME( c1570 );
+	device.option_add("wd1002a_wx1", ISA8_WD1002A_WX1);
+}
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void c1571_device::add_base_mconfig(machine_config &config)
+{
+	M6502(config, m_maincpu, 16_MHz_XTAL / 16);
+	m_maincpu->set_addrmap(AS_PROGRAM, &c1571_device::c1571_mem);
+	//config.set_perfect_quantum(m_maincpu); FIXME: not safe in a slot device - add barriers
+
+	VIA6522(config, m_via0, 16_MHz_XTAL / 16);
+	m_via0->readpa_handler().set(FUNC(c1571_device::via0_pa_r));
+	m_via0->readpb_handler().set(FUNC(c1571_device::via0_pb_r));
+	m_via0->writepa_handler().set(FUNC(c1571_device::via0_pa_w));
+	m_via0->writepb_handler().set(FUNC(c1571_device::via0_pb_w));
+	m_via0->irq_handler().set(FUNC(c1571_device::via0_irq_w));
+
+	VIA6522(config, m_via1, 16_MHz_XTAL / 16);
+	m_via1->readpa_handler().set(C64H156_TAG, FUNC(c64h156_device::yb_r));
+	m_via1->readpb_handler().set(FUNC(c1571_device::via1_pb_r));
+	m_via1->writepa_handler().set(C64H156_TAG, FUNC(c64h156_device::yb_w));
+	m_via1->writepb_handler().set(FUNC(c1571_device::via1_pb_w));
+	m_via1->ca2_handler().set(C64H156_TAG, FUNC(c64h156_device::soe_w));
+	m_via1->cb2_handler().set(C64H156_TAG, FUNC(c64h156_device::oe_w));
+	m_via1->irq_handler().set(FUNC(c1571_device::via1_irq_w));
+
+	WD1770(config, m_fdc, 16_MHz_XTAL / 2);
+
+	C64H156(config, m_ga, 16_MHz_XTAL);
+	m_ga->byte_callback().set(FUNC(c1571_device::byte_w));
+
+	floppy_connector &connector(FLOPPY_CONNECTOR(config, C64H156_TAG":0", 0));
+	connector.option_add("525qd", FLOPPY_525_QD);
+	connector.set_default_option("525qd");
+	connector.set_fixed(true);
+	connector.set_formats(c1571_device::floppy_formats);
+}
+
+void c1571_device::add_cia_mconfig(machine_config &config)
+{
+	MOS6526(config, m_cia, 16_MHz_XTAL / 16);
+	m_cia->irq_wr_callback().set(FUNC(c1571_device::cia_irq_w));
+	m_cia->cnt_wr_callback().set(FUNC(c1571_device::cia_cnt_w));
+	m_cia->sp_wr_callback().set(FUNC(c1571_device::cia_sp_w));
+	m_cia->pb_rd_callback().set(FUNC(c1571_device::cia_pb_r));
+	m_cia->pb_wr_callback().set(FUNC(c1571_device::cia_pb_w));
+	m_cia->pc_wr_callback().set(FUNC(c1571_device::cia_pc_w));
+}
+
+void c1570_device::device_add_mconfig(machine_config &config)
+{
+	add_base_mconfig(config);
+	add_cia_mconfig(config);
 }
 
 
-//-------------------------------------------------
-//  MACHINE_DRIVER( c1571 )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( c1571 )
-	MCFG_CPU_ADD(M6502_TAG, M6502, XTAL_16MHz/16)
-	MCFG_CPU_PROGRAM_MAP(c1571_mem)
-	MCFG_QUANTUM_PERFECT_CPU(M6502_TAG)
-
-	MCFG_DEVICE_ADD(M6522_0_TAG, VIA6522, XTAL_16MHz/16)
-	MCFG_VIA6522_READPA_HANDLER(READ8(c1571_t, via0_pa_r))
-	MCFG_VIA6522_READPB_HANDLER(READ8(c1571_t, via0_pb_r))
-	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(c1571_t, via0_pa_w))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(c1571_t, via0_pb_w))
-	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(c1571_t, via0_irq_w))
-
-	MCFG_DEVICE_ADD(M6522_1_TAG, VIA6522, XTAL_16MHz/16)
-	MCFG_VIA6522_READPA_HANDLER(DEVREAD8(C64H156_TAG, c64h156_device, yb_r))
-	MCFG_VIA6522_READPB_HANDLER(READ8(c1571_t, via1_pb_r))
-	MCFG_VIA6522_WRITEPA_HANDLER(DEVWRITE8(C64H156_TAG, c64h156_device, yb_w))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(c1571_t, via1_pb_w))
-	MCFG_VIA6522_CA2_HANDLER(DEVWRITELINE(C64H156_TAG, c64h156_device, soe_w))
-	MCFG_VIA6522_CB2_HANDLER(DEVWRITELINE(C64H156_TAG, c64h156_device, oe_w))
-	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(c1571_t, via1_irq_w))
-
-	MCFG_DEVICE_ADD(M6526_TAG, MOS6526, XTAL_16MHz/16)
-	MCFG_MOS6526_IRQ_CALLBACK(WRITELINE(c1571_t, cia_irq_w))
-	MCFG_MOS6526_CNT_CALLBACK(WRITELINE(c1571_t, cia_cnt_w))
-	MCFG_MOS6526_SP_CALLBACK(WRITELINE(c1571_t, cia_sp_w))
-	MCFG_MOS6526_PB_INPUT_CALLBACK(READ8(c1571_t, cia_pb_r))
-	MCFG_MOS6526_PB_OUTPUT_CALLBACK(WRITE8(c1571_t, cia_pb_w))
-	MCFG_MOS6526_PC_CALLBACK(WRITELINE(c1571_t, cia_pc_w))
-
-	MCFG_WD1770_ADD(WD1770_TAG, XTAL_16MHz/2)
-	MCFG_DEVICE_ADD(C64H156_TAG, C64H156, XTAL_16MHz)
-	MCFG_64H156_BYTE_CALLBACK(WRITELINE(c1571_t, byte_w))
-	MCFG_FLOPPY_DRIVE_ADD(C64H156_TAG":0", c1571_floppies, "525qd", c1571_t::floppy_formats)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor c1571_t::device_mconfig_additions() const
+void c1571_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( c1571 );
+	add_base_mconfig(config);
+	add_cia_mconfig(config);
 }
 
 
-//-------------------------------------------------
-//  MACHINE_DRIVER( c1571cr )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( c1571cr )
-	MCFG_CPU_ADD(M6502_TAG, M6502, XTAL_16MHz/16)
-	MCFG_CPU_PROGRAM_MAP(c1571_mem)
-	MCFG_QUANTUM_PERFECT_CPU(M6502_TAG)
-
-	MCFG_DEVICE_ADD(M6522_0_TAG, VIA6522, XTAL_16MHz/16)
-	MCFG_VIA6522_READPA_HANDLER(READ8(c1571_t, via0_pa_r))
-	MCFG_VIA6522_READPB_HANDLER(READ8(c1571_t, via0_pb_r))
-	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(c1571cr_t, via0_pa_w))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(c1571cr_t, via0_pb_w))
-	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(c1571_t, via0_irq_w))
-
-	MCFG_DEVICE_ADD(M6522_1_TAG, VIA6522, XTAL_16MHz/16)
-	MCFG_VIA6522_READPA_HANDLER(DEVREAD8(C64H156_TAG, c64h156_device, yb_r))
-	MCFG_VIA6522_READPB_HANDLER(READ8(c1571_t, via1_pb_r))
-	MCFG_VIA6522_WRITEPA_HANDLER(DEVWRITE8(C64H156_TAG, c64h156_device, yb_w))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(c1571_t, via1_pb_w))
-	MCFG_VIA6522_CA2_HANDLER(DEVWRITELINE(C64H156_TAG, c64h156_device, soe_w))
-	MCFG_VIA6522_CB2_HANDLER(DEVWRITELINE(C64H156_TAG, c64h156_device, oe_w))
-	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(c1571_t, via1_irq_w))
-
-	//MCFG_MOS5710_ADD(M5710_TAG, XTAL_16MHz/16, 0)
-
-	MCFG_WD1770_ADD(WD1770_TAG, XTAL_16MHz/2)
-	MCFG_DEVICE_ADD(C64H156_TAG, C64H156, XTAL_16MHz)
-	MCFG_64H156_BYTE_CALLBACK(WRITELINE(c1571_t, byte_w))
-	MCFG_FLOPPY_DRIVE_ADD(C64H156_TAG":0", c1571_floppies, "525qd", c1571_t::floppy_formats)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor c1571cr_t::device_mconfig_additions() const
+void c1571cr_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( c1571cr );
+	add_base_mconfig(config);
+
+	m_via0->writepa_handler().set(FUNC(c1571cr_device::via0_pa_w));
+	m_via0->writepb_handler().set(FUNC(c1571cr_device::via0_pb_w));
+
+	//MOS5710(config, M5710_TAG, 16_MHz_XTAL / 16);
 }
 
 
-//-------------------------------------------------
-//  MACHINE_DRIVER( mini_chief )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( mini_chief )
-	MCFG_CPU_ADD(M6502_TAG, M6502, XTAL_16MHz/16)
-	MCFG_CPU_PROGRAM_MAP(mini_chief_mem)
-	MCFG_QUANTUM_PERFECT_CPU(M6502_TAG)
-
-	MCFG_DEVICE_ADD(M6522_0_TAG, VIA6522, XTAL_16MHz/16)
-	MCFG_VIA6522_READPA_HANDLER(READ8(c1571_t, via0_pa_r))
-	MCFG_VIA6522_READPB_HANDLER(READ8(c1571_t, via0_pb_r))
-	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(c1571_t, via0_pa_w))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(c1571_t, via0_pb_w))
-	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(c1571_t, via0_irq_w))
-
-	MCFG_DEVICE_ADD(M6522_1_TAG, VIA6522, XTAL_16MHz/16)
-	MCFG_VIA6522_READPA_HANDLER(DEVREAD8(C64H156_TAG, c64h156_device, yb_r))
-	MCFG_VIA6522_READPB_HANDLER(READ8(c1571_t, via1_pb_r))
-	MCFG_VIA6522_WRITEPA_HANDLER(DEVWRITE8(C64H156_TAG, c64h156_device, yb_w))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(c1571_t, via1_pb_w))
-	MCFG_VIA6522_CA2_HANDLER(DEVWRITELINE(C64H156_TAG, c64h156_device, soe_w))
-	MCFG_VIA6522_CB2_HANDLER(DEVWRITELINE(C64H156_TAG, c64h156_device, oe_w))
-	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(c1571_t, via1_irq_w))
-
-	MCFG_DEVICE_ADD(M6526_TAG, MOS6526, XTAL_16MHz/16)
-	MCFG_MOS6526_IRQ_CALLBACK(WRITELINE(c1571_t, cia_irq_w))
-	MCFG_MOS6526_CNT_CALLBACK(WRITELINE(c1571_t, cia_cnt_w))
-	MCFG_MOS6526_SP_CALLBACK(WRITELINE(c1571_t, cia_sp_w))
-	MCFG_MOS6526_PB_INPUT_CALLBACK(READ8(c1571_t, cia_pb_r))
-	MCFG_MOS6526_PB_OUTPUT_CALLBACK(WRITE8(c1571_t, cia_pb_w))
-	MCFG_MOS6526_PC_CALLBACK(WRITELINE(c1571_t, cia_pc_w))
-
-	MCFG_WD1770_ADD(WD1770_TAG, XTAL_16MHz/2)
-	MCFG_DEVICE_ADD(C64H156_TAG, C64H156, XTAL_16MHz)
-	MCFG_64H156_BYTE_CALLBACK(WRITELINE(c1571_t, byte_w))
-	MCFG_FLOPPY_DRIVE_ADD(C64H156_TAG":0", c1571_floppies, "525qd", c1571_t::floppy_formats)
-
-	MCFG_DEVICE_ADD(ISA_BUS_TAG, ISA8, 0)
-	MCFG_ISA8_CPU(M6502_TAG)
-	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa1", mini_chief_isa8_cards, "wd1002a_wx1", false)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor mini_chief_t::device_mconfig_additions() const
+void mini_chief_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( mini_chief );
+	add_base_mconfig(config);
+	add_cia_mconfig(config);
+
+	m_maincpu->set_addrmap(AS_PROGRAM, &mini_chief_device::mini_chief_mem);
+
+	isa8_device &isa8(ISA8(config, ISA_BUS_TAG, 0));
+	isa8.set_memspace(m_maincpu, AS_PROGRAM);
+	isa8.set_iospace(m_maincpu, AS_PROGRAM);
+	ISA8_SLOT(config, "isa1", 0, ISA_BUS_TAG, mini_chief_isa8_cards, "wd1002a_wx1", false);
 }
 
 
@@ -816,7 +696,7 @@ INPUT_PORTS_END
 //  input_ports - device-specific input ports
 //-------------------------------------------------
 
-ioport_constructor c1571_t::device_input_ports() const
+ioport_constructor c1571_device::device_input_ports() const
 {
 	return INPUT_PORTS_NAME( c1571 );
 }
@@ -828,11 +708,11 @@ ioport_constructor c1571_t::device_input_ports() const
 //**************************************************************************
 
 //-------------------------------------------------
-//  c1571_t - constructor
+//  c1571_device - constructor
 //-------------------------------------------------
 
-c1571_t::c1571_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+c1571_device::c1571_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock),
 		device_cbm_iec_interface(mconfig, *this),
 		device_c64_floppy_parallel_interface(mconfig, *this),
 		m_maincpu(*this, M6502_TAG),
@@ -843,6 +723,7 @@ c1571_t::c1571_t(const machine_config &mconfig, device_type type, const char *na
 		m_ga(*this, C64H156_TAG),
 		m_floppy(*this, C64H156_TAG":0:525qd"),
 		m_address(*this, "ADDRESS"),
+		m_leds(*this, "led%u", 0U),
 		m_1_2mhz(0),
 		m_data_out(1),
 		m_ser_dir(0),
@@ -854,56 +735,38 @@ c1571_t::c1571_t(const machine_config &mconfig, device_type type, const char *na
 {
 }
 
-c1571_t::c1571_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, C1571, "C1571", tag, owner, clock, "c1571", __FILE__),
-		device_cbm_iec_interface(mconfig, *this),
-		device_c64_floppy_parallel_interface(mconfig, *this),
-		m_maincpu(*this, M6502_TAG),
-		m_via0(*this, M6522_0_TAG),
-		m_via1(*this, M6522_1_TAG),
-		m_cia(*this, M6526_TAG),
-		m_fdc(*this, WD1770_TAG),
-		m_ga(*this, C64H156_TAG),
-		m_floppy(*this, C64H156_TAG":0:525qd"),
-		m_address(*this, "ADDRESS"),
-		m_1_2mhz(0),
-		m_data_out(1),
-		m_ser_dir(0),
-		m_sp_out(1),
-		m_cnt_out(1),
-		m_via0_irq(CLEAR_LINE),
-		m_via1_irq(CLEAR_LINE),
-		m_cia_irq(CLEAR_LINE)
+c1571_device::c1571_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: c1571_device(mconfig, C1571, tag, owner, clock)
 {
 }
 
 
 //-------------------------------------------------
-//  c1570_t - constructor
+//  c1570_device - constructor
 //-------------------------------------------------
 
-c1570_t::c1570_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: c1571_t(mconfig, C1570, "C1570", tag, owner, clock, "c1570", __FILE__)
+c1570_device::c1570_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: c1571_device(mconfig, C1570, tag, owner, clock)
 {
 }
 
 
 //-------------------------------------------------
-//  c1571cr_t - constructor
+//  c1571cr_device - constructor
 //-------------------------------------------------
 
-c1571cr_t::c1571cr_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: c1571_t(mconfig, C1571CR, "C1571CR", tag, owner, clock, "c1571cr", __FILE__)
+c1571cr_device::c1571cr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: c1571_device(mconfig, C1571CR, tag, owner, clock)
 {
 }
 
 
 //-------------------------------------------------
-//  mini_chief_t - constructor
+//  mini_chief_device - constructor
 //-------------------------------------------------
 
-mini_chief_t::mini_chief_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: c1571_t(mconfig, MINI_CHIEF, "ICT Mini Chief", tag, owner, clock, "minichif", __FILE__)
+mini_chief_device::mini_chief_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: c1571_device(mconfig, MINI_CHIEF, tag, owner, clock)
 {
 }
 
@@ -912,12 +775,14 @@ mini_chief_t::mini_chief_t(const machine_config &mconfig, const char *tag, devic
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void c1571_t::device_start()
+void c1571_device::device_start()
 {
+	m_leds.resolve();
+
 	// install image callbacks
 	m_ga->set_floppy(m_floppy);
 	//m_fdc->set_floppy(m_floppy);
-	m_floppy->setup_wpt_cb(floppy_image_device::wpt_cb(&c1571_t::wpt_callback, this));
+	m_floppy->setup_wpt_cb(floppy_image_device::wpt_cb(&c1571_device::wpt_callback, this));
 
 	// register for state saving
 	save_item(NAME(m_1_2mhz));
@@ -935,7 +800,7 @@ void c1571_t::device_start()
 //  device_reset - device-specific reset
 //-------------------------------------------------
 
-void c1571_t::device_reset()
+void c1571_device::device_reset()
 {
 	m_maincpu->reset();
 
@@ -957,7 +822,7 @@ void c1571_t::device_reset()
 //  cbm_iec_srq -
 //-------------------------------------------------
 
-void c1571_t::cbm_iec_srq(int state)
+void c1571_device::cbm_iec_srq(int state)
 {
 	update_iec();
 }
@@ -967,7 +832,7 @@ void c1571_t::cbm_iec_srq(int state)
 //  cbm_iec_atn -
 //-------------------------------------------------
 
-void c1571_t::cbm_iec_atn(int state)
+void c1571_device::cbm_iec_atn(int state)
 {
 	update_iec();
 }
@@ -977,7 +842,7 @@ void c1571_t::cbm_iec_atn(int state)
 //  cbm_iec_data -
 //-------------------------------------------------
 
-void c1571_t::cbm_iec_data(int state)
+void c1571_device::cbm_iec_data(int state)
 {
 	update_iec();
 }
@@ -987,7 +852,7 @@ void c1571_t::cbm_iec_data(int state)
 //  cbm_iec_reset -
 //-------------------------------------------------
 
-void c1571_t::cbm_iec_reset(int state)
+void c1571_device::cbm_iec_reset(int state)
 {
 	if (!state)
 	{
@@ -1000,7 +865,7 @@ void c1571_t::cbm_iec_reset(int state)
 //  parallel_data_w -
 //-------------------------------------------------
 
-void c1571_t::parallel_data_w(uint8_t data)
+void c1571_device::parallel_data_w(uint8_t data)
 {
 	m_parallel_data = data;
 }
@@ -1010,7 +875,7 @@ void c1571_t::parallel_data_w(uint8_t data)
 //  parallel_strobe_w -
 //-------------------------------------------------
 
-void c1571_t::parallel_strobe_w(int state)
+void c1571_device::parallel_strobe_w(int state)
 {
 	m_cia->flag_w(state);
 }
@@ -1020,7 +885,7 @@ void c1571_t::parallel_strobe_w(int state)
 //  update_iec -
 //-------------------------------------------------
 
-void c1571_t::update_iec()
+void c1571_device::update_iec()
 {
 	m_cia->cnt_w(m_ser_dir || m_bus->srq_r());
 	m_cia->sp_w(m_ser_dir || m_bus->data_r());

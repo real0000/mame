@@ -18,59 +18,52 @@
 //  sns_rom_bsx_device - constructor
 //-------------------------------------------------
 
-const device_type SNS_ROM_BSX = device_creator<sns_rom_bsx_device>;
-const device_type SNS_LOROM_BSX = device_creator<sns_rom_bsxlo_device>;
-const device_type SNS_HIROM_BSX = device_creator<sns_rom_bsxhi_device>;
-const device_type SNS_BSMEMPAK = device_creator<sns_rom_bsmempak_device>;
+DEFINE_DEVICE_TYPE(SNS_ROM_BSX,   sns_rom_bsx_device,      "sns_rom_bsx",   "SNES BS-X Cart")
+DEFINE_DEVICE_TYPE(SNS_LOROM_BSX, sns_rom_bsxlo_device,    "sns_rom_bsxlo", "SNES Cart (LoROM) + BS-X slot")
+DEFINE_DEVICE_TYPE(SNS_HIROM_BSX, sns_rom_bsxhi_device,    "sns_rom_bsxhi", "SNES Cart (HiROM) + BS-X slot")
+DEFINE_DEVICE_TYPE(SNS_BSMEMPAK,  sns_rom_bsmempak_device, "sns_bsmempak",  "SNES BS-X Memory packs")
 
 
-sns_rom_bsx_device::sns_rom_bsx_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: sns_rom_device(mconfig, type, name, tag, owner, clock, shortname, source),
-	m_base_unit(nullptr),
-	access_00_1f(0),
-	access_80_9f(0),
-	access_40_4f(0),
-	access_50_5f(0),
-	access_60_6f(0),
-	rom_access(0),
-	m_slot(*this, "bs_slot")
+sns_rom_bsx_device::sns_rom_bsx_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: sns_rom_device(mconfig, type, tag, owner, clock)
+	, m_base_unit(nullptr)
+	, access_00_1f(0)
+	, access_80_9f(0)
+	, access_40_4f(0)
+	, access_50_5f(0)
+	, access_60_6f(0)
+	, rom_access(0)
+	, m_slot(*this, "bs_slot")
 {
 }
 
 sns_rom_bsx_device::sns_rom_bsx_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: sns_rom_device(mconfig, SNS_ROM_BSX, "SNES BS-X Cart", tag, owner, clock, "sns_rom_bsx", __FILE__),
-	m_base_unit(nullptr),
-	access_00_1f(0),
-	access_80_9f(0),
-	access_40_4f(0),
-	access_50_5f(0),
-	access_60_6f(0),
-	rom_access(0),
-						m_slot(*this, "bs_slot")
+	: sns_rom_bsx_device(mconfig, SNS_ROM_BSX, tag, owner, clock)
 {
 }
 
 sns_rom_bsxlo_device::sns_rom_bsxlo_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: sns_rom_device(mconfig, SNS_LOROM_BSX, "SNES Cart (LoROM) +  BS-X slot", tag, owner, clock, "sns_rom_bsxlo", __FILE__),
-						m_slot(*this, "bs_slot")
+	: sns_rom_device(mconfig, SNS_LOROM_BSX, tag, owner, clock)
+	, m_slot(*this, "bs_slot")
 {
 }
 
 sns_rom_bsxhi_device::sns_rom_bsxhi_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: sns_rom21_device(mconfig, SNS_HIROM_BSX, "SNES Cart (HiROM) +  BS-X slot", tag, owner, clock, "sns_rom_bsxhi", __FILE__),
-						m_slot(*this, "bs_slot")
+	: sns_rom21_device(mconfig, SNS_HIROM_BSX, tag, owner, clock)
+	, m_slot(*this, "bs_slot")
 {
 }
 
 sns_rom_bsmempak_device::sns_rom_bsmempak_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: sns_rom_device(mconfig, SNS_BSMEMPAK, "SNES BS-X Memory packs", tag, owner, clock, "sns_bsmempak", __FILE__), m_command(0), m_write_old(0), m_write_new(0), m_flash_enable(0), m_read_enable(0), m_write_enable(0)
-				{
+	: sns_rom_device(mconfig, SNS_BSMEMPAK, tag, owner, clock)
+	, m_command(0), m_write_old(0), m_write_new(0), m_flash_enable(0), m_read_enable(0), m_write_enable(0)
+{
 }
 
 
 void sns_rom_bsx_device::device_start()
 {
-	m_base_unit = std::make_unique<BSX_base>(machine());
+	m_base_unit = std::make_unique<bsx_base>(machine());
 	m_base_unit->init();
 
 	memset(m_cart_regs, 0x00, sizeof(m_cart_regs));
@@ -126,8 +119,8 @@ void sns_rom_bsmempak_device::device_reset()
 
 // BS-X Base Unit emulation, to be device-fied ?
 
-BSX_base::BSX_base(running_machine &machine)
-			: r2192_minute(0), m_machine(machine)
+sns_rom_bsx_device::bsx_base::bsx_base(running_machine &machine)
+	: r2192_minute(0), m_machine(machine)
 {
 	m_machine.save().save_item(regs, "SNES_BSX/regs");
 	m_machine.save().save_item(r2192_counter, "SNES_BSX/r2192_counter");
@@ -135,9 +128,9 @@ BSX_base::BSX_base(running_machine &machine)
 	m_machine.save().save_item(r2192_second, "SNES_BSX/r2192_second");
 }
 
-void BSX_base::init()
+void sns_rom_bsx_device::bsx_base::init()
 {
-	memset(regs, 0x00, sizeof(regs));
+	std::fill(std::begin(regs), std::end(regs), 0);
 	r2192_counter = 0;
 	r2192_hour = 0;
 	r2192_minute = 0;
@@ -145,7 +138,7 @@ void BSX_base::init()
 }
 
 
-uint8_t BSX_base::read(uint32_t offset)
+uint8_t sns_rom_bsx_device::bsx_base::read(uint32_t offset)
 {
 	offset &= 0xffff;
 	if (offset < 0x2188 || offset >= 0x21a0)
@@ -207,7 +200,7 @@ uint8_t BSX_base::read(uint32_t offset)
 }
 
 
-void BSX_base::write(uint32_t offset, uint8_t data)
+void sns_rom_bsx_device::bsx_base::write(uint32_t offset, uint8_t data)
 {
 	offset &= 0xffff;
 	if (offset < 0x2188 || offset >= 0x21a0)
@@ -240,38 +233,32 @@ void BSX_base::write(uint32_t offset, uint8_t data)
 	}
 }
 
-//-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( bs_slot )
-//-------------------------------------------------
 
-static SLOT_INTERFACE_START(bsx_cart)
-	SLOT_INTERFACE_INTERNAL("bsmempak",  SNS_BSMEMPAK)
-SLOT_INTERFACE_END
-
-static MACHINE_CONFIG_FRAGMENT( bs_slot )
-	MCFG_SNS_BSX_CARTRIDGE_ADD("bs_slot", bsx_cart, nullptr)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor sns_rom_bsx_device::device_mconfig_additions() const
+static void bsx_cart(device_slot_interface &device)
 {
-	return MACHINE_CONFIG_NAME( bs_slot );
+	device.option_add_internal("bsmempak",  SNS_BSMEMPAK);
 }
 
-machine_config_constructor sns_rom_bsxlo_device::device_mconfig_additions() const
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void sns_rom_bsx_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( bs_slot );
+	SNS_BSX_CART_SLOT(config, m_slot, bsx_cart, nullptr);
 }
 
-machine_config_constructor sns_rom_bsxhi_device::device_mconfig_additions() const
+void sns_rom_bsxlo_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( bs_slot );
+	SNS_BSX_CART_SLOT(config, m_slot, bsx_cart, nullptr);
 }
+
+void sns_rom_bsxhi_device::device_add_mconfig(machine_config &config)
+{
+	SNS_BSX_CART_SLOT(config, m_slot, bsx_cart, nullptr);
+}
+
 
 /*-------------------------------------------------
  mapper specific handlers
@@ -296,13 +283,13 @@ void sns_rom_bsx_device::access_update()
 	}
 }
 
-READ8_MEMBER(sns_rom_bsx_device::read_l)
+uint8_t sns_rom_bsx_device::read_l(offs_t offset)
 {
 	if (offset < 0x200000 && access_00_1f)
 	{
 		// 0x00-0x1f:0x8000-0xffff -> CART
 		if (m_slot->m_cart && m_slot->m_cart->get_rom_size())
-			return m_slot->m_cart->read_l(space, offset);
+			return m_slot->m_cart->read_l(offset);
 	}
 	if (offset >= 0x200000 && offset < 0x400000)
 	{
@@ -347,13 +334,13 @@ READ8_MEMBER(sns_rom_bsx_device::read_l)
 }
 
 
-READ8_MEMBER(sns_rom_bsx_device::read_h)
+uint8_t sns_rom_bsx_device::read_h(offs_t offset)
 {
 	if (offset < 0x200000 && access_80_9f)
 	{
 		// 0x80-0x9f:0x8000-0xffff -> CART
 		if (m_slot->m_cart && m_slot->m_cart->get_rom_size())
-			return m_slot->m_cart->read_l(space, offset);
+			return m_slot->m_cart->read_l(offset);
 	}
 
 	// if not in any of the cases above...
@@ -371,7 +358,7 @@ READ8_MEMBER(sns_rom_bsx_device::read_h)
 	//return 0x00;
 }
 
-WRITE8_MEMBER(sns_rom_bsx_device::write_l)
+void sns_rom_bsx_device::write_l(offs_t offset, uint8_t data)
 {
 	if (offset < 0x200000 && access_00_1f)
 	{
@@ -413,7 +400,7 @@ WRITE8_MEMBER(sns_rom_bsx_device::write_l)
 }
 
 
-WRITE8_MEMBER(sns_rom_bsx_device::write_h)
+void sns_rom_bsx_device::write_h(offs_t offset, uint8_t data)
 {
 	if (offset < 0x200000 && access_80_9f)
 	{
@@ -429,7 +416,7 @@ WRITE8_MEMBER(sns_rom_bsx_device::write_h)
 }
 
 
-READ8_MEMBER(sns_rom_bsx_device::chip_read)
+uint8_t sns_rom_bsx_device::chip_read(offs_t offset)
 {
 	if ((offset & 0xffff) >= 0x2188 && (offset & 0xffff) < 0x21a0)
 		return m_base_unit->read(offset & 0xffff);
@@ -448,7 +435,7 @@ READ8_MEMBER(sns_rom_bsx_device::chip_read)
 	return 0x00;
 }
 
-WRITE8_MEMBER(sns_rom_bsx_device::chip_write)
+void sns_rom_bsx_device::chip_write(offs_t offset, uint8_t data)
 {
 	if ((offset & 0xffff) >= 0x2188 && (offset & 0xffff) < 0x21a0)
 		m_base_unit->write(offset & 0xffff, data);
@@ -470,7 +457,7 @@ WRITE8_MEMBER(sns_rom_bsx_device::chip_write)
 
 // LoROM cart w/BS-X slot
 
-READ8_MEMBER(sns_rom_bsxlo_device::read_l)
+uint8_t sns_rom_bsxlo_device::read_l(offs_t offset)
 {
 	if (offset < 0x400000)
 	{
@@ -482,7 +469,7 @@ READ8_MEMBER(sns_rom_bsxlo_device::read_l)
 	return 0x00;
 }
 
-READ8_MEMBER(sns_rom_bsxlo_device::read_h)
+uint8_t sns_rom_bsxlo_device::read_h(offs_t offset)
 {
 	if (offset < 0x400000)
 	{
@@ -494,7 +481,7 @@ READ8_MEMBER(sns_rom_bsxlo_device::read_h)
 	else if (offset < 0x700000)
 	{
 		if (m_slot->m_cart && m_slot->m_cart->get_rom_size())
-			return m_slot->m_cart->read_h(space, offset);
+			return m_slot->m_cart->read_h(offset);
 	}
 	// RAM [70-7f]
 	return 0x00;
@@ -503,12 +490,12 @@ READ8_MEMBER(sns_rom_bsxlo_device::read_h)
 
 // HiROM cart w/BS-X slot
 
-READ8_MEMBER(sns_rom_bsxhi_device::read_l)
+uint8_t sns_rom_bsxhi_device::read_l(offs_t offset)
 {
-	return read_h(space, offset);
+	return read_h(offset);
 }
 
-READ8_MEMBER(sns_rom_bsxhi_device::read_h)
+uint8_t sns_rom_bsxhi_device::read_h(offs_t offset)
 {
 	if (offset < 0x200000 && (offset & 0xffff) >= 0x8000)
 	{
@@ -518,7 +505,7 @@ READ8_MEMBER(sns_rom_bsxhi_device::read_h)
 	if (offset >= 0x200000 && offset < 0x400000)
 	{
 		if (m_slot->m_cart && m_slot->m_cart->get_rom_size() && (offset & 0xffff) >= 0x8000)
-			return m_slot->m_cart->read_h(space, offset);
+			return m_slot->m_cart->read_h(offset);
 	}
 	if (offset >= 0x400000 && offset < 0x600000)
 	{
@@ -529,7 +516,7 @@ READ8_MEMBER(sns_rom_bsxhi_device::read_h)
 	if (offset >= 0x600000)
 	{
 		if (m_slot->m_cart && m_slot->m_cart->get_rom_size())
-			return m_slot->m_cart->read_h(space, offset);
+			return m_slot->m_cart->read_h(offset);
 	}
 	return 0xff;
 }
@@ -543,18 +530,18 @@ READ8_MEMBER(sns_rom_bsxhi_device::read_h)
 // Hence, we use low read handler for ROM access in the 0x8000-0xffff range (i.e. mempack mapped as LoROM) and
 // hi read handler for ROM access in the 0x0000-0xffff range (i.e. mempack mapped as HiROM)...
 
-READ8_MEMBER(sns_rom_bsmempak_device::read_l)
+uint8_t sns_rom_bsmempak_device::read_l(offs_t offset)
 {
 	int bank = offset / 0x10000;
 	return m_rom[rom_bank_map[bank] * 0x8000 + (offset & 0x7fff)];
 }
 
-READ8_MEMBER(sns_rom_bsmempak_device::read_h)
+uint8_t sns_rom_bsmempak_device::read_h(offs_t offset)
 {
 	int bank = offset / 0x8000;
 	return m_rom[rom_bank_map[bank] * 0x8000 + (offset & 0x7fff)];
 }
 
-WRITE8_MEMBER(sns_rom_bsmempak_device::write_l)
+void sns_rom_bsmempak_device::write_l(offs_t offset, uint8_t data)
 {
 }

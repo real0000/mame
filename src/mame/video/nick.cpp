@@ -73,24 +73,27 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type NICK = device_creator<nick_device>;
+DEFINE_DEVICE_TYPE(NICK, nick_device, "nick", "NICK")
 
 
-DEVICE_ADDRESS_MAP_START( vram_map, 8, nick_device )
-	AM_RANGE(0x0000, 0xffff) AM_READWRITE(vram_r, vram_w)
-ADDRESS_MAP_END
+void nick_device::vram_map(address_map &map)
+{
+	map(0x0000, 0xffff).rw(FUNC(nick_device::vram_r), FUNC(nick_device::vram_w));
+}
 
-DEVICE_ADDRESS_MAP_START( vio_map, 8, nick_device )
-	AM_RANGE(0x00, 0x00) AM_WRITE(fixbias_w)
-	AM_RANGE(0x01, 0x01) AM_WRITE(border_w)
-	AM_RANGE(0x02, 0x02) AM_WRITE(lpl_w)
-	AM_RANGE(0x03, 0x03) AM_WRITE(lph_w)
-ADDRESS_MAP_END
+void nick_device::vio_map(address_map &map)
+{
+	map(0x00, 0x00).w(FUNC(nick_device::fixbias_w));
+	map(0x01, 0x01).w(FUNC(nick_device::border_w));
+	map(0x02, 0x02).w(FUNC(nick_device::lpl_w));
+	map(0x03, 0x03).w(FUNC(nick_device::lph_w));
+}
 
 
-static ADDRESS_MAP_START( nick_map, AS_0, 8, nick_device )
-	AM_RANGE(0x0000, 0xffff) AM_RAM
-ADDRESS_MAP_END
+void nick_device::nick_map(address_map &map)
+{
+	map(0x0000, 0xffff).ram();
+}
 
 
 
@@ -103,10 +106,10 @@ ADDRESS_MAP_END
 //-------------------------------------------------
 
 nick_device::nick_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, NICK, "NICK", tag, owner, clock, "nick", __FILE__),
+	: device_t(mconfig, NICK, tag, owner, clock),
 		device_memory_interface(mconfig, *this),
 		device_video_interface(mconfig, *this),
-		m_space_config("vram", ENDIANNESS_LITTLE, 8, 16, 0, *ADDRESS_MAP_NAME(nick_map)),
+		m_space_config("vram", ENDIANNESS_LITTLE, 8, 16, 0, address_map_constructor(FUNC(nick_device::nick_map), this)),
 		m_write_virq(*this),
 		m_scanline_count(0),
 		m_FIXBIAS(0),
@@ -127,7 +130,7 @@ nick_device::nick_device(const machine_config &mconfig, const char *tag, device_
 
 void nick_device::device_start()
 {
-	m_screen->register_screen_bitmap(m_bitmap);
+	screen().register_screen_bitmap(m_bitmap);
 	calc_visible_clocks(ENTERPRISE_SCREEN_WIDTH);
 
 	// initialize palette
@@ -138,7 +141,7 @@ void nick_device::device_start()
 
 	// allocate timers
 	m_timer_scanline = timer_alloc();
-	m_timer_scanline->adjust(m_screen->time_until_pos(0, 0), 0, m_screen->scan_period());
+	m_timer_scanline->adjust(screen().time_until_pos(0, 0), 0, screen().scan_period());
 
 	// state saving
 	save_item(NAME(m_scanline_count));
@@ -184,7 +187,7 @@ void nick_device::device_reset()
 
 void nick_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	int scanline = m_screen->vpos();
+	int scanline = screen().vpos();
 
 	if (scanline < ENTERPRISE_SCREEN_HEIGHT)
 	{
@@ -204,9 +207,11 @@ void nick_device::device_timer(emu_timer &timer, device_timer_id id, int param, 
 //  any address spaces owned by this device
 //-------------------------------------------------
 
-const address_space_config *nick_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector nick_device::memory_space_config() const
 {
-	return (spacenum == 0) ? &m_space_config : nullptr;
+	return space_config_vector {
+		std::make_pair(0, &m_space_config)
+	};
 }
 
 
@@ -226,7 +231,7 @@ uint32_t nick_device::screen_update(screen_device &screen, bitmap_rgb32 &bitmap,
 //  vram_r - video RAM read
 //-------------------------------------------------
 
-READ8_MEMBER( nick_device::vram_r )
+uint8_t nick_device::vram_r(offs_t offset)
 {
 	return this->space().read_byte(offset);
 }
@@ -236,7 +241,7 @@ READ8_MEMBER( nick_device::vram_r )
 //  vram_w - video RAM write
 //-------------------------------------------------
 
-WRITE8_MEMBER( nick_device::vram_w )
+void nick_device::vram_w(offs_t offset, uint8_t data)
 {
 	this->space().write_byte(offset, data);
 }
@@ -246,7 +251,7 @@ WRITE8_MEMBER( nick_device::vram_w )
 //  fixbias_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( nick_device::fixbias_w )
+void nick_device::fixbias_w(uint8_t data)
 {
 	m_FIXBIAS = data;
 }
@@ -256,7 +261,7 @@ WRITE8_MEMBER( nick_device::fixbias_w )
 //  border_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( nick_device::border_w )
+void nick_device::border_w(uint8_t data)
 {
 	m_BORDER = data;
 }
@@ -266,7 +271,7 @@ WRITE8_MEMBER( nick_device::border_w )
 //  lpl_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( nick_device::lpl_w )
+void nick_device::lpl_w(uint8_t data)
 {
 	m_LPL = m_reg[2] = data;
 
@@ -278,7 +283,7 @@ WRITE8_MEMBER( nick_device::lpl_w )
 //  lph_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( nick_device::lph_w )
+void nick_device::lph_w(uint8_t data)
 {
 	m_LPH = m_reg[3] = data;
 
@@ -330,9 +335,9 @@ void nick_device::initialize_palette()
 		int ba = BIT(i, 2);
 		int bb = BIT(i, 5);
 
-		uint8_t r = combine_3_weights(color_weights_rg, rc, rb, ra);
-		uint8_t g = combine_3_weights(color_weights_rg, gc, gb, ga);
-		uint8_t b = combine_2_weights(color_weights_b, bb, ba);
+		uint8_t r = combine_weights(color_weights_rg, rc, rb, ra);
+		uint8_t g = combine_weights(color_weights_rg, gc, gb, ga);
+		uint8_t b = combine_weights(color_weights_b, bb, ba);
 
 		m_palette[i] = rgb_t(r, g, b);
 	}
@@ -1010,7 +1015,7 @@ void nick_device::do_line()
 
 	if (m_virq && !(m_LPT.MB & NICK_MB_VIRQ))
 	{
-		m_timer_scanline->adjust(m_screen->time_until_pos(0, 0), 0, m_screen->scan_period());
+		m_timer_scanline->adjust(screen().time_until_pos(0, 0), 0, screen().scan_period());
 	}
 
 	m_virq = (m_LPT.MB & NICK_MB_VIRQ) ? 1 : 0;

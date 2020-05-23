@@ -1,16 +1,13 @@
 // license:BSD-3-Clause
 // copyright-holders:S. Smith,David Haywood,Fabio Priuli
 
+#ifndef MAME_BUS_NEOGEO_PROT_CMC_H
+#define MAME_BUS_NEOGEO_PROT_CMC_H
 
 #pragma once
 
-#ifndef __CMC_PROT__
-#define __CMC_PROT__
 
-extern const device_type CMC_PROT;
-
-#define MCFG_CMC_PROT_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, CMC_PROT, 0)
+DECLARE_DEVICE_TYPE(NG_CMC_PROT, cmc_prot_device)
 
 // cmc42
 #define KOF99_GFX_KEY (0x00)
@@ -44,7 +41,7 @@ class cmc_prot_device :  public device_t
 {
 public:
 	// construction/destruction
-	cmc_prot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	cmc_prot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
 	void decrypt(uint8_t *r0, uint8_t *r1,
 		uint8_t c0, uint8_t c1,
@@ -81,4 +78,4 @@ protected:
 	const uint8_t *address_0_7_xor;
 };
 
-#endif
+#endif // MAME_BUS_NEOGEO_PROT_CMC_H

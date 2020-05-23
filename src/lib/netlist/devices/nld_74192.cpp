@@ -5,44 +5,19 @@
  *
  */
 
-#define MAXCNT 9
-
 #include "nld_74192.h"
-#include "../nl_base.h"
+#include "netlist/nl_base.h"
 
 namespace netlist
 {
 	namespace devices
 	{
-	NETLIB_OBJECT(74192_subABCD)
-	{
-		NETLIB_CONSTRUCTOR(74192_subABCD)
-		, m_A(*this, "A")
-		, m_B(*this, "B")
-		, m_C(*this, "C")
-		, m_D(*this, "D")
-		{
-		}
 
-		//NETLIB_RESETI()
-		//NETLIB_UPDATEI();
-
-	public:
-		logic_input_t m_A;
-		logic_input_t m_B;
-		logic_input_t m_C;
-		logic_input_t m_D;
-
-		unsigned read_ABCD() const
-		{
-			return (m_D() << 3) | (m_C() << 2) | (m_B() << 1) | (m_A() << 0);
-		}
-	};
+	static constexpr const unsigned MAXCNT = 9;
 
 	NETLIB_OBJECT(74192)
 	{
 		NETLIB_CONSTRUCTOR(74192)
-		, m_ABCD(*this, "subABCD")
 		, m_CLEAR(*this, "CLEAR")
 		, m_LOADQ(*this, "LOADQ")
 		, m_CU(*this, "CU")
@@ -50,21 +25,28 @@ namespace netlist
 		, m_cnt(*this, "m_cnt", 0)
 		, m_last_CU(*this, "m_last_CU", 0)
 		, m_last_CD(*this, "m_last_CD", 0)
-		, m_Q(*this, {{"QA", "QB", "QC", "QD"}})
+		, m_Q(*this, {"QA", "QB", "QC", "QD"})
 		, m_BORROWQ(*this, "BORROWQ")
 		, m_CARRYQ(*this, "CARRYQ")
+		, m_A(*this, "A", NETLIB_DELEGATE(74192, sub))
+		, m_B(*this, "B", NETLIB_DELEGATE(74192, sub))
+		, m_C(*this, "C", NETLIB_DELEGATE(74192, sub))
+		, m_D(*this, "D", NETLIB_DELEGATE(74192, sub))
+		, m_power_pins(*this)
 		{
-			register_subalias("A", m_ABCD.m_A);
-			register_subalias("B", m_ABCD.m_B);
-			register_subalias("C", m_ABCD.m_C);
-			register_subalias("D", m_ABCD.m_D);
 		}
 
-		NETLIB_RESETI();
+		NETLIB_RESETI()
+		{
+			m_cnt = 0;
+			m_last_CU = 0;
+			m_last_CD = 0;
+		}
+
 		NETLIB_UPDATEI();
 
-	protected:
-		NETLIB_SUB(74192_subABCD) m_ABCD;
+		friend class NETLIB_NAME(74192_dip);
+	private:
 		logic_input_t m_CLEAR;
 		logic_input_t m_LOADQ;
 		logic_input_t m_CU;
@@ -77,39 +59,56 @@ namespace netlist
 		object_array_t<logic_output_t, 4> m_Q;
 		logic_output_t m_BORROWQ;
 		logic_output_t m_CARRYQ;
-	};
 
-	NETLIB_OBJECT_DERIVED(74192_dip, 74192)
-	{
-		NETLIB_CONSTRUCTOR_DERIVED(74192_dip, 74192)
+		logic_input_t m_A;
+		logic_input_t m_B;
+		logic_input_t m_C;
+		logic_input_t m_D;
+		nld_power_pins m_power_pins;
+
+		NETLIB_HANDLERI(sub)
 		{
-			register_subalias("1", m_ABCD.m_B);
-			register_subalias("2", m_Q[1]);
-			register_subalias("3", m_Q[0]);
-			register_subalias("4", m_CD);
-			register_subalias("5", m_CU);
-			register_subalias("6", m_Q[2]);
-			register_subalias("7", m_Q[3]);
-
-			register_subalias("9", m_ABCD.m_D);
-			register_subalias("10", m_ABCD.m_C);
-			register_subalias("11", m_LOADQ);
-			register_subalias("12", m_CARRYQ);
-			register_subalias("13", m_BORROWQ);
-			register_subalias("14", m_CLEAR);
-			register_subalias("15", m_ABCD.m_A);
+			// FIXME: can use more optimization
 		}
+
+		unsigned read_ABCD() const
+		{
+			return (m_D() << 3) | (m_C() << 2) | (m_B() << 1) | (m_A() << 0);
+		}
+
 	};
 
-	NETLIB_RESET(74192)
+	NETLIB_OBJECT(74192_dip)
 	{
-		m_cnt = 0;
-		m_last_CU = 0;
-		m_last_CD = 0;
-	}
+		NETLIB_CONSTRUCTOR(74192_dip)
+		, A(*this, "A")
+		{
+			register_subalias("1", A.m_B);
+			register_subalias("2", A.m_Q[1]);
+			register_subalias("3", A.m_Q[0]);
+			register_subalias("4", A.m_CD);
+			register_subalias("5", A.m_CU);
+			register_subalias("6", A.m_Q[2]);
+			register_subalias("7", A.m_Q[3]);
+			register_subalias("8", "A.GND");
+
+			register_subalias("9", A.m_D);
+			register_subalias("10", A.m_C);
+			register_subalias("11", A.m_LOADQ);
+			register_subalias("12", A.m_CARRYQ);
+			register_subalias("13", A.m_BORROWQ);
+			register_subalias("14", A.m_CLEAR);
+			register_subalias("15", A.m_A);
+			register_subalias("16", "A.VCC");
+		}
+		NETLIB_RESETI() {}
+		NETLIB_UPDATEI() {}
+	private:
+		NETLIB_SUB(74192) A;
+	};
 
 	// FIXME: Timing
-	static const netlist_time delay[4] =
+	static constexpr const std::array<netlist_time, 4> delay =
 	{
 			NLTIME_FROM_NS(40),
 			NLTIME_FROM_NS(40),
@@ -127,14 +126,13 @@ namespace netlist
 		}
 		else if (!m_LOADQ())
 		{
-			m_cnt = m_ABCD.read_ABCD();
+			m_cnt = read_ABCD();
 		}
 		else
 		{
 			if (m_CD() && !m_last_CU && m_CU())
 			{
-				++m_cnt;
-				if (m_cnt > MAXCNT)
+				if (++m_cnt > MAXCNT)
 					m_cnt = 0;
 			}
 			if (m_CU() && !m_last_CD && m_CD())
@@ -162,8 +160,8 @@ namespace netlist
 		m_CARRYQ.push(tCarry, NLTIME_FROM_NS(20)); //FIXME
 	}
 
-	NETLIB_DEVICE_IMPL(74192)
-	NETLIB_DEVICE_IMPL(74192_dip)
+	NETLIB_DEVICE_IMPL(74192,    "TTL_74192", "+A,+B,+C,+D,+CLEAR,+LOADQ,+CU,+CD,@VCC,@GND")
+	NETLIB_DEVICE_IMPL(74192_dip,"TTL_74192_DIP", "")
 
 	} //namespace devices
 } // namespace netlist

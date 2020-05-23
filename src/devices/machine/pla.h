@@ -6,48 +6,11 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_PLA_H
+#define MAME_MACHINE_PLA_H
+
 #pragma once
 
-#ifndef __PLA__
-#define __PLA__
-
-
-
-
-//**************************************************************************
-//  MACROS / CONSTANTS
-//**************************************************************************
-
-#define MAX_TERMS       512
-#define MAX_CACHE_BITS  20
-#define CACHE2_SIZE     8
-
-enum
-{
-	PLA_FMT_JEDBIN = 0,
-	PLA_FMT_BERKELEY
-};
-
-
-
-///*************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-///*************************************************************************
-
-#define MCFG_PLA_ADD(_tag, _inputs, _outputs, _terms) \
-	MCFG_DEVICE_ADD(_tag, PLA, 0) \
-	pla_device::set_num_inputs(*device, _inputs); \
-	pla_device::set_num_outputs(*device, _outputs); \
-	pla_device::set_num_terms(*device, _terms);
-
-#define MCFG_PLA_INPUTMASK(_mask) \
-	pla_device::set_inputmask(*device, _mask);
-
-#define MCFG_PLA_FILEFORMAT(_format) \
-	pla_device::set_format(*device, _format);
-
-
-// macros for known (and used) devices
 
 // 82S100, 82S101, PLS100, PLS101
 // 16x48x8 PLA, 28-pin:
@@ -67,14 +30,6 @@ enum
      F4  13 |             | 16  F2
     GND  14 |_____________| 15  F3
 */
-#define MCFG_PLS100_ADD(_tag) \
-	MCFG_PLA_ADD(_tag, 16, 8, 48)
-
-// MOS 8721 PLA
-// TODO: actual number of terms is unknown
-#define MCFG_MOS8721_ADD(_tag) \
-	MCFG_PLA_ADD(_tag, 27, 18, 379)
-
 
 
 ///*************************************************************************
@@ -86,31 +41,50 @@ enum
 class pla_device : public device_t
 {
 public:
+	enum class FMT
+	{
+		JEDBIN = 0,
+		BERKELEY
+	};
+
 	// construction/destruction
 	pla_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	pla_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+	pla_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t inputs, uint32_t outputs, uint32_t terms)
+		: pla_device(mconfig, tag, owner, (uint32_t)0)
+	{
+		set_num_inputs(inputs);
+		set_num_outputs(outputs);
+		set_num_terms(terms);
+	}
 
-	// static configuration helpers
-	static void set_num_inputs(device_t &device, uint32_t i) { downcast<pla_device &>(device).m_inputs = i; }
-	static void set_num_outputs(device_t &device, uint32_t o) { downcast<pla_device &>(device).m_outputs = o; }
-	static void set_num_terms(device_t &device, uint32_t t) { downcast<pla_device &>(device).m_terms = t; }
-	static void set_inputmask(device_t &device, uint32_t mask) { downcast<pla_device &>(device).m_input_mask = mask; } // uint32_t!
-	static void set_format(device_t &device, int format) { downcast<pla_device &>(device).m_format = format; }
+	// configuration helpers
+	void set_num_inputs(uint32_t i) { m_inputs = i; }
+	void set_num_outputs(uint32_t o) { m_outputs = o; }
+	void set_num_terms(uint32_t t) { m_terms = t; }
+	void set_inputmask(uint32_t mask) { m_input_mask = mask; } // uint32_t!
+	void set_format(FMT format) { m_format = format; }
 
 	uint32_t inputs() { return m_inputs; }
 	uint32_t outputs() { return m_outputs; }
 
 	uint32_t read(uint32_t input);
+	bool reinit();
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 
 private:
-	void parse_fusemap();
+	static constexpr unsigned MAX_TERMS       = 512;
+	static constexpr unsigned MAX_CACHE_BITS  = 20;
+	static constexpr unsigned CACHE2_SIZE     = 8;
+
+	int parse_fusemap();
 
 	required_memory_region m_region;
 
-	int m_format;
+	FMT m_format;
 
 	uint32_t m_inputs;
 	uint32_t m_outputs;
@@ -130,9 +104,20 @@ private:
 	} m_term[MAX_TERMS];
 };
 
+class pls100_device : public pla_device
+{
+public:
+	pls100_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
+};
 
-// device type definition
-extern const device_type PLA;
+class mos8721_device : public pla_device
+{
+public:
+	mos8721_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
+};
 
+DECLARE_DEVICE_TYPE(PLA, pla_device)
+DECLARE_DEVICE_TYPE(PLS100, pls100_device)
+DECLARE_DEVICE_TYPE(MOS8721, mos8721_device)
 
-#endif
+#endif // MAME_MACHINE_PLA_H

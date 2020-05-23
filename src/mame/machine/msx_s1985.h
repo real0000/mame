@@ -1,17 +1,13 @@
 // license:BSD-3-Clause
 // copyright-holders:Wilbert Pol
-#ifndef __MSX_S1985_H
-#define __MSX_S1985_H
+#ifndef MAME_MACHINE_MSX_S1985_H
+#define MAME_MACHINE_MSX_S1985_H
 
 
 #include "msx_switched.h"
 
 
-extern const device_type MSX_S1985;
-
-
-#define MCFG_MSX_S1985_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, MSX_S1985, 0)
+DECLARE_DEVICE_TYPE(MSX_S1985, msx_s1985_device)
 
 
 class msx_s1985_device : public device_t,
@@ -22,8 +18,8 @@ public:
 	msx_s1985_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// msx_switched_interface overrides
-	virtual DECLARE_READ8_MEMBER(switched_read) override;
-	virtual DECLARE_WRITE8_MEMBER(switched_write) override;
+	virtual uint8_t switched_read(offs_t offset) override;
+	virtual void switched_write(offs_t offset, uint8_t data) override;
 
 protected:
 	// device-level overrides
@@ -43,4 +39,4 @@ private:
 	uint8_t m_pattern;
 };
 
-#endif
+#endif // MAME_MACHINE_MSX_S1985_H

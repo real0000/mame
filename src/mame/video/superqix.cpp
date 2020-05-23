@@ -2,7 +2,7 @@
 // copyright-holders:Mirko Buffoni, Nicola Salmoria, Tomasz Slanina
 /***************************************************************************
 
-  video.c
+  superqix.cpp
 
   Functions to emulate the video hardware of the machine.
 
@@ -25,7 +25,7 @@ TILE_GET_INFO_MEMBER(hotsmash_state::pb_get_bg_tile_info)
 	int attr = m_videoram[tile_index + 0x400];
 	int code = m_videoram[tile_index] + 256 * (attr & 0x7);
 	int color = (attr & 0xf0) >> 4;
-	SET_TILE_INFO_MEMBER(0, code, color, 0);
+	tileinfo.set(0, code, color, 0);
 }
 
 TILE_GET_INFO_MEMBER(superqix_state_base::sqix_get_bg_tile_info)
@@ -37,7 +37,7 @@ TILE_GET_INFO_MEMBER(superqix_state_base::sqix_get_bg_tile_info)
 
 	if (bank) code += 1024 * m_gfxbank;
 
-	SET_TILE_INFO_MEMBER(bank, code, color, 0);
+	tileinfo.set(bank, code, color, 0);
 	tileinfo.group = (attr & 0x08) >> 3;
 }
 
@@ -49,30 +49,30 @@ TILE_GET_INFO_MEMBER(superqix_state_base::sqix_get_bg_tile_info)
 
 ***************************************************************************/
 
-VIDEO_START_MEMBER(hotsmash_state, pbillian)
+void hotsmash_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(hotsmash_state::pb_get_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8,32,32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(hotsmash_state::pb_get_bg_tile_info)), TILEMAP_SCAN_ROWS, 8, 8,32,32);
 }
 
-VIDEO_START_MEMBER(superqix_state_base, superqix)
+void superqix_state::video_start()
 {
 	m_fg_bitmap[0] = std::make_unique<bitmap_ind16>(256, 256);
 	m_fg_bitmap[1] = std::make_unique<bitmap_ind16>(256, 256);
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(superqix_state_base::sqix_get_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(superqix_state_base::sqix_get_bg_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
-	m_bg_tilemap->set_transmask(0,0xffff,0x0000); /* split type 0 is totally transparent in front half */
-	m_bg_tilemap->set_transmask(1,0x0001,0xfffe); /* split type 1 has pen 0 transparent in front half */
+	m_bg_tilemap->set_transmask(0, 0xffff, 0x0000); // split type 0 is totally transparent in front half
+	m_bg_tilemap->set_transmask(1, 0x0001, 0xfffe); // split type 1 has pen 0 transparent in front half
 
 	save_item(NAME(*m_fg_bitmap[0]));
 	save_item(NAME(*m_fg_bitmap[1]));
 }
 
-PALETTE_DECODER_MEMBER( superqix_state_base, BBGGRRII )
+rgb_t superqix_state_base::BBGGRRII(uint32_t raw)
 {
-	uint8_t i = raw & 3;
-	uint8_t r = (raw >> 0) & 0x0c;
-	uint8_t g = (raw >> 2) & 0x0c;
-	uint8_t b = (raw >> 4) & 0x0c;
+	uint8_t const i = raw & 3;
+	uint8_t const r = (raw >> 0) & 0x0c;
+	uint8_t const g = (raw >> 2) & 0x0c;
+	uint8_t const b = (raw >> 4) & 0x0c;
 
 	return rgb_t(pal4bit(r | i), pal4bit(g | i), pal4bit(b | i));
 }
@@ -84,13 +84,13 @@ PALETTE_DECODER_MEMBER( superqix_state_base, BBGGRRII )
 
 ***************************************************************************/
 
-WRITE8_MEMBER(superqix_state_base::superqix_videoram_w)
+void superqix_state_base::superqix_videoram_w(offs_t offset, uint8_t data)
 {
 	m_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset & 0x3ff);
 }
 
-WRITE8_MEMBER(superqix_state_base::superqix_bitmapram_w)
+void superqix_state_base::superqix_bitmapram_w(offs_t offset, uint8_t data)
 {
 	if (m_bitmapram[offset] != data)
 	{
@@ -104,7 +104,7 @@ WRITE8_MEMBER(superqix_state_base::superqix_bitmapram_w)
 	}
 }
 
-WRITE8_MEMBER(superqix_state_base::superqix_bitmapram2_w)
+void superqix_state_base::superqix_bitmapram2_w(offs_t offset, uint8_t data)
 {
 	if (data != m_bitmapram2[offset])
 	{
@@ -118,7 +118,7 @@ WRITE8_MEMBER(superqix_state_base::superqix_bitmapram2_w)
 	}
 }
 
-WRITE8_MEMBER(hotsmash_state::pbillian_0410_w)
+void hotsmash_state::pbillian_0410_w(u8 data)
 {
 	/*
 	 -------0  ? [not used]
@@ -129,7 +129,7 @@ WRITE8_MEMBER(hotsmash_state::pbillian_0410_w)
 	 --5-----  flip screen
 	*/
 
-	if (data&0xc1) logerror("%04x: pbillian_0410_w with invalid bits: %02x\n",space.device().safe_pc(),data);
+	if (data&0xc1) logerror("%04x: pbillian_0410_w with invalid bits: %02x\n",m_maincpu->pc(),data);
 	machine().bookkeeping().coin_counter_w(0,BIT(data,1));
 	machine().bookkeeping().coin_counter_w(1,BIT(data,2));
 
@@ -140,7 +140,7 @@ WRITE8_MEMBER(hotsmash_state::pbillian_0410_w)
 	flip_screen_set(BIT(data,5));
 }
 
-WRITE8_MEMBER(superqix_state_base::superqix_0410_w)
+void superqix_state_base::superqix_0410_w(uint8_t data)
 {
 	/*
 	 ------10  tile bank
@@ -148,7 +148,7 @@ WRITE8_MEMBER(superqix_state_base::superqix_0410_w)
 	 ----3---  nmi enable/disable
 	 --54----  rom bank
 	*/
-	if (data&0xc0) logerror("%04x: superqix_0410_w with invalid high bits: %02x\n",space.device().safe_pc(),data);
+	if (data&0xc0) logerror("%04x: superqix_0410_w with invalid high bits: %02x\n",m_maincpu->pc(),data);
 	/* bits 0-1 select the tile bank */
 	if (m_gfxbank != (data & 0x03))
 	{

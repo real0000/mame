@@ -8,13 +8,16 @@
 
 ***************************************************************************/
 
+#ifndef MAME_EMU_DEBUG_EXPRESS_H
+#define MAME_EMU_DEBUG_EXPRESS_H
+
 #pragma once
 
-#ifndef __EXPRESS_H__
-#define __EXPRESS_H__
-
 #include "emucore.h"
+
+#include <deque>
 #include <functional>
+#include <list>
 #include <unordered_map>
 
 
@@ -45,10 +48,6 @@ enum expression_space
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
-
-// forward references
-class symbol_table;
-
 
 // ======================> expression_error
 
@@ -106,8 +105,6 @@ private:
 // symbol_entry describes a symbol in a symbol table
 class symbol_entry
 {
-	friend class simple_list<symbol_entry>;
-
 protected:
 	// symbol types
 	enum symbol_type
@@ -117,12 +114,11 @@ protected:
 	};
 
 	// construction/destruction
-	symbol_entry(symbol_table &table, symbol_type type, const char *name, const std::string &format, void *ref);
+	symbol_entry(symbol_table &table, symbol_type type, const char *name, const std::string &format);
 public:
 	virtual ~symbol_entry();
 
 	// getters
-	symbol_entry *next() const { return m_next; }
 	const char *name() const { return m_name.c_str(); }
 	const std::string &format() const { return m_format; }
 
@@ -136,12 +132,10 @@ public:
 
 protected:
 	// internal state
-	symbol_entry *  m_next;                     // link to next entry
 	symbol_table &  m_table;                    // pointer back to the owning table
 	symbol_type     m_type;                     // type of symbol
 	std::string     m_name;                     // name of the symbol
 	std::string     m_format;                   // format of symbol (or empty if unspecified)
-	void *          m_ref;                      // internal reference
 };
 
 
@@ -153,16 +147,16 @@ class symbol_table
 {
 public:
 	// callback functions for getting/setting a symbol value
-	typedef std::function<u64(symbol_table &table, void *symref)> getter_func;
-	typedef std::function<void(symbol_table &table, void *symref, u64 value)> setter_func;
+	typedef std::function<u64()> getter_func;
+	typedef std::function<void(u64 value)> setter_func;
 
 	// callback functions for function execution
-	typedef std::function<u64(symbol_table &table, void *symref, int numparams, const u64 *paramlist)> execute_func;
+	typedef std::function<u64(int numparams, const u64 *paramlist)> execute_func;
 
 	// callback functions for memory reads/writes
-	typedef std::function<expression_error::error_code(void *cbparam, const char *name, expression_space space)> valid_func;
-	typedef std::function<u64(void *cbparam, const char *name, expression_space space, u32 offset, int size, bool with_se)> read_func;
-	typedef std::function<void(void *cbparam, const char *name, expression_space space, u32 offset, int size, u64 value, bool with_se)> write_func;
+	typedef std::function<expression_error::error_code(const char *name, expression_space space)> valid_func;
+	typedef std::function<u64(const char *name, expression_space space, u32 offset, int size, bool disable_se)> read_func;
+	typedef std::function<void(const char *name, expression_space space, u32 offset, int size, u64 value, bool disable_se)> write_func;
 
 	enum read_write
 	{
@@ -171,21 +165,20 @@ public:
 	};
 
 	// construction/destruction
-	symbol_table(void *globalref, symbol_table *parent = nullptr);
+	symbol_table(symbol_table *parent = nullptr);
 
 	// getters
 	const std::unordered_map<std::string, std::unique_ptr<symbol_entry>> &entries() const { return m_symlist; }
 	symbol_table *parent() const { return m_parent; }
-	void *globalref() const { return m_globalref; }
 
 	// setters
-	void configure_memory(void *param, valid_func valid, read_func read, write_func write);
+	void configure_memory(valid_func valid, read_func read, write_func write);
 
 	// symbol access
 	void add(const char *name, read_write rw, u64 *ptr = nullptr);
 	void add(const char *name, u64 constvalue);
-	void add(const char *name, void *ref, getter_func getter, setter_func setter = nullptr, const std::string &format_string = "");
-	void add(const char *name, void *ref, int minparams, int maxparams, execute_func execute);
+	void add(const char *name, getter_func getter, setter_func setter = nullptr, const std::string &format_string = "");
+	void add(const char *name, int minparams, int maxparams, execute_func execute);
 	symbol_entry *find(const char *name) const { if (name) { auto search = m_symlist.find(name); if (search != m_symlist.end()) return search->second.get(); else return nullptr; } else return nullptr; }
 	symbol_entry *find_deep(const char *name);
 
@@ -195,15 +188,13 @@ public:
 
 	// memory accessors
 	expression_error::error_code memory_valid(const char *name, expression_space space);
-	u64 memory_value(const char *name, expression_space space, u32 offset, int size, bool with_se);
-	void set_memory_value(const char *name, expression_space space, u32 offset, int size, u64 value, bool with_se);
+	u64 memory_value(const char *name, expression_space space, u32 offset, int size, bool disable_se);
+	void set_memory_value(const char *name, expression_space space, u32 offset, int size, u64 value, bool disable_se);
 
 private:
 	// internal state
 	symbol_table *          m_parent;           // pointer to the parent symbol table
-	void *                  m_globalref;        // global reference parameter
 	std::unordered_map<std::string,std::unique_ptr<symbol_entry>> m_symlist;        // list of symbols
-	void *                  m_memory_param;     // callback parameter for memory
 	valid_func              m_memory_valid;     // validation callback
 	read_func               m_memory_read;      // read callback
 	write_func              m_memory_write;     // write callback
@@ -218,19 +209,22 @@ class parsed_expression
 {
 public:
 	// construction/destruction
-	parsed_expression(const parsed_expression &src) { copy(src); }
-	parsed_expression(symbol_table *symtable = nullptr, const char *expression = nullptr, u64 *result = nullptr);
+	parsed_expression(symbol_table &symtable, const char *expression = nullptr, int default_base = 16);
+	parsed_expression(const parsed_expression &src);
+	parsed_expression(parsed_expression &&src) = default;
 
 	// operators
 	parsed_expression &operator=(const parsed_expression &src) { copy(src); return *this; }
+	parsed_expression &operator=(parsed_expression &&src) = default;
 
 	// getters
 	bool is_empty() const { return (m_tokenlist.count() == 0); }
 	const char *original_string() const { return m_original_string.c_str(); }
-	symbol_table *symbols() const { return m_symtable; }
+	symbol_table &symbols() const { return m_symtable.get(); }
 
 	// setters
-	void set_symbols(symbol_table *symtable) { m_symtable = symtable; }
+	void set_symbols(symbol_table &symtable) { m_symtable = std::reference_wrapper<symbol_table>(symtable); }
+	void set_default_base(int base) { assert(base == 8 || base == 10 || base == 16); m_default_base = base; }
 
 	// execution
 	void parse(const char *string);
@@ -297,7 +291,7 @@ private:
 		bool right_to_left() const { assert(m_type == OPERATOR); return ((m_flags & TIN_RIGHT_TO_LEFT_MASK) != 0); }
 		expression_space memory_space() const { assert(m_type == OPERATOR || m_type == MEMORY); return expression_space((m_flags & TIN_MEMORY_SPACE_MASK) >> TIN_MEMORY_SPACE_SHIFT); }
 		int memory_size() const { assert(m_type == OPERATOR || m_type == MEMORY); return (m_flags & TIN_MEMORY_SIZE_MASK) >> TIN_MEMORY_SIZE_SHIFT; }
-		bool memory_side_effect() const { assert(m_type == OPERATOR || m_type == MEMORY); return (m_flags & TIN_SIDE_EFFECT_MASK) >> TIN_SIDE_EFFECT_SHIFT; }
+		bool memory_side_effects() const { assert(m_type == OPERATOR || m_type == MEMORY); return (m_flags & TIN_SIDE_EFFECT_MASK) >> TIN_SIDE_EFFECT_SHIFT; }
 
 		// setters
 		parse_token &set_offset(int offset) { m_offset = offset; return *this; }
@@ -314,12 +308,12 @@ private:
 		parse_token &set_right_to_left() { assert(m_type == OPERATOR); m_flags |= TIN_RIGHT_TO_LEFT_MASK; return *this; }
 		parse_token &set_memory_space(expression_space space) { assert(m_type == OPERATOR || m_type == MEMORY); m_flags = (m_flags & ~TIN_MEMORY_SPACE_MASK) | ((space << TIN_MEMORY_SPACE_SHIFT) & TIN_MEMORY_SPACE_MASK); return *this; }
 		parse_token &set_memory_size(int log2ofbits) { assert(m_type == OPERATOR || m_type == MEMORY); m_flags = (m_flags & ~TIN_MEMORY_SIZE_MASK) | ((log2ofbits << TIN_MEMORY_SIZE_SHIFT) & TIN_MEMORY_SIZE_MASK); return *this; }
-		parse_token &set_memory_side_effect(bool with_se) { assert(m_type == OPERATOR || m_type == MEMORY); m_flags = with_se ? m_flags | TIN_SIDE_EFFECT_MASK : m_flags & ~TIN_SIDE_EFFECT_MASK; return *this; }
+		parse_token &set_memory_side_effects(bool disable_se) { assert(m_type == OPERATOR || m_type == MEMORY); m_flags = disable_se ? m_flags | TIN_SIDE_EFFECT_MASK : m_flags & ~TIN_SIDE_EFFECT_MASK; return *this; }
 		parse_token &set_memory_source(const char *string) { assert(m_type == OPERATOR || m_type == MEMORY); m_string = string; return *this; }
 
 		// access
-		u64 get_lval_value(symbol_table *symtable);
-		void set_lval_value(symbol_table *symtable, u64 value);
+		u64 get_lval_value(symbol_table &symtable);
+		void set_lval_value(symbol_table &symtable, u64 value);
 
 	private:
 		// internal state
@@ -332,27 +326,6 @@ private:
 		symbol_entry *          m_symbol;           // symbol pointer
 	};
 
-	// an expression_string holds an indexed string parsed from the expression
-	class expression_string
-	{
-		friend class simple_list<expression_string>;
-
-	public:
-		// construction/destruction
-		expression_string(const char *string, int length = 0)
-			: m_next(nullptr),
-				m_string(string, (length == 0) ? strlen(string) : length) { }
-
-		// operators
-		operator const char *() { return m_string.c_str(); }
-		operator const char *() const { return m_string.c_str(); }
-
-	private:
-		// internal state
-		expression_string * m_next;                     // next string in list
-		std::string         m_string;                   // copy of the string
-	};
-
 	// internal helpers
 	void copy(const parsed_expression &src);
 	void print_tokens(FILE *out);
@@ -363,14 +336,13 @@ private:
 	void parse_number(parse_token &token, const char *string, int base, expression_error::error_code errcode);
 	void parse_quoted_char(parse_token &token, const char *&string);
 	void parse_quoted_string(parse_token &token, const char *&string);
-	void parse_memory_operator(parse_token &token, const char *string, bool with_se);
+	void parse_memory_operator(parse_token &token, const char *string, bool disable_se);
 	void normalize_operator(parse_token *prevtoken, parse_token &thistoken);
 	void infix_to_postfix();
 
 	// execution helpers
 	void push_token(parse_token &token);
 	void pop_token(parse_token &token);
-	parse_token *peek_token(int count);
 	void pop_token_lval(parse_token &token);
 	void pop_token_rval(parse_token &token);
 	u64 execute_tokens();
@@ -378,16 +350,14 @@ private:
 
 	// constants
 	static const int MAX_FUNCTION_PARAMS = 16;
-	static const int MAX_STACK_DEPTH = 16;
 
 	// internal state
-	symbol_table *      m_symtable;                     // symbol table
+	std::reference_wrapper<symbol_table> m_symtable;    // symbol table
+	int                 m_default_base;                 // default base
 	std::string         m_original_string;              // original string (prior to parsing)
 	simple_list<parse_token> m_tokenlist;               // token list
-	simple_list<expression_string> m_stringlist;        // string list
-	int                 m_token_stack_ptr;              // stack pointer (used during execution)
-	parse_token         m_token_stack[MAX_STACK_DEPTH]; // token stack (used during execution)
+	std::list<std::string> m_stringlist;                // string list
+	std::deque<parse_token> m_token_stack;              // token stack (used during execution)
 };
 
-
-#endif
+#endif // MAME_EMU_DEBUG_EXPRESS_H

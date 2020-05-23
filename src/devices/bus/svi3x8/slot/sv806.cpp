@@ -16,7 +16,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type SV806 = device_creator<sv806_device>;
+DEFINE_DEVICE_TYPE(SV806, sv806_device, "sv806", "SV-806 80 Column Cartridge")
 
 //-------------------------------------------------
 //  rom_region - device-specific ROM region
@@ -25,9 +25,9 @@ const device_type SV806 = device_creator<sv806_device>;
 ROM_START( sv806 )
 	ROM_REGION(0x1000, "gfx", 0)
 	ROM_SYSTEM_BIOS(0, "en", "English Character Set")
-	ROMX_LOAD("sv806.ic27",   0x0000, 0x1000, CRC(850bc232) SHA1(ed45cb0e9bd18a9d7bd74f87e620f016a7ae840f), ROM_BIOS(1))
+	ROMX_LOAD("sv806.ic27",   0x0000, 0x1000, CRC(850bc232) SHA1(ed45cb0e9bd18a9d7bd74f87e620f016a7ae840f), ROM_BIOS(0))
 	ROM_SYSTEM_BIOS(1, "se", "Swedish Character Set")
-	ROMX_LOAD("sv806se.ic27", 0x0000, 0x1000, CRC(daea8956) SHA1(3f16d5513ad35692488ae7d864f660e76c6e8ed3), ROM_BIOS(2))
+	ROMX_LOAD("sv806se.ic27", 0x0000, 0x1000, CRC(daea8956) SHA1(3f16d5513ad35692488ae7d864f660e76c6e8ed3), ROM_BIOS(1))
 ROM_END
 
 const tiny_rom_entry *sv806_device::device_rom_region() const
@@ -36,26 +36,23 @@ const tiny_rom_entry *sv806_device::device_rom_region() const
 }
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( sv806 )
-	MCFG_SCREEN_ADD_MONOCHROME("80col", RASTER, rgb_t::green())
-	MCFG_SCREEN_RAW_PARAMS((XTAL_12MHz / 6) * 8, 864, 0, 640, 317, 0, 192)
-	MCFG_SCREEN_UPDATE_DEVICE("crtc", hd6845_device, screen_update)
-
-	MCFG_PALETTE_ADD_MONOCHROME("palette")
-
-	MCFG_MC6845_ADD("crtc", HD6845, "80col", XTAL_12MHz / 6)
-	MCFG_MC6845_SHOW_BORDER_AREA(false)
-	MCFG_MC6845_CHAR_WIDTH(8)
-	MCFG_MC6845_UPDATE_ROW_CB(sv806_device, crtc_update_row)
-MACHINE_CONFIG_END
-
-machine_config_constructor sv806_device::device_mconfig_additions() const
+void sv806_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( sv806 );
+	screen_device &screen(SCREEN(config, "80col", SCREEN_TYPE_RASTER));
+	screen.set_color(rgb_t::green());
+	screen.set_raw((XTAL(12'000'000) / 6) * 8, 864, 0, 640, 317, 0, 192);
+	screen.set_screen_update("crtc", FUNC(hd6845s_device::screen_update));
+
+	PALETTE(config, m_palette, palette_device::MONOCHROME);
+
+	HD6845S(config, m_crtc, XTAL(12'000'000) / 6); // HD6845 (variant not verified)
+	m_crtc->set_screen("80col");
+	m_crtc->set_show_border_area(false);
+	m_crtc->set_char_width(8);
+	m_crtc->set_update_row_callback(FUNC(sv806_device::crtc_update_row));
 }
 
 
@@ -68,7 +65,7 @@ machine_config_constructor sv806_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 sv806_device::sv806_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, SV806, "SV-806 80 Column Cartridge", tag, owner, clock, "sv806", __FILE__),
+	device_t(mconfig, SV806, tag, owner, clock),
 	device_svi_slot_interface(mconfig, *this),
 	m_crtc(*this, "crtc"),
 	m_palette(*this, "palette"),
@@ -87,7 +84,7 @@ void sv806_device::device_start()
 {
 	// register for savestates
 	save_item(NAME(m_ram_enabled));
-	save_pointer(NAME(m_ram.get()), 0x800);
+	save_pointer(NAME(m_ram), 0x800);
 }
 
 
@@ -117,7 +114,7 @@ MC6845_UPDATE_ROW( sv806_device::crtc_update_row )
 	}
 }
 
-READ8_MEMBER( sv806_device::mreq_r )
+uint8_t sv806_device::mreq_r(offs_t offset)
 {
 	if (offset >= 0xf000 && m_ram_enabled)
 	{
@@ -128,7 +125,7 @@ READ8_MEMBER( sv806_device::mreq_r )
 	return 0xff;
 }
 
-WRITE8_MEMBER( sv806_device::mreq_w )
+void sv806_device::mreq_w(offs_t offset, uint8_t data)
 {
 	if (offset >= 0xf000 && m_ram_enabled)
 	{
@@ -137,20 +134,20 @@ WRITE8_MEMBER( sv806_device::mreq_w )
 	}
 }
 
-READ8_MEMBER( sv806_device::iorq_r )
+uint8_t sv806_device::iorq_r(offs_t offset)
 {
 	if (offset == 0x51)
-		return m_crtc->register_r(space, 0);
+		return m_crtc->register_r();
 
 	return 0xff;
 }
 
-WRITE8_MEMBER( sv806_device::iorq_w )
+void sv806_device::iorq_w(offs_t offset, uint8_t data)
 {
 	switch (offset)
 	{
-	case 0x50: m_crtc->address_w(space, 0, data); break;
-	case 0x51: m_crtc->register_w(space, 0, data); break;
+	case 0x50: m_crtc->address_w(data); break;
+	case 0x51: m_crtc->register_w(data); break;
 	case 0x58: m_ram_enabled = data; break;
 	}
 }

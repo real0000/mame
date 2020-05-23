@@ -17,9 +17,6 @@
 //  MACROS / CONSTANTS
 //**************************************************************************
 
-#define LOG 0
-
-
 #define VERBOSE_LEVEL 0
 #define DBG_LOG(N,M,A) \
 	do { \
@@ -82,8 +79,8 @@
 #define FRAMECOLOR      (m_reg[0x19] & 0x7f)
 
 #define TED7360_CLOCK        (m_clock / 4)
-#define TED7360_VRETRACERATE ((m_clock == TED7360PAL_CLOCK) ? TED7360PAL_VRETRACERATE : TED7360NTSC_VRETRACERATE)
-#define TED7360_LINES        ((m_clock == TED7360PAL_CLOCK) ? TED7360PAL_LINES : TED7360NTSC_LINES)
+#define TED7360_VRETRACERATE ((m_clock == TED7360PAL_CLOCK) ? PAL_VRETRACERATE : NTSC_VRETRACERATE)
+#define TED7360_LINES        ((m_clock == TED7360PAL_CLOCK) ? PAL_LINES : NTSC_LINES)
 
 static const rgb_t PALETTE_MOS[] =
 {
@@ -159,14 +156,25 @@ static const rgb_t PALETTE_MOS[] =
 //  GLOBAL VARIABLES
 //**************************************************************************
 
+constexpr unsigned mos7360_device::NTSC_VRETRACERATE;
+constexpr unsigned mos7360_device::PAL_VRETRACERATE;
+constexpr unsigned mos7360_device::HRETRACERATE;
+constexpr unsigned mos7360_device::HSIZE;
+constexpr unsigned mos7360_device::VSIZE;
+constexpr unsigned mos7360_device::NTSC_LINES;
+constexpr unsigned mos7360_device::PAL_LINES;
+
+
 // device type definition
-const device_type MOS7360 = device_creator<mos7360_device>;
+DEFINE_DEVICE_TYPE(MOS7360, mos7360_device, "mos7360", "MOS 7360 TED")
 
 
 // default address maps
-static ADDRESS_MAP_START( mos7360_videoram_map, AS_0, 8, mos7360_device )
-	AM_RANGE(0x0000, 0xffff) AM_RAM
-ADDRESS_MAP_END
+void mos7360_device::mos7360_videoram_map(address_map &map)
+{
+	if (!has_configured_map(0))
+		map(0x0000, 0xffff).ram();
+}
 
 
 //-------------------------------------------------
@@ -174,13 +182,11 @@ ADDRESS_MAP_END
 //  any address spaces owned by this device
 //-------------------------------------------------
 
-const address_space_config *mos7360_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector mos7360_device::memory_space_config() const
 {
-	switch (spacenum)
-	{
-		case AS_0: return &m_videoram_space_config;
-		default: return nullptr;
-	}
+	return space_config_vector {
+		std::make_pair(0, &m_videoram_space_config)
+	};
 }
 
 
@@ -226,7 +232,7 @@ inline uint8_t mos7360_device::read_ram(offs_t offset)
 	int rom = m_rom;
 	m_rom = 0;
 
-	m_last_data = space(AS_0).read_byte(offset);
+	m_last_data = space(0).read_byte(offset);
 
 	m_rom = rom;
 
@@ -238,7 +244,7 @@ inline uint8_t mos7360_device::read_rom(offs_t offset)
 	int rom = m_rom;
 	m_rom = 1;
 
-	m_last_data = space(AS_0).read_byte(offset);
+	m_last_data = space(0).read_byte(offset);
 
 	m_rom = rom;
 
@@ -256,11 +262,11 @@ inline uint8_t mos7360_device::read_rom(offs_t offset)
 //-------------------------------------------------
 
 mos7360_device::mos7360_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, MOS7360, "MOS7360", tag, owner, clock, "mos7360", __FILE__),
+	: device_t(mconfig, MOS7360, tag, owner, clock),
 		device_memory_interface(mconfig, *this),
 		device_sound_interface(mconfig, *this),
 		device_video_interface(mconfig, *this),
-		m_videoram_space_config("videoram", ENDIANNESS_LITTLE, 8, 16, 0, nullptr, *ADDRESS_MAP_NAME(mos7360_videoram_map)),
+		m_videoram_space_config("videoram", ENDIANNESS_LITTLE, 8, 16, 0, address_map_constructor(FUNC(mos7360_device::mos7360_videoram_map), this)),
 		m_write_irq(*this),
 		m_read_k(*this),
 		m_stream(nullptr)
@@ -274,10 +280,6 @@ mos7360_device::mos7360_device(const machine_config &mconfig, const char *tag, d
 
 void mos7360_device::device_start()
 {
-	// get the CPU device
-	m_cpu = machine().device<cpu_device>(m_cpu_tag);
-	assert(m_cpu != nullptr);
-
 	// resolve callbacks
 	m_write_irq.resolve_safe();
 	m_read_k.resolve_safe(0xff);
@@ -287,12 +289,12 @@ void mos7360_device::device_start()
 	m_timer2 = timer_alloc(TIMER_ID_2);
 	m_timer3 = timer_alloc(TIMER_ID_3);
 	m_line_timer = timer_alloc(TIMER_LINE);
-	m_line_timer->adjust(m_screen->scan_period(), 0, m_screen->scan_period());
+	m_line_timer->adjust(screen().scan_period(), 0, screen().scan_period());
 	m_frame_timer = timer_alloc(TIMER_FRAME);
-	m_frame_timer->adjust(m_screen->frame_period(), 0, m_screen->frame_period());
+	m_frame_timer->adjust(screen().frame_period(), 0, screen().frame_period());
 
 	// allocate screen bitmap
-	m_screen->register_screen_bitmap(m_bitmap);
+	screen().register_screen_bitmap(m_bitmap);
 
 	// create sound stream
 	m_stream = machine().sound().stream_alloc(*this, 0, 1, machine().sample_rate());
@@ -627,7 +629,7 @@ void mos7360_device::drawlines(int first, int last)
 		{
 			for (int x = 0; x < m_bitmap.width(); x++)
 			{
-				m_bitmap.pix32(line, x) = PALETTE_MOS[0];
+				m_bitmap.pix32(line, x) = PALETTE_MOS[FRAMECOLOR];
 			}
 		}
 		return;
@@ -816,7 +818,7 @@ void mos7360_device::soundport_w(int offset, int data)
 //  read - register read
 //-------------------------------------------------
 
-uint8_t mos7360_device::read(address_space &space, offs_t offset, int &cs0, int &cs1)
+uint8_t mos7360_device::read(offs_t offset, int &cs0, int &cs1)
 {
 	uint8_t val = m_last_data;
 
@@ -900,7 +902,7 @@ uint8_t mos7360_device::read(address_space &space, offs_t offset, int &cs0, int 
 //  write - register write
 //-------------------------------------------------
 
-void mos7360_device::write(address_space &space, offs_t offset, uint8_t data, int &cs0, int &cs1)
+void mos7360_device::write(offs_t offset, uint8_t data, int &cs0, int &cs1)
 {
 	int old;
 

@@ -9,32 +9,12 @@
 
 **********************************************************************/
 
+#ifndef MAME_BUS_SMS_CTRL_SMSCTRL_H
+#define MAME_BUS_SMS_CTRL_SMSCTRL_H
+
+#include "screen.h"
+
 #pragma once
-
-#ifndef __SMS_CONTROL_PORT__
-#define __SMS_CONTROL_PORT__
-
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_SMS_CONTROL_PORT_ADD(_tag, _slot_intf, _def_slot) \
-	MCFG_DEVICE_ADD(_tag, SMS_CONTROL_PORT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
-#define MCFG_SMS_CONTROL_PORT_MODIFY(_tag) \
-	MCFG_DEVICE_MODIFY(_tag)
-
-
-#define MCFG_SMS_CONTROL_PORT_TH_INPUT_HANDLER(_devcb) \
-	devcb = &sms_control_port_device::set_th_input_handler(*device, DEVCB_##_devcb);
-
-
-#define MCFG_SMS_CONTROL_PORT_PIXEL_HANDLER(_devcb) \
-	devcb = &sms_control_port_device::set_pixel_handler(*device, DEVCB_##_devcb);
-
 
 
 //**************************************************************************
@@ -50,13 +30,21 @@ class sms_control_port_device : public device_t,
 {
 public:
 	// construction/destruction
+	template <typename T>
+	sms_control_port_device(machine_config const &mconfig, char const *tag, device_t *owner, T &&opts, char const *dflt)
+		: sms_control_port_device(mconfig, tag, owner, 0)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
+
 	sms_control_port_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 	virtual ~sms_control_port_device();
 
 	// static configuration helpers
-	template<class _Object> static devcb_base &set_th_input_handler(device_t &device, _Object object) { return downcast<sms_control_port_device &>(device).m_th_pin_handler.set_callback(object); }
-
-	template<class _Object> static devcb_base &set_pixel_handler(device_t &device, _Object object) { return downcast<sms_control_port_device &>(device).m_pixel_handler.set_callback(object); }
+	auto th_input_handler() { return m_th_pin_handler.bind(); }
 
 	// Physical DE-9 connector interface
 
@@ -75,9 +63,13 @@ public:
 	void port_w( uint8_t data );
 
 	void th_pin_w(int state);
-	uint32_t pixel_r();
 
-//protected:
+	template <typename T> void set_screen_tag(T &&tag) { m_screen.set_tag(std::forward<T>(tag)); }
+
+	// for peripherals that interact with the machine's screen
+	required_device<screen_device> m_screen;
+
+protected:
 	// device-level overrides
 	virtual void device_start() override;
 
@@ -85,33 +77,33 @@ public:
 
 private:
 	devcb_write_line m_th_pin_handler;
-	devcb_read32 m_pixel_handler;
 };
 
 
 // ======================> device_sms_control_port_interface
 
 // class representing interface-specific live sms_expansion card
-class device_sms_control_port_interface : public device_slot_card_interface
+class device_sms_control_port_interface : public device_interface
 {
 public:
 	// construction/destruction
-	device_sms_control_port_interface(const machine_config &mconfig, device_t &device);
 	virtual ~device_sms_control_port_interface();
 
-	virtual uint8_t peripheral_r() { return 0xff; };
-	virtual void peripheral_w(uint8_t data) { };
+	virtual uint8_t peripheral_r() { return 0xff; }
+	virtual void peripheral_w(uint8_t data) { }
 
 protected:
+	device_sms_control_port_interface(const machine_config &mconfig, device_t &device);
+
 	sms_control_port_device *m_port;
 };
 
 
 // device type definition
-extern const device_type SMS_CONTROL_PORT;
+DECLARE_DEVICE_TYPE(SMS_CONTROL_PORT, sms_control_port_device)
 
 
-SLOT_INTERFACE_EXTERN( sms_control_port_devices );
+void sms_control_port_devices(device_slot_interface &device);
 
 
-#endif
+#endif // MAME_BUS_SMS_CTRL_SMSCTRL_H

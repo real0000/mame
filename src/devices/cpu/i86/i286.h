@@ -1,12 +1,14 @@
 // license:BSD-3-Clause
 // copyright-holders:Carl
-#ifndef I286_H_
-#define I286_H_
+#ifndef MAME_CPU_I86_I286_H
+#define MAME_CPU_I86_I286_H
+
+#pragma once
 
 #include "i86.h"
 #define INPUT_LINE_A20      1
 
-extern const device_type I80286;
+DECLARE_DEVICE_TYPE(I80286, i80286_cpu_device)
 
 enum
 {   // same order as I8086 registers
@@ -21,6 +23,16 @@ enum
 	I286_BP,
 	I286_SI,
 	I286_DI,
+
+	I286_AL,
+	I286_AH,
+	I286_CL,
+	I286_CH,
+	I286_DL,
+	I286_DH,
+	I286_BL,
+	I286_BH,
+
 	I286_FLAGS,
 
 	I286_ES,
@@ -67,11 +79,12 @@ public:
 	i80286_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : ( (spacenum == AS_IO) ? &m_io_config : nullptr ); }
+	virtual space_config_vector memory_space_config() const override;
 
 	typedef delegate<uint32_t (bool)> a20_cb;
-	static void static_set_a20_callback(device_t &device, a20_cb object) { downcast<i80286_cpu_device &>(device).m_a20_callback = object; }
-	template<class _Object> static devcb_base &static_set_shutdown_callback(device_t &device, _Object object) { return downcast<i80286_cpu_device &>(device).m_out_shutdown_func.set_callback(object); }
+	template <typename Object> void set_a20_callback(Object &&cb) { m_a20_callback = std::forward<Object>(cb); }
+
+	auto shutdown_callback() { return m_out_shutdown_func.bind(); }
 
 protected:
 	virtual void execute_run() override;
@@ -82,9 +95,9 @@ protected:
 	virtual void state_import(const device_state_entry &entry) override;
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
-	virtual uint32_t execute_input_lines() const override { return 1; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 1; }
 	virtual void execute_set_input(int inputnum, int state) override;
-	bool memory_translate(address_spacenum spacenum, int intention, offs_t &address) override;
+	bool memory_translate(int spacenum, int intention, offs_t &address) override;
 
 	virtual void interrupt(int int_num, int trap = 1) override { if(trap) throw TRAP(int_num, (uint16_t)-1); else interrupt_descriptor(int_num, 0, 0); }
 	virtual uint8_t read_port_byte(uint16_t port) override;
@@ -93,7 +106,6 @@ protected:
 	virtual void write_port_word(uint16_t port, uint16_t data) override;
 
 	// Executing instructions
-	virtual uint8_t fetch_op() override;
 	virtual uint8_t fetch() override;
 	virtual uint32_t calc_addr(int seg, uint16_t offset, int size, int op, bool override = true) override;
 
@@ -110,7 +122,7 @@ private:
 	void switch_task(uint16_t ntask, int type);
 	void trap(uint32_t error);
 	int verify(uint16_t selector, int operation, uint8_t rights, bool valid);
-	uint32_t pc() { return m_pc = m_base[CS] + m_ip; }
+	uint32_t update_pc() { return m_pc = m_base[CS] + m_ip; }
 
 	int m_trap_level;
 	uint16_t m_msw;
@@ -134,6 +146,7 @@ private:
 	uint32_t TRAP(uint16_t fault, uint16_t code)  { return ((((uint32_t)fault&0xffff)<<16)|(code&0xffff)); }
 
 	address_space_config m_program_config;
+	address_space_config m_opcodes_config;
 	address_space_config m_io_config;
 	static const uint8_t m_i80286_timing[200];
 
@@ -159,10 +172,4 @@ private:
 	devcb_write_line m_out_shutdown_func;
 };
 
-#define MCFG_80286_A20(_class, _a20_cb) \
-		i80286_cpu_device::static_set_a20_callback(*device, i80286_cpu_device::a20_cb(&_class::_a20_cb, (_class *)owner));
-
-#define MCFG_80286_SHUTDOWN(_devcb) \
-	devcb = &i80286_cpu_device::static_set_shutdown_callback(*device, DEVCB_##_devcb);
-
-#endif /* I286_H_ */
+#endif // MAME_CPU_I86_I286_H

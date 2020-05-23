@@ -2,37 +2,25 @@
 // copyright-holders:Olivier Galibert
 #include "emu.h"
 #include "wpc_dmd.h"
-#include "rendlay.h"
 #include "screen.h"
 
-const device_type WPC_DMD = device_creator<wpc_dmd_device>;
+DEFINE_DEVICE_TYPE(WPC_DMD, wpc_dmd_device, "wpc_dmd", "Williams Pinball Controller Dot Matrix Display")
 
-DEVICE_ADDRESS_MAP_START( registers, 8, wpc_dmd_device )
-	AM_RANGE(0, 0) AM_WRITE(bank2_w)
-	AM_RANGE(1, 1) AM_WRITE(bank0_w)
-	AM_RANGE(2, 2) AM_WRITE(bank6_w)
-	AM_RANGE(3, 3) AM_WRITE(bank4_w)
-	AM_RANGE(4, 4) AM_WRITE(banka_w)
-	AM_RANGE(5, 5) AM_WRITE(firq_scanline_w)
-	AM_RANGE(6, 6) AM_WRITE(bank8_w)
-	AM_RANGE(7, 7) AM_WRITE(visible_page_w)
-ADDRESS_MAP_END
-
-static MACHINE_CONFIG_FRAGMENT( wpc_dmd )
-	MCFG_SCREEN_ADD("screen", LCD)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
-	MCFG_SCREEN_UPDATE_DEVICE(DEVICE_SELF, wpc_dmd_device, screen_update)
-	MCFG_SCREEN_SIZE(128*4, 32*4)
-	MCFG_SCREEN_VISIBLE_AREA(0, 128*4-1, 0, 32*4-1)
-	MCFG_DEFAULT_LAYOUT(layout_lcd)
-
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("scanline", wpc_dmd_device, scanline_timer, attotime::from_hz(60*4*32))
-MACHINE_CONFIG_END
+void wpc_dmd_device::registers(address_map &map)
+{
+	map(0, 0).w(FUNC(wpc_dmd_device::bank2_w));
+	map(1, 1).w(FUNC(wpc_dmd_device::bank0_w));
+	map(2, 2).w(FUNC(wpc_dmd_device::bank6_w));
+	map(3, 3).w(FUNC(wpc_dmd_device::bank4_w));
+	map(4, 4).w(FUNC(wpc_dmd_device::banka_w));
+	map(5, 5).w(FUNC(wpc_dmd_device::firq_scanline_w));
+	map(6, 6).w(FUNC(wpc_dmd_device::bank8_w));
+	map(7, 7).w(FUNC(wpc_dmd_device::visible_page_w));
+}
 
 
 wpc_dmd_device::wpc_dmd_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, WPC_DMD, "Williams Pinball Controller Dot Matrix Display", tag, owner, clock, "wpc_dmd", __FILE__),
+	device_t(mconfig, WPC_DMD, tag, owner, clock),
 	scanline_cb(*this),
 	dmd0(*this, ":dmd0"),
 	dmd2(*this, ":dmd2"),
@@ -47,9 +35,16 @@ wpc_dmd_device::~wpc_dmd_device()
 {
 }
 
-machine_config_constructor wpc_dmd_device::device_mconfig_additions() const
+void wpc_dmd_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( wpc_dmd );
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_LCD));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500));
+	screen.set_screen_update(FUNC(wpc_dmd_device::screen_update));
+	screen.set_size(128*4, 32*4);
+	screen.set_visarea(0, 128*4-1, 0, 32*4-1);
+
+	TIMER(config, "scanline").configure_periodic(FUNC(wpc_dmd_device::scanline_timer), attotime::from_hz(60*4*32));
 }
 
 void wpc_dmd_device::device_start()
@@ -162,42 +157,42 @@ TIMER_DEVICE_CALLBACK_MEMBER(wpc_dmd_device::scanline_timer)
 	scanline_cb(cur_scanline == (firq_scanline & 0x1f));
 }
 
-WRITE8_MEMBER(wpc_dmd_device::firq_scanline_w)
+void wpc_dmd_device::firq_scanline_w(uint8_t data)
 {
 	firq_scanline = data;
 }
 
-WRITE8_MEMBER(wpc_dmd_device::bank0_w)
+void wpc_dmd_device::bank0_w(uint8_t data)
 {
 	dmd0->set_entry(data & 0xf);
 }
 
-WRITE8_MEMBER(wpc_dmd_device::bank2_w)
+void wpc_dmd_device::bank2_w(uint8_t data)
 {
 	dmd2->set_entry(data & 0xf);
 }
 
-WRITE8_MEMBER(wpc_dmd_device::bank4_w)
+void wpc_dmd_device::bank4_w(uint8_t data)
 {
 	dmd4->set_entry(data & 0xf);
 }
 
-WRITE8_MEMBER(wpc_dmd_device::bank6_w)
+void wpc_dmd_device::bank6_w(uint8_t data)
 {
 	dmd6->set_entry(data & 0xf);
 }
 
-WRITE8_MEMBER(wpc_dmd_device::bank8_w)
+void wpc_dmd_device::bank8_w(uint8_t data)
 {
 	dmd8->set_entry(data & 0xf);
 }
 
-WRITE8_MEMBER(wpc_dmd_device::banka_w)
+void wpc_dmd_device::banka_w(uint8_t data)
 {
 	dmda->set_entry(data & 0xf);
 }
 
-WRITE8_MEMBER(wpc_dmd_device::visible_page_w)
+void wpc_dmd_device::visible_page_w(uint8_t data)
 {
 	visible_page = data;
 }

@@ -6,11 +6,11 @@
 
 **********************************************************************/
 
-
-#ifndef __ELECTRON_PLUS3__
-#define __ELECTRON_PLUS3__
+#ifndef MAME_BUS_ELECTRON_PLUS3_H
+#define MAME_BUS_ELECTRON_PLUS3_H
 
 #include "exp.h"
+#include "imagedev/floppy.h"
 #include "machine/wd_fdc.h"
 #include "formats/acorn_dsk.h"
 
@@ -26,32 +26,34 @@ public:
 	// construction/destruction
 	electron_plus3_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_FLOPPY_FORMATS(floppy_formats);
-
-	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	virtual const tiny_rom_entry *device_rom_region() const override;
-
-	DECLARE_READ8_MEMBER(wd1770_status_r);
-	DECLARE_WRITE8_MEMBER(wd1770_status_w);
-
 protected:
 	// device-level overrides
 	virtual void device_start() override;
-	virtual void device_reset() override;
+
+	// optional information overrides
+	virtual void device_add_mconfig(machine_config &config) override;
+	virtual const tiny_rom_entry *device_rom_region() const override;
+
+	virtual uint8_t expbus_r(offs_t offset) override;
+	virtual void expbus_w(offs_t offset, uint8_t data) override;
 
 private:
+	void wd1770_status_w(uint8_t data);
+	DECLARE_FLOPPY_FORMATS(floppy_formats);
+
+	required_device<electron_expansion_slot_device> m_exp;
 	required_memory_region m_exp_rom;
-	required_device<wd1770_t> m_fdc;
+	required_device<wd1770_device> m_fdc;
 	required_device<floppy_connector> m_floppy0;
 	optional_device<floppy_connector> m_floppy1;
 
+	uint8_t m_romsel;
 	int m_drive_control;
 };
 
 
 // device type definition
-extern const device_type ELECTRON_PLUS3;
+DECLARE_DEVICE_TYPE(ELECTRON_PLUS3, electron_plus3_device)
 
 
-#endif /* __ELECTRON_PLUS3__ */
+#endif // MAME_BUS_ELECTRON_PLUS3_H

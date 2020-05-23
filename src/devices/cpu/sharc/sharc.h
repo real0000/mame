@@ -1,9 +1,9 @@
 // license:BSD-3-Clause
 // copyright-holders:Ville Linde
-#pragma once
+#ifndef MAME_CPU_SHARC_SHARC_H
+#define MAME_CPU_SHARC_SHARC_H
 
-#ifndef __SHARC_H__
-#define __SHARC_H__
+#pragma once
 
 #include "cpu/drcfe.h"
 #include "cpu/drcuml.h"
@@ -12,65 +12,6 @@
 #define SHARC_INPUT_FLAG1       4
 #define SHARC_INPUT_FLAG2       5
 #define SHARC_INPUT_FLAG3       6
-
-
-enum SHARC_BOOT_MODE
-{
-	BOOT_MODE_EPROM,
-	BOOT_MODE_HOST,
-	BOOT_MODE_LINK,
-	BOOT_MODE_NOBOOT
-};
-
-
-struct alignas(16) SHARC_DAG
-{
-	uint32_t i[8];
-	uint32_t m[8];
-	uint32_t b[8];
-	uint32_t l[8];
-};
-
-union SHARC_REG
-{
-	int32_t r;
-	float f;
-};
-
-struct SHARC_DMA_REGS
-{
-	uint32_t control;
-	uint32_t int_index;
-	uint32_t int_modifier;
-	uint32_t int_count;
-	uint32_t chain_ptr;
-	uint32_t gen_purpose;
-	uint32_t ext_index;
-	uint32_t ext_modifier;
-	uint32_t ext_count;
-};
-
-struct SHARC_LADDR
-{
-	uint32_t addr;
-	uint32_t code;
-	uint32_t loop_type;
-};
-
-struct SHARC_DMA_OP
-{
-	uint32_t src;
-	uint32_t dst;
-	uint32_t chain_ptr;
-	int32_t src_modifier;
-	int32_t dst_modifier;
-	int32_t src_count;
-	int32_t dst_count;
-	int32_t pmode;
-	int32_t chained_direction;
-	emu_timer *timer;
-	bool active;
-};
 
 
 // STKY flags
@@ -132,9 +73,6 @@ struct SHARC_DMA_OP
 #define OP_USERFLAG_CALL                    0x10000000
 
 
-#define MCFG_SHARC_BOOT_MODE(boot_mode) \
-	adsp21062_device::set_boot_mode(*device, boot_mode);
-
 class sharc_frontend;
 
 class adsp21062_device : public cpu_device
@@ -142,11 +80,21 @@ class adsp21062_device : public cpu_device
 	friend class sharc_frontend;
 
 public:
+	enum sharc_boot_mode
+	{
+		BOOT_MODE_EPROM,
+		BOOT_MODE_HOST,
+		BOOT_MODE_LINK,
+		BOOT_MODE_NOBOOT
+	};
+
+
 	// construction/destruction
 	adsp21062_device(const machine_config &mconfig, const char *_tag, device_t *_owner, uint32_t _clock);
+	virtual ~adsp21062_device() override;
 
-	// static configuration helpers
-	static void set_boot_mode(device_t &device, const SHARC_BOOT_MODE boot_mode) { downcast<adsp21062_device &>(device).m_boot_mode = boot_mode; }
+	// configuration helpers
+	void set_boot_mode(const sharc_boot_mode boot_mode) { m_boot_mode = boot_mode; }
 
 	void set_flag_input(int flag_num, int state);
 	void external_iop_write(uint32_t address, uint32_t data);
@@ -254,27 +202,77 @@ public:
 		EXCEPTION_COUNT
 	};
 
+	void internal_data(address_map &map);
+	void internal_pgm(address_map &map);
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 8; }
-	virtual uint32_t execute_max_cycles() const override { return 8; }
-	virtual uint32_t execute_input_lines() const override { return 32; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 8; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 8; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 32; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : ( (spacenum == AS_DATA) ? &m_data_config : nullptr ); }
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 6; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 6; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 private:
+	struct alignas(16) SHARC_DAG
+	{
+		uint32_t i[8];
+		uint32_t m[8];
+		uint32_t b[8];
+		uint32_t l[8];
+	};
+
+	union SHARC_REG
+	{
+		int32_t r;
+		float f;
+	};
+
+	struct SHARC_DMA_REGS
+	{
+		uint32_t control;
+		uint32_t int_index;
+		uint32_t int_modifier;
+		uint32_t int_count;
+		uint32_t chain_ptr;
+		uint32_t gen_purpose;
+		uint32_t ext_index;
+		uint32_t ext_modifier;
+		uint32_t ext_count;
+	};
+
+	struct SHARC_LADDR
+	{
+		uint32_t addr;
+		uint32_t code;
+		uint32_t loop_type;
+	};
+
+	struct SHARC_DMA_OP
+	{
+		uint32_t src;
+		uint32_t dst;
+		uint32_t chain_ptr;
+		int32_t src_modifier;
+		int32_t dst_modifier;
+		int32_t src_count;
+		int32_t dst_count;
+		int32_t pmode;
+		int32_t chained_direction;
+		emu_timer *timer;
+		bool active;
+	};
+
+
 	address_space_config m_program_config;
 	address_space_config m_data_config;
 
@@ -424,7 +422,7 @@ private:
 
 	sharc_internal_state* m_core;
 
-	SHARC_BOOT_MODE m_boot_mode;
+	sharc_boot_mode m_boot_mode;
 
 	// UML stuff
 	drc_cache m_cache;
@@ -568,6 +566,7 @@ private:
 	inline void compute_fabs_plus(int rn, int rx, int ry);
 	inline void compute_fmax(int rn, int rx, int ry);
 	inline void compute_fmin(int rn, int rx, int ry);
+	inline void compute_fcopysign(int rn, int rx, int ry);
 	inline void compute_fclip(int rn, int rx, int ry);
 	inline void compute_recips(int rn, int rx);
 	inline void compute_rsqrts(int rn, int rx);
@@ -589,6 +588,7 @@ private:
 	inline void compute_fmul_float_scaled(int fm, int fxm, int fym, int fa, int fxa, int fya);
 	inline void compute_fmul_fix_scaled(int fm, int fxm, int fym, int fa, int fxa, int fya);
 	inline void compute_fmul_avg(int fm, int fxm, int fym, int fa, int fxa, int fya);
+	inline void compute_fmul_abs(int fm, int fxm, int fym, int fa, int fxa, int fya);
 	inline void compute_fmul_fmax(int fm, int fxm, int fym, int fa, int fxa, int fya);
 	inline void compute_fmul_fmin(int fm, int fxm, int fym, int fa, int fxa, int fya);
 	inline void compute_fmul_dual_fadd_fsub(int fm, int fxm, int fym, int fa, int fs, int fxa, int fya);
@@ -611,7 +611,7 @@ private:
 	void execute_run_drc();
 	void flush_cache();
 	void compile_block(offs_t pc);
-	void alloc_handle(drcuml_state *drcuml, uml::code_handle **handleptr, const char *name);
+	void alloc_handle(uml::code_handle *&handleptr, const char *name);
 	void static_generate_entry_point();
 	void static_generate_nocode_handler();
 	void static_generate_out_of_cycles();
@@ -624,34 +624,33 @@ private:
 	void static_generate_push_status();
 	void static_generate_pop_status();
 	void static_generate_mode1_ops();
-	void load_fast_iregs(drcuml_block *block);
-	void save_fast_iregs(drcuml_block *block);
-	void generate_sequence_instruction(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc, bool last_delayslot);
-	void generate_update_cycles(drcuml_block *block, compiler_state *compiler, uml::parameter param, bool allow_exception);
-	bool generate_opcode(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc);
-	void generate_unimplemented_compute(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc);
-	void generate_compute(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc);
-	void generate_if_condition(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc, int condition, int skip_label);
-	void generate_do_condition(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc, int condition, int skip_label, ASTAT_DRC &astat);
-	void generate_shift_imm(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc, int data, int shiftop, int rn, int rx);
-	void generate_call(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc, bool delayslot);
-	void generate_jump(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc, bool delayslot, bool loopabort, bool clearint);
-	void generate_loop_jump(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc);
-	void generate_write_mode1_imm(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc, uint32_t data);
-	void generate_set_mode1_imm(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc, uint32_t data);
-	void generate_clear_mode1_imm(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc, uint32_t data);
-	void generate_toggle_mode1_imm(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc, uint32_t data);
-	void generate_read_ureg(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc, int ureg, bool has_compute);
-	void generate_write_ureg(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc, int ureg, bool imm, uint32_t data);
-	void generate_update_circular_buffer(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc, int g, int i);
-	void generate_astat_copy(drcuml_block *block, compiler_state *compiler, const opcode_desc *desc);
+	void load_fast_iregs(drcuml_block &block);
+	void save_fast_iregs(drcuml_block &block);
+	void generate_sequence_instruction(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc, bool last_delayslot);
+	void generate_update_cycles(drcuml_block &block, compiler_state &compiler, uml::parameter param, bool allow_exception);
+	bool generate_opcode(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc);
+	void generate_unimplemented_compute(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc);
+	void generate_compute(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc);
+	void generate_if_condition(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc, int condition, int skip_label);
+	void generate_do_condition(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc, int condition, int skip_label, ASTAT_DRC &astat);
+	void generate_shift_imm(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc, int data, int shiftop, int rn, int rx);
+	void generate_call(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc, bool delayslot);
+	void generate_jump(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc, bool delayslot, bool loopabort, bool clearint);
+	void generate_loop_jump(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc);
+	void generate_write_mode1_imm(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc, uint32_t data);
+	void generate_set_mode1_imm(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc, uint32_t data);
+	void generate_clear_mode1_imm(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc, uint32_t data);
+	void generate_toggle_mode1_imm(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc, uint32_t data);
+	void generate_read_ureg(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc, int ureg, bool has_compute);
+	void generate_write_ureg(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc, int ureg, bool imm, uint32_t data);
+	void generate_update_circular_buffer(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc, int g, int i);
+	void generate_astat_copy(drcuml_block &block, compiler_state &compiler, const opcode_desc *desc);
 
 	bool if_condition_always_true(int condition);
 	uint32_t do_condition_astat_bits(int condition);
 };
 
 
-extern const device_type ADSP21062;
+DECLARE_DEVICE_TYPE(ADSP21062, adsp21062_device)
 
-
-#endif /* __SHARC_H__ */
+#endif // MAME_CPU_SHARC_SHARC_H

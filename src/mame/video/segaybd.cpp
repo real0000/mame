@@ -17,7 +17,7 @@
 void segaybd_state::video_start()
 {
 	// initialize the rotation layer
-	m_segaic16vid->rotate_init(0, SEGAIC16_ROTATE_YBOARD, 0x000);
+	m_segaic16vid->rotate_init(0, segaic16_video_device::ROTATE_YBOARD, 0x000);
 	m_ysprites->set_rotate_ptr(m_segaic16vid->m_rotate);
 }
 
@@ -55,8 +55,6 @@ uint32_t segaybd_state::screen_update(screen_device &screen, bitmap_ind16 &bitma
 			uint16_t *src = &sprites.pix(y);
 			uint8_t *pri = &screen.priority().pix(y);
 
-
-
 			for (int x = rect->min_x; x <= rect->max_x; x++)
 			{
 				// only process written pixels
@@ -81,7 +79,7 @@ uint32_t segaybd_state::screen_update(screen_device &screen, bitmap_ind16 &bitma
 					{
 						// if the color is set to maximum, shadow pixels underneath us
 						if ((pix & 0xf) == 0xe)
-							dest[x] += (m_paletteram[dest[x]] & 0x8000) ? m_palette_entries*2 : m_palette_entries;
+							dest[x] += m_palette_entries;
 
 						// otherwise, just add in sprite palette base
 						else

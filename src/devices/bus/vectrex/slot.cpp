@@ -15,7 +15,7 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type VECTREX_CART_SLOT = device_creator<vectrex_cart_slot_device>;
+DEFINE_DEVICE_TYPE(VECTREX_CART_SLOT, vectrex_cart_slot_device, "vectrex_cart_slot", "GCE Vectrex Cartridge Slot")
 
 //**************************************************************************
 //    Vectrex Cartridges Interface
@@ -25,10 +25,10 @@ const device_type VECTREX_CART_SLOT = device_creator<vectrex_cart_slot_device>;
 //  device_vectrex_cart_interface - constructor
 //-------------------------------------------------
 
-device_vectrex_cart_interface::device_vectrex_cart_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig, device),
-		m_rom(nullptr),
-		m_rom_size(0)
+device_vectrex_cart_interface::device_vectrex_cart_interface(const machine_config &mconfig, device_t &device) :
+	device_interface(device, "vectrexcart"),
+	m_rom(nullptr),
+	m_rom_size(0)
 {
 }
 
@@ -63,11 +63,12 @@ void device_vectrex_cart_interface::rom_alloc(uint32_t size, const char *tag)
 //  vectrex_cart_slot_device - constructor
 //-------------------------------------------------
 vectrex_cart_slot_device::vectrex_cart_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-						device_t(mconfig, VECTREX_CART_SLOT, "GCE Vectrex Cartridge Slot", tag, owner, clock, "vectrex_cart_slot", __FILE__),
-						device_image_interface(mconfig, *this),
-						device_slot_interface(mconfig, *this),
-						m_type(VECTREX_STD),
-						m_vec3d(VEC3D_NONE), m_cart(nullptr)
+	device_t(mconfig, VECTREX_CART_SLOT, tag, owner, clock),
+	device_image_interface(mconfig, *this),
+	device_single_card_slot_interface<device_vectrex_cart_interface>(mconfig, *this),
+	m_type(VECTREX_STD),
+	m_vec3d(VEC3D_NONE),
+	m_cart(nullptr)
 {
 }
 
@@ -86,7 +87,7 @@ vectrex_cart_slot_device::~vectrex_cart_slot_device()
 
 void vectrex_cart_slot_device::device_start()
 {
-	m_cart = dynamic_cast<device_vectrex_cart_interface *>(get_card_device());
+	m_cart = get_card_device();
 }
 
 
@@ -123,7 +124,7 @@ static int vectrex_get_pcb_id(const char *slot)
 
 static const char *vectrex_get_slot(int type)
 {
-	for (auto & elem : slot_list)
+	for (auto &elem : slot_list)
 	{
 		if (elem.pcb_id == type)
 			return elem.slot_option;
@@ -194,16 +195,16 @@ image_init_result vectrex_cart_slot_device::call_load()
  get default card software
  -------------------------------------------------*/
 
-std::string vectrex_cart_slot_device::get_default_card_software()
+std::string vectrex_cart_slot_device::get_default_card_software(get_default_card_software_hook &hook) const
 {
-	if (open_image_file(mconfig().options()))
+	if (hook.image_file())
 	{
 		const char *slot_string;
-		uint32_t size = m_file->size();
+		uint32_t size = hook.image_file()->size();
 		std::vector<uint8_t> rom(size);
 		int type = VECTREX_STD;
 
-		m_file->read(&rom[0], size);
+		hook.image_file()->read(&rom[0], size);
 
 		if (!memcmp(&rom[0x06], "SRAM", 4))
 			type = VECTREX_SRAM;
@@ -213,7 +214,6 @@ std::string vectrex_cart_slot_device::get_default_card_software()
 		slot_string = vectrex_get_slot(type);
 
 		//printf("type: %s\n", slot_string);
-		clear();
 
 		return std::string(slot_string);
 	}
@@ -225,10 +225,10 @@ std::string vectrex_cart_slot_device::get_default_card_software()
  read_rom
  -------------------------------------------------*/
 
-READ8_MEMBER(vectrex_cart_slot_device::read_rom)
+uint8_t vectrex_cart_slot_device::read_rom(offs_t offset)
 {
 	if (m_cart)
-		return m_cart->read_rom(space, offset);
+		return m_cart->read_rom(offset);
 	else
 		return 0xff;
 }
@@ -237,18 +237,18 @@ READ8_MEMBER(vectrex_cart_slot_device::read_rom)
  write_ram
  -------------------------------------------------*/
 
-WRITE8_MEMBER(vectrex_cart_slot_device::write_ram)
+void vectrex_cart_slot_device::write_ram(offs_t offset, uint8_t data)
 {
 	if (m_cart)
-		m_cart->write_ram(space, offset, data);
+		m_cart->write_ram(offset, data);
 }
 
 /*-------------------------------------------------
  write_bank
  -------------------------------------------------*/
 
-WRITE8_MEMBER(vectrex_cart_slot_device::write_bank)
+void vectrex_cart_slot_device::write_bank(uint8_t data)
 {
 	if (m_cart)
-		m_cart->write_bank(space, offset, data);
+		m_cart->write_bank(data);
 }

@@ -8,8 +8,8 @@
 
 *********************************************************************/
 
-#ifndef __A2BUS_SOFTCARD__
-#define __A2BUS_SOFTCARD__
+#ifndef MAME_BUS_A2BUS_A2SOFTCARD_H
+#define MAME_BUS_A2BUS_A2SOFTCARD_H
 
 #include "a2bus.h"
 
@@ -23,31 +23,31 @@ class a2bus_softcard_device:
 {
 public:
 	// construction/destruction
-	a2bus_softcard_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
 	a2bus_softcard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+protected:
+	a2bus_softcard_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
+	virtual void device_start() override;
+	virtual void device_reset() override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
+	// overrides of standard a2bus slot functions
+	virtual void write_cnxx(uint8_t offset, uint8_t data) override;
+	virtual bool take_c800() override;
+
+private:
+	required_device<cpu_device> m_z80;
+	bool m_bEnabled;
+	bool m_FirstZ80Boot;
 
 	DECLARE_READ8_MEMBER( dma_r );
 	DECLARE_WRITE8_MEMBER( dma_w );
 
-protected:
-	virtual void device_start() override;
-	virtual void device_reset() override;
-
-	// overrides of standard a2bus slot functions
-	virtual void write_cnxx(address_space &space, uint8_t offset, uint8_t data) override;
-	virtual bool take_c800() override;
-
-	required_device<cpu_device> m_z80;
-
-private:
-	bool m_bEnabled;
-	bool m_FirstZ80Boot;
+	void z80_mem(address_map &map);
 };
 
 // device type definition
-extern const device_type A2BUS_SOFTCARD;
+DECLARE_DEVICE_TYPE(A2BUS_SOFTCARD, a2bus_softcard_device)
 
-#endif /* __A2BUS_SOFTCARD__ */
+#endif // MAME_BUS_A2BUS_A2SOFTCARD_H

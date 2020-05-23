@@ -8,48 +8,17 @@
 
 ***************************************************************************/
 
-#pragma once
+#ifndef MAME_SOUND_QS1000_H
+#define MAME_SOUND_QS1000_H
 
-#ifndef __QS1000_H__
-#define __QS1000_H__
+#pragma once
 
 #include "cpu/mcs51/mcs51.h"
 #include "sound/okiadpcm.h"
 
 //**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_QS1000_EXTERNAL_ROM(_bool) \
-	qs1000_device::set_external_rom(*device, _bool);
-
-#define MCFG_QS1000_IN_P1_CB(_devcb) \
-	devcb = &qs1000_device::set_in_p1_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_QS1000_IN_P2_CB(_devcb) \
-	devcb = &qs1000_device::set_in_p2_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_QS1000_IN_P3_CB(_devcb) \
-	devcb = &qs1000_device::set_in_p3_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_QS1000_OUT_P1_CB(_devcb) \
-	devcb = &qs1000_device::set_out_p1_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_QS1000_OUT_P2_CB(_devcb) \
-	devcb = &qs1000_device::set_out_p2_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_QS1000_OUT_P3_CB(_devcb) \
-	devcb = &qs1000_device::set_out_p3_callback(*device, DEVCB_##_devcb);
-
-/*#define MCFG_QS1000_SERIAL_W_CB(_devcb) \
-    devcb = &qs1000_device::set_serial_w_callback(*device, DEVCB_##_devcb);*/
-
-//**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
-
-#define QS1000_CHANNELS         32
-#define QS1000_ADDRESS_MASK     0xffffff
 
 // ======================> qs1000_device
 
@@ -58,26 +27,46 @@ class qs1000_device :   public device_t,
 						public device_rom_interface
 {
 public:
+	static constexpr feature_type imperfect_features() { return feature::SOUND; }
+
 	// construction/destruction
 	qs1000_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	static void set_external_rom(device_t &device, bool external_rom) { downcast<qs1000_device &>(device).m_external_rom = external_rom; }
-	template<class _Object> static devcb_base &set_in_p1_callback(device_t &device, _Object object) { return downcast<qs1000_device &>(device).m_in_p1_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_in_p2_callback(device_t &device, _Object object) { return downcast<qs1000_device &>(device).m_in_p2_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_in_p3_callback(device_t &device, _Object object) { return downcast<qs1000_device &>(device).m_in_p3_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_p1_callback(device_t &device, _Object object) { return downcast<qs1000_device &>(device).m_out_p1_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_p2_callback(device_t &device, _Object object) { return downcast<qs1000_device &>(device).m_out_p2_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_p3_callback(device_t &device, _Object object) { return downcast<qs1000_device &>(device).m_out_p3_cb.set_callback(object); }
-	//template<class _Object> static devcb_base &set_serial_w_callback(device_t &device, _Object object) { return downcast<qs1000_device &>(device).m_serial_w_cb.set_callback(object); }
+	void set_external_rom(bool external_rom) { m_external_rom = external_rom; }
+	auto p1_in() { return m_in_p1_cb.bind(); }
+	auto p2_in() { return m_in_p2_cb.bind(); }
+	auto p3_in() { return m_in_p3_cb.bind(); }
+	auto p1_out() { return m_out_p1_cb.bind(); }
+	auto p2_out() { return m_out_p2_cb.bind(); }
+	auto p3_out() { return m_out_p3_cb.bind(); }
+	//auto serial_w() { return m_serial_w_cb.bind(); }
 
 	// external
+	i8052_device &cpu() const { return *m_cpu; }
 	void serial_in(uint8_t data);
 	void set_irq(int state);
+
+	void wave_w(offs_t offset, uint8_t data);
+
+	uint8_t p0_r();
+	void p0_w(uint8_t data);
+
+	uint8_t p1_r();
+	void p1_w(uint8_t data);
+
+	uint8_t p2_r();
+	void p2_w(uint8_t data);
+
+	uint8_t p3_r();
+	void p3_w(uint8_t data);
+
+	void qs1000_io_map(address_map &map);
+	void qs1000_prg_map(address_map &map);
 
 protected:
 	// device-level overrides
 	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
@@ -88,22 +77,9 @@ protected:
 	// device_rom_interface overrides
 	virtual void rom_bank_updated() override;
 
-public:
-	DECLARE_WRITE8_MEMBER( wave_w );
-
-	DECLARE_READ8_MEMBER( p0_r );
-	DECLARE_WRITE8_MEMBER( p0_w );
-
-	DECLARE_READ8_MEMBER( p1_r );
-	DECLARE_WRITE8_MEMBER( p1_w );
-
-	DECLARE_READ8_MEMBER( p2_r );
-	DECLARE_WRITE8_MEMBER( p2_w );
-
-	DECLARE_READ8_MEMBER( p3_r );
-	DECLARE_WRITE8_MEMBER( p3_w );
-
-	DECLARE_READ8_MEMBER( data_to_i8052 );
+private:
+	static constexpr unsigned QS1000_CHANNELS       = 32;
+	static constexpr offs_t   QS1000_ADDRESS_MASK   = 0x00ffffff;
 
 	enum
 	{
@@ -153,11 +129,12 @@ public:
 	};
 
 	qs1000_channel                  m_channels[QS1000_CHANNELS];
+
+	uint8_t data_to_i8052();
 };
 
 
 // device type definition
-extern const device_type QS1000;
+DECLARE_DEVICE_TYPE(QS1000, qs1000_device)
 
-
-#endif /* __QS1000_H__ */
+#endif // MAME_SOUND_QS1000_H

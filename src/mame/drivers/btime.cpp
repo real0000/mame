@@ -35,11 +35,9 @@ main processor triggers an IRQ request when writing a command to the sound
 CPU.
 
 
-PCB Layouts
------------
 
-Zoar
-Data East, 1982
+Zoar (Data East, 1982)
+Hardware info by Guru
 
 Top PCB
 
@@ -107,11 +105,11 @@ DE-0122
 |---------------------------------|
 Notes:
       CPU-7     - Epoxy block containing a 6502 clocked at 1.5MHz [12/8]
-                  and possibly something else ^_^
+                  and some 74xx logic chips
       2128      - 2k x8 SRAM == 6116
       AM93425   - 1k x1 SRAM == 2125
       PB*       - PALs (not dumped, registered types)
-      Z19/20/21 - PROMs, type Harris 7603 (32 bytes)
+      Z19/20/21 - PROMs, type Harris 7603 (32 bytes), compatible with 82S123
       VSync     - 57.4358Hz
       HSync     - 15.6235kHz
 
@@ -129,13 +127,20 @@ zoar (manual), disco (dips listing). Names of disco switches in DIPLOC are
 not confirmed (manual needed, in the meanwhile I put generic SW1 & SW2).
 
 A few notes:
-* all the documents says that DSW1 bit 7 is related to the cocktail mode
+* All the documents says that DSW1 bit 7 is related to the cocktail mode
     (either flipping the screen or changing the control panel)
-* according to manuals, btime & bnj Service dips should have a different
+* According to manuals, btime & bnj Service dips should have a different
     effect, using 2 bits to access different tests (see commented out
-    settings below)
-* how do country codes affect disco? are there other values other than
+    settings below). This is normal, the tests are in sets btime3 & btimem
+* How do country codes affect disco? are there other values other than
     the ones in the manual?
+* If/when tisland is fixed/working it needs its own inputs/DIPs (currently wrong using btime inputs/DIPs)
+* Most games have SW2.8 on. This is normal because that bit is part of the vblank circuit.
+    Currently MAME can't show that as a DIPSW but it must be on regardless or those games won't boot.
+* Some games have no sound or bad sound after a manual soft reset (F3). Use shift-F3 (hard reset).
+* wtennis is not fully understood and has a reset hack to make it work but the real issue should be fixed.
+    Even with the hack it does not boot directly into the game, it stays on a test screen.
+    Reset the game with F3 (soft reset) or two shift-F3 hard resets to 'fix' it.
 
 ***************************************************************************/
 
@@ -149,7 +154,7 @@ A few notes:
 #include "machine/deco222.h"
 #include "speaker.h"
 
-#define MASTER_CLOCK      XTAL_12MHz
+#define MASTER_CLOCK      XTAL(12'000'000)
 #define HCLK             (MASTER_CLOCK/2)
 #define HCLK1            (HCLK/2)
 #define HCLK2            (HCLK1/2)
@@ -157,7 +162,6 @@ A few notes:
 
 enum
 {
-	AUDIO_ENABLE_NONE,
 	AUDIO_ENABLE_DIRECT,        /* via direct address in memory map */
 	AUDIO_ENABLE_AY8910         /* via ay-8910 port A */
 };
@@ -169,184 +173,193 @@ WRITE8_MEMBER(btime_state::audio_nmi_enable_w)
 	   lnc and disco use bit 0 of the first AY-8910's port A instead; many other
 	   games also write there in addition to this address */
 	if (m_audio_nmi_enable_type == AUDIO_ENABLE_DIRECT)
-	{
-		m_audio_nmi_enabled = data & 1;
-		m_audiocpu->set_input_line(INPUT_LINE_NMI, (m_audio_nmi_enabled && m_audio_nmi_state) ? ASSERT_LINE : CLEAR_LINE);
-	}
+		m_audionmi->in_w<0>(BIT(data, 0));
 }
 
-WRITE8_MEMBER(btime_state::ay_audio_nmi_enable_w)
+void btime_state::ay_audio_nmi_enable_w(uint8_t data)
 {
 	/* port A bit 0, when 1, inhibits the NMI */
 	if (m_audio_nmi_enable_type == AUDIO_ENABLE_AY8910)
-	{
-		m_audio_nmi_enabled = ~data & 1;
-		m_audiocpu->set_input_line(INPUT_LINE_NMI, (m_audio_nmi_enabled && m_audio_nmi_state) ? ASSERT_LINE : CLEAR_LINE);
-	}
+		m_audionmi->in_w<0>(BIT(~data, 0));
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(btime_state::audio_nmi_gen)
 {
 	int scanline = param;
-	m_audio_nmi_state = scanline & 8;
-	m_audiocpu->set_input_line(INPUT_LINE_NMI, (m_audio_nmi_enabled && m_audio_nmi_state) ? ASSERT_LINE : CLEAR_LINE);
+	m_audionmi->in_w<1>((scanline & 8) >> 3);
 }
 
-static ADDRESS_MAP_START( btime_map, AS_PROGRAM, 8, btime_state )
-	AM_RANGE(0x0000, 0x07ff) AM_RAM AM_SHARE("rambase")
-	AM_RANGE(0x0c00, 0x0c0f) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0x1000, 0x13ff) AM_RAM AM_SHARE("videoram")
-	AM_RANGE(0x1400, 0x17ff) AM_RAM AM_SHARE("colorram")
-	AM_RANGE(0x1800, 0x1bff) AM_READWRITE(btime_mirrorvideoram_r, btime_mirrorvideoram_w)
-	AM_RANGE(0x1c00, 0x1fff) AM_READWRITE(btime_mirrorcolorram_r, btime_mirrorcolorram_w)
-	AM_RANGE(0x4000, 0x4000) AM_READ_PORT("P1") AM_WRITENOP
-	AM_RANGE(0x4001, 0x4001) AM_READ_PORT("P2")
-	AM_RANGE(0x4002, 0x4002) AM_READ_PORT("SYSTEM") AM_WRITE(btime_video_control_w)
-	AM_RANGE(0x4003, 0x4003) AM_READ_PORT("DSW1") AM_WRITE(audio_command_w)
-	AM_RANGE(0x4004, 0x4004) AM_READ_PORT("DSW2") AM_WRITE(bnj_scroll1_w)
-	AM_RANGE(0xb000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void btime_state::btime_map(address_map &map)
+{
+	map(0x0000, 0x07ff).ram().share("rambase");
+	map(0x0c00, 0x0c0f).ram().w(m_palette, FUNC(palette_device::write8)).share("palette");
+	map(0x1000, 0x13ff).ram().share("videoram");
+	map(0x1400, 0x17ff).ram().share("colorram");
+	map(0x1800, 0x1bff).rw(FUNC(btime_state::btime_mirrorvideoram_r), FUNC(btime_state::btime_mirrorvideoram_w));
+	map(0x1c00, 0x1fff).rw(FUNC(btime_state::btime_mirrorcolorram_r), FUNC(btime_state::btime_mirrorcolorram_w));
+	map(0x4000, 0x4000).portr("P1").nopw();
+	map(0x4001, 0x4001).portr("P2");
+	map(0x4002, 0x4002).portr("SYSTEM").w(FUNC(btime_state::btime_video_control_w));
+	map(0x4003, 0x4003).portr("DSW1").w(m_soundlatch, FUNC(generic_latch_8_device::write));
+	map(0x4004, 0x4004).portr("DSW2").w(FUNC(btime_state::bnj_scroll1_w));
+	map(0xb000, 0xffff).rom();
+}
 
-static ADDRESS_MAP_START( cookrace_map, AS_PROGRAM, 8, btime_state )
-	AM_RANGE(0x0000, 0x03ff) AM_RAM AM_SHARE("rambase")
-	AM_RANGE(0x0500, 0x3fff) AM_ROM
-	AM_RANGE(0xc000, 0xc3ff) AM_RAM AM_SHARE("videoram")
-	AM_RANGE(0xc400, 0xc7ff) AM_RAM AM_SHARE("colorram")
-	AM_RANGE(0xc800, 0xcbff) AM_READWRITE(btime_mirrorvideoram_r, btime_mirrorvideoram_w)
-	AM_RANGE(0xcc00, 0xcfff) AM_READWRITE(btime_mirrorcolorram_r, btime_mirrorcolorram_w)
-	AM_RANGE(0xd000, 0xd0ff) AM_RAM                         /* background? */
-	AM_RANGE(0xd100, 0xd3ff) AM_RAM                         /* ? */
-	AM_RANGE(0xd400, 0xd7ff) AM_RAM AM_SHARE("bnj_bgram")
-	AM_RANGE(0xe000, 0xe000) AM_READ_PORT("DSW1") AM_WRITE(bnj_video_control_w)
-	AM_RANGE(0xe300, 0xe300) AM_READ_PORT("DSW1")   /* mirror address used on high score name entry */
+void btime_state::cookrace_map(address_map &map)
+{
+	map(0x0000, 0x03ff).ram().share("rambase");
+	map(0x0500, 0x3fff).rom();
+	map(0xc000, 0xc3ff).ram().share("videoram");
+	map(0xc400, 0xc7ff).ram().share("colorram");
+	map(0xc800, 0xcbff).rw(FUNC(btime_state::btime_mirrorvideoram_r), FUNC(btime_state::btime_mirrorvideoram_w));
+	map(0xcc00, 0xcfff).rw(FUNC(btime_state::btime_mirrorcolorram_r), FUNC(btime_state::btime_mirrorcolorram_w));
+	map(0xd000, 0xd0ff).ram();                         /* background? */
+	map(0xd100, 0xd3ff).ram();                         /* ? */
+	map(0xd400, 0xd7ff).ram().share("bnj_bgram");
+	map(0xe000, 0xe000).portr("DSW1").w(FUNC(btime_state::bnj_video_control_w));
+	map(0xe300, 0xe300).portr("DSW1");   /* mirror address used on high score name entry */
 													/* screen */
-	AM_RANGE(0xe001, 0xe001) AM_READ_PORT("DSW2") AM_WRITE(audio_command_w)
-	AM_RANGE(0xe002, 0xe002) AM_READ_PORT("P1")
-	AM_RANGE(0xe003, 0xe003) AM_READ_PORT("P2")
-	AM_RANGE(0xe004, 0xe004) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0xfff9, 0xffff) AM_ROM
-ADDRESS_MAP_END
+	map(0xe001, 0xe001).portr("DSW2").w(m_soundlatch, FUNC(generic_latch_8_device::write));
+	map(0xe002, 0xe002).portr("P1");
+	map(0xe003, 0xe003).portr("P2");
+	map(0xe004, 0xe004).portr("SYSTEM");
+	map(0xfff9, 0xffff).rom();
+}
 
-static ADDRESS_MAP_START( tisland_map, AS_PROGRAM, 8, btime_state )
-	AM_RANGE(0x0000, 0x07ff) AM_RAM AM_SHARE("rambase")
-	AM_RANGE(0x0c00, 0x0c0f) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0x1000, 0x13ff) AM_RAM AM_SHARE("videoram")
-	AM_RANGE(0x1400, 0x17ff) AM_RAM AM_SHARE("colorram")
-	AM_RANGE(0x1800, 0x1bff) AM_READWRITE(btime_mirrorvideoram_r, btime_mirrorvideoram_w)
-	AM_RANGE(0x1c00, 0x1fff) AM_READWRITE(btime_mirrorcolorram_r, btime_mirrorcolorram_w)
-	AM_RANGE(0x4000, 0x4000) AM_READ_PORT("P1") AM_WRITENOP
-	AM_RANGE(0x4001, 0x4001) AM_READ_PORT("P2")
-	AM_RANGE(0x4002, 0x4002) AM_READ_PORT("SYSTEM") AM_WRITE(btime_video_control_w)
-	AM_RANGE(0x4003, 0x4003) AM_READ_PORT("DSW1") AM_WRITE(audio_command_w)
-	AM_RANGE(0x4004, 0x4004) AM_READ_PORT("DSW2") AM_WRITE(bnj_scroll1_w)
-	AM_RANGE(0x4005, 0x4005) AM_WRITE(bnj_scroll2_w)
-	AM_RANGE(0x9000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void btime_state::tisland_map(address_map &map)
+{
+	map(0x0000, 0x07ff).ram().share("rambase");
+	map(0x0c00, 0x0c0f).ram().w(m_palette, FUNC(palette_device::write8)).share("palette");
+	map(0x1000, 0x13ff).ram().share("videoram");
+	map(0x1400, 0x17ff).ram().share("colorram");
+	map(0x1800, 0x1bff).rw(FUNC(btime_state::btime_mirrorvideoram_r), FUNC(btime_state::btime_mirrorvideoram_w));
+	map(0x1c00, 0x1fff).rw(FUNC(btime_state::btime_mirrorcolorram_r), FUNC(btime_state::btime_mirrorcolorram_w));
+	map(0x4000, 0x4000).portr("P1").nopw();
+	map(0x4001, 0x4001).portr("P2");
+	map(0x4002, 0x4002).portr("SYSTEM").w(FUNC(btime_state::btime_video_control_w));
+	map(0x4003, 0x4003).portr("DSW1").w(m_soundlatch, FUNC(generic_latch_8_device::write));
+	map(0x4004, 0x4004).portr("DSW2").w(FUNC(btime_state::bnj_scroll1_w));
+	map(0x4005, 0x4005).w(FUNC(btime_state::bnj_scroll2_w));
+	map(0x9000, 0xffff).rom();
+}
 
-static ADDRESS_MAP_START( zoar_map, AS_PROGRAM, 8, btime_state )
-	AM_RANGE(0x0000, 0x07ff) AM_RAM AM_SHARE("rambase")
-	AM_RANGE(0x8000, 0x83ff) AM_WRITEONLY AM_SHARE("videoram")
-	AM_RANGE(0x8400, 0x87ff) AM_WRITEONLY AM_SHARE("colorram")
-	AM_RANGE(0x8800, 0x8bff) AM_WRITE(btime_mirrorvideoram_w)
-	AM_RANGE(0x8c00, 0x8fff) AM_WRITE(btime_mirrorcolorram_w)
-	AM_RANGE(0x9000, 0x9000) AM_WRITE(zoar_video_control_w)
-	AM_RANGE(0x9800, 0x9800) AM_READ(zoar_dsw1_read)
-	AM_RANGE(0x9801, 0x9801) AM_READ_PORT("DSW2")
-	AM_RANGE(0x9802, 0x9802) AM_READ_PORT("P1")
-	AM_RANGE(0x9803, 0x9803) AM_READ_PORT("P2")
-	AM_RANGE(0x9800, 0x9803) AM_WRITEONLY AM_SHARE("zoar_scrollram")
-	AM_RANGE(0x9804, 0x9804) AM_READ_PORT("SYSTEM") AM_WRITE(bnj_scroll2_w)
-	AM_RANGE(0x9805, 0x9805) AM_WRITE(bnj_scroll1_w)
-	AM_RANGE(0x9806, 0x9806) AM_WRITE(audio_command_w)
-	AM_RANGE(0xd000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void btime_state::zoar_map(address_map &map)
+{
+	map(0x0000, 0x07ff).ram().share("rambase");
+	map(0x8000, 0x83ff).writeonly().share("videoram");
+	map(0x8400, 0x87ff).writeonly().share("colorram");
+	map(0x8800, 0x8bff).w(FUNC(btime_state::btime_mirrorvideoram_w));
+	map(0x8c00, 0x8fff).w(FUNC(btime_state::btime_mirrorcolorram_w));
+	map(0x9000, 0x9000).w(FUNC(btime_state::zoar_video_control_w));
+	map(0x9800, 0x9800).r(FUNC(btime_state::zoar_dsw1_read));
+	map(0x9801, 0x9801).portr("DSW2");
+	map(0x9802, 0x9802).portr("P1");
+	map(0x9803, 0x9803).portr("P2");
+	map(0x9800, 0x9803).writeonly().share("zoar_scrollram");
+	map(0x9804, 0x9804).portr("SYSTEM").w(FUNC(btime_state::bnj_scroll2_w));
+	map(0x9805, 0x9805).w(FUNC(btime_state::bnj_scroll1_w));
+	map(0x9806, 0x9806).w(m_soundlatch, FUNC(generic_latch_8_device::write));
+	map(0xd000, 0xffff).rom();
+}
 
-static ADDRESS_MAP_START( lnc_map, AS_PROGRAM, 8, btime_state )
-	AM_RANGE(0x0000, 0x3bff) AM_RAM AM_SHARE("rambase")
-	AM_RANGE(0x3c00, 0x3fff) AM_RAM_WRITE(lnc_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0x7800, 0x7bff) AM_WRITEONLY AM_SHARE("colorram")  /* this is just here to initialize the pointer */
-	AM_RANGE(0x7c00, 0x7fff) AM_READWRITE(btime_mirrorvideoram_r, lnc_mirrorvideoram_w)
-	AM_RANGE(0x8000, 0x8000) AM_READ_PORT("DSW1") AM_WRITENOP     /* ??? */
-	AM_RANGE(0x8001, 0x8001) AM_READ_PORT("DSW2") AM_WRITE(bnj_video_control_w)
-	AM_RANGE(0x8003, 0x8003) AM_WRITEONLY AM_SHARE("lnc_charbank")
-	AM_RANGE(0x9000, 0x9000) AM_READ_PORT("P1") AM_WRITENOP     /* IRQ ack??? */
-	AM_RANGE(0x9001, 0x9001) AM_READ_PORT("P2")
-	AM_RANGE(0x9002, 0x9002) AM_READ_PORT("SYSTEM") AM_WRITE(audio_command_w)
-	AM_RANGE(0xb000, 0xb1ff) AM_RAM
-	AM_RANGE(0xc000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void btime_state::lnc_map(address_map &map)
+{
+	map(0x0000, 0x3bff).ram().share("rambase");
+	map(0x3c00, 0x3fff).ram().w(FUNC(btime_state::lnc_videoram_w)).share("videoram");
+	map(0x7800, 0x7bff).writeonly().share("colorram");  /* this is just here to initialize the pointer */
+	map(0x7c00, 0x7fff).rw(FUNC(btime_state::btime_mirrorvideoram_r), FUNC(btime_state::lnc_mirrorvideoram_w));
+	map(0x8000, 0x8000).portr("DSW1").nopw();     /* ??? */
+	map(0x8001, 0x8001).portr("DSW2").w(FUNC(btime_state::bnj_video_control_w));
+	map(0x8003, 0x8003).writeonly().share("lnc_charbank");
+	map(0x9000, 0x9000).portr("P1").nopw();     /* IRQ ack??? */
+	map(0x9001, 0x9001).portr("P2");
+	map(0x9002, 0x9002).portr("SYSTEM").w(m_soundlatch, FUNC(generic_latch_8_device::write));
+	map(0xb000, 0xb1ff).ram();
+	map(0xc000, 0xffff).rom();
+}
 
-static ADDRESS_MAP_START( mmonkey_map, AS_PROGRAM, 8, btime_state )
-	AM_RANGE(0x0000, 0x3bff) AM_RAM AM_SHARE("rambase")
-	AM_RANGE(0x3c00, 0x3fff) AM_RAM_WRITE(lnc_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0x7800, 0x7bff) AM_WRITEONLY AM_SHARE("colorram")      /* this is just here to initialize the pointer */
-	AM_RANGE(0x7c00, 0x7fff) AM_READWRITE(btime_mirrorvideoram_r, lnc_mirrorvideoram_w)
-	AM_RANGE(0x8000, 0x8000) AM_READ_PORT("DSW1")
-	AM_RANGE(0x8001, 0x8001) AM_READ_PORT("DSW2") AM_WRITE(bnj_video_control_w)
-	AM_RANGE(0x8003, 0x8003) AM_WRITEONLY AM_SHARE("lnc_charbank")
-	AM_RANGE(0x9000, 0x9000) AM_READ_PORT("P1") AM_WRITENOP /* IRQ ack??? */
-	AM_RANGE(0x9001, 0x9001) AM_READ_PORT("P2")
-	AM_RANGE(0x9002, 0x9002) AM_READ_PORT("SYSTEM") AM_WRITE(audio_command_w)
-	AM_RANGE(0xb000, 0xbfff) AM_READWRITE(mmonkey_protection_r, mmonkey_protection_w)
-	AM_RANGE(0xc000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void btime_state::mmonkey_map(address_map &map)
+{
+	map(0x0000, 0x3bff).ram().share("rambase");
+	map(0x3c00, 0x3fff).ram().w(FUNC(btime_state::lnc_videoram_w)).share("videoram");
+	map(0x7800, 0x7bff).writeonly().share("colorram");      /* this is just here to initialize the pointer */
+	map(0x7c00, 0x7fff).rw(FUNC(btime_state::btime_mirrorvideoram_r), FUNC(btime_state::lnc_mirrorvideoram_w));
+	map(0x8000, 0x8000).portr("DSW1");
+	map(0x8001, 0x8001).portr("DSW2").w(FUNC(btime_state::bnj_video_control_w));
+	map(0x8003, 0x8003).writeonly().share("lnc_charbank");
+	map(0x9000, 0x9000).portr("P1").nopw(); /* IRQ ack??? */
+	map(0x9001, 0x9001).portr("P2");
+	map(0x9002, 0x9002).portr("SYSTEM").w(m_soundlatch, FUNC(generic_latch_8_device::write));
+	map(0xb000, 0xbfff).rw(FUNC(btime_state::mmonkey_protection_r), FUNC(btime_state::mmonkey_protection_w));
+	map(0xc000, 0xffff).rom();
+}
 
-static ADDRESS_MAP_START( bnj_map, AS_PROGRAM, 8, btime_state )
-	AM_RANGE(0x0000, 0x07ff) AM_RAM AM_SHARE("rambase")
-	AM_RANGE(0x1000, 0x1000) AM_READ_PORT("DSW1")
-	AM_RANGE(0x1001, 0x1001) AM_READ_PORT("DSW2") AM_WRITE(bnj_video_control_w)
-	AM_RANGE(0x1002, 0x1002) AM_READ_PORT("P1") AM_WRITE(audio_command_w)
-	AM_RANGE(0x1003, 0x1003) AM_READ_PORT("P2")
-	AM_RANGE(0x1004, 0x1004) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0x4000, 0x43ff) AM_RAM AM_SHARE("videoram")
-	AM_RANGE(0x4400, 0x47ff) AM_RAM AM_SHARE("colorram")
-	AM_RANGE(0x4800, 0x4bff) AM_READWRITE(btime_mirrorvideoram_r, btime_mirrorvideoram_w)
-	AM_RANGE(0x4c00, 0x4fff) AM_READWRITE(btime_mirrorcolorram_r, btime_mirrorcolorram_w)
-	AM_RANGE(0x5000, 0x51ff) AM_RAM_WRITE(bnj_background_w) AM_SHARE("bnj_bgram")
-	AM_RANGE(0x5200, 0x53ff) AM_RAM
-	AM_RANGE(0x5400, 0x5400) AM_WRITE(bnj_scroll1_w)
-	AM_RANGE(0x5800, 0x5800) AM_WRITE(bnj_scroll2_w)
-	AM_RANGE(0x5c00, 0x5c0f) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0xa000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void btime_state::bnj_map(address_map &map)
+{
+	map(0x0000, 0x07ff).ram().share("rambase");
+	map(0x1000, 0x1000).portr("DSW1");
+	map(0x1001, 0x1001).portr("DSW2").w(FUNC(btime_state::bnj_video_control_w));
+	map(0x1002, 0x1002).portr("P1").w(m_soundlatch, FUNC(generic_latch_8_device::write));
+	map(0x1003, 0x1003).portr("P2");
+	map(0x1004, 0x1004).portr("SYSTEM");
+	map(0x4000, 0x43ff).ram().share("videoram");
+	map(0x4400, 0x47ff).ram().share("colorram");
+	map(0x4800, 0x4bff).rw(FUNC(btime_state::btime_mirrorvideoram_r), FUNC(btime_state::btime_mirrorvideoram_w));
+	map(0x4c00, 0x4fff).rw(FUNC(btime_state::btime_mirrorcolorram_r), FUNC(btime_state::btime_mirrorcolorram_w));
+	map(0x5000, 0x51ff).ram().w(FUNC(btime_state::bnj_background_w)).share("bnj_bgram");
+	map(0x5200, 0x53ff).ram();
+	map(0x5400, 0x5400).w(FUNC(btime_state::bnj_scroll1_w));
+	map(0x5800, 0x5800).w(FUNC(btime_state::bnj_scroll2_w));
+	map(0x5c00, 0x5c0f).ram().w(m_palette, FUNC(palette_device::write8)).share("palette");
+	map(0xa000, 0xffff).rom();
+}
 
-static ADDRESS_MAP_START( disco_map, AS_PROGRAM, 8, btime_state )
-	AM_RANGE(0x0000, 0x04ff) AM_RAM AM_SHARE("rambase")
-	AM_RANGE(0x2000, 0x7fff) AM_RAM_WRITE(deco_charram_w) AM_SHARE("deco_charram")
-	AM_RANGE(0x8000, 0x83ff) AM_RAM AM_SHARE("videoram")
-	AM_RANGE(0x8400, 0x87ff) AM_RAM AM_SHARE("colorram")
-	AM_RANGE(0x8800, 0x881f) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x9000, 0x9000) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0x9200, 0x9200) AM_READ_PORT("P1")
-	AM_RANGE(0x9400, 0x9400) AM_READ_PORT("P2")
-	AM_RANGE(0x9800, 0x9800) AM_READ_PORT("DSW1")
-	AM_RANGE(0x9a00, 0x9a00) AM_READ_PORT("DSW2") AM_WRITE(audio_command_w)
-	AM_RANGE(0x9c00, 0x9c00) AM_READ_PORT("VBLANK") AM_WRITE(disco_video_control_w)
-	AM_RANGE(0xa000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void btime_state::disco_map(address_map &map)
+{
+	map(0x0000, 0x04ff).ram().share("rambase");
+	map(0x2000, 0x7fff).ram().w(FUNC(btime_state::deco_charram_w)).share("deco_charram");
+	map(0x8000, 0x83ff).ram().share("videoram");
+	map(0x8400, 0x87ff).ram().share("colorram");
+	map(0x8800, 0x881f).ram().share("spriteram");
+	map(0x9000, 0x9000).portr("SYSTEM");
+	map(0x9200, 0x9200).portr("P1");
+	map(0x9400, 0x9400).portr("P2");
+	map(0x9800, 0x9800).portr("DSW1");
+	map(0x9a00, 0x9a00).portr("DSW2").w(m_soundlatch, FUNC(generic_latch_8_device::write));
+	map(0x9c00, 0x9c00).portr("VBLANK").w(FUNC(btime_state::disco_video_control_w));
+	map(0xa000, 0xffff).rom();
+}
 
+void btime_state::protenn_map(address_map &map)
+{
+	disco_map(map);
 
+	map(0x9a00, 0x9a00).unmapr();
+	map(0x9a01, 0x9a01).portr("DSW2");
+}
 
-static ADDRESS_MAP_START( audio_map, AS_PROGRAM, 8, btime_state )
-	AM_RANGE(0x0000, 0x03ff) AM_MIRROR(0x1c00) AM_RAM AM_SHARE("audio_rambase")
-	AM_RANGE(0x2000, 0x3fff) AM_DEVWRITE("ay1", ay8910_device, data_w)
-	AM_RANGE(0x4000, 0x5fff) AM_DEVWRITE("ay1", ay8910_device, address_w)
-	AM_RANGE(0x6000, 0x7fff) AM_DEVWRITE("ay2", ay8910_device, data_w)
-	AM_RANGE(0x8000, 0x9fff) AM_DEVWRITE("ay2", ay8910_device, address_w)
-	AM_RANGE(0xa000, 0xbfff) AM_READ(audio_command_r)
-	AM_RANGE(0xc000, 0xdfff) AM_WRITE(audio_nmi_enable_w)
-	AM_RANGE(0xe000, 0xefff) AM_MIRROR(0x1000) AM_ROM
-ADDRESS_MAP_END
+void btime_state::audio_map(address_map &map)
+{
+	map(0x0000, 0x03ff).mirror(0x1c00).ram().share("audio_rambase");
+	map(0x2000, 0x3fff).w("ay1", FUNC(ay8910_device::data_w));
+	map(0x4000, 0x5fff).w("ay1", FUNC(ay8910_device::address_w));
+	map(0x6000, 0x7fff).w("ay2", FUNC(ay8910_device::data_w));
+	map(0x8000, 0x9fff).w("ay2", FUNC(ay8910_device::address_w));
+	map(0xa000, 0xbfff).r(m_soundlatch, FUNC(generic_latch_8_device::read));
+	map(0xc000, 0xdfff).w(FUNC(btime_state::audio_nmi_enable_w));
+	map(0xe000, 0xefff).mirror(0x1000).rom();
+}
 
-static ADDRESS_MAP_START( disco_audio_map, AS_PROGRAM, 8, btime_state )
-	AM_RANGE(0x0000, 0x03ff) AM_RAM
-	AM_RANGE(0x4000, 0x4fff) AM_DEVWRITE("ay1", ay8910_device, data_w)
-	AM_RANGE(0x5000, 0x5fff) AM_DEVWRITE("ay1", ay8910_device, address_w)
-	AM_RANGE(0x6000, 0x6fff) AM_DEVWRITE("ay2", ay8910_device, data_w)
-	AM_RANGE(0x7000, 0x7fff) AM_DEVWRITE("ay2", ay8910_device, address_w)
-	AM_RANGE(0x8000, 0x8fff) AM_DEVREAD("soundlatch", generic_latch_8_device, read) AM_WRITENOP /* ack ? */
-	AM_RANGE(0xf000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void btime_state::disco_audio_map(address_map &map)
+{
+	map(0x0000, 0x03ff).ram();
+	map(0x4000, 0x4fff).w("ay1", FUNC(ay8910_device::data_w));
+	map(0x5000, 0x5fff).w("ay1", FUNC(ay8910_device::address_w));
+	map(0x6000, 0x6fff).w("ay2", FUNC(ay8910_device::data_w));
+	map(0x7000, 0x7fff).w("ay2", FUNC(ay8910_device::address_w));
+	map(0x8000, 0x8fff).rw(m_soundlatch, FUNC(generic_latch_8_device::read), FUNC(generic_latch_8_device::acknowledge_w));
+	map(0xf000, 0xffff).rom();
+}
 
 
 INPUT_CHANGED_MEMBER(btime_state::coin_inserted_irq_hi)
@@ -366,18 +379,6 @@ INPUT_CHANGED_MEMBER(btime_state::coin_inserted_nmi_lo)
 	m_maincpu->set_input_line(INPUT_LINE_NMI, newval ? CLEAR_LINE : ASSERT_LINE);
 }
 
-
-WRITE8_MEMBER(btime_state::audio_command_w)
-{
-	m_soundlatch->write(space, offset, data);
-	m_audiocpu->set_input_line(0, ASSERT_LINE);
-}
-
-READ8_MEMBER(btime_state::audio_command_r)
-{
-	m_audiocpu->set_input_line(0, CLEAR_LINE);
-	return m_soundlatch->read(space, offset);
-}
 
 READ8_MEMBER(btime_state::zoar_dsw1_read)
 {
@@ -415,53 +416,58 @@ static INPUT_PORTS_START( btime )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_COIN1 ) PORT_CHANGED_MEMBER(DEVICE_SELF, btime_state,coin_inserted_irq_hi, 0)
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_COIN2 ) PORT_CHANGED_MEMBER(DEVICE_SELF, btime_state,coin_inserted_irq_hi, 0)
 
-	PORT_START("DSW1")
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) ) PORT_DIPLOCATION("15D:1,2")
+	PORT_START("DSW1") // At location 15D on sound PCB
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) )     PORT_DIPLOCATION("SW1:1,2")
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x03, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( 1C_3C ) )
-	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) ) PORT_DIPLOCATION("15D:3,4")
+	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) )     PORT_DIPLOCATION("SW1:3,4")
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x0c, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( 1C_3C ) )
-	/* Manual gives the following Test settings, but they don't seem to correspond to the actual effect */
-//  PORT_DIPNAME( 0x30, 0x30, "Test Mode" ) PORT_DIPLOCATION("15D:5,6")
-//  PORT_DIPSETTING(    0x30, DEF_STR( Off ) )
-//  PORT_DIPSETTING(    0x00, "Sound I/O Board Only" )
-//  PORT_DIPSETTING(    0x10, "Normal Test" )
-//  PORT_DIPSETTING(    0x20, "Cross Hatch Only" )
-	PORT_SERVICE_DIPLOC( 0x10, IP_ACTIVE_LOW, "15D:5" )
-	PORT_DIPNAME( 0x20, 0x20, "Cross Hatch Pattern" ) PORT_DIPLOCATION("15D:6")
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPNAME( 0x10, 0x10, "Leave Off" )           PORT_DIPLOCATION("SW1:5") // Must be OFF. No test mode in ROM
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )                                  // so this locks up the game at boot-up if on
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x00, "Control Panel" ) PORT_DIPLOCATION("15D:7")
+	PORT_DIPUNUSED_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW1:6" )
+	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) )    PORT_DIPLOCATION("SW1:7")
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Cocktail ) )
-//  PORT_DIPNAME( 0x80, 0x00, DEF_STR( Cabinet ) ) PORT_DIPLOCATION("15D:8")
-//  PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
-//  PORT_DIPSETTING(    0x80, DEF_STR( Cocktail ) )
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM  ) PORT_VBLANK("screen")
+//  PORT_DIPNAME( 0x80, 0x00, "Screen" )              PORT_DIPLOCATION("SW1:8") // Manual states this is Screen Invert
+//  PORT_DIPSETTING(    0x00, "Normal" )
+//  PORT_DIPSETTING(    0x80, "Invert" )
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM  ) PORT_VBLANK("screen")  // Schematics show this is connected to DIP SW2.8
 
-	PORT_START("DSW2")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) ) PORT_DIPLOCATION("14D:1")
+	PORT_START("DSW2") // At location 14D on sound PCB
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) )      PORT_DIPLOCATION("SW2:1")
 	PORT_DIPSETTING(    0x01, "3" )
 	PORT_DIPSETTING(    0x00, "5" )
-	PORT_DIPNAME( 0x06, 0x02, DEF_STR( Bonus_Life ) ) PORT_DIPLOCATION("14D:2,3")
+	PORT_DIPNAME( 0x06, 0x02, DEF_STR( Bonus_Life ) ) PORT_DIPLOCATION("SW2:2,3")
 	PORT_DIPSETTING(    0x06, "10000" )
 	PORT_DIPSETTING(    0x04, "15000" )
 	PORT_DIPSETTING(    0x02, "20000"  )
 	PORT_DIPSETTING(    0x00, "30000"  )
-	PORT_DIPNAME( 0x08, 0x08, "Enemies" ) PORT_DIPLOCATION("14D:4")
+	PORT_DIPNAME( 0x08, 0x08, "Enemies" )             PORT_DIPLOCATION("SW2:4")
 	PORT_DIPSETTING(    0x08, "4" )
 	PORT_DIPSETTING(    0x00, "6" )
-	PORT_DIPNAME( 0x10, 0x00, "End of Level Pepper" ) PORT_DIPLOCATION("14D:5")
+	PORT_DIPNAME( 0x10, 0x00, "End of Level Pepper" ) PORT_DIPLOCATION("SW2:5")
 	PORT_DIPSETTING(    0x10, DEF_STR( No ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Yes ) )
-	PORT_DIPUNKNOWN_DIPLOC( 0x20, 0x20, "14D:6" )   /* it should be OFF according to the manual */
-	PORT_DIPUNKNOWN_DIPLOC( 0x40, 0x40, "14D:7" )   /* it should be OFF according to the manual */
-	PORT_DIPUNKNOWN_DIPLOC( 0x80, 0x80, "14D:8" )   /* it should be OFF according to the manual */
+	PORT_DIPUNUSED_DIPLOC( 0x20, 0x20, "SW2:6" )  // should be OFF according to the manual
+	PORT_DIPUNUSED_DIPLOC( 0x40, 0x40, "SW2:7" )  // should be OFF according to the manual
+	PORT_DIPUNUSED_DIPLOC( 0x80, 0x80, "SW2:8" )  // should be OFF according to the manual
+INPUT_PORTS_END
+
+static INPUT_PORTS_START( btime3 ) // Used for btime3 and btimem
+		PORT_INCLUDE( btime )
+
+	PORT_MODIFY("DSW1")
+	PORT_DIPNAME( 0x30, 0x30, "Test Mode" )     PORT_DIPLOCATION("SW1:5,6")
+	PORT_DIPSETTING(    0x30, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, "Sound Test Only" )
+	PORT_DIPSETTING(    0x10, "Cross Hatch Only" )
+	PORT_DIPSETTING(    0x20, "Normal Test" )  // Use Coin A to advance the tests
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( cookrace )
@@ -496,46 +502,40 @@ static INPUT_PORTS_START( cookrace )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN1 ) PORT_CHANGED_MEMBER(DEVICE_SELF, btime_state,coin_inserted_nmi_lo, 0)
 
 	PORT_START("DSW1")
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) )
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("SW1:1,2")
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x03, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( 1C_3C ) )
-	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) )       PORT_DIPLOCATION("SW1:3,4")
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x0c, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( 1C_3C ) )
-	PORT_DIPNAME( 0x10, 0x00, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x00, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x10, IP_ACTIVE_LOW, "SW1:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW1:6" )
+	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) )      PORT_DIPLOCATION("SW1:7")
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Cocktail ) )
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM  ) PORT_VBLANK("screen")
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM  ) PORT_VBLANK("screen") // Actually DIP SW2.8
 
 	PORT_START("DSW2")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) )
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) )        PORT_DIPLOCATION("SW2:1")
 	PORT_DIPSETTING(    0x01, "3" )
 	PORT_DIPSETTING(    0x00, "5" )
-	PORT_DIPNAME( 0x06, 0x06, DEF_STR( Bonus_Life ) )
+	PORT_DIPNAME( 0x06, 0x06, DEF_STR( Bonus_Life ) )   PORT_DIPLOCATION("SW2:2,3")
 	PORT_DIPSETTING(    0x06, "20000" )
 	PORT_DIPSETTING(    0x04, "30000" )
 	PORT_DIPSETTING(    0x02, "40000"  )
 	PORT_DIPSETTING(    0x00, "50000"  )
-	PORT_DIPNAME( 0x08, 0x08, "Enemies" )
+	PORT_DIPNAME( 0x08, 0x08, "Enemies" )               PORT_DIPLOCATION("SW2:4")
 	PORT_DIPSETTING(    0x08, "4" )
 	PORT_DIPSETTING(    0x00, "6" )
-	PORT_DIPNAME( 0x10, 0x10, "End of Level Pepper" )
+	PORT_DIPNAME( 0x10, 0x10, "End of Level Pepper" )   PORT_DIPLOCATION("SW2:5")
 	PORT_DIPSETTING(    0x10, DEF_STR( No ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Yes ) )
-	PORT_DIPNAME( 0x20, 0x00, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
-	PORT_DIPNAME( 0xc0, 0x80, DEF_STR( Difficulty ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW2:6" )
+	PORT_DIPNAME( 0xc0, 0x80, DEF_STR( Difficulty ) )   PORT_DIPLOCATION("SW2:7,8")
 	PORT_DIPSETTING(    0xc0, DEF_STR( Easy ) )
 	PORT_DIPSETTING(    0x80, DEF_STR( Normal ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Hard ) )
@@ -572,31 +572,31 @@ static INPUT_PORTS_START( zoar )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN2 ) PORT_CHANGED_MEMBER(DEVICE_SELF, btime_state,coin_inserted_irq_lo, 0)
 
 	PORT_START("DSW1")
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) ) PORT_DIPLOCATION("SW1:1,2")
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) )   PORT_DIPLOCATION("SW1:1,2")
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x03, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( 1C_3C ) )
-	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) ) PORT_DIPLOCATION("SW1:3,4")
+	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) )   PORT_DIPLOCATION("SW1:3,4")
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x0c, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( 1C_3C ) )
-	/* Manual says bit 4,5 have to stay OFF */
-	PORT_DIPUNKNOWN_DIPLOC( 0x10, 0x10, "SW1:5" )    /* almost certainly unused */
-	/* Service mode doesn't work because of missing ROMs */
-	PORT_SERVICE_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW1:6" )
-	PORT_DIPNAME( 0x40, 0x00, "Control Panel" ) PORT_DIPLOCATION("SW1:7")
+	PORT_DIPUNUSED_DIPLOC( 0x10, IP_ACTIVE_LOW, "SW1:5" )  // Manual says bit 5 & 6 have to stay off
+	PORT_DIPNAME( 0x20, 0x20, "Leave Off" )         PORT_DIPLOCATION("SW1:6")  // Must be OFF. No test mode in ROM
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )                                 // so this locks up the game at boot-up when on
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) )  PORT_DIPLOCATION("SW1:7")
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Cocktail ) )
-//  PORT_DIPNAME( 0x80, 0x00, DEF_STR( Cabinet ) ) PORT_DIPLOCATION("SW1:8")
+//  PORT_DIPNAME( 0x80, 0x00, "Screen" )            PORT_DIPLOCATION("SW1:8")  // Manual says Screen Invert but it is not implimented
 //  PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 //  PORT_DIPSETTING(    0x80, DEF_STR( Cocktail ) )
-	/* I can't use PORT_VBLANK as players would have almost no time to enter their initials */
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL )
+	// I can't use PORT_VBLANK as players would have almost no time to enter their initials
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM )  // Actually DIP SW2.8
 
 	PORT_START("DSW2")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) ) PORT_DIPLOCATION("SW2:1")
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) )      PORT_DIPLOCATION("SW2:1")
 	PORT_DIPSETTING(    0x01, "3" )
 	PORT_DIPSETTING(    0x00, "5" )
 	PORT_DIPNAME( 0x06, 0x06, DEF_STR( Bonus_Life ) ) PORT_DIPLOCATION("SW2:2,3")
@@ -607,12 +607,12 @@ static INPUT_PORTS_START( zoar )
 	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Difficulty ) ) PORT_DIPLOCATION("SW2:4")
 	PORT_DIPSETTING(    0x08, DEF_STR( Easy ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Hard ) )
-	PORT_DIPNAME( 0x10, 0x00, "Weapon Select" ) PORT_DIPLOCATION("SW2:5")
-	PORT_DIPSETTING(    0x00, "Manual" )
-	PORT_DIPSETTING(    0x10, "Auto" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x20, 0x20, "SW2:6" )   /* These 3 switches have something to do with coinage  */
-	PORT_DIPUNKNOWN_DIPLOC( 0x40, 0x40, "SW2:7" )   /* See code at $d234. Feel free to figure them out     */
-	PORT_DIPUNKNOWN_DIPLOC( 0x80, 0x80, "SW2:8" )   /* Manual says to leave them OFF                       */
+	PORT_DIPNAME( 0x10, 0x00, "Number Of Buttons" )   PORT_DIPLOCATION("SW2:5")  // Manual says 'Panel B'
+	PORT_DIPSETTING(    0x00, "3 (Manual Weapon Select)" )                       // This removes a button as the cocktail has less buttons
+	PORT_DIPSETTING(    0x10, "2 (Auto Weapon Select)" )                         // See notes in this driver at around line 80
+	PORT_DIPUNKNOWN_DIPLOC( 0x20, 0x20, "SW2:6" )  // These 3 switches have something to do with coinage
+	PORT_DIPUNKNOWN_DIPLOC( 0x40, 0x40, "SW2:7" )  // See code at $d234. Feel free to figure them out
+	PORT_DIPUNKNOWN_DIPLOC( 0x80, 0x80, "SW2:8" )  // Manual says to leave them off
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( lnc )
@@ -653,18 +653,18 @@ static INPUT_PORTS_START( lnc )
 	PORT_DIPSETTING(    0x0c, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( 1C_3C ) )
-	PORT_DIPNAME( 0x30, 0x30, "Test Mode" ) PORT_DIPLOCATION("SW1:5,6") /* Manual says these bits are unused */
+	PORT_DIPNAME( 0x30, 0x30, "Test Mode" ) PORT_DIPLOCATION("SW1:5,6")  // Manual says these bits are unused
 	PORT_DIPSETTING(    0x30, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, "RAM Test Only" )
 	PORT_DIPSETTING(    0x20, "Watchdog Test Only" )
-	PORT_DIPSETTING(    0x10, "All Tests" )
+	PORT_DIPSETTING(    0x10, "All Tests" )  // Use Coin A to advance the tests
 	PORT_DIPNAME( 0x40, 0x00, "Control Panel" ) PORT_DIPLOCATION("SW1:7")
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Cocktail ) )
 //  PORT_DIPNAME( 0x80, 0x00, DEF_STR( Cabinet ) ) PORT_DIPLOCATION("SW1:8")
 //  PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 //  PORT_DIPSETTING(    0x80, DEF_STR( Cocktail ) )
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM  ) PORT_VBLANK("screen")
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM  ) PORT_VBLANK("screen")  // Actually DIP SW2.8
 
 	PORT_START("DSW2")
 	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) ) PORT_DIPLOCATION("SW2:1")
@@ -677,11 +677,11 @@ static INPUT_PORTS_START( lnc )
 	PORT_DIPSETTING(    0x00, DEF_STR( None ) )
 	PORT_DIPNAME( 0x08, 0x08, "Game Speed" ) PORT_DIPLOCATION("SW2:4")
 	PORT_DIPSETTING(    0x08, "Slow" )
-	PORT_DIPSETTING(    0x00, DEF_STR( Hard ) )
-	PORT_DIPUNUSED_DIPLOC( 0x10, 0x00, "SW2:5" )    /* it should be OFF according to the manual */
-	PORT_DIPUNUSED_DIPLOC( 0x20, 0x00, "SW2:6" )    /* it should be OFF according to the manual */
-	PORT_DIPUNUSED_DIPLOC( 0x40, 0x00, "SW2:7" )    /* it should be OFF according to the manual */
-	PORT_DIPUNUSED_DIPLOC( 0x80, 0x00, "SW2:8" )    /* it should be OFF according to the manual */
+	PORT_DIPSETTING(    0x00, "Fast" )
+	PORT_DIPUNUSED_DIPLOC( 0x10, IP_ACTIVE_LOW, "SW2:5" )  // should be OFF according to the manual */
+	PORT_DIPUNUSED_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW2:6" )  // should be OFF according to the manual */
+	PORT_DIPUNUSED_DIPLOC( 0x40, IP_ACTIVE_LOW, "SW2:7" )  // should be OFF according to the manual */
+	PORT_DIPUNUSED_DIPLOC( 0x80, IP_ACTIVE_LOW, "SW2:8" )  // should be OFF according to the manual */
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( wtennis )
@@ -708,51 +708,37 @@ static INPUT_PORTS_START( wtennis )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN2 ) PORT_CHANGED_MEMBER(DEVICE_SELF, btime_state,coin_inserted_nmi_lo, 0)
 
 	PORT_START("DSW1")
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_B ) )    PORT_DIPLOCATION("SW1:1,2")
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x03, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( 1C_3C ) )
-	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_A ) )
+	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_A ) )    PORT_DIPLOCATION("SW1:3,4")
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x0c, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( 1C_3C ) )
-	PORT_DIPNAME( 0x10, 0x00, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x00, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x10, IP_ACTIVE_LOW, "SW1:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW1:6" )
+	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) )   PORT_DIPLOCATION("SW1:7")
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Cocktail ) )
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM  ) PORT_VBLANK("screen")
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM  ) PORT_VBLANK("screen")  // Actually DIP SW2.8
 
 	PORT_START("DSW2")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) )
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) )        PORT_DIPLOCATION("SW2:1")
 	PORT_DIPSETTING(    0x01, "2" )
 	PORT_DIPSETTING(    0x00, "3" )
-	PORT_DIPNAME( 0x06, 0x06, DEF_STR( Bonus_Life ) )
+	PORT_DIPNAME( 0x06, 0x06, DEF_STR( Bonus_Life ) )   PORT_DIPLOCATION("SW2:2,3")
 	PORT_DIPSETTING(    0x06, "10000" )
 	PORT_DIPSETTING(    0x04, "20000" )
 	PORT_DIPSETTING(    0x02, "30000" )
 	PORT_DIPSETTING(    0x00, DEF_STR( None ) )
-	PORT_DIPNAME( 0x08, 0x00, DEF_STR( Unknown ) )   /* definitely used */
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x08, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x00, DEF_STR( Unused ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x00, DEF_STR( Unknown ) )    /* These 3 switches     */
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )        /* have to do with      */
-	PORT_DIPSETTING(    0x20, DEF_STR( On ) )         /* coinage.             */
-	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x40, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x00, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x08, IP_ACTIVE_LOW, "SW2:4" )  // definitely used
+	PORT_DIPUNUSED_DIPLOC( 0x10, IP_ACTIVE_LOW, "SW2:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW2:6" )  // Switches 6,7,8
+	PORT_DIPUNKNOWN_DIPLOC( 0x40, IP_ACTIVE_LOW, "SW2:7" )  // have something to do
+	PORT_DIPUNKNOWN_DIPLOC( 0x80, IP_ACTIVE_LOW, "SW2:8" )  // with coinage.
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( mmonkey )
@@ -783,45 +769,45 @@ static INPUT_PORTS_START( mmonkey )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN2 ) PORT_CHANGED_MEMBER(DEVICE_SELF, btime_state,coin_inserted_nmi_lo, 0)
 
 	PORT_START("DSW1")
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) )
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) )      PORT_DIPLOCATION("SW1:1,2")
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x03, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( 1C_3C ) )
-	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) )      PORT_DIPLOCATION("SW1:3,4")
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x0c, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( 1C_3C ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Free_Play ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Free_Play ) )   PORT_DIPLOCATION("SW1:5")
 	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPUNUSED( 0x20, 0x00 )    /* almost certainly unused */
-	PORT_DIPNAME( 0x40, 0x00, "Control Panel" )
+	PORT_DIPUNUSED_DIPLOC( 0x20, 0x20, "SW1:6" )  // almost certainly unused
+	PORT_DIPNAME( 0x40, 0x00, "Control Panel" )        PORT_DIPLOCATION("SW1:7")
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Cocktail ) )
-//  PORT_DIPNAME( 0x80, 0x00, DEF_STR( Cabinet ) )
+//  PORT_DIPNAME( 0x80, 0x00, DEF_STR( Cabinet ) )     PORT_DIPLOCATION("SW1:8")
 //  PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 //  PORT_DIPSETTING(    0x80, DEF_STR( Cocktail ) )
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM  ) PORT_VBLANK("screen")
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM  ) PORT_VBLANK("screen")  // Actually DIP SW2.8
 
 	PORT_START("DSW2")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) )
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) )          PORT_DIPLOCATION("SW2:1")
 	PORT_DIPSETTING(    0x01, "3" )
 	PORT_DIPSETTING(    0x00, "5" )
-	PORT_DIPNAME( 0x06, 0x00, DEF_STR( Bonus_Life ) )
+	PORT_DIPNAME( 0x06, 0x00, DEF_STR( Bonus_Life ) )     PORT_DIPLOCATION("SW2:2,3")
 	PORT_DIPSETTING(    0x02, "Every 15000" )
 	PORT_DIPSETTING(    0x04, "Every 30000" )
 	PORT_DIPSETTING(    0x00, "20000" )
 	PORT_DIPSETTING(    0x06, DEF_STR( None ) )
-	PORT_DIPNAME( 0x18, 0x08, DEF_STR( Difficulty ) )
+	PORT_DIPNAME( 0x18, 0x08, DEF_STR( Difficulty ) )     PORT_DIPLOCATION("SW2:4,5")
 	PORT_DIPSETTING(    0x18, DEF_STR( Easy ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( Medium ) )
 	PORT_DIPSETTING(    0x10, DEF_STR( Hard ) )
 	PORT_DIPSETTING(    0x00, "Level Skip Mode (Cheat)")
-	PORT_DIPUNUSED( 0x20, 0x00 )    /* almost certainly unused */
-	PORT_DIPUNUSED( 0x40, 0x00 )    /* almost certainly unused */
-	PORT_SERVICE( 0x80, IP_ACTIVE_LOW )
+	PORT_DIPUNUSED_DIPLOC( 0x20, 0x20, "SW2:6" )  // almost certainly unused
+	PORT_DIPUNUSED_DIPLOC( 0x40, 0x40, "SW2:7" )  // almost certainly unused
+	PORT_SERVICE_DIPLOC( 0x80, IP_ACTIVE_LOW, "SW2:8" )
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( bnj )
@@ -855,59 +841,66 @@ static INPUT_PORTS_START( bnj )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_COIN1 ) PORT_CHANGED_MEMBER(DEVICE_SELF, btime_state,coin_inserted_nmi_lo, 0)
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN2 ) PORT_CHANGED_MEMBER(DEVICE_SELF, btime_state,coin_inserted_nmi_lo, 0)
 
-	PORT_START("DSW1")
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) ) PORT_DIPLOCATION("8D:1,2")
+	PORT_START("DSW1") // At location 8D
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) ) PORT_DIPLOCATION("SW1:1,2")
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x03, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( 1C_3C ) )
-	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) ) PORT_DIPLOCATION("8D:3,4")
+	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) ) PORT_DIPLOCATION("SW1:3,4")
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x0c, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( 1C_3C ) )
-	/* Manual gives the following Test settings, but they don't seem to correspond to the actual effect */
-//  PORT_DIPNAME( 0x30, 0x30, "Test Mode" ) PORT_DIPLOCATION("8D:5,6")
-//  PORT_DIPSETTING(    0x30, DEF_STR( Off ) )
-//  PORT_DIPSETTING(    0x00, "Video PC Board Only" )
-//  PORT_DIPSETTING(    0x10, "Normal Test" )
-//  PORT_DIPSETTING(    0x20, "No Effect" )
-	PORT_SERVICE_DIPLOC( 0x10, IP_ACTIVE_LOW, "8D:5" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x20, 0x00, "8D:6" )
-	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) ) PORT_DIPLOCATION("8D:7")
+	PORT_DIPNAME( 0x30, 0x30, "Test Mode" ) PORT_DIPLOCATION("SW1:5,6")
+	PORT_DIPSETTING(    0x30, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x20, "All Tests" )  // Use Coin A to advance the tests
+	PORT_DIPSETTING(    0x00, "RAM Test Only" )
+	PORT_DIPSETTING(    0x10, "No Effect" )
+	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) ) PORT_DIPLOCATION("SW1:7")
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Cocktail ) )
-	/* According to crazykong.com dips this should change the control layout  */
-//  PORT_DIPNAME( 0x80, 0x00, "Control Panel" ) PORT_DIPLOCATION("8D:8")
+	// According to crazykong.com dips this should change the control layout
+//  PORT_DIPNAME( 0x80, 0x00, "Control Panel" ) PORT_DIPLOCATION("SW1:8")
 //  PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 //  PORT_DIPSETTING(    0x80, DEF_STR( Cocktail ) )
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM  ) PORT_VBLANK("screen")
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM  ) PORT_VBLANK("screen")  // Schematics show this is connected to DIP SW2.8
 
-	PORT_START("DSW2")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) ) PORT_DIPLOCATION("7D:1")
+	PORT_START("DSW2") // At location 7D
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) )          PORT_DIPLOCATION("SW2:1")
 	PORT_DIPSETTING(    0x01, "3" )
 	PORT_DIPSETTING(    0x00, "5" )
-	PORT_DIPNAME( 0x06, 0x06, DEF_STR( Bonus_Life ) ) PORT_DIPLOCATION("7D:2,3")
+	PORT_DIPNAME( 0x06, 0x06, DEF_STR( Bonus_Life ) )     PORT_DIPLOCATION("SW2:2,3")
 	PORT_DIPSETTING(    0x06, "Every 30000" )
 	PORT_DIPSETTING(    0x04, "Every 70000" )
 	PORT_DIPSETTING(    0x02, "20000 Only"  )
 	PORT_DIPSETTING(    0x00, "30000 Only"  )
-	PORT_DIPNAME( 0x08, 0x00, DEF_STR( Allow_Continue ) ) PORT_DIPLOCATION("7D:4")
+	PORT_DIPNAME( 0x08, 0x00, DEF_STR( Allow_Continue ) ) PORT_DIPLOCATION("SW2:4")
 	PORT_DIPSETTING(    0x08, DEF_STR( No ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Yes ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Difficulty ) ) PORT_DIPLOCATION("7D:5")
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Difficulty ) )     PORT_DIPLOCATION("SW2:5")
 	PORT_DIPSETTING(    0x10, DEF_STR( Easy ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Hard ) )
-	PORT_DIPUNKNOWN_DIPLOC( 0x20, 0x20, "7D:6" )    /* it should be OFF according to the manual */
-	PORT_DIPUNKNOWN_DIPLOC( 0x40, 0x40, "7D:7" )    /* it should be OFF according to the manual */
-	PORT_DIPUNKNOWN_DIPLOC( 0x80, 0x80, "7D:8" )    /* it should be OFF according to the manual */
+	PORT_DIPUNKNOWN_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW2:6" )  // it should be OFF according to the manual
+	PORT_DIPUNKNOWN_DIPLOC( 0x40, IP_ACTIVE_LOW, "SW2:7" )  // it should be OFF according to the manual
+	PORT_DIPUNKNOWN_DIPLOC( 0x80, IP_ACTIVE_LOW, "SW2:8" )  // it should be OFF according to the manual
 INPUT_PORTS_END
 
-static INPUT_PORTS_START( caractn2 ) /* 2/3 Lives Dip changes in this set */
+
+static INPUT_PORTS_START( brubber ) // no test mode for brubber
 		PORT_INCLUDE( bnj )
 
+		PORT_MODIFY("DSW1")
+	PORT_DIPUNKNOWN_DIPLOC( 0x10, IP_ACTIVE_LOW, "SW1:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW1:6" )
+INPUT_PORTS_END
+
+
+static INPUT_PORTS_START( caractn2 ) // Lives DIP changes in this set
+		PORT_INCLUDE( brubber )
+
 		PORT_MODIFY("DSW2")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) ) PORT_DIPLOCATION("7D:1")
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) ) PORT_DIPLOCATION("SW2:1")
 	PORT_DIPSETTING(    0x01, "2" )
 	PORT_DIPSETTING(    0x00, "3" )
 INPUT_PORTS_END
@@ -937,47 +930,117 @@ static INPUT_PORTS_START( disco )
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH,IPT_COIN2 ) PORT_CHANGED_MEMBER(DEVICE_SELF, btime_state,coin_inserted_irq_hi, 0)
 
 	PORT_START("DSW1")
-	PORT_DIPNAME( 0x03, 0x00, DEF_STR( Coin_A ) ) PORT_DIPLOCATION("SW1:1,2")
+	PORT_DIPNAME( 0x03, 0x00, DEF_STR( Coin_A ) )     PORT_DIPLOCATION("SW1:!1,!2")
 	PORT_DIPSETTING(    0x03, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( 1C_3C ) )
-	PORT_DIPNAME( 0x0c, 0x00, DEF_STR( Coin_B ) ) PORT_DIPLOCATION("SW1:3,4")
+	PORT_DIPNAME( 0x0c, 0x00, DEF_STR( Coin_B ) )     PORT_DIPLOCATION("SW1:!3,!4")
 	PORT_DIPSETTING(    0x0c, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( 1C_3C ) )
-	PORT_DIPUNKNOWN_DIPLOC( 0x10, 0x00, "SW1:5" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x20, 0x00, "SW1:6" )
-	PORT_DIPNAME( 0x40, 0x40, "Control Panel" ) PORT_DIPLOCATION("SW1:7")
+	PORT_DIPUNKNOWN_DIPLOC( 0x10, 0x00, "SW1:!5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x20, 0x00, "SW1:!6" )
+	PORT_DIPNAME( 0x40, 0x40, "Control Panel" )       PORT_DIPLOCATION("SW1:!7")
 	PORT_DIPSETTING(    0x40, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Cocktail ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Cabinet ) ) PORT_DIPLOCATION("SW1:8")
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Cabinet ) )    PORT_DIPLOCATION("SW1:!8")
 	PORT_DIPSETTING(    0x80, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Cocktail ) )
 
 	PORT_START("DSW2")
-	PORT_DIPNAME( 0x01, 0x00, DEF_STR( Lives ) ) PORT_DIPLOCATION("SW2:1")
+	PORT_DIPNAME( 0x01, 0x00, DEF_STR( Lives ) )      PORT_DIPLOCATION("SW2:!1")
 	PORT_DIPSETTING(    0x00, "3" )
 	PORT_DIPSETTING(    0x01, "5" )
-	PORT_DIPNAME( 0x06, 0x00, DEF_STR( Bonus_Life ) ) PORT_DIPLOCATION("SW2:2,3")
+	PORT_DIPNAME( 0x06, 0x00, DEF_STR( Bonus_Life ) ) PORT_DIPLOCATION("SW2:!2,!3")
 	PORT_DIPSETTING(    0x00, "10000" )
 	PORT_DIPSETTING(    0x02, "20000" )
 	PORT_DIPSETTING(    0x04, "30000" )
 	PORT_DIPSETTING(    0x06, DEF_STR( None ) )
-	PORT_DIPNAME( 0x08, 0x00, "Music Weapons" ) PORT_DIPLOCATION("SW2:4")
+	PORT_DIPNAME( 0x08, 0x00, "Music Weapons" )       PORT_DIPLOCATION("SW2:!4")
 	PORT_DIPSETTING(    0x00, "5" )
 	PORT_DIPSETTING(    0x08, "8" )
-	PORT_DIPNAME( 0x10, 0x00, "Game Speed" ) PORT_DIPLOCATION("SW2:5")
+	PORT_DIPNAME( 0x10, 0x00, "Game Speed" )          PORT_DIPLOCATION("SW2:!5")
 	PORT_DIPSETTING(    0x00, "Slow" )
 	PORT_DIPSETTING(    0x10, "Fast" )
-	PORT_DIPNAME( 0xe0, 0x00, "Country Code" ) PORT_DIPLOCATION("SW2:6,7,8")
+	PORT_DIPNAME( 0xe0, 0x00, "Country Code" )        PORT_DIPLOCATION("SW2:!6,!7,!8")
 	PORT_DIPSETTING(    0x00, "A" )
 	PORT_DIPSETTING(    0x20, "B" )
 	PORT_DIPSETTING(    0x40, "C" )
 	PORT_DIPSETTING(    0x60, "D" )
 	PORT_DIPSETTING(    0x80, "E" )
 	PORT_DIPSETTING(    0xa0, "F" )
+
+	PORT_START("VBLANK")
+	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen")
+INPUT_PORTS_END
+
+static INPUT_PORTS_START( protenn )
+	PORT_START("P1")
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_4WAY
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_JOYSTICK_LEFT ) PORT_4WAY
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_4WAY
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN ) PORT_4WAY
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_BUTTON1 )
+	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_UNUSED )
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_START1 )
+
+	PORT_START("P2")
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_4WAY PORT_COCKTAIL
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_JOYSTICK_LEFT ) PORT_4WAY PORT_COCKTAIL
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_4WAY PORT_COCKTAIL
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN ) PORT_4WAY PORT_COCKTAIL
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_COCKTAIL
+	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_UNUSED )
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_START2 )
+
+	PORT_START("SYSTEM")
+	PORT_BIT( 0x1f, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH,IPT_COIN1 ) PORT_CHANGED_MEMBER(DEVICE_SELF, btime_state,coin_inserted_irq_hi, 0)
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH,IPT_COIN2 ) PORT_CHANGED_MEMBER(DEVICE_SELF, btime_state,coin_inserted_irq_hi, 0)
+
+	PORT_START("DSW1")
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("SW1:1,2")
+	PORT_DIPSETTING(    0x01, DEF_STR( 1C_3C ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(    0x03, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
+	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) )       PORT_DIPLOCATION("SW1:3,4")
+	PORT_DIPSETTING(    0x04, DEF_STR( 1C_3C ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(    0x0c, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x10, IP_ACTIVE_LOW, "SW1:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW1:6" )
+	PORT_DIPNAME( 0x40, 0x40, "Control Panel" )         PORT_DIPLOCATION("SW1:7")
+	PORT_DIPSETTING(    0x00, DEF_STR( Cocktail ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( Upright ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Cabinet ) )      PORT_DIPLOCATION("SW1:8")
+	PORT_DIPSETTING(    0x80, DEF_STR( Upright ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Cocktail ) )
+
+	PORT_START("DSW2")
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) )        PORT_DIPLOCATION("SW2:1")
+	PORT_DIPSETTING(    0x01, "2" )
+	PORT_DIPSETTING(    0x00, "3" )
+	PORT_DIPNAME( 0x06, 0x06, DEF_STR( Bonus_Life ) )   PORT_DIPLOCATION("SW2:2,3")
+	PORT_DIPSETTING(    0x06, "10000" )
+	PORT_DIPSETTING(    0x04, "20000" )
+	PORT_DIPSETTING(    0x02, "30000" )
+	PORT_DIPSETTING(    0x00, DEF_STR( None ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Difficulty ) )   PORT_DIPLOCATION("SW2:4")
+	PORT_DIPSETTING(    0x08, "Amateur" )
+	PORT_DIPSETTING(    0x00, "Professional" )
+	PORT_DIPUNUSED_DIPLOC( 0x10, IP_ACTIVE_LOW, "SW2:5" )
+	PORT_DIPNAME( 0xe0, 0xe0, "Country Code" )          PORT_DIPLOCATION("SW2:6,7,8")  // Listed as "DON'T CHANGE"
+	PORT_DIPSETTING(    0xe0, "A" )
+	PORT_DIPSETTING(    0xc0, "B" )
+	PORT_DIPSETTING(    0xa0, "C" )
+	PORT_DIPSETTING(    0x80, "D" )
+	PORT_DIPSETTING(    0x60, "E" )
+	PORT_DIPSETTING(    0x40, "F" )
 
 	PORT_START("VBLANK")
 	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -1016,46 +1079,48 @@ static INPUT_PORTS_START( sdtennis )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN2 ) PORT_CHANGED_MEMBER(DEVICE_SELF, btime_state,coin_inserted_nmi_lo, 0)
 
 	PORT_START("DSW1")
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) )
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("SW1:1,2")
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x03, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( 1C_3C ) )
-	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) )       PORT_DIPLOCATION("SW1:3,4")
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x0c, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( 1C_3C ) )
-	PORT_SERVICE( 0x10, IP_ACTIVE_LOW )
-	PORT_DIPNAME( 0x20, 0x00, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) )
+	PORT_DIPNAME( 0x30, 0x30, "Test Mode" )             PORT_DIPLOCATION("SW1:5,6")
+	PORT_DIPSETTING(    0x30, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x20, "All Tests" )  // Use Coin A to advance the tests
+	PORT_DIPSETTING(    0x00, "Video Tests Only" )
+	PORT_DIPSETTING(    0x10, "No Effect" )
+	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) )      PORT_DIPLOCATION("SW1:7")
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Cocktail ) )
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM  ) PORT_VBLANK("screen")
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM  ) PORT_VBLANK("screen")  // Actually DIP SW2.8
 
 	PORT_START("DSW2")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) )
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) )        PORT_DIPLOCATION("SW2:1")
 	PORT_DIPSETTING(    0x00, "1" )
 	PORT_DIPSETTING(    0x01, "2" )
-	PORT_DIPNAME( 0x06, 0x06, DEF_STR( Bonus_Life ) )
+	PORT_DIPNAME( 0x06, 0x06, DEF_STR( Bonus_Life ) )   PORT_DIPLOCATION("SW2:2,3")
 	PORT_DIPSETTING(    0x06, "1 Set won" )
 	PORT_DIPSETTING(    0x04, "2 Sets won" )
 	PORT_DIPSETTING(    0x02, "3 Sets won"  )
 	PORT_DIPSETTING(    0x00, DEF_STR( None )  )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )      // Check code at 0xc55b
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )      PORT_DIPLOCATION("SW2:4")  // Check code at 0xc55b
 	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )      // Check code at 0xc5af
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0xe0, 0xe0, "Copyright" )
-	PORT_DIPSETTING(    0xe0, "Data East Corporation" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x10, IP_ACTIVE_LOW, "SW2:5" )  // Check code at 0xc5af
+	PORT_DIPNAME( 0xe0, 0xe0, "Copyright" )             PORT_DIPLOCATION("SW2:6,7,8")
 	PORT_DIPSETTING(    0xc0, "Data East USA" )
-	/* Other values are the same as 0xe0 */
-	/* 0x60 also gives a special coinage : COIN1 gives 3 credits and COIN2 gives 8 credits
-	  whatever the coinage Dip Switch are (they are not read in this case) */
+	PORT_DIPSETTING(    0xe0, "Data East Corporation" )
+	PORT_DIPSETTING(    0x80, "Data East Corporation" )
+	PORT_DIPSETTING(    0x00, "Data East Corporation" )
+	PORT_DIPSETTING(    0x60, "Special: Coin A 3 Credits, Coin B 8 Credits" )
+	// Only two copyrights show. Other values are the same as 0xe0
+	// 0x60 gives a special coinage : COIN1 gives 3 credits and COIN2 gives 8 credits
+	// and the coinage DIP switches are ignored in this case
 INPUT_PORTS_END
 
 static const gfx_layout tile8layout =
@@ -1114,36 +1179,36 @@ static const gfx_layout bnj_tile16layout =
 	64*8
 };
 
-static GFXDECODE_START( btime )
+static GFXDECODE_START( gfx_btime )
 	GFXDECODE_ENTRY( "gfx1", 0, tile8layout,     0, 1 ) /* char set #1 */
 	GFXDECODE_ENTRY( "gfx1", 0, tile16layout,    0, 1 ) /* sprites */
 	GFXDECODE_ENTRY( "gfx2", 0, tile16layout,    8, 1 ) /* background tiles */
 GFXDECODE_END
 
-static GFXDECODE_START( cookrace )
+static GFXDECODE_START( gfx_cookrace )
 	GFXDECODE_ENTRY( "gfx1", 0, tile8layout,     0, 1 ) /* char set #1 */
 	GFXDECODE_ENTRY( "gfx1", 0, tile16layout,    0, 1 ) /* sprites */
 	GFXDECODE_ENTRY( "gfx2", 0, tile8layout,     8, 1 ) /* background tiles */
 GFXDECODE_END
 
-static GFXDECODE_START( lnc )
+static GFXDECODE_START( gfx_lnc )
 	GFXDECODE_ENTRY( "gfx1", 0, tile8layout,     0, 1 ) /* char set #1 */
 	GFXDECODE_ENTRY( "gfx1", 0, tile16layout,    0, 1 ) /* sprites */
 GFXDECODE_END
 
-static GFXDECODE_START( bnj )
+static GFXDECODE_START( gfx_bnj )
 	GFXDECODE_ENTRY( "gfx1", 0, tile8layout,     0, 1 ) /* char set #1 */
 	GFXDECODE_ENTRY( "gfx1", 0, tile16layout,    0, 1 ) /* sprites */
 	GFXDECODE_ENTRY( "gfx2", 0, bnj_tile16layout,8, 1 ) /* background tiles */
 GFXDECODE_END
 
-static GFXDECODE_START( zoar )
+static GFXDECODE_START( gfx_zoar )
 	GFXDECODE_ENTRY( "gfx1", 0, tile8layout,     0, 8 ) /* char set #1 */
 	GFXDECODE_ENTRY( "gfx3", 0, tile16layout,    0, 8 ) /* sprites */
 	GFXDECODE_ENTRY( "gfx2", 0, tile16layout,    0, 8 ) /* background tiles */
 GFXDECODE_END
 
-static GFXDECODE_START( disco )
+static GFXDECODE_START( gfx_disco )
 	GFXDECODE_ENTRY( nullptr, 0, disco_tile8layout,  0, 4 ) /* char set #1 */
 	GFXDECODE_ENTRY( nullptr, 0, disco_tile16layout, 0, 4 ) /* sprites */
 GFXDECODE_END
@@ -1198,7 +1263,7 @@ static const discrete_mixer_desc btime_sound_mixer_desc =
 static const discrete_op_amp_filt_info btime_opamp_desc =
 	{BTIME_R51, 0, BTIME_R50, 0, BTIME_R49, CAP_U(0.068), CAP_U(0.068), 0, 0, 5.0, -5.0};
 
-static DISCRETE_SOUND_START( btime_sound )
+static DISCRETE_SOUND_START( btime_sound_discrete )
 
 	DISCRETE_INPUTX_STREAM(NODE_01, 0, 5.0/32767.0, 0)
 	DISCRETE_INPUTX_STREAM(NODE_02, 1, 5.0/32767.0, 0)
@@ -1243,8 +1308,6 @@ MACHINE_START_MEMBER(btime_state,btime)
 	save_item(NAME(m_bnj_scroll1));
 	save_item(NAME(m_bnj_scroll2));
 	save_item(NAME(m_btime_tilemap));
-	save_item(NAME(m_audio_nmi_enabled));
-	save_item(NAME(m_audio_nmi_state));
 }
 
 MACHINE_START_MEMBER(btime_state,mmonkey)
@@ -1260,7 +1323,8 @@ MACHINE_START_MEMBER(btime_state,mmonkey)
 MACHINE_RESET_MEMBER(btime_state,btime)
 {
 	/* by default, the audio NMI is disabled, except for bootlegs which don't use the enable */
-	m_audio_nmi_enabled = (m_audio_nmi_enable_type == AUDIO_ENABLE_NONE);
+	if (m_audionmi.found())
+		m_audionmi->in_w<0>(0);
 
 	m_btime_palette = 0;
 	m_bnj_scroll1 = 0;
@@ -1269,7 +1333,6 @@ MACHINE_RESET_MEMBER(btime_state,btime)
 	m_btime_tilemap[1] = 0;
 	m_btime_tilemap[2] = 0;
 	m_btime_tilemap[3] = 0;
-	m_audio_nmi_state = 0;
 }
 
 MACHINE_RESET_MEMBER(btime_state,lnc)
@@ -1289,200 +1352,206 @@ MACHINE_RESET_MEMBER(btime_state,mmonkey)
 	m_protection_ret = 0;
 }
 
-static MACHINE_CONFIG_START( btime, btime_state )
-
+void btime_state::btime(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", DECO_CPU7, HCLK2)   /* seletable between H2/H4 via jumper */
-	MCFG_CPU_PROGRAM_MAP(btime_map)
+	DECO_CPU7(config, m_maincpu, HCLK2);   /* selectable between H2/H4 via jumper */
+	m_maincpu->set_addrmap(AS_PROGRAM, &btime_state::btime_map);
 
-	MCFG_CPU_ADD("audiocpu", M6502, HCLK1/3/2)
-	MCFG_CPU_PROGRAM_MAP(audio_map)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("audionmi", btime_state, audio_nmi_gen, "screen", 0, 8)
+	M6502(config, m_audiocpu, HCLK1/3/2);
+	m_audiocpu->set_addrmap(AS_PROGRAM, &btime_state::audio_map);
+	TIMER(config, "8vck").configure_scanline(FUNC(btime_state::audio_nmi_gen), "screen", 0, 8);
+
+	INPUT_MERGER_ALL_HIGH(config, "audionmi").output_handler().set_inputline(m_audiocpu, INPUT_LINE_NMI);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_RAW_PARAMS(HCLK, 384, 8, 248, 272, 8, 248)
-	MCFG_SCREEN_UPDATE_DRIVER(btime_state, screen_update_btime)
-	MCFG_SCREEN_PALETTE("palette")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_raw(HCLK, 384, 8, 248, 272, 8, 248);
+	m_screen->set_screen_update(FUNC(btime_state::screen_update_btime));
+	m_screen->set_palette(m_palette);
 
 	MCFG_MACHINE_START_OVERRIDE(btime_state,btime)
 	MCFG_MACHINE_RESET_OVERRIDE(btime_state,btime)
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", btime)
-
-	MCFG_PALETTE_ADD("palette", 16)
-	MCFG_PALETTE_INIT_OWNER(btime_state,btime)
-	MCFG_PALETTE_FORMAT(BBGGGRRR_inverted)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_btime);
+	PALETTE(config, m_palette, FUNC(btime_state::btime_palette)).set_format(palette_device::BGR_233_inverted, 16);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set_inputline(m_audiocpu, 0);
 
-	MCFG_SOUND_ADD("ay1", AY8910, HCLK2)
-	MCFG_AY8910_OUTPUT_TYPE(AY8910_DISCRETE_OUTPUT)
-	MCFG_AY8910_RES_LOADS(RES_K(5), RES_K(5), RES_K(5))
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(btime_state, ay_audio_nmi_enable_w))
-	MCFG_SOUND_ROUTE_EX(0, "discrete", 1.0, 0)
-	MCFG_SOUND_ROUTE_EX(1, "discrete", 1.0, 1)
-	MCFG_SOUND_ROUTE_EX(2, "discrete", 1.0, 2)
+	ay8910_device &ay1(AY8910(config, "ay1", HCLK2));
+	ay1.set_flags(AY8910_DISCRETE_OUTPUT);
+	ay1.set_resistors_load(RES_K(5), RES_K(5), RES_K(5));
+	ay1.port_a_write_callback().set(FUNC(btime_state::ay_audio_nmi_enable_w));
+	ay1.add_route(0, "discrete", 1.0, 0);
+	ay1.add_route(1, "discrete", 1.0, 1);
+	ay1.add_route(2, "discrete", 1.0, 2);
 
-	MCFG_SOUND_ADD("ay2", AY8910, HCLK2)
-	MCFG_AY8910_OUTPUT_TYPE(AY8910_DISCRETE_OUTPUT)
-	MCFG_AY8910_RES_LOADS(RES_K(1), RES_K(5), RES_K(5))
-	MCFG_SOUND_ROUTE_EX(0, "discrete", 1.0, 3)
-	MCFG_SOUND_ROUTE_EX(1, "discrete", 1.0, 4)
-	MCFG_SOUND_ROUTE_EX(2, "discrete", 1.0, 5)
+	ay8910_device &ay2(AY8910(config, "ay2", HCLK2));
+	ay2.set_flags(AY8910_DISCRETE_OUTPUT);
+	ay2.set_resistors_load(RES_K(1), RES_K(5), RES_K(5));
+	ay2.add_route(0, "discrete", 1.0, 3);
+	ay2.add_route(1, "discrete", 1.0, 4);
+	ay2.add_route(2, "discrete", 1.0, 5);
 
-	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_DISCRETE_INTF(btime_sound)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	DISCRETE(config, "discrete", btime_sound_discrete).add_route(ALL_OUTPUTS, "mono", 1.0);
+}
 
 
-static MACHINE_CONFIG_DERIVED( cookrace, btime )
+void btime_state::cookrace(machine_config &config)
+{
+	btime(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_REPLACE("maincpu", DECO_C10707, HCLK2)
-	MCFG_CPU_PROGRAM_MAP(cookrace_map)
+	DECO_C10707(config.replace(), m_maincpu, HCLK2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &btime_state::cookrace_map);
 
-	MCFG_CPU_MODIFY("audiocpu")
-	MCFG_CPU_PROGRAM_MAP(audio_map)
+	m_audiocpu->set_addrmap(AS_PROGRAM, &btime_state::audio_map);
 
 	/* video hardware */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", cookrace)
-
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(btime_state, screen_update_cookrace)
-MACHINE_CONFIG_END
+	m_gfxdecode->set_info(gfx_cookrace);
+	m_screen->set_screen_update(FUNC(btime_state::screen_update_cookrace));
+}
 
 
-static MACHINE_CONFIG_DERIVED( lnc, btime )
+void btime_state::lnc(machine_config &config)
+{
+	btime(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_REPLACE("maincpu", DECO_C10707, HCLK2)
-	MCFG_CPU_PROGRAM_MAP(lnc_map)
+	DECO_C10707(config.replace(), m_maincpu, HCLK2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &btime_state::lnc_map);
 
 	MCFG_MACHINE_RESET_OVERRIDE(btime_state,lnc)
 
 	/* video hardware */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", lnc)
+	m_gfxdecode->set_info(gfx_lnc);
 
-	MCFG_PALETTE_MODIFY("palette")
-	MCFG_PALETTE_ENTRIES(8)
-	MCFG_PALETTE_INIT_OWNER(btime_state,lnc)
+	m_palette->set_entries(8);
+	m_palette->set_init(FUNC(btime_state::lnc_palette));
 
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(btime_state, screen_update_lnc)
-MACHINE_CONFIG_END
+	m_screen->set_screen_update(FUNC(btime_state::screen_update_lnc));
+}
 
 
-static MACHINE_CONFIG_DERIVED( wtennis, lnc )
-
-	/* basic machine hardware */
+void btime_state::wtennis(machine_config &config)
+{
+	lnc(config);
 
 	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(btime_state, screen_update_eggs)
-MACHINE_CONFIG_END
+	m_screen->set_screen_update(FUNC(btime_state::screen_update_eggs));
+}
 
 
-static MACHINE_CONFIG_DERIVED( mmonkey, wtennis )
+void btime_state::mmonkey(machine_config &config)
+{
+	wtennis(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(mmonkey_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &btime_state::mmonkey_map);
 
 	MCFG_MACHINE_START_OVERRIDE(btime_state,mmonkey)
 	MCFG_MACHINE_RESET_OVERRIDE(btime_state,mmonkey)
-MACHINE_CONFIG_END
+}
 
-static MACHINE_CONFIG_DERIVED( bnj, btime )
+void btime_state::bnj(machine_config &config)
+{
+	btime(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_REPLACE("maincpu", DECO_C10707, HCLK4)
-	MCFG_CPU_CLOCK(HCLK4)
-	MCFG_CPU_PROGRAM_MAP(bnj_map)
+	DECO_C10707(config.replace(), m_maincpu, HCLK4);
+	m_maincpu->set_addrmap(AS_PROGRAM, &btime_state::bnj_map);
 
 	/* video hardware */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", bnj)
+	m_gfxdecode->set_info(gfx_bnj);
 
 	MCFG_VIDEO_START_OVERRIDE(btime_state,bnj)
 
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(btime_state, screen_update_bnj)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1) // 256 * 240, confirmed
-MACHINE_CONFIG_END
+	m_screen->set_screen_update(FUNC(btime_state::screen_update_bnj));
+	m_screen->set_visarea(0*8, 32*8-1, 1*8, 31*8-1); // 256 * 240, confirmed
+}
 
 
-static MACHINE_CONFIG_DERIVED( sdtennis, bnj )
-
-	/* basic machine hardware */
-	MCFG_CPU_REPLACE("audiocpu", DECO_C10707, HCLK1/3/2)
-	MCFG_CPU_PROGRAM_MAP(audio_map)
-MACHINE_CONFIG_END
-
-
-static MACHINE_CONFIG_DERIVED( zoar, btime )
+void btime_state::sdtennis(machine_config &config)
+{
+	bnj(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(zoar_map)
+	DECO_C10707(config.replace(), m_audiocpu, HCLK1/3/2);
+	m_audiocpu->set_addrmap(AS_PROGRAM, &btime_state::audio_map);
+}
+
+
+void btime_state::zoar(machine_config &config)
+{
+	btime(config);
+
+	/* basic machine hardware */
+	m_maincpu->set_addrmap(AS_PROGRAM, &btime_state::zoar_map);
 
 	/* video hardware */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", zoar)
+	m_gfxdecode->set_info(gfx_zoar);
 
-	MCFG_PALETTE_MODIFY("palette")
-	MCFG_PALETTE_ENTRIES(64)
+	m_palette->set_entries(64);
 
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(btime_state, screen_update_zoar)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1) // 256 * 240, confirmed
+	m_screen->set_screen_update(FUNC(btime_state::screen_update_zoar));
+	m_screen->set_visarea(0*8, 32*8-1, 1*8, 31*8-1); // 256 * 240, confirmed
 
 	/* sound hardware */
-	MCFG_SOUND_REPLACE("ay1", AY8910, HCLK1)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.23)
-	MCFG_AY8910_OUTPUT_TYPE(AY8910_DISCRETE_OUTPUT)
-	MCFG_AY8910_RES_LOADS(RES_K(5), RES_K(5), RES_K(5))
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(btime_state, ay_audio_nmi_enable_w))
+	ay8910_device &ay1(AY8910(config.replace(), "ay1", HCLK1));
+	ay1.add_route(ALL_OUTPUTS, "mono", 0.23);
+	ay1.set_flags(AY8910_DISCRETE_OUTPUT);
+	ay1.set_resistors_load(RES_K(5), RES_K(5), RES_K(5));
+	ay1.port_a_write_callback().set(FUNC(btime_state::ay_audio_nmi_enable_w));
 
-	MCFG_SOUND_REPLACE("ay2", AY8910, HCLK1)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.23)
-MACHINE_CONFIG_END
+	ay8910_device &ay2(AY8910(config.replace(), "ay2", HCLK1));
+	ay2.add_route(ALL_OUTPUTS, "mono", 0.23);
+}
 
 
-static MACHINE_CONFIG_DERIVED( disco, btime )
+void btime_state::disco(machine_config &config)
+{
+	btime(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CLOCK(HCLK4)
-	MCFG_CPU_PROGRAM_MAP(disco_map)
+	m_maincpu->set_clock(HCLK4);
+	m_maincpu->set_addrmap(AS_PROGRAM, &btime_state::disco_map);
 
-	MCFG_CPU_MODIFY("audiocpu")
-	MCFG_CPU_PROGRAM_MAP(disco_audio_map)
+	m_audiocpu->set_addrmap(AS_PROGRAM, &btime_state::disco_audio_map);
+
+	m_soundlatch->set_separate_acknowledge(true);
 
 	/* video hardware */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", disco)
-
-	MCFG_PALETTE_MODIFY("palette")
-	MCFG_PALETTE_ENTRIES(32)
+	m_gfxdecode->set_info(gfx_disco);
+	m_palette->set_entries(32);
 
 	MCFG_VIDEO_START_OVERRIDE(btime_state,disco)
 
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(btime_state, screen_update_disco)
-MACHINE_CONFIG_END
+	m_screen->set_screen_update(FUNC(btime_state::screen_update_disco));
+}
 
 
-static MACHINE_CONFIG_DERIVED( tisland, btime )
+void btime_state::protenn(machine_config &config)
+{
+	disco(config);
+
+	m_maincpu->set_addrmap(AS_PROGRAM, &btime_state::protenn_map);
+}
+
+
+void btime_state::tisland(machine_config &config)
+{
+	btime(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(tisland_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &btime_state::tisland_map);
 
 	/* video hardware */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", zoar)
-MACHINE_CONFIG_END
+	m_gfxdecode->set_info(gfx_zoar);
+}
 
 
 /***************************************************************************
@@ -1692,6 +1761,29 @@ ROM_START( lnc )
 	ROM_LOAD( "sb-4c",        0x0020, 0x0020, CRC(a29b4204) SHA1(7f15cae5c4aaa29638fb45029782dafd2b3d1484) )    /* RAS/CAS logic - not used */
 ROM_END
 
+
+// DE-0106C-0 with CPU-7 + GGM-02 DE-0087C-1
+ROM_START( protenn )
+	ROM_REGION( 0x10000, "maincpu", 0 ) // all 2732s
+	ROM_LOAD( "w5-t.1a",        0xa000, 0x1000, CRC(d75d708b) SHA1(6262b3e6e5ff94596606a184383833935aa7025f) )
+	ROM_LOAD( "w4-t.2a",        0xb000, 0x1000, CRC(9131ed87) SHA1(af2276a82e024bf00c6db02deb7f06ade89dd386) )
+	ROM_LOAD( "w3-t.4a",        0xc000, 0x1000, CRC(01dc0e71) SHA1(a359468fb9dab9cfadcf8ec22a4d7ce9341f4324) )
+	ROM_LOAD( "w2-t.6a",        0xd000, 0x1000, CRC(6253acec) SHA1(24aaac1cdea1c60f8ff05dff6c17ba3a0e732187) )
+	ROM_LOAD( "w1-t.8a",        0xe000, 0x1000, CRC(6faf561c) SHA1(7fd5430af4b3f255e2c01e9b092b960ebdca8d13) )
+	ROM_LOAD( "w0-t.9a",        0xf000, 0x1000, CRC(baa330ae) SHA1(b10c66d9a03b036d95926d0c0fe441bb7ca4015d) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )
+	ROM_LOAD( "w6-t.1b",      0xf000, 0x1000, CRC(a6bcc2d1) SHA1(383cd170417256467dfce94939d6afa66518c6d2) ) // 2732
+
+	ROM_REGION( 0x6000, "gfx1", ROMREGION_ERASE00 )
+	// dynamically allocated
+
+	ROM_REGION( 0x0040, "proms", 0 ) // both 82S123s
+	ROM_LOAD( "8.8a",    0x0000, 0x0020, CRC(6a0006ac) SHA1(72265bc472fb7610af190130560ef507244ce41c) )   // palette
+	ROM_LOAD( "7.10j",   0x0020, 0x0020, CRC(27b004e3) SHA1(4b9960b99130281a3b07f44816001e5eabf7a6fc) )   // RAS/CAS logic - not used
+ROM_END
+
+
 /*This one doesn't have the (c) deco and the "pro" word at the title screen so I'm assuming it's a bootleg.*/
 ROM_START( protennb )
 	ROM_REGION( 0x10000, "maincpu", 0 )
@@ -1757,6 +1849,29 @@ ROM_START( mmonkey )
 	ROM_REGION( 0x0040, "proms", 0 )
 	ROM_LOAD( "mmi6331.m5",   0x0000, 0x0020, CRC(55e28b32) SHA1(b73f85224738252dc8dbb38a54250dcfe1fc3ae3) )    /* palette */
 	ROM_LOAD( "sb-4c",        0x0020, 0x0020, CRC(a29b4204) SHA1(7f15cae5c4aaa29638fb45029782dafd2b3d1484) )    /* RAS/CAS logic - not used */
+ROM_END
+
+ROM_START( mmonkeyj )
+	ROM_REGION( 0x10000, "maincpu", 0 ) // all 2732
+	ROM_LOAD( "b00.e4",   0xc000, 0x1000, CRC(8d31bf6a) SHA1(77b44d8e2b4db148727e7bfc5162c7e9e9cfc662) )
+	ROM_LOAD( "b10.d4",   0xd000, 0x1000, CRC(e54f584a) SHA1(a03fef09f6a0bb6802b33b28c45548efb85cda5c) )
+	ROM_LOAD( "b20.b4",   0xe000, 0x1000, CRC(9f606767) SHA1(afd248e5bc05e3ee4b31545efe5d66a032cea275) )
+	ROM_LOAD( "b30.a4",   0xf000, 0x1000, CRC(a4e85439) SHA1(0455a520d6dbd5efa0598f80e48b88574135922a) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )
+	ROM_LOAD( "b40.h1",   0xe000, 0x1000, CRC(5bcb2e81) SHA1(60fb8fd83c83b278e3aaf96f0b6dbefbc1eef0f7) ) // 2732
+
+	ROM_REGION( 0x6000, "gfx1", 0 ) // all 2732
+	ROM_LOAD( "b50.l11",  0x0000, 0x1000, CRC(b6aa8566) SHA1(bc90d4cfa9a221477d1989fea532621ce3e76439) )
+	ROM_LOAD( "b60.m11",  0x1000, 0x1000, CRC(6cc4d0c4) SHA1(f43450e97dd0c6d0a269c06e4c4253d0814590e9) )
+	ROM_LOAD( "b70.l13",  0x2000, 0x1000, CRC(2a343b7e) SHA1(1dba32a83db933096b9a9fbcfd8e0290aba76483) )
+	ROM_LOAD( "b80.m13",  0x3000, 0x1000, CRC(0230b50d) SHA1(d62b5d1be35c8bf29483fb616cd7e3949a422e76) )
+	ROM_LOAD( "b90.l14",  0x4000, 0x1000, CRC(922bb3e1) SHA1(72d2017e80bea7700a3a61a06882839ecffcabe8) )
+	ROM_LOAD( "ba0.m14",  0x5000, 0x1000, CRC(f943e28c) SHA1(6ff536a21f34cbb958f6d0f84791102938966ff3) )
+
+	ROM_REGION( 0x0040, "proms", 0 )
+	ROM_LOAD( "bc0.m5",       0x0000, 0x0020, CRC(55e28b32) SHA1(b73f85224738252dc8dbb38a54250dcfe1fc3ae3) )    /* 82S123, palette */
+	ROM_LOAD( "m3-7603-5.c4", 0x0020, 0x0020, BAD_DUMP CRC(a29b4204) SHA1(7f15cae5c4aaa29638fb45029782dafd2b3d1484) )    /* not dumped for this set - RAS/CAS logic - not used */
 ROM_END
 
 ROM_START( brubber )
@@ -1988,97 +2103,105 @@ READ8_MEMBER(btime_state::wtennis_reset_hack_r)
 	return RAM[0xc15f];
 }
 
-DRIVER_INIT_MEMBER(btime_state,btime)
+void btime_state::init_btime()
 {
 	m_audio_nmi_enable_type = AUDIO_ENABLE_DIRECT;
 }
 
-DRIVER_INIT_MEMBER(btime_state,zoar)
+void btime_state::init_zoar()
 {
 	uint8_t *rom = memregion("maincpu")->base();
 
 	/* At location 0xD50A is what looks like an undocumented opcode. I tried
 	   implementing it given what opcode 0x23 should do, but it still didn't
-	   work in demo mode. So this could be another protection or a bad ROM read.
-	   I'm NOPing it out for now. */
+	   work in demo mode, this could be another protection.
+
+	   The ROM has been confirmed as good on multiple working PCBs, so this
+	   isn't a bitrot issue */
 	memset(&rom[0xd50a],0xea,8);
 
 	m_audio_nmi_enable_type = AUDIO_ENABLE_AY8910;
 }
 
-DRIVER_INIT_MEMBER(btime_state,tisland)
+void btime_state::init_tisland()
 {
 	uint8_t *rom = memregion("maincpu")->base();
 
 	/* At location 0xa2b6 there's a strange RLA followed by a BPL that reads from an
 	   unmapped area that causes the game to fail in several circumstances.On the Cassette
 	   version the RLA (33) is in reality a BIT (24),so I'm guessing that there's something
-	   wrong going on in the encryption scheme.*/
+	   wrong going on in the encryption scheme.
+
+	   There are other locations with similar problems. These ROMs have NOT yet been
+	   confirmed on multiple PCBs, so this could still be a bad dump.
+	   */
 	memset(&rom[0xa2b6],0x24,1);
 
 	m_audio_nmi_enable_type = AUDIO_ENABLE_DIRECT;
 }
 
-DRIVER_INIT_MEMBER(btime_state,lnc)
+void btime_state::init_lnc()
 {
 	m_audio_nmi_enable_type = AUDIO_ENABLE_AY8910;
 }
 
-DRIVER_INIT_MEMBER(btime_state,bnj)
+void btime_state::init_bnj()
 {
 	m_audio_nmi_enable_type = AUDIO_ENABLE_DIRECT;
 }
 
-DRIVER_INIT_MEMBER(btime_state,disco)
+void btime_state::init_disco()
 {
-	DRIVER_INIT_CALL(btime);
+	init_btime();
 	m_audio_nmi_enable_type = AUDIO_ENABLE_AY8910;
 }
 
-DRIVER_INIT_MEMBER(btime_state,cookrace)
+void btime_state::init_cookrace()
 {
 	m_audiocpu->space(AS_PROGRAM).install_read_bank(0x0200, 0x0fff, "bank10");
 	membank("bank10")->set_base(memregion("audiocpu")->base() + 0xe200);
 	m_audio_nmi_enable_type = AUDIO_ENABLE_DIRECT;
 }
 
-DRIVER_INIT_MEMBER(btime_state,protennb)
+void btime_state::init_protennb()
 {
-	DRIVER_INIT_CALL(btime);
+	init_btime();
 	m_audio_nmi_enable_type = AUDIO_ENABLE_AY8910;
 }
 
-DRIVER_INIT_MEMBER(btime_state,wtennis)
+void btime_state::init_wtennis()
 {
-	m_maincpu->space(AS_PROGRAM).install_read_handler(0xc15f, 0xc15f, read8_delegate(FUNC(btime_state::wtennis_reset_hack_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xc15f, 0xc15f, read8_delegate(*this, FUNC(btime_state::wtennis_reset_hack_r)));
 
 	m_audiocpu->space(AS_PROGRAM).install_read_bank(0x0200, 0x0fff, "bank10");
 	membank("bank10")->set_base(memregion("audiocpu")->base() + 0xe200);
 	m_audio_nmi_enable_type = AUDIO_ENABLE_AY8910;
 }
 
-DRIVER_INIT_MEMBER(btime_state,sdtennis)
+void btime_state::init_sdtennis()
 {
 	m_audio_nmi_enable_type = AUDIO_ENABLE_DIRECT;
 }
 
 
-GAME( 1982, btime,    0,       btime,    btime, btime_state,    btime,    ROT270, "Data East Corporation", "Burger Time (Data East set 1)", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, btime2,   btime,   btime,    btime, btime_state,    btime,    ROT270, "Data East Corporation", "Burger Time (Data East set 2)", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, btime3,   btime,   btime,    btime, btime_state,    btime,    ROT270, "Data East USA Inc.",    "Burger Time (Data East USA)", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, btimem,   btime,   btime,    btime, btime_state,    btime,    ROT270, "Data East (Bally Midway license)", "Burger Time (Midway)", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, cookrace, btime,   cookrace, cookrace, btime_state, cookrace, ROT270, "bootleg", "Cook Race", MACHINE_SUPPORTS_SAVE )
-GAME( 1981, tisland,  0,       tisland,  btime, btime_state,    tisland,  ROT270, "Data East Corporation", "Treasure Island", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
-GAME( 1981, lnc,      0,       lnc,      lnc, btime_state,      lnc,      ROT270, "Data East Corporation", "Lock'n'Chase", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, protennb, 0,       disco,    disco, btime_state,    protennb, ROT270, "bootleg", "Tennis (bootleg of Pro Tennis)", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, wtennis,  0,       wtennis,  wtennis, btime_state,  wtennis,  ROT270, "bootleg", "World Tennis", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, mmonkey,  0,       mmonkey,  mmonkey, btime_state,  lnc,      ROT270, "Technos Japan / Roller Tron", "Minky Monkey", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, brubber,  0,       bnj,      bnj, btime_state,      bnj,      ROT270, "Data East", "Burnin' Rubber", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, bnj,      brubber, bnj,      bnj, btime_state,      bnj,      ROT270, "Data East USA", "Bump 'n' Jump", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, bnjm,     brubber, bnj,      bnj, btime_state,      bnj,      ROT270, "Data East USA (Bally Midway license)", "Bump 'n' Jump (Midway)", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, caractn,  brubber, bnj,      bnj, btime_state,      bnj,      ROT270, "bootleg", "Car Action (set 1)", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, caractn2, brubber, bnj,      caractn2, btime_state, bnj,      ROT270, "bootleg", "Car Action (set 2)", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, zoar,     0,       zoar,     zoar, btime_state,     zoar,     ROT270, "Data East USA", "Zoar", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, disco,    0,       disco,    disco, btime_state,    disco,    ROT270, "Data East", "Disco No.1", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, discof,   disco,   disco,    disco, btime_state,    disco,    ROT270, "Data East", "Disco No.1 (Rev.F)", MACHINE_SUPPORTS_SAVE )
-GAME( 1983, sdtennis, 0,       sdtennis, sdtennis, btime_state, sdtennis, ROT270, "Data East Corporation", "Super Doubles Tennis", MACHINE_SUPPORTS_SAVE )
+GAME( 1982, btime,    0,       btime,    btime,    btime_state, init_btime,    ROT270, "Data East Corporation",                "Burger Time (Data East set 1)",  MACHINE_SUPPORTS_SAVE )
+GAME( 1982, btime2,   btime,   btime,    btime,    btime_state, init_btime,    ROT270, "Data East Corporation",                "Burger Time (Data East set 2)",  MACHINE_SUPPORTS_SAVE )
+GAME( 1982, btime3,   btime,   btime,    btime3,   btime_state, init_btime,    ROT270, "Data East USA Inc.",                   "Burger Time (Data East USA)",    MACHINE_SUPPORTS_SAVE )
+GAME( 1982, btimem,   btime,   btime,    btime3,   btime_state, init_btime,    ROT270, "Data East (Bally Midway license)",     "Burger Time (Midway)",           MACHINE_SUPPORTS_SAVE )
+GAME( 1982, cookrace, btime,   cookrace, cookrace, btime_state, init_cookrace, ROT270, "bootleg",                              "Cook Race",                      MACHINE_SUPPORTS_SAVE )
+GAME( 1981, tisland,  0,       tisland,  btime,    btime_state, init_tisland,  ROT270, "Data East Corporation",                "Treasure Island",                MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+GAME( 1981, lnc,      0,       lnc,      lnc,      btime_state, init_lnc,      ROT270, "Data East Corporation",                "Lock'n'Chase",                   MACHINE_SUPPORTS_SAVE )
+GAME( 1982, protenn,  0,       protenn,  protenn,  btime_state, init_protennb, ROT270, "Data East Corporation",                "Pro Tennis (Japan)",             MACHINE_SUPPORTS_SAVE )
+GAME( 1982, protennb, protenn, protenn,  protenn,  btime_state, init_protennb, ROT270, "bootleg",                              "Tennis (bootleg of Pro Tennis)", MACHINE_SUPPORTS_SAVE )
+GAME( 1982, wtennis,  0,       wtennis,  wtennis,  btime_state, init_wtennis,  ROT270, "bootleg",                              "World Tennis",                   MACHINE_SUPPORTS_SAVE )
+GAME( 1982, mmonkey,  0,       mmonkey,  mmonkey,  btime_state, init_lnc,      ROT270, "Technos Japan / Roller Tron",          "Minky Monkey",                   MACHINE_SUPPORTS_SAVE )
+GAME( 1982, mmonkeyj, mmonkey, mmonkey,  mmonkey,  btime_state, init_lnc,      ROT270, "Technos Japan / Roller Tron",          "Minky Monkey (Japan)",           MACHINE_SUPPORTS_SAVE )
+GAME( 1982, brubber,  0,       bnj,      brubber,  btime_state, init_bnj,      ROT270, "Data East",                            "Burnin' Rubber",                 MACHINE_SUPPORTS_SAVE )
+GAME( 1982, bnj,      brubber, bnj,      bnj,      btime_state, init_bnj,      ROT270, "Data East USA",                        "Bump 'n' Jump",                  MACHINE_SUPPORTS_SAVE )
+GAME( 1982, bnjm,     brubber, bnj,      bnj,      btime_state, init_bnj,      ROT270, "Data East USA (Bally Midway license)", "Bump 'n' Jump (Midway)",         MACHINE_SUPPORTS_SAVE )
+GAME( 1982, caractn,  brubber, bnj,      brubber,  btime_state, init_bnj,      ROT270, "bootleg",                              "Car Action (set 1)",             MACHINE_SUPPORTS_SAVE )
+GAME( 1982, caractn2, brubber, bnj,      caractn2, btime_state, init_bnj,      ROT270, "bootleg",                              "Car Action (set 2)",             MACHINE_SUPPORTS_SAVE )
+GAME( 1982, zoar,     0,       zoar,     zoar,     btime_state, init_zoar,     ROT270, "Data East USA",                        "Zoar",                           MACHINE_SUPPORTS_SAVE )
+GAME( 1982, disco,    0,       disco,    disco,    btime_state, init_disco,    ROT270, "Data East",                            "Disco No.1",                     MACHINE_SUPPORTS_SAVE )
+GAME( 1982, discof,   disco,   disco,    disco,    btime_state, init_disco,    ROT270, "Data East",                            "Disco No.1 (Rev.F)",             MACHINE_SUPPORTS_SAVE )
+GAME( 1983, sdtennis, 0,       sdtennis, sdtennis, btime_state, init_sdtennis, ROT270, "Data East Corporation",                "Super Doubles Tennis",           MACHINE_SUPPORTS_SAVE )

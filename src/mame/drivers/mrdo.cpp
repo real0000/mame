@@ -30,38 +30,44 @@ There's a chance that certain bootlegs might have the different 8/20 MHz XTALS.
 #include "speaker.h"
 
 
-#define MAIN_CLOCK      XTAL_8_2MHz
-#define VIDEO_CLOCK     XTAL_19_6MHz
+namespace {
+
+constexpr XTAL MAIN_CLOCK  =  8.2_MHz_XTAL;
+constexpr XTAL VIDEO_CLOCK = 19.6_MHz_XTAL;
+
+} // anonymous namespace
 
 
 
-/* this looks like some kind of protection. The game doesn't clear the screen */
+/* PAL16R6CN used for protection. The game doesn't clear the screen */
 /* if a read from this address doesn't return the value it expects. */
 READ8_MEMBER(mrdo_state::mrdo_SECRE_r)
 {
 	uint8_t *RAM = memregion("maincpu")->base();
-	return RAM[space.device().state().state_int(Z80_HL)];
+
+	return RAM[m_maincpu->state_int(Z80_HL)];
 }
 
 
 
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, mrdo_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x87ff) AM_RAM_WRITE(mrdo_bgvideoram_w) AM_SHARE("bgvideoram")
-	AM_RANGE(0x8800, 0x8fff) AM_RAM_WRITE(mrdo_fgvideoram_w) AM_SHARE("fgvideoram")
-	AM_RANGE(0x9000, 0x90ff) AM_WRITEONLY AM_SHARE("spriteram")
-	AM_RANGE(0x9800, 0x9800) AM_WRITE(mrdo_flipscreen_w)    /* screen flip + playfield priority */
-	AM_RANGE(0x9801, 0x9801) AM_DEVWRITE("u8106_1", u8106_device, write)
-	AM_RANGE(0x9802, 0x9802) AM_DEVWRITE("u8106_2", u8106_device, write)
-	AM_RANGE(0x9803, 0x9803) AM_READ(mrdo_SECRE_r)
-	AM_RANGE(0xa000, 0xa000) AM_READ_PORT("P1")
-	AM_RANGE(0xa001, 0xa001) AM_READ_PORT("P2")
-	AM_RANGE(0xa002, 0xa002) AM_READ_PORT("DSW1")
-	AM_RANGE(0xa003, 0xa003) AM_READ_PORT("DSW2")
-	AM_RANGE(0xe000, 0xefff) AM_RAM
-	AM_RANGE(0xf000, 0xf7ff) AM_WRITE(mrdo_scrollx_w)
-	AM_RANGE(0xf800, 0xffff) AM_WRITE(mrdo_scrolly_w)
-ADDRESS_MAP_END
+void mrdo_state::main_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0x87ff).ram().w(FUNC(mrdo_state::mrdo_bgvideoram_w)).share("bgvideoram");
+	map(0x8800, 0x8fff).ram().w(FUNC(mrdo_state::mrdo_fgvideoram_w)).share("fgvideoram");
+	map(0x9000, 0x90ff).writeonly().share("spriteram");
+	map(0x9800, 0x9800).w(FUNC(mrdo_state::mrdo_flipscreen_w));    /* screen flip + playfield priority */
+	map(0x9801, 0x9801).w("u8106_1", FUNC(u8106_device::write));
+	map(0x9802, 0x9802).w("u8106_2", FUNC(u8106_device::write));
+	map(0x9803, 0x9803).r(FUNC(mrdo_state::mrdo_SECRE_r));
+	map(0xa000, 0xa000).portr("P1");
+	map(0xa001, 0xa001).portr("P2");
+	map(0xa002, 0xa002).portr("DSW1");
+	map(0xa003, 0xa003).portr("DSW2");
+	map(0xe000, 0xefff).ram();
+	map(0xf000, 0xf7ff).w(FUNC(mrdo_state::mrdo_scrollx_w));
+	map(0xf800, 0xffff).w(FUNC(mrdo_state::mrdo_scrolly_w));
+}
 
 
 static INPUT_PORTS_START( mrdo )
@@ -162,40 +168,42 @@ static const gfx_layout spritelayout =
 	64*8
 };
 
-static GFXDECODE_START( mrdo )
+static GFXDECODE_START( gfx_mrdo )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout,      0, 64 )    /* colors 0-255 directly mapped */
 	GFXDECODE_ENTRY( "gfx2", 0, charlayout,      0, 64 )
 	GFXDECODE_ENTRY( "gfx3", 0, spritelayout, 4*64, 16 )
 GFXDECODE_END
 
 
-static MACHINE_CONFIG_START( mrdo, mrdo_state )
-
+void mrdo_state::mrdo(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, MAIN_CLOCK/2)  /* Verified */
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", mrdo_state,  irq0_line_hold)
+	Z80(config, m_maincpu, MAIN_CLOCK/2);  /* Verified */
+	m_maincpu->set_addrmap(AS_PROGRAM, &mrdo_state::main_map);
+	m_maincpu->set_vblank_int("screen", FUNC(mrdo_state::irq0_line_hold));
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_RAW_PARAMS(VIDEO_CLOCK/4, 312, 8, 248, 262, 32, 224)
-	MCFG_SCREEN_UPDATE_DRIVER(mrdo_state, screen_update_mrdo)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_raw(VIDEO_CLOCK/4, 312, 8, 248, 262, 32, 224);
+	screen.set_screen_update(FUNC(mrdo_state::screen_update_mrdo));
+	screen.set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mrdo)
-	MCFG_PALETTE_ADD("palette", 64*4+16*4)
-	MCFG_PALETTE_INDIRECT_ENTRIES(256)
-	MCFG_PALETTE_INIT_OWNER(mrdo_state, mrdo)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_mrdo);
+	PALETTE(config, m_palette, FUNC(mrdo_state::mrdo_palette), 64*4 + 16*4, 256);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("u8106_1", U8106, MAIN_CLOCK/2)  /* sn76489-equivalent?, Verified */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	U8106(config, "u8106_1", MAIN_CLOCK/2).add_route(ALL_OUTPUTS, "mono", 0.50);  /* sn76489-equivalent?, Verified */
 
-	MCFG_SOUND_ADD("u8106_2", U8106, MAIN_CLOCK/2)  /* sn76489-equivalent?, Verified */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-MACHINE_CONFIG_END
+	U8106(config, "u8106_2", MAIN_CLOCK/2).add_route(ALL_OUTPUTS, "mono", 0.50);  /* sn76489-equivalent?, Verified */
+}
+
+void mrdo_state::mrlo(machine_config &config)
+{
+	mrdo(config);
+	//config.device_remove("pal16r6");
+}
 
 
 
@@ -229,6 +237,9 @@ ROM_START( mrdo )
 	ROM_LOAD( "t02--3.bin",   0x0020, 0x0020, CRC(ae263dc0) SHA1(7072c100b9d692f5bb12b0c9e304425f534481e2) )    /* palette (low bits) */
 	ROM_LOAD( "f10--1.bin",   0x0040, 0x0020, CRC(16ee4ca2) SHA1(fcba4d103708b9711452009cd29c4f88d2f64cd3) )    /* sprite color lookup table */
 	ROM_LOAD( "j10--4.bin",   0x0060, 0x0020, CRC(ff7fe284) SHA1(3ac8e30011c1fcba0ee8f4dc932f82296c3ba143) )    /* timing (not used) */
+
+	ROM_REGION( 0x0200, "pal16r6", 0 )
+	ROM_LOAD( "j2-u001.bin",  0x0000, 0x0117, CRC(badf5876) SHA1(b301cfc7f8e83408fdcb742f552a0414af6aa16e) ) // PAL16R6 converted to GAL16V8
 ROM_END
 
 ROM_START( mrdot )
@@ -255,6 +266,9 @@ ROM_START( mrdot )
 	ROM_LOAD( "t02--3.bin",   0x0020, 0x0020, CRC(ae263dc0) SHA1(7072c100b9d692f5bb12b0c9e304425f534481e2) )    /* palette (low bits) */
 	ROM_LOAD( "f10--1.bin",   0x0040, 0x0020, CRC(16ee4ca2) SHA1(fcba4d103708b9711452009cd29c4f88d2f64cd3) )    /* sprite color lookup table */
 	ROM_LOAD( "j10--4.bin",   0x0060, 0x0020, CRC(ff7fe284) SHA1(3ac8e30011c1fcba0ee8f4dc932f82296c3ba143) )    /* timing (not used) */
+
+	ROM_REGION( 0x0200, "pal16r6", 0 )
+	ROM_LOAD( "j2-u001.bin",  0x0000, 0x0117, CRC(badf5876) SHA1(b301cfc7f8e83408fdcb742f552a0414af6aa16e) ) // PAL16R6 converted to GAL16V8
 ROM_END
 
 ROM_START( mrdofix )
@@ -281,6 +295,9 @@ ROM_START( mrdofix )
 	ROM_LOAD( "t02--3.bin",   0x0020, 0x0020, CRC(ae263dc0) SHA1(7072c100b9d692f5bb12b0c9e304425f534481e2) )    /* palette (low bits) */
 	ROM_LOAD( "f10--1.bin",   0x0040, 0x0020, CRC(16ee4ca2) SHA1(fcba4d103708b9711452009cd29c4f88d2f64cd3) )    /* sprite color lookup table */
 	ROM_LOAD( "j10--4.bin",   0x0060, 0x0020, CRC(ff7fe284) SHA1(3ac8e30011c1fcba0ee8f4dc932f82296c3ba143) )    /* timing (not used) */
+
+	ROM_REGION( 0x0200, "pal16r6", 0 )
+	ROM_LOAD( "j2-u001.bin",  0x0000, 0x0117, CRC(badf5876) SHA1(b301cfc7f8e83408fdcb742f552a0414af6aa16e) ) // PAL16R6 converted to GAL16V8
 ROM_END
 
 ROM_START( mrlo )
@@ -333,6 +350,9 @@ ROM_START( mrdu )
 	ROM_LOAD( "t02--3.bin",   0x0020, 0x0020, CRC(ae263dc0) SHA1(7072c100b9d692f5bb12b0c9e304425f534481e2) )    /* palette (low bits) */
 	ROM_LOAD( "f10--1.bin",   0x0040, 0x0020, CRC(16ee4ca2) SHA1(fcba4d103708b9711452009cd29c4f88d2f64cd3) )    /* sprite color lookup table */
 	ROM_LOAD( "j10--4.bin",   0x0060, 0x0020, CRC(ff7fe284) SHA1(3ac8e30011c1fcba0ee8f4dc932f82296c3ba143) )    /* timing (not used) */
+
+	ROM_REGION( 0x0200, "pal16r6", 0 )
+	ROM_LOAD( "j2-u001.bin",  0x0000, 0x0117, CRC(badf5876) SHA1(b301cfc7f8e83408fdcb742f552a0414af6aa16e) )
 ROM_END
 
 ROM_START( mrdoy )
@@ -359,6 +379,41 @@ ROM_START( mrdoy )
 	ROM_LOAD( "t02--3.bin",   0x0020, 0x0020, CRC(ae263dc0) SHA1(7072c100b9d692f5bb12b0c9e304425f534481e2) )    /* palette (low bits) */
 	ROM_LOAD( "f10--1.bin",   0x0040, 0x0020, CRC(16ee4ca2) SHA1(fcba4d103708b9711452009cd29c4f88d2f64cd3) )    /* sprite color lookup table */
 	ROM_LOAD( "j10--4.bin",   0x0060, 0x0020, CRC(ff7fe284) SHA1(3ac8e30011c1fcba0ee8f4dc932f82296c3ba143) )    /* timing (not used) */
+
+	ROM_REGION( 0x0200, "pal16r6", 0 )
+	ROM_LOAD( "j2-u001.bin",  0x0000, 0x0117, CRC(badf5876) SHA1(b301cfc7f8e83408fdcb742f552a0414af6aa16e) ) // PAL16R6 converted to GAL16V8
+ROM_END
+
+/* The white garbled graphics on the title screen should be the Fabremar logo (32px height), but it's drawn as
+   16px height, like the original Taito logo. Since the F4 ROM had a different label than the others and it matches
+   with 'mrdot', someone probably replaced the original F4 Fabremar ROM with the one from Taito. */
+ROM_START( mrdofabr )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "md_fabre.a4", 0x0000, 0x2000, CRC(62593aed) SHA1(ac1cc4fa4ee3799e84938333a2a698d1ec0b527b) )
+	ROM_LOAD( "md_fabre.b4", 0x2000, 0x2000, CRC(710058d8) SHA1(168cc179f2266bbf9437445bef9ff7d3358a8e6b) )
+	ROM_LOAD( "md_fabre.c4", 0x4000, 0x2000, CRC(467d12d8) SHA1(7bb85e6a780de1c0c224229ee571cab39098f78d) )
+	ROM_LOAD( "md_fabre.f4", 0x6000, 0x2000, BAD_DUMP CRC(fce9afeb) SHA1(26236a42c1c620975d4480c4315d0c6f112429b6) )
+
+	ROM_REGION( 0x2000, "gfx1", 0 )
+	ROM_LOAD( "md_fabre.t8", 0x0000, 0x1000, CRC(f2dff901) SHA1(ddc3b38bfd8b822d7803ee51e2c13443b25e39ee) )
+	ROM_LOAD( "md_fabre.u8", 0x1000, 0x1000, CRC(f3e443bd) SHA1(10e134962b0c7500f57d4058cbd0475f5c5fa6ab) )
+
+	ROM_REGION( 0x2000, "gfx2", 0 )
+	ROM_LOAD( "md_fabre.r8", 0x0000, 0x1000, CRC(dbdc9ffa) SHA1(93f29fc106283eecbba3fd69cf3c4658aa38ab9f) )
+	ROM_LOAD( "md_fabre.n8", 0x1000, 0x1000, CRC(4b9973db) SHA1(8766c51a345a5e63446e65614c6f665ab5fbe0d7) )
+
+	ROM_REGION( 0x2000, "gfx3", 0 )
+	ROM_LOAD( "md_fabre.h5", 0x0000, 0x1000, CRC(e1218cc5) SHA1(d946613a1cf1c97f7533a4f8c2d0078d1b7daaa8) )
+	ROM_LOAD( "md_fabre.k5", 0x1000, 0x1000, CRC(b1f68b04) SHA1(25709cd81c03df51f27cd730fecf86a1daa9e27e) )
+
+	ROM_REGION( 0x0080, "proms", 0 )
+	ROM_LOAD( "82s123.u2",   0x0000, 0x0020, CRC(238a65d7) SHA1(a5b20184a1989db23544296331462ec4d7be7516) )    /* palette (high bits) */
+	ROM_LOAD( "82s123.t2",   0x0020, 0x0020, CRC(ae263dc0) SHA1(7072c100b9d692f5bb12b0c9e304425f534481e2) )    /* palette (low bits) */
+	ROM_LOAD( "82s123.f10n", 0x0040, 0x0020, CRC(16ee4ca2) SHA1(fcba4d103708b9711452009cd29c4f88d2f64cd3) )    /* sprite color lookup table */
+	ROM_LOAD( "82s123.j10",  0x0060, 0x0020, CRC(ff7fe284) SHA1(3ac8e30011c1fcba0ee8f4dc932f82296c3ba143) )    /* timing (not used) */
+
+	ROM_REGION( 0x0200, "pal16r6", 0 )
+	ROM_LOAD( "pal16r6.j2",  0x0000, 0x0117, BAD_DUMP CRC(badf5876) SHA1(b301cfc7f8e83408fdcb742f552a0414af6aa16e) ) // From parent, protected on this set
 ROM_END
 
 ROM_START( yankeedo )
@@ -385,14 +440,17 @@ ROM_START( yankeedo )
 	ROM_LOAD( "t02--3.bin",   0x0020, 0x0020, CRC(ae263dc0) SHA1(7072c100b9d692f5bb12b0c9e304425f534481e2) )    /* palette (low bits) */
 	ROM_LOAD( "f10--1.bin",   0x0040, 0x0020, CRC(16ee4ca2) SHA1(fcba4d103708b9711452009cd29c4f88d2f64cd3) )    /* sprite color lookup table */
 	ROM_LOAD( "j10--4.bin",   0x0060, 0x0020, CRC(ff7fe284) SHA1(3ac8e30011c1fcba0ee8f4dc932f82296c3ba143) )    /* timing (not used) */
+
+	ROM_REGION( 0x0200, "pal16r6", 0 )
+	ROM_LOAD( "j2-u001.bin",  0x0000, 0x0117, CRC(badf5876) SHA1(b301cfc7f8e83408fdcb742f552a0414af6aa16e) ) // PAL16R6 converted to GAL16V8
 ROM_END
 
 
-
-GAME( 1982, mrdo,     0,    mrdo, mrdo, driver_device, 0, ROT270, "Universal", "Mr. Do!", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, mrdoy,    mrdo, mrdo, mrdo, driver_device, 0, ROT270, "Universal", "Mr. Do! (prototype)" , MACHINE_SUPPORTS_SAVE ) /* aka "Yukidaruma" */
-GAME( 1982, mrdot,    mrdo, mrdo, mrdo, driver_device, 0, ROT270, "Universal (Taito license)", "Mr. Do! (Taito)", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, mrdofix,  mrdo, mrdo, mrdo, driver_device, 0, ROT270, "Universal (Taito license)", "Mr. Do! (bugfixed)", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, mrlo,     mrdo, mrdo, mrdo, driver_device, 0, ROT270, "bootleg", "Mr. Lo!", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, mrdu,     mrdo, mrdo, mrdo, driver_device, 0, ROT270, "bootleg", "Mr. Du!", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, yankeedo, mrdo, mrdo, mrdo, driver_device, 0, ROT270, "hack", "Yankee DO!", MACHINE_SUPPORTS_SAVE )
+GAME( 1982, mrdo,     0,    mrdo, mrdo, mrdo_state, empty_init, ROT270, "Universal",                 "Mr. Do!",                    MACHINE_SUPPORTS_SAVE )
+GAME( 1982, mrdoy,    mrdo, mrdo, mrdo, mrdo_state, empty_init, ROT270, "Universal",                 "Mr. Do! (prototype)",        MACHINE_SUPPORTS_SAVE ) /* aka "Yukidaruma" */
+GAME( 1982, mrdot,    mrdo, mrdo, mrdo, mrdo_state, empty_init, ROT270, "Universal (Taito license)", "Mr. Do! (Taito)",            MACHINE_SUPPORTS_SAVE )
+GAME( 1982, mrdofix,  mrdo, mrdo, mrdo, mrdo_state, empty_init, ROT270, "Universal (Taito license)", "Mr. Do! (bugfixed)",         MACHINE_SUPPORTS_SAVE )
+GAME( 1982, mrlo,     mrdo, mrlo, mrdo, mrdo_state, empty_init, ROT270, "bootleg",                   "Mr. Lo!",                    MACHINE_SUPPORTS_SAVE )
+GAME( 1982, mrdu,     mrdo, mrdo, mrdo, mrdo_state, empty_init, ROT270, "bootleg",                   "Mr. Du!",                    MACHINE_SUPPORTS_SAVE )
+GAME( 1982, mrdofabr, mrdo, mrdo, mrdo, mrdo_state, empty_init, ROT270, "bootleg (Fabremar)",        "Mr. Do! (Fabremar bootleg)", MACHINE_SUPPORTS_SAVE )
+GAME( 1982, yankeedo, mrdo, mrdo, mrdo, mrdo_state, empty_init, ROT270, "hack",                      "Yankee DO!",                 MACHINE_SUPPORTS_SAVE )

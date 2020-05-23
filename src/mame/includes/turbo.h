@@ -5,12 +5,18 @@
     Sega Z80-3D system
 
 *************************************************************************/
+#ifndef MAME_INCLUDES_TURBO_H
+#define MAME_INCLUDES_TURBO_H
+
+#pragma once
 
 #include "cpu/z80/z80.h"
 #include "machine/i8255.h"
 #include "sound/discrete.h"
 #include "sound/samples.h"
+#include "emupal.h"
 #include "screen.h"
+#include "tilemap.h"
 
 /* sprites are scaled in the analog domain; to give a better */
 /* rendition of this, we scale in the X direction by this factor */
@@ -22,26 +28,41 @@ class turbo_state : public driver_device
 {
 public:
 	turbo_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu"),
-		m_subcpu(*this, "subcpu"),
-		m_i8255_0(*this, "i8255_0"),
-		m_i8255_1(*this, "i8255_1"),
-		m_i8255_2(*this, "i8255_2"),
-		m_i8255_3(*this, "i8255_3"),
-		m_spriteroms(*this, "sprites"),
-		m_proms(*this, "proms"),
-		m_roadroms(*this, "road"),
-		m_bgcolorrom(*this, "bgcolor"),
-		m_videoram(*this, "videoram"),
-		m_spriteram(*this, "spriteram"),
-		m_sprite_position(*this, "spritepos"),
-		m_decrypted_opcodes(*this, "decrypted_opcodes"),
-		m_samples(*this, "samples"),
-		m_gfxdecode(*this, "gfxdecode"),
-		m_screen(*this, "screen")
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_subcpu(*this, "subcpu")
+		, m_i8255_0(*this, "i8255_0")
+		, m_i8255_1(*this, "i8255_1")
+		, m_i8255_2(*this, "i8255_2")
+		, m_i8255_3(*this, "i8255_3")
+		, m_spriteroms(*this, "sprites")
+		, m_proms(*this, "proms")
+		, m_roadroms(*this, "road")
+		, m_bgcolorrom(*this, "bgcolor")
+		, m_videoram(*this, "videoram")
+		, m_spriteram(*this, "spriteram")
+		, m_sprite_position(*this, "spritepos")
+		, m_decrypted_opcodes(*this, "decrypted_opcodes")
+		, m_samples(*this, "samples")
+		, m_gfxdecode(*this, "gfxdecode")
+		, m_screen(*this, "screen")
+		, m_digits(*this, "digit%u", 0U)
+		, m_lamp(*this, "lamp")
 	{ }
 
+	void turbo(machine_config &config);
+	void buckrog(machine_config &config);
+	void buckroge(machine_config &config);
+	void buckrogu(machine_config &config);
+	void subroc3d(machine_config &config);
+	void turbo_samples(machine_config &config);
+	void subroc3d_samples(machine_config &config);
+	void buckrog_samples(machine_config &config);
+
+	void init_turbo_enc();
+	void init_turbo_noenc();
+
+private:
 	/* device/memory pointers */
 	required_device<z80_device> m_maincpu;
 	optional_device<z80_device> m_subcpu;
@@ -64,8 +85,11 @@ public:
 
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<screen_device> m_screen;
+	output_finder<32> m_digits;
+	output_finder<> m_lamp;
 
 	std::unique_ptr<uint8_t[]>     m_buckrog_bitmap_ram;
+	virtual void machine_start() override { m_digits.resolve(); m_lamp.resolve(); }
 
 	/* machine states */
 	uint8_t       m_i8279_scanlines;
@@ -125,56 +149,57 @@ public:
 		uint32_t  step[8];            /* stepping value */
 	};
 
-	DECLARE_WRITE8_MEMBER(scanlines_w);
-	DECLARE_WRITE8_MEMBER(digit_w);
-	DECLARE_READ8_MEMBER(turbo_collision_r);
-	DECLARE_WRITE8_MEMBER(turbo_collision_clear_w);
-	DECLARE_WRITE8_MEMBER(turbo_analog_reset_w);
-	DECLARE_WRITE8_MEMBER(turbo_coin_and_lamp_w);
-	DECLARE_READ8_MEMBER(buckrog_cpu2_command_r);
-	DECLARE_READ8_MEMBER(buckrog_port_2_r);
-	DECLARE_READ8_MEMBER(buckrog_port_3_r);
+	void scanlines_w(uint8_t data);
+	void digit_w(uint8_t data);
+	uint8_t turbo_collision_r();
+	void turbo_collision_clear_w(uint8_t data);
+	void turbo_analog_reset_w(uint8_t data);
+	DECLARE_WRITE_LINE_MEMBER(coin_meter_1_w);
+	DECLARE_WRITE_LINE_MEMBER(coin_meter_2_w);
+	DECLARE_WRITE_LINE_MEMBER(start_lamp_w);
+	uint8_t buckrog_cpu2_command_r();
+	uint8_t buckrog_port_2_r();
+	uint8_t buckrog_port_3_r();
 	DECLARE_WRITE8_MEMBER(turbo_videoram_w);
 	DECLARE_WRITE8_MEMBER(buckrog_bitmap_w);
-	DECLARE_WRITE8_MEMBER(turbo_ppi0a_w);
-	DECLARE_WRITE8_MEMBER(turbo_ppi0b_w);
-	DECLARE_WRITE8_MEMBER(turbo_ppi0c_w);
-	DECLARE_WRITE8_MEMBER(turbo_ppi1a_w);
-	DECLARE_WRITE8_MEMBER(turbo_ppi1b_w);
-	DECLARE_WRITE8_MEMBER(turbo_ppi1c_w);
-	DECLARE_WRITE8_MEMBER(turbo_ppi3c_w);
-	DECLARE_WRITE8_MEMBER(subroc3d_ppi0a_w);
-	DECLARE_WRITE8_MEMBER(subroc3d_ppi0c_w);
-	DECLARE_WRITE8_MEMBER(subroc3d_ppi0b_w);
-	DECLARE_WRITE8_MEMBER(buckrog_ppi0a_w);
-	DECLARE_WRITE8_MEMBER(buckrog_ppi0b_w);
-	DECLARE_WRITE8_MEMBER(buckrog_ppi0c_w);
-	DECLARE_WRITE8_MEMBER(buckrog_ppi1c_w);
-	DECLARE_READ8_MEMBER(turbo_analog_r);
+	void turbo_ppi0a_w(uint8_t data);
+	void turbo_ppi0b_w(uint8_t data);
+	void turbo_ppi0c_w(uint8_t data);
+	void turbo_ppi1a_w(uint8_t data);
+	void turbo_ppi1b_w(uint8_t data);
+	void turbo_ppi1c_w(uint8_t data);
+	void turbo_ppi3c_w(uint8_t data);
+	void subroc3d_ppi0a_w(uint8_t data);
+	void subroc3d_ppi0c_w(uint8_t data);
+	void subroc3d_ppi0b_w(uint8_t data);
+	void buckrog_ppi0a_w(uint8_t data);
+	void buckrog_ppi0b_w(uint8_t data);
+	void buckrog_ppi0c_w(uint8_t data);
+	void buckrog_ppi1c_w(uint8_t data);
+	uint8_t turbo_analog_r();
 	DECLARE_WRITE8_MEMBER(buckrog_i8255_0_w);
 	DECLARE_READ8_MEMBER(spriteram_r);
 	DECLARE_WRITE8_MEMBER(spriteram_w);
-	DECLARE_DRIVER_INIT(turbo_enc);
-	DECLARE_DRIVER_INIT(turbo_noenc);
+
 	TILE_GET_INFO_MEMBER(get_fg_tile_info);
 	DECLARE_VIDEO_START(turbo);
-	DECLARE_PALETTE_INIT(turbo);
-	DECLARE_PALETTE_INIT(subroc3d);
+	void turbo_palette(palette_device &palette) const;
+	void subroc3d_palette(palette_device &palette) const;
 	DECLARE_MACHINE_RESET(buckrog);
 	DECLARE_VIDEO_START(buckrog);
-	DECLARE_PALETTE_INIT(buckrog);
+	void buckrog_palette(palette_device &palette) const;
 	uint32_t screen_update_turbo(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_subroc3d(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_buckrog(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(delayed_i8255_w);
-	DECLARE_WRITE8_MEMBER(turbo_sound_a_w);
-	DECLARE_WRITE8_MEMBER(turbo_sound_b_w);
-	DECLARE_WRITE8_MEMBER(turbo_sound_c_w);
-	DECLARE_WRITE8_MEMBER(subroc3d_sound_a_w);
-	DECLARE_WRITE8_MEMBER(subroc3d_sound_b_w);
-	DECLARE_WRITE8_MEMBER(subroc3d_sound_c_w);
-	DECLARE_WRITE8_MEMBER(buckrog_sound_a_w);
-	DECLARE_WRITE8_MEMBER(buckrog_sound_b_w);
+	void turbo_sound_a_w(u8 data);
+	void turbo_sound_b_w(u8 data);
+	void turbo_sound_c_w(u8 data);
+	void subroc3d_sound_a_w(u8 data);
+	void subroc3d_sound_b_w(u8 data);
+	void subroc3d_sound_c_w(u8 data);
+	void buckrog_sound_a_w(u8 data);
+	void buckrog_sound_b_w(u8 data);
 	inline uint32_t sprite_xscale(uint8_t dacinput, double vr1, double vr2, double cext);
 	void turbo_prepare_sprites(uint8_t y, sprite_info *info);
 	uint32_t turbo_get_sprite_bits(uint8_t road, sprite_info *sprinfo);
@@ -186,10 +211,13 @@ public:
 	void turbo_update_samples();
 	inline void subroc3d_update_volume(int leftchan, uint8_t dis, uint8_t dir);
 	void buckrog_update_samples();
+
+	void buckrog_cpu2_map(address_map &map);
+	void buckrog_cpu2_portmap(address_map &map);
+	void buckrog_map(address_map &map);
+	void decrypted_opcodes_map(address_map &map);
+	void subroc3d_map(address_map &map);
+	void turbo_map(address_map &map);
 };
 
-
-/*----------- defined in audio/turbo.c -----------*/
-MACHINE_CONFIG_EXTERN( turbo_samples );
-MACHINE_CONFIG_EXTERN( subroc3d_samples );
-MACHINE_CONFIG_EXTERN( buckrog_samples );
+#endif // MAME_INCLUDES_TURBO_H

@@ -1,11 +1,14 @@
 // license:BSD-3-Clause
 // copyright-holders:R. Belmont, M. Burke
+#ifndef MAME_MACHINE_DEC_LK201_H
+#define MAME_MACHINE_DEC_LK201_H
+
 #pragma once
 
-#ifndef __LK201_H__
-#define __LK201_H__
-
 #include "sound/beep.h"
+
+#include "diserial.h"
+
 
 //**************************************************************************
 //  MACROS / CONSTANTS
@@ -30,12 +33,6 @@
 // TSR - Timer Status Register
 #define TSR_OCFL 0x40 // TSR (68HC05 output compare flag)
 
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_LK201_TX_HANDLER(_cb) \
-	devcb = &lk201_device::set_tx_handler(*device, DEVCB_##_cb);
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -49,22 +46,23 @@ public:
 	// construction/destruction
 	lk201_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_READ8_MEMBER(ddr_r);
-	DECLARE_WRITE8_MEMBER(ddr_w);
-	DECLARE_READ8_MEMBER(ports_r);
-	DECLARE_WRITE8_MEMBER(ports_w);
-	DECLARE_READ8_MEMBER(sci_r);
-	DECLARE_WRITE8_MEMBER(sci_w);
-	DECLARE_READ8_MEMBER(spi_r);
-	DECLARE_WRITE8_MEMBER(spi_w);
-	DECLARE_READ8_MEMBER(timer_r);
-	DECLARE_WRITE8_MEMBER(timer_w);
+	uint8_t ddr_r(offs_t offset);
+	void ddr_w(offs_t offset, uint8_t data);
+	uint8_t ports_r(offs_t offset);
+	void ports_w(offs_t offset, uint8_t data);
+	uint8_t sci_r(offs_t offset);
+	void sci_w(offs_t offset, uint8_t data);
+	uint8_t spi_r(offs_t offset);
+	void spi_w(offs_t offset, uint8_t data);
+	uint8_t timer_r(offs_t offset);
+	void timer_w(offs_t offset, uint8_t data);
 
-	template<class _Object> static devcb_base &set_tx_handler(device_t &device, _Object wr) { return downcast<lk201_device &>(device).m_tx_handler.set_callback(wr); }
+	auto tx_handler() { return m_tx_handler.bind(); }
 
+	void lk201_map(address_map &map);
 protected:
 	// device-level overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual const tiny_rom_entry *device_rom_region() const override;
 	virtual ioport_constructor device_input_ports() const override;
 	virtual void device_start() override;
@@ -130,7 +128,7 @@ private:
 	required_ioport m_kbd16;
 	required_ioport m_kbd17;
 
-	void send_port(address_space &space, uint8_t offset, uint8_t data);
+	void send_port(uint8_t offset, uint8_t data);
 	void update_interrupts();
 
 	int m_kbd_state;
@@ -139,6 +137,6 @@ private:
 };
 
 // device type definition
-extern const device_type LK201;
+DECLARE_DEVICE_TYPE(LK201, lk201_device)
 
-#endif
+#endif // MAME_MACHINE_DEC_LK201_H

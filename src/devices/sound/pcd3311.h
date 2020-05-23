@@ -17,10 +17,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_SOUND_PCD3311_H
+#define MAME_SOUND_PCD3311_H
 
-#ifndef __PCD3311__
-#define __PCD3311__
+#pragma once
 
 
 
@@ -29,19 +29,19 @@
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-// ======================> pcd3311_t
+// ======================> pcd3311_device
 
-class pcd3311_t :  public device_t,
+class pcd3311_device :  public device_t,
 				   public device_sound_interface
 {
 public:
 	// construction/destruction
-	pcd3311_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	pcd3311_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_WRITE8_MEMBER( write ) { m_data = data; }
-	DECLARE_WRITE_LINE_MEMBER( strobe_w ) { m_strobe = state; }
-	DECLARE_WRITE_LINE_MEMBER( mode_w ) { m_mode = state; }
-	DECLARE_WRITE_LINE_MEMBER( a0_w ) { m_a0 = state; }
+	void write(uint8_t data) { m_data = data; }
+	void strobe_w(int state) { m_strobe = state; }
+	void mode_w(int state) { m_mode = state; }
+	void a0_w(int state) { m_a0 = state; }
 
 protected:
 	// device-level overrides
@@ -59,8 +59,6 @@ private:
 
 
 // device type definition
-extern const device_type PCD3311;
+DECLARE_DEVICE_TYPE(PCD3311, pcd3311_device)
 
-
-
-#endif
+#endif // MAME_SOUND_PCD3311_H

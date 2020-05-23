@@ -54,30 +54,15 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_MACHINE_64H156_H
+#define MAME_MACHINE_64H156_H
 
-#ifndef __C64H156__
-#define __C64H156__
+#pragma once
 
 #include "imagedev/floppy.h"
 #include "formats/d64_dsk.h"
 #include "formats/g64_dsk.h"
 #include "formats/d71_dsk.h"
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_64H156_ATN_CALLBACK(_write) \
-	devcb = &c64h156_device::set_atn_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_64H156_SYNC_CALLBACK(_write) \
-	devcb = &c64h156_device::set_sync_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_64H156_BYTE_CALLBACK(_write) \
-	devcb = &c64h156_device::set_byte_wr_callback(*device, DEVCB_##_write);
 
 
 
@@ -93,12 +78,12 @@ public:
 	// construction/destruction
 	c64h156_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_atn_wr_callback(device_t &device, _Object object) { return downcast<c64h156_device &>(device).m_write_atn.set_callback(object); }
-	template<class _Object> static devcb_base &set_sync_wr_callback(device_t &device, _Object object) { return downcast<c64h156_device &>(device).m_write_sync.set_callback(object); }
-	template<class _Object> static devcb_base &set_byte_wr_callback(device_t &device, _Object object) { return downcast<c64h156_device &>(device).m_write_byte.set_callback(object); }
+	auto atn_callback() { return m_write_atn.bind(); }
+	auto sync_callback() { return m_write_sync.bind(); }
+	auto byte_callback() { return m_write_byte.bind(); }
 
-	DECLARE_READ8_MEMBER( yb_r );
-	DECLARE_WRITE8_MEMBER( yb_w );
+	uint8_t yb_r();
+	void yb_w(uint8_t data);
 
 	DECLARE_WRITE_LINE_MEMBER( test_w );
 	DECLARE_WRITE_LINE_MEMBER( accl_w );
@@ -196,10 +181,7 @@ private:
 };
 
 
-
 // device type definition
-extern const device_type C64H156;
+DECLARE_DEVICE_TYPE(C64H156, c64h156_device)
 
-
-
-#endif
+#endif // MAME_MACHINE_64H156_H

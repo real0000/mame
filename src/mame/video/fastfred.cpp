@@ -25,51 +25,49 @@
 
 ***************************************************************************/
 
-PALETTE_INIT_MEMBER(fastfred_state,fastfred)
+void fastfred_state::fastfred_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	static const int resistances[4] = { 1000, 470, 220, 100 };
-	double rweights[4], gweights[4], bweights[4];
-	int i;
+	uint8_t const *const color_prom = memregion("proms")->base();
+	static constexpr int resistances[4] = { 1000, 470, 220, 100 };
 
-	/* compute the color output resistor weights */
+	// compute the color output resistor weights
+	double rweights[4], gweights[4], bweights[4];
 	compute_resistor_weights(0, 255, -1.0,
 			4, resistances, rweights, 470, 0,
 			4, resistances, gweights, 470, 0,
 			4, resistances, bweights, 470, 0);
 
-	/* create a lookup table for the palette */
-	for (i = 0; i < 0x100; i++)
+	// create a lookup table for the palette
+	for (int i = 0; i < 0x100; i++)
 	{
 		int bit0, bit1, bit2, bit3;
-		int r, g, b;
 
-		/* red component */
-		bit0 = (color_prom[i + 0x000] >> 0) & 0x01;
-		bit1 = (color_prom[i + 0x000] >> 1) & 0x01;
-		bit2 = (color_prom[i + 0x000] >> 2) & 0x01;
-		bit3 = (color_prom[i + 0x000] >> 3) & 0x01;
-		r = combine_4_weights(rweights, bit0, bit1, bit2, bit3);
+		// red component
+		bit0 = BIT(color_prom[i | 0x000], 0);
+		bit1 = BIT(color_prom[i | 0x000], 1);
+		bit2 = BIT(color_prom[i | 0x000], 2);
+		bit3 = BIT(color_prom[i | 0x000], 3);
+		int const r = combine_weights(rweights, bit0, bit1, bit2, bit3);
 
-		/* green component */
-		bit0 = (color_prom[i + 0x100] >> 0) & 0x01;
-		bit1 = (color_prom[i + 0x100] >> 1) & 0x01;
-		bit2 = (color_prom[i + 0x100] >> 2) & 0x01;
-		bit3 = (color_prom[i + 0x100] >> 3) & 0x01;
-		g = combine_4_weights(gweights, bit0, bit1, bit2, bit3);
+		// green component
+		bit0 = BIT(color_prom[i | 0x100], 0);
+		bit1 = BIT(color_prom[i | 0x100], 1);
+		bit2 = BIT(color_prom[i | 0x100], 2);
+		bit3 = BIT(color_prom[i | 0x100], 3);
+		int const g = combine_weights(gweights, bit0, bit1, bit2, bit3);
 
-		/* blue component */
-		bit0 = (color_prom[i + 0x200] >> 0) & 0x01;
-		bit1 = (color_prom[i + 0x200] >> 1) & 0x01;
-		bit2 = (color_prom[i + 0x200] >> 2) & 0x01;
-		bit3 = (color_prom[i + 0x200] >> 3) & 0x01;
-		b = combine_4_weights(bweights, bit0, bit1, bit2, bit3);
+		// blue component
+		bit0 = BIT(color_prom[i | 0x200], 0);
+		bit1 = BIT(color_prom[i | 0x200], 1);
+		bit2 = BIT(color_prom[i | 0x200], 2);
+		bit3 = BIT(color_prom[i | 0x200], 3);
+		int const b = combine_weights(bweights, bit0, bit1, bit2, bit3);
 
 		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
-	/* characters and sprites use the same palette */
-	for (i = 0; i < 0x100; i++)
+	// characters and sprites use the same palette
+	for (int i = 0; i < 0x100; i++)
 		palette.set_pen_indirect(i, i);
 }
 
@@ -86,7 +84,7 @@ TILE_GET_INFO_MEMBER(fastfred_state::get_tile_info)
 	uint16_t code = m_charbank | m_videoram[tile_index];
 	uint8_t color = m_colorbank | (m_attributesram[2 * x + 1] & 0x07);
 
-	SET_TILE_INFO_MEMBER(0, code, color, 0);
+	tileinfo.set(0, code, color, 0);
 }
 
 
@@ -99,7 +97,7 @@ TILE_GET_INFO_MEMBER(fastfred_state::get_tile_info)
 
 VIDEO_START_MEMBER(fastfred_state,fastfred)
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(fastfred_state::get_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(fastfred_state::get_tile_info)), TILEMAP_SCAN_ROWS,8,8,32,32);
 
 	m_bg_tilemap->set_transparent_pen(0);
 	m_bg_tilemap->set_scroll_cols(32);
@@ -142,9 +140,9 @@ WRITE8_MEMBER(fastfred_state::fastfred_attributes_w )
 }
 
 
-WRITE8_MEMBER(fastfred_state::fastfred_charbank1_w )
+WRITE_LINE_MEMBER(fastfred_state::charbank1_w)
 {
-	uint16_t new_data = (m_charbank & 0x0200) | ((data & 0x01) << 8);
+	uint16_t new_data = (m_charbank & 0x0200) | (state << 8);
 
 	if (new_data != m_charbank)
 	{
@@ -154,9 +152,9 @@ WRITE8_MEMBER(fastfred_state::fastfred_charbank1_w )
 	}
 }
 
-WRITE8_MEMBER(fastfred_state::fastfred_charbank2_w )
+WRITE_LINE_MEMBER(fastfred_state::charbank2_w)
 {
-	uint16_t new_data = (m_charbank & 0x0100) | ((data & 0x01) << 9);
+	uint16_t new_data = (m_charbank & 0x0100) | (state << 9);
 
 	if (new_data != m_charbank)
 	{
@@ -167,9 +165,9 @@ WRITE8_MEMBER(fastfred_state::fastfred_charbank2_w )
 }
 
 
-WRITE8_MEMBER(fastfred_state::fastfred_colorbank1_w )
+WRITE_LINE_MEMBER(fastfred_state::colorbank1_w)
 {
-	uint8_t new_data = (m_colorbank & 0x10) | ((data & 0x01) << 3);
+	uint8_t new_data = (m_colorbank & 0x10) | (state << 3);
 
 	if (new_data != m_colorbank)
 	{
@@ -179,9 +177,9 @@ WRITE8_MEMBER(fastfred_state::fastfred_colorbank1_w )
 	}
 }
 
-WRITE8_MEMBER(fastfred_state::fastfred_colorbank2_w )
+WRITE_LINE_MEMBER(fastfred_state::colorbank2_w)
 {
-	uint8_t new_data = (m_colorbank & 0x08) | ((data & 0x01) << 4);
+	uint8_t new_data = (m_colorbank & 0x08) | (state << 4);
 
 	if (new_data != m_colorbank)
 	{
@@ -193,24 +191,18 @@ WRITE8_MEMBER(fastfred_state::fastfred_colorbank2_w )
 
 
 
-WRITE8_MEMBER(fastfred_state::fastfred_flip_screen_x_w )
+WRITE_LINE_MEMBER(fastfred_state::flip_screen_x_w)
 {
-	if (flip_screen_x() != (data & 0x01))
-	{
-		flip_screen_x_set(data & 0x01);
+	flip_screen_x_set(state);
 
-		m_bg_tilemap->set_flip((flip_screen_x() ? TILEMAP_FLIPX : 0) | (flip_screen_y() ? TILEMAP_FLIPY : 0));
-	}
+	m_bg_tilemap->set_flip((flip_screen_x() ? TILEMAP_FLIPX : 0) | (flip_screen_y() ? TILEMAP_FLIPY : 0));
 }
 
-WRITE8_MEMBER(fastfred_state::fastfred_flip_screen_y_w )
+WRITE_LINE_MEMBER(fastfred_state::flip_screen_y_w)
 {
-	if (flip_screen_y() != (data & 0x01))
-	{
-		flip_screen_y_set(data & 0x01);
+	flip_screen_y_set(state);
 
-		m_bg_tilemap->set_flip((flip_screen_x() ? TILEMAP_FLIPX : 0) | (flip_screen_y() ? TILEMAP_FLIPY : 0));
-	}
+	m_bg_tilemap->set_flip((flip_screen_x() ? TILEMAP_FLIPX : 0) | (flip_screen_y() ? TILEMAP_FLIPY : 0));
 }
 
 
@@ -302,18 +294,18 @@ TILE_GET_INFO_MEMBER(fastfred_state::imago_get_tile_info_bg)
 	uint16_t code = m_charbank * 0x100 + m_videoram[tile_index];
 	uint8_t color = m_colorbank | (m_attributesram[2 * x + 1] & 0x07);
 
-	SET_TILE_INFO_MEMBER(0, code, color, 0);
+	tileinfo.set(0, code, color, 0);
 }
 
 TILE_GET_INFO_MEMBER(fastfred_state::imago_get_tile_info_fg)
 {
 	int code = m_imago_fg_videoram[tile_index];
-	SET_TILE_INFO_MEMBER(2, code, 2, 0);
+	tileinfo.set(2, code, 2, 0);
 }
 
 TILE_GET_INFO_MEMBER(fastfred_state::imago_get_tile_info_web)
 {
-	SET_TILE_INFO_MEMBER(3, tile_index & 0x1ff, 0, 0);
+	tileinfo.set(3, tile_index & 0x1ff, 0, 0);
 }
 
 WRITE8_MEMBER(fastfred_state::imago_fg_videoram_w )
@@ -322,20 +314,20 @@ WRITE8_MEMBER(fastfred_state::imago_fg_videoram_w )
 	m_fg_tilemap->mark_tile_dirty(offset);
 }
 
-WRITE8_MEMBER(fastfred_state::imago_charbank_w )
+WRITE_LINE_MEMBER(fastfred_state::imago_charbank_w)
 {
-	if( m_charbank != data )
+	if (m_charbank != state)
 	{
-		m_charbank = data;
+		m_charbank = state;
 		m_bg_tilemap->mark_all_dirty();
 	}
 }
 
 VIDEO_START_MEMBER(fastfred_state,imago)
 {
-	m_web_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(fastfred_state::imago_get_tile_info_web),this),TILEMAP_SCAN_ROWS,8,8,32,32);
-	m_bg_tilemap  = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(fastfred_state::imago_get_tile_info_bg),this), TILEMAP_SCAN_ROWS,8,8,32,32);
-	m_fg_tilemap  = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(fastfred_state::imago_get_tile_info_fg),this), TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_web_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(fastfred_state::imago_get_tile_info_web)),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_bg_tilemap  = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(fastfred_state::imago_get_tile_info_bg)), TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_fg_tilemap  = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(fastfred_state::imago_get_tile_info_fg)), TILEMAP_SCAN_ROWS,8,8,32,32);
 
 	m_bg_tilemap->set_transparent_pen(0);
 	m_fg_tilemap->set_transparent_pen(0);

@@ -9,14 +9,14 @@
 #include "emu.h"
 #include "i8255.h"
 
+//#define VERBOSE 1
+#include "logmacro.h"
+
 
 
 //**************************************************************************
 //  MACROS / CONSTANTS
 //**************************************************************************
-
-#define LOG 0
-
 
 enum
 {
@@ -63,17 +63,15 @@ enum
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type I8255 = device_creator<i8255_device>;
-const device_type I8255A = I8255;
+DEFINE_DEVICE_TYPE(I8255, i8255_device, "i8255", "Intel 8255 PPI")
+decltype(I8255) I8255A = I8255;
+
+DEFINE_DEVICE_TYPE(AMS40489_PPI, ams40489_ppi_device, "ams40489_ppi", "Amstrad AMS40489 PPI")
 
 
 //**************************************************************************
 //  INLINE HELPERS
 //**************************************************************************
-
-//-------------------------------------------------
-//  check_interrupt -
-//-------------------------------------------------
 
 inline void i8255_device::check_interrupt(int port)
 {
@@ -99,13 +97,9 @@ inline void i8255_device::check_interrupt(int port)
 }
 
 
-//-------------------------------------------------
-//  set_ibf -
-//-------------------------------------------------
-
 inline void i8255_device::set_ibf(int port, int state)
 {
-	if (LOG) logerror("I8255 '%s' Port %c IBF: %u\n", tag(), 'A' + port, state);
+	LOG("I8255 Port %c IBF: %u\n", 'A' + port, state);
 
 	m_ibf[port] = state;
 
@@ -113,13 +107,9 @@ inline void i8255_device::set_ibf(int port, int state)
 }
 
 
-//-------------------------------------------------
-//  set_obf -
-//-------------------------------------------------
-
 inline void i8255_device::set_obf(int port, int state)
 {
-	if (LOG) logerror("I8255 '%s' Port %c OBF: %u\n", tag(), 'A' + port, state);
+	LOG("I8255 Port %c OBF: %u\n", 'A' + port, state);
 
 	m_obf[port] = state;
 
@@ -127,13 +117,9 @@ inline void i8255_device::set_obf(int port, int state)
 }
 
 
-//-------------------------------------------------
-//  set_inte -
-//-------------------------------------------------
-
 inline void i8255_device::set_inte(int port, int state)
 {
-	if (LOG) logerror("I8255 '%s' Port %c INTE: %u\n", tag(), 'A' + port, state);
+	LOG("I8255 Port %c INTE: %u\n", 'A' + port, state);
 
 	m_inte[port] = state;
 
@@ -141,13 +127,9 @@ inline void i8255_device::set_inte(int port, int state)
 }
 
 
-//-------------------------------------------------
-//  set_inte1 -
-//-------------------------------------------------
-
 inline void i8255_device::set_inte1(int state)
 {
-	if (LOG) logerror("I8255 '%s' Port A INTE1: %u\n", tag(), state);
+	LOG("I8255 Port A INTE1: %u\n", state);
 
 	m_inte1 = state;
 
@@ -155,13 +137,9 @@ inline void i8255_device::set_inte1(int state)
 }
 
 
-//-------------------------------------------------
-//  set_inte2 -
-//-------------------------------------------------
-
 inline void i8255_device::set_inte2(int state)
 {
-	if (LOG) logerror("I8255 '%s' Port A INTE2: %u\n", tag(), state);
+	LOG("I8255 Port A INTE2: %u\n", state);
 
 	m_inte2 = state;
 
@@ -169,23 +147,15 @@ inline void i8255_device::set_inte2(int state)
 }
 
 
-//-------------------------------------------------
-//  set_intr -
-//-------------------------------------------------
-
 inline void i8255_device::set_intr(int port, int state)
 {
-	if (LOG) logerror("I8255 '%s' Port %c INTR: %u\n", tag(), 'A' + port, state);
+	LOG("I8255 Port %c INTR: %u\n", 'A' + port, state);
 
 	m_intr[port] = state;
 
 	output_pc();
 }
 
-
-//-------------------------------------------------
-//  group_mode -
-//-------------------------------------------------
 
 inline int i8255_device::group_mode(int group)
 {
@@ -211,10 +181,6 @@ inline int i8255_device::group_mode(int group)
 }
 
 
-//-------------------------------------------------
-//  port_mode -
-//-------------------------------------------------
-
 inline int i8255_device::port_mode(int port)
 {
 	int mode = 0;
@@ -229,19 +195,11 @@ inline int i8255_device::port_mode(int port)
 }
 
 
-//-------------------------------------------------
-//  port_c_lower_mode -
-//-------------------------------------------------
-
 inline int i8255_device::port_c_lower_mode()
 {
 	return m_control & CONTROL_PORT_C_LOWER_INPUT ? MODE_INPUT : MODE_OUTPUT;
 }
 
-
-//-------------------------------------------------
-//  port_c_upper_mode -
-//-------------------------------------------------
 
 inline int i8255_device::port_c_upper_mode()
 {
@@ -258,24 +216,31 @@ inline int i8255_device::port_c_upper_mode()
 //  i8255_device - constructor
 //-------------------------------------------------
 
-i8255_device::i8255_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, I8255, "8255 PPI", tag, owner, clock, "i8255", __FILE__),
-		m_in_pa_cb(*this),
-		m_in_pb_cb(*this),
-		m_in_pc_cb(*this),
-		m_out_pa_cb(*this),
-		m_out_pb_cb(*this),
-		m_out_pc_cb(*this)
+i8255_device::i8255_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, bool is_ams40489)
+	: device_t(mconfig, type, tag, owner, clock)
+	, m_force_portb_in(is_ams40489)
+	, m_force_portc_out(is_ams40489)
+	, m_dont_clear_output_latches(is_ams40489)
+	, m_in_pa_cb(*this)
+	, m_in_pb_cb(*this)
+	, m_in_pc_cb(*this)
+	, m_out_pa_cb(*this)
+	, m_out_pb_cb(*this)
+	, m_out_pc_cb(*this)
+	, m_tri_pa_cb(*this)
+	, m_tri_pb_cb(*this)
+	, m_tri_pc_cb(*this)
+	, m_control(0)
+	, m_intr{ 0, 0 }
 {
-	m_intr[PORT_A] = m_intr[PORT_B] = 0;
-	m_control = 0;
 }
 
-//-------------------------------------------------
-//  device_start - device-specific startup
-//-------------------------------------------------
+i8255_device::i8255_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: i8255_device(mconfig, I8255, tag, owner, clock, false)
+{
+}
 
-void i8255_device::device_start()
+void i8255_device::device_resolve_objects()
 {
 	// resolve callbacks
 	m_in_pa_cb.resolve_safe(0);
@@ -284,7 +249,17 @@ void i8255_device::device_start()
 	m_out_pa_cb.resolve_safe();
 	m_out_pb_cb.resolve_safe();
 	m_out_pc_cb.resolve_safe();
+	m_tri_pa_cb.resolve_safe(0xff);
+	m_tri_pb_cb.resolve_safe(0xff);
+	m_tri_pc_cb.resolve_safe(0xff);
+}
 
+//-------------------------------------------------
+//  device_start - device-specific startup
+//-------------------------------------------------
+
+void i8255_device::device_start()
+{
 	// register for state saving
 	save_item(NAME(m_control));
 	save_item(NAME(m_output));
@@ -308,10 +283,6 @@ void i8255_device::device_reset()
 }
 
 
-//-------------------------------------------------
-//  read_mode0 -
-//-------------------------------------------------
-
 uint8_t i8255_device::read_mode0(int port)
 {
 	uint8_t data;
@@ -331,10 +302,6 @@ uint8_t i8255_device::read_mode0(int port)
 }
 
 
-//-------------------------------------------------
-//  read_mode1 -
-//-------------------------------------------------
-
 uint8_t i8255_device::read_mode1(int port)
 {
 	uint8_t data;
@@ -349,47 +316,43 @@ uint8_t i8255_device::read_mode1(int port)
 		// read data from input latch
 		data = m_input[port];
 
-		// clear input buffer full flag
-		set_ibf(port, 0);
+		if (!machine().side_effects_disabled())
+		{
+			// clear input buffer full flag
+			set_ibf(port, 0);
 
-		// clear interrupt
-		set_intr(port, 0);
+			// clear interrupt
+			set_intr(port, 0);
 
-		// clear input latch
-		m_input[port] = 0;
+			// clear input latch
+			m_input[port] = 0;
+		}
 	}
 
 	return data;
 }
 
 
-//-------------------------------------------------
-//  read_mode2 -
-//-------------------------------------------------
-
 uint8_t i8255_device::read_mode2()
 {
-	uint8_t data;
-
 	// read data from input latch
-	data = m_input[PORT_A];
+	uint8_t const data = m_input[PORT_A];
 
-	// clear input buffer full flag
-	set_ibf(PORT_A, 0);
+	if (!machine().side_effects_disabled())
+	{
+		// clear input buffer full flag
+		set_ibf(PORT_A, 0);
 
-	// clear interrupt
-	set_intr(PORT_A, 0);
+		// clear interrupt
+		set_intr(PORT_A, 0);
 
-	// clear input latch
-	m_input[PORT_A] = 0;
+		// clear input latch
+		m_input[PORT_A] = 0;
+	}
 
 	return data;
 }
 
-
-//-------------------------------------------------
-//  read_pc -
-//-------------------------------------------------
 
 uint8_t i8255_device::read_pc()
 {
@@ -427,6 +390,13 @@ uint8_t i8255_device::read_pc()
 			data |= m_ibf[PORT_A] ? 0x20 : 0x00;
 			data |= m_inte[PORT_A] ? 0x10 : 0x00;
 			mask |= 0xc0;
+		}
+
+		if (port_c_upper_mode() == MODE_OUTPUT)
+		{
+			// read data from output latch
+			data |= m_output[PORT_C] & mask;
+			mask = 0;
 		}
 		break;
 
@@ -480,10 +450,6 @@ uint8_t i8255_device::read_pc()
 }
 
 
-//-------------------------------------------------
-//  write_mode0 -
-//-------------------------------------------------
-
 void i8255_device::write_mode0(int port, uint8_t data)
 {
 	if (port_mode(port) == MODE_OUTPUT)
@@ -501,10 +467,6 @@ void i8255_device::write_mode0(int port, uint8_t data)
 	}
 }
 
-
-//-------------------------------------------------
-//  write_mode1 -
-//-------------------------------------------------
 
 void i8255_device::write_mode1(int port, uint8_t data)
 {
@@ -530,10 +492,6 @@ void i8255_device::write_mode1(int port, uint8_t data)
 }
 
 
-//-------------------------------------------------
-//  write_mode2 -
-//-------------------------------------------------
-
 void i8255_device::write_mode2(uint8_t data)
 {
 	// latch output data
@@ -549,10 +507,6 @@ void i8255_device::write_mode2(uint8_t data)
 	set_intr(PORT_A, 0);
 }
 
-
-//-------------------------------------------------
-//  output_pc -
-//-------------------------------------------------
 
 void i8255_device::output_pc()
 {
@@ -570,8 +524,8 @@ void i8255_device::output_pc()
 		}
 		else
 		{
-			// TTL inputs float high
-			data |= 0xf0;
+			// TTL inputs floating
+			data |= m_tri_pc_cb(0) & 0xf0;
 		}
 		break;
 
@@ -608,8 +562,8 @@ void i8255_device::output_pc()
 		}
 		else
 		{
-			// TTL inputs float high
-			data |= b_mask;
+			// TTL inputs floating
+			data |= m_tri_pc_cb(0) & b_mask;
 		}
 		break;
 
@@ -632,16 +586,22 @@ void i8255_device::output_pc()
 }
 
 
-//-------------------------------------------------
-//  set_mode -
-//-------------------------------------------------
-
 void i8255_device::set_mode(uint8_t data)
 {
 	m_control = data;
 
+	if (m_force_portb_in)
+		m_control = m_control | CONTROL_PORT_B_INPUT;
+
+	if (m_force_portc_out)
+	{
+		m_control = m_control & ~CONTROL_PORT_C_UPPER_INPUT;
+		m_control = m_control & ~CONTROL_PORT_C_LOWER_INPUT;
+	}
+
 	// group A
-	m_output[PORT_A] = 0;
+	if (!m_dont_clear_output_latches)
+		m_output[PORT_A] = 0;
 	m_input[PORT_A] = 0;
 	m_ibf[PORT_A] = 0;
 	m_obf[PORT_A] = 1;
@@ -655,22 +615,20 @@ void i8255_device::set_mode(uint8_t data)
 	}
 	else
 	{
-		// TTL inputs float high
-		m_out_pa_cb((offs_t)0, 0xff);
+		// TTL inputs floating
+		m_out_pa_cb((offs_t)0, m_tri_pa_cb(0));
 	}
 
-	if (LOG)
-	{
-		logerror("I8255 '%s' Group A Mode: %u\n", tag(), group_mode(GROUP_A));
-		logerror("I8255 '%s' Port A Mode: %s\n", tag(), (port_mode(PORT_A) == MODE_OUTPUT) ? "output" : "input");
-		logerror("I8255 '%s' Port C Upper Mode: %s\n", tag(), (port_c_upper_mode() == MODE_OUTPUT) ? "output" : "input");
-		logerror("I8255 '%s' Group B Mode: %u\n", tag(), group_mode(GROUP_B));
-		logerror("I8255 '%s' Port B Mode: %s\n", tag(), (port_mode(PORT_B) == MODE_OUTPUT) ? "output" : "input");
-		logerror("I8255 '%s' Port C Lower Mode: %s\n", tag(), (port_c_lower_mode() == MODE_OUTPUT) ? "output" : "input");
-	}
+	LOG("I8255 Group A Mode: %u\n", group_mode(GROUP_A));
+	LOG("I8255 Port A Mode: %s\n", (port_mode(PORT_A) == MODE_OUTPUT) ? "output" : "input");
+	LOG("I8255 Port C Upper Mode: %s\n", (port_c_upper_mode() == MODE_OUTPUT) ? "output" : "input");
+	LOG("I8255 Group B Mode: %u\n", group_mode(GROUP_B));
+	LOG("I8255 Port B Mode: %s\n", (port_mode(PORT_B) == MODE_OUTPUT) ? "output" : "input");
+	LOG("I8255 Port C Lower Mode: %s\n", (port_c_lower_mode() == MODE_OUTPUT) ? "output" : "input");
 
 	// group B
-	m_output[PORT_B] = 0;
+	if (!m_dont_clear_output_latches)
+		m_output[PORT_B] = 0;
 	m_input[PORT_B] = 0;
 	m_ibf[PORT_B] = 0;
 	m_obf[PORT_B] = 1;
@@ -682,20 +640,17 @@ void i8255_device::set_mode(uint8_t data)
 	}
 	else
 	{
-		// TTL inputs float high
-		m_out_pb_cb((offs_t)0, 0xff);
+		// TTL inputs floating
+		m_out_pb_cb((offs_t)0, m_tri_pb_cb(0));
 	}
 
-	m_output[PORT_C] = 0;
+	if (!m_dont_clear_output_latches)
+		m_output[PORT_C] = 0;
 	m_input[PORT_C] = 0;
 
 	output_pc();
 }
 
-
-//-------------------------------------------------
-//  set_pc_bit -
-//-------------------------------------------------
 
 void i8255_device::set_pc_bit(int bit, int state)
 {
@@ -761,11 +716,7 @@ void i8255_device::set_pc_bit(int bit, int state)
 }
 
 
-//-------------------------------------------------
-//  read -
-//-------------------------------------------------
-
-READ8_MEMBER( i8255_device::read )
+uint8_t i8255_device::read(offs_t offset)
 {
 	uint8_t data = 0;
 
@@ -778,7 +729,7 @@ READ8_MEMBER( i8255_device::read )
 		case MODE_1: data = read_mode1(PORT_A); break;
 		case MODE_2: data = read_mode2(); break;
 		}
-		if (LOG) logerror("I8255 '%s' Port A Read: %02x\n", tag(), data);
+		LOG("I8255 Port A Read: %02x\n", data);
 		break;
 
 	case PORT_B:
@@ -787,17 +738,17 @@ READ8_MEMBER( i8255_device::read )
 		case MODE_0: data = read_mode0(PORT_B); break;
 		case MODE_1: data = read_mode1(PORT_B); break;
 		}
-		if (LOG) logerror("I8255 '%s' Port B Read: %02x\n", tag(), data);
+		LOG("I8255 Port B Read: %02x\n", data);
 		break;
 
 	case PORT_C:
 		data = read_pc();
-		if (LOG) logerror("I8255 '%s' Port C Read: %02x\n", tag(), data);
+		LOG("I8255 Port C Read: %02x\n", data);
 		break;
 
 	case CONTROL:
 		data = m_control;
-		if (LOG) logerror("I8255 '%s' Mode Control Word Read: %02x\n", tag(), data);
+		LOG("I8255 Mode Control Word Read: %02x\n", data);
 		break;
 	}
 
@@ -805,16 +756,12 @@ READ8_MEMBER( i8255_device::read )
 }
 
 
-//-------------------------------------------------
-//  write -
-//-------------------------------------------------
-
-WRITE8_MEMBER( i8255_device::write )
+void i8255_device::write(offs_t offset, uint8_t data)
 {
 	switch (offset & 0x03)
 	{
 	case PORT_A:
-		if (LOG) logerror("I8255 '%s' Port A Write: %02x\n", tag(), data);
+		LOG("I8255 Port A Write: %02x\n", data);
 
 		switch (group_mode(GROUP_A))
 		{
@@ -825,7 +772,7 @@ WRITE8_MEMBER( i8255_device::write )
 		break;
 
 	case PORT_B:
-		if (LOG) logerror("I8255 '%s' Port B Write: %02x\n", tag(), data);
+		LOG("I8255 Port B Write: %02x\n", data);
 
 		switch (group_mode(GROUP_B))
 		{
@@ -835,7 +782,7 @@ WRITE8_MEMBER( i8255_device::write )
 		break;
 
 	case PORT_C:
-		if (LOG) logerror("I8255 '%s' Port C Write: %02x\n", tag(), data);
+		LOG("I8255 Port C Write: %02x\n", data);
 
 		m_output[PORT_C] = data;
 		output_pc();
@@ -844,7 +791,7 @@ WRITE8_MEMBER( i8255_device::write )
 	case CONTROL:
 		if (data & CONTROL_MODE_SET)
 		{
-			if (LOG) logerror("I8255 '%s' Mode Control Word: %02x\n", tag(), data);
+			LOG("I8255 Mode Control Word: %02x\n", data);
 
 			set_mode(data);
 		}
@@ -853,7 +800,7 @@ WRITE8_MEMBER( i8255_device::write )
 			int bit = (data >> 1) & 0x07;
 			int state = BIT(data, 0);
 
-			if (LOG) logerror("I8255 '%s' %s Port C Bit %u\n", tag(), state ? "Set" : "Reset", bit);
+			LOG("I8255 %s Port C Bit %u\n", state ? "Set" : "Reset", bit);
 
 			set_pc_bit(bit, state);
 		}
@@ -863,17 +810,7 @@ WRITE8_MEMBER( i8255_device::write )
 
 
 //-------------------------------------------------
-//  pa_r -
-//-------------------------------------------------
-
-READ8_MEMBER( i8255_device::pa_r )
-{
-	return pa_r();
-}
-
-
-//-------------------------------------------------
-//  pb_r - port A read
+//  pa_r - port A read
 //-------------------------------------------------
 
 uint8_t i8255_device::pa_r()
@@ -881,21 +818,27 @@ uint8_t i8255_device::pa_r()
 	uint8_t data = 0xff;
 
 	if (port_mode(PORT_A) == MODE_OUTPUT)
-	{
 		data = m_output[PORT_A];
-	}
 
 	return data;
 }
 
 
 //-------------------------------------------------
-//  pb_r -
+//  acka_r - port A read with PC6 strobe
 //-------------------------------------------------
 
-READ8_MEMBER( i8255_device::pb_r )
+uint8_t i8255_device::acka_r()
 {
-	return pb_r();
+	if (!machine().side_effects_disabled())
+		pc6_w(0);
+
+	uint8_t data = pa_r();
+
+	if (!machine().side_effects_disabled())
+		pc6_w(1);
+
+	return data;
 }
 
 
@@ -917,8 +860,22 @@ uint8_t i8255_device::pb_r()
 
 
 //-------------------------------------------------
-//  pc2_w -
+//  ackb_r - port B read with PC2 strobe
 //-------------------------------------------------
+
+uint8_t i8255_device::ackb_r()
+{
+	if (!machine().side_effects_disabled())
+		pc2_w(0);
+
+	uint8_t data = pb_r();
+
+	if (!machine().side_effects_disabled())
+		pc2_w(1);
+
+	return data;
+}
+
 
 WRITE_LINE_MEMBER( i8255_device::pc2_w )
 {
@@ -929,7 +886,7 @@ WRITE_LINE_MEMBER( i8255_device::pc2_w )
 			// port B acknowledge
 			if (!m_obf[PORT_B] && !state)
 			{
-				if (LOG) logerror("I8255 '%s' Port B Acknowledge\n", tag());
+				LOG("I8255 Port B Acknowledge\n");
 
 				// clear output buffer flag
 				set_obf(PORT_B, 1);
@@ -940,7 +897,7 @@ WRITE_LINE_MEMBER( i8255_device::pc2_w )
 			// port B strobe
 			if (!m_ibf[PORT_B] && !state)
 			{
-				if (LOG) logerror("I8255 '%s' Port B Strobe\n", tag());
+				LOG("I8255 Port B Strobe\n");
 
 				// read port into latch
 				m_input[PORT_B] = m_in_pb_cb(0);
@@ -953,10 +910,6 @@ WRITE_LINE_MEMBER( i8255_device::pc2_w )
 }
 
 
-//-------------------------------------------------
-//  pc4_w -
-//-------------------------------------------------
-
 WRITE_LINE_MEMBER( i8255_device::pc4_w )
 {
 	if ((group_mode(GROUP_A) == 2) || ((group_mode(GROUP_A) == 1) && (port_mode(PORT_A) == MODE_INPUT)))
@@ -964,7 +917,7 @@ WRITE_LINE_MEMBER( i8255_device::pc4_w )
 		// port A strobe
 		if (!m_ibf[PORT_A] && !state)
 		{
-			if (LOG) logerror("I8255 '%s' Port A Strobe\n", tag());
+			LOG("I8255 Port A Strobe\n");
 
 			// read port into latch
 			m_input[PORT_A] = m_in_pa_cb(0);
@@ -976,10 +929,6 @@ WRITE_LINE_MEMBER( i8255_device::pc4_w )
 }
 
 
-//-------------------------------------------------
-//  pc6_w -
-//-------------------------------------------------
-
 WRITE_LINE_MEMBER( i8255_device::pc6_w )
 {
 	if ((group_mode(GROUP_A) == 2) || ((group_mode(GROUP_A) == 1) && (port_mode(PORT_A) == MODE_OUTPUT)))
@@ -987,10 +936,17 @@ WRITE_LINE_MEMBER( i8255_device::pc6_w )
 		// port A acknowledge
 		if (!m_obf[PORT_A] && !state)
 		{
-			if (LOG) logerror("I8255 '%s' Port A Acknowledge\n", tag());
+			LOG("I8255 Port A Acknowledge\n");
 
 			// clear output buffer flag
 			set_obf(PORT_A, 1);
 		}
 	}
+}
+
+
+// AMS40489 (Amstrad Plus/GX4000 ASIC PPI implementation)
+ams40489_ppi_device::ams40489_ppi_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: i8255_device(mconfig, AMS40489_PPI, tag, owner, clock, true)
+{
 }

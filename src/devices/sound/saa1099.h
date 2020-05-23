@@ -4,66 +4,14 @@
     Philips SAA1099 Sound driver
 **********************************************/
 
+#ifndef MAME_SOUND_SAA1099_H
+#define MAME_SOUND_SAA1099_H
+
 #pragma once
-
-#ifndef __SAA1099_H__
-#define __SAA1099_H__
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_SAA1099_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, SAA1099, _clock)
-#define MCFG_SAA1099_REPLACE(_tag, _clock) \
-	MCFG_DEVICE_REPLACE(_tag, SAA1099, _clock)
-
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
-
-struct saa1099_channel
-{
-	saa1099_channel() :
-		frequency(0),
-		freq_enable(0),
-		noise_enable(0),
-		octave(0),
-		counter(0.0),
-		freq(0.0),
-		level(0)
-	{
-		memset(amplitude, 0, sizeof(int)*2);
-		memset(envelope, 0, sizeof(int)*2);
-	}
-
-	int frequency;          /* frequency (0x00..0xff) */
-	int freq_enable;        /* frequency enable */
-	int noise_enable;       /* noise enable */
-	int octave;             /* octave (0x00..0x07) */
-	int amplitude[2];       /* amplitude (0x00..0x0f) */
-	int envelope[2];        /* envelope (0x00..0x0f or 0x10 == off) */
-
-	/* vars to simulate the square wave */
-	double counter;
-	double freq;
-	int level;
-};
-
-struct saa1099_noise
-{
-	saa1099_noise() :
-		counter(0.0),
-		freq(0.0),
-		level(0xFFFFFFFF) {}
-
-	/* vars to simulate the noise generator output */
-	double counter;
-	double freq;
-	uint32_t level;                      /* noise polynomial shifter */
-};
-
 
 // ======================> saa1099_device
 
@@ -71,42 +19,70 @@ class saa1099_device : public device_t,
 						public device_sound_interface
 {
 public:
-	saa1099_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~saa1099_device() { }
+	saa1099_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock);
+
+	void control_w(u8 data);
+	void data_w(u8 data);
+
+	void write(offs_t offset, u8 data);
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
+	virtual void device_clock_changed() override;
 
 	// sound stream update overrides
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples) override;
 
-public:
-	DECLARE_WRITE8_MEMBER( control_w );
-	DECLARE_WRITE8_MEMBER( data_w );
-
 private:
+	struct saa1099_channel
+	{
+		saa1099_channel() : amplitude{ 0, 0 }, envelope{ 0, 0 } { }
+
+		u8 frequency      = 0;      // frequency (0x00..0xff)
+		bool freq_enable  = false;  // frequency enable
+		bool noise_enable = false;  // noise enable
+		u8 octave         = 0;      // octave (0x00..0x07)
+		u16 amplitude[2];           // amplitude
+		u8 envelope[2];             // envelope (0x00..0x0f or 0x10 == off)
+
+		/* vars to simulate the square wave */
+		double counter = 0.0;
+		double freq = 0.0;
+		u8 level = 0;
+	};
+
+	struct saa1099_noise
+	{
+		saa1099_noise() { (void)pad; }
+
+		/* vars to simulate the noise generator output */
+		double counter = 0.0;
+		double freq = 0.0;
+		u32 level = 0xffffffffU;    // noise polynomial shifter
+
+	private:
+		u32 pad; // pad out structure to multiple of sizeof(double)
+	};
+
 	void envelope_w(int ch);
 
-private:
-	sound_stream *m_stream;          /* our stream */
-	int m_noise_params[2];            /* noise generators parameters */
-	int m_env_enable[2];              /* envelope generators enable */
-	int m_env_reverse_right[2];       /* envelope reversed for right channel */
-	int m_env_mode[2];                /* envelope generators mode */
-	int m_env_bits[2];                /* non zero = 3 bits resolution */
-	int m_env_clock[2];               /* envelope clock mode (non-zero external) */
-	int m_env_step[2];                /* current envelope step */
-	int m_all_ch_enable;              /* all channels enable */
-	int m_sync_state;                 /* sync all channels */
-	int m_selected_reg;               /* selected register */
-	saa1099_channel m_channels[6];    /* channels */
-	saa1099_noise m_noise[2];         /* noise generators */
+	sound_stream *m_stream;         // our stream
+	u8 m_noise_params[2];           // noise generators parameters
+	bool m_env_enable[2];           // envelope generators enable
+	bool m_env_reverse_right[2];    // envelope reversed for right channel
+	u8 m_env_mode[2];               // envelope generators mode
+	bool m_env_bits[2];             // true = 3 bits resolution
+	bool m_env_clock[2];            // envelope clock mode (true external)
+	u8 m_env_step[2];               // current envelope step
+	bool m_all_ch_enable;           // all channels enable
+	bool m_sync_state;              // sync all channels
+	u8 m_selected_reg;              // selected register
+	saa1099_channel m_channels[6];  // channels
+	saa1099_noise m_noise[2];       // noise generators
 	double m_sample_rate;
-	int m_master_clock;
 };
 
-extern const device_type SAA1099;
+DECLARE_DEVICE_TYPE(SAA1099, saa1099_device)
 
-
-#endif /* __SAA1099_H__ */
+#endif // MAME_SOUND_SAA1099_H

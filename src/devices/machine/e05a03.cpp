@@ -1,4 +1,4 @@
-// license:GPL-2.0+
+// license:BSD-3-Clause
 // copyright-holders:Dirk Best
 /***************************************************************************
 
@@ -14,10 +14,10 @@
     DEVICE INTERFACE
 *****************************************************************************/
 
-const device_type E05A03 = device_creator<e05a03_device>;
+DEFINE_DEVICE_TYPE(E05A03, e05a03_device, "e05a03", "Epson E05A03 Gate Array")
 
 e05a03_device::e05a03_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, E05A03, "E05A03", tag, owner, clock, "e05a03", __FILE__),
+	: device_t(mconfig, E05A03, tag, owner, clock),
 	m_write_nlq_lp(*this),
 	m_write_pe_lp(*this),
 	m_write_reso(*this),
@@ -90,9 +90,9 @@ void e05a03_device::device_reset()
     IMPLEMENTATION
 ***************************************************************************/
 
-WRITE8_MEMBER( e05a03_device::write )
+void e05a03_device::write(offs_t offset, uint8_t data)
 {
-	logerror("%s: e05a03_w(%02x): %02x\n", space.machine().describe_context(), offset, data);
+	logerror("%s: e05a03_w(%02x): %02x\n", machine().describe_context(), offset, data);
 
 	switch (offset)
 	{
@@ -127,11 +127,11 @@ WRITE8_MEMBER( e05a03_device::write )
 	}
 }
 
-READ8_MEMBER( e05a03_device::read )
+uint8_t e05a03_device::read(offs_t offset)
 {
 	uint8_t result = 0;
 
-	logerror("%s: e05a03_r(%02x)\n", space.machine().describe_context(), offset);
+	logerror("%s: e05a03_r(%02x)\n", machine().describe_context(), offset);
 
 	switch (offset)
 	{

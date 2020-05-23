@@ -1,10 +1,11 @@
 // license:BSD-3-Clause
 // copyright-holders:Nathan Woods, Miodrag Milanovic
 /* flopdrv provides simple emulation of a disc drive */
-/* the 8271, upd765 and wd179x use this */
 
-#ifndef __FLOPDRV_H__
-#define __FLOPDRV_H__
+#ifndef MAME_DEVICES_IMAGEDV_FLOPDRV_H
+#define MAME_DEVICES_IMAGEDV_FLOPDRV_H
+
+#pragma once
 
 #include "formats/flopimg.h"
 #include "softlist_dev.h"
@@ -51,7 +52,7 @@
     TYPE DEFINITIONS
 ***************************************************************************/
 
-// ======================> floppy_type_t
+DECLARE_DEVICE_TYPE(LEGACY_FLOPPY, legacy_floppy_image_device)
 
 struct floppy_type_t
 {
@@ -85,35 +86,36 @@ struct chrn_id
 /* set if index has just occurred */
 #define FLOPPY_DRIVE_INDEX                      0x0020
 
-#define MCFG_LEGACY_FLOPPY_IDX_CB(_devcb) \
-	devcb = &legacy_floppy_image_device::set_out_idx_func(*device, DEVCB_##_devcb);
-
 class legacy_floppy_image_device :  public device_t,
 									public device_image_interface
 {
 public:
 	// construction/destruction
+	legacy_floppy_image_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock, const floppy_interface *config)
+		: legacy_floppy_image_device(mconfig, tag, owner, clock)
+	{
+		set_floppy_config(config);
+	}
+
 	legacy_floppy_image_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	legacy_floppy_image_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
 	~legacy_floppy_image_device();
 
-	static void static_set_floppy_config(device_t &device, const floppy_interface *config) { downcast<legacy_floppy_image_device &>(device).m_config = config; }
-	template<class _Object> static devcb_base &set_out_idx_func(device_t &device, _Object object) { return downcast<legacy_floppy_image_device &>(device).m_out_idx_func.set_callback(object); }
+	void set_floppy_config(const floppy_interface *config) { m_config = config; }
+	auto out_idx_cb() { return m_out_idx_func.bind(); }
 
 	virtual image_init_result call_load() override;
-	virtual const software_list_loader &get_software_list_loader() const override { return image_software_list_loader::instance(); }
 	virtual image_init_result call_create(int format_type, util::option_resolution *format_options) override;
 	virtual void call_unload() override;
 
-	virtual iodevice_t image_type() const override { return IO_FLOPPY; }
+	virtual iodevice_t image_type() const noexcept override { return IO_FLOPPY; }
 
-	virtual bool is_readable()  const override { return 1; }
-	virtual bool is_writeable() const override { return 1; }
-	virtual bool is_creatable() const override;
-	virtual bool must_be_loaded() const override { return 0; }
-	virtual bool is_reset_on_load() const override { return 0; }
-	virtual const char *image_interface() const override;
-	virtual const char *file_extensions() const override { return m_extension_list; }
+	virtual bool is_readable()  const noexcept override { return true; }
+	virtual bool is_writeable() const noexcept override { return true; }
+	virtual bool is_creatable() const noexcept override;
+	virtual bool must_be_loaded() const noexcept override { return false; }
+	virtual bool is_reset_on_load() const noexcept override { return false; }
+	virtual const char *image_interface() const noexcept override;
+	virtual const char *file_extensions() const noexcept override { return m_extension_list; }
 	virtual const util::option_guide &create_option_guide() const override { return floppy_option_guide; }
 
 	floppy_image_legacy *flopimg_get_image();
@@ -137,11 +139,7 @@ public:
 	void floppy_drive_set_controller(device_t *controller);
 	int floppy_get_drive_type();
 	void floppy_set_type(int ftype);
-	WRITE_LINE_MEMBER( floppy_ds0_w );
-	WRITE_LINE_MEMBER( floppy_ds1_w );
-	WRITE_LINE_MEMBER( floppy_ds2_w );
-	WRITE_LINE_MEMBER( floppy_ds3_w );
-	WRITE8_MEMBER( floppy_ds_w );
+	WRITE_LINE_MEMBER( floppy_ds_w );
 	WRITE_LINE_MEMBER( floppy_mon_w );
 	WRITE_LINE_MEMBER( floppy_drtn_w );
 	WRITE_LINE_MEMBER( floppy_wtd_w );
@@ -167,9 +165,14 @@ private:
 	TIMER_CALLBACK_MEMBER( set_wpt );
 
 protected:
+	legacy_floppy_image_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	// device overrides
 	virtual void device_config_complete() override;
 	virtual void device_start() override;
+
+	// device_image_interface implementation
+	virtual const software_list_loader &get_software_list_loader() const override { return image_software_list_loader::instance(); }
 
 	/* callbacks */
 	devcb_write_line m_out_idx_func;
@@ -188,8 +191,7 @@ protected:
 	int m_dskchg;     /* disk changed */
 
 	/* drive select logic */
-	int m_drive_id;
-	int m_active;
+	bool m_active;
 
 	const floppy_interface  *m_config;
 
@@ -223,48 +225,4 @@ protected:
 	char            m_extension_list[256];
 };
 
-// device type definition
-extern const device_type LEGACY_FLOPPY;
-
-
-
-legacy_floppy_image_device *floppy_get_device(running_machine &machine,int drive);
-legacy_floppy_image_device *floppy_get_device_by_type(running_machine &machine,int ftype,int drive);
-int floppy_get_drive(device_t *image);
-int floppy_get_drive_by_type(legacy_floppy_image_device *image,int ftype);
-int floppy_get_count(running_machine &machine);
-
-
-/***************************************************************************
-    DEVICE CONFIGURATION MACROS
-***************************************************************************/
-#define FLOPPY_0 "floppy0"
-#define FLOPPY_1 "floppy1"
-#define FLOPPY_2 "floppy2"
-#define FLOPPY_3 "floppy3"
-
-
-#define MCFG_LEGACY_FLOPPY_CONFIG(_config) \
-	legacy_floppy_image_device::static_set_floppy_config(*device, &(_config));
-
-#define MCFG_LEGACY_FLOPPY_DRIVE_ADD(_tag, _config) \
-	MCFG_DEVICE_ADD(_tag, LEGACY_FLOPPY, 0)         \
-	MCFG_LEGACY_FLOPPY_CONFIG(_config)
-
-#define MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(_config)    \
-	MCFG_DEVICE_ADD(FLOPPY_0, LEGACY_FLOPPY, 0)     \
-	MCFG_LEGACY_FLOPPY_CONFIG(_config) \
-	MCFG_DEVICE_ADD(FLOPPY_1, LEGACY_FLOPPY, 0)     \
-	MCFG_LEGACY_FLOPPY_CONFIG(_config) \
-	MCFG_DEVICE_ADD(FLOPPY_2, LEGACY_FLOPPY, 0)     \
-	MCFG_LEGACY_FLOPPY_CONFIG(_config) \
-	MCFG_DEVICE_ADD(FLOPPY_3, LEGACY_FLOPPY, 0)     \
-	MCFG_LEGACY_FLOPPY_CONFIG(_config)
-
-#define MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(_config)    \
-	MCFG_DEVICE_ADD(FLOPPY_0, LEGACY_FLOPPY, 0)     \
-	MCFG_LEGACY_FLOPPY_CONFIG(_config) \
-	MCFG_DEVICE_ADD(FLOPPY_1, LEGACY_FLOPPY, 0)     \
-	MCFG_LEGACY_FLOPPY_CONFIG(_config)
-
-#endif /* __FLOPDRV_H__ */
+#endif // MAME_DEVICES_IMAGEDV_FLOPDRV_H

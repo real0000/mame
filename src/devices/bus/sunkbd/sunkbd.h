@@ -1,43 +1,46 @@
 // license:BSD-3-Clause
 // copyright-holders:Vas Crabb
-#ifndef MAME_DEVICES_SUNKBD_SUNKBD_H
-#define MAME_DEVICES_SUNKBD_SUNKBD_H
+#ifndef MAME_BUS_SUNKBD_SUNKBD_H
+#define MAME_BUS_SUNKBD_SUNKBD_H
 
 #pragma once
 
-
-
-#define MCFG_SUNKBD_PORT_ADD(tag, slot_intf, def_slot) \
-	MCFG_DEVICE_ADD(tag, SUNKBD_PORT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(slot_intf, def_slot, false)
-
-#define MCFG_SUNKBD_RXD_HANDLER(cb) \
-	devcb = &sun_keyboard_port_device::set_rxd_handler(*device, DEVCB_##cb);
+#include "diserial.h"
 
 
 class device_sun_keyboard_port_interface;
 
 
-class sun_keyboard_port_device : public device_t, public device_slot_interface
+class sun_keyboard_port_device : public device_t, public device_single_card_slot_interface<device_sun_keyboard_port_interface>
 {
 	friend class device_sun_keyboard_port_interface;
 
 public:
-	sun_keyboard_port_device(machine_config const &mconfig, char const *tag, device_t *owner, uint32_t clock);
+	template <typename T>
+	sun_keyboard_port_device(machine_config const &mconfig, char const *tag, device_t *owner, T &&opts, char const *dflt)
+		: sun_keyboard_port_device(mconfig, tag, owner, 0)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
+	sun_keyboard_port_device(machine_config const &mconfig, char const *tag, device_t *owner, uint32_t clock = 0);
 	virtual ~sun_keyboard_port_device();
 
-	// static configuration helpers
-	template <class Object> static devcb_base &set_rxd_handler(device_t &device, Object object) { return downcast<sun_keyboard_port_device &>(device).m_rxd_handler.set_callback(object); }
+	// configuration helpers
+	auto rxd_handler() { return m_rxd_handler.bind(); }
 
 	DECLARE_WRITE_LINE_MEMBER( write_txd );
 
 	DECLARE_READ_LINE_MEMBER( rxd_r ) { return m_rxd; }
 
 protected:
-	sun_keyboard_port_device(machine_config const &mconfig, device_type type, char const *name, char const *tag, device_t *owner, uint32_t clock, char const *shortname, char const *source);
+	sun_keyboard_port_device(machine_config const &mconfig, device_type type, char const *tag, device_t *owner, uint32_t clock);
 
-	virtual void device_start() override;
 	virtual void device_config_complete() override;
+	virtual void device_resolve_objects() override;
+	virtual void device_start() override;
 
 	int m_rxd;
 
@@ -48,19 +51,19 @@ private:
 };
 
 
-class device_sun_keyboard_port_interface : public device_slot_card_interface
+class device_sun_keyboard_port_interface : public device_interface
 {
 	friend class sun_keyboard_port_device;
 
 public:
 	virtual ~device_sun_keyboard_port_interface() override;
 
+protected:
+	device_sun_keyboard_port_interface(machine_config const &mconfig, device_t &device);
+
 	virtual DECLARE_WRITE_LINE_MEMBER( input_txd ) { }
 
 	DECLARE_WRITE_LINE_MEMBER( output_rxd ) { m_port->m_rxd = state; m_port->m_rxd_handler(state); }
-
-protected:
-	device_sun_keyboard_port_interface(machine_config const &mconfig, device_t &device);
 
 	sun_keyboard_port_device *m_port;
 
@@ -72,9 +75,9 @@ protected:
 };
 
 
-extern device_type const SUNKBD_PORT;
+DECLARE_DEVICE_TYPE(SUNKBD_PORT, sun_keyboard_port_device)
 
 
-SLOT_INTERFACE_EXTERN( default_sun_keyboard_devices );
+void default_sun_keyboard_devices(device_slot_interface &device);
 
 #endif // MAME_DEVICES_SUNKBD_SUNKBD_H

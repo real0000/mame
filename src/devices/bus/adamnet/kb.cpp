@@ -23,7 +23,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type ADAM_KB = device_creator<adam_keyboard_device>;
+DEFINE_DEVICE_TYPE(ADAM_KB, adam_keyboard_device, "adam_kb", "Adam keyboard")
 
 
 //-------------------------------------------------
@@ -50,44 +50,29 @@ const tiny_rom_entry *adam_keyboard_device::device_rom_region() const
 //  ADDRESS_MAP( adam_kb_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( adam_kb_mem, AS_PROGRAM, 8, adam_keyboard_device )
-	AM_RANGE(0x0000, 0x001f) AM_DEVREADWRITE(M6801_TAG, m6801_cpu_device, m6801_io_r, m6801_io_w)
-	AM_RANGE(0x0080, 0x00ff) AM_RAM
-	AM_RANGE(0xf800, 0xffff) AM_ROM AM_REGION(M6801_TAG, 0)
-ADDRESS_MAP_END
-
-
-//-------------------------------------------------
-//  ADDRESS_MAP( adam_kb_io )
-//-------------------------------------------------
-
-static ADDRESS_MAP_START( adam_kb_io, AS_IO, 8, adam_keyboard_device )
-	AM_RANGE(M6801_PORT1, M6801_PORT1) AM_READ(p1_r)
-	AM_RANGE(M6801_PORT2, M6801_PORT2) AM_READWRITE(p2_r, p2_w)
-	AM_RANGE(M6801_PORT3, M6801_PORT3) AM_READWRITE(p3_r, p3_w)
-	AM_RANGE(M6801_PORT4, M6801_PORT4) AM_READWRITE(p4_r, p4_w)
-ADDRESS_MAP_END
-
-
-//-------------------------------------------------
-//  MACHINE_DRIVER( adam_kb )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( adam_kb )
-	MCFG_CPU_ADD(M6801_TAG, M6801, XTAL_4MHz)
-	MCFG_CPU_PROGRAM_MAP(adam_kb_mem)
-	MCFG_CPU_IO_MAP(adam_kb_io)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor adam_keyboard_device::device_mconfig_additions() const
+void adam_keyboard_device::adam_kb_mem(address_map &map)
 {
-	return MACHINE_CONFIG_NAME( adam_kb );
+	map(0x0000, 0x001f).m(M6801_TAG, FUNC(m6801_cpu_device::m6801_io));
+	map(0x0080, 0x00ff).ram();
+	map(0xf800, 0xffff).rom().region(M6801_TAG, 0);
+}
+
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void adam_keyboard_device::device_add_mconfig(machine_config &config)
+{
+	M6801(config, m_maincpu, XTAL(4'000'000));
+	m_maincpu->set_addrmap(AS_PROGRAM, &adam_keyboard_device::adam_kb_mem);
+	m_maincpu->in_p1_cb().set(FUNC(adam_keyboard_device::p1_r));
+	m_maincpu->in_p2_cb().set(FUNC(adam_keyboard_device::p2_r));
+	m_maincpu->out_p2_cb().set(FUNC(adam_keyboard_device::p2_w));
+	m_maincpu->in_p3_cb().set(FUNC(adam_keyboard_device::p3_r));
+	m_maincpu->out_p3_cb().set(FUNC(adam_keyboard_device::p3_w));
+	m_maincpu->in_p4_cb().set(FUNC(adam_keyboard_device::p4_r));
+	m_maincpu->out_p4_cb().set(FUNC(adam_keyboard_device::p4_w));
 }
 
 
@@ -224,7 +209,7 @@ ioport_constructor adam_keyboard_device::device_input_ports() const
 //-------------------------------------------------
 
 adam_keyboard_device::adam_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, ADAM_KB, "Adam keyboard", tag, owner, clock, "adam_kb", __FILE__),
+	device_t(mconfig, ADAM_KB, tag, owner, clock),
 	device_adamnet_card_interface(mconfig, *this),
 	m_maincpu(*this, M6801_TAG),
 	m_y(*this, "Y%u", 0),
@@ -258,7 +243,7 @@ void adam_keyboard_device::adamnet_reset_w(int state)
 //  p1_r -
 //-------------------------------------------------
 
-READ8_MEMBER( adam_keyboard_device::p1_r )
+uint8_t adam_keyboard_device::p1_r()
 {
 	/*
 
@@ -290,7 +275,7 @@ READ8_MEMBER( adam_keyboard_device::p1_r )
 //  p2_r -
 //-------------------------------------------------
 
-READ8_MEMBER( adam_keyboard_device::p2_r )
+uint8_t adam_keyboard_device::p2_r()
 {
 	/*
 
@@ -317,7 +302,7 @@ READ8_MEMBER( adam_keyboard_device::p2_r )
 //  p2_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( adam_keyboard_device::p2_w )
+void adam_keyboard_device::p2_w(uint8_t data)
 {
 	/*
 
@@ -339,7 +324,7 @@ WRITE8_MEMBER( adam_keyboard_device::p2_w )
 //  p3_r -
 //-------------------------------------------------
 
-READ8_MEMBER( adam_keyboard_device::p3_r )
+uint8_t adam_keyboard_device::p3_r()
 {
 	return 0xff;
 }
@@ -349,7 +334,7 @@ READ8_MEMBER( adam_keyboard_device::p3_r )
 //  p3_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( adam_keyboard_device::p3_w )
+void adam_keyboard_device::p3_w(uint8_t data)
 {
 	/*
 
@@ -374,7 +359,7 @@ WRITE8_MEMBER( adam_keyboard_device::p3_w )
 //  p4_r -
 //-------------------------------------------------
 
-READ8_MEMBER( adam_keyboard_device::p4_r )
+uint8_t adam_keyboard_device::p4_r()
 {
 	return 0xff;
 }
@@ -384,7 +369,7 @@ READ8_MEMBER( adam_keyboard_device::p4_r )
 //  p4_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( adam_keyboard_device::p4_w )
+void adam_keyboard_device::p4_w(uint8_t data)
 {
 	/*
 

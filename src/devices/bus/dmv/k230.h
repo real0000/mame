@@ -1,9 +1,10 @@
 // license:BSD-3-Clause
 // copyright-holders:Sandro Ronco
-#pragma once
+// thanks-to:rfka01
+#ifndef MAME_BUS_DMV_K230_H
+#define MAME_BUS_DMV_K230_H
 
-#ifndef __DMV_K230_H__
-#define __DMV_K230_H__
+#pragma once
 
 #include "dmvbus.h"
 #include "cpu/i86/i86.h"
@@ -28,36 +29,39 @@ class dmv_k230_device :
 {
 public:
 	// construction/destruction
-	dmv_k230_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
 	dmv_k230_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// optional information overrides
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
-	DECLARE_READ8_MEMBER(io_r);
-	DECLARE_READ8_MEMBER(program_r);
-	DECLARE_WRITE8_MEMBER(io_w);
-	DECLARE_WRITE8_MEMBER(program_w);
-	DECLARE_READ8_MEMBER(rom_r);
-
 protected:
+	dmv_k230_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+
+	// optional information overrides
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	// dmvcart_interface overrides
 	virtual void hold_w(int state) override;
 	virtual void switch16_w(int state) override;
 	virtual bool av16bit() override;
 
-protected:
+	void k230_io(address_map &map);
+	void k230_mem(address_map &map);
+
 	required_device<cpu_device> m_maincpu;
 	optional_memory_region      m_rom;
-	dmvcart_slot_device *       m_bus;
-	address_space *             m_io;
 	int                         m_switch16;
 	int                         m_hold;
+
+	uint8_t io_r(offs_t offset);
+	uint8_t program_r(offs_t offset);
+	void io_w(offs_t offset, uint8_t data);
+	void program_w(offs_t offset, uint8_t data);
+
+private:
+	DECLARE_READ8_MEMBER(rom_r);
 };
 
 
@@ -84,13 +88,10 @@ public:
 	// construction/destruction
 	dmv_k234_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_READ8_MEMBER(snr_r);
-	DECLARE_WRITE8_MEMBER(snr_w);
-
 protected:
 	// optional information overrides
 	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -102,6 +103,11 @@ protected:
 
 private:
 	int                         m_snr;
+
+	DECLARE_READ8_MEMBER(snr_r);
+	DECLARE_WRITE8_MEMBER(snr_w);
+
+	void k234_mem(address_map &map);
 };
 
 
@@ -117,7 +123,7 @@ public:
 protected:
 	// optional information overrides
 	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual ioport_constructor device_input_ports() const override;
 
 	void timint_w(int state) override  { m_pic->ir0_w(state); }
@@ -134,12 +140,14 @@ protected:
 private:
 	required_device<pic8259_device> m_pic;
 	required_ioport m_dsw;
+
+	void k235_io(address_map &map);
 };
 
 // device type definition
-extern const device_type DMV_K230;
-extern const device_type DMV_K231;
-extern const device_type DMV_K234;
-extern const device_type DMV_K235;
+DECLARE_DEVICE_TYPE(DMV_K230, dmv_k230_device)
+DECLARE_DEVICE_TYPE(DMV_K231, dmv_k231_device)
+DECLARE_DEVICE_TYPE(DMV_K234, dmv_k234_device)
+DECLARE_DEVICE_TYPE(DMV_K235, dmv_k235_device)
 
-#endif  /* __DMV_K230_H__ */
+#endif // MAME_BUS_DMV_K230_H

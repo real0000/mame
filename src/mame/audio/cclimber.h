@@ -7,26 +7,14 @@
     Functions to emulate the cclimber audio boards
 
 ***************************************************************************/
+#ifndef MAME_AUDIO_CCLIMBER_H
+#define MAME_AUDIO_CCLIMBER_H
 
 #pragma once
 
-#ifndef __CCLIMBER_AUDIO__
-#define __CCLIMBER_AUDIO__
-
 #include "sound/samples.h"
-//**************************************************************************
-//  GLOBAL VARIABLES
-//**************************************************************************
 
-extern const device_type CCLIMBER_AUDIO;
-
-//**************************************************************************
-//  DEVICE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_CCLIMBER_AUDIO_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, CCLIMBER_AUDIO, 0)
-
+DECLARE_DEVICE_TYPE(CCLIMBER_AUDIO, cclimber_audio_device)
 
 // ======================> cclimber_audio_device
 
@@ -36,28 +24,30 @@ public:
 	// construction/destruction
 	cclimber_audio_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_WRITE8_MEMBER( sample_trigger_w );
-	DECLARE_WRITE8_MEMBER( sample_rate_w );
-	DECLARE_WRITE8_MEMBER( sample_volume_w );
-	DECLARE_WRITE8_MEMBER( sample_select_w );
-
-	SAMPLES_START_CB_MEMBER( sh_start );
+	void sample_trigger(int state);
+	void sample_trigger_w(uint8_t data);
+	void sample_rate_w(uint8_t data);
+	void sample_volume_w(uint8_t data);
 
 protected:
 	// device level overrides
 	virtual void device_start() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
-	void play_sample(int start,int freq,int volume);
+	void play_sample(int start, int freq, int volume);
 
 private:
-	std::unique_ptr<int16_t[]> m_sample_buf;    /* buffer to decode samples at run time */
-	int m_sample_num;
-	int m_sample_freq;
-	int m_sample_volume;
-	optional_device<samples_device> m_samples;
-	optional_region_ptr<uint8_t> m_samples_region;
+	std::unique_ptr<int16_t[]> m_sample_buf;    // buffer to decode samples at run time
+	uint8_t m_sample_num;
+	uint32_t m_sample_freq;
+	uint8_t m_sample_volume;
+	required_device<samples_device> m_samples;
+	required_region_ptr<uint8_t> m_samples_region;
+
+	void sample_select_w(uint8_t data);
+
+	SAMPLES_START_CB_MEMBER( sh_start );
 };
 
 
-#endif
+#endif // MAME_AUDIO_CCLIMBER_H

@@ -19,63 +19,61 @@
 //  gb_rom_device - constructor
 //-------------------------------------------------
 
-const device_type GB_STD_ROM = device_creator<gb_rom_device>;
-const device_type GB_ROM_TAMA5 = device_creator<gb_rom_tama5_device>;
-const device_type GB_ROM_WISDOM = device_creator<gb_rom_wisdom_device>;
-const device_type GB_ROM_YONG = device_creator<gb_rom_yong_device>;
-const device_type GB_ROM_ATVRAC = device_creator<gb_rom_atvrac_device>;
-const device_type GB_ROM_LASAMA = device_creator<gb_rom_lasama_device>;
+DEFINE_DEVICE_TYPE(GB_STD_ROM,    gb_rom_device,        "gb_rom",        "GB Carts")
+DEFINE_DEVICE_TYPE(GB_ROM_TAMA5,  gb_rom_tama5_device,  "gb_rom_tama5",  "GB Tamagotchi")
+DEFINE_DEVICE_TYPE(GB_ROM_WISDOM, gb_rom_wisdom_device, "gb_rom_wisdom", "GB Wisdom Tree Carts")
+DEFINE_DEVICE_TYPE(GB_ROM_YONG,   gb_rom_yong_device,   "gb_rom_yong",   "GB Young Yong Carts")
+DEFINE_DEVICE_TYPE(GB_ROM_ATVRAC, gb_rom_atvrac_device, "gb_rom_atvrac", "GB ATV Racin'")
+DEFINE_DEVICE_TYPE(GB_ROM_LASAMA, gb_rom_lasama_device, "gb_rom_lasama", "GB LaSaMa")
 
-const device_type MEGADUCK_ROM = device_creator<megaduck_rom_device>;
+DEFINE_DEVICE_TYPE(MEGADUCK_ROM,  megaduck_rom_device,  "megaduck_rom",  "MegaDuck Carts")
 
 
-gb_rom_device::gb_rom_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-						device_gb_cart_interface( mconfig, *this )
+gb_rom_device::gb_rom_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock)
+	, device_gb_cart_interface(mconfig, *this)
 {
 }
 
 gb_rom_device::gb_rom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, GB_STD_ROM, "GB Carts", tag, owner, clock, "gb_rom", __FILE__),
-						device_gb_cart_interface( mconfig, *this )
+	: gb_rom_device(mconfig, GB_STD_ROM, tag, owner, clock)
 {
 }
 
 gb_rom_tama5_device::gb_rom_tama5_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: gb_rom_device(mconfig, GB_ROM_TAMA5, "GB Tamagotchi", tag, owner, clock, "gb_rom_tama5", __FILE__), m_tama5_data(0), m_tama5_addr(0), m_tama5_cmd(0), m_rtc_reg(0)
-				{
+	: gb_rom_device(mconfig, GB_ROM_TAMA5, tag, owner, clock), m_tama5_data(0), m_tama5_addr(0), m_tama5_cmd(0), m_rtc_reg(0)
+{
 }
 
 gb_rom_wisdom_device::gb_rom_wisdom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: gb_rom_device(mconfig, GB_ROM_WISDOM, "GB Wisdom Tree Carts", tag, owner, clock, "gb_rom_wisdom", __FILE__)
+	: gb_rom_device(mconfig, GB_ROM_WISDOM, tag, owner, clock)
 {
 }
 
 gb_rom_yong_device::gb_rom_yong_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: gb_rom_device(mconfig, GB_ROM_YONG, "GB Yong Yong Carts", tag, owner, clock, "gb_rom_yong", __FILE__)
+	: gb_rom_device(mconfig, GB_ROM_YONG, tag, owner, clock)
 {
 }
 
 gb_rom_atvrac_device::gb_rom_atvrac_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: gb_rom_device(mconfig, GB_ROM_ATVRAC, "GB ATV Racin'", tag, owner, clock, "gb_rom_atvrac", __FILE__)
+	: gb_rom_device(mconfig, GB_ROM_ATVRAC, tag, owner, clock)
 {
 }
 
 gb_rom_lasama_device::gb_rom_lasama_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: gb_rom_device(mconfig, GB_ROM_LASAMA, "GB LaSaMa", tag, owner, clock, "gb_rom_lasama", __FILE__)
+	: gb_rom_device(mconfig, GB_ROM_LASAMA, tag, owner, clock)
 {
 }
 
 
-megaduck_rom_device::megaduck_rom_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-					device_gb_cart_interface( mconfig, *this )
+megaduck_rom_device::megaduck_rom_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock)
+	, device_gb_cart_interface(mconfig, *this)
 {
 }
 
 megaduck_rom_device::megaduck_rom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, MEGADUCK_ROM, "MegaDuck Carts", tag, owner, clock, "megaduck_rom", __FILE__),
-					device_gb_cart_interface( mconfig, *this )
+	: megaduck_rom_device(mconfig, MEGADUCK_ROM, tag, owner, clock)
 {
 }
 
@@ -147,13 +145,13 @@ void megaduck_rom_device::device_reset()
  mapper specific handlers
  -------------------------------------------------*/
 
-READ8_MEMBER(gb_rom_device::read_rom)
+uint8_t gb_rom_device::read_rom(offs_t offset)
 {
 	m_latch_bank = offset / 0x4000;
 	return m_rom[rom_bank_map[m_latch_bank] * 0x4000 + (offset & 0x3fff)];
 }
 
-READ8_MEMBER(gb_rom_device::read_ram)
+uint8_t gb_rom_device::read_ram(offs_t offset)
 {
 	if (!m_ram.empty())
 		return m_ram[ram_bank_map[m_ram_bank] * 0x2000 + offset];
@@ -161,7 +159,7 @@ READ8_MEMBER(gb_rom_device::read_ram)
 		return 0xff;
 }
 
-WRITE8_MEMBER(gb_rom_device::write_ram)
+void gb_rom_device::write_ram(offs_t offset, uint8_t data)
 {
 	if (!m_ram.empty())
 		m_ram[ram_bank_map[m_ram_bank] * 0x2000 + offset] = data;
@@ -170,7 +168,7 @@ WRITE8_MEMBER(gb_rom_device::write_ram)
 
 // Tamagotchi
 
-READ8_MEMBER(gb_rom_tama5_device::read_rom)
+uint8_t gb_rom_tama5_device::read_rom(offs_t offset)
 {
 	if (offset < 0x4000)
 		return m_rom[rom_bank_map[m_latch_bank] * 0x4000 + (offset & 0x3fff)];
@@ -178,12 +176,12 @@ READ8_MEMBER(gb_rom_tama5_device::read_rom)
 		return m_rom[rom_bank_map[m_latch_bank2] * 0x4000 + (offset & 0x3fff)];
 }
 
-READ8_MEMBER(gb_rom_tama5_device::read_ram)
+uint8_t gb_rom_tama5_device::read_ram(offs_t offset)
 {
 	return m_rtc_reg;
 }
 
-WRITE8_MEMBER(gb_rom_tama5_device::write_ram)
+void gb_rom_tama5_device::write_ram(offs_t offset, uint8_t data)
 {
 	switch (offset & 0x0001)
 	{
@@ -224,7 +222,7 @@ WRITE8_MEMBER(gb_rom_tama5_device::write_ram)
 						m_tama5_data = 0xff;
 				case 0x80:      /* Unknown, some kind of read (when 07=01)/write (when 07=00/02) */
 				default:
-					logerror( "0x%04X: Unknown addressing mode\n", space.device() .safe_pc( ) );
+					logerror( "%s Unknown addressing mode\n", machine().describe_context() );
 					break;
 				}
 				break;
@@ -250,7 +248,7 @@ WRITE8_MEMBER(gb_rom_tama5_device::write_ram)
 				m_rtc_reg = (m_tama5_data & 0xf0) >> 4;
 				break;
 			default:
-				logerror( "0x%04X: Unknown tama5 command 0x%02X\n", space.device() .safe_pc( ), data );
+				logerror( "%s Unknown tama5 command 0x%02X\n", machine().describe_context(), data );
 				break;
 			}
 			m_tama5_cmd = data;
@@ -261,12 +259,12 @@ WRITE8_MEMBER(gb_rom_tama5_device::write_ram)
 
 // Wisdom Tree
 
-READ8_MEMBER(gb_rom_wisdom_device::read_rom)
+uint8_t gb_rom_wisdom_device::read_rom(offs_t offset)
 {
 	return m_rom[rom_bank_map[m_latch_bank] * 0x4000 + offset];
 }
 
-WRITE8_MEMBER(gb_rom_wisdom_device::write_bank)
+void gb_rom_wisdom_device::write_bank(offs_t offset, uint8_t data)
 {
 	if (offset < 0x4000)
 		m_latch_bank = (offset << 1) & 0x1ff;
@@ -275,7 +273,7 @@ WRITE8_MEMBER(gb_rom_wisdom_device::write_bank)
 
 // Yong Yong pirate
 
-READ8_MEMBER(gb_rom_yong_device::read_rom)
+uint8_t gb_rom_yong_device::read_rom(offs_t offset)
 {
 	if (offset < 0x4000)
 		return m_rom[rom_bank_map[m_latch_bank] * 0x4000 + (offset & 0x3fff)];
@@ -283,7 +281,7 @@ READ8_MEMBER(gb_rom_yong_device::read_rom)
 		return m_rom[rom_bank_map[m_latch_bank2] * 0x4000 + (offset & 0x3fff)];
 }
 
-WRITE8_MEMBER(gb_rom_yong_device::write_bank)
+void gb_rom_yong_device::write_bank(offs_t offset, uint8_t data)
 {
 	if (offset == 0x2000)
 		m_latch_bank2 = data;
@@ -292,7 +290,7 @@ WRITE8_MEMBER(gb_rom_yong_device::write_bank)
 
 // ATV Racin pirate (incomplete)
 
-READ8_MEMBER(gb_rom_atvrac_device::read_rom)
+uint8_t gb_rom_atvrac_device::read_rom(offs_t offset)
 {
 	if (offset < 0x4000)
 		return m_rom[rom_bank_map[m_latch_bank] * 0x4000 + (offset & 0x3fff)];
@@ -300,7 +298,7 @@ READ8_MEMBER(gb_rom_atvrac_device::read_rom)
 		return m_rom[rom_bank_map[m_latch_bank2] * 0x4000 + (offset & 0x3fff)];
 }
 
-WRITE8_MEMBER(gb_rom_atvrac_device::write_bank)
+void gb_rom_atvrac_device::write_bank(offs_t offset, uint8_t data)
 {
 	if (offset == 0x3f00)
 	{
@@ -314,7 +312,7 @@ WRITE8_MEMBER(gb_rom_atvrac_device::write_bank)
 
 // La Sa Ma pirate (incomplete)
 
-READ8_MEMBER(gb_rom_lasama_device::read_rom)
+uint8_t gb_rom_lasama_device::read_rom(offs_t offset)
 {
 	if (offset < 0x4000)
 		return m_rom[rom_bank_map[m_latch_bank] * 0x4000 + (offset & 0x3fff)];
@@ -322,7 +320,7 @@ READ8_MEMBER(gb_rom_lasama_device::read_rom)
 		return m_rom[rom_bank_map[m_latch_bank2] * 0x4000 + (offset & 0x3fff)];
 }
 
-WRITE8_MEMBER(gb_rom_lasama_device::write_bank)
+void gb_rom_lasama_device::write_bank(offs_t offset, uint8_t data)
 {
 	if (offset == 0x2080)
 	{
@@ -343,7 +341,7 @@ WRITE8_MEMBER(gb_rom_lasama_device::write_bank)
 
 // MegaDuck carts
 
-READ8_MEMBER(megaduck_rom_device::read_rom)
+uint8_t megaduck_rom_device::read_rom(offs_t offset)
 {
 	if (offset < 0x4000)
 		return m_rom[rom_bank_map[m_latch_bank] * 0x4000 + (offset & 0x3fff)];
@@ -351,13 +349,13 @@ READ8_MEMBER(megaduck_rom_device::read_rom)
 		return m_rom[rom_bank_map[m_latch_bank2] * 0x4000 + (offset & 0x3fff)];
 }
 
-WRITE8_MEMBER(megaduck_rom_device::write_bank)
+void megaduck_rom_device::write_bank(offs_t offset, uint8_t data)
 {
 	if (offset == 0x0001)
 		m_latch_bank2 = data;
 }
 
-WRITE8_MEMBER(megaduck_rom_device::write_ram)
+void megaduck_rom_device::write_ram(offs_t offset, uint8_t data)
 {
 	m_latch_bank = data * 2;
 	m_latch_bank2 = data * 2 + 1;

@@ -14,37 +14,33 @@
 #include "screen.h"
 
 
-PALETTE_INIT_MEMBER(k1ge_device, k1ge)
+void k1ge_device::k1ge_palette(palette_device &palette) const
 {
-	int i;
-
-	for ( i = 0; i < 8; i++ )
+	for (int i = 0; i < 8; i++)
 	{
-		int j = ( i << 5 ) | ( i << 2 ) | ( i >> 1 );
+		int const j = pal3bit(i);
 
-		palette.set_pen_color( 7-i, j, j, j );
+		palette.set_pen_color(7 - i, j, j, j);
 	}
 }
 
 
-PALETTE_INIT_MEMBER(k2ge_device, k2ge)
+void k2ge_device::k2ge_palette(palette_device &palette) const
 {
-	int r,g,b;
-
-	for ( b = 0; b < 16; b++ )
+	for (int b = 0; b < 16; b++ )
 	{
-		for ( g = 0; g < 16; g++ )
+		for (int g = 0; g < 16; g++ )
 		{
-			for ( r = 0; r < 16; r++ )
+			for (int r = 0; r < 16; r++ )
 			{
-				palette.set_pen_color( ( b << 8 ) | ( g << 4 ) | r, ( r << 4 ) | r, ( g << 4 ) | g, ( b << 4 ) | b );
+				palette.set_pen_color((b << 8) | (g << 4) | r, (r << 4) | r, (g << 4) | g, (b << 4) | b);
 			}
 		}
 	}
 }
 
 
-READ8_MEMBER( k1ge_device::read )
+uint8_t k1ge_device::read(offs_t offset)
 {
 	assert(offset < 0x4000);
 
@@ -53,17 +49,17 @@ READ8_MEMBER( k1ge_device::read )
 	switch( offset )
 	{
 	case 0x008:     /* RAS.H */
-		data = m_screen->hpos() >> 2;
+		data = screen().hpos() >> 2;
 		break;
 	case 0x009:     /* RAS.V */
-		data = m_screen->vpos();
+		data = screen().vpos();
 		break;
 	}
 	return data;
 }
 
 
-WRITE8_MEMBER( k1ge_device::write )
+void k1ge_device::write(offs_t offset, uint8_t data)
 {
 	assert(offset < 0x4000);
 
@@ -737,7 +733,7 @@ TIMER_CALLBACK_MEMBER( k1ge_device::hblank_on_timer_callback )
 
 TIMER_CALLBACK_MEMBER( k1ge_device::timer_callback )
 {
-	int y = m_screen->vpos();
+	int y = screen().vpos();
 
 	/* Check for start of VBlank */
 	if ( y >= 152 )
@@ -772,7 +768,7 @@ TIMER_CALLBACK_MEMBER( k1ge_device::timer_callback )
 			{
 				m_hblank_pin_w(1);
 			}
-			m_hblank_on_timer->adjust( m_screen->time_until_pos(y, 480 ) );
+			m_hblank_on_timer->adjust( screen().time_until_pos(y, 480 ) );
 		}
 	}
 
@@ -782,7 +778,7 @@ TIMER_CALLBACK_MEMBER( k1ge_device::timer_callback )
 		draw( y - 1 );
 	}
 
-	m_timer->adjust( m_screen->time_until_pos(( y + 1 ) % K1GE_SCREEN_HEIGHT, 0 ) );
+	m_timer->adjust( screen().time_until_pos(( y + 1 ) % K1GE_SCREEN_HEIGHT, 0 ) );
 }
 
 
@@ -804,9 +800,9 @@ void k1ge_device::device_start()
 	m_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(k1ge_device::timer_callback), this));
 	m_hblank_on_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(k1ge_device::hblank_on_timer_callback), this));
 	m_vram = make_unique_clear<uint8_t[]>(0x4000);
-	m_bitmap = std::make_unique<bitmap_ind16>(m_screen->width(), m_screen->height() );
+	m_bitmap = std::make_unique<bitmap_ind16>(screen().width(), screen().height() );
 
-	save_pointer(NAME(m_vram.get()), 0x4000);
+	save_pointer(NAME(m_vram), 0x4000);
 	save_item(NAME(m_wba_h));
 	save_item(NAME(m_wba_v));
 	save_item(NAME(m_wsi_h));
@@ -858,62 +854,48 @@ void k1ge_device::device_reset()
 	m_vram[0x7e0] = 0x52;   /* RESET */
 	m_vram[0x7e2] = 0x00;   /* MODE */
 
-	m_timer->adjust( m_screen->time_until_pos(( m_screen->vpos() + 1 ) % K1GE_SCREEN_HEIGHT, 0 ) );
+	m_timer->adjust( screen().time_until_pos(( screen().vpos() + 1 ) % K1GE_SCREEN_HEIGHT, 0 ) );
 }
 
 
-const device_type K1GE = device_creator<k1ge_device>;
+DEFINE_DEVICE_TYPE(K1GE, k1ge_device, "k1ge", "K1GE Monochrome Graphics + LCD")
 
 k1ge_device::k1ge_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, K1GE, "K1GE Monochrome Graphics + LCD", tag, owner, clock, "k1ge", __FILE__)
+	: k1ge_device(mconfig, K1GE, tag, owner, clock)
+{
+}
+
+k1ge_device::k1ge_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock)
 	, device_video_interface(mconfig, *this)
 	, m_vblank_pin_w(*this)
 	, m_hblank_pin_w(*this)
 {
 }
 
-k1ge_device::k1ge_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source)
-	, device_video_interface(mconfig, *this)
-	, m_vblank_pin_w(*this)
-	, m_hblank_pin_w(*this)
-{
-}
-
-static MACHINE_CONFIG_FRAGMENT( k1ge )
-	MCFG_PALETTE_ADD("palette", 8 )
-	MCFG_PALETTE_INIT_OWNER(k1ge_device, k1ge)
-MACHINE_CONFIG_END
 
 //-------------------------------------------------
-//  machine_config_additions - return a pointer to
-//  the device's machine fragment
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor k1ge_device::device_mconfig_additions() const
+void k1ge_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( k1ge );
+	PALETTE(config, "palette", FUNC(k1ge_device::k1ge_palette), 8);
 }
 
 
-const device_type K2GE = device_creator<k2ge_device>;
+DEFINE_DEVICE_TYPE(K2GE, k2ge_device, "k2ge", "K2GE Color Graphics + LCD")
 
 k2ge_device::k2ge_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: k1ge_device(mconfig, K2GE, "K2GE Color Graphics + LCD", tag, owner, clock, "k2ge", __FILE__)
+	: k1ge_device(mconfig, K2GE, tag, owner, clock)
 {
 }
 
-static MACHINE_CONFIG_FRAGMENT( k2ge )
-	MCFG_PALETTE_ADD("palette", 4096 )
-	MCFG_PALETTE_INIT_OWNER(k2ge_device, k2ge)
-MACHINE_CONFIG_END
-
 //-------------------------------------------------
-//  machine_config_additions - return a pointer to
-//  the device's machine fragment
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor k2ge_device::device_mconfig_additions() const
+void k2ge_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( k2ge );
+	PALETTE(config, "palette", FUNC(k2ge_device::k2ge_palette), 4096);
 }

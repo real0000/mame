@@ -10,8 +10,10 @@
 #include "cpu/m68000/m68000.h"
 #include "cpu/powerpc/ppc.h"
 #include "machine/eepromser.h"
+#include "machine/upd4701.h"
 #include "sound/k054539.h"
 #include "sound/k056800.h"
+#include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -19,53 +21,67 @@
 class ultrsprt_state : public driver_device
 {
 public:
-	ultrsprt_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	ultrsprt_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_k056800(*this, "k056800"),
 		m_workram(*this, "workram"),
-		m_palette(*this, "palette") { }
+		m_palette(*this, "palette"),
+		m_eeprom(*this, "eeprom"),
+		m_upd(*this, "upd%u", 1),
+		m_service(*this, "SERVICE")
+	{ }
 
-	static const uint32_t VRAM_PAGES      = 2;
-	static const uint32_t VRAM_PAGE_BYTES = 512 * 1024;
+	void ultrsprt(machine_config &config);
+
+private:
+	static const u32 VRAM_PAGES      = 2;
+	static const u32 VRAM_PAGE_BYTES = 512 * 1024;
 
 	required_device<ppc_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<k056800_device> m_k056800;
-	required_shared_ptr<uint32_t> m_workram;
+	required_shared_ptr<u32> m_workram;
 	required_device<palette_device> m_palette;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
+	required_device_array<upd4701_device, 2> m_upd;
 
-	DECLARE_READ32_MEMBER(eeprom_r);
-	DECLARE_WRITE32_MEMBER(eeprom_w);
-	DECLARE_WRITE32_MEMBER(int_ack_w);
+	required_ioport m_service;
 
-	uint32_t screen_update_ultrsprt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	u8 eeprom_r();
+	void eeprom_w(u8 data);
+	u16 upd1_r(offs_t offset);
+	u16 upd2_r(offs_t offset);
+	void int_ack_w(u32 data);
 
-protected:
+	u32 screen_update_ultrsprt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+	void sound_map(address_map &map);
+	void ultrsprt_map(address_map &map);
+
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
 
-private:
-	std::unique_ptr<uint8_t[]> m_vram;
-	uint32_t m_cpu_vram_page;
+	std::unique_ptr<u8[]> m_vram;
+	u32 m_cpu_vram_page;
 };
 
 
 /*****************************************************************************/
 
-uint32_t ultrsprt_state::screen_update_ultrsprt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+u32 ultrsprt_state::screen_update_ultrsprt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	uint8_t *vram = m_vram.get() + (m_cpu_vram_page ^ 1) * VRAM_PAGE_BYTES;
+	u8 *vram = m_vram.get() + (m_cpu_vram_page ^ 1) * VRAM_PAGE_BYTES;
 
 	for (int y = cliprect.min_y; y <= cliprect.max_y; ++y)
 	{
 		int fb_index = y * 1024;
-		uint16_t *dest = &bitmap.pix16(y, cliprect.min_x);
+		u16 *dest = &bitmap.pix16(y, cliprect.min_x);
 
 		for (int x = cliprect.min_x; x <= cliprect.max_x; ++x)
 		{
-			uint8_t p1 = vram[BYTE4_XOR_BE(fb_index + x + 512)];
+			u8 p1 = vram[BYTE4_XOR_BE(fb_index + x + 512)];
 
 			if (p1 == 0)
 				*dest++ = vram[BYTE4_XOR_BE(fb_index + x)];
@@ -80,104 +96,115 @@ uint32_t ultrsprt_state::screen_update_ultrsprt(screen_device &screen, bitmap_in
 
 /*****************************************************************************/
 
-WRITE32_MEMBER(ultrsprt_state::int_ack_w)
+void ultrsprt_state::int_ack_w(u32 data)
 {
 	m_maincpu->set_input_line(INPUT_LINE_IRQ1, CLEAR_LINE);
 }
 
 
-READ32_MEMBER(ultrsprt_state::eeprom_r)
+u8 ultrsprt_state::eeprom_r()
 {
-	uint32_t r = 0;
-
-	if (ACCESSING_BITS_24_31)
-		r |= ioport("SERVICE")->read();
-
-	return r;
+	return m_service->read();
 }
 
-WRITE32_MEMBER(ultrsprt_state::eeprom_w)
+void ultrsprt_state::eeprom_w(u8 data)
 {
-	if (ACCESSING_BITS_24_31)
+	/*
+	    .... ...x - EEPROM DI
+	    .... ..x. - EEPROM CLK
+	    .... .x.. - EEPROM /CS
+	    .... x... - VRAM page (CPU access)
+	    ...x .... - Coin counter
+	    ..x. .... - Watchdog /Reset
+	    .x.. .... - Trackball /Reset
+	    x... .... - Sound CPU /Reset
+	*/
+	m_eeprom->di_write(BIT(data, 0));
+	m_eeprom->clk_write(!BIT(data, 1));
+	m_eeprom->cs_write(BIT(data, 2));
+
+	u32 vram_page = (data & 0x08) >> 3;
+	if (vram_page != m_cpu_vram_page)
 	{
-		/*
-		    .... ...x - EEPROM DI
-		    .... ..x. - EEPROM CLK
-		    .... .x.. - EEPROM /CS
-		    .... x... - VRAM page (CPU access)
-		    ...x .... - Coin counter
-		    ..x. .... - Watchdog /Reset
-		    .x.. .... - Trackball /Reset
-		    x... .... - Sound CPU /Reset
-		*/
-		ioport("EEPROMOUT")->write(data, 0xffffffff);
-
-		uint32_t vram_page = (data & 0x08000000) >> 27;
-
-		if (vram_page != m_cpu_vram_page)
-		{
-			membank("vram")->set_entry(vram_page);
-			m_cpu_vram_page = vram_page;
-		}
-
-		machine().bookkeeping().coin_counter_w(0, data & 0x10000000);
-		m_audiocpu->set_input_line(INPUT_LINE_RESET, data & 0x80000000 ? CLEAR_LINE : ASSERT_LINE);
+		membank("vram")->set_entry(vram_page);
+		m_cpu_vram_page = vram_page;
 	}
+
+	machine().bookkeeping().coin_counter_w(0, BIT(data, 4));
+	for (auto &upd : m_upd)
+	{
+		upd->resetx_w(!BIT(data, 6));
+		upd->resety_w(!BIT(data, 6));
+	}
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, BIT(data, 7) ? CLEAR_LINE : ASSERT_LINE);
+}
+
+u16 ultrsprt_state::upd1_r(offs_t offset)
+{
+	return m_upd[0]->read_xy(offset * 2) | (m_upd[0]->read_xy(offset * 2 + 1) << 8);
+}
+
+u16 ultrsprt_state::upd2_r(offs_t offset)
+{
+	return m_upd[1]->read_xy(offset * 2) | (m_upd[1]->read_xy(offset * 2 + 1) << 8);
 }
 
 /*****************************************************************************/
 
-static ADDRESS_MAP_START( ultrsprt_map, AS_PROGRAM, 32, ultrsprt_state )
-	AM_RANGE(0x00000000, 0x0007ffff) AM_RAMBANK("vram")
-	AM_RANGE(0x70000000, 0x70000003) AM_READWRITE(eeprom_r, eeprom_w)
-	AM_RANGE(0x70000020, 0x70000023) AM_READ_PORT("P1")
-	AM_RANGE(0x70000040, 0x70000043) AM_READ_PORT("P2")
-	AM_RANGE(0x70000080, 0x7000008f) AM_DEVREADWRITE8("k056800", k056800_device, host_r, host_w, 0xffffffff)
-	AM_RANGE(0x700000c0, 0x700000cf) AM_WRITENOP // Written following DMA interrupt - unused int ack?
-	AM_RANGE(0x700000e0, 0x700000e3) AM_WRITE(int_ack_w)
-	AM_RANGE(0x7f000000, 0x7f01ffff) AM_RAM AM_SHARE("workram")
-	AM_RANGE(0x7f700000, 0x7f703fff) AM_RAM_DEVWRITE("palette",  palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0x7f800000, 0x7f9fffff) AM_MIRROR(0x00600000) AM_ROM AM_REGION("program", 0)
-ADDRESS_MAP_END
+void ultrsprt_state::ultrsprt_map(address_map &map)
+{
+	map(0x00000000, 0x0007ffff).bankrw("vram");
+	map(0x70000000, 0x70000000).rw(FUNC(ultrsprt_state::eeprom_r), FUNC(ultrsprt_state::eeprom_w));
+	map(0x70000020, 0x70000023).r(FUNC(ultrsprt_state::upd1_r));
+	map(0x70000040, 0x70000043).r(FUNC(ultrsprt_state::upd2_r));
+	map(0x70000080, 0x7000008f).rw(m_k056800, FUNC(k056800_device::host_r), FUNC(k056800_device::host_w));
+	map(0x700000c0, 0x700000cf).nopw(); // Written following DMA interrupt - unused int ack?
+	map(0x700000e0, 0x700000e3).w(FUNC(ultrsprt_state::int_ack_w));
+	map(0x7f000000, 0x7f01ffff).ram().share("workram");
+	map(0x7f700000, 0x7f703fff).ram().w(m_palette, FUNC(palette_device::write32)).share("palette");
+	map(0x7f800000, 0x7f9fffff).mirror(0x00600000).rom().region("program", 0);
+}
 
 
 /*****************************************************************************/
 
-static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 16, ultrsprt_state )
-	AM_RANGE(0x00000000, 0x0001ffff) AM_ROM
-	AM_RANGE(0x00100000, 0x00101fff) AM_RAM
-	AM_RANGE(0x00200000, 0x0020000f) AM_DEVREADWRITE8("k056800", k056800_device, sound_r, sound_w, 0xffff)
-	AM_RANGE(0x00400000, 0x004002ff) AM_DEVREADWRITE8("k054539", k054539_device, read, write, 0xffff)
-ADDRESS_MAP_END
+void ultrsprt_state::sound_map(address_map &map)
+{
+	map(0x00000000, 0x0001ffff).rom();
+	map(0x00100000, 0x00101fff).ram();
+	map(0x00200000, 0x0020000f).rw(m_k056800, FUNC(k056800_device::sound_r), FUNC(k056800_device::sound_w));
+	map(0x00400000, 0x004002ff).rw("k054539", FUNC(k054539_device::read), FUNC(k054539_device::write));
+}
 
 
 /*****************************************************************************/
 
 static INPUT_PORTS_START( ultrsprt )
-	PORT_START("P1")
-	PORT_BIT( 0x00000fff, 0x000, IPT_TRACKBALL_Y ) PORT_SENSITIVITY(70) PORT_KEYDELTA(80) PORT_PLAYER(1)
-	PORT_BIT( 0x0fff0000, 0x000, IPT_TRACKBALL_X ) PORT_SENSITIVITY(70) PORT_KEYDELTA(80) PORT_REVERSE PORT_PLAYER(1)
-	PORT_BIT( 0x40000000, IP_ACTIVE_HIGH, IPT_COIN1 )
-	PORT_BIT( 0x20000000, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_PLAYER(1)
-	PORT_BIT( 0x10000000, IP_ACTIVE_HIGH, IPT_START1 )
+	PORT_START("P1X")
+	PORT_BIT( 0xfff, 0x000, IPT_TRACKBALL_X ) PORT_SENSITIVITY(70) PORT_KEYDELTA(80) PORT_RESET PORT_REVERSE PORT_PLAYER(1)
 
-	PORT_START("P2")
-	PORT_BIT( 0x00000fff, 0x000, IPT_TRACKBALL_Y ) PORT_SENSITIVITY(70) PORT_KEYDELTA(80) PORT_PLAYER(2)
-	PORT_BIT( 0x0fff0000, 0x000, IPT_TRACKBALL_X ) PORT_SENSITIVITY(70) PORT_KEYDELTA(80) PORT_REVERSE PORT_PLAYER(2)
-	PORT_BIT( 0x40000000, IP_ACTIVE_HIGH, IPT_SERVICE1 )
-	PORT_BIT( 0x20000000, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_PLAYER(2)
-	PORT_BIT( 0x10000000, IP_ACTIVE_HIGH, IPT_START2 )
+	PORT_START("P1Y")
+	PORT_BIT( 0xfff, 0x000, IPT_TRACKBALL_Y ) PORT_SENSITIVITY(70) PORT_KEYDELTA(80) PORT_RESET PORT_PLAYER(1)
+
+	PORT_START("P2X")
+	PORT_BIT( 0xfff, 0x000, IPT_TRACKBALL_X ) PORT_SENSITIVITY(70) PORT_KEYDELTA(80) PORT_RESET PORT_REVERSE PORT_PLAYER(2)
+
+	PORT_START("P2Y")
+	PORT_BIT( 0xfff, 0x000, IPT_TRACKBALL_Y ) PORT_SENSITIVITY(70) PORT_KEYDELTA(80) PORT_RESET PORT_PLAYER(2)
+
+	PORT_START("BUTTONS")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN1 ) PORT_WRITE_LINE_DEVICE_MEMBER("upd1", upd4701_device, left_w)
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1) PORT_WRITE_LINE_DEVICE_MEMBER("upd1", upd4701_device, right_w)
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_START1 ) PORT_WRITE_LINE_DEVICE_MEMBER("upd1", upd4701_device, middle_w)
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SERVICE1 ) PORT_WRITE_LINE_DEVICE_MEMBER("upd2", upd4701_device, left_w)
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2) PORT_WRITE_LINE_DEVICE_MEMBER("upd2", upd4701_device, right_w)
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_START2 ) PORT_WRITE_LINE_DEVICE_MEMBER("upd2", upd4701_device, middle_w)
 
 	PORT_START("SERVICE")
-	PORT_BIT( 0x01000000, IP_ACTIVE_HIGH, IPT_UNUSED )
-	PORT_BIT( 0x02000000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
-	PORT_BIT( 0x04000000, IP_ACTIVE_HIGH, IPT_SPECIAL ) // VRAM page flip status?
-	PORT_SERVICE_NO_TOGGLE( 0x08000000, IP_ACTIVE_LOW )
-
-	PORT_START("EEPROMOUT")
-	PORT_BIT( 0x01000000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
-	PORT_BIT( 0x02000000, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
-	PORT_BIT( 0x04000000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_UNUSED )
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_CUSTOM ) // VRAM page flip status?
+	PORT_SERVICE_NO_TOGGLE( 0x08, IP_ACTIVE_LOW )
 INPUT_PORTS_END
 
 
@@ -191,11 +218,11 @@ void ultrsprt_state::machine_start()
 	/* configure fast RAM regions for DRC */
 	m_maincpu->ppcdrc_add_fastram(0xff000000, 0xff01ffff, false, m_workram);
 
-	m_vram = std::make_unique<uint8_t[]>(VRAM_PAGE_BYTES * VRAM_PAGES);
+	m_vram = std::make_unique<u8[]>(VRAM_PAGE_BYTES * VRAM_PAGES);
 
 	membank("vram")->configure_entries(0, VRAM_PAGES, m_vram.get(), VRAM_PAGE_BYTES);
 
-	save_pointer(NAME(m_vram.get()), VRAM_PAGE_BYTES * VRAM_PAGES);
+	save_pointer(NAME(m_vram), VRAM_PAGE_BYTES * VRAM_PAGES);
 	save_item(NAME(m_cpu_vram_page));
 }
 
@@ -210,49 +237,58 @@ void ultrsprt_state::machine_reset()
 
 /*****************************************************************************/
 
-static MACHINE_CONFIG_START( ultrsprt, ultrsprt_state )
+void ultrsprt_state::ultrsprt(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", PPC403GA, 25000000)
-	MCFG_CPU_PROGRAM_MAP(ultrsprt_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", ultrsprt_state, irq1_line_assert)
+	PPC403GA(config, m_maincpu, 25000000);
+	m_maincpu->set_addrmap(AS_PROGRAM, &ultrsprt_state::ultrsprt_map);
+	m_maincpu->set_vblank_int("screen", FUNC(ultrsprt_state::irq1_line_assert));
 
-	MCFG_CPU_ADD("audiocpu", M68000, 8000000) // Unconfirmed
-	MCFG_CPU_PROGRAM_MAP(sound_map)
+	M68000(config, m_audiocpu, 8000000); // Unconfirmed
+	m_audiocpu->set_addrmap(AS_PROGRAM, &ultrsprt_state::sound_map);
 
-	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
+	EEPROM_93C46_16BIT(config, "eeprom");
+
+	UPD4701A(config, m_upd[0]);
+	m_upd[0]->set_portx_tag("P1X");
+	m_upd[0]->set_porty_tag("P1Y");
+
+	UPD4701A(config, m_upd[1]);
+	m_upd[1]->set_portx_tag("P2X");
+	m_upd[1]->set_porty_tag("P2Y");
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60) // TODO: Determine correct timings
-	MCFG_SCREEN_SIZE(640, 480)
-	MCFG_SCREEN_VISIBLE_AREA(0, 511, 0, 399)
-	MCFG_SCREEN_UPDATE_DRIVER(ultrsprt_state, screen_update_ultrsprt)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60); // TODO: Determine correct timings
+	screen.set_size(640, 480);
+	screen.set_visarea(0, 511, 0, 399);
+	screen.set_screen_update(FUNC(ultrsprt_state::screen_update_ultrsprt));
+	screen.set_palette(m_palette);
 
-	MCFG_PALETTE_ADD("palette", 8192)
-	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+	PALETTE(config, m_palette).set_format(palette_device::xRGB_555, 8192);
 
 	/* sound hardware */
-	MCFG_K056800_ADD("k056800", XTAL_18_432MHz)
-	MCFG_K056800_INT_HANDLER(INPUTLINE("audiocpu", M68K_IRQ_6))
+	K056800(config, m_k056800, XTAL(18'432'000));
+	m_k056800->int_callback().set_inputline(m_audiocpu, M68K_IRQ_6);
 
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
 
-	MCFG_DEVICE_ADD("k054539", K054539, XTAL_18_432MHz)
-	MCFG_K054539_TIMER_HANDLER(INPUTLINE("audiocpu", M68K_IRQ_5))
-	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
-MACHINE_CONFIG_END
+	k054539_device &k054539(K054539(config, "k054539", XTAL(18'432'000)));
+	k054539.timer_handler().set_inputline("audiocpu", M68K_IRQ_5);
+	k054539.add_route(0, "lspeaker", 1.0);
+	k054539.add_route(1, "rspeaker", 1.0);
+}
 
 
 /*****************************************************************************/
 
 ROM_START( fiveside )
-	ROM_REGION(0x200000, "program", 0) /* PowerPC program ROMs */
-	ROM_LOAD32_BYTE("479uaa01.bin", 0x000003, 0x80000, CRC(1bc4893d) SHA1(2c9df38ecb7efa7b686221ee98fa3aad9a63e152))
-	ROM_LOAD32_BYTE("479uaa02.bin", 0x000002, 0x80000, CRC(ae74a6d0) SHA1(6113c2eea1628b22737c7b87af0e673d94984e88))
-	ROM_LOAD32_BYTE("479uaa03.bin", 0x000001, 0x80000, CRC(5c0b176f) SHA1(9560259bc081d4cfd72eb485c3fdcecf484ba7a8))
-	ROM_LOAD32_BYTE("479uaa04.bin", 0x000000, 0x80000, CRC(01a3e4cb) SHA1(819df79909d57fa12481698ffdb32b00586131d8))
+	ROM_REGION32_BE(0x200000, "program", 0) /* PowerPC program ROMs */
+	ROM_LOAD32_BYTE("479uaa01.bin", 0x000000, 0x80000, CRC(1bc4893d) SHA1(2c9df38ecb7efa7b686221ee98fa3aad9a63e152))
+	ROM_LOAD32_BYTE("479uaa02.bin", 0x000001, 0x80000, CRC(ae74a6d0) SHA1(6113c2eea1628b22737c7b87af0e673d94984e88))
+	ROM_LOAD32_BYTE("479uaa03.bin", 0x000002, 0x80000, CRC(5c0b176f) SHA1(9560259bc081d4cfd72eb485c3fdcecf484ba7a8))
+	ROM_LOAD32_BYTE("479uaa04.bin", 0x000003, 0x80000, CRC(01a3e4cb) SHA1(819df79909d57fa12481698ffdb32b00586131d8))
 
 	ROM_REGION(0x20000, "audiocpu", 0) /* M68K program */
 	ROM_LOAD("479_a05.bin", 0x000000, 0x20000, CRC(251ae299) SHA1(5ffd74357e3c6ddb3a208c39a3b32b53fea90282))
@@ -266,4 +302,4 @@ ROM_START( fiveside )
 ROM_END
 
 // Undumped: Ultra Hockey
-GAME(1995, fiveside, 0, ultrsprt, ultrsprt, driver_device, 0, ROT90, "Konami", "Five a Side Soccer (ver UAA)", 0)
+GAME(1995, fiveside, 0, ultrsprt, ultrsprt, ultrsprt_state, empty_init, ROT90, "Konami", "Five a Side Soccer (ver UAA)", 0)

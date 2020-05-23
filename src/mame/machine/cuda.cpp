@@ -54,7 +54,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type CUDA = device_creator<cuda_device>;
+DEFINE_DEVICE_TYPE(CUDA, cuda_device, "cuda", "Apple Cuda")
 
 ROM_START( cuda )
 	ROM_REGION(0x4400, CUDA_CPU_TAG, 0)
@@ -67,36 +67,28 @@ ROM_END
 //  ADDRESS_MAP
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( cuda_map, AS_PROGRAM, 8, cuda_device )
-	AM_RANGE(0x0000, 0x0002) AM_READWRITE(ports_r, ports_w)
-	AM_RANGE(0x0004, 0x0006) AM_READWRITE(ddr_r, ddr_w)
-	AM_RANGE(0x0007, 0x0007) AM_READWRITE(pll_r, pll_w)
-	AM_RANGE(0x0008, 0x0008) AM_READWRITE(timer_ctrl_r, timer_ctrl_w)
-	AM_RANGE(0x0009, 0x0009) AM_READWRITE(timer_counter_r, timer_counter_w)
-	AM_RANGE(0x0012, 0x0012) AM_READWRITE(onesec_r, onesec_w)
-	AM_RANGE(0x0090, 0x00ff) AM_RAM                         // work RAM and stack
-	AM_RANGE(0x0100, 0x01ff) AM_READWRITE(pram_r, pram_w)
-	AM_RANGE(0x0f00, 0x1fff) AM_ROM AM_REGION(CUDA_CPU_TAG, 0)
-ADDRESS_MAP_END
-
-//-------------------------------------------------
-//  MACHINE_CONFIG
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( cuda )
-	MCFG_CPU_ADD(CUDA_CPU_TAG, M68HC05EG, XTAL_32_768kHz*192)   // 32.768 kHz input clock, can be PLL'ed to x128 = 4.1 MHz under s/w control
-	MCFG_CPU_PROGRAM_MAP(cuda_map)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor cuda_device::device_mconfig_additions() const
+void cuda_device::cuda_map(address_map &map)
 {
-	return MACHINE_CONFIG_NAME( cuda );
+	map(0x0000, 0x0002).rw(FUNC(cuda_device::ports_r), FUNC(cuda_device::ports_w));
+	map(0x0004, 0x0006).rw(FUNC(cuda_device::ddr_r), FUNC(cuda_device::ddr_w));
+	map(0x0007, 0x0007).rw(FUNC(cuda_device::pll_r), FUNC(cuda_device::pll_w));
+	map(0x0008, 0x0008).rw(FUNC(cuda_device::timer_ctrl_r), FUNC(cuda_device::timer_ctrl_w));
+	map(0x0009, 0x0009).rw(FUNC(cuda_device::timer_counter_r), FUNC(cuda_device::timer_counter_w));
+	map(0x0012, 0x0012).rw(FUNC(cuda_device::onesec_r), FUNC(cuda_device::onesec_w));
+	map(0x0090, 0x00ff).ram();                         // work RAM and stack
+	map(0x0100, 0x01ff).rw(FUNC(cuda_device::pram_r), FUNC(cuda_device::pram_w));
+	map(0x0f00, 0x1fff).rom().region(CUDA_CPU_TAG, 0);
+}
+
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void cuda_device::device_add_mconfig(machine_config &config)
+{
+	M68HC05EG(config, m_maincpu, XTAL(32'768)*192);   // 32.768 kHz input clock, can be PLL'ed to x128 = 4.1 MHz under s/w control
+	m_maincpu->set_addrmap(AS_PROGRAM, &cuda_device::cuda_map);
 }
 
 const tiny_rom_entry *cuda_device::device_rom_region() const
@@ -108,7 +100,7 @@ const tiny_rom_entry *cuda_device::device_rom_region() const
 //  LIVE DEVICE
 //**************************************************************************
 
-void cuda_device::send_port(address_space &space, uint8_t offset, uint8_t data)
+void cuda_device::send_port(uint8_t offset, uint8_t data)
 {
 //    printf("PORT %c write %02x (DDR = %02x) (PC=%x)\n", 'A' + offset, data, ddrs[offset], m_maincpu->pc());
 
@@ -195,21 +187,21 @@ void cuda_device::send_port(address_space &space, uint8_t offset, uint8_t data)
 	}
 }
 
-READ8_MEMBER( cuda_device::ddr_r )
+uint8_t cuda_device::ddr_r(offs_t offset)
 {
 	return ddrs[offset];
 }
 
-WRITE8_MEMBER( cuda_device::ddr_w )
+void cuda_device::ddr_w(offs_t offset, uint8_t data)
 {
 //    printf("%02x to PORT %c DDR (PC=%x)\n", data, 'A' + offset, m_maincpu->pc());
 
-	send_port(space, offset, ports[offset] & data);
+	send_port(offset, ports[offset] & data);
 
 	ddrs[offset] = data;
 }
 
-READ8_MEMBER( cuda_device::ports_r )
+uint8_t cuda_device::ports_r(offs_t offset)
 {
 	uint8_t incoming = 0;
 
@@ -268,19 +260,19 @@ READ8_MEMBER( cuda_device::ports_r )
 	return incoming;
 }
 
-WRITE8_MEMBER( cuda_device::ports_w )
+void cuda_device::ports_w(offs_t offset, uint8_t data)
 {
-	send_port(space, offset, data);
+	send_port(offset, data);
 
 	ports[offset] = data;
 }
 
-READ8_MEMBER( cuda_device::pll_r )
+uint8_t cuda_device::pll_r()
 {
 	return pll_ctrl;
 }
 
-WRITE8_MEMBER( cuda_device::pll_w )
+void cuda_device::pll_w(uint8_t data)
 {
 	#ifdef CUDA_SUPER_VERBOSE
 	if (pll_ctrl != data)
@@ -297,19 +289,19 @@ WRITE8_MEMBER( cuda_device::pll_w )
 	pll_ctrl = data;
 }
 
-READ8_MEMBER( cuda_device::timer_ctrl_r )
+uint8_t cuda_device::timer_ctrl_r()
 {
 	return timer_ctrl;
 }
 
-WRITE8_MEMBER( cuda_device::timer_ctrl_w )
+void cuda_device::timer_ctrl_w(uint8_t data)
 {
 	static const attotime rates[4][5] =
 	{
-		{ attotime::from_seconds(1), attotime::from_msec(31.3f), attotime::from_msec(15.6f), attotime::from_msec(7.8f), attotime::from_msec(3.9f) },
-		{ attotime::from_seconds(2), attotime::from_msec(62.5f), attotime::from_msec(31.3f), attotime::from_msec(15.6f), attotime::from_msec(7.8f) },
-		{ attotime::from_seconds(4), attotime::from_msec(125.0f), attotime::from_msec(62.5f), attotime::from_msec(31.3f), attotime::from_msec(15.6f) },
-		{ attotime::from_seconds(8), attotime::from_msec(250.0f), attotime::from_msec(125.1f), attotime::from_msec(62.5f), attotime::from_msec(31.3f) },
+		{ attotime::from_seconds(1), attotime::from_usec(31300), attotime::from_usec(15600), attotime::from_usec(7800), attotime::from_usec(3900) },
+		{ attotime::from_seconds(2), attotime::from_usec(62500), attotime::from_usec(31300), attotime::from_usec(15600), attotime::from_usec(7800) },
+		{ attotime::from_seconds(4), attotime::from_usec(125000), attotime::from_usec(62500), attotime::from_usec(31300), attotime::from_usec(15600) },
+		{ attotime::from_seconds(8), attotime::from_usec(250000), attotime::from_usec(125100), attotime::from_usec(62500), attotime::from_usec(31300) },
 	};
 
 //    printf("%02x to timer control (PC=%x)\n", data, m_maincpu->pc());
@@ -339,24 +331,24 @@ WRITE8_MEMBER( cuda_device::timer_ctrl_w )
 	timer_ctrl |= (data & ~0xc0);
 }
 
-READ8_MEMBER( cuda_device::timer_counter_r )
+uint8_t cuda_device::timer_counter_r()
 {
 	return timer_counter;
 }
 
-WRITE8_MEMBER( cuda_device::timer_counter_w )
+void cuda_device::timer_counter_w(uint8_t data)
 {
 //    printf("%02x to timer counter (PC=%x)\n", data, m_maincpu->pc());
 	timer_counter = data;
 	ripple_counter = timer_counter;
 }
 
-READ8_MEMBER( cuda_device::onesec_r )
+uint8_t cuda_device::onesec_r()
 {
 	return onesec;
 }
 
-WRITE8_MEMBER( cuda_device::onesec_w )
+void cuda_device::onesec_w(uint8_t data)
 {
 	m_timer->adjust(attotime::from_seconds(1), 0, attotime::from_seconds(1));
 
@@ -368,12 +360,12 @@ WRITE8_MEMBER( cuda_device::onesec_w )
 	onesec = data;
 }
 
-READ8_MEMBER( cuda_device::pram_r )
+uint8_t cuda_device::pram_r(offs_t offset)
 {
 	return pram[offset];
 }
 
-WRITE8_MEMBER( cuda_device::pram_w )
+void cuda_device::pram_w(offs_t offset, uint8_t data)
 {
 	pram[offset] = data;
 }
@@ -383,7 +375,7 @@ WRITE8_MEMBER( cuda_device::pram_w )
 //-------------------------------------------------
 
 cuda_device::cuda_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, CUDA, "Apple Cuda", tag, owner, clock, "cuda", __FILE__),
+	: device_t(mconfig, CUDA, tag, owner, clock),
 	device_nvram_interface(mconfig, *this),
 	write_reset(*this),
 	write_linechange(*this),
@@ -391,17 +383,6 @@ cuda_device::cuda_device(const machine_config &mconfig, const char *tag, device_
 	write_via_data(*this),
 	m_maincpu(*this, CUDA_CPU_TAG)
 {
-}
-
-//-------------------------------------------------
-//  static_set_type - configuration helper to set
-//  the chip type
-//-------------------------------------------------
-
-void cuda_device::static_set_type(device_t &device, int type)
-{
-	cuda_device &cuda = downcast<cuda_device &>(device);
-	cuda.rom_offset = type;
 }
 
 //-------------------------------------------------
@@ -440,7 +421,7 @@ void cuda_device::device_start()
 	save_item(NAME(pram));
 	save_item(NAME(disk_pram));
 
-	uint8_t *rom = device().machine().root_device().memregion(device().subtag(CUDA_CPU_TAG).c_str())->base();
+	uint8_t *rom = device().machine().root_device().memregion(device().subtag(CUDA_CPU_TAG))->base();
 
 	if (rom)
 	{

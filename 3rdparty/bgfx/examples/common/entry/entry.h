@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2019 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
  */
 
@@ -7,8 +7,8 @@
 #define ENTRY_H_HEADER_GUARD
 
 #include "dbg.h"
-#include <string.h> // memset
 #include <bx/bx.h>
+#include <bx/filepath.h>
 #include <bx/string.h>
 
 namespace bx { struct FileReaderI; struct FileWriterI; struct AllocatorI; }
@@ -19,12 +19,21 @@ extern "C" int _main_(int _argc, char** _argv);
 #define ENTRY_WINDOW_FLAG_ASPECT_RATIO UINT32_C(0x00000001)
 #define ENTRY_WINDOW_FLAG_FRAME        UINT32_C(0x00000002)
 
-#define ENTRY_IMPLEMENT_MAIN(_app) \
-			int _main_(int _argc, char** _argv) \
-			{ \
-				_app app; \
-				return entry::runApp(&app, _argc, _argv); \
-			}
+#ifndef ENTRY_CONFIG_IMPLEMENT_MAIN
+#	define ENTRY_CONFIG_IMPLEMENT_MAIN 0
+#endif // ENTRY_CONFIG_IMPLEMENT_MAIN
+
+#if ENTRY_CONFIG_IMPLEMENT_MAIN
+#define ENTRY_IMPLEMENT_MAIN(_app, ...)                 \
+	int _main_(int _argc, char** _argv)                 \
+	{                                                   \
+			_app app(__VA_ARGS__);                      \
+			return entry::runApp(&app, _argc, _argv);   \
+	}
+#else
+#define ENTRY_IMPLEMENT_MAIN(_app, ...) \
+	_app s_ ## _app ## App(__VA_ARGS__)
+#endif // ENTRY_CONFIG_IMPLEMENT_MAIN
 
 namespace entry
 {
@@ -227,7 +236,7 @@ namespace entry
 	{
 		GamepadState()
 		{
-			memset(m_axis, 0, sizeof(m_axis) );
+			bx::memSet(m_axis, 0, sizeof(m_axis) );
 		}
 
 		int32_t m_axis[entry::GamepadAxis::Count];
@@ -244,7 +253,7 @@ namespace entry
 	void setWindowPos(WindowHandle _handle, int32_t _x, int32_t _y);
 	void setWindowSize(WindowHandle _handle, uint32_t _width, uint32_t _height);
 	void setWindowTitle(WindowHandle _handle, const char* _title);
-	void toggleWindowFrame(WindowHandle _handle);
+	void setWindowFlags(WindowHandle _handle, uint32_t _flags, bool _enabled);
 	void toggleFullscreen(WindowHandle _handle);
 	void setMouseLock(WindowHandle _handle, bool _lock);
 	void setCurrentDir(const char* _dir);
@@ -264,49 +273,57 @@ namespace entry
 		uint32_t     m_height;
 		MouseState   m_mouse;
 		void*        m_nwh;
+		bx::FilePath m_dropFile;
 	};
 
 	bool processWindowEvents(WindowState& _state, uint32_t& _debug, uint32_t& _reset);
 
-	struct BX_NO_VTABLE AppI
-	{
-		virtual ~AppI() = 0;
-		virtual void init(int _argc, char** _argv) = 0;
-		virtual int  shutdown() = 0;
-		virtual bool update() = 0;
-	};
-
-	inline AppI::~AppI()
-	{
-	}
-
-	class App : public AppI
+	class BX_NO_VTABLE AppI
 	{
 	public:
-		App(const char* _name);
+		///
+		AppI(const char* _name, const char* _description, const char* _url = "https://bkaradzic.github.io/bgfx/index.html");
 
-		virtual ~App();
+		///
+		virtual ~AppI() = 0;
 
-		const char* getName() const
-		{
-			return m_name;
-		}
+		///
+		virtual void init(int32_t _argc, const char* const* _argv, uint32_t _width, uint32_t _height) = 0;
 
-		AppI* getNext()
-		{
-			return m_next;
-		}
+		///
+		virtual int  shutdown() = 0;
+
+		///
+		virtual bool update() = 0;
+
+		///
+		const char* getName() const;
+
+		///
+		const char* getDescription() const;
+
+		///
+		const char* getUrl() const;
+
+		///
+		AppI* getNext();
+
+		AppI* m_next;
 
 	private:
 		const char* m_name;
-		App* m_next;
+		const char* m_description;
+		const char* m_url;
 	};
 
 	///
-	App* getFirstApp();
+	AppI* getFirstApp();
 
 	///
-	int runApp(AppI* _app, int _argc, char** _argv);
+	uint32_t getNumApps();
+
+	///
+	int runApp(AppI* _app, int _argc, const char* const* _argv);
 
 } // namespace entry
 

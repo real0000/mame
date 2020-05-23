@@ -12,40 +12,6 @@
 #include "includes/mustache.h"
 
 
-PALETTE_INIT_MEMBER(mustache_state, mustache)
-{
-	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
-
-	for (i = 0;i < 256;i++)
-	{
-		int bit0,bit1,bit2,bit3,r,g,b;
-
-		/* red component */
-		bit0 = (color_prom[i] >> 0) & 0x01;
-		bit1 = (color_prom[i] >> 1) & 0x01;
-		bit2 = (color_prom[i] >> 2) & 0x01;
-		bit3 = (color_prom[i] >> 3) & 0x01;
-		r = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
-
-		/* green component */
-		bit0 = (color_prom[i + 256] >> 0) & 0x01;
-		bit1 = (color_prom[i + 256] >> 1) & 0x01;
-		bit2 = (color_prom[i + 256] >> 2) & 0x01;
-		bit3 = (color_prom[i + 256] >> 3) & 0x01;
-		g = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
-
-		/* blue component */
-		bit0 = (color_prom[i + 512] >> 0) & 0x01;
-		bit1 = (color_prom[i + 512] >> 1) & 0x01;
-		bit2 = (color_prom[i + 512] >> 2) & 0x01;
-		bit3 = (color_prom[i + 512] >> 3) & 0x01;
-		b = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
-
-		palette.set_pen_color(i,rgb_t(r,g,b));
-	}
-}
-
 WRITE8_MEMBER(mustache_state::videoram_w)
 {
 	m_videoram[offset] = data;
@@ -81,14 +47,14 @@ TILE_GET_INFO_MEMBER(mustache_state::get_bg_tile_info)
 	int code = m_videoram[2 * tile_index] + ((attr & 0x60) << 3) + ((m_control_byte & 0x08) << 7);
 	int color = attr & 0x0f;
 
-	SET_TILE_INFO_MEMBER(0, code, color, ((attr & 0x10) ? TILE_FLIPX : 0) | ((attr & 0x80) ? TILE_FLIPY : 0)   );
+	tileinfo.set(0, code, color, ((attr & 0x10) ? TILE_FLIPX : 0) | ((attr & 0x80) ? TILE_FLIPY : 0)   );
 
 
 }
 
 void mustache_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(mustache_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS_FLIP_X,
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(mustache_state::get_bg_tile_info)), TILEMAP_SCAN_ROWS_FLIP_X,
 			8, 8, 64, 32);
 
 	m_bg_tilemap->set_scroll_rows(4);

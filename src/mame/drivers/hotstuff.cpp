@@ -4,29 +4,31 @@
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
+#include "machine/mc146818.h"
+#include "machine/z80scc.h"
+#include "emupal.h"
 #include "screen.h"
 
 
 class hotstuff_state : public driver_device
 {
 public:
-	hotstuff_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	hotstuff_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_bitmapram(*this, "bitmapram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_rtc(*this, "rtc")
+	{ }
 
+	void hotstuff(machine_config &config);
+
+private:
 	required_shared_ptr<uint16_t> m_bitmapram;
-	struct
-	{
-		uint8_t index;
-	}m_ioboard;
-	DECLARE_READ8_MEMBER(ioboard_status_r);
-	DECLARE_READ8_MEMBER(ioboard_unk_r);
-	DECLARE_WRITE8_MEMBER(ioboard_data_w);
-	DECLARE_WRITE8_MEMBER(ioboard_reg_w);
 	virtual void video_start() override;
 	uint32_t screen_update_hotstuff(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<mc146818_device> m_rtc;
+	void hotstuff_map(address_map &map);
 };
 
 
@@ -38,37 +40,35 @@ void hotstuff_state::video_start()
 
 uint32_t hotstuff_state::screen_update_hotstuff(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	int count, y,yyy,x,xxx;
+	int yyy,xxx;
 	uint16_t row_palette_data[0x10];
 	rgb_t row_palette_data_as_rgb32_pen_data[0x10];
 
 	yyy=512;xxx=512*2;
 
-	count = 0;
-	for (y = 0; y < yyy; y++)
+	int count = 0;
+	for (int y = 0; y < yyy; y++)
 	{
 		// the current palette is stored in the first 0x20 bytes of each row!
-		int p;
-
-		for (p=0;p<0x10;p++)
+		for (int p = 0; p < 0x10; p++)
 		{
-			row_palette_data[p] = m_bitmapram[count+p];
-
-			row_palette_data_as_rgb32_pen_data[p] = rgb_t( (row_palette_data[p] & 0x0f00)>>4, (row_palette_data[p] & 0x00f0)>>0, (row_palette_data[p] & 0x000f)<<4  );
-
+			row_palette_data[p] = m_bitmapram[count + p];
+			row_palette_data_as_rgb32_pen_data[p] = rgb_t(
+					pal4bit(row_palette_data[p] >> 8),
+					pal4bit(row_palette_data[p] >> 4),
+					pal4bit(row_palette_data[p] >> 0));
 		}
 
-		for(x = 0; x < xxx; x++)
+		for (int x = 0; x < xxx; )
 		{
-			{
-				bitmap.pix32(y, x) = row_palette_data_as_rgb32_pen_data[(m_bitmapram[count] &0xf000)>>12];
-				x++;
-				bitmap.pix32(y, x) = row_palette_data_as_rgb32_pen_data[(m_bitmapram[count] &0x0f00)>>8];
-				x++;
-				bitmap.pix32(y, x) = row_palette_data_as_rgb32_pen_data[(m_bitmapram[count] &0x00f0)>>4];
-				x++;
-				bitmap.pix32(y, x) = row_palette_data_as_rgb32_pen_data[(m_bitmapram[count] &0x000f)>>0];
-			}
+			bitmap.pix32(y, x) = row_palette_data_as_rgb32_pen_data[(m_bitmapram[count] &0xf000)>>12];
+			x++;
+			bitmap.pix32(y, x) = row_palette_data_as_rgb32_pen_data[(m_bitmapram[count] &0x0f00)>>8];
+			x++;
+			bitmap.pix32(y, x) = row_palette_data_as_rgb32_pen_data[(m_bitmapram[count] &0x00f0)>>4];
+			x++;
+			bitmap.pix32(y, x) = row_palette_data_as_rgb32_pen_data[(m_bitmapram[count] &0x000f)>>0];
+			x++;
 
 			count++;
 		}
@@ -77,80 +77,57 @@ uint32_t hotstuff_state::screen_update_hotstuff(screen_device &screen, bitmap_rg
 	return 0;
 }
 
-/* TODO: identify this ... */
-READ8_MEMBER(hotstuff_state::ioboard_status_r)
+void hotstuff_state::hotstuff_map(address_map &map)
 {
-	uint8_t res;
+	map(0x000000, 0x07ffff).rom();
+	map(0x080000, 0x0fffff).noprw(); //.rom().region("data", 0);
 
-	printf("STATUS R\n");
+	map(0x400000, 0x40ffff).ram();
 
-	switch(m_ioboard.index)
-	{
-		case 0x0c: res = 0x80|0x10; break;
-		default: res = 0; break;//machine().rand(); break;
-	}
+	map(0x600000, 0x600003).rw("scc1", FUNC(z80scc_device::ab_dc_r), FUNC(z80scc_device::ab_dc_w));
+	map(0x620000, 0x620003).rw("scc2", FUNC(z80scc_device::ab_dc_r), FUNC(z80scc_device::ab_dc_w));
+	map(0x680000, 0x680001).lrw8(
+			NAME([this] (offs_t offset) { return m_rtc->read(offset^1); }),
+			NAME([this] (offs_t offset, u8 data) { m_rtc->write(offset^1, data); }));
 
-	return res;
+	map(0x980000, 0x9bffff).ram().share("bitmapram");
 }
-
-READ8_MEMBER(hotstuff_state::ioboard_unk_r)
-{
-	printf("UNK R\n");
-
-	return 0xff;
-}
-
-WRITE8_MEMBER(hotstuff_state::ioboard_data_w)
-{
-	printf("DATA %02x\n",data);
-}
-
-WRITE8_MEMBER(hotstuff_state::ioboard_reg_w)
-{
-	m_ioboard.index = data;
-	printf("REG %02x\n",data);
-}
-
-static ADDRESS_MAP_START( hotstuff_map, AS_PROGRAM, 16, hotstuff_state )
-	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x080000, 0x0fffff) AM_NOP //ROM AM_REGION("data", 0)
-
-	AM_RANGE(0x400000, 0x40ffff) AM_RAM
-
-	AM_RANGE(0x680000, 0x680001) AM_READWRITE8(ioboard_status_r,ioboard_data_w,0xff00)
-	AM_RANGE(0x680000, 0x680001) AM_READWRITE8(ioboard_unk_r,ioboard_reg_w,0x00ff)
-
-	AM_RANGE(0x980000, 0x9bffff) AM_RAM AM_SHARE("bitmapram")
-ADDRESS_MAP_END
 
 static INPUT_PORTS_START( hotstuff )
 INPUT_PORTS_END
 
-static MACHINE_CONFIG_START( hotstuff, hotstuff_state )
+void hotstuff_state::hotstuff(machine_config &config)
+{
+	M68000(config, m_maincpu, 16000000);
+	m_maincpu->set_addrmap(AS_PROGRAM, &hotstuff_state::hotstuff_map);
 
-	MCFG_CPU_ADD("maincpu", M68000, 16000000)
-	MCFG_CPU_PROGRAM_MAP(hotstuff_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", hotstuff_state,  irq1_line_hold)
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(128*8, 64*8);
+	screen.set_visarea((0x10*4)+8, 101*8-1, 0*8, 33*8-1);
+	screen.set_screen_update(FUNC(hotstuff_state::screen_update_hotstuff));
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(128*8, 64*8)
-	MCFG_SCREEN_VISIBLE_AREA((0x10*4)+8, 101*8-1, 0*8, 33*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(hotstuff_state, screen_update_hotstuff)
+	PALETTE(config, "palette").set_entries(0x200);
 
-	MCFG_PALETTE_ADD("palette", 0x200)
+	scc8530_device& scc1(SCC8530N(config, "scc1", 4915200));
+	scc1.out_int_callback().set_inputline(m_maincpu, M68K_IRQ_4);
 
-MACHINE_CONFIG_END
+	scc8530_device& scc2(SCC8530N(config, "scc2", 4915200));
+	scc2.out_int_callback().set_inputline(m_maincpu, M68K_IRQ_5);
+
+	MC146818(config, m_rtc, XTAL(32'768));
+	m_rtc->irq().set_inputline("maincpu", M68K_IRQ_1);
+}
 
 
 
 ROM_START( hotstuff )
 	ROM_REGION( 0x80000, "maincpu", 0 ) /* 68000 Code */
-	ROM_LOAD16_WORD_SWAP( "hot stuff game u6 (68000).bin", 0x00000, 0x80000, CRC(65f6a72f) SHA1(3a6d489ec3bf351018e279605d42f10b0a2c61b1) )
+	ROM_LOAD16_WORD_SWAP( "hot stuff game u6,68000.bin", 0x00000, 0x80000, CRC(65f6a72f) SHA1(3a6d489ec3bf351018e279605d42f10b0a2c61b1) )
 
 	ROM_REGION( 0x80000, "data", 0 ) /* 68000 Data? */
-	ROM_LOAD16_WORD_SWAP( "hot stuff symbol u8 (68000).bin", 0x00000, 0x80000, CRC(f154a157) SHA1(92ae0fb977e2dcc0377487d768f95c6e447e990b) )
+	ROM_LOAD16_WORD_SWAP( "hot stuff symbol u8,68000.bin", 0x00000, 0x80000, CRC(f154a157) SHA1(92ae0fb977e2dcc0377487d768f95c6e447e990b) )
 ROM_END
 
-GAME( ????, hotstuff,    0,        hotstuff,    hotstuff, driver_device,    0, ROT0,  "Olympic Video Gaming", "Olympic Hot Stuff (TAS 5 Reel System)", MACHINE_NOT_WORKING | MACHINE_NO_SOUND )
+GAME( ????, hotstuff, 0, hotstuff, hotstuff, hotstuff_state, empty_init, ROT0, "Olympic Video Gaming", "Olympic Hot Stuff (TAS 5 Reel System)", MACHINE_NOT_WORKING | MACHINE_NO_SOUND )

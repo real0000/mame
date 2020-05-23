@@ -173,7 +173,7 @@ private:
 	void refresh_typelist();
 	void update_cpu_view(device_t* device);
 	static bool get_view_source(void* data, int idx, const char** out_text);
-	static int history_set(ImGuiTextEditCallbackData* data);
+	static int history_set(ImGuiInputTextCallbackData* data);
 
 	running_machine* m_machine;
 	int32_t            m_mouse_x;
@@ -184,7 +184,6 @@ private:
 	const char*      font_name;
 	float            font_size;
 	ImVec2           m_text_size;  // size of character (assumes monospaced font is in use)
-	ImguiFontHandle  m_font;
 	uint8_t            m_key_char;
 	bool             m_hide;
 	int              m_win_count;  // number of active windows, does not decrease, used to ID individual windows
@@ -262,8 +261,8 @@ static inline void map_attr_to_fg_bg(unsigned char attr, rgb_t *fg, rgb_t *bg)
 
 bool debug_imgui::get_view_source(void* data, int idx, const char** out_text)
 {
-	debug_view* vw = static_cast<debug_view*>(data);
-	*out_text = vw->source_list().find(idx)->name();
+	auto* vw = static_cast<debug_view*>(data);
+	*out_text = vw->source(idx)->name();
 	return true;
 }
 
@@ -296,7 +295,7 @@ void debug_imgui::handle_mouse_views()
 		view_main_disasm->view->set_cursor_position(newpos);
 		view_main_disasm->view->set_cursor_visible(true);
 	}
-	for(std::vector<debug_area*>::iterator it = view_list.begin();it != view_list.end();++it)
+	for(auto it = view_list.begin();it != view_list.end();++it)
 	{
 		rect.min_x = (*it)->ofs_x;
 		rect.min_y = (*it)->ofs_y;
@@ -324,7 +323,7 @@ void debug_imgui::handle_keys()
 	debug_area* focus_view = nullptr;
 
 	// find view that has focus (should only be one at a time)
-	for(std::vector<debug_area*>::iterator view_ptr = view_list.begin();view_ptr != view_list.end();++view_ptr)
+	for(auto view_ptr = view_list.begin();view_ptr != view_list.end();++view_ptr)
 		if((*view_ptr)->has_focus)
 			focus_view = *view_ptr;
 
@@ -358,7 +357,7 @@ void debug_imgui::handle_keys()
 	{
 		switch (event.event_type)
 		{
-		case UI_EVENT_CHAR:
+			case ui_event::IME_CHAR:
 			m_key_char = event.ch;
 			if(focus_view != nullptr)
 				focus_view->view->process_char(m_key_char);
@@ -426,7 +425,7 @@ void debug_imgui::handle_keys_views()
 {
 	debug_area* focus_view = nullptr;
 	// find view that has focus (should only be one at a time)
-	for(std::vector<debug_area*>::iterator view_ptr = view_list.begin();view_ptr != view_list.end();++view_ptr)
+	for(auto view_ptr = view_list.begin();view_ptr != view_list.end();++view_ptr)
 		if((*view_ptr)->has_focus)
 			focus_view = *view_ptr;
 
@@ -523,7 +522,7 @@ void debug_imgui::handle_console(running_machine* machine)
 		// don't bother adding to history if the current command matches the previous one
 		if(view_main_console->console_prev != view_main_console->console_input)
 		{
-			view_main_console->console_history.push_back(std::string(view_main_console->console_input));
+			view_main_console->console_history.emplace_back(std::string(view_main_console->console_input));
 			view_main_console->console_prev = view_main_console->console_input;
 		}
 		history_pos = view_main_console->console_history.size();
@@ -532,7 +531,7 @@ void debug_imgui::handle_console(running_machine* machine)
 	}
 }
 
-int debug_imgui::history_set(ImGuiTextEditCallbackData* data)
+int debug_imgui::history_set(ImGuiInputTextCallbackData* data)
 {
 	if(view_main_console->console_history.size() == 0)
 		return 0;
@@ -677,7 +676,7 @@ void debug_imgui::draw_view(debug_area* view_ptr, bool exp_change)
 
 void debug_imgui::draw_bpoints(debug_area* view_ptr, bool* opened)
 {
-	ImGui::SetNextWindowSize(ImVec2(view_ptr->width,view_ptr->height + ImGui::GetTextLineHeight()),ImGuiSetCond_Once);
+	ImGui::SetNextWindowSize(ImVec2(view_ptr->width,view_ptr->height + ImGui::GetTextLineHeight()),ImGuiCond_Once);
 	if(ImGui::Begin(view_ptr->title.c_str(),opened))
 	{
 		view_ptr->is_collapsed = false;
@@ -723,7 +722,7 @@ void debug_imgui::add_wpoints(int id)
 
 void debug_imgui::draw_log(debug_area* view_ptr, bool* opened)
 {
-	ImGui::SetNextWindowSize(ImVec2(view_ptr->width,view_ptr->height + ImGui::GetTextLineHeight()),ImGuiSetCond_Once);
+	ImGui::SetNextWindowSize(ImVec2(view_ptr->width,view_ptr->height + ImGui::GetTextLineHeight()),ImGuiCond_Once);
 	if(ImGui::Begin(view_ptr->title.c_str(),opened))
 	{
 		view_ptr->is_collapsed = false;
@@ -755,13 +754,9 @@ void debug_imgui::add_log(int id)
 
 void debug_imgui::draw_disasm(debug_area* view_ptr, bool* opened)
 {
-	const debug_view_source* src;
-
-	ImGui::SetNextWindowSize(ImVec2(view_ptr->width,view_ptr->height + ImGui::GetTextLineHeight()),ImGuiSetCond_Once);
+	ImGui::SetNextWindowSize(ImVec2(view_ptr->width,view_ptr->height + ImGui::GetTextLineHeight()),ImGuiCond_Once);
 	if(ImGui::Begin(view_ptr->title.c_str(),opened,ImGuiWindowFlags_MenuBar))
 	{
-		int idx;
-		bool done = false;
 		bool exp_change = false;
 
 		view_ptr->is_collapsed = false;
@@ -769,7 +764,7 @@ void debug_imgui::draw_disasm(debug_area* view_ptr, bool* opened)
 		{
 			if(ImGui::BeginMenu("Options"))
 			{
-				debug_view_disasm* disasm = downcast<debug_view_disasm*>(view_ptr->view);
+				auto* disasm = downcast<debug_view_disasm*>(view_ptr->view);
 				int rightcol = disasm->right_column();
 
 				if(ImGui::MenuItem("Raw opcodes", nullptr,(rightcol == DASM_RIGHTCOL_RAW) ? true : false))
@@ -789,7 +784,7 @@ void debug_imgui::draw_disasm(debug_area* view_ptr, bool* opened)
 		ImGuiInputTextFlags flags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll;
 		if(m_running)
 			flags |= ImGuiInputTextFlags_ReadOnly;
-		ImGui::Combo("##cpu",&view_ptr->src_sel,get_view_source,view_ptr->view,view_ptr->view->source_list().count());
+		ImGui::Combo("##cpu",&view_ptr->src_sel,get_view_source,view_ptr->view,view_ptr->view->source_count());
 		ImGui::SameLine();
 		ImGui::PushItemWidth(-1.0f);
 		if(ImGui::InputText("##addr",view_ptr->console_input,512,flags))
@@ -801,17 +796,15 @@ void debug_imgui::draw_disasm(debug_area* view_ptr, bool* opened)
 		ImGui::Separator();
 
 		// disassembly portion
-		src = view_ptr->view->first_source();
-		idx = 0;
-		while (!done)
+		unsigned idx = 0;
+		const debug_view_source* src = view_ptr->view->source(idx);
+		do
 		{
 			if(view_ptr->src_sel == idx)
 				view_ptr->view->set_source(*src);
-			idx++;
-			src = src->next();
-			if(src == nullptr)
-				done = true;
+			src = view_ptr->view->source(++idx);
 		}
+		while (src);
 
 		ImGui::BeginChild("##disasm_output", ImVec2(ImGui::GetWindowWidth() - 16,ImGui::GetWindowHeight() - ImGui::GetTextLineHeight() - ImGui::GetCursorPosY()));  // account for title bar and widgets already drawn
 		draw_view(view_ptr,exp_change);
@@ -842,13 +835,9 @@ void debug_imgui::add_disasm(int id)
 
 void debug_imgui::draw_memory(debug_area* view_ptr, bool* opened)
 {
-	const debug_view_source* src;
-
-	ImGui::SetNextWindowSize(ImVec2(view_ptr->width,view_ptr->height + ImGui::GetTextLineHeight()),ImGuiSetCond_Once);
+	ImGui::SetNextWindowSize(ImVec2(view_ptr->width,view_ptr->height + ImGui::GetTextLineHeight()),ImGuiCond_Once);
 	if(ImGui::Begin(view_ptr->title.c_str(),opened,ImGuiWindowFlags_MenuBar))
 	{
-		int idx;
-		bool done = false;
 		bool exp_change = false;
 
 		view_ptr->is_collapsed = false;
@@ -856,7 +845,7 @@ void debug_imgui::draw_memory(debug_area* view_ptr, bool* opened)
 		{
 			if(ImGui::BeginMenu("Options"))
 			{
-				debug_view_memory* mem = downcast<debug_view_memory*>(view_ptr->view);
+				auto* mem = downcast<debug_view_memory*>(view_ptr->view);
 				bool physical = mem->physical();
 				bool rev = mem->reverse();
 				int format = mem->get_data_format();
@@ -907,22 +896,20 @@ void debug_imgui::draw_memory(debug_area* view_ptr, bool* opened)
 		ImGui::PopItemWidth();
 		ImGui::SameLine();
 		ImGui::PushItemWidth(-1.0f);
-		ImGui::Combo("##region",&view_ptr->src_sel,get_view_source,view_ptr->view,view_ptr->view->source_list().count());
+		ImGui::Combo("##region",&view_ptr->src_sel,get_view_source,view_ptr->view,view_ptr->view->source_count());
 		ImGui::PopItemWidth();
 		ImGui::Separator();
 
 		// memory editor portion
-		src = view_ptr->view->first_source();
-		idx = 0;
-		while (!done)
+		unsigned idx = 0;
+		const debug_view_source* src = view_ptr->view->source(idx);
+		do
 		{
 			if(view_ptr->src_sel == idx)
 				view_ptr->view->set_source(*src);
-			idx++;
-			src = src->next();
-			if(src == nullptr)
-				done = true;
+			src = view_ptr->view->source(++idx);
 		}
+		while (src);
 
 		ImGui::BeginChild("##memory_output", ImVec2(ImGui::GetWindowWidth() - 16,ImGui::GetWindowHeight() - ImGui::GetTextLineHeight() - ImGui::GetCursorPosY()));  // account for title bar and widgets already drawn
 		draw_view(view_ptr,exp_change);
@@ -960,7 +947,10 @@ void debug_imgui::mount_image()
 		{
 			case file_entry_type::DRIVE:
 			case file_entry_type::DIRECTORY:
-				err = util::zippath_opendir(m_selected_file->fullpath.c_str(), nullptr);
+				{
+					util::zippath_directory::ptr dir;
+					err = util::zippath_directory::open(m_selected_file->fullpath, dir);
+				}
 				if(err == osd_file::error::NONE)
 				{
 					m_filelist_refresh = true;
@@ -968,7 +958,7 @@ void debug_imgui::mount_image()
 				}
 				break;
 			case file_entry_type::FILE:
-				m_dialog_image->load(m_selected_file->fullpath.c_str());
+				m_dialog_image->load(m_selected_file->fullpath);
 				ImGui::CloseCurrentPopup();
 				break;
 		}
@@ -981,7 +971,7 @@ void debug_imgui::create_image()
 
 	if(m_dialog_image->image_type() == IO_FLOPPY)
 	{
-		floppy_image_device *fd = static_cast<floppy_image_device *>(m_dialog_image);
+		auto *fd = static_cast<floppy_image_device *>(m_dialog_image);
 		res = fd->create(m_path,nullptr,nullptr);
 		if(res == image_init_result::PASS)
 			fd->setup_write(m_typelist.at(m_format_sel).format);
@@ -995,22 +985,19 @@ void debug_imgui::create_image()
 
 void debug_imgui::refresh_filelist()
 {
-	int x;
-	osd_file::error err;
-	util::zippath_directory* dir = nullptr;
-	const char *volume_name;
-	const osd::directory::entry *dirent;
 	uint8_t first = 0;
 
 	// todo
 	m_filelist.clear();
 	m_filelist_refresh = false;
 
-	err = util::zippath_opendir(m_path,&dir);
+	util::zippath_directory::ptr dir;
+	osd_file::error const err = util::zippath_directory::open(m_path,dir);
 	if(err == osd_file::error::NONE)
 	{
-		x = 0;
+		int x = 0;
 		// add drives
+		const char *volume_name;
 		while((volume_name = osd_get_volume_name(x))!=nullptr)
 		{
 			file_entry temp;
@@ -1021,7 +1008,8 @@ void debug_imgui::refresh_filelist()
 			x++;
 		}
 		first = m_filelist.size();
-		while((dirent = util::zippath_readdir(dir)) != nullptr)
+		const osd::directory::entry *dirent;
+		while((dirent = dir->readdir()) != nullptr)
 		{
 			file_entry temp;
 			switch(dirent->type)
@@ -1040,8 +1028,7 @@ void debug_imgui::refresh_filelist()
 			m_filelist.emplace_back(std::move(temp));
 		}
 	}
-	if (dir != nullptr)
-		util::zippath_closedir(dir);
+	dir.reset();
 
 	// sort file list, as it is not guaranteed to be in any particular order
 	std::sort(m_filelist.begin()+first,m_filelist.end(),[](file_entry x, file_entry y) { return x.basename < y.basename; } );
@@ -1049,7 +1036,7 @@ void debug_imgui::refresh_filelist()
 
 void debug_imgui::refresh_typelist()
 {
-	floppy_image_device *fd = static_cast<floppy_image_device *>(m_dialog_image);
+	auto *fd = static_cast<floppy_image_device *>(m_dialog_image);
 
 	m_typelist.clear();
 	if(m_dialog_image->formatlist().empty())
@@ -1119,7 +1106,7 @@ void debug_imgui::draw_mount_dialog(const char* label)
 {
 	// render dialog
 	//ImGui::SetNextWindowContentWidth(200.0f);
-	if(ImGui::BeginPopupModal(label,NULL,ImGuiWindowFlags_AlwaysAutoResize))
+	if(ImGui::BeginPopupModal(label,nullptr,ImGuiWindowFlags_AlwaysAutoResize))
 	{
 		if(m_filelist_refresh)
 			refresh_filelist();
@@ -1128,7 +1115,7 @@ void debug_imgui::draw_mount_dialog(const char* label)
 		ImGui::Separator();
 		{
 			ImGui::ListBoxHeader("##filelist",m_filelist.size(),15);
-			for(std::vector<file_entry>::iterator f = m_filelist.begin();f != m_filelist.end();++f)
+			for(auto f = m_filelist.begin();f != m_filelist.end();++f)
 			{
 				std::string txt_name;
 				bool sel = false;
@@ -1170,7 +1157,7 @@ void debug_imgui::draw_create_dialog(const char* label)
 {
 	// render dialog
 	//ImGui::SetNextWindowContentWidth(200.0f);
-	if(ImGui::BeginPopupModal(label,NULL,ImGuiWindowFlags_AlwaysAutoResize))
+	if(ImGui::BeginPopupModal(label,nullptr,ImGuiWindowFlags_AlwaysAutoResize))
 	{
 		ImGui::LabelText("##static1","Filename:");
 		ImGui::SameLine();
@@ -1190,7 +1177,7 @@ void debug_imgui::draw_create_dialog(const char* label)
 		{
 			std::string combo_str;
 			combo_str.clear();
-			for(std::vector<image_type_entry>::iterator f = m_typelist.begin();f != m_typelist.end();++f)
+			for(auto f = m_typelist.begin();f != m_typelist.end();++f)
 			{
 				// TODO: perhaps do this at the time the format list is generated, rather than every frame
 				combo_str.append((*f).longname);
@@ -1237,11 +1224,9 @@ void debug_imgui::draw_create_dialog(const char* label)
 
 void debug_imgui::draw_console()
 {
-	rgb_t bg, fg;
-	rgb_t base(0xe6, 0xff, 0xff, 0xff);
 	ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
-	ImGui::SetNextWindowSize(ImVec2(view_main_regs->width + view_main_disasm->width,view_main_disasm->height + view_main_console->height + ImGui::GetTextLineHeight()*3),ImGuiSetCond_Once);
+	ImGui::SetNextWindowSize(ImVec2(view_main_regs->width + view_main_disasm->width,view_main_disasm->height + view_main_console->height + ImGui::GetTextLineHeight()*3),ImGuiCond_Once);
 	if(ImGui::Begin(view_main_console->title.c_str(), nullptr,flags))
 	{
 		std::string str;
@@ -1297,12 +1282,12 @@ void debug_imgui::draw_console()
 			{
 				if(ImGui::MenuItem("Show all"))
 				{
-					for(std::vector<debug_area*>::iterator view_ptr = view_list.begin();view_ptr != view_list.end();++view_ptr)
+					for(auto view_ptr = view_list.begin();view_ptr != view_list.end();++view_ptr)
 						ImGui::SetWindowCollapsed((*view_ptr)->title.c_str(),false);
 				}
 				ImGui::Separator();
 				// list all extra windows, so we can un-collapse the windows if necessary
-				for(std::vector<debug_area*>::iterator view_ptr = view_list.begin();view_ptr != view_list.end();++view_ptr)
+				for(auto view_ptr = view_list.begin();view_ptr != view_list.end();++view_ptr)
 				{
 					bool collapsed = false;
 					if((*view_ptr)->is_collapsed)
@@ -1344,7 +1329,7 @@ void debug_imgui::draw_console()
 		ImGui::PushItemWidth(-1.0f);
 		if(ImGui::InputText("##console_input",view_main_console->console_input,512,flags,history_set))
 			view_main_console->exec_cmd = true;
-		if ((ImGui::IsRootWindowOrAnyChildFocused() && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)))
+		if ((ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)))
 			ImGui::SetKeyboardFocusHere(-1); // Auto focus previous widget
 		if(m_mount_open)
 		{
@@ -1383,7 +1368,6 @@ void debug_imgui::update()
 	ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered,ImVec4(0.7f,0.7f,0.7f,0.8f));
 	ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,ImVec4(0.9f,0.9f,0.9f,0.8f));
 	ImGui::PushStyleColor(ImGuiCol_Border,ImVec4(0.7f,0.7f,0.7f,0.8f));
-	ImGui::PushStyleColor(ImGuiCol_ComboBg,ImVec4(0.4f,0.4f,0.4f,0.9f));
 	m_text_size = ImGui::CalcTextSize("A");  // hopefully you're using a monospaced font...
 	draw_console();  // We'll always have a console window
 
@@ -1425,7 +1409,7 @@ void debug_imgui::update()
 		global_free(to_delete);
 	}
 
-	ImGui::PopStyleColor(13);
+	ImGui::PopStyleColor(12);
 }
 
 void debug_imgui::init_debugger(running_machine &machine)
@@ -1478,8 +1462,7 @@ void debug_imgui::init_debugger(running_machine &machine)
 		io.Fonts->AddFontDefault();
 	else
 		io.Fonts->AddFontFromFileTTF(font_name,font_size);  // for now, font name must be a path to a TTF file
-	m_font = imguiCreate();
-	imguiSetFont(m_font);
+	imguiCreate();
 }
 
 void debug_imgui::wait_for_debugger(device_t &device, bool firststop)
@@ -1530,7 +1513,7 @@ void debug_imgui::wait_for_debugger(device_t &device, bool firststop)
 
 void debug_imgui::debugger_update()
 {
-	if (m_machine && (m_machine->phase() == MACHINE_PHASE_RUNNING) && !m_machine->debugger().cpu().is_stopped() && !m_hide)
+	if (m_machine && (m_machine->phase() == machine_phase::RUNNING) && !m_machine->debugger().cpu().is_stopped() && !m_hide)
 	{
 		uint32_t width = m_machine->render().ui_target().width();
 		uint32_t height = m_machine->render().ui_target().height();

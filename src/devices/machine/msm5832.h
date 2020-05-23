@@ -18,21 +18,12 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_MSM5832_H
+#define MAME_MACHINE_MSM5832_H
+
 #pragma once
 
-#ifndef __MSM5832__
-#define __MSM5832__
-
 #include "dirtc.h"
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_MSM5832_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, MSM5832, _clock)
 
 
 
@@ -49,8 +40,8 @@ public:
 	// construction/destruction
 	msm5832_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_READ8_MEMBER( data_r );
-	DECLARE_WRITE8_MEMBER( data_w );
+	uint8_t data_r();
+	void data_w(uint8_t data);
 
 	void address_w(uint8_t data);
 
@@ -71,7 +62,7 @@ protected:
 	virtual void rtc_clock_updated(int year, int month, int day, int day_of_week, int hour, int minute, int second) override;
 
 private:
-	static const device_timer_id TIMER_CLOCK = 0;
+	static constexpr device_timer_id TIMER_CLOCK = 0;
 
 	inline int read_counter(int counter);
 	inline void write_counter(int counter, int value);
@@ -93,8 +84,6 @@ private:
 
 
 // device type definition
-extern const device_type MSM5832;
+DECLARE_DEVICE_TYPE(MSM5832, msm5832_device)
 
-
-
-#endif
+#endif // MAME_MACHINE_MSM5832_H

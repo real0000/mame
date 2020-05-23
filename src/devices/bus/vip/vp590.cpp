@@ -26,7 +26,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type VP590 = device_creator<vp590_device>;
+DEFINE_DEVICE_TYPE(VP590, vp590_device, "vp590", "VP-590 Color Board + VP-580 16-key keypad")
 
 
 //-------------------------------------------------
@@ -50,28 +50,18 @@ READ_LINE_MEMBER( vp590_device::gd_r )
 
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( vp590 )
+//  machine_config( vp590 )
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( vp590 )
-	MCFG_DEVICE_ADD(CDP1862_TAG, CDP1862, CPD1862_CLOCK)
-	MCFG_CDP1861_RD_CALLBACK(DEVREADLINE(DEVICE_SELF, vp590_device, rd_r))
-	MCFG_CDP1861_BD_CALLBACK(DEVREADLINE(DEVICE_SELF, vp590_device, bd_r))
-	MCFG_CDP1861_GD_CALLBACK(DEVREADLINE(DEVICE_SELF, vp590_device, gd_r))
-	MCFG_CDP1862_LUMINANCE(RES_R(510), RES_R(360), RES_K(1), RES_K(1.5)) // R3, R4, R5, R6
-	MCFG_CDP1862_CHROMINANCE(RES_K(3.9), RES_K(10), RES_K(2), RES_K(3.3)) // R7, R8, R9, R10
-	MCFG_VIDEO_SET_SCREEN(SCREEN_TAG)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor vp590_device::device_mconfig_additions() const
+void vp590_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( vp590 );
+	CDP1862(config, m_cgc, 7.15909_MHz_XTAL);
+	m_cgc->rdata_cb().set(FUNC(vp590_device::rd_r));
+	m_cgc->bdata_cb().set(FUNC(vp590_device::bd_r));
+	m_cgc->gdata_cb().set(FUNC(vp590_device::gd_r));
+	m_cgc->set_luminance(RES_R(510), RES_R(360), RES_K(1), RES_K(1.5)); // R3, R4, R5, R6
+	m_cgc->set_chrominance(RES_K(3.9), RES_K(10), RES_K(2), RES_K(3.3)); // R7, R8, R9, R10
+	m_cgc->set_screen(SCREEN_TAG);
 }
 
 
@@ -138,12 +128,13 @@ ioport_constructor vp590_device::device_input_ports() const
 //-------------------------------------------------
 
 vp590_device::vp590_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, VP590, "VP590", tag, owner, clock, "vp590", __FILE__),
+	device_t(mconfig, VP590, tag, owner, clock),
 	device_vip_expansion_card_interface(mconfig, *this),
 	m_cgc(*this, CDP1862_TAG),
 	m_color_ram(*this, "color_ram"),
 	m_j1(*this, "J1"),
-	m_j2(*this, "J2"), m_a12(0), m_color(0), m_keylatch(0)
+	m_j2(*this, "J2"),
+	m_a12(0), m_color(0), m_keylatch(0)
 {
 }
 
@@ -168,7 +159,7 @@ void vp590_device::device_start()
 //  vip_program_w - program write
 //-------------------------------------------------
 
-void vp590_device::vip_program_w(address_space &space, offs_t offset, uint8_t data, int cdef, int *minh)
+void vp590_device::vip_program_w(offs_t offset, uint8_t data, int cdef, int *minh)
 {
 	if (offset >= 0xc000 && offset < 0xe000)
 	{
@@ -194,7 +185,7 @@ void vp590_device::vip_program_w(address_space &space, offs_t offset, uint8_t da
 //  vip_io_w - I/O write
 //-------------------------------------------------
 
-void vp590_device::vip_io_w(address_space &space, offs_t offset, uint8_t data)
+void vp590_device::vip_io_w(offs_t offset, uint8_t data)
 {
 	switch (offset)
 	{
@@ -214,7 +205,7 @@ void vp590_device::vip_io_w(address_space &space, offs_t offset, uint8_t data)
 //  vip_dma_w - DMA write
 //-------------------------------------------------
 
-void vp590_device::vip_dma_w(address_space &space, offs_t offset, uint8_t data)
+void vp590_device::vip_dma_w(offs_t offset, uint8_t data)
 {
 	uint8_t mask = 0xff;
 
@@ -226,7 +217,7 @@ void vp590_device::vip_dma_w(address_space &space, offs_t offset, uint8_t data)
 
 	m_color = m_color_ram[offset & mask];
 
-	m_cgc->dma_w(space, offset, data);
+	m_cgc->dma_w(data);
 }
 
 

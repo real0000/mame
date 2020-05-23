@@ -95,6 +95,7 @@ void n64_state::video_start()
 
 	m_rdp->set_machine(machine());
 	m_rdp->init_internal_state();
+	m_rdp->set_n64_periphs(m_rcp_periphs);
 
 	m_rdp->m_blender.set_machine(machine());
 	m_rdp->m_blender.set_processor(m_rdp);
@@ -111,16 +112,14 @@ void n64_state::video_start()
 
 uint32_t n64_state::screen_update_n64(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	n64_periphs* n64 = machine().device<n64_periphs>("rcp");
-
-	//uint16_t* frame_buffer = (uint16_t*)&rdram[(n64->vi_origin & 0xffffff) >> 2];
-	//uint8_t* cvg_buffer = &m_rdp.m_hidden_bits[((n64->vi_origin & 0xffffff) >> 2) >> 1];
-	//int32_t vibuffering = ((n64->vi_control & 2) && fsaa && divot);
+	//uint16_t* frame_buffer = (uint16_t*)&rdram[(m_rcp_periphs->vi_origin & 0xffffff) >> 2];
+	//uint8_t* cvg_buffer = &m_rdp.m_hidden_bits[((m_rcp_periphs->vi_origin & 0xffffff) >> 2) >> 1];
+	//int32_t vibuffering = ((m_rcp_periphs->vi_control & 2) && fsaa && divot);
 
 	//vibuffering = 0; // Disabled for now
 
 	/*
-	if (vibuffering && ((n64->vi_control & 3) == 2))
+	if (vibuffering && ((m_rcp_periphs->vi_control & 3) == 2))
 	{
 	    if (frame_buffer)
 	    {
@@ -133,7 +132,7 @@ uint32_t n64_state::screen_update_n64(screen_device &screen, bitmap_rgb32 &bitma
 	                curpixel_cvg = ((pix & 1) << 2) | (cvg_buffer[pixels ^ BYTE_ADDR_XOR] & 3); // Reuse of this variable
 	                if (curpixel_cvg < 7 && i > 1 && j > 1 && i < (hres - 2) && j < (vres - 2) && fsaa)
 	                {
-	                    newc = video_filter16(&frame_buffer[pixels ^ WORD_ADDR_XOR], &cvg_buffer[pixels ^ BYTE_ADDR_XOR], n64->vi_width);
+	                    newc = video_filter16(&frame_buffer[pixels ^ WORD_ADDR_XOR], &cvg_buffer[pixels ^ BYTE_ADDR_XOR], m_rcp_periphs->vi_width);
 	                    ViBuffer[i][j] = newc;
 	                }
 	                else
@@ -153,18 +152,18 @@ uint32_t n64_state::screen_update_n64(screen_device &screen, bitmap_rgb32 &bitma
 
 	m_rdp->mark_frame();
 
-	if (n64->vi_blank)
+	if (m_rcp_periphs->vi_blank)
 	{
 		bitmap.fill(0, screen.visible_area());
 		return 0;
 	}
 
-	n64->video_update(bitmap);
+	m_rcp_periphs->video_update(bitmap);
 
 	return 0;
 }
 
-void n64_state::screen_eof_n64(screen_device &screen, bool state)
+WRITE_LINE_MEMBER(n64_state::screen_vblank_n64)
 {
 }
 
@@ -601,7 +600,7 @@ void n64_rdp::set_blender_input(int32_t cycle, int32_t which, color_t** input_rg
 	}
 }
 
-const uint8_t n64_rdp::s_bayer_matrix[16] =
+uint8_t const n64_rdp::s_bayer_matrix[16] =
 { /* Bayer matrix */
 		0,  4,  1, 5,
 		6,  2,  7, 3,
@@ -609,7 +608,7 @@ const uint8_t n64_rdp::s_bayer_matrix[16] =
 		7,  3,  6, 2
 };
 
-const uint8_t n64_rdp::s_magic_matrix[16] =
+uint8_t const n64_rdp::s_magic_matrix[16] =
 { /* Magic square matrix */
 		0,  6,  1, 7,
 		4,  2,  5, 3,
@@ -617,7 +616,7 @@ const uint8_t n64_rdp::s_magic_matrix[16] =
 		7,  1,  6, 0
 };
 
-const z_decompress_entry_t n64_rdp::m_z_dec_table[8] =
+z_decompress_entry_t const n64_rdp::m_z_dec_table[8] =
 {
 	{ 6, 0x00000 },
 	{ 5, 0x20000 },
@@ -955,7 +954,7 @@ void n64_rdp::get_dither_values(int32_t x, int32_t y, int32_t* cdith, int32_t* a
 		break;
 	case 14:
 		*cdith = 0;
-		*adith = m_machine->rand() & 7;
+		*adith = machine().rand() & 7;
 		break;
 	case 15:
 		*adith = *cdith = 0;
@@ -1110,10 +1109,10 @@ uint64_t n64_rdp::read_data(uint32_t address)
 	}
 }
 
-const char* n64_rdp::s_image_format[] = { "RGBA", "YUV", "CI", "IA", "I", "???", "???", "???" };
-const char* n64_rdp::s_image_size[] = { "4-bit", "8-bit", "16-bit", "32-bit" };
+char const *const  n64_rdp::s_image_format[] = { "RGBA", "YUV", "CI", "IA", "I", "???", "???", "???" };
+char const *const  n64_rdp::s_image_size[] = { "4-bit", "8-bit", "16-bit", "32-bit" };
 
-const int32_t n64_rdp::s_rdp_command_length[64] =
+int32_t const n64_rdp::s_rdp_command_length[64] =
 {
 	8,          // 0x00, No Op
 	8,          // 0x01, ???
@@ -1663,7 +1662,7 @@ void n64_rdp::disassemble(char* buffer)
 		case 0x2f:  sprintf(buffer, "Set_Other_Modes        %08X %08X", uint32_t(cmd[0] >> 32), (uint32_t)cmd[0]); break;
 		case 0x30:  sprintf(buffer, "Load_TLUT              %d, %s, %s, %s, %s", tile, sl, tl, sh, th); break;
 		case 0x32:  sprintf(buffer, "Set_Tile_Size          %d, %s, %s, %s, %s", tile, sl, tl, sh, th); break;
-		case 0x33:  sprintf(buffer, "Load_Block             %d, %03X, %03X, %03X, %03X", tile, uint32_t(cmd[0] >> 44) & 0xfff, uint32_t(cmd[0] >> 32) & 0xfff, uint32_t(cmd[0] >> 12) & 0xfff, uint32_t(cmd[1]) & 0xfff); break;
+		case 0x33:  sprintf(buffer, "Load_Block             %d, %03X, %03X, %03X, %03X", tile, uint32_t(cmd[0] >> 44) & 0xfff, uint32_t(cmd[0] >> 32) & 0xfff, uint32_t(cmd[0] >> 12) & 0xfff, uint32_t(cmd[0]) & 0xfff); break;
 		case 0x34:  sprintf(buffer, "Load_Tile              %d, %s, %s, %s, %s", tile, sl, tl, sh, th); break;
 		case 0x35:  sprintf(buffer, "Set_Tile               %d, %s, %s, %d, %04X", tile, format, size, (uint32_t(cmd[0] >> 41) & 0x1ff) * 8, (uint32_t(cmd[0] >> 32) & 0x1ff) * 8); break;
 		case 0x36:  sprintf(buffer, "Fill_Rectangle         %s, %s, %s, %s", sh, th, sl, tl); break;
@@ -2356,7 +2355,7 @@ void n64_rdp::cmd_sync_tile(uint64_t w1)
 void n64_rdp::cmd_sync_full(uint64_t w1)
 {
 	//wait("SyncFull");
-	dp_full_sync(*m_machine);
+	m_n64_periphs->dp_full_sync();
 }
 
 void n64_rdp::cmd_set_key_gb(uint64_t w1)
@@ -3169,6 +3168,7 @@ n64_rdp::n64_rdp(n64_state &state, uint32_t* rdram, uint32_t* dmem) : poly_manag
 	m_tmem = nullptr;
 
 	m_machine = nullptr;
+	m_n64_periphs = nullptr;
 
 	//memset(m_hidden_bits, 3, 8388608);
 
@@ -3634,7 +3634,7 @@ void n64_rdp::span_draw_1cycle(int32_t scanline, const extent_t &extent, const r
 			uint32_t t0a = userdata->m_texel0_color.get_a();
 			userdata->m_texel0_alpha.set(t0a, t0a, t0a, t0a);
 
-			const uint8_t noise = rand() << 3; // Not accurate
+			const uint8_t noise = machine().rand() << 3; // Not accurate
 			userdata->m_noise_color.set(0, noise, noise, noise);
 
 			rgbaint_t rgbsub_a(*userdata->m_color_inputs.combiner_rgbsub_a[1]);
@@ -3861,7 +3861,7 @@ void n64_rdp::span_draw_2cycle(int32_t scanline, const extent_t &extent, const r
 			userdata->m_texel1_alpha.set(t1a, t1a, t1a, t1a);
 			userdata->m_next_texel_alpha.set(tna, tna, tna, tna);
 
-			const uint8_t noise = rand() << 3; // Not accurate
+			const uint8_t noise = machine().rand() << 3; // Not accurate
 			userdata->m_noise_color.set(0, noise, noise, noise);
 
 			rgbaint_t rgbsub_a(*userdata->m_color_inputs.combiner_rgbsub_a[0]);

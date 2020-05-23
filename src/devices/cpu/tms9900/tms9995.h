@@ -7,15 +7,17 @@
   Also see tms9900.h for types of TMS99xx processors.
 */
 
-#ifndef __TMS9995_H__
-#define __TMS9995_H__
+#ifndef MAME_CPU_TMS9995_TMS9995_H
+#define MAME_CPU_TMS9995_TMS9995_H
+
+#pragma once
 
 #include "debugger.h"
 #include "tms99com.h"
 
 // device type definition
-extern const device_type TMS9995;
-extern const device_type TMS9995_MP9537;
+DECLARE_DEVICE_TYPE(TMS9995, tms9995_device)
+DECLARE_DEVICE_TYPE(TMS9995_MP9537, tms9995_mp9537_device)
 
 enum
 {
@@ -25,30 +27,12 @@ enum
 	INT_9995_INT4 = 3
 };
 
-#define MCFG_TMS9995_EXTOP_HANDLER( _extop) \
-	devcb = &tms9995_device::static_set_extop_callback( *device, DEVCB_##_extop );
-
-#define MCFG_TMS9995_IAQ_HANDLER( _iaq )    \
-	devcb = &tms9995_device::static_set_iaq_callback( *device, DEVCB_##_iaq );
-
-#define MCFG_TMS9995_CLKOUT_HANDLER( _clkout ) \
-	devcb = &tms9995_device::static_set_clkout_callback( *device, DEVCB_##_clkout );
-
-#define MCFG_TMS9995_HOLDA_HANDLER( _holda ) \
-	devcb = &tms9995_device::static_set_holda_callback( *device, DEVCB_##_holda );
-
-#define MCFG_TMS9995_DBIN_HANDLER( _dbin ) \
-	devcb = &tms9995_device::static_set_dbin_callback( *device, DEVCB_##_dbin );
-
-#define MCFG_TMS9995_ENABLE_OVINT( _ovint ) \
-	downcast<tms9995_device*>(device)->set_overflow_interrupt( _ovint );
-
-
 class tms9995_device : public cpu_device
 {
 public:
+	static constexpr int AS_SETADDRESS = 4;
+
 	tms9995_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	tms9995_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
 
 	// READY input line. When asserted (high), the memory is ready for data exchange.
 	// We chose to use a direct method instead of a delegate to keep performance
@@ -65,11 +49,9 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( reset_line );
 
 	// Callbacks
-	template<class _Object> static devcb_base &static_set_extop_callback(device_t &device, _Object object) { return downcast<tms9995_device &>(device).m_external_operation.set_callback(object); }
-	template<class _Object> static devcb_base &static_set_iaq_callback(device_t &device, _Object object) { return downcast<tms9995_device &>(device).m_iaq_line.set_callback(object); }
-	template<class _Object> static devcb_base &static_set_clkout_callback(device_t &device, _Object object) { return downcast<tms9995_device &>(device).m_clock_out_line.set_callback(object); }
-	template<class _Object> static devcb_base &static_set_holda_callback(device_t &device, _Object object) { return downcast<tms9995_device &>(device).m_holda_line.set_callback(object); }
-	template<class _Object> static devcb_base &static_set_dbin_callback(device_t &device, _Object object) { return downcast<tms9995_device &>(device).m_dbin_line.set_callback(object); }
+	auto extop_cb() { return m_external_operation.bind(); }
+	auto clkout_cb() { return m_clock_out_line.bind(); }
+	auto holda_cb() { return m_holda_line.bind(); }
 
 	// For debugger access
 	uint8_t debug_read_onchip_memory(offs_t addr) { return m_onchip_memory[addr & 0xff]; };
@@ -78,27 +60,25 @@ public:
 	void set_overflow_interrupt( int enable ) { m_check_overflow = (enable!=0); }
 
 protected:
+	tms9995_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	// device-level overrides
 	virtual void        device_start() override;
-	virtual void        device_stop() override;
-	virtual void        device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t      execute_min_cycles() const override;
-	virtual uint32_t      execute_max_cycles() const override;
-	virtual uint32_t      execute_input_lines() const override;
+	virtual uint32_t      execute_min_cycles() const noexcept override;
+	virtual uint32_t      execute_max_cycles() const noexcept override;
+	virtual uint32_t      execute_input_lines() const noexcept override;
 	virtual void        execute_set_input(int irqline, int state) override;
 	virtual void        execute_run() override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t      disasm_min_opcode_bytes() const override;
-	virtual uint32_t      disasm_max_opcode_bytes() const override;
-	virtual offs_t      disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	const address_space_config* memory_space_config(address_spacenum spacenum) const override;
+	virtual space_config_vector memory_space_config() const override;
 
-	uint64_t execute_clocks_to_cycles(uint64_t clocks) const override { return clocks / 4.0; }
-	uint64_t execute_cycles_to_clocks(uint64_t cycles) const override { return cycles * 4.0; }
+	uint64_t execute_clocks_to_cycles(uint64_t clocks) const noexcept override { return clocks / 4.0; }
+	uint64_t execute_cycles_to_clocks(uint64_t cycles) const noexcept override { return cycles * 4.0; }
 
 	// Variant of the TMS9995 without internal RAM and decrementer
 	bool    m_mp9537;
@@ -106,7 +86,7 @@ protected:
 private:
 	// State / debug management
 	uint16_t  m_state_any;
-	static const char* s_statename[];
+	static char const *const s_statename[];
 	void    state_import(const device_state_entry &entry) override;
 	void    state_export(const device_state_entry &entry) override;
 	void    state_string_export(const device_state_entry &entry, std::string &str) const override;
@@ -122,12 +102,17 @@ private:
 	// We use this additional member for the debugger only.
 	uint16_t  PC_debug;
 
+	// Indicates the instruction acquisition phase
+	bool    m_iaq;
+
 	// 256 bytes of onchip memory
 	uint8_t   m_onchip_memory[256];
 
 	const address_space_config      m_program_config;
+	const address_space_config      m_setaddress_config;
 	const address_space_config      m_io_config;
 	address_space*                  m_prgspace;
+	address_space*                  m_setaddr;
 	address_space*                  m_cru;
 
 	// Processor states
@@ -176,7 +161,6 @@ private:
 	bool    m_nmi_active;
 	bool    m_int1_active;
 	bool    m_int4_active;
-	bool    m_int_decrementer;
 	bool    m_int_overflow;
 
 	bool    m_reset;
@@ -185,7 +169,7 @@ private:
 	bool    m_mid_active;
 
 	int     m_decrementer_clkdiv;
-	bool    m_servicing_interrupt;
+	bool    m_log_interrupt;
 
 	// Flag field
 	int     m_int_pending;
@@ -262,8 +246,6 @@ private:
 	uint16_t  m_cru_address;
 	uint16_t  m_cru_value;
 	bool    m_cru_first_read;
-	int     m_cru_bits_left;
-	uint32_t  m_cru_read;
 
 	// CPU-internal CRU flags
 	bool    m_flag[16];
@@ -414,20 +396,11 @@ private:
 	// chip emulations we use a dedicated callback.
 	devcb_write8   m_external_operation;
 
-	// Signal to the outside world that we are now getting an instruction (IAQ).
-	// In the real hardware this line is shared with the HOLDA line, and the
-	// /MEMEN line is used to decide which signal we have on the line. We do not
-	// emulate the /MEMEN line, so we have to use two separate lines.
-	devcb_write_line   m_iaq_line;
-
 	// Clock output.
 	devcb_write_line   m_clock_out_line;
 
 	// Asserted when the CPU is in a HOLD state
 	devcb_write_line   m_holda_line;
-
-	// DBIN line. When asserted (high), the CPU has disabled the data bus output buffers.
-	devcb_write_line   m_dbin_line;
 };
 
 
@@ -438,10 +411,10 @@ class tms9995_mp9537_device : public tms9995_device
 {
 public:
 	tms9995_mp9537_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: tms9995_device(mconfig, TMS9995_MP9537, "TMS9995-MP9537", tag, owner, clock, "tms9995_mp9537", __FILE__)
+		: tms9995_device(mconfig, TMS9995_MP9537, tag, owner, clock)
 	{
 		m_mp9537 = true;
 	}
 };
 
-#endif /* __TMS9995_H__ */
+#endif // MAME_CPU_TMS9995_TMS9995_H

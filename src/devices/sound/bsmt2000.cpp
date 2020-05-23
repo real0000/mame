@@ -18,7 +18,7 @@
 
 
 // device type definition
-const device_type BSMT2000 = device_creator<bsmt2000_device>;
+DEFINE_DEVICE_TYPE(BSMT2000, bsmt2000_device, "bsmt2000", "BSMT2000")
 
 
 //**************************************************************************
@@ -26,30 +26,22 @@ const device_type BSMT2000 = device_creator<bsmt2000_device>;
 //**************************************************************************
 
 // program map for the DSP (points to internal ROM)
-static ADDRESS_MAP_START( tms_program_map, AS_PROGRAM, 16, bsmt2000_device)
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x000, 0xfff) AM_ROM
-ADDRESS_MAP_END
+void bsmt2000_device::tms_program_map(address_map &map)
+{
+	map.unmap_value_high();
+	map(0x000, 0xfff).rom();
+}
 
 
 // I/O map for the DSP
-static ADDRESS_MAP_START( tms_io_map, AS_IO, 16, bsmt2000_device)
-	AM_RANGE(0, 0) AM_READWRITE(tms_register_r, tms_rom_addr_w)
-	AM_RANGE(1, 1) AM_READWRITE(tms_data_r, tms_rom_bank_w)
-	AM_RANGE(2, 2) AM_READ(tms_rom_r)
-	AM_RANGE(3, 3) AM_WRITE(tms_left_w)
-	AM_RANGE(7, 7) AM_WRITE(tms_right_w)
-ADDRESS_MAP_END
-
-
-// machine fragment
-static MACHINE_CONFIG_FRAGMENT( bsmt2000 )
-	MCFG_CPU_ADD("bsmt2000", TMS32015, DERIVED_CLOCK(1,1))
-	MCFG_CPU_PROGRAM_MAP(tms_program_map)
-	// data map is internal to the CPU
-	MCFG_CPU_IO_MAP(tms_io_map)
-	MCFG_TMS32010_BIO_IN_CB(READLINE(bsmt2000_device, tms_write_pending_r))
-MACHINE_CONFIG_END
+void bsmt2000_device::tms_io_map(address_map &map)
+{
+	map(0, 0).rw(FUNC(bsmt2000_device::tms_register_r), FUNC(bsmt2000_device::tms_rom_addr_w));
+	map(1, 1).rw(FUNC(bsmt2000_device::tms_data_r), FUNC(bsmt2000_device::tms_rom_bank_w));
+	map(2, 2).r(FUNC(bsmt2000_device::tms_rom_r));
+	map(3, 3).w(FUNC(bsmt2000_device::tms_left_w));
+	map(7, 7).w(FUNC(bsmt2000_device::tms_right_w));
+}
 
 
 // ROM definition for the BSMT2000 program ROM
@@ -70,32 +62,20 @@ ROM_END
 //-------------------------------------------------
 
 bsmt2000_device::bsmt2000_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, BSMT2000, "BSMT2000", tag, owner, clock, "bsmt2000", __FILE__),
-		device_sound_interface(mconfig, *this),
-		device_rom_interface(mconfig, *this, 32),
-		m_ready_callback(nullptr),
-		m_stream(nullptr),
-		m_cpu(nullptr),
-		m_register_select(0),
-		m_write_data(0),
-		m_rom_address(0),
-		m_rom_bank(0),
-		m_left_data(0),
-		m_right_data(0),
-		m_write_pending(false)
+	: device_t(mconfig, BSMT2000, tag, owner, clock)
+	, device_sound_interface(mconfig, *this)
+	, device_rom_interface(mconfig, *this, 32)
+	, m_ready_callback(*this)
+	, m_stream(nullptr)
+	, m_cpu(*this, "bsmt2000")
+	, m_register_select(0)
+	, m_write_data(0)
+	, m_rom_address(0)
+	, m_rom_bank(0)
+	, m_left_data(0)
+	, m_right_data(0)
+	, m_write_pending(false)
 {
-}
-
-
-//-------------------------------------------------
-//  static_set_ready_callback - configuration
-//  helper to set the ready callback
-//-------------------------------------------------
-
-void bsmt2000_device::static_set_ready_callback(device_t &device, ready_callback callback)
-{
-	bsmt2000_device &bsmt = downcast<bsmt2000_device &>(device);
-	bsmt.m_ready_callback = callback;
 }
 
 
@@ -111,13 +91,16 @@ const tiny_rom_entry *bsmt2000_device::device_rom_region() const
 
 
 //-------------------------------------------------
-//  machine_config_additions - return a pointer to
-//  the device's machine fragment
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor bsmt2000_device::device_mconfig_additions() const
+void bsmt2000_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( bsmt2000 );
+	tms32015_device &tms(TMS32015(config, "bsmt2000", DERIVED_CLOCK(1,1)));
+	tms.set_addrmap(AS_PROGRAM, &bsmt2000_device::tms_program_map);
+	// data map is internal to the CPU
+	tms.set_addrmap(AS_IO, &bsmt2000_device::tms_io_map);
+	tms.bio().set(FUNC(bsmt2000_device::tms_write_pending_r));
 }
 
 
@@ -127,8 +110,7 @@ machine_config_constructor bsmt2000_device::device_mconfig_additions() const
 
 void bsmt2000_device::device_start()
 {
-	// find our CPU
-	m_cpu = subdevice<tms32015_device>("bsmt2000");
+	m_ready_callback.resolve();
 
 	// create the stream; BSMT typically runs at 24MHz and writes to a DAC, so
 	// in theory we should generate a 24MHz stream, but that's certainly overkill
@@ -198,8 +180,8 @@ void bsmt2000_device::sound_stream_update(sound_stream &stream, stream_sample_t 
 	// just fill with current left/right values
 	for (int samp = 0; samp < samples; samp++)
 	{
-		outputs[0][samp] = m_left_data * 16;
-		outputs[1][samp] = m_right_data * 16;
+		outputs[0][samp] = m_left_data;
+		outputs[1][samp] = m_right_data;
 	}
 }
 
@@ -269,8 +251,8 @@ READ16_MEMBER( bsmt2000_device::tms_data_r )
 {
 	// also implicitly clear the write pending flag
 	m_write_pending = false;
-	if (m_ready_callback != nullptr)
-		(*m_ready_callback)(*this);
+	if (!m_ready_callback.isnull())
+		m_ready_callback();
 	return m_write_data;
 }
 
@@ -282,8 +264,8 @@ READ16_MEMBER( bsmt2000_device::tms_data_r )
 
 READ16_MEMBER( bsmt2000_device::tms_rom_r )
 {
-	// underlying logic assumes this is a sign-extended value
-	return (int8_t)read_byte((m_rom_bank << 16) + m_rom_address);
+	// DSP code expects a 16-bit value with the data in the high byte
+	return (int16_t)(read_byte((m_rom_bank << 16) + m_rom_address) << 8);
 }
 
 

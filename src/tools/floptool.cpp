@@ -10,13 +10,13 @@
 
 ***************************************************************************/
 
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include <time.h>
-#include <stdarg.h>
-#include <assert.h>
+#include <cstdio>
+#include <cstring>
+#include <cctype>
+#include <cstdlib>
+#include <ctime>
+#include <cstdarg>
+#include <cassert>
 
 #include "corestr.h"
 
@@ -38,13 +38,30 @@
 #include "formats/cqm_dsk.h"
 #include "formats/pc_dsk.h"
 #include "formats/naslite_dsk.h"
+#include "formats/ibmxdf_dsk.h"
 
 #include "formats/ap_dsk35.h"
 #include "formats/ap2_dsk.h"
 
+#include "formats/atom_dsk.h"
+#include "formats/acorn_dsk.h"
+
 #include "formats/oric_dsk.h"
 
 #include "formats/applix_dsk.h"
+
+#include "formats/hpi_dsk.h"
+#include "formats/img_dsk.h"
+
+#include "formats/dvk_mx_dsk.h"
+#include "formats/aim_dsk.h"
+#include "formats/m20_dsk.h"
+
+#include "formats/os9_dsk.h"
+
+#include "formats/flex_dsk.h"
+#include "formats/uniflex_dsk.h"
+
 
 static floppy_format_type floppy_formats[] = {
 	FLOPPY_MFI_FORMAT,
@@ -66,15 +83,36 @@ static floppy_format_type floppy_formats[] = {
 	FLOPPY_CQM_FORMAT,
 	FLOPPY_PC_FORMAT,
 	FLOPPY_NASLITE_FORMAT,
+	FLOPPY_IBMXDF_FORMAT,
 
 	FLOPPY_DC42_FORMAT,
 	FLOPPY_A216S_FORMAT,
 	FLOPPY_RWTS18_FORMAT,
 	FLOPPY_EDD_FORMAT,
+	FLOPPY_WOZ_FORMAT,
+
+	FLOPPY_ATOM_FORMAT,
+	FLOPPY_ACORN_SSD_FORMAT,
+	FLOPPY_ACORN_DSD_FORMAT,
+	FLOPPY_ACORN_DOS_FORMAT,
+	FLOPPY_ACORN_ADFS_OLD_FORMAT,
+	FLOPPY_ACORN_ADFS_NEW_FORMAT,
 
 	FLOPPY_ORIC_DSK_FORMAT,
 
 	FLOPPY_APPLIX_FORMAT,
+
+	FLOPPY_HPI_FORMAT,
+	FLOPPY_IMG_FORMAT,
+
+	FLOPPY_DVK_MX_FORMAT,
+	FLOPPY_AIM_FORMAT,
+	FLOPPY_M20_FORMAT,
+
+	FLOPPY_OS9_FORMAT,
+
+	FLOPPY_FLEX_FORMAT,
+	FLOPPY_UNIFLEX_FORMAT
 };
 
 void CLIB_DECL ATTR_PRINTF(1,2) logerror(const char *format, ...)
@@ -139,7 +177,7 @@ static void display_formats()
 static void display_full_usage()
 {
 	/* Usage */
-	fprintf(stderr, "floptool - Generic floppy image manipulation tool for use with MESS\n\n");
+	fprintf(stderr, "floptool - Generic floppy image manipulation tool for use with MAME\n\n");
 	display_usage();
 	fprintf(stderr, "\n");
 	display_formats();

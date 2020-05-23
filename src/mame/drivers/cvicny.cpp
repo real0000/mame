@@ -2,87 +2,88 @@
 // copyright-holders:Robbbert
 /***************************************************************************
 
-    CVICNY8080 - Practice-z80 - a homebrew from Czechoslavakia.
+CVICNY8080 - Practice-z80 - a homebrew from Czechoslavakia.
 
-    More data at :
-                http://www.nostalcomp.cz/cvicny8080.php
+More data at :
+    https://web.archive.org/web/20190202185251/http://www.nostalcomp.cz/cvicny8080.php
 
-    21/OCT/2011 New working driver. [Robbbert]
+2011-10-21 New working driver. [Robbbert]
 
-    Keys:
-        0-9,A-F : hexadecimal numbers
-        ADR : enter an address to work with. After the 4 digits are entered,
-              the data at that address shows, and you can modify the data.
-        + (inc) : Enter the data into memory, and increment the address by 1.
-        GO : execute the program located at the current address.
+Keys:
+    0-9,A-F : hexadecimal numbers
+    ADR : enter an address to work with. After the 4 digits are entered,
+          the data at that address shows, and you can modify the data.
+    + (inc) : Enter the data into memory, and increment the address by 1.
+    GO : execute the program located at the current address.
 
-    Pasting:
-        0-F : as is
-        + (inc) : ^
-        ADR : -
-        GO : X
+Pasting:
+    0-F : as is
+    + (inc) : ^
+    ADR : -
+    GO : X
 
-    Test Paste:
-        11^22^33^44^55^66^77^88^99^-0800
-        Now press up-arrow to confirm the data has been entered.
+Test Paste:
+    11^22^33^44^55^66^77^88^99^-0800
+    Now press up-arrow to confirm the data has been entered.
 
-    ToDo:
-        - When ADR is pressed, sometimes a segment stays alight. Bug?
-        - Blank the display if digits aren't being refreshed
 
 ****************************************************************************/
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
+#include "video/pwm.h"
 #include "cvicny.lh"
 
 class cvicny_state : public driver_device
 {
 public:
 	cvicny_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_digit_last(0)
-	{ }
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_display(*this, "display")
+		, m_io_keyboard(*this, "X%u", 0U)
+		{ }
 
-	required_device<cpu_device> m_maincpu;
+	void cvicny(machine_config &config);
+	void cvicny_mem(address_map &map);
 	DECLARE_READ8_MEMBER(key_r);
 	DECLARE_WRITE8_MEMBER(digit_w);
 	DECLARE_WRITE8_MEMBER(segment_w );
+private:
 	uint8_t m_digit;
-	uint8_t m_digit_last;
+	uint8_t m_seg;
+	required_device<cpu_device> m_maincpu;
+	required_device<pwm_display_device> m_display;
+	required_ioport_array<8> m_io_keyboard;
 };
 
 WRITE8_MEMBER( cvicny_state::segment_w ) // output segments on the selected digit
 {
-	if (m_digit != m_digit_last)
-		output().set_digit_value(m_digit, data);
-
-	m_digit_last = m_digit;
+	m_seg = data;
+	m_display->matrix(1<<m_digit, m_seg);
 }
 
 WRITE8_MEMBER( cvicny_state::digit_w ) // set keyboard scanning row; set digit to display
 {
 	m_digit = data & 7;
+	m_display->matrix(1<<m_digit, m_seg);
 }
 
 READ8_MEMBER( cvicny_state::key_r )
 {
-	uint8_t data;
-	char kbdrow[6];
-	sprintf(kbdrow,"X%d",m_digit);
-	data = ioport(kbdrow)->read();
+	u8 data = m_io_keyboard[m_digit]->read();
 	return ((data << 4) ^ 0xf0) | data;
 }
 
-static ADDRESS_MAP_START( cvicny_mem, AS_PROGRAM, 8, cvicny_state )
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x0000, 0x07ff) AM_ROM // 1 x 2716
-	AM_RANGE(0x0800, 0x0bff) AM_RAM AM_MIRROR(0x400) // 2x 2114 static ram
-	AM_RANGE(0x1000, 0x17ff) AM_READ(key_r)
-	AM_RANGE(0x1800, 0x1fff) AM_WRITE(digit_w)
-	AM_RANGE(0x2000, 0x27ff) AM_WRITE(segment_w)
-ADDRESS_MAP_END
+void cvicny_state::cvicny_mem(address_map &map)
+{
+	map.unmap_value_high();
+	map(0x0000, 0x07ff).rom(); // 1 x 2716
+	map(0x0800, 0x0bff).ram().mirror(0x400); // 2x 2114 static ram
+	map(0x1000, 0x17ff).r(FUNC(cvicny_state::key_r));
+	map(0x1800, 0x1fff).w(FUNC(cvicny_state::digit_w));
+	map(0x2000, 0x27ff).w(FUNC(cvicny_state::segment_w));
+}
 
 
 /* Input ports */
@@ -128,22 +129,25 @@ static INPUT_PORTS_START( cvicny )
 INPUT_PORTS_END
 
 
-static MACHINE_CONFIG_START( cvicny, cvicny_state )
+void cvicny_state::cvicny(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu",Z80, XTAL_2MHz)
-	MCFG_CPU_PROGRAM_MAP(cvicny_mem)
+	Z80(config, m_maincpu, XTAL(2'000'000));
+	m_maincpu->set_addrmap(AS_PROGRAM, &cvicny_state::cvicny_mem);
 
 	/* video hardware */
-	MCFG_DEFAULT_LAYOUT(layout_cvicny)
-MACHINE_CONFIG_END
+	config.set_default_layout(layout_cvicny);
+	PWM_DISPLAY(config, m_display).set_size(8, 8);
+	m_display->set_segmask(0xff, 0xff);
+}
 
 /* ROM definition */
 ROM_START( cvicny )
-	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
+	ROM_REGION( 0x0800, "maincpu", 0 )
 	ROM_LOAD("cvicny8080.bin", 0x0000, 0x05ea, CRC(e6119052) SHA1(d03c2cbfd047f0d090a787fbbde6353593cc2dd8) )
 ROM_END
 
 /* Driver */
 
-/*    YEAR  NAME    PARENT  COMPAT   MACHINE    INPUT    INIT     COMPANY     FULLNAME       FLAGS */
-COMP( 1984, cvicny, 0,      0,       cvicny,    cvicny, driver_device,  0,     "<unknown>", "Practice-z80", MACHINE_NO_SOUND_HW)
+//    YEAR  NAME    PARENT  COMPAT  MACHINE  INPUT   CLASS         INIT        COMPANY      FULLNAME        FLAGS
+COMP( 1984, cvicny, 0,      0,      cvicny,  cvicny, cvicny_state, empty_init, "<unknown>", "Practice-z80", MACHINE_NO_SOUND_HW)

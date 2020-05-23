@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_CBMIEC_VIC1520_H
+#define MAME_BUS_CBMIEC_VIC1520_H
 
-#ifndef __VIC1520__
-#define __VIC1520__
+#pragma once
 
 #include "cbmiec.h"
 #include "cpu/m6502/m6502.h"
@@ -20,35 +20,36 @@
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-// ======================> vic1520_t
+// ======================> vic1520_device
 
-class vic1520_t :  public device_t,
-					public device_cbm_iec_interface
+class vic1520_device : public device_t, public device_cbm_iec_interface
 {
 public:
 	// construction/destruction
-	vic1520_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-
-	// optional information overrides
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	virtual ioport_constructor device_input_ports() const override;
+	vic1520_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
+	// optional information overrides
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+	virtual ioport_constructor device_input_ports() const override;
+
 	// device_cbm_iec_interface overrides
 	void cbm_iec_atn(int state) override;
 	void cbm_iec_data(int state) override;
 	void cbm_iec_reset(int state) override;
+
+private:
+	void vic1520_mem(address_map &map);
 };
 
 
 // device type definition
-extern const device_type VIC1520;
+DECLARE_DEVICE_TYPE(VIC1520, vic1520_device)
 
 
-
-#endif
+#endif // MAME_BUS_CBMIEC_VIC1520_H

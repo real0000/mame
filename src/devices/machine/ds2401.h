@@ -8,17 +8,20 @@
  *
  */
 
-#ifndef __DS2401_H__
-#define __DS2401_H__
+#ifndef MAME_MACHINE_DS2401_H
+#define MAME_MACHINE_DS2401_H
 
-#define MCFG_DS2401_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, DS2401, 0)
-
+#pragma once
 
 class ds2401_device : public device_t
 {
 public:
 	// construction/destruction
+	ds2401_device(const machine_config &mconfig, const char *tag, device_t *owner)
+		: ds2401_device(mconfig, tag, owner, uint32_t(0))
+	{
+	}
+
 	ds2401_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	DECLARE_WRITE_LINE_MEMBER( write );
@@ -66,6 +69,6 @@ private:
 
 
 // device type definition
-extern const device_type DS2401;
+DECLARE_DEVICE_TYPE(DS2401, ds2401_device)
 
-#endif
+#endif // MAME_MACHINE_DS2401_H

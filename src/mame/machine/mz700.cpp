@@ -34,7 +34,7 @@
     INITIALIZATION
 ***************************************************************************/
 
-DRIVER_INIT_MEMBER(mz_state,mz700)
+void mz_state::init_mz700()
 {
 	m_mz700 = true;
 	m_mz700_mode = true;
@@ -53,7 +53,7 @@ DRIVER_INIT_MEMBER(mz_state,mz700)
 	membank("bankd")->configure_entry(1, m_videoram.get()); // vram
 }
 
-DRIVER_INIT_MEMBER(mz_state,mz800)
+void mz_state::init_mz800()
 {
 	m_mz700 = false;
 	m_mz700_mode = true;//false;
@@ -124,7 +124,7 @@ READ8_MEMBER(mz_state::mz700_e008_r)
 
 	data |= m_other_timer;
 	data |= ioport("JOY")->read();
-	data |= machine().first_screen()->hblank() << 7;
+	data |= m_screen->hblank() << 7;
 
 	LOG(1, "mz700_e008_r", ("%02X\n", data), machine());
 
@@ -469,17 +469,15 @@ WRITE_LINE_MEMBER(mz_state::pit_irq_2)
     8255 PPI
 ***************************************************************************/
 
-READ8_MEMBER(mz_state::pio_port_b_r)
+uint8_t mz_state::pio_port_b_r()
 {
-	device_t *device = machine().device("ls145");
-	int key_line = dynamic_cast<ttl74145_device *>(device)->read();
+	const int key_line = m_ls145->read();
 	const char *const keynames[10] = { "ROW0", "ROW1", "ROW2", "ROW3", "ROW4", "ROW5", "ROW6", "ROW7", "ROW8", "ROW9" };
-	int i;
 	uint8_t res = 0;
 
-	for(i=0;i<10;i++)
+	for (int i = 0; i < 10; i++)
 	{
-		if(key_line & (1 << i))
+		if (key_line & (1 << i))
 			res |= ioport(keynames[i])->read();
 	}
 
@@ -492,7 +490,7 @@ READ8_MEMBER(mz_state::pio_port_b_r)
  * bit 5 in     tape data (RDATA)
  * bit 4 in     motor (1 = on)
  */
-READ8_MEMBER(mz_state::pio_port_c_r)
+uint8_t mz_state::pio_port_c_r()
 {
 	uint8_t data = 0;
 
@@ -503,8 +501,8 @@ READ8_MEMBER(mz_state::pio_port_c_r)
 	if ((m_cassette)->input() > 0.0038)
 		data |= 0x20;       /* set the RDATA status */
 
-	data |= m_cursor_timer << 6;
-	data |= machine().first_screen()->vblank() << 7;
+	data |= m_cursor_bit << 6;
+	data |= m_screen->vblank() << 7;
 
 	LOG(2,"mz700_pio_port_c_r",("%02X\n", data),machine());
 
@@ -512,22 +510,19 @@ READ8_MEMBER(mz_state::pio_port_c_r)
 }
 
 
-WRITE8_MEMBER(mz_state::pio_port_a_w)
+void mz_state::pio_port_a_w(uint8_t data)
 {
-	device_t *device = machine().device("ls145");
-	timer_device *timer = machine().device<timer_device>("cursor");
-
 	LOG(2,"mz700_pio_port_a_w",("%02X\n", data),machine());
 
 	/* the ls145 is connected to PA0-PA3 */
-	dynamic_cast<ttl74145_device *>(device)->write(data & 0x0f);
+	m_ls145->write(data & 0x0f);
 
 	/* ne556 reset is connected to PA7 */
-	timer->enable(BIT(data, 7));
+	m_cursor_timer->enable(BIT(data, 7));
 }
 
 
-WRITE8_MEMBER(mz_state::pio_port_c_w)
+void mz_state::pio_port_c_w(uint8_t data)
 {
 	/*
 	 * bit 3 out    motor control (0 = on)
@@ -590,18 +585,18 @@ WRITE_LINE_MEMBER(mz_state::write_centronics_perror)
 	m_centronics_perror = state;
 }
 
-READ8_MEMBER(mz_state::mz800_z80pio_port_a_r)
+uint8_t mz_state::mz800_z80pio_port_a_r()
 {
 	uint8_t result = 0;
 
 	result |= m_centronics_busy;
 	result |= m_centronics_perror << 1;
-	result |= machine().first_screen()->hblank() << 5;
+	result |= m_screen->hblank() << 5;
 
 	return result;
 }
 
-WRITE8_MEMBER(mz_state::mz800_z80pio_port_a_w)
+void mz_state::mz800_z80pio_port_a_w(uint8_t data)
 {
 	m_centronics->write_init(BIT(data, 6));
 	m_centronics->write_strobe(BIT(data, 7));

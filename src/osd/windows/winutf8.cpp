@@ -2,18 +2,18 @@
 // copyright-holders:Aaron Giles
 //============================================================
 //
-//  winutf8.c - Win32 OSD core utility functions
+//  winutf8.cpp - Win32 OSD core utility functions
 //
 //============================================================
-
-// standard windows headers
-#include <windows.h>
-#include <shellapi.h>
-#include <stdlib.h>
 
 // MAMEOS headers
 #include "winutf8.h"
 #include "strconv.h"
+
+#include <cstdlib>
+
+// standard windows headers
+#include <shellapi.h>
 
 
 //============================================================
@@ -100,7 +100,7 @@ std::string win_get_window_text_utf8(HWND window)
 		if (length <= 0)
 			return std::string();
 
-		TCHAR *buffer = (TCHAR *) alloca((length + 1) * sizeof(TCHAR));
+		auto *buffer = (TCHAR *) alloca((length + 1) * sizeof(TCHAR));
 		GetWindowText(window, buffer, length + 1);
 		return osd::text::from_tstring(buffer);
 	}

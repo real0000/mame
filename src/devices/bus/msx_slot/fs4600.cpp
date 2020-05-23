@@ -8,45 +8,28 @@
 #include "fs4600.h"
 
 
-const device_type MSX_SLOT_FS4600 = device_creator<msx_slot_fs4600_device>;
+DEFINE_DEVICE_TYPE(MSX_SLOT_FS4600, msx_slot_fs4600_device, "msx_slot_fs4600", "MSX Internal FS4600 Firmware")
 
 
 msx_slot_fs4600_device::msx_slot_fs4600_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, MSX_SLOT_FS4600, "MSX Internal FS4600 Firmware", tag, owner, clock, "msx_slot_fs4600", __FILE__)
-	, msx_internal_slot_interface()
+	: device_t(mconfig, MSX_SLOT_FS4600, tag, owner, clock)
+	, msx_internal_slot_interface(mconfig, *this)
 	, m_nvram(*this, "nvram")
 	, m_rom_region(*this, finder_base::DUMMY_TAG)
 	, m_region_offset(0)
 	, m_rom(nullptr)
+	, m_selected_bank{ 0, 0, 0, 0 }
+	, m_bank_base{ nullptr, nullptr, nullptr, nullptr }
 	, m_sram_address(0)
 	, m_control(0)
 {
-	for (int i = 0; i < 4; i++)
-	{
-		m_selected_bank[i] = 0;
-		m_bank_base[i] = nullptr;
-	}
 	memset(m_sram, 0, sizeof(m_sram));
 }
 
 
-static MACHINE_CONFIG_FRAGMENT( fs4600 )
-	MCFG_NVRAM_ADD_0FILL("nvram")
-MACHINE_CONFIG_END
-
-
-machine_config_constructor msx_slot_fs4600_device::device_mconfig_additions() const
+void msx_slot_fs4600_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( fs4600 );
-}
-
-
-void msx_slot_fs4600_device::set_rom_start(device_t &device, const char *region, uint32_t offset)
-{
-	msx_slot_fs4600_device &dev = downcast<msx_slot_fs4600_device &>(device);
-
-	dev.m_rom_region.set_tag(region);
-	dev.m_region_offset = offset;
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 }
 
 
@@ -65,8 +48,12 @@ void msx_slot_fs4600_device::device_start()
 	save_item(NAME(m_sram_address));
 	save_item(NAME(m_control));
 
-	machine().save().register_postload(save_prepost_delegate(FUNC(msx_slot_fs4600_device::restore_banks), this));
+	restore_banks();
+}
 
+
+void msx_slot_fs4600_device::device_post_load()
+{
 	restore_banks();
 }
 
@@ -80,7 +67,7 @@ void msx_slot_fs4600_device::restore_banks()
 }
 
 
-READ8_MEMBER(msx_slot_fs4600_device::read)
+uint8_t msx_slot_fs4600_device::read(offs_t offset)
 {
 	if ((m_control & 0x02) && ((offset & 0x3fff) == 0x3ffd))
 	{
@@ -94,7 +81,7 @@ READ8_MEMBER(msx_slot_fs4600_device::read)
 }
 
 
-WRITE8_MEMBER(msx_slot_fs4600_device::write)
+void msx_slot_fs4600_device::write(offs_t offset, uint8_t data)
 {
 	if (offset == 0x7ff9)
 	{

@@ -8,10 +8,10 @@
 
 ***************************************************************************/
 
-#pragma once
-
 #ifndef MAME_EMU_DIVTLB_H
 #define MAME_EMU_DIVTLB_H
+
+#pragma once
 
 
 
@@ -46,7 +46,7 @@ class device_vtlb_interface : public device_interface
 {
 public:
 	// construction/destruction
-	device_vtlb_interface(const machine_config &mconfig, device_t &device, address_spacenum space);
+	device_vtlb_interface(const machine_config &mconfig, device_t &device, int space);
 	virtual ~device_vtlb_interface();
 
 	// configuration helpers
@@ -74,7 +74,7 @@ protected:
 
 private:
 	// private state
-	address_spacenum    m_space;            // address space
+	int    m_space;            // address space
 	int                 m_dynamic;          // number of dynamic entries
 	int                 m_fixed;            // number of fixed entries
 	int                 m_dynindex;         // index of next dynamic entry
@@ -83,6 +83,7 @@ private:
 	std::vector<offs_t> m_live;             // array of live entries by table index
 	std::vector<int>    m_fixedpages;       // number of pages each fixed entry covers
 	std::vector<vtlb_entry> m_table;        // table of entries by address
+	std::vector<offs_t> m_refcnt;           // table of entry reference counts by address
 	vtlb_entry          *m_table_base;      // pointer to m_table[0]
 };
 

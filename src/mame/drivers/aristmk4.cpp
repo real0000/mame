@@ -14,7 +14,7 @@
     ***************** INITIALISATION *********************************************************************
 
     Method 1 :
-    * Key in with the Jackpot Key followed by the Audit Key (K+L Keys)
+    * Key in with the Jackpot Key followed by the Audit Key (F1 then F2 keys)
     * Hit UP (W key) twice (for gunnrose only)
     * Press PB4, PB5 and PB6 keys simultaneously (Z+X+C keys by default)
     * A value (displayed below) will appear next to RF/AMT on the right of the screen
@@ -40,7 +40,7 @@
     swtht2nz 200
     wildone  200
     wtigernz 200
-    gunnrose
+    gunnrose N/A (no hopper to refill)
 
     Method 2 :
     * Key in with the Jackpot Key followed by the Audit Key
@@ -62,7 +62,7 @@
        'freeze' switch and the games don't accept inputs).
     * Key in with the Jackpot Key followed by the Audit Key.
     * Press PB4, PB5 and PB6 keys simultaneously (Z+X+C keys by default)
-    * Press Service (default A) 4 times until you are in the Setup Screen, with Printer Pay Limit.
+    * Press Service (default A) 4 times until you are in the Setup Screen, showing Printer Pay Limit etc.
     * Press Bet 2 (default D) to change the Jackpot Win Limit. A higher value is better (3000 max)
     * Key out both the Jackpot and Audit Keys
 
@@ -97,7 +97,7 @@
     The VIA uses Port A to write to the D0-D7 on the AY8910s. Port B hooks first 4 bits up to BC1/BC2/BDIR and A9 on AY1 and A8 on AY2
     The remaining 4 bits are connected to other hardware, read via the VIA.
 
-    The AY8910 named ay1 has writes on PORT B to the ZN434 DA convertor.
+    The AY8910 named ay1 has writes on PORT B to the ZN434 DA converter.
     The AY8910 named ay2 has writes to lamps and the light tower on Port A and B. these are implemented via the layout
 
 
@@ -187,14 +187,14 @@
         cause a note acceptor error), the note acceptor works, adding 4 credits ($1?).
         This is seemingly a quarter slot (25c). Not sure if other notes are possible.
      - Same gameplay as Gone Troppo, one interesting thing about this game is that
-        the KQJ symbols have actual faces instead of plain letters.
+        the KQJ symbols have actual faces instead of plain letters. These symbols were also found on some mechanical reel slots.
 
     08/03/2013 - Heihachi_73
     Cleaned up comments and erroneous ROM names (e.g. graphics ROMs named after the program ROM).
     Caribbean Gold II - copied cgold graphics ROMs u8+u11 (aka u20+u45) to cgold2, game now playable.
      Tiles 0x64 and 0x65 are used to show the game's denomination (credit value), however cgold does
      not use these tiles (there are seemingly unused line/bet/number tiles in this location), this
-     causes a minor glitch on the $/c sign. Tiles 0x277-0x288 also differ but are unused.
+     causes a graphics glitch on the $/cent signs.
     Promoted Fortune Hunter and clone to working status, as they were in fact working for quite a while.
     Fixed ROM names for kgbird/kgbirda; 5c and 10c variants were mixed up.
 
@@ -202,11 +202,16 @@
     Added hopper and meter outputs.
 
     27/03/2014
-    Added new game: Gun's and Roses Poker - gunnrose
+    Added new game: Guns and Roses Poker - gunnrose
 
     13/11/2015 - Roberto Fresca
-    Added new game: Fever Pitch? (2VXEC534, NSW, 90.36%).
-    Need to confirm the title.
+    Added new game: Fever Pitch (2VXEC534, NSW, 90.36%).
+
+    26/04/2017 - Heihachi_73
+    Added button labels and layout to gunnrose, position of buttons is guesswork at this stage.
+    This game does not have a cashout button. Credits are paid out using the jackpot key.
+    Changed jackpot and audit keys to F1 and F2 respectively.
+    Renamed nodump program ROM in clkwise as it had the wrong EPROM number.
 
 
 *************************************************************************************************************
@@ -245,13 +250,13 @@
     cgold can be set to credit play or coin play by toggling SW1-5. If SW1-5 is on, game is in credit mode; if SW1-5 is off,
     wins and remaining credits will be automatically paid out as coins.
 
-    Non-US games can enable/disable the double up (gamble) option by toggling the SW1-8 switch. Turning SW1 off will enable
+    Non-US games can enable/disable the double up (gamble) option by toggling the SW1-8 switch. Turning SW1-8 off will enable
     the double up option (default); turning SW1-8 on will disable double up and enable auto-spin on some games (so far, only
     eforesta and 3bagflvt allow this; other games simply ignore the buttons). The games respond slightly faster between games
     with double up disabled.
 
-    3 Bags Full, Fortune Hunter, Caribbean Gold 1 and 2, Gone Troppo and Top Gear do not have a double up option, and US-based
-    games ignore this switch setting (double up is always enabled on US games which support it).
+    3 Bags Full, Fortune Hunter, Fever Pitch, Caribbean Gold 1 and 2, Gone Troppo and Top Gear do not have a double up option,
+    and US-based games ignore this switch setting (double up is always enabled on US games which support it).
 
 
     TODO:
@@ -276,11 +281,13 @@
 
     7. When DIP SW7 is set to off/off, speed is dramatically reduced (noticeable on older Pentium 4-based systems).
 
-    8. rewrite video emulation by using custom drawing code.
+    8. Rewrite video emulation by using custom drawing code.
 
-    9. check what type of mc6845 this HW uses on real PCB, and hook it up properly.
+    9. Check what type of mc6845 this HW uses on real PCB, and hook it up properly.
 
-    10. fix 86 Lions (pre-Aristocrat Mk-4 HW, without prom and dunno what else)
+    10. Fix 86 Lions (pre-Aristocrat Mk-4 HW, without prom and dunno what else).
+
+    11. Fix coin input for the US games. Currently, only the note acceptor works. The reverse is true for cgold.
 
 
     ***************** POKER GAMES ************************************************************************
@@ -308,7 +315,7 @@
 
 ***********************************************************************************************************************************************/
 
-#define MAIN_CLOCK  XTAL_12MHz
+#define MAIN_CLOCK  12_MHz_XTAL
 
 #include "emu.h"
 #include "cpu/m6809/m6809.h"
@@ -320,6 +327,8 @@
 #include "sound/samples.h"
 #include "machine/mc146818.h" // DALLAS1287 is functionally compatible.
 #include "machine/nvram.h"
+#include "machine/timer.h"
+#include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -332,13 +341,13 @@
 #include "cgold2.lh"   // US 25cr without gamble
 #include "eforest.lh"  // US 45cr with gamble
 #include "fhunter.lh"  // US 45cr without gamble
+#include "fvrpitch.lh" // AU 25cr without gamble
 #include "goldenc.lh"  // NZ 90cr with double up
 #include "kgbird.lh"   // NZ 25cr with double up
 #include "topgear.lh"  // NZ 5 line without gamble
-#include "wildone.lh"  // Video poker
-#include "gunnrose.lh" // Video poker
 #include "gldnpkr.lh"  // Video poker
-#include "fvrpitch.lh"  // 5 line without gamble
+#include "gunnrose.lh" // Video poker
+#include "wildone.lh"  // Video poker
 
 uint8_t crtc_cursor_index = 0;
 uint8_t crtc_reg = 0;
@@ -346,8 +355,8 @@ uint8_t crtc_reg = 0;
 class aristmk4_state : public driver_device
 {
 public:
-	aristmk4_state(const machine_config &mconfig, device_type type, const char *tag)
-	: driver_device(mconfig, type, tag),
+	aristmk4_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_rtc(*this, "rtc"),
 		m_ay1(*this, "ay1"),
@@ -355,7 +364,26 @@ public:
 		m_samples(*this, "samples"),
 		m_mkiv_vram(*this, "mkiv_vram"),
 		m_gfxdecode(*this, "gfxdecode"),
-		m_palette(*this, "palette")  { }
+		m_palette(*this, "palette"),
+		m_credit_spend_meter(*this, "creditspendmeter"),
+		m_credit_out_meter(*this, "creditoutmeter"),
+		m_hopper_motor_out(*this, "hopper_motor"),
+		m_lamps(*this, "lamp%u", 0U)
+	{ }
+
+	void aristmk4_poker(machine_config &config);
+	void aristmk4(machine_config &config);
+	void _86lions(machine_config &config);
+
+	void init_aristmk4();
+
+private:
+	enum
+	{
+		TIMER_POWER_FAIL
+	};
+
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
 	required_device<cpu_device> m_maincpu;
 	required_device<mc146818_device> m_rtc;
@@ -366,6 +394,11 @@ public:
 	required_shared_ptr<uint8_t> m_mkiv_vram;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<palette_device> m_palette;
+
+	output_finder<> m_credit_spend_meter;
+	output_finder<> m_credit_out_meter;
+	output_finder<> m_hopper_motor_out;
+	output_finder<21> m_lamps;
 
 	int m_rtc_address_strobe;
 	int m_rtc_data_strobe;
@@ -383,47 +416,52 @@ public:
 	int m_insnote;
 	int m_cashcade_c;
 	int m_printer_motor;
-	DECLARE_READ8_MEMBER(ldsw);
-	DECLARE_READ8_MEMBER(cgdrr);
-	DECLARE_WRITE8_MEMBER(cgdrw);
-	DECLARE_WRITE8_MEMBER(u3_p0);
-	DECLARE_READ8_MEMBER(u3_p2);
-	DECLARE_READ8_MEMBER(u3_p3);
-	DECLARE_READ8_MEMBER(bv_p0);
-	DECLARE_READ8_MEMBER(bv_p1);
-	DECLARE_READ8_MEMBER(mkiv_pia_ina);
-	DECLARE_WRITE8_MEMBER(mkiv_pia_outa);
-	DECLARE_WRITE8_MEMBER(mlamps);
-	DECLARE_READ8_MEMBER(cashcade_r);
-	DECLARE_WRITE8_MEMBER(mk4_printer_w);
-	DECLARE_READ8_MEMBER(mk4_printer_r);
+	emu_timer *m_power_timer;
+
+	uint8_t ldsw();
+	uint8_t cgdrr();
+	void cgdrw(uint8_t data);
+	void u3_p0(uint8_t data);
+	uint8_t u3_p2();
+	uint8_t u3_p3();
+	uint8_t bv_p0();
+	uint8_t bv_p1();
+	uint8_t mkiv_pia_ina();
+	void mkiv_pia_outa(uint8_t data);
+	void mlamps(uint8_t data);
+	uint8_t cashcade_r();
+	void mk4_printer_w(uint8_t data);
+	uint8_t mk4_printer_r();
 	DECLARE_WRITE_LINE_MEMBER(mkiv_pia_ca2);
 	DECLARE_WRITE_LINE_MEMBER(mkiv_pia_cb2);
-	DECLARE_WRITE8_MEMBER(mkiv_pia_outb);
-	DECLARE_READ8_MEMBER(via_a_r);
-	DECLARE_READ8_MEMBER(via_b_r);
-	DECLARE_WRITE8_MEMBER(via_a_w);
-	DECLARE_WRITE8_MEMBER(via_b_w);
+	void mkiv_pia_outb(uint8_t data);
+	uint8_t via_a_r();
+	uint8_t via_b_r();
+	void via_a_w(uint8_t data);
+	void via_b_w(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER(via_ca2_w);
 	DECLARE_WRITE_LINE_MEMBER(via_cb2_w);
-	DECLARE_WRITE8_MEMBER(pblp_out);
-	DECLARE_WRITE8_MEMBER(pbltlp_out);
-	DECLARE_WRITE8_MEMBER(zn434_w);
-	DECLARE_READ8_MEMBER(pa1_r);
-	DECLARE_READ8_MEMBER(pb1_r);
-	DECLARE_READ8_MEMBER(pc1_r);
-	DECLARE_DRIVER_INIT(aristmk4);
+	void pblp_out(uint8_t data);
+	void pbltlp_out(uint8_t data);
+	void zn434_w(uint8_t data);
+	uint8_t pa1_r();
+	uint8_t pb1_r();
+	uint8_t pc1_r();
+
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
 	virtual void video_start() override;
-	DECLARE_PALETTE_INIT(aristmk4);
-	DECLARE_PALETTE_INIT(lions);
-	uint32_t screen_update_aristmk4(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void aristmk4_palette(palette_device &palette) const;
+	void lions_palette(palette_device &palette) const;
+	uint32_t screen_update_aristmk4(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(note_input_reset);
 	TIMER_CALLBACK_MEMBER(coin_input_reset);
 	TIMER_CALLBACK_MEMBER(hopper_reset);
-	TIMER_DEVICE_CALLBACK_MEMBER(aristmk4_pf);
+	void power_fail();
 	inline void uBackgroundColour();
+
+	void slots_mem(address_map &map);
+	void poker_mem(address_map &map);
 };
 
 /* Partial Cashcade protocol */
@@ -471,7 +509,7 @@ void aristmk4_state::uBackgroundColour()
 	}
 }
 
-uint32_t aristmk4_state::screen_update_aristmk4(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t aristmk4_state::screen_update_aristmk4(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	gfx_element *gfx = m_gfxdecode->gfx(0);
 	int x,y;
@@ -501,7 +539,7 @@ uint32_t aristmk4_state::screen_update_aristmk4(screen_device &screen, bitmap_in
 	return 0;
 }
 
-READ8_MEMBER(aristmk4_state::ldsw)
+uint8_t aristmk4_state::ldsw()
 {
 	int U3_p2_ret= ioport("5002")->read();
 	if(U3_p2_ret & 0x1)
@@ -511,7 +549,7 @@ READ8_MEMBER(aristmk4_state::ldsw)
 	return m_cgdrsw = ioport("5005")->read();
 }
 
-READ8_MEMBER(aristmk4_state::cgdrr)
+uint8_t aristmk4_state::cgdrr()
 {
 	if(m_cgdrsw) // is the LC closed
 	{
@@ -520,12 +558,12 @@ READ8_MEMBER(aristmk4_state::cgdrr)
 	return 0x0; // otherwise the counter outputs are set low.
 }
 
-WRITE8_MEMBER(aristmk4_state::cgdrw)
+void aristmk4_state::cgdrw(uint8_t data)
 {
 	m_ripple = data;
 }
 
-WRITE8_MEMBER(aristmk4_state::u3_p0)
+void aristmk4_state::u3_p0(uint8_t data)
 {
 	m_u3_p0_w = data;
 
@@ -537,13 +575,13 @@ WRITE8_MEMBER(aristmk4_state::u3_p0)
 	//logerror("u3_p0_w: %02X\n",m_u3_p0_w);
 }
 
-READ8_MEMBER(aristmk4_state::u3_p2)
+uint8_t aristmk4_state::u3_p2()
 {
 	int u3_p2_ret= ioport("5002")->read();
 	int u3_p3_ret= ioport("5003")->read();
 
-	output().set_lamp_value(19, (u3_p2_ret >> 4) & 1); //auditkey light
-	output().set_lamp_value(20, (u3_p3_ret >> 2) & 1); //jackpotkey light
+	m_lamps[19] = BIT(u3_p2_ret, 4);
+	m_lamps[20] = BIT(u3_p3_ret, 2);
 
 	if (m_u3_p0_w&0x20) // DOPTE on
 	{
@@ -562,7 +600,7 @@ READ8_MEMBER(aristmk4_state::u3_p2)
 	return u3_p2_ret;
 }
 
-READ8_MEMBER(aristmk4_state::u3_p3)
+uint8_t aristmk4_state::u3_p3()
 {
 	int u3_p3_ret= ioport("5003")->read();
 
@@ -583,7 +621,7 @@ TIMER_CALLBACK_MEMBER(aristmk4_state::note_input_reset)
 	m_insnote=0; //reset note input after 150msec
 }
 
-READ8_MEMBER(aristmk4_state::bv_p0)
+uint8_t aristmk4_state::bv_p0()
 {
 	int bv_p0_ret=0x00;
 
@@ -606,7 +644,7 @@ READ8_MEMBER(aristmk4_state::bv_p0)
 
 }
 
-READ8_MEMBER(aristmk4_state::bv_p1)
+uint8_t aristmk4_state::bv_p1()
 {
 	int bv_p1_ret=0x00;
 
@@ -638,25 +676,25 @@ PORTB - MECHANICAL METERS
 ******************************************************************************/
 
 //input a
-READ8_MEMBER(aristmk4_state::mkiv_pia_ina)
+uint8_t aristmk4_state::mkiv_pia_ina()
 {
 	/* uncomment this code once RTC is fixed */
 
-	//return m_rtc->read(space,1);
+	//return m_rtc->read(1);
 	return 0;   // OK for now, the aussie version has no RTC on the MB so this is valid.
 }
 
 //output a
-WRITE8_MEMBER(aristmk4_state::mkiv_pia_outa)
+void aristmk4_state::mkiv_pia_outa(uint8_t data)
 {
 	if(m_rtc_data_strobe)
 	{
-		m_rtc->write(space,1,data);
+		m_rtc->write(1,data);
 		//logerror("rtc protocol write data: %02X\n",data);
 	}
 	else
 	{
-		m_rtc->write(space,0,data);
+		m_rtc->write(0,data);
 		//logerror("rtc protocol write address: %02X\n",data);
 	}
 }
@@ -676,7 +714,7 @@ WRITE_LINE_MEMBER(aristmk4_state::mkiv_pia_cb2)
 }
 
 //output b
-WRITE8_MEMBER(aristmk4_state::mkiv_pia_outb)
+void aristmk4_state::mkiv_pia_outb(uint8_t data)
 {
 	uint8_t emet[5];
 	int i = 0;
@@ -697,10 +735,10 @@ WRITE8_MEMBER(aristmk4_state::mkiv_pia_outb)
 			switch(i+1)
 			{
 				case 4:
-					output().set_value("creditspendmeter", emet[i]);
+					m_credit_spend_meter = emet[i];
 					break;
 				case 5:
-					output().set_value("creditoutmeter", emet[i]);
+					m_credit_out_meter = emet[i];
 					break;
 				default:
 					printf("Unhandled Mechanical meter %d pulse: %02d\n",i+1, emet[i]);
@@ -715,10 +753,10 @@ WRITE8_MEMBER(aristmk4_state::mkiv_pia_outb)
 			switch(i+1)
 			{
 				case 4:
-					output().set_value("creditspendmeter", 0);
+					m_credit_spend_meter = 0;
 					break;
 				case 5:
-					output().set_value("creditoutmeter", 0);
+					m_credit_out_meter = 0;
 					break;
 				default:
 					break;
@@ -750,29 +788,29 @@ TIMER_CALLBACK_MEMBER(aristmk4_state::coin_input_reset)
 TIMER_CALLBACK_MEMBER(aristmk4_state::hopper_reset)
 {
 	m_hopper_motor = 0x01;
-	output().set_value("hopper_motor", m_hopper_motor);
+	m_hopper_motor_out = 1;
 }
 
 // Port A read (SW1)
-READ8_MEMBER(aristmk4_state::via_a_r)
+uint8_t aristmk4_state::via_a_r()
 {
 	int psg_ret=0;
 
 	if (m_ay8910_1&0x03) // SW1 read.
 	{
-		psg_ret = m_ay1->data_r(space, 0);
+		psg_ret = m_ay1->data_r();
 		//logerror("PSG porta ay1 returned %02X\n",psg_ret);
 	}
 
 	else if (m_ay8910_2&0x03) //i don't think we read anything from Port A on ay2, Can be removed once game works ok.
 	{
-		psg_ret = m_ay2->data_r(space, 0);
+		psg_ret = m_ay2->data_r();
 		//logerror("PSG porta ay2 returned %02X\n",psg_ret);
 	}
 	return psg_ret;
 }
 
-READ8_MEMBER(aristmk4_state::via_b_r)
+uint8_t aristmk4_state::via_b_r()
 {
 	int ret=ioport("via_port_b")->read();
 
@@ -809,8 +847,8 @@ READ8_MEMBER(aristmk4_state::via_b_r)
 	case 0x00:
 		ret=ret^0x40;
 		machine().scheduler().timer_set(attotime::from_msec(175), timer_expired_delegate(FUNC(aristmk4_state::hopper_reset),this));
-		m_hopper_motor=0x02;
-		output().set_value("hopper_motor", m_hopper_motor);
+		m_hopper_motor = 0x02;
+		m_hopper_motor_out = 2;
 		break;
 	case 0x01:
 		break; //default
@@ -823,13 +861,13 @@ READ8_MEMBER(aristmk4_state::via_b_r)
 	return ret;
 }
 
-WRITE8_MEMBER(aristmk4_state::via_a_w)
+void aristmk4_state::via_a_w(uint8_t data)
 {
 	//logerror("VIA port A write %02X\n",data);
 	m_psg_data = data;
 }
 
-WRITE8_MEMBER(aristmk4_state::via_b_w)
+void aristmk4_state::via_b_w(uint8_t data)
 {
 	m_ay8910_1 = ( data & 0x0F ) ; //only need first 4 bits per schematics
 		//NOTE: when bit 4 is off, we write to AY1, when bit 4 is on, we write to AY2
@@ -860,13 +898,13 @@ WRITE8_MEMBER(aristmk4_state::via_b_w)
 		break;
 	case 0x06:  //WRITE
 	{
-		m_ay1->data_w(space, 0 , m_psg_data);
+		m_ay1->data_w(m_psg_data);
 		//logerror("VIA Port A write data ay1: %02X\n",m_psg_data);
 		break;
 	}
 	case 0x07:  //LATCH Address (set register)
 	{
-		m_ay1->address_w(space, 0 , m_psg_data);
+		m_ay1->address_w(m_psg_data);
 		//logerror("VIA Port B write register ay1: %02X\n",m_psg_data);
 		break;
 	}
@@ -887,13 +925,13 @@ WRITE8_MEMBER(aristmk4_state::via_b_w)
 		break;
 	case 0x06:  //WRITE
 	{
-		m_ay2->data_w(space, 0, m_psg_data);
+		m_ay2->data_w(m_psg_data);
 		//logerror("VIA Port A write data ay2: %02X\n",m_psg_data);
 		break;
 	}
 	case 0x07:  //LATCH Address (set register)
 	{
-		m_ay2->address_w(space, 0, m_psg_data);
+		m_ay2->address_w(m_psg_data);
 		//logerror("VIA Port B write register ay2: %02X\n",m_psg_data);
 		break;
 	}
@@ -915,68 +953,68 @@ WRITE_LINE_MEMBER(aristmk4_state::via_cb2_w)
 	// when it goes to 0, we're expecting to coins to be paid out, handled in via_b_r
 	// as soon as it is 1, HOPCO1 to remain 'ON'
 
-	if (state==0x01)
-		m_hopper_motor=state;
-	else if (m_hopper_motor<0x02)
-		m_hopper_motor=state;
+	if (state == 0x01)
+		m_hopper_motor = state;
+	else if (m_hopper_motor < 0x02)
+		m_hopper_motor = state;
 
-	output().set_value("hopper_motor", m_hopper_motor); // stop motor
+	m_hopper_motor_out = m_hopper_motor;
 }
 
 // Lamp output
 
-WRITE8_MEMBER(aristmk4_state::pblp_out)
+void aristmk4_state::pblp_out(uint8_t data)
 {
-	output().set_lamp_value(1, (data) & 1);
-	output().set_lamp_value(5, (data >> 1) & 1);
-	output().set_lamp_value(9, (data >> 2) & 1);
-	output().set_lamp_value(11,(data >> 3) & 1);
-	output().set_lamp_value(3, (data >> 4) & 1);
-	output().set_lamp_value(4, (data >> 5) & 1);
-	output().set_lamp_value(2, (data >> 6) & 1);
-	output().set_lamp_value(10,(data >> 7) & 1);
+	m_lamps[ 1] = BIT(data, 0);
+	m_lamps[ 5] = BIT(data, 1);
+	m_lamps[ 9] = BIT(data, 2);
+	m_lamps[11] = BIT(data, 3);
+	m_lamps[ 3] = BIT(data, 4);
+	m_lamps[ 4] = BIT(data, 5);
+	m_lamps[ 2] = BIT(data, 6);
+	m_lamps[10] = BIT(data, 7);
 	//logerror("Lights port A %02X\n",data);
 }
 
-WRITE8_MEMBER(aristmk4_state::pbltlp_out)
+void aristmk4_state::pbltlp_out(uint8_t data)
 {
-	output().set_lamp_value(8,  (data) & 1);
-	output().set_lamp_value(12, (data >> 1) & 1);
-	output().set_lamp_value(6,  (data >> 2) & 1);
-	output().set_lamp_value(7,  (data >> 3) & 1);
-	output().set_lamp_value(14, (data >> 4) & 1); // light tower
-	output().set_lamp_value(15, (data >> 5) & 1); // light tower
-	output().set_lamp_value(16, (data >> 6) & 1); // light tower
-	output().set_lamp_value(17, (data >> 7) & 1); // light tower
+	m_lamps[ 8] = BIT(data, 0);
+	m_lamps[12] = BIT(data, 1);
+	m_lamps[ 6] = BIT(data, 2);
+	m_lamps[ 7] = BIT(data, 3);
+	m_lamps[14] = BIT(data, 4); // light tower
+	m_lamps[15] = BIT(data, 5); // light tower
+	m_lamps[16] = BIT(data, 6); // light tower
+	m_lamps[17] = BIT(data, 7); // light tower
 	//logerror("Lights port B: %02X\n",data);
 }
 
-WRITE8_MEMBER(aristmk4_state::mlamps)
+void aristmk4_state::mlamps(uint8_t data)
 {
 	/* TAKE WIN AND GAMBLE LAMPS */
-	output().set_lamp_value(18, (data >> 5) & 1);
-	output().set_lamp_value(13, (data >> 6) & 1);
+	m_lamps[18] = BIT(data, 5);
+	m_lamps[13] = BIT(data, 6);
 }
 
-WRITE8_MEMBER(aristmk4_state::zn434_w)
+void aristmk4_state::zn434_w(uint8_t data)
 {
-	// Introducted to prevent warning in log for write to AY1 PORT B
-	// this is a write to the ZN434 DA convertors..
+	// Introduced to prevent warning in log for write to AY1 PORT B
+	// this is a write to the ZN434 DA converters..
 }
 
 
-READ8_MEMBER(aristmk4_state::cashcade_r)
+uint8_t aristmk4_state::cashcade_r()
 {
 	/* work around for cashcade games */
 	return cashcade_p[(m_cashcade_c++)%15];
 }
 
-WRITE8_MEMBER(aristmk4_state::mk4_printer_w)
+void aristmk4_state::mk4_printer_w(uint8_t data)
 {
 	//logerror("Printer: %c %d\n",data,data);
 }
 
-READ8_MEMBER(aristmk4_state::mk4_printer_r)
+uint8_t aristmk4_state::mk4_printer_r()
 {
 	return 0;
 }
@@ -987,35 +1025,36 @@ ADDRESS MAP - SLOT GAMES
 
 ******************************************************************************/
 
-static ADDRESS_MAP_START( aristmk4_map, AS_PROGRAM, 8, aristmk4_state )
-	AM_RANGE(0x0000, 0x07ff) AM_RAM AM_SHARE("mkiv_vram") // video ram -  chips U49 / U50
-	AM_RANGE(0x0800, 0x17ff) AM_RAM
-	AM_RANGE(0x1800, 0x1800) AM_DEVREADWRITE("crtc", mc6845_device, status_r, address_w)
-	AM_RANGE(0x1801, 0x1801) AM_DEVREADWRITE("crtc", mc6845_device, register_r, register_w)
-	AM_RANGE(0x1c00, 0x1cff) AM_WRITE(mk4_printer_w)
-	AM_RANGE(0x1900, 0x19ff) AM_READ(mk4_printer_r)
-	AM_RANGE(0x2000, 0x3fff) AM_ROM  // graphics rom map
-	AM_RANGE(0x4000, 0x4fff) AM_RAMBANK("bank1") AM_SHARE("nvram")
+void aristmk4_state::slots_mem(address_map &map)
+{
+	map(0x0000, 0x07ff).ram().share("mkiv_vram"); // video ram -  chips U49 / U50
+	map(0x0800, 0x17ff).ram();
+	map(0x1800, 0x1800).rw("crtc", FUNC(mc6845_device::status_r), FUNC(mc6845_device::address_w));
+	map(0x1801, 0x1801).rw("crtc", FUNC(mc6845_device::register_r), FUNC(mc6845_device::register_w));
+	map(0x1c00, 0x1cff).w(FUNC(aristmk4_state::mk4_printer_w));
+	map(0x1900, 0x19ff).r(FUNC(aristmk4_state::mk4_printer_r));
+	map(0x2000, 0x3fff).rom();  // graphics rom map
+	map(0x4000, 0x4fff).bankrw("bank1").share("nvram");
 
-	AM_RANGE(0x5000, 0x5000) AM_WRITE(u3_p0)
-	AM_RANGE(0x5002, 0x5002) AM_READ(u3_p2)
-	AM_RANGE(0x5003, 0x5003) AM_READ(u3_p3)
-	AM_RANGE(0x5005, 0x5005) AM_READ(ldsw)
-	AM_RANGE(0x500d, 0x500d) AM_READ_PORT("500d")
-	AM_RANGE(0x500e, 0x500e) AM_READ_PORT("500e")
-	AM_RANGE(0x500f, 0x500f) AM_READ_PORT("500f")
-	AM_RANGE(0x5010, 0x501f) AM_DEVREADWRITE("via6522_0",via6522_device,read,write)
-	AM_RANGE(0x5200, 0x5200) AM_READ(cashcade_r)
-	AM_RANGE(0x5201, 0x5201) AM_READ_PORT("5201")
-	AM_RANGE(0x52c0, 0x52c0) AM_READ(bv_p0)
-	AM_RANGE(0x52c1, 0x52c1) AM_READ(bv_p1)
-	AM_RANGE(0x527f, 0x5281) AM_DEVREADWRITE("ppi8255_0", i8255_device, read, write)
-	AM_RANGE(0x5300, 0x5300) AM_READ_PORT("5300")
-	AM_RANGE(0x5380, 0x5383) AM_DEVREADWRITE("pia6821_0", pia6821_device, read, write)  // RTC data - PORT A , mechanical meters - PORTB ??
-	AM_RANGE(0x5440, 0x5440) AM_WRITE(mlamps) // take win and gamble lamps
-	AM_RANGE(0x5468, 0x5468) AM_READWRITE(cgdrr,cgdrw) // 4020 ripple counter outputs
-	AM_RANGE(0x6000, 0xffff) AM_ROM  // game roms
-ADDRESS_MAP_END
+	map(0x5000, 0x5000).w(FUNC(aristmk4_state::u3_p0));
+	map(0x5002, 0x5002).r(FUNC(aristmk4_state::u3_p2));
+	map(0x5003, 0x5003).r(FUNC(aristmk4_state::u3_p3));
+	map(0x5005, 0x5005).r(FUNC(aristmk4_state::ldsw));
+	map(0x500d, 0x500d).portr("500d");
+	map(0x500e, 0x500e).portr("500e");
+	map(0x500f, 0x500f).portr("500f");
+	map(0x5010, 0x501f).m("via6522_0", FUNC(via6522_device::map));
+	map(0x5200, 0x5200).r(FUNC(aristmk4_state::cashcade_r));
+	map(0x5201, 0x5201).portr("5201");
+	map(0x52c0, 0x52c0).r(FUNC(aristmk4_state::bv_p0));
+	map(0x52c1, 0x52c1).r(FUNC(aristmk4_state::bv_p1));
+	map(0x527f, 0x5281).rw("ppi8255_0", FUNC(i8255_device::read), FUNC(i8255_device::write));
+	map(0x5300, 0x5300).portr("5300");
+	map(0x5380, 0x5383).rw("pia6821_0", FUNC(pia6821_device::read), FUNC(pia6821_device::write));  // RTC data - PORT A , mechanical meters - PORTB ??
+	map(0x5440, 0x5440).w(FUNC(aristmk4_state::mlamps)); // take win and gamble lamps
+	map(0x5468, 0x5468).rw(FUNC(aristmk4_state::cgdrr), FUNC(aristmk4_state::cgdrw)); // 4020 ripple counter outputs
+	map(0x6000, 0xffff).rom();  // game roms
+}
 
 /******************************************************************************
 
@@ -1031,35 +1070,36 @@ The graphics rom is mapped from 0x4000 - 0x4fff
 The U87 personality rom is not required, therefore game rom code mapping is from 0x8000-0xffff
 */
 
-static ADDRESS_MAP_START( aristmk4_poker_map, AS_PROGRAM, 8, aristmk4_state )
-	AM_RANGE(0x0000, 0x07ff) AM_RAM AM_SHARE("mkiv_vram") // video ram -  chips U49 / U50
-	AM_RANGE(0x0800, 0x17ff) AM_RAM
-	AM_RANGE(0x1800, 0x1800) AM_DEVREADWRITE("crtc", mc6845_device, status_r, address_w)
-	AM_RANGE(0x1801, 0x1801) AM_DEVREADWRITE("crtc", mc6845_device, register_r, register_w)
-	AM_RANGE(0x1c00, 0x1cff) AM_WRITE(mk4_printer_w)
-	AM_RANGE(0x1900, 0x19ff) AM_READ(mk4_printer_r)
-	AM_RANGE(0x4000, 0x4fff) AM_RAMBANK("bank1") AM_SHARE("nvram")
+void aristmk4_state::poker_mem(address_map &map)
+{
+	map(0x0000, 0x07ff).ram().share("mkiv_vram"); // video ram -  chips U49 / U50
+	map(0x0800, 0x17ff).ram();
+	map(0x1800, 0x1800).rw("crtc", FUNC(mc6845_device::status_r), FUNC(mc6845_device::address_w));
+	map(0x1801, 0x1801).rw("crtc", FUNC(mc6845_device::register_r), FUNC(mc6845_device::register_w));
+	map(0x1c00, 0x1cff).w(FUNC(aristmk4_state::mk4_printer_w));
+	map(0x1900, 0x19ff).r(FUNC(aristmk4_state::mk4_printer_r));
+	map(0x4000, 0x4fff).bankrw("bank1").share("nvram");
 
-	AM_RANGE(0x5000, 0x5000) AM_WRITE(u3_p0)
-	AM_RANGE(0x5002, 0x5002) AM_READ(u3_p2)
-	AM_RANGE(0x5003, 0x5003) AM_READ_PORT("5003")
-	AM_RANGE(0x5005, 0x5005) AM_READ(ldsw)
-	AM_RANGE(0x500d, 0x500d) AM_READ_PORT("500d")
-	AM_RANGE(0x500e, 0x500e) AM_READ_PORT("500e")
-	AM_RANGE(0x500f, 0x500f) AM_READ_PORT("500f")
-	AM_RANGE(0x5010, 0x501f) AM_DEVREADWRITE("via6522_0",via6522_device,read,write)
-	AM_RANGE(0x5200, 0x5200) AM_READ(cashcade_r)
-	AM_RANGE(0x5201, 0x5201) AM_READ_PORT("5201")
-	AM_RANGE(0x52c0, 0x52c0) AM_READ(bv_p0)
-	AM_RANGE(0x52c1, 0x52c1) AM_READ(bv_p1)
-	AM_RANGE(0x527f, 0x5281) AM_DEVREADWRITE("ppi8255_0", i8255_device, read, write)
-	AM_RANGE(0x5300, 0x5300) AM_READ_PORT("5300")
-	AM_RANGE(0x5380, 0x5383) AM_DEVREADWRITE("pia6821_0", pia6821_device, read, write)  // RTC data - PORT A , mechanical meters - PORTB ??
-	AM_RANGE(0x5440, 0x5440) AM_WRITE(mlamps) // take win and gamble lamps
-	AM_RANGE(0x5468, 0x5468) AM_READWRITE(cgdrr,cgdrw) // 4020 ripple counter outputs
-	AM_RANGE(0x6000, 0x7fff) AM_ROM  // graphics rom map
-	AM_RANGE(0x8000, 0xffff) AM_ROM  // game roms
-ADDRESS_MAP_END
+	map(0x5000, 0x5000).w(FUNC(aristmk4_state::u3_p0));
+	map(0x5002, 0x5002).r(FUNC(aristmk4_state::u3_p2));
+	map(0x5003, 0x5003).portr("5003");
+	map(0x5005, 0x5005).r(FUNC(aristmk4_state::ldsw));
+	map(0x500d, 0x500d).portr("500d");
+	map(0x500e, 0x500e).portr("500e");
+	map(0x500f, 0x500f).portr("500f");
+	map(0x5010, 0x501f).m("via6522_0", FUNC(via6522_device::map));
+	map(0x5200, 0x5200).r(FUNC(aristmk4_state::cashcade_r));
+	map(0x5201, 0x5201).portr("5201");
+	map(0x52c0, 0x52c0).r(FUNC(aristmk4_state::bv_p0));
+	map(0x52c1, 0x52c1).r(FUNC(aristmk4_state::bv_p1));
+	map(0x527f, 0x5281).rw("ppi8255_0", FUNC(i8255_device::read), FUNC(i8255_device::write));
+	map(0x5300, 0x5300).portr("5300");
+	map(0x5380, 0x5383).rw("pia6821_0", FUNC(pia6821_device::read), FUNC(pia6821_device::write));  // RTC data - PORT A , mechanical meters - PORTB ??
+	map(0x5440, 0x5440).w(FUNC(aristmk4_state::mlamps)); // take win and gamble lamps
+	map(0x5468, 0x5468).rw(FUNC(aristmk4_state::cgdrr), FUNC(aristmk4_state::cgdrw)); // 4020 ripple counter outputs
+	map(0x6000, 0x7fff).rom();  // graphics rom map
+	map(0x8000, 0xffff).rom();  // game roms
+}
 
 /******************************************************************************
 
@@ -1070,31 +1110,31 @@ INPUT PORTS
 static INPUT_PORTS_START(aristmk4)
 
 	PORT_START("via_port_b")
-	PORT_DIPNAME( 0x10, 0x00, "1" )                                                                                         // "COIN FAULT"
+	PORT_DIPNAME( 0x10, 0x00, "Coin Optic 1" )                                                                              // "COIN FAULT"
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x10, DEF_STR( On ) ) PORT_DIPLOCATION("AY:1")
-	PORT_DIPNAME( 0x20, 0x00, "2" )                                                                                         // "COIN FAULT"
+	PORT_DIPNAME( 0x20, 0x00, "Coin Optic 2" )                                                                              // "COIN FAULT"
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x20, DEF_STR( On ) ) PORT_DIPLOCATION("AY:2")
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("Hopper Coin Release") PORT_CODE(KEYCODE_BACKSLASH)              // "ILLEGAL COIN PAID"
-
-	PORT_DIPNAME( 0x80, 0x00, "CBOPT1" )
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_GAMBLE_PAYOUT ) PORT_NAME("Hopper Coin Release") PORT_CODE(KEYCODE_BACKSLASH)        // "ILLEGAL COIN PAID"
+	PORT_DIPNAME( 0x80, 0x00, "CBOPT1" )       // Cashbox Optic, enable for 3bagflvt and eforesta or they will give a coin divertor error on the 5th coin, turn off for US games
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x80, DEF_STR( On ) ) PORT_DIPLOCATION("AY:4")
 
 	PORT_START("5002")
-	PORT_DIPNAME( 0x01, 0x00, "HOPCO2") // coins out hopper 2 , why triggers logic door ?
+	PORT_DIPNAME( 0x01, 0x00, "HOPCO2") // coins out hopper 2, why does it trigger logic door?
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5002:1")
 	PORT_DIPSETTING(    0x01, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, "CBOPT2") // coin in cash box 2
-	PORT_DIPSETTING(    0x02, DEF_STR( On ) ) PORT_DIPLOCATION("5002:2")
+	PORT_DIPNAME( 0x02, 0x02, "CBOPT2") // coin in cash box 2                                                                   off = "34 - COIN VALIDATOR FAULT"
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5002:2")
+	PORT_DIPSETTING(    0x02, DEF_STR( On ) )
 	PORT_DIPNAME( 0x04, 0x00, "HOPHI2") // hopper 2 full
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5002:3")
 	PORT_DIPSETTING(    0x04, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x00, "DOPTI")  // photo optic door                                                                         DOOR OPEN SENSE SWITCH
+	PORT_DIPNAME( 0x08, 0x00, "DOPTI")  // photo optic door                                                                     DOOR OPEN SENSE SWITCH
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_GAMBLE_KEYIN ) PORT_NAME("Audit Key") PORT_TOGGLE PORT_CODE(KEYCODE_K) // AUDTSW
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_GAMBLE_KEYIN ) PORT_NAME("Audit Key") PORT_TOGGLE PORT_CODE(KEYCODE_F2) // AUDTSW
 	PORT_DIPNAME( 0x20, 0x00, "HOPLO1") // hopper 1 low
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5002:6")
 	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
@@ -1108,7 +1148,7 @@ static INPUT_PORTS_START(aristmk4)
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5003:1")
 	PORT_DIPSETTING(    0x01, DEF_STR( On ) )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_GAMBLE_DOOR ) PORT_NAME("Main Door") PORT_TOGGLE PORT_CODE(KEYCODE_M) // DSWDT
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_GAMBLE_KEYIN ) PORT_NAME("Jackpot Key") PORT_TOGGLE PORT_CODE(KEYCODE_L) // JKPTSW
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_GAMBLE_KEYIN ) PORT_NAME("Jackpot Key") PORT_TOGGLE PORT_CODE(KEYCODE_F1) // JKPTSW
 	PORT_DIPNAME( 0x08, 0x08, "HOPHI1") // hopper 1 full
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5003:4")
 	PORT_DIPSETTING(    0x08, DEF_STR( On ) )
@@ -1121,8 +1161,9 @@ static INPUT_PORTS_START(aristmk4)
 	PORT_DIPNAME( 0x40, 0x00, "PTRTAC") // printer taco
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5003:7")
 	PORT_DIPSETTING(    0x40, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, "PTRHOM") // printer home
-	PORT_DIPSETTING(    0x80, DEF_STR( On ) ) PORT_DIPLOCATION("5003:8")
+	PORT_DIPNAME( 0x80, 0x80, "PTRHOM") // printer home, must be on
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5003:8")
+	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
 
 	PORT_START("5005")
 	PORT_DIPNAME( 0x01, 0x01, "CREDIT SELECT 1")
@@ -1137,8 +1178,9 @@ static INPUT_PORTS_START(aristmk4)
 	PORT_DIPNAME( 0x08, 0x00, "5005-4")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5005:4")
 	PORT_DIPSETTING(    0x08, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, "CGDRSW") // Logic Door (Security Cage)
-	PORT_DIPSETTING(    0x10, DEF_STR( On ) ) PORT_DIPLOCATION("5005:5")
+	PORT_DIPNAME( 0x10, 0x10, "CGDRSW") // Logic door (Security Cage)
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5005:5")
+	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
 	PORT_DIPNAME( 0x20, 0x00, "5005-6")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5005:6")
 	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
@@ -1166,7 +1208,7 @@ static INPUT_PORTS_START(aristmk4)
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5300:5")
 	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
 	PORT_DIPNAME( 0x20, 0x20, "5300-6")
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5300:6") // bill validator d/c , U.S must be on
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5300:6") // bill validator d/c, must be on for US games
 	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
 	PORT_DIPNAME( 0x40, 0x00, "5300-7")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5300:7")
@@ -1180,7 +1222,7 @@ static INPUT_PORTS_START(aristmk4)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON5 ) PORT_NAME("10 Credits Per Line") PORT_CODE(KEYCODE_Y)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_GAMBLE_PAYOUT ) PORT_NAME("Collect") PORT_CODE(KEYCODE_Q)
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_GAMBLE_SERVICE ) PORT_NAME("Reserve") PORT_CODE(KEYCODE_A)
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_GAMBLE_D_UP ) PORT_NAME("Gamble") PORT_CODE(KEYCODE_U) // auto gamble & gamble
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_GAMBLE_D_UP ) PORT_NAME("Gamble") PORT_CODE(KEYCODE_U)
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_GAMBLE_TAKE ) PORT_NAME("Take Win") PORT_CODE(KEYCODE_J)
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNUSED ) PORT_NAME("0-7 UNUSED")
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNUSED ) PORT_NAME("0-8 UNUSED")
@@ -1358,15 +1400,15 @@ static INPUT_PORTS_START(aristmk4)
 	PORT_DIPNAME( 0x20, 0x00, "DSW1 - Link Jackpot - S1" )
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("SW1:6")
 	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x00, "DSW1 - Link Jackpot - S2" )
+	PORT_DIPNAME( 0x40, 0x00, "DSW1 - Link Jackpot - S2" ) // Cash credit option in fvrpitch/eforesta
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("SW1:7")
 	PORT_DIPSETTING(    0x40, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x00, "DSW1 - Auto spin" )
+	PORT_DIPNAME( 0x80, 0x00, "DSW1 - Auto spin" ) // Disables double up, only eforesta supports auto spin with double up disabled
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("SW1:8")
 	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
 
 	PORT_START("DSW2")
-	PORT_DIPNAME( 0x01, 0x00, "DSW2 - Maximum credit - S1" )
+	PORT_DIPNAME( 0x01, 0x00, "DSW2 - Maximum credit - S1" ) // Cash credit option in topgear
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("SW2:1")
 	PORT_DIPSETTING(    0x01, DEF_STR( On ) )
 	PORT_DIPNAME( 0x02, 0x00, "DSW2 - Maximum credit - S2" )
@@ -1432,6 +1474,7 @@ static INPUT_PORTS_START(eforest)
 	PORT_MODIFY("500d")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON9 ) PORT_NAME("Play 7 Lines") PORT_CODE(KEYCODE_T)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON10 ) PORT_NAME("Play 9 Lines / Black") PORT_CODE(KEYCODE_Y)
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_GAMBLE_PAYOUT ) PORT_NAME("Cashout") PORT_CODE(KEYCODE_Q)
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_GAMBLE_SERVICE ) PORT_CODE(KEYCODE_A)
 
 	PORT_MODIFY("500e")
@@ -1451,7 +1494,6 @@ static INPUT_PORTS_START(arcwins)
 	PORT_MODIFY("500d")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON9 ) PORT_NAME("Play 4 Lines") PORT_CODE(KEYCODE_T)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON10 ) PORT_NAME("Play 5 Lines / Black") PORT_CODE(KEYCODE_Y)
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_GAMBLE_PAYOUT ) PORT_NAME("Cashout") PORT_CODE(KEYCODE_Q)
 
 	PORT_MODIFY("500e")
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON7 ) PORT_NAME("Play 2 Lines") PORT_CODE(KEYCODE_E)
@@ -1468,6 +1510,11 @@ static INPUT_PORTS_START(cgold2)
 
 	PORT_MODIFY("500e")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON6 ) PORT_NAME("Play 1 Line") PORT_CODE(KEYCODE_W)
+
+	PORT_MODIFY("5201")
+	PORT_DIPNAME( 0x10, 0x10, "5201-5") // Must be "on" otherwise the game will not respond
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) ) PORT_DIPLOCATION("5201:5")
+	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
 INPUT_PORTS_END
 
 static INPUT_PORTS_START(fhunter)
@@ -1537,6 +1584,30 @@ static INPUT_PORTS_START(topgear)
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_BUTTON7 ) PORT_NAME("Play 2 Lines") PORT_CODE(KEYCODE_D)
 INPUT_PORTS_END
 
+static INPUT_PORTS_START(gunnrose)
+	PORT_INCLUDE(aristmk4)
+
+	PORT_MODIFY("500d")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_GAMBLE_LOW ) PORT_NAME("Red") PORT_CODE(KEYCODE_R)
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_GAMBLE_DEAL ) PORT_NAME("Draw") PORT_CODE(KEYCODE_Y)
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_POKER_HOLD2 ) PORT_NAME("Bet 2 / Hold 2") PORT_CODE(KEYCODE_D)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_POKER_HOLD3 ) PORT_NAME("Bet 3 / Hold 3") PORT_CODE(KEYCODE_F)
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNUSED ) PORT_NAME("0-5 UNUSED")
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNUSED ) PORT_NAME("0-6 UNUSED")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNUSED ) PORT_NAME("0-7 UNUSED")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNUSED ) PORT_NAME("0-8 UNUSED")
+
+	PORT_MODIFY("500e")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_GAMBLE_D_UP ) PORT_NAME("Half Gamble") PORT_CODE(KEYCODE_E)
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_GAMBLE_SERVICE ) PORT_NAME("Reserve") PORT_CODE(KEYCODE_Q)
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_GAMBLE_D_UP ) PORT_NAME("Full Gamble") PORT_CODE(KEYCODE_W)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_POKER_HOLD1 ) PORT_NAME("Bet 1 / Hold 1") PORT_CODE(KEYCODE_S)
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_POKER_HOLD5 ) PORT_NAME("Bet 5 / Hold 5") PORT_CODE(KEYCODE_H)
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_POKER_HOLD4 ) PORT_NAME("Bet 4 / Hold 4") PORT_CODE(KEYCODE_G)
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_GAMBLE_HIGH ) PORT_NAME("Black") PORT_CODE(KEYCODE_T)
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_GAMBLE_TAKE ) PORT_NAME("Take Win") PORT_CODE(KEYCODE_A)
+INPUT_PORTS_END
+
 static INPUT_PORTS_START(wildone)
 	PORT_INCLUDE(aristmk4)
 
@@ -1580,16 +1651,13 @@ static INPUT_PORTS_START(gldnpkr)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START(fvrpitch)
-	PORT_INCLUDE(arcwins)
-
-	PORT_MODIFY("500d")
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON10 ) PORT_NAME("Play 5 Lines") PORT_CODE(KEYCODE_Y)
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_GAMBLE_SERVICE ) PORT_NAME("Reserve") PORT_CODE(KEYCODE_A)
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNUSED ) PORT_NAME("0-5 UNUSED")
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNUSED ) PORT_NAME("0-6 UNUSED")
+	PORT_INCLUDE(3bagflnz)
 
 	PORT_MODIFY("500e")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON6 ) PORT_NAME("Play 1 Line") PORT_CODE(KEYCODE_W)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON10 ) PORT_NAME("Play 5 Lines") PORT_CODE(KEYCODE_H)
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON9 ) PORT_NAME("Play 4 Lines") PORT_CODE(KEYCODE_G)
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON8 ) PORT_NAME("Play 3 Lines") PORT_CODE(KEYCODE_F)
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_BUTTON7 ) PORT_NAME("Play 2 Lines") PORT_CODE(KEYCODE_D)
 INPUT_PORTS_END
 
 
@@ -1611,55 +1679,44 @@ static const gfx_layout layout8x8x6 =
 	8*8
 };
 
-static GFXDECODE_START(aristmk4)
+static GFXDECODE_START(gfx_aristmk4)
 	GFXDECODE_ENTRY("tile_gfx",0x0,layout8x8x6, 0, 8 )
 GFXDECODE_END
 
 /* read m/c number */
 
-READ8_MEMBER(aristmk4_state::pa1_r)
+uint8_t aristmk4_state::pa1_r()
 {
 	return (ioport("SW3")->read() << 4) + ioport("SW4")->read();
 }
 
-READ8_MEMBER(aristmk4_state::pb1_r)
+uint8_t aristmk4_state::pb1_r()
 {
 	return (ioport("SW5")->read() << 4) + ioport("SW6")->read();
 }
 
-READ8_MEMBER(aristmk4_state::pc1_r)
+uint8_t aristmk4_state::pc1_r()
 {
 	return 0;
 }
 
 /* same as Casino Winner HW */
-PALETTE_INIT_MEMBER(aristmk4_state, aristmk4)
+void aristmk4_state::aristmk4_palette(palette_device &palette) const
 {
 	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
 
-	for (i = 0;i < palette.entries();i++)
+	for (int i = 0; i < palette.entries(); i++)
 	{
-		int bit0,bit1,bit2,r,g,b;
-
-		bit0 = (color_prom[0] >> 0) & 0x01;
-		bit1 = (color_prom[0] >> 1) & 0x01;
-		b = 0x4f * bit0 + 0xa8 * bit1;
-		bit0 = (color_prom[0] >> 2) & 0x01;
-		bit1 = (color_prom[0] >> 3) & 0x01;
-		bit2 = (color_prom[0] >> 4) & 0x01;
-		g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
-		bit0 = (color_prom[0] >> 5) & 0x01;
-		bit1 = (color_prom[0] >> 6) & 0x01;
-		bit2 = (color_prom[0] >> 7) & 0x01;
-		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+		const uint8_t data = color_prom[i];
+		const int b = 0x4f * BIT(data, 0) + 0xa8 * BIT(data, 1);
+		const int g = 0x21 * BIT(data, 2) + 0x47 * BIT(data, 3) + 0x97 * BIT(data, 4);
+		const int r = 0x21 * BIT(data, 5) + 0x47 * BIT(data, 6) + 0x97 * BIT(data, 7);
 
 		palette.set_pen_color(i, rgb_t(r, g, b));
-		color_prom++;
 	}
 }
 
-DRIVER_INIT_MEMBER(aristmk4_state,aristmk4)
+void aristmk4_state::init_aristmk4()
 {
 	m_shapeRomPtr = (uint8_t *)memregion("tile_gfx")->base();
 	memcpy(m_shapeRom,m_shapeRomPtr,sizeof(m_shapeRom)); // back up
@@ -1668,7 +1725,12 @@ DRIVER_INIT_MEMBER(aristmk4_state,aristmk4)
 
 void aristmk4_state::machine_start()
 {
-	save_pointer(NAME(m_nvram.get()), 0x1000); // m_nvram
+	save_pointer(NAME(m_nvram), 0x1000); // m_nvram
+	m_credit_spend_meter.resolve();
+	m_credit_out_meter.resolve();
+	m_hopper_motor_out.resolve();
+	m_lamps.resolve();
+	m_power_timer = timer_alloc(TIMER_POWER_FAIL);
 }
 
 void aristmk4_state::machine_reset()
@@ -1683,9 +1745,20 @@ void aristmk4_state::machine_reset()
 		m_maincpu->set_unscaled_clock(MAIN_CLOCK/8);  // 1.5 MHz
 		break;
 	}
+
+	m_power_timer->adjust(attotime::from_hz(1), 0, attotime::from_hz(1));
 }
 
-TIMER_DEVICE_CALLBACK_MEMBER(aristmk4_state::aristmk4_pf)
+void aristmk4_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_POWER_FAIL: power_fail(); break;
+	default: throw emu_fatalerror("Unknown id in aristmk4_state::device_timer");
+	}
+}
+
+void aristmk4_state::power_fail()
 {
 	/*
 	IRQ generator pulses the NMI signal to CPU in the event of power down or power failure.
@@ -1697,124 +1770,112 @@ TIMER_DEVICE_CALLBACK_MEMBER(aristmk4_state::aristmk4_pf)
 	To enter the robot test
 
 	1. Open the main door
-	2. Trigger powerfail / NMI by presing L for at least 1 second, the game will freeze.
+	2. Trigger powerfail / NMI by pressing ',' for at least 1 second, the game will freeze.
 	3. Press F3 ( reset ) whilst holding down robot/hopper test button ( Z )
 
-	Note: The use of 1 Hz in the timer is to avoid unintentional triggering the NMI ( ie.. hold down L for at least 1 second )
+	Note: The use of 1 Hz in the timer is to avoid unintentional triggering the NMI ( ie.. hold down ',' for at least 1 second )
 	*/
 
 	if(ioport("powerfail")->read()) // send NMI signal if L pressed
 	{
-	m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE );
+		m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 	}
 }
 
-static MACHINE_CONFIG_START( aristmk4, aristmk4_state )
+void aristmk4_state::aristmk4(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6809, MAIN_CLOCK/8) // 1.5mhz
-	MCFG_CPU_PROGRAM_MAP(aristmk4_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", aristmk4_state,  irq0_line_hold)
+	MC6809E(config, m_maincpu, MAIN_CLOCK/8); // M68B09E @ 1.5 MHz
+	m_maincpu->set_addrmap(AS_PROGRAM, &aristmk4_state::slots_mem);
 
-	MCFG_NVRAM_ADD_0FILL("nvram")
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("power_fail", aristmk4_state, aristmk4_pf, attotime::from_hz(1))
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(320, 256)
-	MCFG_SCREEN_VISIBLE_AREA(0, 304-1, 0, 216-1)    /* from the crtc registers... updated by crtc */
-	MCFG_SCREEN_UPDATE_DRIVER(aristmk4_state, screen_update_aristmk4)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(320, 256);
+	screen.set_visarea(0, 304-1, 0, 216-1);    /* from the crtc registers... updated by crtc */
+	screen.set_screen_update(FUNC(aristmk4_state::screen_update_aristmk4));
+	screen.screen_vblank().set_inputline(m_maincpu, M6809_IRQ_LINE, HOLD_LINE);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", aristmk4)
-	MCFG_PALETTE_ADD("palette", 512)
-	MCFG_PALETTE_INIT_OWNER(aristmk4_state, aristmk4)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_aristmk4);
+	PALETTE(config, m_palette, FUNC(aristmk4_state::aristmk4_palette), 512);
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(READ8(aristmk4_state, pa1_r))
-	MCFG_I8255_IN_PORTB_CB(READ8(aristmk4_state, pb1_r))
-	MCFG_I8255_IN_PORTC_CB(READ8(aristmk4_state, pc1_r))
+	i8255_device &ppi(I8255A(config, "ppi8255_0"));
+	ppi.in_pa_callback().set(FUNC(aristmk4_state::pa1_r));
+	ppi.in_pb_callback().set(FUNC(aristmk4_state::pb1_r));
+	ppi.in_pc_callback().set(FUNC(aristmk4_state::pc1_r));
 
-	MCFG_DEVICE_ADD("via6522_0", VIA6522, 0) /* 1 MHz.(only 1 or 2 MHz.are valid) */
-	MCFG_VIA6522_READPA_HANDLER(READ8(aristmk4_state, via_a_r))
-	MCFG_VIA6522_READPB_HANDLER(READ8(aristmk4_state, via_b_r))
-	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(aristmk4_state, via_a_w))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(aristmk4_state, via_b_w))
-	MCFG_VIA6522_CA2_HANDLER(WRITELINE(aristmk4_state, via_ca2_w))
-	MCFG_VIA6522_CB2_HANDLER(WRITELINE(aristmk4_state, via_cb2_w))
-	MCFG_VIA6522_IRQ_HANDLER(INPUTLINE("maincpu", M6809_FIRQ_LINE))
+	via6522_device &via(VIA6522(config, "via6522_0", MAIN_CLOCK/8)); // R65C22P2
+	via.readpa_handler().set(FUNC(aristmk4_state::via_a_r));
+	via.readpb_handler().set(FUNC(aristmk4_state::via_b_r));
+	via.writepa_handler().set(FUNC(aristmk4_state::via_a_w));
+	via.writepb_handler().set(FUNC(aristmk4_state::via_b_w));
+	via.ca2_handler().set(FUNC(aristmk4_state::via_ca2_w));
+	via.cb2_handler().set(FUNC(aristmk4_state::via_cb2_w));
+	via.irq_handler().set_inputline(m_maincpu, M6809_FIRQ_LINE);
 	// CA1 is connected to +5V, CB1 is not connected.
 
-	MCFG_DEVICE_ADD("pia6821_0", PIA6821, 0)
-	MCFG_PIA_READPA_HANDLER(READ8(aristmk4_state, mkiv_pia_ina))
-	MCFG_PIA_WRITEPA_HANDLER(WRITE8(aristmk4_state, mkiv_pia_outa))
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(aristmk4_state, mkiv_pia_outb))
-	MCFG_PIA_CA2_HANDLER(WRITELINE(aristmk4_state, mkiv_pia_ca2))
-	MCFG_PIA_CB2_HANDLER(WRITELINE(aristmk4_state, mkiv_pia_cb2))
+	pia6821_device &pia(PIA6821(config, "pia6821_0", 0));
+	pia.readpa_handler().set(FUNC(aristmk4_state::mkiv_pia_ina));
+	pia.writepa_handler().set(FUNC(aristmk4_state::mkiv_pia_outa));
+	pia.writepb_handler().set(FUNC(aristmk4_state::mkiv_pia_outb));
+	pia.ca2_handler().set(FUNC(aristmk4_state::mkiv_pia_ca2));
+	pia.cb2_handler().set(FUNC(aristmk4_state::mkiv_pia_cb2));
 
-	MCFG_MC6845_ADD("crtc", C6545_1, "screen", MAIN_CLOCK/8) // TODO: type is unknown
+	mc6845_device &crtc(C6545_1(config, "crtc", MAIN_CLOCK/8)); // TODO: type is unknown
+	crtc.set_screen("screen");
 	/* in fact is a mc6845 driving 4 pixels by memory address.
 	 that's why the big horizontal parameters */
-	MCFG_MC6845_SHOW_BORDER_AREA(false)
-	MCFG_MC6845_CHAR_WIDTH(4)
+	crtc.set_show_border_area(false);
+	crtc.set_char_width(4);
 
-	MCFG_MC146818_ADD( "rtc", XTAL_4_194304Mhz )
+	MC146818(config, m_rtc, 4.194304_MHz_XTAL);
 
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
 	// the Mark IV has X 2 AY8910 sound chips which are tied to the VIA
-	MCFG_SOUND_ADD("ay1", AY8910 , MAIN_CLOCK/8)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(aristmk4_state, zn434_w)) // Port write to set Vout of the DA convertors ( 2 x ZN434 )
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
+	AY8910(config, m_ay1, MAIN_CLOCK/8);
+	m_ay1->port_a_read_callback().set_ioport("DSW1");
+	m_ay1->port_b_write_callback().set(FUNC(aristmk4_state::zn434_w)); // Port write to set Vout of the DA convertors ( 2 x ZN434 )
+	m_ay1->add_route(ALL_OUTPUTS, "mono", 0.40);
 
-	MCFG_SOUND_ADD("ay2", AY8910 , MAIN_CLOCK/8)
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(aristmk4_state, pblp_out))   // Port A write - goes to lamps on the buttons x8
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(aristmk4_state, pbltlp_out))  // Port B write - goes to lamps on the buttons x4 and light tower x4
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
+	AY8910(config, m_ay2, MAIN_CLOCK/8);
+	m_ay2->port_a_write_callback().set(FUNC(aristmk4_state::pblp_out));   // Port A write - goes to lamps on the buttons x8
+	m_ay2->port_b_write_callback().set(FUNC(aristmk4_state::pbltlp_out));  // Port B write - goes to lamps on the buttons x4 and light tower x4
+	m_ay2->add_route(ALL_OUTPUTS, "mono", 0.40);
 
-	MCFG_SOUND_ADD("samples", SAMPLES, 0)
-	MCFG_SAMPLES_CHANNELS(5)  /* one for each meter - can pulse simultaneously */
-	MCFG_SAMPLES_NAMES(meter_sample_names)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.05)
+	SAMPLES(config, m_samples);
+	m_samples->set_channels(5);  /* one for each meter - can pulse simultaneously */
+	m_samples->set_samples_names(meter_sample_names);
+	m_samples->add_route(ALL_OUTPUTS, "mono", 0.05);
+}
 
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_DERIVED( aristmk4_poker, aristmk4 )
-	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(aristmk4_poker_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", aristmk4_state,  irq0_line_hold)
-MACHINE_CONFIG_END
+void aristmk4_state::aristmk4_poker(machine_config &config)
+{
+	aristmk4(config);
+	m_maincpu->set_addrmap(AS_PROGRAM, &aristmk4_state::poker_mem);
+}
 
 /* same as Aristocrat Mark-IV HW color offset 7 */
-PALETTE_INIT_MEMBER(aristmk4_state,lions)
+void aristmk4_state::lions_palette(palette_device &palette) const
 {
-	int i;
-
-	for (i = 0;i < palette.entries();i++)
+	for (int i = 0; i < palette.entries(); i++)
 	{
-		int bit0,bit1,r,g,b;
-
-		bit0 = (i >> 0) & 0x01;
-		bit1 = (i >> 1) & 0x01;
-		b = 0x4f * bit0 + 0xa8 * bit1;
-		bit0 = (i >> 2) & 0x01;
-		bit1 = (i >> 3) & 0x01;
-		g = 0x4f * bit0 + 0xa8 * bit1;
-		bit0 = (i >> 4) & 0x01;
-		bit1 = (i >> 5) & 0x01;
-		r = 0x4f * bit0 + 0xa8 * bit1;
+		const int b = 0x4f * BIT(i, 0) + 0xa8 * BIT(i, 1);
+		const int g = 0x4f * BIT(i, 2) + 0xa8 * BIT(i, 3);
+		const int r = 0x4f * BIT(i, 4) + 0xa8 * BIT(i, 5);
 
 		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
-static MACHINE_CONFIG_DERIVED( 86lions, aristmk4 )
-	MCFG_PALETTE_MODIFY("palette")
-	MCFG_PALETTE_INIT_OWNER(aristmk4_state,lions)
-MACHINE_CONFIG_END
+void aristmk4_state::_86lions(machine_config &config)
+{
+	aristmk4(config);
+	m_palette->set_init(FUNC(aristmk4_state::lions_palette));
+}
 
 ROM_START( 3bagflvt )
 	ROM_REGION(0x10000, "maincpu", 0 )
@@ -2212,7 +2273,7 @@ ROM_START( clkwise ) // MK2.5
 	ROM_LOAD("3vas003.u7", 0x06000, 0x2000, CRC(fe7d0ea4) SHA1(3f3f4809534065c33eca2cfff0d1d2a3e3992406))
 
 		/* GAME EPROMs */
-	ROM_LOAD("1vxec534.u9", 0x08000, 0x8000, NO_DUMP) // dead on arrival or blank chip (0xFFFFFFFF throughout ROM)
+	ROM_LOAD("clkwise.u9", 0x08000, 0x8000, NO_DUMP) // dead on arrival or blank chip (0xFFFFFFFF throughout ROM)
 
 		/* SHAPE EPROMs */
 	ROM_REGION(0xc000, "tile_gfx", 0 )
@@ -2269,6 +2330,9 @@ ROM_START( cgold2 )
 	ROM_LOAD("3vlsh076.u45",   0x06000, 0x2000, BAD_DUMP CRC(10eff444) SHA1(4658b346add14010efa797ad9d31b6673e8e2526)) // using cgold ROM for now
 	ROM_LOAD("3vlsh076_a.u46", 0x08000, 0x2000, CRC(9580c2c2) SHA1(8a010fb9e349c066e1af53ed9aa659dbf7dbf17e))
 	ROM_LOAD("3vlsh076.u47",   0x0a000, 0x2000, CRC(f3cb845a) SHA1(288f7fe991bb60194a9ef9e8c9b2b18ebbd3b49c)) // matches cgold
+
+		// Note: cgold tiles are not a perfect match, cgold2 needs dollar and cent signs in tiles 0x64 and 0x65 respectively, which cgold does not have. This causes a garbled graphics in the denomination.
+		// Tiles 0x27F and 0x280 are cent and dollar signs, but these are unused by the game.
 
 		/* COLOR PROM */
 	ROM_REGION(0x200, "proms", 0 )
@@ -2344,6 +2408,31 @@ ROM_START( arcwins )
 	ROM_LOAD("1cm29.u71", 0x0000, 0x0200, CRC(ef25f5cc) SHA1(51d12f4b8b8712cbd18ec97ec04e1340cd85fc67))
 ROM_END
 
+/* Fever Pitch (2VXEC534, 90.36%)
+   Unhandled Mechanical meter 2 pulse: 04 --> Payout pulse.
+*/
+ROM_START( fvrpitch ) // MK2.5
+	ROM_REGION(0x10000, "maincpu", 0 )
+		/* VIDEO AND SOUND EPROM */
+	ROM_LOAD("3vas003.u7", 0x06000, 0x2000, CRC(fe7d0ea4) SHA1(3f3f4809534065c33eca2cfff0d1d2a3e3992406))
+
+		/* GAME EPROMS */
+	ROM_LOAD("2vxec534.u9", 0x08000, 0x8000, CRC(6f8780e8) SHA1(ebf1bfdf2ad727caa2fee34a6ae645ddba42f1cb)) // 90.36%
+
+		/* SHAPE EPROMS */
+	ROM_REGION(0xc000, "tile_gfx", 0 )
+	ROM_LOAD("1vlbh1299.u8",  0x00000, 0x2000, CRC(8d6294d2) SHA1(819ab872a3ea99801350dd7bdf07011cbc7689e0)) // is it VLBH instead of VLSH or a typo?
+	ROM_LOAD("1vlbh1299.u10", 0x02000, 0x2000, CRC(939b30af) SHA1(0253c6b1d336ad589322ee9058c1da68ac1e714a))
+	ROM_LOAD("1vlbh1299.u12", 0x04000, 0x2000, CRC(81913322) SHA1(4ed8b678e38784a41c1a46809a5ecb14256b4c75))
+	ROM_LOAD("1vlbh1299.u9",  0x06000, 0x2000, CRC(e0937d74) SHA1(19f567620e095b10f1d4f2a524331737bfa628b7))
+	ROM_LOAD("1vlbh1299.u11", 0x08000, 0x2000, CRC(bfa3bb9e) SHA1(610de284004906af5a5b594256e7d7ec846afff2))
+	ROM_LOAD("1vlbh1299.u13", 0x0a000, 0x2000, CRC(6d8fb9a6) SHA1(1d8b667eea57f5a4ce173af55f58b9bf56aaa05e))
+
+		/* COLOR PROM */
+	ROM_REGION(0x200, "proms", 0 ) // Using kgbird's 1CM29 PROM (colors seems correct) until original PROM is dumped.
+	ROM_LOAD("1cm29.u40", 0x0000, 0x0200, BAD_DUMP CRC(ef25f5cc) SHA1(51d12f4b8b8712cbd18ec97ec04e1340cd85fc67))
+ROM_END
+
 /* Video poker games */
 
 ROM_START( wildone )
@@ -2390,32 +2479,32 @@ ROM_START( gldnpkr ) // MK2.5
 	ROM_LOAD("2cm07.u40", 0x0000, 0x0200, CRC(1e3f402a) SHA1(f38da1ad6607df38add10c69febf7f5f8cd21744)) // Using 2CM07 until a correct PROM is confirmed
 ROM_END
 
-/* Fever Pitch? (2VXEC534, 90.36%)
-   Need some proof about the real name.
-   Unhandled Mechanical meter 2 pulse: 04 --> Payout pulse.
+/* Guns & Roses
+   Unhandled Mechanical meter 2 pulse: 04
 */
-ROM_START( fvrpitch ) // MK2.5
+ROM_START( gunnrose ) // MK2.5
 	ROM_REGION(0x10000, "maincpu", 0 )
 		/* VIDEO AND SOUND EPROM */
-	ROM_LOAD("vidsnd.u7", 0x06000, 0x2000, BAD_DUMP CRC(568bd63f) SHA1(128b0b085c8b97d1c90baeab4886c522c0bc9a0e)) // unknown EPROM name
+	ROM_LOAD("gnr.u7", 0x06000, 0x2000, CRC(fe7d0ea4) SHA1(3f3f4809534065c33eca2cfff0d1d2a3e3992406))   // 1VL/SH136 RED AND BLACK
 
 		/* GAME EPROMS */
-	ROM_LOAD("2vxec534_fever_pitch_90.36%.u9", 0x08000, 0x8000, CRC(6f8780e8) SHA1(ebf1bfdf2ad727caa2fee34a6ae645ddba42f1cb))  // 90.36%
+	ROM_LOAD("gnr.u9", 0x08000, 0x8000, CRC(4fb5f757) SHA1(a4129bca7e573faac0d11de41a9bf8ea144091ee))   // E/C606191SMP
 
 		/* SHAPE EPROMS */
 	ROM_REGION(0xc000, "tile_gfx", 0 )
-	ROM_LOAD("1vlbh1299_fever_pitch.u8",  0x00000, 0x2000, CRC(8d6294d2) SHA1(819ab872a3ea99801350dd7bdf07011cbc7689e0)) // unknown EPROM names, should contain VLSH or VL/SH letters on sticker
-	ROM_LOAD("1vlbh1299_fever_pitch.u10", 0x02000, 0x2000, CRC(939b30af) SHA1(0253c6b1d336ad589322ee9058c1da68ac1e714a))
-	ROM_LOAD("1vlbh1299_fever_pitch.u12", 0x04000, 0x2000, CRC(81913322) SHA1(4ed8b678e38784a41c1a46809a5ecb14256b4c75))
-	ROM_LOAD("1vlbh1299_fever_pitch.u9",  0x06000, 0x2000, CRC(e0937d74) SHA1(19f567620e095b10f1d4f2a524331737bfa628b7))
-	ROM_LOAD("1vlbh1299_fever_pitch.u11", 0x08000, 0x2000, CRC(bfa3bb9e) SHA1(610de284004906af5a5b594256e7d7ec846afff2))
-	ROM_LOAD("1vlbh1299_fever_pitch.u13", 0x0a000, 0x2000, CRC(6d8fb9a6) SHA1(1d8b667eea57f5a4ce173af55f58b9bf56aaa05e))
+	ROM_LOAD("gnr.u8",  0x00000, 0x2000, CRC(dec9e695) SHA1(a596c4243d6d39e0611ff714e19e14188c90b6f1))  // 1VL/SH136 RED AND BLACK
+	ROM_LOAD("gnr.u10", 0x02000, 0x2000, CRC(e83b8e79) SHA1(595f41a5f59f938581a57b445370aa716c6b1409))  // 1VL/SH136 RED AND BLACK
+	ROM_LOAD("gnr.u12", 0x04000, 0x2000, CRC(9134d029) SHA1(d698fb91d8f5fa78ffd056149421008d3f12c456))  // 1VL/SH136 RED AND BLACK
+	ROM_LOAD("gnr.u9t", 0x06000, 0x2000, CRC(73a0c2cd) SHA1(662056d570eaa069483d378b77efcfb42eff6d0d))  // 1VL/SH136 RED AND BLACK
+	ROM_LOAD("gnr.u11", 0x08000, 0x2000, CRC(c50adffe) SHA1(a7c4a3cdd4d5d31a1420e47859408caa75ce2636))  // 1VL/SH136 RED AND BLACK
+	ROM_LOAD("gnr.u13", 0x0a000, 0x2000, CRC(e0a6bfc5) SHA1(07e4c8191503f0ea2de4f7ce18fe6290d20ef80e))  // 1VL/SH136 RED AND BLACK
 
 		/* COLOR PROM */
-	ROM_REGION(0x200, "proms", 0 ) // Using kgbird's 1CM29 PROM (colors seems correct) until original PROM is dumped.
-	ROM_LOAD("1cm29.u71", 0x0000, 0x0200, BAD_DUMP CRC(ef25f5cc) SHA1(51d12f4b8b8712cbd18ec97ec04e1340cd85fc67))
-ROM_END
+	ROM_REGION(0x200, "proms", 0 ) /* are either of these correct?  They are taken from different games */
+	//ROM_LOAD("2cm07.u40", 0x0000, 0x0200, CRC(1e3f402a) SHA1(f38da1ad6607df38add10c69febf7f5f8cd21744)) // Using 2CM07 until a correct PROM is confirmed
+	ROM_LOAD("1cm48.u40", 0x0000, 0x0200, BAD_DUMP CRC(81daeeb0) SHA1(7dfe198c6def5c4ae4ecac488d65c2911fb3a890))
 
+ROM_END
 
 /* 86 Lions */
 
@@ -2435,55 +2524,31 @@ ROM_START( 86lions )
 	//  ROM_LOAD( "prom.x", 0x00, 0x20, NO_DUMP )
 ROM_END
 
-ROM_START( gunnrose ) // MK2.5
-	ROM_REGION(0x10000, "maincpu", 0 )
-		/* VIDEO AND SOUND EPROM */
-	ROM_LOAD("gnr.u7", 0x06000, 0x2000, CRC(fe7d0ea4) SHA1(3f3f4809534065c33eca2cfff0d1d2a3e3992406))   // 1VL/SH136 RED AND BLACK
-
-		/* GAME EPROMS */
-	ROM_LOAD("gnr.u9", 0x08000, 0x8000, CRC(4fb5f757) SHA1(a4129bca7e573faac0d11de41a9bf8ea144091ee))   // E/C606191SMP
-
-		/* SHAPE EPROMS */
-	ROM_REGION(0xc000, "tile_gfx", 0 )
-	ROM_LOAD("gnr.u8",  0x00000, 0x2000, CRC(dec9e695) SHA1(a596c4243d6d39e0611ff714e19e14188c90b6f1))  // 1VL/SH136 RED AND BLACK
-	ROM_LOAD("gnr.u10", 0x02000, 0x2000, CRC(e83b8e79) SHA1(595f41a5f59f938581a57b445370aa716c6b1409))  // 1VL/SH136 RED AND BLACK
-	ROM_LOAD("gnr.u12", 0x04000, 0x2000, CRC(9134d029) SHA1(d698fb91d8f5fa78ffd056149421008d3f12c456))  // 1VL/SH136 RED AND BLACK
-	ROM_LOAD("gnr.u9t", 0x06000, 0x2000, CRC(73a0c2cd) SHA1(662056d570eaa069483d378b77efcfb42eff6d0d))  // E/C606191SMP
-	ROM_LOAD("gnr.u11", 0x08000, 0x2000, CRC(c50adffe) SHA1(a7c4a3cdd4d5d31a1420e47859408caa75ce2636))  // 1VL/SH136 RED AND BLACK
-	ROM_LOAD("gnr.u13", 0x0a000, 0x2000, CRC(e0a6bfc5) SHA1(07e4c8191503f0ea2de4f7ce18fe6290d20ef80e))  // 1VL/SH136 RED AND BLACK
-
-		/* COLOR PROM */
-	ROM_REGION(0x200, "proms", 0 ) /* are either of these correct?  They are taken from different games */
-	//ROM_LOAD("2cm07.u71", 0x0000, 0x0200, CRC(1e3f402a) SHA1(f38da1ad6607df38add10c69febf7f5f8cd21744)) // Using 2CM07 until a correct PROM is confirmed
-	ROM_LOAD("1cm48.u71", 0x0000, 0x0200, BAD_DUMP CRC(81daeeb0) SHA1(7dfe198c6def5c4ae4ecac488d65c2911fb3a890))
-
-ROM_END
-
-GAMEL( 1985, 86lions,  0,        86lions,  aristmk4, aristmk4_state, aristmk4, ROT0, "Aristocrat", "86 Lions", MACHINE_NOT_WORKING, layout_topgear )
-GAMEL( 1996, eforest,  0,        aristmk4, eforest,  aristmk4_state, aristmk4, ROT0, "Aristocrat", "Enchanted Forest (12XF528902, US)",         0, layout_eforest  )
-GAMEL( 1995, eforesta, eforest,  aristmk4, aristmk4, aristmk4_state, aristmk4, ROT0, "Aristocrat", "Enchanted Forest (4VXFC818, NSW)",          0, layout_aristmk4 ) // 10c, $1 = 10 credits
-GAMEL( 1996, eforestb, eforest,  aristmk4, arimk4nz, aristmk4_state, aristmk4, ROT0, "Aristocrat", "Enchanted Forest (3VXFC5343, New Zealand)", 0, layout_arimk4nz ) // 5c, $2 = 40 credits
-GAMEL( 1996, 3bagflvt, 0,        aristmk4, 3bagflvt, aristmk4_state, aristmk4, ROT0, "Aristocrat", "3 Bags Full (5VXFC790, Victoria)",          0, layout_3bagflvt ) // 5c, $1 = 20 credits
-GAMEL( 1996, 3bagflnz, 3bagflvt, aristmk4, 3bagflnz, aristmk4_state, aristmk4, ROT0, "Aristocrat", "3 Bags Full (3VXFC5345, New Zealand)",      0, layout_3bagflnz ) // 5c, $2 = 40 credits
-GAMEL( 1996, kgbird,   0,        aristmk4, kgbird,   aristmk4_state, aristmk4, ROT0, "Aristocrat", "K.G. Bird (4VXFC5341, New Zealand, 5c)",    0, layout_kgbird   ) // 5c, $2 = 40 credits
-GAMEL( 1996, kgbirda,  kgbird,   aristmk4, kgbird,   aristmk4_state, aristmk4, ROT0, "Aristocrat", "K.G. Bird (4VXFC5341, New Zealand, 10c)",   0, layout_kgbird   ) // 10c, $2 = 20 credits
-GAMEL( 1996, blkrhino, 0,        aristmk4, arimk4nz, aristmk4_state, aristmk4, ROT0, "Aristocrat", "Black Rhino (3VXFC5344, New Zealand)",      0, layout_arimk4nz ) // 5c, $2 = 40 credits
-GAMEL( 1996, topgear,  0,        aristmk4, topgear,  aristmk4_state, aristmk4, ROT0, "Aristocrat", "Top Gear (4VXFC969, New Zealand)",          0, layout_topgear  ) // 10c, 1 coin = 1 credit
-GAMEL( 1996, wtigernz, 0,        aristmk4, arimk4nz, aristmk4_state, aristmk4, ROT0, "Aristocrat", "White Tiger (3VXFC5342, New Zealand)",      0, layout_arimk4nz ) // 5c, $2 = 40 credits
-GAMEL( 1998, phantomp, 0,        aristmk4, arimk4nz, aristmk4_state, aristmk4, ROT0, "Aristocrat", "Phantom Pays (4VXFC5431, New Zealand)",     0, layout_arimk4nz ) // 5c, $2 = 40 credits
-GAMEL( 1998, ffortune, 0,        aristmk4, goldenc,  aristmk4_state, aristmk4, ROT0, "Aristocrat", "Fantasy Fortune (1VXFC5460, New Zealand)",  0, layout_goldenc  ) // 5c, $2 = 40 credits
-GAMEL( 1998, swtht2nz, 0,        aristmk4, arimk4nz, aristmk4_state, aristmk4, ROT0, "Aristocrat", "Sweet Hearts II (1VXFC5461, New Zealand)",  0, layout_arimk4nz ) // 5c, $2 = 40 credits
-GAMEL( 1996, goldenc,  0,        aristmk4, goldenc,  aristmk4_state, aristmk4, ROT0, "Aristocrat", "Golden Canaries (1VXFC5462, New Zealand)",  0, layout_goldenc  ) // 2c, $2 = 100 credits
-GAMEL( 1999, autmoon,  0,        aristmk4, arimk4nz, aristmk4_state, aristmk4, ROT0, "Aristocrat", "Autumn Moon (1VXFC5488, New Zealand)",      0, layout_arimk4nz ) // 5c, $2 = 40 credits
-GAMEL( 2000, coralr2,  0,        aristmk4, arimk4nz, aristmk4_state, aristmk4, ROT0, "Aristocrat", "Coral Riches II (1VXFC5472, New Zealand)",  0, layout_arimk4nz ) // 2c, $2 = 100 credits
-GAMEL( 1995, cgold2,   0,        aristmk4, cgold2,   aristmk4_state, aristmk4, ROT0, "Aristocrat", "Caribbean Gold II (3XF5182H04, USA)",       0, layout_cgold2   )
-GAMEL( 1996, fhunter,  0,        aristmk4, fhunter,  aristmk4_state, aristmk4, ROT0, "Aristocrat", "Fortune Hunter (2XF5196I01, USA)",          0, layout_fhunter  )
-GAMEL( 1996, fhuntera, fhunter,  aristmk4, fhunter,  aristmk4_state, aristmk4, ROT0, "Aristocrat", "Fortune Hunter (2XF5196I02, USA)",          0, layout_fhunter  )
-GAMEL( 1996, arcwins,  0,        aristmk4, arcwins,  aristmk4_state, aristmk4, ROT0, "Aristocrat", "Arctic Wins (4XF5227H03, USA)",             0, layout_arcwins  )
-GAMEL( 1997, wildone,  0,  aristmk4_poker, wildone,  aristmk4_state, aristmk4, ROT0, "Aristocrat", "Wild One (4VXEC5357, New Zealand)",         0, layout_wildone  ) // 20c, $2 = 10 credits, video poker
-GAMEL( 1993, gunnrose, 0,  aristmk4_poker, wildone,  aristmk4_state, aristmk4, ROT0, "Aristocrat", "Guns and Roses (C606191SMP, Australia)",    MACHINE_WRONG_COLORS, layout_topgear  )
-GAMEL( 1986, gldnpkr,  0,  aristmk4_poker, gldnpkr,  aristmk4_state, aristmk4, ROT0, "Ainsworth Nominees P.L.", "Golden Poker (8VXEC037, New Zealand)", 0, layout_gldnpkr ) // possibly 20c, 1 coin = 1 credit, video poker
-GAMEL( 1986, gtroppo,  0,        aristmk4, topgear,  aristmk4_state, aristmk4, ROT0, "Ainsworth Nominees P.L.", "Gone Troppo (1VXEC542, New Zealand)",  0, layout_topgear ) // possibly 20c, 1 coin = 1 credit
-GAMEL( 1986, clkwise,  0,        aristmk4, topgear,  aristmk4_state, aristmk4, ROT0, "Ainsworth Nominees P.L.", "Clockwise (1VXEC534, New Zealand)",    MACHINE_NOT_WORKING, layout_topgear ) // 20c, 1 coin = 1 credit
-GAMEL( 1986, cgold,    0,        aristmk4, topgear,  aristmk4_state, aristmk4, ROT0, "Ainsworth Nominees P.L.", "Caribbean Gold (3VXEC449, USA)",       0, layout_topgear ) // 25c, 1 coin = 1 credit
-GAMEL( 1986, fvrpitch, 0,        aristmk4, fvrpitch, aristmk4_state, aristmk4, ROT0, "Ainsworth Nominees P.L.", "Fever Pitch? (2VXEC534, NSW, 90.36%)", 0, layout_fvrpitch  ) // 5c, $1 = 20 credits
+GAMEL( 1985, 86lions,  0,        _86lions,       aristmk4, aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "86 Lions", MACHINE_NOT_WORKING, layout_topgear )
+GAMEL( 1996, eforest,  0,        aristmk4,       eforest,  aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Enchanted Forest (12XF528902, US)",         0, layout_eforest  ) // 92.778%
+GAMEL( 1995, eforesta, eforest,  aristmk4,       aristmk4, aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Enchanted Forest (4VXFC818, NSW)",          0, layout_aristmk4 ) // 10c, $1 = 10 credits, 90.483%
+GAMEL( 1996, eforestb, eforest,  aristmk4,       arimk4nz, aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Enchanted Forest (3VXFC5343, New Zealand)", 0, layout_arimk4nz ) // 5c, $2 = 40 credits, 88.43%
+GAMEL( 1996, 3bagflvt, 0,        aristmk4,       3bagflvt, aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "3 Bags Full (5VXFC790, Victoria)",          0, layout_3bagflvt ) // 5c, $1 = 20 credits, 90.018%
+GAMEL( 1996, 3bagflnz, 3bagflvt, aristmk4,       3bagflnz, aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "3 Bags Full (3VXFC5345, New Zealand)",      0, layout_3bagflnz ) // 5c, $2 = 40 credits, 88.22%
+GAMEL( 1996, kgbird,   0,        aristmk4,       kgbird,   aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "K.G. Bird (4VXFC5341, New Zealand, 5c)",    0, layout_kgbird   ) // 5c, $2 = 40 credits, 87.98%
+GAMEL( 1996, kgbirda,  kgbird,   aristmk4,       kgbird,   aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "K.G. Bird (4VXFC5341, New Zealand, 10c)",   0, layout_kgbird   ) // 10c, $2 = 20 credits, 91.97%
+GAMEL( 1996, blkrhino, 0,        aristmk4,       arimk4nz, aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Black Rhino (3VXFC5344, New Zealand)",      0, layout_arimk4nz ) // 5c, $2 = 40 credits, 91.96%
+GAMEL( 1996, topgear,  0,        aristmk4,       topgear,  aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Top Gear (4VXFC969, New Zealand)",          0, layout_topgear  ) // 10c, 10c = 1 credit, 87.471%
+GAMEL( 1996, wtigernz, 0,        aristmk4,       arimk4nz, aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "White Tiger (3VXFC5342, New Zealand)",      0, layout_arimk4nz ) // 5c, $2 = 40 credits, 91.99%
+GAMEL( 1998, phantomp, 0,        aristmk4,       arimk4nz, aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Phantom Pays (4VXFC5431, New Zealand)",     0, layout_arimk4nz ) // 5c, $2 = 40 credits, 91.95%
+GAMEL( 1998, ffortune, 0,        aristmk4,       goldenc,  aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Fantasy Fortune (1VXFC5460, New Zealand)",  0, layout_goldenc  ) // 5c, $2 = 40 credits, 87.90%
+GAMEL( 1998, swtht2nz, 0,        aristmk4,       arimk4nz, aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Sweethearts II (1VXFC5461, New Zealand)",   0, layout_arimk4nz ) // 5c, $2 = 40 credits, 87.13%
+GAMEL( 1996, goldenc,  0,        aristmk4,       goldenc,  aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Golden Canaries (1VXFC5462, New Zealand)",  0, layout_goldenc  ) // 2c, $2 = 100 credits, 87.30%
+GAMEL( 1999, autmoon,  0,        aristmk4,       arimk4nz, aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Autumn Moon (1VXFC5488, New Zealand)",      0, layout_arimk4nz ) // 5c, $2 = 40 credits, 87.27%
+GAMEL( 2000, coralr2,  0,        aristmk4,       arimk4nz, aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Coral Riches II (1VXFC5472, New Zealand)",  0, layout_arimk4nz ) // 2c, $2 = 100 credits, 87.13%
+GAMEL( 1995, cgold2,   0,        aristmk4,       cgold2,   aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Caribbean Gold II (3XF5182H04, USA)",       0, layout_cgold2   ) // 92.858%
+GAMEL( 1996, fhunter,  0,        aristmk4,       fhunter,  aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Fortune Hunter (2XF5196I01, USA)",          0, layout_fhunter  ) // 90.018%
+GAMEL( 1996, fhuntera, fhunter,  aristmk4,       fhunter,  aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Fortune Hunter (2XF5196I02, USA)",          0, layout_fhunter  ) // 92.047%
+GAMEL( 1996, arcwins,  0,        aristmk4,       arcwins,  aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Arctic Wins (4XF5227H03, USA)",             0, layout_arcwins  ) // 90.361%
+GAMEL( 1997, wildone,  0,        aristmk4_poker, wildone,  aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Wild One (4VXEC5357, New Zealand)",         0, layout_wildone  ) // 20c, $2 = 10 credits, video poker, 88.00%
+GAMEL( 1993, gunnrose, 0,        aristmk4_poker, gunnrose, aristmk4_state, init_aristmk4, ROT0, "Aristocrat", "Guns and Roses (C606191SMP, NSW)",          MACHINE_WRONG_COLORS, layout_gunnrose ) // 20c, $1 = 5 credits
+GAMEL( 1986, gldnpkr,  0,        aristmk4_poker, gldnpkr,  aristmk4_state, init_aristmk4, ROT0, "Ainsworth Nominees P.L.", "Golden Poker (8VXEC037, New Zealand)", 0, layout_gldnpkr ) // 20c, 20c = 1 credit, video poker
+GAMEL( 1986, gtroppo,  0,        aristmk4,       topgear,  aristmk4_state, init_aristmk4, ROT0, "Ainsworth Nominees P.L.", "Gone Troppo (1VXEC542, New Zealand)",  0, layout_topgear ) // 20c, 20c = 1 credit, 87.138%
+GAMEL( 1986, clkwise,  0,        aristmk4,       topgear,  aristmk4_state, init_aristmk4, ROT0, "Ainsworth Nominees P.L.", "Clockwise (1VXEC534, New Zealand)",    MACHINE_NOT_WORKING, layout_topgear )
+GAMEL( 1986, cgold,    0,        aristmk4,       topgear,  aristmk4_state, init_aristmk4, ROT0, "Ainsworth Nominees P.L.", "Caribbean Gold (3VXEC449, USA)",       0, layout_topgear ) // 25c, 25c = 1 credit
+GAMEL( 1986, fvrpitch, 0,        aristmk4,       fvrpitch, aristmk4_state, init_aristmk4, ROT0, "Ainsworth Nominees P.L.", "Fever Pitch (2VXEC534, NSW)",  0, layout_fvrpitch ) // 5c, $1 = 20 credits, 90.360%

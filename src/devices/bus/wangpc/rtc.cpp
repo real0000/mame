@@ -29,7 +29,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type WANGPC_RTC = device_creator<wangpc_rtc_device>;
+DEFINE_DEVICE_TYPE(WANGPC_RTC, wangpc_rtc_device, "wangpc_rtc", "Wang PC-PM040-B Remote Telecommunication Controller")
 
 
 //-------------------------------------------------
@@ -56,35 +56,37 @@ const tiny_rom_entry *wangpc_rtc_device::device_rom_region() const
 //  ADDRESS_MAP( wangpc_rtc_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( wangpc_rtc_mem, AS_PROGRAM, 8, wangpc_rtc_device )
-	AM_RANGE(0x0000, 0x0fff) AM_ROM AM_REGION(Z80_TAG, 0)
-	AM_RANGE(0x1000, 0xffff) AM_RAM
-ADDRESS_MAP_END
+void wangpc_rtc_device::wangpc_rtc_mem(address_map &map)
+{
+	map(0x0000, 0x0fff).rom().region(Z80_TAG, 0);
+	map(0x1000, 0xffff).ram();
+}
 
 
 //-------------------------------------------------
 //  ADDRESS_MAP( wangpc_rtc_io )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( wangpc_rtc_io, AS_IO, 8, wangpc_rtc_device )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE(Z80SIO_TAG, z80sio0_device, cd_ba_r, cd_ba_w)
-	AM_RANGE(0x10, 0x1f) AM_DEVREADWRITE(AM9517A_TAG, am9517a_device, read, write)
-	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE(Z80CTC_0_TAG, z80ctc_device, read, write)
-	AM_RANGE(0x30, 0x30) //AM_WRITE(clear_char_w)
-	AM_RANGE(0x31, 0x31) //AM_WRITE(set_char_w)
-	AM_RANGE(0x40, 0x40) AM_READ_PORT("SW1") //AM_WRITE(control_w)
-	AM_RANGE(0x44, 0x44) //AM_READ(i8086_status_r) AM_WRITE(reset_w)
-	AM_RANGE(0x48, 0x48) //AM_WRITE(dte_ready_w)
-	AM_RANGE(0x4c, 0x4c) //AM_READWRITE(8232_acu_r, 8232_acu_w)
-	AM_RANGE(0x50, 0x50) //AM_READ(outbound_data_r)
-	AM_RANGE(0x51, 0x52) //AM_WRITE(status_w)
-	AM_RANGE(0x54, 0x54) //AM_WRITE(enable_inbound_data_w)
-	AM_RANGE(0x51, 0x52) //AM_WRITE(inbound_data_w)
-	AM_RANGE(0x60, 0x63) AM_DEVREADWRITE(Z80CTC_1_TAG, z80ctc_device, read, write)
-	AM_RANGE(0x70, 0x70) //AM_READWRITE(led_toggle_r, odd_parity_w)
-	AM_RANGE(0x71, 0x71) //AM_WRITE(even_parity_w)
-ADDRESS_MAP_END
+void wangpc_rtc_device::wangpc_rtc_io(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x03).rw(m_sio, FUNC(z80sio_device::cd_ba_r), FUNC(z80sio_device::cd_ba_w));
+	map(0x10, 0x1f).rw(AM9517A_TAG, FUNC(am9517a_device::read), FUNC(am9517a_device::write));
+	map(0x20, 0x23).rw(m_ctc0, FUNC(z80ctc_device::read), FUNC(z80ctc_device::write));
+	map(0x30, 0x30); //.w(FUNC(wangpc_rtc_device::clear_char_w));
+	map(0x31, 0x31); //.w(FUNC(wangpc_rtc_device::set_char_w));
+	map(0x40, 0x40).portr("SW1"); //.w(FUNC(wangpc_rtc_device::control_w));
+	map(0x44, 0x44); //.rw(FUNC(wangpc_rtc_device::i8086_status_r), FUNC(wangpc_rtc_device::reset_w));
+	map(0x48, 0x48); //.w(FUNC(wangpc_rtc_device::dte_ready_w));
+	map(0x4c, 0x4c); //.rw(FUNC(wangpc_rtc_device::8232_acu_r), FUNC(wangpc_rtc_device::8232_acu_w));
+	map(0x50, 0x50); //.r(FUNC(wangpc_rtc_device::outbound_data_r));
+	map(0x51, 0x52); //.w(FUNC(wangpc_rtc_device::status_w));
+	map(0x54, 0x54); //.w(FUNC(wangpc_rtc_device::enable_inbound_data_w));
+	map(0x51, 0x52); //.w(FUNC(wangpc_rtc_device::inbound_data_w));
+	map(0x60, 0x63).rw(m_ctc1, FUNC(z80ctc_device::read), FUNC(z80ctc_device::write));
+	map(0x70, 0x70); //.rw(FUNC(wangpc_rtc_device::led_toggle_r), FUNC(wangpc_rtc_device::odd_parity_w));
+	map(0x71, 0x71); //.w(FUNC(wangpc_rtc_device::even_parity_w));
+}
 
 
 //-------------------------------------------------
@@ -100,36 +102,26 @@ static const z80_daisy_config wangpc_rtc_daisy_chain[] =
 };
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( wangpc_rtc )
+//  device_add_mconfig
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( wangpc_rtc )
-	MCFG_CPU_ADD(Z80_TAG, Z80, 2000000)
-	MCFG_Z80_DAISY_CHAIN(wangpc_rtc_daisy_chain)
-	MCFG_CPU_PROGRAM_MAP(wangpc_rtc_mem)
-	MCFG_CPU_IO_MAP(wangpc_rtc_io)
-
-	MCFG_DEVICE_ADD(AM9517A_TAG, AM9517A, 2000000)
-
-	MCFG_DEVICE_ADD(Z80CTC_0_TAG, Z80CTC, 2000000)
-	MCFG_Z80CTC_INTR_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
-
-	MCFG_DEVICE_ADD(Z80CTC_1_TAG, Z80CTC, 2000000)
-	MCFG_Z80CTC_INTR_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
-
-	MCFG_Z80SIO0_ADD(Z80SIO_TAG, 2000000, 0, 0, 0, 0)
-	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor wangpc_rtc_device::device_mconfig_additions() const
+void wangpc_rtc_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( wangpc_rtc );
+	Z80(config, m_maincpu, 2000000);
+	m_maincpu->set_daisy_config(wangpc_rtc_daisy_chain);
+	m_maincpu->set_addrmap(AS_PROGRAM, &wangpc_rtc_device::wangpc_rtc_mem);
+	m_maincpu->set_addrmap(AS_IO, &wangpc_rtc_device::wangpc_rtc_io);
+
+	AM9517A(config, m_dmac, 2000000);
+
+	Z80CTC(config, m_ctc0, 2000000);
+	m_ctc0->intr_callback().set_inputline(m_maincpu, INPUT_LINE_IRQ0);
+
+	Z80CTC(config, m_ctc1, 2000000);
+	m_ctc1->intr_callback().set_inputline(m_maincpu, INPUT_LINE_IRQ0);
+
+	Z80SIO(config, m_sio, 2000000); // SIO/0?
+	m_sio->out_int_callback().set_inputline(m_maincpu, INPUT_LINE_IRQ0);
 }
 
 
@@ -187,7 +179,7 @@ ioport_constructor wangpc_rtc_device::device_input_ports() const
 //-------------------------------------------------
 
 wangpc_rtc_device::wangpc_rtc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, WANGPC_RTC, "Wang PC-PM040-B", tag, owner, clock, "wangpc_rtc", __FILE__),
+	device_t(mconfig, WANGPC_RTC, tag, owner, clock),
 	device_wangpcbus_card_interface(mconfig, *this),
 	m_maincpu(*this, Z80_TAG),
 	m_dmac(*this, AM9517A_TAG),
@@ -222,7 +214,7 @@ void wangpc_rtc_device::device_reset()
 //  wangpcbus_mrdc_r - memory read
 //-------------------------------------------------
 
-uint16_t wangpc_rtc_device::wangpcbus_mrdc_r(address_space &space, offs_t offset, uint16_t mem_mask)
+uint16_t wangpc_rtc_device::wangpcbus_mrdc_r(offs_t offset, uint16_t mem_mask)
 {
 	uint16_t data = 0xffff;
 
@@ -234,7 +226,7 @@ uint16_t wangpc_rtc_device::wangpcbus_mrdc_r(address_space &space, offs_t offset
 //  wangpcbus_amwc_w - memory write
 //-------------------------------------------------
 
-void wangpc_rtc_device::wangpcbus_amwc_w(address_space &space, offs_t offset, uint16_t mem_mask, uint16_t data)
+void wangpc_rtc_device::wangpcbus_amwc_w(offs_t offset, uint16_t mem_mask, uint16_t data)
 {
 }
 
@@ -243,7 +235,7 @@ void wangpc_rtc_device::wangpcbus_amwc_w(address_space &space, offs_t offset, ui
 //  wangpcbus_iorc_r - I/O read
 //-------------------------------------------------
 
-uint16_t wangpc_rtc_device::wangpcbus_iorc_r(address_space &space, offs_t offset, uint16_t mem_mask)
+uint16_t wangpc_rtc_device::wangpcbus_iorc_r(offs_t offset, uint16_t mem_mask)
 {
 	uint16_t data = 0xffff;
 
@@ -265,7 +257,7 @@ uint16_t wangpc_rtc_device::wangpcbus_iorc_r(address_space &space, offs_t offset
 //  wangpcbus_aiowc_w - I/O write
 //-------------------------------------------------
 
-void wangpc_rtc_device::wangpcbus_aiowc_w(address_space &space, offs_t offset, uint16_t mem_mask, uint16_t data)
+void wangpc_rtc_device::wangpcbus_aiowc_w(offs_t offset, uint16_t mem_mask, uint16_t data)
 {
 	if (sad(offset))
 	{

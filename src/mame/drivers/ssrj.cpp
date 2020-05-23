@@ -8,7 +8,6 @@
  TODO:
  - colors (missing proms)
  - dips
- - controls (is there START button ?)
  - when a car sprite goes outside of the screen it gets stuck for a split frame on top of screen
 
 HW info :
@@ -62,23 +61,24 @@ READ8_MEMBER(ssrj_state::wheel_r)
 	return retval;
 }
 
-static ADDRESS_MAP_START( ssrj_map, AS_PROGRAM, 8, ssrj_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0xc000, 0xc7ff) AM_RAM_WRITE(vram1_w) AM_SHARE("vram1")
-	AM_RANGE(0xc800, 0xcfff) AM_RAM_WRITE(vram2_w) AM_SHARE("vram2")
-	AM_RANGE(0xd000, 0xd7ff) AM_RAM AM_SHARE("vram3")
-	AM_RANGE(0xd800, 0xdfff) AM_RAM_WRITE(vram4_w) AM_SHARE("vram4")
-	AM_RANGE(0xe000, 0xe7ff) AM_RAM
-	AM_RANGE(0xe800, 0xefff) AM_RAM AM_SHARE("scrollram")
-	AM_RANGE(0xf000, 0xf000) AM_READ_PORT("IN0")
-	AM_RANGE(0xf001, 0xf001) AM_READ(wheel_r)
-	AM_RANGE(0xf002, 0xf002) AM_READ_PORT("IN2")
-	AM_RANGE(0xf003, 0xf003) AM_WRITENOP /* unknown */
-	AM_RANGE(0xf401, 0xf401) AM_DEVREAD("aysnd", ay8910_device, data_r)
-	AM_RANGE(0xf400, 0xf401) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
-	AM_RANGE(0xf800, 0xf800) AM_WRITENOP /* wheel ? */
-	AM_RANGE(0xfc00, 0xfc00) AM_WRITENOP /* unknown */
-ADDRESS_MAP_END
+void ssrj_state::ssrj_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0xc000, 0xc7ff).ram().w(FUNC(ssrj_state::vram1_w)).share("vram1");
+	map(0xc800, 0xcfff).ram().w(FUNC(ssrj_state::vram2_w)).share("vram2");
+	map(0xd000, 0xd7ff).ram().share("vram3");
+	map(0xd800, 0xdfff).ram().w(FUNC(ssrj_state::vram4_w)).share("vram4");
+	map(0xe000, 0xe7ff).ram();
+	map(0xe800, 0xefff).ram().share("scrollram");
+	map(0xf000, 0xf000).portr("IN0");
+	map(0xf001, 0xf001).r(FUNC(ssrj_state::wheel_r));
+	map(0xf002, 0xf002).portr("IN2");
+	map(0xf003, 0xf003).nopw(); /* unknown */
+	map(0xf401, 0xf401).r("aysnd", FUNC(ay8910_device::data_r));
+	map(0xf400, 0xf401).w("aysnd", FUNC(ay8910_device::address_data_w));
+	map(0xf800, 0xf800).nopw(); /* wheel ? */
+	map(0xfc00, 0xfc00).nopw(); /* unknown */
+}
 
 static INPUT_PORTS_START( ssrj )
 	PORT_START("IN0")
@@ -91,12 +91,16 @@ static INPUT_PORTS_START( ssrj )
 	PORT_BIT( 0xff, 0x00, IPT_DIAL  ) PORT_SENSITIVITY(50) PORT_KEYDELTA(4) PORT_REVERSE
 
 	PORT_START("IN2")
-	PORT_BIT( 0xf, IP_ACTIVE_LOW, IPT_BUTTON2  )  /* code @ $eef  , tested when controls = type4 */
-	PORT_DIPNAME( 0x30, 0x00, DEF_STR( Difficulty ) ) /* ??? code @ $62c */
-	PORT_DIPSETTING(    0x10, DEF_STR( Easy ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Normal ) )
-	PORT_DIPSETTING(    0x20, DEF_STR( Difficult ) )
-	PORT_DIPSETTING(    0x30, DEF_STR( Very_Difficult ) )
+	PORT_BIT( 0xf, IP_ACTIVE_LOW, IPT_UNUSED  ) PORT_CONDITION("IN3", 0x30, EQUALS, 0x00) /* code @ $eef, tested when controls != type1 */
+	PORT_BIT( 0x1, IP_ACTIVE_LOW, IPT_START1 ) PORT_CONDITION("IN3", 0x30, NOTEQUALS, 0x00) PORT_NAME("Start (Easy)")
+	PORT_BIT( 0x2, IP_ACTIVE_LOW, IPT_START2 ) PORT_CONDITION("IN3", 0x30, NOTEQUALS, 0x00) PORT_NAME("Start (Normal)")
+	PORT_BIT( 0x4, IP_ACTIVE_LOW, IPT_START3 ) PORT_CONDITION("IN3", 0x30, NOTEQUALS, 0x00) PORT_NAME("Start (Difficult)")
+	PORT_BIT( 0x8, IP_ACTIVE_LOW, IPT_START4 ) PORT_CONDITION("IN3", 0x30, NOTEQUALS, 0x00) PORT_NAME("Start (Very difficult)")
+	PORT_DIPNAME( 0x30, 0x20, DEF_STR( Difficulty ) )
+	PORT_DIPSETTING( 0x30, DEF_STR( Easy ) )
+	PORT_DIPSETTING( 0x20, DEF_STR( Normal ) )
+	PORT_DIPSETTING( 0x10, DEF_STR( Difficult ) )
+	PORT_DIPSETTING( 0x00, DEF_STR( Very_Difficult ) )
 	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Free_Play ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
@@ -116,7 +120,7 @@ static INPUT_PORTS_START( ssrj )
 	PORT_DIPNAME( 0x08, 0x08, "Freeze" )
 	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x30, 0x00, DEF_STR( Controls ) ) /* 'press button to start' message, and wait for button2 */
+	PORT_DIPNAME( 0x30, 0x00, DEF_STR( Controls ) ) /* Type 1 has no start button and uses difficulty DSW, type 2-4 have 4 start buttons that determine difficulty. MT07492 for more.  */
 	PORT_DIPSETTING(    0x00, "Type 1" )
 	PORT_DIPSETTING(    0x10, "Type 2" )
 	PORT_DIPSETTING(    0x20, "Type 3" )
@@ -135,39 +139,37 @@ static const gfx_layout charlayout =
 	8*8 /* every char takes 8 consecutive bytes */
 };
 
-static GFXDECODE_START( ssrj )
+static GFXDECODE_START( gfx_ssrj )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout,     0, 0x10 )
 GFXDECODE_END
 
-static MACHINE_CONFIG_START( ssrj, ssrj_state )
-
+void ssrj_state::ssrj(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80,8000000/2)
-	MCFG_CPU_PROGRAM_MAP(ssrj_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", ssrj_state,  irq0_line_hold)
+	Z80(config, m_maincpu, 8000000/2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &ssrj_state::ssrj_map);
+	m_maincpu->set_vblank_int("screen", FUNC(ssrj_state::irq0_line_hold));
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(40*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 34*8-1, 1*8, 31*8-1) // unknown res
-	MCFG_SCREEN_UPDATE_DRIVER(ssrj_state, screen_update)
-	MCFG_SCREEN_VBLANK_DRIVER(ssrj_state, screen_eof)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(40*8, 32*8);
+	screen.set_visarea(0*8, 34*8-1, 1*8, 31*8-1); // unknown res
+	screen.set_screen_update(FUNC(ssrj_state::screen_update));
+	screen.screen_vblank().set(FUNC(ssrj_state::screen_vblank));
+	screen.set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ssrj)
-	MCFG_PALETTE_ADD("palette", 128)
-	MCFG_PALETTE_INIT_OWNER(ssrj_state, ssrj)
-
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_ssrj);
+	PALETTE(config, m_palette, FUNC(ssrj_state::ssrj_palette), 128);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("aysnd", AY8910, 8000000/5)
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("IN3"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
-MACHINE_CONFIG_END
+	ay8910_device &aysnd(AY8910(config, "aysnd", 8000000/5));
+	aysnd.port_b_read_callback().set_ioport("IN3");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.30);
+}
 
 /***************************************************************************
 
@@ -190,4 +192,4 @@ ROM_START( ssrj )
 
 ROM_END
 
-GAME( 1985, ssrj,  0,       ssrj,  ssrj, driver_device,  0, ROT90, "Taito Corporation", "Super Speed Race Junior (Japan)", MACHINE_WRONG_COLORS | MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+GAME( 1985, ssrj,  0,       ssrj,  ssrj, ssrj_state, empty_init, ROT90, "Taito Corporation", "Super Speed Race Junior (Japan)", MACHINE_WRONG_COLORS | MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )

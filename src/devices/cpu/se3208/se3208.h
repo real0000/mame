@@ -1,5 +1,9 @@
 // license:BSD-3-Clause
 // copyright-holders:ElSemi
+#ifndef MAME_CPU_SE3208_SE3208_H
+#define MAME_CPU_SE3208_SE3208_H
+
+#pragma once
 
 enum
 {
@@ -16,31 +20,38 @@ public:
 	// construction/destruction
 	se3208_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
+	// callback configuration
+	auto machinex_cb() { return m_machinex_cb.bind(); }
+	auto iackx_cb() { return m_iackx_cb.bind(); }
+
 protected:
 	// device-level overrides
+	virtual void device_resolve_objects() override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 1; }
-	virtual uint32_t execute_max_cycles() const override { return 1; }
-	virtual uint32_t execute_input_lines() const override { return 1; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 1; }
+	virtual bool execute_input_edge_triggered(int inputnum) const noexcept override { return inputnum == INPUT_LINE_NMI; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : nullptr; }
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 2; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 2; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 private:
 	address_space_config m_program_config;
+
+	devcb_write8 m_machinex_cb;
+	devcb_read8 m_iackx_cb;
 
 	//GPR
 	uint32_t m_R[8];
@@ -52,7 +63,7 @@ private:
 	uint32_t m_PPC;
 
 	address_space *m_program;
-	direct_read_data *m_direct;
+	memory_access_cache<2, 0, ENDIANNESS_LITTLE> *m_cache;
 	uint8_t m_IRQ;
 	uint8_t m_NMI;
 
@@ -80,8 +91,8 @@ private:
 	inline void PushVal(uint32_t Val);
 	inline uint32_t PopVal();
 
-	typedef void (se3208_device::*_OP)(uint16_t Opcode);
-	_OP OpTable[0x10000];
+	typedef void (se3208_device::*OP)(uint16_t Opcode);
+	OP OpTable[0x10000];
 
 	void INVALIDOP(uint16_t Opcode);
 	void LDB(uint16_t Opcode);
@@ -159,11 +170,13 @@ private:
 	void MVFC(uint16_t Opcode);
 
 	void BuildTable(void);
-	_OP DecodeOp(uint16_t Opcode);
+	OP DecodeOp(uint16_t Opcode);
 	void SE3208_NMI();
 	void SE3208_Interrupt();
 
 };
 
 
-extern const device_type SE3208;
+DECLARE_DEVICE_TYPE(SE3208, se3208_device)
+
+#endif // MAME_CPU_SE3208_SE3208_H

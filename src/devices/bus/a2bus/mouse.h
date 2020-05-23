@@ -11,6 +11,8 @@
 #ifndef MAME_DEVICES_A2BUS_MOUSE_H
 #define MAME_DEVICES_A2BUS_MOUSE_H
 
+#pragma once
+
 #include "a2bus.h"
 #include "machine/6821pia.h"
 #include "cpu/m6805/m68705.h"
@@ -20,38 +22,39 @@
 //**************************************************************************
 
 class a2bus_mouse_device:
-	public device_t,
-	public device_a2bus_card_interface
+		public device_t,
+		public device_a2bus_card_interface
 {
 public:
 	// construction/destruction
-	a2bus_mouse_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
 	a2bus_mouse_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
 	virtual const tiny_rom_entry *device_rom_region() const override;
 	virtual ioport_constructor device_input_ports() const override;
 
-	DECLARE_WRITE8_MEMBER(pia_out_a);
-	DECLARE_WRITE8_MEMBER(pia_out_b);
-	DECLARE_WRITE_LINE_MEMBER(pia_irqa_w);
-	DECLARE_WRITE_LINE_MEMBER(pia_irqb_w);
-
-	DECLARE_READ8_MEMBER(mcu_port_a_r);
-	DECLARE_READ8_MEMBER(mcu_port_b_r);
-	DECLARE_WRITE8_MEMBER(mcu_port_a_w);
-	DECLARE_WRITE8_MEMBER(mcu_port_b_w);
-	DECLARE_WRITE8_MEMBER(mcu_port_c_w);
-
 protected:
+	a2bus_mouse_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// overrides of standard a2bus slot functions
-	virtual uint8_t read_c0nx(address_space &space, uint8_t offset) override;
-	virtual void write_c0nx(address_space &space, uint8_t offset, uint8_t data) override;
-	virtual uint8_t read_cnxx(address_space &space, uint8_t offset) override;
+	virtual uint8_t read_c0nx(uint8_t offset) override;
+	virtual void write_c0nx(uint8_t offset, uint8_t data) override;
+	virtual uint8_t read_cnxx(uint8_t offset) override;
+
+	void pia_out_a(uint8_t data);
+	void pia_out_b(uint8_t data);
+	DECLARE_WRITE_LINE_MEMBER(pia_irqa_w);
+	DECLARE_WRITE_LINE_MEMBER(pia_irqb_w);
+
+	uint8_t mcu_port_a_r();
+	uint8_t mcu_port_b_r();
+	void mcu_port_a_w(uint8_t data);
+	void mcu_port_b_w(uint8_t data);
+	void mcu_port_c_w(uint8_t data);
 
 	required_device<pia6821_device> m_pia;
 	required_device<m68705p_device> m_mcu;
@@ -68,6 +71,6 @@ private:
 };
 
 // device type definition
-extern const device_type A2BUS_MOUSE;
+DECLARE_DEVICE_TYPE(A2BUS_MOUSE, a2bus_mouse_device)
 
 #endif // MAME_DEVICES_A2BUS_MOUSE_H

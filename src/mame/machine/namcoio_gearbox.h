@@ -5,20 +5,11 @@
     Namco 6-speed Gearbox device
 
 ***************************************************************************/
+#ifndef MAME_MACHINE_NAMCOIO_GEARBOX_H
+#define MAME_MACHINE_NAMCOIO_GEARBOX_H
 
 #pragma once
 
-#ifndef __NAMCOIO_GEARBOXDEV_H__
-#define __NAMCOIO_GEARBOXDEV_H__
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_NAMCOIO_GEARBOX_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, NAMCOIO_GEARBOX, 0)
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -47,14 +38,6 @@ protected:
 
 
 // device type definition
-extern const device_type NAMCOIO_GEARBOX;
+DECLARE_DEVICE_TYPE(NAMCOIO_GEARBOX, namcoio_gearbox_device)
 
-
-
-//**************************************************************************
-//  GLOBAL VARIABLES
-//**************************************************************************
-
-
-
-#endif
+#endif // MAME_MACHINE_NAMCOIO_GEARBOX_H

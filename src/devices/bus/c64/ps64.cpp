@@ -57,38 +57,17 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type C64_PS64 = device_creator<c64_ps64_cartridge_device>;
+DEFINE_DEVICE_TYPE(C64_PS64, c64_ps64_cartridge_device, "c64_ps64", "C64 PS-64")
 
 
 //-------------------------------------------------
-//  votrax_sc02_interface votrax_intf
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
-/*
-static struct votrax_sc02_interface votrax_intf =
+
+void c64_ps64_cartridge_device::device_add_mconfig(machine_config &config)
 {
-    DEVCB_NOOP
-};
-*/
-
-//-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( c64_ps64 )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( c64_ps64 )
-	//MCFG_SPEAKER_STANDARD_MONO("mono")
-	//MCFG_VOTRAX_SC02_ADD(SSI263_TAG, 2000000, votrax_intf)
-	//MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor c64_ps64_cartridge_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( c64_ps64 );
+	//SPEAKER(config, "speaker").front_center();
+	//VOTRAX_SC02(config, SSI263_TAG, 2000000).add_route(ALL_OUTPUTS, "mono", 1.00);
 }
 
 
@@ -102,7 +81,7 @@ machine_config_constructor c64_ps64_cartridge_device::device_mconfig_additions()
 //-------------------------------------------------
 
 c64_ps64_cartridge_device::c64_ps64_cartridge_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, C64_PS64, "C64 PS-64", tag, owner, clock, "c64_ps64", __FILE__),
+	device_t(mconfig, C64_PS64, tag, owner, clock),
 	device_c64_expansion_card_interface(mconfig, *this)
 {
 }
@@ -130,7 +109,7 @@ void c64_ps64_cartridge_device::device_reset()
 //  c64_cd_r - cartridge data read
 //-------------------------------------------------
 
-uint8_t c64_ps64_cartridge_device::c64_cd_r(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
+uint8_t c64_ps64_cartridge_device::c64_cd_r(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
 {
 	if (!roml)
 	{
@@ -149,7 +128,7 @@ uint8_t c64_ps64_cartridge_device::c64_cd_r(address_space &space, offs_t offset,
 //  c64_cd_w - cartridge data write
 //-------------------------------------------------
 
-void c64_ps64_cartridge_device::c64_cd_w(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
+void c64_ps64_cartridge_device::c64_cd_w(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
 {
 	if (!io1)
 	{

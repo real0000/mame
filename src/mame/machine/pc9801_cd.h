@@ -1,10 +1,10 @@
 // license:BSD-3-Clause
 // copyright-holders:smf
 
-#ifndef __PC9801_CD_H__
-#define __PC9801_CD_H__
+#ifndef MAME_MACHINE_PC9801_CD_H
+#define MAME_MACHINE_PC9801_CD_H
 
-#include "machine/atapicdr.h"
+#include "bus/ata/atapicdr.h"
 
 class pc9801_cd_device : public atapi_cdrom_device
 {
@@ -18,6 +18,6 @@ protected:
 };
 
 // device type definition
-extern const device_type PC9801_CD;
+DECLARE_DEVICE_TYPE(PC9801_CD, pc9801_cd_device)
 
-#endif
+#endif // MAME_MACHINE_PC9801_CD_H

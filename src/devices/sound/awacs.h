@@ -8,27 +8,10 @@
 
 ***************************************************************************/
 
+#ifndef MAME_SOUND_AWACS_H
+#define MAME_SOUND_AWACS_H
+
 #pragma once
-
-#ifndef __AWACS_H__
-#define __AWACS_H__
-
-
-
-
-//**************************************************************************
-//  CONSTANTS
-//**************************************************************************
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_AWACS_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, AWACS, _clock)
-
-#define MCFG_AWACS_REPLACE(_tag, _clock) \
-	MCFG_DEVICE_REPLACE(_tag, AWACS, _clock)
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -42,12 +25,10 @@ public:
 	// construction/destruction
 	awacs_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_READ8_MEMBER(read);
-	DECLARE_WRITE8_MEMBER(write);
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 
 	void set_dma_base(address_space &space, int offset0, int offset1);
-
-	sound_stream *m_stream;
 
 protected:
 	// device-level overrides
@@ -56,6 +37,8 @@ protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples) override;
+
+	sound_stream *m_stream;
 
 	// inline data
 	uint8_t m_regs[0x100];
@@ -71,7 +54,6 @@ protected:
 
 
 // device type definition
-extern const device_type AWACS;
+DECLARE_DEVICE_TYPE(AWACS, awacs_device)
 
-
-#endif /* __AWACS_H__ */
+#endif // MAME_SOUND_AWACS_H

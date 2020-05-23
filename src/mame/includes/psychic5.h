@@ -1,7 +1,11 @@
 // license:BSD-3-Clause
 // copyright-holders:Jarek Parchanski
+
 #include "machine/bankdev.h"
+#include "machine/timer.h"
 #include "video/jalblend.h"
+#include "emupal.h"
+#include "tilemap.h"
 
 class psychic5_state : public driver_device
 {
@@ -24,6 +28,10 @@ public:
 
 	{ }
 
+	void psychic5(machine_config &config);
+	void bombsa(machine_config &config);
+
+private:
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<gfxdecode_device> m_gfxdecode;
@@ -79,7 +87,7 @@ public:
 	virtual void video_start() override;
 	DECLARE_VIDEO_START(psychic5);
 	DECLARE_VIDEO_START(bombsa);
-	DECLARE_VIDEO_RESET(psychic5);
+	virtual void video_reset() override;
 
 	TIMER_DEVICE_CALLBACK_MEMBER(scanline);
 
@@ -89,5 +97,13 @@ public:
 	void change_bg_palette(int color, int lo_offs, int hi_offs);
 	void set_background_palette_intensity();
 	void draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void bombsa_main_map(address_map &map);
+	void bombsa_sound_map(address_map &map);
+	void bombsa_soundport_map(address_map &map);
+	void bombsa_vrambank_map(address_map &map);
+	void psychic5_main_map(address_map &map);
+	void psychic5_sound_map(address_map &map);
+	void psychic5_soundport_map(address_map &map);
+	void psychic5_vrambank_map(address_map &map);
 	void draw_background(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect); //only used by psychic5
 };

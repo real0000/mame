@@ -2,7 +2,7 @@
 // copyright-holders:Miodrag Milanovic
 /***************************************************************************
 
-    main.c
+    main.cpp
 
     Controls execution of the core ZEXALL system.
 
@@ -76,15 +76,22 @@ private:
 
 zexall_machine_manager* zexall_machine_manager::m_manager = nullptr;
 
-int emulator_info::start_frontend(emu_options &options, osd_interface &osd, int argc, char *argv[])
+int emulator_info::start_frontend(emu_options &options, osd_interface &osd, std::vector<std::string> &args)
 {
-	std::string error_string;
-	options.set_value(OSDOPTION_VIDEO, "none", OPTION_PRIORITY_MAXIMUM, error_string);
-	options.set_value(OSDOPTION_SOUND, "none", OPTION_PRIORITY_MAXIMUM, error_string);
-	//options.set_value(OPTION_DEBUG, true, OPTION_PRIORITY_MAXIMUM, error_string);
-	options.set_value(OPTION_THROTTLE, false, OPTION_PRIORITY_MAXIMUM, error_string);
+	options.set_value(OSDOPTION_VIDEO, "none", OPTION_PRIORITY_MAXIMUM);
+	options.set_value(OSDOPTION_SOUND, "none", OPTION_PRIORITY_MAXIMUM);
+	//options.set_value(OPTION_DEBUG, true, OPTION_PRIORITY_MAXIMUM);
+	options.set_value(OPTION_THROTTLE, false, OPTION_PRIORITY_MAXIMUM);
+
+	zexall_machine_manager::instance(options,osd)->start_http_server();
 	zexall_machine_manager::instance(options,osd)->execute();
 	return 0;
+}
+
+int emulator_info::start_frontend(emu_options &options, osd_interface &osd, int argc, char *argv[])
+{
+	std::vector<std::string> args(argv, argv + argc);
+	return start_frontend(options, osd, args);
 }
 
 const char * emulator_info::get_bare_build_version() { return nullptr; }
@@ -99,7 +106,7 @@ void emulator_info::periodic_check() { }
 
 bool emulator_info::frame_hook() { return false; }
 
-void emulator_info::layout_file_cb(util::xml::data_node &layout) { }
+void emulator_info::layout_file_cb(util::xml::data_node const &layout) { }
 
 const char * emulator_info::get_appname() { return nullptr; }
 

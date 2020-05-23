@@ -11,6 +11,9 @@
 #include "emu.h"
 #include "audio/pleiads.h"
 
+//#define VERBOSE 1
+#include "logmacro.h"
+
 #define VMIN    0
 #define VMAX    32767
 
@@ -18,17 +21,17 @@
 #define TONE1_CLOCK  8000
 
 
-const device_type PLEIADS = device_creator<pleiads_sound_device>;
+DEFINE_DEVICE_TYPE(PLEIADS_SOUND, pleiads_sound_device, "pleiads_sound", "Pleiads Custom Sound")
 
 pleiads_sound_device::pleiads_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, PLEIADS, "Pleiads Audio Custom", tag, owner, clock, "pleiads_sound", __FILE__),
-		device_sound_interface(mconfig, *this)
+	: pleiads_sound_device(mconfig, PLEIADS_SOUND, tag, owner, clock)
 {
 }
 
-pleiads_sound_device::pleiads_sound_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+pleiads_sound_device::pleiads_sound_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock),
 		device_sound_interface(mconfig, *this),
+		m_tms(*this, ":tms"),
 		m_channel(nullptr),
 		m_sound_latch_a(0),
 		m_sound_latch_b(0),
@@ -48,9 +51,9 @@ pleiads_sound_device::pleiads_sound_device(const machine_config &mconfig, device
 
 void pleiads_sound_device::device_start()
 {
-		/* The real values are _unknown_!
-		* I took the ones from Naughty Boy / Pop Flamer
-		*/
+	/* The real values are _unknown_!
+	* I took the ones from Naughty Boy / Pop Flamer
+	*/
 
 	/* charge 10u?? (C??) through 330K?? (R??) -> 3.3s */
 	m_pa5.charge_time = 3.3;
@@ -107,10 +110,10 @@ void pleiads_sound_device::device_start()
 	common_start();
 }
 
-const device_type NAUGHTYB = device_creator<naughtyb_sound_device>;
+DEFINE_DEVICE_TYPE(NAUGHTYB_SOUND, naughtyb_sound_device, "naughtyb_sound", "Naughty Boy Custom Sound")
 
 naughtyb_sound_device::naughtyb_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: pleiads_sound_device(mconfig, NAUGHTYB, "Naughty Boy Audio Custom", tag, owner, clock, "naughtyb_sound", __FILE__)
+	: pleiads_sound_device(mconfig, NAUGHTYB_SOUND, tag, owner, clock)
 {
 }
 
@@ -175,10 +178,10 @@ void naughtyb_sound_device::device_start()
 	common_start();
 }
 
-const device_type POPFLAME = device_creator<popflame_sound_device>;
+DEFINE_DEVICE_TYPE(POPFLAME_SOUND, popflame_sound_device, "popflame_sound", "Pop Flamer Custom Sound")
 
 popflame_sound_device::popflame_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: pleiads_sound_device(mconfig, POPFLAME, "Pop Flamer Audio Custom", tag, owner, clock, "popflame_sound", __FILE__)
+	: pleiads_sound_device(mconfig, POPFLAME_SOUND, tag, owner, clock)
 {
 }
 
@@ -570,18 +573,18 @@ inline int pleiads_sound_device::noise(int samplerate)
 	return sum / 2;
 }
 
-WRITE8_MEMBER( pleiads_sound_device::control_a_w )
+void pleiads_sound_device::control_a_w(uint8_t data)
 {
 	if (data == m_sound_latch_a)
 		return;
 
-	logerror("pleiads_sound_control_b_w $%02x\n", data);
+	LOG("pleiads_sound_control_a_w $%02x\n", data);
 
 	m_channel->update();
 	m_sound_latch_a = data;
 }
 
-WRITE8_MEMBER( pleiads_sound_device::control_b_w )
+void pleiads_sound_device::control_b_w(uint8_t data)
 {
 	/*
 	 * pitch selects one of 4 possible clock inputs
@@ -594,7 +597,7 @@ WRITE8_MEMBER( pleiads_sound_device::control_b_w )
 	if (data == m_sound_latch_b)
 		return;
 
-	logerror("pleiads_sound_control_b_w $%02x\n", data);
+	LOG("pleiads_sound_control_b_w $%02x\n", data);
 
 	if (pitch == 3)
 		pitch = 2;  /* 2 and 3 are the same */
@@ -606,12 +609,12 @@ WRITE8_MEMBER( pleiads_sound_device::control_b_w )
 }
 
 /* two bits (4 + 5) from the videoreg_w latch go here */
-WRITE8_MEMBER( pleiads_sound_device::control_c_w )
+void pleiads_sound_device::control_c_w(uint8_t data)
 {
 	if (data == m_sound_latch_c)
 		return;
 
-	logerror("pleiads_sound_control_c_w $%02x\n", data);
+	LOG("pleiads_sound_control_c_w $%02x\n", data);
 	m_channel->update();
 	m_sound_latch_c = data;
 }
@@ -621,7 +624,6 @@ void pleiads_sound_device::common_start()
 	int i, j;
 	uint32_t shiftreg;
 
-	m_tms = machine().device<tms36xx_device>("tms");
 	m_pc4.level = PC4_MIN;
 	m_poly18 = make_unique_clear<uint32_t[]>(1ul << (18-5));
 
@@ -685,7 +687,7 @@ void pleiads_sound_device::common_start()
 	save_item(NAME(m_noise.counter));
 	save_item(NAME(m_noise.polyoffs));
 	save_item(NAME(m_noise.freq));
-	save_pointer(NAME(m_poly18.get()), (1ul << (18-5)));
+	save_pointer(NAME(m_poly18), (1ul << (18-5)));
 }
 
 //-------------------------------------------------

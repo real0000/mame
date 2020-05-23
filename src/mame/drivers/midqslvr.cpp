@@ -2,24 +2,246 @@
 // copyright-holders:Angelo Salese
 /***************************************************************************
 
-    Midway Quicksilver skeleton driver
+Midway Quicksilver II/Graphite skeleton driver
 
-    TODO:
-    - offrthnd: illegal opcode tripped just after that PIIX4 is recognized
+Hardware configurations:
 
-    Main CPU : Intel Celeron 333/366MHz
-    Motherboard : Intel SE440BX-2
-    RAM : 64MB PC100-222-620 non-ecc
-    Sound: Integrated YMF740G
-    Networking: SMC EZ Card 10 / SMC1208T (probably 10ec:8029 1113:1208)
-    Graphics Chips : Quantum Obsidian 3DFX
-    Storage : Hard Drive
+Hydro Thunder:   Quicksilver II system and Diego I/O board
+Offroad Thunder: Quicksilver II system and Magicbus I/O board
+Arctic Thunder:  Graphite system and Substitute I/O board
 
-    Chipsets (440BX AGPset):
-    - 82371EB PCI-ISA bridge
-    - 82371EB Power Management Controller
-    - 82371AB/EB Universal Host Controller (USB UHCI)
-    - 82371AB/EB PCI Bus Master IDE Controller
+All of the games communicate with their I/O boards serially.
+
+Quicksilver II hardware:
+- Main CPU: Intel Celeron (Pentium II) 333/366MHz
+- Motherboard: Intel SE440BX-2
+- RAM: 64MB PC100-222-620 non-ecc
+- Sound: Integrated YMF740G
+- Networking: SMC EZ Card 10 / SMC1208T (probably 10ec:8029 1113:1208)
+- Video Card: Quantum Obsidian 3DFX Voodoo 2 (CPLD protected)
+- Storage: Hard Drive
+- OS: TNT Embedded Kernel
+
+Chipsets (440BX AGPset):
+- 82443BX Northbridge
+- 82371EB PIIX4 PCI-ISA Southbridge
+
+Note: This was once claimed to run on Windows 95 or 98 but has been proven (mostly) false. The TNT Kernel was a "DOS Extender"
+that allows core Windows NT functions to work on MS DOS. It's also possible it runs on a custom made OS as both games do not display
+anything DOS related.
+
+Graphite hardware:
+- Main CPU: Intel Pentium III 733MHz
+- Motherboard: BCM GT694VP
+- RAM: 128MB PC100/133
+- Sound: Integrated AC97 Controller on VT82C686A Southbridge
+    -or ES1373/CT5880 Audio Chip
+- Networking: SMC EZ Card 10 / SMC1208T (probably 10ec:8029 1113:1208)
+- Video Card: 3DFX Voodoo 3
+- Storage: Hard Drive (copy protected)
+- OS: Windows 2000 Professional
+
+Chipsets (VIA Pro133A):
+- VT82C694X Northbridge
+- VT82C686A Southbridge
+
+Note: Entirely different motherboard/chipset hardware (most likely needs its own driver). This game's storage device has a
+copy protection scheme that "locks" the storage device to the motherboard's serial number. If a drive doesn't match the
+motherboard's serial number, the game launcher will give an error.
+
+I/O boards:
+
+MIDWAY GAMES INC
+5770-15983-04
+DIEGO
+
+|--------------------------------------------------------------|
+|       JP13     JP14       JP15        J1         JP2         |
+|                                                              |
+|                                      JP1         JP5   JP6   |
+|                                                  JP4         |
+|                                                  JP3         |
+|                                                           U1 |
+| JP11                              U2   U3                    |
+|                                                              |
+|     U12                             JP12                     |
+|JP9                                                           |
+|      U5  U6               U10                             JP8|
+|                                  U8             S1           |
+|                           Y2                                 |
+|      U7        Q2                                   U4       |
+|                                                              |
+|      JP15                  J2           J3                   |
+|      P1        JP10                                 JP7      |
+|--------------------------------------------------------------|
+
+Notes:
+    J1: Video connector from/to video card
+    J2/J3: USB ports (not used)
+    JP1: Alternate video connector from/to video card
+    JP2: Video output signal to monitor
+    JP3: 3 pin jumper: Blue video level, *Open: high, 1-2: low, 2-3: high
+    JP4: 3 pin jumper: Green video level, *Open: high, 1-2: low, 2-3: high
+    JP5: 3 pin jumper: Red video level, *Open: high, 1-2: low, 2-3: high
+    JP6: 3 pin jumper: Video sync polarity, *Open: pos, 1-2: neg, 2-3: pos
+    JP7: 13 pin connector for switches and analog controls/potentiometers
+    JP8: 14 pin connector for coin, service, volume and test inputs
+    JP9: 20 pin ribbon cable connector to wheel driver board
+    JP10: 9 pin connector for coin meter
+    JP11: 2 pin connector for watchdog reset
+    JP12: connector for development use, not used
+    JP13-14: connectors, not used
+    JP15: Alternate serial port
+    JP16: Power connector
+    P1: DB9 serial port to computer
+    Q2: ULN2064B Darlington Transistor
+    S1: Dip Switches (8).
+         S1-3: *Off: Game Mode, On: Test Mode
+         S1-4: *Off: 25" Cabinet, On: 39" Cabinet
+         S1-8: Off: Watchdog Disabled, *On: Watchdog Enabled
+    U1: Texas Instruments LS85A Logic Gate
+    U2-3: EL244CS Amplifier
+    U4: LTC1098 8-bit Serial A/D converter
+    U5: PC16550DV UART Interface IC
+    U6: Motorola MC74HC273A Octal D Flip-Flop (LS273 based)
+    U7: DS14185WM RS-232 Interface IC
+    U8: CY7C63513-PVC 8-bit RISC Microcontroller @12MHz (6MHz OSC)
+    U10: Atmel 24C01A Serial EEPROM
+    U12: MAX707CSA Supervisory Circuit
+    Y2: Crystal/XTAL 6.000 MHz
+
+
+MIDWAY GAMES INC
+5770-16226-01
+MAGICBUS
+
+|--------------------------------------------------------------------------------------------|
+|  J2           JP21      JP22      JP12                        JP9       J1                 |
+|                                                    JP24                           JP6      |
+|         P1                                                            JP5     JP3 JP2 JP1  |
+|       JP23   U19                                                                           |
+|                       U22                                                         JP4      |
+|JP10                           Q4                                U2        U3        U1     |
+|                U17                                                                         |
+|     Y1   U18                                                                               |
+|                                                              U5                            |
+|                 U20                                                                        |
+|JP11   U21                                                                                  |
+|                                                                                            |
+|                                                          U6          S2        S1          |
+|                JP20                                                                        |
+|                                                                                            |
+|JP16      U12                      U16        U15                                           |
+|                                                                                            |
+|                                                                                      U11   |
+|      JP17         JP19           JP18              JP13             JP14           JP15    |
+|--------------------------------------------------------------------------------------------|
+
+Notes:
+    J1: Video connector from/to video card
+    J2: USB port (not used)
+    JP1: 3 pin jumper: Blue video level, *Open: high, 1-2: low, 2-3: high
+    JP2: 3 pin jumper: Green video level, *Open: high, 1-2: low, 2-3: high
+    JP3: 3 pin jumper: Red video level, *Open: high, 1-2: low, 2-3: high
+    JP4: 3 pin jumper: Video sync polarity, Open: pos, *1-2: neg, 2-3: pos
+    JP5: Alternate video connector from/to video card
+    JP6: Video output signal to monitor
+    JP9: Power connector
+    JP10: 20 pin ribbon cable connector to wheel driver board
+    JP11: 20 pin ribbon cable connector, not used
+    JP12-14: connectors, not used
+    JP15: 14 pin connector for analog controls/potentiometers
+    JP16: 15 pin connector for gameplay inputs
+    JP17: connector, not used
+    JP18: 14 pin connector for coin, service, volume and test inputs
+    JP19: connector, not used
+    JP20: connector for development use, not used
+    JP21: 2 pin connector for watchdog reset
+    JP22: 9 pin connector for coin meter
+    JP23: Alternate serial port
+    JP24: connector, not used
+    P1: DB9 serial port to computer
+    Q4: ULN2064B Darlington Transistor
+    S1: Dip Switches (8)
+         S1-7: *Off: UART, On: USB
+         S1-8: *Off: Watchdog Enabled, On: Watchdog Disabled
+    S2: Dip Switches (8), all set to "off"
+    U1: LS85A Logic Gate
+    U2-3: EL244CS Amplifier
+    U5: MAX707CSA Supervisory Circuit
+    U6: Motorola MC74HC273A Octal D Flip-Flop (LS273 based)
+    U11: ADC0834 Serial I/O Converter
+    U12-15: HC541 Octal Buffer
+    U17: Atmel 24C01A Serial EEPROM
+    U18: CY7C63513-PVC 8-bit RISC Microcontroller @12MHz (6MHz OSC)
+    U19: DS14185WM RS-232 Interface IC
+    U20: PC16550DV UART Interface IC
+    U21: Oscilator 3.6864 MHz
+    U22: HC04 Hex Inverter
+    Y1: Crystal/XTAL 6.000 MHz
+
+MIDWAY GAMES INC.
+SUBSTITUTE MAGICBUS
+5770-16367-02
+
+|--------------------------------------------------------------------------------------------|
+|  J2     P1  JP21    JP22       JP12                           JP9       J1                 |
+|       JP23                                         JP24                           JP6      |
+|        U21         U24          U22                                   JP5     JP3 JP2 JP1  |
+|                                                                                            |
+|                                                     U23                           JP4      |
+|JP10                                                                                        |
+|                U11   U7        U8                                                          |
+|                                                                                            |
+|                                                                                            |
+|                                 U6                                                         |
+|JP11           Y2    U20                                                                    |
+|                                                                                            |
+|          U25                                    U4                                         |
+|                                                                      S2        S1          |
+|JP16      U15   U16   U17    U19   U18    U5     U13    U12    U14                          |
+|                                                                                            |
+|                                                                                            |
+|                                                                                            |
+|      JP17         JP19           JP18              JP13             JP14           JP15    |
+|--------------------------------------------------------------------------------------------|
+
+Notes:
+    J1/JP5: Video connector from/to video card, not used
+    J2: USB port, not used
+    JP1-4: Video signal jumpers, not used
+    JP6: Video output signal to monitor, not used
+    JP9: Power connector
+    JP10: 20 pin ribbon cable connector to wheel driver board
+    JP11: 20 pin ribbon cable connector, not used
+    JP12-14: connectors, not used
+    JP15: 14 pin connector for analog controls/potentiometers
+    JP16: 15 pin connector, attack button
+    JP17: connector, not used
+    JP18: 14 pin connector for coin, service, volume and test inputs
+    JP19: 8 pin connector, start button
+    JP20: connector for development use, not used
+    JP21: 2 pin connector for watchdog reset
+    JP22: 9 pin connector for coin meter
+    JP23: Alternate serial port
+    JP24: connector, not used
+    P1: DB9 serial port to computer
+    S1: Dip Switches (8)
+    S1: Dip Switches (8)
+         S1-7: *Off: UART, On: USB
+         S1-8: *Off: Watchdog Enabled, On: Watchdog Disabled
+    S2: Dip Switches (8)
+    U4-5: MC74HC273A Octal D Flip-Flop (LS273 based)
+    U6: 74HC04D Hex inverter
+    U7: MAX707CSA Supervisory Circuit
+    U8: MAX765CSA Switching Voltage Regulator
+    U11: Atmel 24C01A Serial EEPROM
+    U12-19: HC541 Octal Buffer
+    U20: 87C552 8-bit Microcontroller (Intel MCS-51 based with a 10-bit A/D converter) @ 16MHz
+    U21: DS14185WM RS-232 Interface IC
+    U22-24: ULN2064B Darlington Transistor
+    U25: 74HC367D Hex Buffer/Line Driver
+    Y2: Crystal/XTAL 16.000 MHz
 
 ***************************************************************************/
 
@@ -40,6 +262,10 @@ public:
 	{
 	}
 
+	void midqslvr(machine_config &config);
+	void graphite(machine_config &config);
+
+private:
 	std::unique_ptr<uint32_t[]> m_bios_ram;
 	std::unique_ptr<uint32_t[]> m_bios_ext1_ram;
 	std::unique_ptr<uint32_t[]> m_bios_ext2_ram;
@@ -62,25 +288,34 @@ public:
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
 	void intel82439tx_init();
+	void midqslvr_io(address_map &map);
+	void midqslvr_map(address_map &map);
+
+	uint8_t mtxc_config_r(int function, int reg);
+	void mtxc_config_w(int function, int reg, uint8_t data);
+	uint32_t intel82439tx_pci_r(int function, int reg, uint32_t mem_mask);
+	void intel82439tx_pci_w(int function, int reg, uint32_t data, uint32_t mem_mask);
+	uint8_t piix4_config_r(int function, int reg);
+	void piix4_config_w(int function, int reg, uint8_t data);
+	uint32_t intel82371ab_pci_r(int function, int reg, uint32_t mem_mask);
+	void intel82371ab_pci_w(int function, int reg, uint32_t data, uint32_t mem_mask);
 };
 
 
 // Intel 82439TX System Controller (MTXC)
 
-static uint8_t mtxc_config_r(device_t *busdevice, device_t *device, int function, int reg)
+uint8_t midqslvr_state::mtxc_config_r(int function, int reg)
 {
-	midqslvr_state *state = busdevice->machine().driver_data<midqslvr_state>();
 //  osd_printf_debug("MTXC: read %d, %02X\n", function, reg);
 
 	if((reg & 0xfc) == 0 && function == 0) // return vendor ID
 		return (0x71008086 >> (reg & 3)*8) & 0xff;
 
-	return state->m_mtxc_config_reg[reg];
+	return m_mtxc_config_reg[reg];
 }
 
-static void mtxc_config_w(device_t *busdevice, device_t *device, int function, int reg, uint8_t data)
+void midqslvr_state::mtxc_config_w(int function, int reg, uint8_t data)
 {
-	midqslvr_state *state = busdevice->machine().driver_data<midqslvr_state>();
 	printf("MTXC: write %d, %02X, %02X\n",  function, reg, data);
 
 	/*
@@ -108,56 +343,56 @@ static void mtxc_config_w(device_t *busdevice, device_t *device, int function, i
 		case 0x59: // PAM0
 		{
 			if (data & 0x10)        // enable RAM access to region 0xf0000 - 0xfffff
-				state->membank("bios_bank")->set_base(state->m_bios_ram.get());
+				membank("bios_bank")->set_base(m_bios_ram.get());
 			else                    // disable RAM access (reads go to BIOS ROM)
-				state->membank("bios_bank")->set_base(state->memregion("bios")->base() + 0x70000);
+				membank("bios_bank")->set_base(memregion("bios")->base() + 0x70000);
 			break;
 		}
 		case 0x5a: // PAM1
 		{
 			if (data & 0x1)
-				state->membank("video_bank1")->set_base(state->m_isa_ram1.get());
+				membank("video_bank1")->set_base(m_isa_ram1.get());
 			else
-				state->membank("video_bank1")->set_base(state->memregion("video_bios")->base() + 0);
+				membank("video_bank1")->set_base(memregion("video_bios")->base() + 0);
 
 			if (data & 0x10)
-				state->membank("video_bank2")->set_base(state->m_isa_ram2.get());
+				membank("video_bank2")->set_base(m_isa_ram2.get());
 			else
-				state->membank("video_bank2")->set_base(state->memregion("video_bios")->base() + 0x4000);
+				membank("video_bank2")->set_base(memregion("video_bios")->base() + 0x4000);
 
 			break;
 		}
 		case 0x5e: // PAM5
 		{
 			if (data & 0x1)
-				state->membank("bios_ext1")->set_base(state->m_bios_ext1_ram.get());
+				membank("bios_ext1")->set_base(m_bios_ext1_ram.get());
 			else
-				state->membank("bios_ext1")->set_base(state->memregion("bios")->base() + 0x60000);
+				membank("bios_ext1")->set_base(memregion("bios")->base() + 0x60000);
 
 			if (data & 0x10)
-				state->membank("bios_ext2")->set_base(state->m_bios_ext2_ram.get());
+				membank("bios_ext2")->set_base(m_bios_ext2_ram.get());
 			else
-				state->membank("bios_ext2")->set_base(state->memregion("bios")->base() + 0x64000);
+				membank("bios_ext2")->set_base(memregion("bios")->base() + 0x64000);
 
 			break;
 		}
 		case 0x5f: // PAM6
 		{
 			if (data & 0x1)
-				state->membank("bios_ext3")->set_base(state->m_bios_ext3_ram.get());
+				membank("bios_ext3")->set_base(m_bios_ext3_ram.get());
 			else
-				state->membank("bios_ext3")->set_base(state->memregion("bios")->base() + 0x68000);
+				membank("bios_ext3")->set_base(memregion("bios")->base() + 0x68000);
 
 			if (data & 0x10)
-				state->membank("bios_ext4")->set_base(state->m_bios_ext4_ram.get());
+				membank("bios_ext4")->set_base(m_bios_ext4_ram.get());
 			else
-				state->membank("bios_ext4")->set_base(state->memregion("bios")->base() + 0x6c000);
+				membank("bios_ext4")->set_base(memregion("bios")->base() + 0x6c000);
 
 			break;
 		}
 	}
 
-	state->m_mtxc_config_reg[reg] = data;
+	m_mtxc_config_reg[reg] = data;
 }
 
 void midqslvr_state::intel82439tx_init()
@@ -170,55 +405,52 @@ void midqslvr_state::intel82439tx_init()
 	m_mtxc_config_reg[0x65] = 0x02;
 }
 
-static uint32_t intel82439tx_pci_r(device_t *busdevice, device_t *device, int function, int reg, uint32_t mem_mask)
+uint32_t midqslvr_state::intel82439tx_pci_r(int function, int reg, uint32_t mem_mask)
 {
 	uint32_t r = 0;
 	if (ACCESSING_BITS_24_31)
 	{
-		r |= mtxc_config_r(busdevice, device, function, reg + 3) << 24;
+		r |= mtxc_config_r(function, reg + 3) << 24;
 	}
 	if (ACCESSING_BITS_16_23)
 	{
-		r |= mtxc_config_r(busdevice, device, function, reg + 2) << 16;
+		r |= mtxc_config_r(function, reg + 2) << 16;
 	}
 	if (ACCESSING_BITS_8_15)
 	{
-		r |= mtxc_config_r(busdevice, device, function, reg + 1) << 8;
+		r |= mtxc_config_r(function, reg + 1) << 8;
 	}
 	if (ACCESSING_BITS_0_7)
 	{
-		r |= mtxc_config_r(busdevice, device, function, reg + 0) << 0;
+		r |= mtxc_config_r(function, reg + 0) << 0;
 	}
 	return r;
 }
 
-static void intel82439tx_pci_w(device_t *busdevice, device_t *device, int function, int reg, uint32_t data, uint32_t mem_mask)
+void midqslvr_state::intel82439tx_pci_w(int function, int reg, uint32_t data, uint32_t mem_mask)
 {
 	if (ACCESSING_BITS_24_31)
 	{
-		mtxc_config_w(busdevice, device, function, reg + 3, (data >> 24) & 0xff);
+		mtxc_config_w(function, reg + 3, (data >> 24) & 0xff);
 	}
 	if (ACCESSING_BITS_16_23)
 	{
-		mtxc_config_w(busdevice, device, function, reg + 2, (data >> 16) & 0xff);
+		mtxc_config_w(function, reg + 2, (data >> 16) & 0xff);
 	}
 	if (ACCESSING_BITS_8_15)
 	{
-		mtxc_config_w(busdevice, device, function, reg + 1, (data >> 8) & 0xff);
+		mtxc_config_w(function, reg + 1, (data >> 8) & 0xff);
 	}
 	if (ACCESSING_BITS_0_7)
 	{
-		mtxc_config_w(busdevice, device, function, reg + 0, (data >> 0) & 0xff);
+		mtxc_config_w(function, reg + 0, (data >> 0) & 0xff);
 	}
 }
 
 // Intel 82371AB PCI-to-ISA / IDE bridge (PIIX4)
 
-static uint8_t piix4_config_r(device_t *busdevice, device_t *device, int function, int reg)
+uint8_t midqslvr_state::piix4_config_r(int function, int reg)
 {
-	midqslvr_state *state = busdevice->machine().driver_data<midqslvr_state>();
-	address_space &space = state->m_maincpu->space( AS_PROGRAM );
-
 	function &= 3;
 
 	if((reg & 0xfc) == 0) // return vendor ID
@@ -238,60 +470,59 @@ static uint8_t piix4_config_r(device_t *busdevice, device_t *device, int functio
 		return (((class_code_val[function]) >> (reg & 3)*8) & 0xff);
 	}
 
-	printf("%08x PIIX4: read %d, %02X\n", space.device().safe_pc(), function, reg);
+	printf("%08x PIIX4: read %d, %02X\n", m_maincpu->pc(), function, reg);
 
-	return state->m_piix4_config_reg[function][reg];
+	return m_piix4_config_reg[function][reg];
 }
 
-static void piix4_config_w(device_t *busdevice, device_t *device, int function, int reg, uint8_t data)
+void midqslvr_state::piix4_config_w(int function, int reg, uint8_t data)
 {
-	midqslvr_state *state = busdevice->machine().driver_data<midqslvr_state>();
 	printf("PIIX4: write %d, %02X, %02X\n", function, reg, data);
 
 	function &= 3;
 
-	state->m_piix4_config_reg[function][reg] = data;
+	m_piix4_config_reg[function][reg] = data;
 }
 
-static uint32_t intel82371ab_pci_r(device_t *busdevice, device_t *device, int function, int reg, uint32_t mem_mask)
+uint32_t midqslvr_state::intel82371ab_pci_r(int function, int reg, uint32_t mem_mask)
 {
 	uint32_t r = 0;
 	if (ACCESSING_BITS_24_31)
 	{
-		r |= piix4_config_r(busdevice, device, function, reg + 3) << 24;
+		r |= piix4_config_r(function, reg + 3) << 24;
 	}
 	if (ACCESSING_BITS_16_23)
 	{
-		r |= piix4_config_r(busdevice, device, function, reg + 2) << 16;
+		r |= piix4_config_r(function, reg + 2) << 16;
 	}
 	if (ACCESSING_BITS_8_15)
 	{
-		r |= piix4_config_r(busdevice, device, function, reg + 1) << 8;
+		r |= piix4_config_r(function, reg + 1) << 8;
 	}
 	if (ACCESSING_BITS_0_7)
 	{
-		r |= piix4_config_r(busdevice, device, function, reg + 0) << 0;
+		r |= piix4_config_r(function, reg + 0) << 0;
 	}
 	return r;
 }
 
-static void intel82371ab_pci_w(device_t *busdevice, device_t *device, int function, int reg, uint32_t data, uint32_t mem_mask)
+void midqslvr_state::intel82371ab_pci_w(int function, int reg, uint32_t data, uint32_t mem_mask)
 {
 	if (ACCESSING_BITS_24_31)
 	{
-		piix4_config_w(busdevice, device, function, reg + 3, (data >> 24) & 0xff);
+		piix4_config_w(function, reg + 3, (data >> 24) & 0xff);
 	}
 	if (ACCESSING_BITS_16_23)
 	{
-		piix4_config_w(busdevice, device, function, reg + 2, (data >> 16) & 0xff);
+		piix4_config_w(function, reg + 2, (data >> 16) & 0xff);
 	}
 	if (ACCESSING_BITS_8_15)
 	{
-		piix4_config_w(busdevice, device, function, reg + 1, (data >> 8) & 0xff);
+		piix4_config_w(function, reg + 1, (data >> 8) & 0xff);
 	}
 	if (ACCESSING_BITS_0_7)
 	{
-		piix4_config_w(busdevice, device, function, reg + 0, (data >> 0) & 0xff);
+		piix4_config_w(function, reg + 0, (data >> 0) & 0xff);
 	}
 }
 
@@ -356,32 +587,34 @@ WRITE32_MEMBER(midqslvr_state::bios_ram_w)
 	}
 }
 
-static ADDRESS_MAP_START(midqslvr_map, AS_PROGRAM, 32, midqslvr_state)
-	AM_RANGE(0x00000000, 0x0009ffff) AM_RAM
-	AM_RANGE(0x000a0000, 0x000bffff) AM_DEVREADWRITE8("vga", vga_device, mem_r, mem_w, 0xffffffff)
-	AM_RANGE(0x000c0000, 0x000c3fff) AM_ROMBANK("video_bank1") AM_WRITE(isa_ram1_w)
-	AM_RANGE(0x000c4000, 0x000c7fff) AM_ROMBANK("video_bank2") AM_WRITE(isa_ram2_w)
-	AM_RANGE(0x000e0000, 0x000e3fff) AM_ROMBANK("bios_ext1") AM_WRITE(bios_ext1_ram_w)
-	AM_RANGE(0x000e4000, 0x000e7fff) AM_ROMBANK("bios_ext2") AM_WRITE(bios_ext2_ram_w)
-	AM_RANGE(0x000e8000, 0x000ebfff) AM_ROMBANK("bios_ext3") AM_WRITE(bios_ext3_ram_w)
-	AM_RANGE(0x000ec000, 0x000effff) AM_ROMBANK("bios_ext4") AM_WRITE(bios_ext4_ram_w)
-	AM_RANGE(0x000f0000, 0x000fffff) AM_ROMBANK("bios_bank") AM_WRITE(bios_ram_w)
-	AM_RANGE(0x00100000, 0x01ffffff) AM_RAM
-	AM_RANGE(0xfff80000, 0xffffffff) AM_ROM AM_REGION("bios", 0)    /* System BIOS */
-ADDRESS_MAP_END
+void midqslvr_state::midqslvr_map(address_map &map)
+{
+	map(0x00000000, 0x0009ffff).ram();
+	map(0x000a0000, 0x000bffff).rw("vga", FUNC(vga_device::mem_r), FUNC(vga_device::mem_w));
+	map(0x000c0000, 0x000c3fff).bankr("video_bank1").w(FUNC(midqslvr_state::isa_ram1_w));
+	map(0x000c4000, 0x000c7fff).bankr("video_bank2").w(FUNC(midqslvr_state::isa_ram2_w));
+	map(0x000e0000, 0x000e3fff).bankr("bios_ext1").w(FUNC(midqslvr_state::bios_ext1_ram_w));
+	map(0x000e4000, 0x000e7fff).bankr("bios_ext2").w(FUNC(midqslvr_state::bios_ext2_ram_w));
+	map(0x000e8000, 0x000ebfff).bankr("bios_ext3").w(FUNC(midqslvr_state::bios_ext3_ram_w));
+	map(0x000ec000, 0x000effff).bankr("bios_ext4").w(FUNC(midqslvr_state::bios_ext4_ram_w));
+	map(0x000f0000, 0x000fffff).bankr("bios_bank").w(FUNC(midqslvr_state::bios_ram_w));
+	map(0x00100000, 0x01ffffff).ram();
+	map(0xfff80000, 0xffffffff).rom().region("bios", 0);    /* System BIOS */
+}
 
-static ADDRESS_MAP_START(midqslvr_io, AS_IO, 32, midqslvr_state)
-	AM_IMPORT_FROM(pcat32_io_common)
-	AM_RANGE(0x00e8, 0x00ef) AM_NOP
+void midqslvr_state::midqslvr_io(address_map &map)
+{
+	pcat32_io_common(map);
+	map(0x00e8, 0x00ef).noprw();
 
-	AM_RANGE(0x01f0, 0x01f7) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs0, write_cs0, 0xffffffff)
-	AM_RANGE(0x03b0, 0x03bf) AM_DEVREADWRITE8("vga", vga_device, port_03b0_r, port_03b0_w, 0xffffffff)
-	AM_RANGE(0x03c0, 0x03cf) AM_DEVREADWRITE8("vga", vga_device, port_03c0_r, port_03c0_w, 0xffffffff)
-	AM_RANGE(0x03d0, 0x03df) AM_DEVREADWRITE8("vga", vga_device, port_03d0_r, port_03d0_w, 0xffffffff)
-	AM_RANGE(0x03f0, 0x03f7) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs1, write_cs1, 0xffffffff)
+	map(0x01f0, 0x01f7).rw("ide", FUNC(ide_controller_device::cs0_r), FUNC(ide_controller_device::cs0_w));
+	map(0x03b0, 0x03bf).rw("vga", FUNC(vga_device::port_03b0_r), FUNC(vga_device::port_03b0_w));
+	map(0x03c0, 0x03cf).rw("vga", FUNC(vga_device::port_03c0_r), FUNC(vga_device::port_03c0_w));
+	map(0x03d0, 0x03df).rw("vga", FUNC(vga_device::port_03d0_r), FUNC(vga_device::port_03d0_w));
+	map(0x03f0, 0x03f7).rw("ide", FUNC(ide_controller_device::cs1_r), FUNC(ide_controller_device::cs1_w));
 
-	AM_RANGE(0x0cf8, 0x0cff) AM_DEVREADWRITE("pcibus", pci_bus_legacy_device, read, write)
-ADDRESS_MAP_END
+	map(0x0cf8, 0x0cff).rw("pcibus", FUNC(pci_bus_legacy_device::read), FUNC(pci_bus_legacy_device::write));
+}
 
 void midqslvr_state::machine_start()
 {
@@ -407,84 +640,100 @@ void midqslvr_state::machine_reset()
 	membank("video_bank2")->set_base(memregion("video_bios")->base() + 0x4000);
 }
 
-static MACHINE_CONFIG_START( midqslvr, midqslvr_state )
-	MCFG_CPU_ADD("maincpu", PENTIUM, 333000000) // actually Celeron 333
-	MCFG_CPU_PROGRAM_MAP(midqslvr_map)
-	MCFG_CPU_IO_MAP(midqslvr_io)
-	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_1", pic8259_device, inta_cb)
+void midqslvr_state::midqslvr(machine_config &config)
+{
+	PENTIUM2(config, m_maincpu, 333000000); //Verified this Celeron to be Pentium II based.
+	m_maincpu->set_addrmap(AS_PROGRAM, &midqslvr_state::midqslvr_map);
+	m_maincpu->set_addrmap(AS_IO, &midqslvr_state::midqslvr_io);
+	m_maincpu->set_irq_acknowledge_callback("pic8259_1", FUNC(pic8259_device::inta_cb));
 
-	MCFG_FRAGMENT_ADD( pcat_common )
+	pcat_common(config);
 
-	MCFG_PCI_BUS_LEGACY_ADD("pcibus", 0)
-	MCFG_PCI_BUS_LEGACY_DEVICE( 0, nullptr, intel82439tx_pci_r, intel82439tx_pci_w)
-	MCFG_PCI_BUS_LEGACY_DEVICE(31, nullptr, intel82371ab_pci_r, intel82371ab_pci_w)
+	pci_bus_legacy_device &pcibus(PCI_BUS_LEGACY(config, "pcibus", 0, 0));
+	pcibus.set_device( 0, FUNC(midqslvr_state::intel82439tx_pci_r), FUNC(midqslvr_state::intel82439tx_pci_w));
+	pcibus.set_device(31, FUNC(midqslvr_state::intel82371ab_pci_r), FUNC(midqslvr_state::intel82371ab_pci_w));
 
-	MCFG_IDE_CONTROLLER_ADD("ide", ata_devices, "hdd", nullptr, true)
-	MCFG_ATA_INTERFACE_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir6_w))
+	ide_controller_device &ide(IDE_CONTROLLER(config, "ide").options(ata_devices, "hdd", nullptr, true));
+	ide.irq_handler().set("pic8259_2", FUNC(pic8259_device::ir6_w));
 
 	/* video hardware */
-	MCFG_FRAGMENT_ADD( pcvideo_vga )
-MACHINE_CONFIG_END
+	pcvideo_vga(config);
+}
 
+void midqslvr_state::graphite(machine_config &config) //Todo: The entire Pro133A chipset :).
+{
+	PENTIUM3(config, m_maincpu, 733000000); //Verified
+	m_maincpu->set_addrmap(AS_PROGRAM, &midqslvr_state::midqslvr_map);
+	m_maincpu->set_addrmap(AS_IO, &midqslvr_state::midqslvr_io);
+	m_maincpu->set_irq_acknowledge_callback("pic8259_1", FUNC(pic8259_device::inta_cb));
 
-ROM_START( offrthnd )
-	ROM_REGION32_LE(0x80000, "bios", 0)
-	ROM_LOAD( "lh28f004sct.u8b1", 0x000000, 0x080000, CRC(ab04a343) SHA1(ba77933400fe470f45ab187bc0d315922caadb12) )
+	pcat_common(config);
 
-	ROM_REGION( 0x8000, "video_bios", ROMREGION_ERASEFF ) // TODO: no VGA card is hooked up, to be removed
-//  ROM_LOAD16_BYTE( "trident_tgui9680_bios.bin", 0x0000, 0x4000, BAD_DUMP CRC(1eebde64) SHA1(67896a854d43a575037613b3506aea6dae5d6a19) )
-//  ROM_CONTINUE(                                 0x0001, 0x4000 )
+	pci_bus_legacy_device &pcibus(PCI_BUS_LEGACY(config, "pcibus", 0, 0));
+	pcibus.set_device( 0, FUNC(midqslvr_state::intel82439tx_pci_r), FUNC(midqslvr_state::intel82439tx_pci_w));
+	pcibus.set_device(31, FUNC(midqslvr_state::intel82371ab_pci_r), FUNC(midqslvr_state::intel82371ab_pci_w));
 
-	DISK_REGION( "ide:0:hdd:image" )
-	DISK_IMAGE( "offrthnd", 0, SHA1(d88f1c5b75361a1e310565a8a5a09c674a4a1a22) )
-ROM_END
+	ide_controller_device &ide(IDE_CONTROLLER(config, "ide").options(ata_devices, "hdd", nullptr, true));
+	ide.irq_handler().set("pic8259_2", FUNC(pic8259_device::ir6_w));
+
+	/* video hardware */
+	pcvideo_vga(config);
+}
+
 
 ROM_START( hydrthnd )
 	ROM_REGION32_LE(0x80000, "bios", 0)
 	ROM_LOAD( "lh28f004sct.u8b1", 0x000000, 0x080000, CRC(ab04a343) SHA1(ba77933400fe470f45ab187bc0d315922caadb12) )
 
-	ROM_REGION( 0x8000, "video_bios", ROMREGION_ERASEFF ) // TODO: no VGA card is hooked up, to be removed
-//  ROM_LOAD16_BYTE( "trident_tgui9680_bios.bin", 0x0000, 0x4000, BAD_DUMP CRC(1eebde64) SHA1(67896a854d43a575037613b3506aea6dae5d6a19) )
-//  ROM_CONTINUE(                                 0x0001, 0x4000 )
+	ROM_REGION( 0x2000, "iocpu", 0 )   /* Diego board CY7C63513 MCU code */
+	ROM_LOAD( "diego.u8", 0x0000, 0x2000, NO_DUMP ) // 8KB internal EPROM
 
 	DISK_REGION( "ide:0:hdd:image" )
 	DISK_IMAGE( "hydro", 0,  SHA1(d481d178782943c066b41764628a419cd55f676d) )
+ROM_END
+
+ROM_START( offrthnd )
+	ROM_REGION32_LE(0x80000, "bios", 0)
+	ROM_LOAD( "lh28f004sct.u8b1", 0x000000, 0x080000, CRC(ab04a343) SHA1(ba77933400fe470f45ab187bc0d315922caadb12) )
+
+	ROM_REGION( 0x2000, "iocpu", 0 )   /* Magicbus board CY7C63513 MCU code */
+	ROM_LOAD( "magicbus.u18", 0x0000, 0x2000, NO_DUMP ) // 8KB internal EPROM
+
+	DISK_REGION( "ide:0:hdd:image" )
+	DISK_IMAGE( "offrthnd", 0, SHA1(d88f1c5b75361a1e310565a8a5a09c674a4a1a22) )
 ROM_END
 
 ROM_START( arctthnd )
 	ROM_REGION32_LE(0x80000, "bios", ROMREGION_ERASEFF)
 	ROM_LOAD( "m29f002bt.u6", 0x040000, 0x040000, CRC(012c9290) SHA1(cdee6f19d5e5ea5bb1dd6a5ec397ac70b3452790) )
 
-	ROM_REGION( 0x8000, "video_bios", ROMREGION_ERASEFF ) // TODO: no VGA card is hooked up, to be removed
-//  ROM_LOAD16_BYTE( "trident_tgui9680_bios.bin", 0x0000, 0x4000, BAD_DUMP CRC(1eebde64) SHA1(67896a854d43a575037613b3506aea6dae5d6a19) )
-//  ROM_CONTINUE(                                 0x0001, 0x4000 )
+	ROM_REGION( 0x2000, "iocpu", 0 )   /* Substitute board 87C552 MCU code */
+	ROM_LOAD( "87c552.bin", 0x0000, 0x2000, NO_DUMP ) // 8KB internal EPROM
 
 	DISK_REGION( "ide:0:hdd:image" )
 	DISK_IMAGE( "arctthnd", 0,  SHA1(f4373e57c3f453ac09c735b5d8d99ff811416a23) )
 ROM_END
 
-// this also required a dongle to work
 ROM_START( ultarctc )
 	ROM_REGION32_LE(0x80000, "bios", ROMREGION_ERASEFF)
 	ROM_LOAD( "m29f002bt.u6", 0x040000, 0x040000, CRC(012c9290) SHA1(cdee6f19d5e5ea5bb1dd6a5ec397ac70b3452790) )
 
-	ROM_REGION( 0x8000, "video_bios", ROMREGION_ERASEFF ) // TODO: no VGA card is hooked up, to be removed
-//  ROM_LOAD16_BYTE( "trident_tgui9680_bios.bin", 0x0000, 0x4000, BAD_DUMP CRC(1eebde64) SHA1(67896a854d43a575037613b3506aea6dae5d6a19) )
-//  ROM_CONTINUE(                                 0x0001, 0x4000 )
+	ROM_REGION( 0x2000, "iocpu", 0 )   /* Substitute board 87C552 MCU code */
+	ROM_LOAD( "87c552.bin", 0x0000, 0x2000, NO_DUMP ) // 8KB internal EPROM
 
 	DISK_REGION( "ide:0:hdd:image" )
 	DISK_IMAGE( "uarctict", 0, SHA1(8557a1d7ae8dc41c879350cb1c228f4c27a0dd09) )
 ROM_END
 
-// this is an update CD, We don't know if it updates the HDD image we have, if the image we have is already an updated version, if it
-// requires a specific version we don't have, or even if it updates a regular Arctic Thunder to Ultimate.
+/* This is an update CD. This CD along with a dongle was released as a kit to update a normal Arctic Thunder to Ultimate.
+Ultimate Arctic Thunder requires a dongle to work. If the dongle isn't detected both during and after installation,
+the game will revert back to normal Arctic Thunder. */
 ROM_START( ultarctcup )
 	ROM_REGION32_LE(0x80000, "bios", ROMREGION_ERASEFF)
 	ROM_LOAD( "m29f002bt.u6", 0x040000, 0x040000, CRC(012c9290) SHA1(cdee6f19d5e5ea5bb1dd6a5ec397ac70b3452790) )
 
-	ROM_REGION( 0x8000, "video_bios", ROMREGION_ERASEFF ) // TODO: no VGA card is hooked up, to be removed
-//  ROM_LOAD16_BYTE( "trident_tgui9680_bios.bin", 0x0000, 0x4000, BAD_DUMP CRC(1eebde64) SHA1(67896a854d43a575037613b3506aea6dae5d6a19) )
-//  ROM_CONTINUE(                                 0x0001, 0x4000 )
+	ROM_REGION( 0x2000, "iocpu", 0 )   /* Substitute board 87C552 MCU code */
+	ROM_LOAD( "87c552.bin", 0x0000, 0x2000, NO_DUMP ) // 8KB internal EPROM
 
 	DISK_REGION( "ide:0:hdd:image" )
 	DISK_IMAGE( "uarctict", 0, SHA1(8557a1d7ae8dc41c879350cb1c228f4c27a0dd09) )
@@ -498,11 +747,11 @@ ROM_START( ultarctcup )
 ROM_END
 
 // there are almost certainly multiple versions of these; updates were offered on floppy disk.  The version numbers for the existing CHDs are unknown.
-GAME(1999, hydrthnd,    0,        midqslvr, at_keyboard, driver_device, 0, ROT0, "Midway Games", "Hydro Thunder", MACHINE_IS_SKELETON)
+GAME(1999, hydrthnd,    0,        midqslvr, at_keyboard, midqslvr_state, empty_init, ROT0, "Midway Games", "Hydro Thunder", MACHINE_IS_SKELETON)
 
-GAME(2000, offrthnd,    0,        midqslvr, at_keyboard, driver_device, 0, ROT0, "Midway Games", "Offroad Thunder", MACHINE_IS_SKELETON)
+GAME(2000, offrthnd,    0,        midqslvr, at_keyboard, midqslvr_state, empty_init, ROT0, "Midway Games", "Offroad Thunder", MACHINE_IS_SKELETON)
 
-GAME(2001, arctthnd,    0,        midqslvr, at_keyboard, driver_device, 0, ROT0, "Midway Games", "Arctic Thunder (v1.002)", MACHINE_IS_SKELETON)
+GAME(2001, arctthnd,    0,        graphite, at_keyboard, midqslvr_state, empty_init, ROT0, "Midway Games", "Arctic Thunder (v1.002)", MACHINE_IS_SKELETON)
 
-GAME(2001, ultarctc,    0,        midqslvr, at_keyboard, driver_device, 0, ROT0, "Midway Games", "Ultimate Arctic Thunder", MACHINE_IS_SKELETON)
-GAME(2004, ultarctcup,  ultarctc, midqslvr, at_keyboard, driver_device, 0, ROT0, "Midway Games", "Ultimate Arctic Thunder Update CD ver 1.950 (5/3/04)", MACHINE_IS_SKELETON)
+GAME(2001, ultarctc,    0,        graphite, at_keyboard, midqslvr_state, empty_init, ROT0, "Midway Games", "Ultimate Arctic Thunder", MACHINE_IS_SKELETON)
+GAME(2004, ultarctcup,  ultarctc, graphite, at_keyboard, midqslvr_state, empty_init, ROT0, "Midway Games", "Ultimate Arctic Thunder Update CD ver 1.950 (5/3/04)", MACHINE_IS_SKELETON)

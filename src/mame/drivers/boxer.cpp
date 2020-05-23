@@ -13,9 +13,10 @@
 #include "emu.h"
 #include "cpu/m6502/m6502.h"
 #include "machine/watchdog.h"
+#include "emupal.h"
 #include "screen.h"
 
-#define MASTER_CLOCK XTAL_12_096MHz
+#define MASTER_CLOCK XTAL(12'096'000)
 
 /*************************************
  *
@@ -32,15 +33,41 @@ public:
 		TIMER_PERIODIC
 	};
 
-	boxer_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	boxer_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_tile_ram(*this, "tile_ram"),
 		m_sprite_ram(*this, "sprite_ram"),
 		m_maincpu(*this, "maincpu"),
 		m_gfxdecode(*this, "gfxdecode"),
 		m_screen(*this, "screen"),
-		m_palette(*this, "palette"){ }
+		m_palette(*this, "palette"),
+		m_leds(*this, "led%u", 0U)
+	{ }
 
+	void boxer(machine_config &config);
+
+protected:
+	DECLARE_READ8_MEMBER(input_r);
+	DECLARE_READ8_MEMBER(misc_r);
+	DECLARE_WRITE8_MEMBER(bell_w);
+	DECLARE_WRITE8_MEMBER(sound_w);
+	DECLARE_WRITE8_MEMBER(pot_w);
+	DECLARE_WRITE8_MEMBER(irq_reset_w);
+	DECLARE_WRITE8_MEMBER(crowd_w);
+	DECLARE_WRITE8_MEMBER(led_w);
+	void boxer_palette(palette_device &palette) const;
+	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	TIMER_CALLBACK_MEMBER(pot_interrupt);
+	TIMER_CALLBACK_MEMBER(periodic_callback);
+	void draw(bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+	void boxer_map(address_map &map);
+
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
+
+private:
 	/* memory pointers */
 	required_shared_ptr<uint8_t> m_tile_ram;
 	required_shared_ptr<uint8_t> m_sprite_ram;
@@ -48,31 +75,15 @@ public:
 	/* misc */
 	uint8_t m_pot_state;
 	uint8_t m_pot_latch;
+	emu_timer *m_pot_interrupt;
+	emu_timer *m_periodic_timer;
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<screen_device> m_screen;
 	required_device<palette_device> m_palette;
-
-	DECLARE_READ8_MEMBER(boxer_input_r);
-	DECLARE_READ8_MEMBER(boxer_misc_r);
-	DECLARE_WRITE8_MEMBER(boxer_bell_w);
-	DECLARE_WRITE8_MEMBER(boxer_sound_w);
-	DECLARE_WRITE8_MEMBER(boxer_pot_w);
-	DECLARE_WRITE8_MEMBER(boxer_irq_reset_w);
-	DECLARE_WRITE8_MEMBER(boxer_crowd_w);
-	DECLARE_WRITE8_MEMBER(boxer_led_w);
-	virtual void machine_start() override;
-	virtual void machine_reset() override;
-	DECLARE_PALETTE_INIT(boxer);
-	uint32_t screen_update_boxer(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	TIMER_CALLBACK_MEMBER(pot_interrupt);
-	TIMER_CALLBACK_MEMBER(periodic_callback);
-	void draw_boxer( bitmap_ind16 &bitmap, const rectangle &cliprect );
-
-protected:
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
+	output_finder<2> m_leds;
 };
 
 /*************************************
@@ -92,7 +103,7 @@ void boxer_state::device_timer(emu_timer &timer, device_timer_id id, int param, 
 		periodic_callback(ptr, param);
 		break;
 	default:
-		assert_always(false, "Unknown id in boxer_state::device_timer");
+		throw emu_fatalerror("Unknown id in boxer_state::device_timer");
 	}
 }
 
@@ -130,7 +141,7 @@ TIMER_CALLBACK_MEMBER(boxer_state::periodic_callback)
 
 		for (i = 1; i < 256; i++)
 			if (mask[i] != 0)
-				timer_set(m_screen->time_until_pos(i), TIMER_POT_INTERRUPT, mask[i]);
+				m_pot_interrupt->adjust(m_screen->time_until_pos(i), mask[i]);
 
 		m_pot_state = 0;
 	}
@@ -140,7 +151,7 @@ TIMER_CALLBACK_MEMBER(boxer_state::periodic_callback)
 	if (scanline >= 262)
 		scanline = 0;
 
-	timer_set(m_screen->time_until_pos(scanline), TIMER_PERIODIC, scanline);
+	m_periodic_timer->adjust(m_screen->time_until_pos(scanline), scanline);
 }
 
 
@@ -150,7 +161,7 @@ TIMER_CALLBACK_MEMBER(boxer_state::periodic_callback)
  *
  *************************************/
 
-PALETTE_INIT_MEMBER(boxer_state, boxer)
+void boxer_state::boxer_palette(palette_device &palette) const
 {
 	palette.set_pen_color(0, rgb_t(0x00,0x00,0x00));
 	palette.set_pen_color(1, rgb_t(0xff,0xff,0xff));
@@ -159,7 +170,7 @@ PALETTE_INIT_MEMBER(boxer_state, boxer)
 	palette.set_pen_color(3, rgb_t(0x00,0x00,0x00));
 }
 
-void boxer_state::draw_boxer( bitmap_ind16 &bitmap, const rectangle &cliprect )
+void boxer_state::draw( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
 	int n;
 
@@ -206,7 +217,7 @@ void boxer_state::draw_boxer( bitmap_ind16 &bitmap, const rectangle &cliprect )
 }
 
 
-uint32_t boxer_state::screen_update_boxer(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t boxer_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	int i, j;
 
@@ -228,7 +239,7 @@ uint32_t boxer_state::screen_update_boxer(screen_device &screen, bitmap_ind16 &b
 		}
 	}
 
-	draw_boxer(bitmap, cliprect);
+	draw(bitmap, cliprect);
 	return 0;
 }
 
@@ -239,7 +250,7 @@ uint32_t boxer_state::screen_update_boxer(screen_device &screen, bitmap_ind16 &b
  *
  *************************************/
 
-READ8_MEMBER(boxer_state::boxer_input_r)
+READ8_MEMBER(boxer_state::input_r)
 {
 	uint8_t val = ioport("IN0")->read();
 
@@ -250,7 +261,7 @@ READ8_MEMBER(boxer_state::boxer_input_r)
 }
 
 
-READ8_MEMBER(boxer_state::boxer_misc_r)
+READ8_MEMBER(boxer_state::misc_r)
 {
 	uint8_t val = 0;
 
@@ -279,17 +290,17 @@ READ8_MEMBER(boxer_state::boxer_misc_r)
 
 
 
-WRITE8_MEMBER(boxer_state::boxer_bell_w)
+WRITE8_MEMBER(boxer_state::bell_w)
 {
 }
 
 
-WRITE8_MEMBER(boxer_state::boxer_sound_w)
+WRITE8_MEMBER(boxer_state::sound_w)
 {
 }
 
 
-WRITE8_MEMBER(boxer_state::boxer_pot_w)
+WRITE8_MEMBER(boxer_state::pot_w)
 {
 	/* BIT0 => HPOT1 */
 	/* BIT1 => VPOT1 */
@@ -304,13 +315,13 @@ WRITE8_MEMBER(boxer_state::boxer_pot_w)
 }
 
 
-WRITE8_MEMBER(boxer_state::boxer_irq_reset_w)
+WRITE8_MEMBER(boxer_state::irq_reset_w)
 {
 	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 
-WRITE8_MEMBER(boxer_state::boxer_crowd_w)
+WRITE8_MEMBER(boxer_state::crowd_w)
 {
 	/* BIT0 => ATTRACT */
 	/* BIT1 => CROWD-1 */
@@ -321,10 +332,10 @@ WRITE8_MEMBER(boxer_state::boxer_crowd_w)
 }
 
 
-WRITE8_MEMBER(boxer_state::boxer_led_w)
+WRITE8_MEMBER(boxer_state::led_w)
 {
-	output().set_led_value(1, !(data & 1));
-	output().set_led_value(0, !(data & 2));
+	m_leds[1] = BIT(~data, 0);
+	m_leds[0] = BIT(~data, 1);
 }
 
 
@@ -334,22 +345,23 @@ WRITE8_MEMBER(boxer_state::boxer_led_w)
  *
  *************************************/
 
-static ADDRESS_MAP_START( boxer_map, AS_PROGRAM, 8, boxer_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x3fff)
-	AM_RANGE(0x0000, 0x01ff) AM_RAM
-	AM_RANGE(0x0200, 0x03ff) AM_RAM AM_SHARE("tile_ram")
-	AM_RANGE(0x0800, 0x08ff) AM_READ(boxer_input_r)
-	AM_RANGE(0x1000, 0x17ff) AM_READ(boxer_misc_r)
-	AM_RANGE(0x1800, 0x1800) AM_WRITE(boxer_pot_w)
-	AM_RANGE(0x1900, 0x19ff) AM_WRITE(boxer_led_w)
-	AM_RANGE(0x1a00, 0x1aff) AM_WRITE(boxer_sound_w)
-	AM_RANGE(0x1b00, 0x1bff) AM_WRITE(boxer_crowd_w)
-	AM_RANGE(0x1c00, 0x1cff) AM_WRITE(boxer_irq_reset_w)
-	AM_RANGE(0x1d00, 0x1dff) AM_WRITE(boxer_bell_w)
-	AM_RANGE(0x1e00, 0x1eff) AM_WRITEONLY AM_SHARE("sprite_ram")
-	AM_RANGE(0x1f00, 0x1fff) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)
-	AM_RANGE(0x3000, 0x3fff) AM_ROM
-ADDRESS_MAP_END
+void boxer_state::boxer_map(address_map &map)
+{
+	map.global_mask(0x3fff);
+	map(0x0000, 0x01ff).ram();
+	map(0x0200, 0x03ff).ram().share("tile_ram");
+	map(0x0800, 0x08ff).r(FUNC(boxer_state::input_r));
+	map(0x1000, 0x17ff).r(FUNC(boxer_state::misc_r));
+	map(0x1800, 0x1800).w(FUNC(boxer_state::pot_w));
+	map(0x1900, 0x19ff).w(FUNC(boxer_state::led_w));
+	map(0x1a00, 0x1aff).w(FUNC(boxer_state::sound_w));
+	map(0x1b00, 0x1bff).w(FUNC(boxer_state::crowd_w));
+	map(0x1c00, 0x1cff).w(FUNC(boxer_state::irq_reset_w));
+	map(0x1d00, 0x1dff).w(FUNC(boxer_state::bell_w));
+	map(0x1e00, 0x1eff).writeonly().share("sprite_ram");
+	map(0x1f00, 0x1fff).w("watchdog", FUNC(watchdog_timer_device::reset_w));
+	map(0x3000, 0x3fff).rom();
+}
 
 
 /*************************************
@@ -447,7 +459,7 @@ static const gfx_layout sprite_layout =
 };
 
 
-static GFXDECODE_START( boxer )
+static GFXDECODE_START( gfx_boxer )
 	GFXDECODE_ENTRY( "gfx1", 0, sprite_layout, 0, 1 )
 	GFXDECODE_ENTRY( "gfx2", 0, sprite_layout, 0, 1 )
 	GFXDECODE_ENTRY( "gfx3", 0, tile_layout, 2, 1 )
@@ -462,41 +474,44 @@ GFXDECODE_END
 
 void boxer_state::machine_start()
 {
+	m_leds.resolve();
+	m_pot_interrupt = timer_alloc(TIMER_POT_INTERRUPT);
+	m_periodic_timer = timer_alloc(TIMER_PERIODIC);
+
 	save_item(NAME(m_pot_state));
 	save_item(NAME(m_pot_latch));
 }
 
 void boxer_state::machine_reset()
 {
-	timer_set(m_screen->time_until_pos(0), TIMER_PERIODIC);
+	m_periodic_timer->adjust(m_screen->time_until_pos(0));
 
 	m_pot_state = 0;
 	m_pot_latch = 0;
 }
 
 
-static MACHINE_CONFIG_START( boxer, boxer_state )
-
+void boxer_state::boxer(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6502, MASTER_CLOCK / 16)
-	MCFG_CPU_PROGRAM_MAP(boxer_map)
+	M6502(config, m_maincpu, MASTER_CLOCK / 16);
+	m_maincpu->set_addrmap(AS_PROGRAM, &boxer_state::boxer_map);
 
-	MCFG_WATCHDOG_ADD("watchdog")
+	WATCHDOG_TIMER(config, "watchdog");
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_SIZE(256, 262)
-	MCFG_SCREEN_VISIBLE_AREA(8, 247, 0, 239)
-	MCFG_SCREEN_UPDATE_DRIVER(boxer_state, screen_update_boxer)
-	MCFG_SCREEN_PALETTE("palette")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_refresh_hz(60);
+	m_screen->set_size(256, 262);
+	m_screen->set_visarea(8, 247, 0, 239);
+	m_screen->set_screen_update(FUNC(boxer_state::screen_update));
+	m_screen->set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", boxer)
-	MCFG_PALETTE_ADD("palette", 4)
-	MCFG_PALETTE_INIT_OWNER(boxer_state, boxer)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_boxer);
+	PALETTE(config, m_palette, FUNC(boxer_state::boxer_palette), 4);
 
 	/* sound hardware */
-MACHINE_CONFIG_END
+}
 
 
 /*************************************
@@ -540,4 +555,4 @@ ROM_END
  *
  *************************************/
 
-GAME( 1978, boxer, 0, boxer, boxer, driver_device, 0, 0, "Atari", "Boxer (prototype)", MACHINE_NO_SOUND )
+GAME( 1978, boxer, 0, boxer, boxer, boxer_state, empty_init, 0, "Atari", "Boxer (prototype)", MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )

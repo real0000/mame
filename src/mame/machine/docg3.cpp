@@ -32,15 +32,15 @@ static inline void ATTR_PRINTF(3,4) verboselog( device_t &device, int n_level, c
 ***************************************************************************/
 
 // device type definition
-const device_type DISKONCHIP_G3 = device_creator<diskonchip_g3_device>;
+DEFINE_DEVICE_TYPE(DISKONCHIP_G3, diskonchip_g3_device, "diskonchip_g3", "DiskOnChip G3")
 
 //-------------------------------------------------
 //  diskonchip_g3_device - constructor
 //-------------------------------------------------
 
 diskonchip_g3_device::diskonchip_g3_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, DISKONCHIP_G3, "DiskOnChip G3", tag, owner, clock, "diskonchip_g3", __FILE__),
-		device_nvram_interface(mconfig, *this)
+	: device_t(mconfig, DISKONCHIP_G3, tag, owner, clock)
+	, device_nvram_interface(mconfig, *this)
 {
 }
 
@@ -777,23 +777,20 @@ void diskonchip_g3_device::device_start()
 
 	memset(m_sec_2, 0, sizeof(m_sec_2));
 
-	m_data[0] = std::make_unique<uint8_t[]>(m_data_size[0]);
-	memset(m_data[0].get(), 0, sizeof(uint8_t) * m_data_size[0]);
-	m_data[1] = std::make_unique<uint8_t[]>(m_data_size[1]);
-	memset(m_data[1].get(), 0, sizeof(uint8_t) * m_data_size[1]);
-	m_data[2] = std::make_unique<uint8_t[]>(m_data_size[2]);
-	memset(m_data[2].get(), 0, sizeof(uint8_t) * m_data_size[2]);
+	m_data[0] = make_unique_clear<uint8_t[]>(m_data_size[0]);
+	m_data[1] = make_unique_clear<uint8_t[]>(m_data_size[1]);
+	m_data[2] = make_unique_clear<uint8_t[]>(m_data_size[2]);
 
 //  diskonchip_load( device, "diskonchip");
 
-	save_item( NAME(m_planes));
-	save_item( NAME(m_blocks));
-	save_item( NAME(m_pages));
-	save_item( NAME(m_user_data_size));
-	save_item( NAME(m_extra_area_size));
-	save_pointer( NAME(m_data[0].get()), m_data_size[0]);
-	save_pointer( NAME(m_data[1].get()), m_data_size[1]);
-	save_pointer( NAME(m_data[2].get()), m_data_size[2]);
+	save_item(NAME(m_planes));
+	save_item(NAME(m_blocks));
+	save_item(NAME(m_pages));
+	save_item(NAME(m_user_data_size));
+	save_item(NAME(m_extra_area_size));
+	save_pointer(NAME(m_data[0]), m_data_size[0]);
+	save_pointer(NAME(m_data[1]), m_data_size[1]);
+	save_pointer(NAME(m_data[2]), m_data_size[2]);
 }
 
 //-------------------------------------------------

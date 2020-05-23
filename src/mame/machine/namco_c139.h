@@ -5,20 +5,17 @@
     Namco C139 - Serial I/F Controller
 
 ***************************************************************************/
+#ifndef MAME_MACHINE_NAMCO_C139_H
+#define MAME_MACHINE_NAMCO_C139_H
 
 #pragma once
 
-#ifndef __NAMCO_C139DEV_H__
-#define __NAMCO_C139DEV_H__
 
 
 
 //**************************************************************************
 //  INTERFACE CONFIGURATION MACROS
 //**************************************************************************
-
-#define MCFG_NAMCO_C139_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, NAMCO_C139, 0)
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -34,19 +31,20 @@ public:
 	namco_c139_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// I/O operations
-	DECLARE_ADDRESS_MAP(regs_map, 16);
+	void regs_map(address_map &map);
 
 	DECLARE_READ16_MEMBER(status_r);
 
 	DECLARE_READ16_MEMBER(ram_r);
 	DECLARE_WRITE16_MEMBER(ram_w);
 
+	void data_map(address_map &map);
 protected:
 	// device-level overrides
 //  virtual void device_validity_check(validity_checker &valid) const;
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_DATA) const override;
+	virtual space_config_vector memory_space_config() const override;
 private:
 	const address_space_config m_space_config;
 	uint16_t* m_ram;
@@ -54,7 +52,7 @@ private:
 
 
 // device type definition
-extern const device_type NAMCO_C139;
+DECLARE_DEVICE_TYPE(NAMCO_C139, namco_c139_device)
 
 
 
@@ -64,4 +62,4 @@ extern const device_type NAMCO_C139;
 
 
 
-#endif
+#endif // MAME_MACHINE_NAMCO_C139_H

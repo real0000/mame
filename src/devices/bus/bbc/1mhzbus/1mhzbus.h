@@ -14,7 +14,7 @@
              0V   7   8  NIRQ
              0V   9  10  NPGFC
              0V  11  12  NPGFD
-             0V  13  14  RST
+             0V  13  14  NRST
              0V  15  16  Analog In
              0V  17  18  D0
              D1  19  20  D2
@@ -72,38 +72,11 @@
 
 **********************************************************************/
 
+#ifndef MAME_BUS_BBC_1MHZBUS_1MHZBUS_H
+#define MAME_BUS_BBC_1MHZBUS_1MHZBUS_H
+
 #pragma once
 
-#ifndef __BBC_1MHZBUS_SLOT__
-#define __BBC_1MHZBUS_SLOT__
-
-
-
-//**************************************************************************
-//  CONSTANTS
-//**************************************************************************
-
-#define BBC_1MHZBUS_SLOT_TAG      "1mhzbus"
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_BBC_1MHZBUS_SLOT_ADD(_tag, _slot_intf, _def_slot) \
-	MCFG_DEVICE_ADD(_tag, BBC_1MHZBUS_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
-
-#define MCFG_BBC_PASSTHRU_1MHZBUS_SLOT_ADD() \
-	MCFG_BBC_1MHZBUS_SLOT_ADD(BBC_1MHZBUS_SLOT_TAG, bbc_1mhzbus_devices, nullptr) \
-	MCFG_BBC_1MHZBUS_SLOT_IRQ_HANDLER(DEVWRITELINE(DEVICE_SELF_OWNER, bbc_1mhzbus_slot_device, irq_w)) \
-	MCFG_BBC_1MHZBUS_SLOT_NMI_HANDLER(DEVWRITELINE(DEVICE_SELF_OWNER, bbc_1mhzbus_slot_device, nmi_w))
-
-#define MCFG_BBC_1MHZBUS_SLOT_IRQ_HANDLER(_devcb) \
-	devcb = &bbc_1mhzbus_slot_device::set_irq_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_BBC_1MHZBUS_SLOT_NMI_HANDLER(_devcb) \
-	devcb = &bbc_1mhzbus_slot_device::set_nmi_handler(*device, DEVCB_##_devcb);
 
 
 //**************************************************************************
@@ -114,19 +87,30 @@
 
 class device_bbc_1mhzbus_interface;
 
-class bbc_1mhzbus_slot_device : public device_t, public device_slot_interface
+class bbc_1mhzbus_slot_device : public device_t, public device_single_card_slot_interface<device_bbc_1mhzbus_interface>
 {
 public:
 	// construction/destruction
-	bbc_1mhzbus_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual ~bbc_1mhzbus_slot_device();
+	template <typename T>
+	bbc_1mhzbus_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, uint32_t clock, T &&slot_options, const char *default_option)
+		: bbc_1mhzbus_slot_device(mconfig, tag, owner, clock)
+	{
+		option_reset();
+		slot_options(*this);
+		set_default_option(default_option);
+		set_fixed(false);
+	}
+
+	bbc_1mhzbus_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, uint32_t clock);
 
 	// callbacks
-	template<class _Object> static devcb_base &set_irq_handler(device_t &device, _Object object)
-		{ return downcast<bbc_1mhzbus_slot_device &>(device).m_irq_handler.set_callback(object); }
+	auto irq_handler() { return m_irq_handler.bind(); }
+	auto nmi_handler() { return m_nmi_handler.bind(); }
 
-	template<class _Object> static devcb_base &set_nmi_handler(device_t &device, _Object object)
-		{ return downcast<bbc_1mhzbus_slot_device &>(device).m_nmi_handler.set_callback(object); }
+	virtual uint8_t fred_r(offs_t offset);
+	virtual void fred_w(offs_t offset, uint8_t data);
+	virtual uint8_t jim_r(offs_t offset);
+	virtual void jim_w(offs_t offset, uint8_t data);
 
 	DECLARE_WRITE_LINE_MEMBER( irq_w ) { m_irq_handler(state); }
 	DECLARE_WRITE_LINE_MEMBER( nmi_w ) { m_nmi_handler(state); }
@@ -134,7 +118,6 @@ public:
 protected:
 	// device-level overrides
 	virtual void device_start() override;
-	virtual void device_reset() override;
 
 	device_bbc_1mhzbus_interface *m_card;
 
@@ -146,23 +129,26 @@ private:
 
 // ======================> device_bbc_1mhzbus_interface
 
-class device_bbc_1mhzbus_interface : public device_slot_card_interface
+class device_bbc_1mhzbus_interface : public device_interface
 {
 public:
-	// construction/destruction
-	device_bbc_1mhzbus_interface(const machine_config &mconfig, device_t &device);
-	virtual ~device_bbc_1mhzbus_interface();
+	virtual uint8_t fred_r(offs_t offset) { return 0xff; }
+	virtual void fred_w(offs_t offset, uint8_t data) { }
+	virtual uint8_t jim_r(offs_t offset) { return 0xff; }
+	virtual void jim_w(offs_t offset, uint8_t data) { }
 
 protected:
+	device_bbc_1mhzbus_interface(const machine_config &mconfig, device_t &device);
+
 	bbc_1mhzbus_slot_device *m_slot;
 };
 
 
 // device type definition
-extern const device_type BBC_1MHZBUS_SLOT;
+DECLARE_DEVICE_TYPE(BBC_1MHZBUS_SLOT, bbc_1mhzbus_slot_device)
 
-SLOT_INTERFACE_EXTERN( bbcb_1mhzbus_devices );
-SLOT_INTERFACE_EXTERN( bbcm_1mhzbus_devices );
+void bbc_1mhzbus_devices(device_slot_interface &device);
+void bbcm_1mhzbus_devices(device_slot_interface &device);
 
 
-#endif
+#endif // MAME_BUS_BBC_1MHZBUS_1MHZBUS_H

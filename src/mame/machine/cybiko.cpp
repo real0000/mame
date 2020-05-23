@@ -25,26 +25,26 @@
 // DRIVER INIT & EXIT //
 ////////////////////////
 
-DRIVER_INIT_MEMBER(cybiko_state,cybiko)
+void cybiko_state::init_cybiko()
 {
 	_logerror( 0, ("init_cybikov1\n"));
 	m_maincpu->space(AS_PROGRAM).install_ram(0x200000, 0x200000 + m_ram->size() - 1, m_ram->pointer());
 }
 
-DRIVER_INIT_MEMBER(cybiko_state,cybikoxt)
+void cybiko_state::init_cybikoxt()
 {
 	_logerror( 0, ("init_cybikoxt\n"));
 	m_maincpu->space(AS_PROGRAM).install_ram(0x400000, 0x400000 + m_ram->size() - 1, m_ram->pointer());
 }
 
-QUICKLOAD_LOAD_MEMBER( cybiko_state, cybiko )
+QUICKLOAD_LOAD_MEMBER(cybiko_state::quickload_cybiko)
 {
 	image.fread(m_flash1->get_ptr(), std::min(image.length(), uint64_t(0x84000)));
 
 	return image_init_result::PASS;
 }
 
-QUICKLOAD_LOAD_MEMBER( cybiko_state, cybikoxt )
+QUICKLOAD_LOAD_MEMBER(cybiko_state::quickload_cybikoxt)
 {
 	address_space &dest = m_maincpu->space(AS_PROGRAM);
 	uint32_t size = std::min(image.length(), uint64_t(RAMDISK_SIZE));
@@ -88,15 +88,15 @@ void cybiko_state::machine_reset()
 READ16_MEMBER( cybiko_state::cybiko_lcd_r )
 {
 	uint16_t data = 0;
-	if (ACCESSING_BITS_8_15) data |= (m_crtc->reg_idx_r(space, offset) << 8);
-	if (ACCESSING_BITS_0_7) data |= (m_crtc->reg_dat_r(space, offset) << 0);
+	if (ACCESSING_BITS_8_15) data |= (m_crtc->reg_idx_r() << 8);
+	if (ACCESSING_BITS_0_7) data |= (m_crtc->reg_dat_r() << 0);
 	return data;
 }
 
 WRITE16_MEMBER( cybiko_state::cybiko_lcd_w )
 {
-	if (ACCESSING_BITS_8_15) m_crtc->reg_idx_w(space, offset, (data >> 8) & 0xff);
-	if (ACCESSING_BITS_0_7) m_crtc->reg_dat_w(space, offset, (data >> 0) & 0xff);
+	if (ACCESSING_BITS_8_15) m_crtc->reg_idx_w((data >> 8) & 0xff);
+	if (ACCESSING_BITS_0_7) m_crtc->reg_dat_w((data >> 0) & 0xff);
 }
 
 int cybiko_state::cybiko_key_r( offs_t offset, int mem_mask)

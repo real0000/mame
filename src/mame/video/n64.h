@@ -167,6 +167,7 @@ public:
 	void        disassemble(char* buffer);
 
 	void        set_machine(running_machine& machine) { m_machine = &machine; }
+	void        set_n64_periphs(n64_periphs* periphs) { m_n64_periphs = periphs; }
 
 	// CPU-visible registers
 	void        set_start(uint32_t val) { m_start = val; }
@@ -335,6 +336,7 @@ private:
 	running_machine* m_machine;
 	uint32_t*         m_rdram;
 	uint32_t*         m_dmem;
+	n64_periphs* m_n64_periphs;
 
 	combine_modes_t m_combine;
 	bool            m_pending_mode_block;
@@ -372,14 +374,14 @@ private:
 	pin64_t m_capture;
 
 	static uint32_t s_special_9bit_clamptable[512];
-	static const z_decompress_entry_t m_z_dec_table[8];
+	static z_decompress_entry_t const m_z_dec_table[8];
 
-	static const uint8_t s_bayer_matrix[16];
-	static const uint8_t s_magic_matrix[16];
-	static const rdp_command_t m_commands[0x40];
-	static const int32_t s_rdp_command_length[];
-	static const char* s_image_format[];
-	static const char* s_image_size[];
+	static uint8_t const s_bayer_matrix[16];
+	static uint8_t const s_magic_matrix[16];
+	static rdp_command_t const m_commands[0x40];
+	static int32_t const s_rdp_command_length[];
+	static char const *const s_image_format[];
+	static char const *const s_image_size[];
 
 public:
 	bool ignore;

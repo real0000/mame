@@ -1,20 +1,9 @@
 // license:BSD-3-Clause
 // copyright-holders:Derrick Renaud, Couriersud
+#ifndef MAME_SOUND_FLT_VOL_H
+#define MAME_SOUND_FLT_VOL_H
+
 #pragma once
-
-#ifndef __FLT_VOL_H__
-#define __FLT_VOL_H__
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_FILTER_VOLUME_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, FILTER_VOLUME, _clock)
-#define MCFG_FILTER_VOLUME_REPLACE(_tag, _clock) \
-	MCFG_DEVICE_REPLACE(_tag, FILTER_VOLUME, _clock)
 
 
 //**************************************************************************
@@ -23,12 +12,10 @@
 
 // ======================> filter_volume_device
 
-class filter_volume_device : public device_t,
-								public device_sound_interface
+class filter_volume_device : public device_t, public device_sound_interface
 {
 public:
-	filter_volume_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~filter_volume_device() { }
+	filter_volume_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
 	void flt_volume_set_volume(float volume);
 
@@ -44,7 +31,6 @@ private:
 	int            m_gain;
 };
 
-extern const device_type FILTER_VOLUME;
+DECLARE_DEVICE_TYPE(FILTER_VOLUME, filter_volume_device)
 
-
-#endif /* __FLT_VOL_H__ */
+#endif // MAME_SOUND_FLT_VOL_H

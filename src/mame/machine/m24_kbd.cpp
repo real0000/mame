@@ -3,7 +3,7 @@
 #include "emu.h"
 #include "m24_kbd.h"
 
-const device_type M24_KEYBOARD = device_creator<m24_keyboard_device>;
+DEFINE_DEVICE_TYPE(M24_KEYBOARD, m24_keyboard_device, "m24_kbd", "Olivetti M24 Keyboard")
 
 ROM_START( m24_keyboard )
 	ROM_REGION(0x800, "mcu", 0)
@@ -16,22 +16,15 @@ const tiny_rom_entry *m24_keyboard_device::device_rom_region() const
 	return ROM_NAME( m24_keyboard );
 }
 
-static ADDRESS_MAP_START( m24_keyboard_io, AS_IO, 8, m24_keyboard_device )
-	AM_RANGE(MCS48_PORT_BUS, MCS48_PORT_BUS) AM_WRITE(bus_w)
-	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_READWRITE(p1_r, p1_w)
-	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_READ(p2_r) AM_WRITENOP
-	AM_RANGE(MCS48_PORT_T0, MCS48_PORT_T0) AM_READ(t0_r)
-	AM_RANGE(MCS48_PORT_T1, MCS48_PORT_T1) AM_READ(t1_r)
-ADDRESS_MAP_END
-
-static MACHINE_CONFIG_FRAGMENT( m24_keyboard )
-	MCFG_CPU_ADD("mcu", I8049, XTAL_6MHz)
-	MCFG_CPU_IO_MAP(m24_keyboard_io)
-MACHINE_CONFIG_END
-
-machine_config_constructor m24_keyboard_device::device_mconfig_additions() const
+void m24_keyboard_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( m24_keyboard );
+	I8049(config, m_mcu, XTAL(6'000'000));
+	m_mcu->bus_out_cb().set(FUNC(m24_keyboard_device::bus_w));
+	m_mcu->p1_in_cb().set(FUNC(m24_keyboard_device::p1_r));
+	m_mcu->p1_out_cb().set(FUNC(m24_keyboard_device::p1_w));
+	m_mcu->p2_in_cb().set(FUNC(m24_keyboard_device::p2_r));
+	m_mcu->t0_in_cb().set(FUNC(m24_keyboard_device::t0_r));
+	m_mcu->t1_in_cb().set(FUNC(m24_keyboard_device::t1_r));
 }
 
 INPUT_PORTS_START( m24_keyboard )
@@ -212,7 +205,7 @@ ioport_constructor m24_keyboard_device::device_input_ports() const
 }
 
 m24_keyboard_device::m24_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, M24_KEYBOARD, "Olivetti M24 Keyboard", tag, owner, clock, "m24_kbd", __FILE__)
+	: device_t(mconfig, M24_KEYBOARD, tag, owner, clock)
 	, m_rows(*this, "ROW.%u", 0)
 	, m_mousebtn(*this, "MOUSEBTN")
 	, m_out_data(*this)
@@ -238,12 +231,12 @@ void m24_keyboard_device::device_timer(emu_timer &timer, device_timer_id id, int
 	m_out_data(1);
 }
 
-READ8_MEMBER( m24_keyboard_device::p1_r )
+uint8_t m24_keyboard_device::p1_r()
 {
 	return m_p1 | (m_kbcdata ? 0 : 2);
 }
 
-WRITE8_MEMBER( m24_keyboard_device::p1_w )
+void m24_keyboard_device::p1_w(uint8_t data)
 {
 	// bit 3 and 4 are leds and bits 6 and 7 are jumpers to ground
 	m_p1 = data & ~0xc0;
@@ -254,22 +247,22 @@ WRITE8_MEMBER( m24_keyboard_device::p1_w )
 	m_out_data(!BIT(data, 2));
 }
 
-READ8_MEMBER( m24_keyboard_device::p2_r )
+uint8_t m24_keyboard_device::p2_r()
 {
 	return (m_keypress << 7) | m_mousebtn->read();
 }
 
-READ8_MEMBER( m24_keyboard_device::t0_r )
+READ_LINE_MEMBER( m24_keyboard_device::t0_r )
 {
 	return 0;
 }
 
-READ8_MEMBER( m24_keyboard_device::t1_r )
+READ_LINE_MEMBER( m24_keyboard_device::t1_r )
 {
 	return 0;
 }
 
-WRITE8_MEMBER( m24_keyboard_device::bus_w )
+void m24_keyboard_device::bus_w(uint8_t data)
 {
 	uint8_t col = m_rows[(data >> 3) & 0xf]->read();
 	m_keypress = (col & (1 << (data & 7))) ? 1 : 0;

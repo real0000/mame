@@ -14,7 +14,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type BBC_ANALOGUE_SLOT = device_creator<bbc_analogue_slot_device>;
+DEFINE_DEVICE_TYPE(BBC_ANALOGUE_SLOT, bbc_analogue_slot_device, "bbc_analogue_slot", "BBC Micro Analogue port")
 
 
 
@@ -26,19 +26,10 @@ const device_type BBC_ANALOGUE_SLOT = device_creator<bbc_analogue_slot_device>;
 //  device_bbc_analogue_interface - constructor
 //-------------------------------------------------
 
-device_bbc_analogue_interface::device_bbc_analogue_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig, device)
+device_bbc_analogue_interface::device_bbc_analogue_interface(const machine_config &mconfig, device_t &device) :
+	device_interface(device, "bbcanalogue")
 {
 	m_slot = dynamic_cast<bbc_analogue_slot_device *>(device.owner());
-}
-
-
-//-------------------------------------------------
-//  ~device_bbc_analogue_interface - destructor
-//-------------------------------------------------
-
-device_bbc_analogue_interface::~device_bbc_analogue_interface()
-{
 }
 
 
@@ -51,8 +42,10 @@ device_bbc_analogue_interface::~device_bbc_analogue_interface()
 //-------------------------------------------------
 
 bbc_analogue_slot_device::bbc_analogue_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-		device_t(mconfig, BBC_ANALOGUE_SLOT, "BBC Micro Analogue port", tag, owner, clock, "bbc_analogue_slot", __FILE__),
-		device_slot_interface(mconfig, *this)
+	device_t(mconfig, BBC_ANALOGUE_SLOT, tag, owner, clock),
+	device_single_card_slot_interface<device_bbc_analogue_interface>(mconfig, *this),
+	m_card(nullptr),
+	m_lpstb_handler(*this)
 {
 }
 
@@ -63,7 +56,10 @@ bbc_analogue_slot_device::bbc_analogue_slot_device(const machine_config &mconfig
 
 void bbc_analogue_slot_device::device_start()
 {
-	m_card = dynamic_cast<device_bbc_analogue_interface *>(get_card_device());
+	m_card = get_card_device();
+
+	// resolve callbacks
+	m_lpstb_handler.resolve_safe();
 }
 
 uint8_t bbc_analogue_slot_device::ch_r(int channel)
@@ -82,18 +78,6 @@ uint8_t bbc_analogue_slot_device::pb_r()
 		return 0x30;
 }
 
-//-------------------------------------------------
-//  device_reset - device-specific reset
-//-------------------------------------------------
-
-void bbc_analogue_slot_device::device_reset()
-{
-	if (get_card_device())
-	{
-		get_card_device()->reset();
-	}
-}
-
 
 //-------------------------------------------------
 //  SLOT_INTERFACE( bbc_analogue_devices )
@@ -102,11 +86,21 @@ void bbc_analogue_slot_device::device_reset()
 
 // slot devices
 #include "joystick.h"
+#include "bitstik.h"
+//#include "lightpen.h"
+//#include "micromike.h"
 //#include "quinkey.h"
+#include "cfa3000a.h"
 
 
-SLOT_INTERFACE_START( bbc_analogue_devices )
-	SLOT_INTERFACE("acornjoy",    BBC_ACORNJOY)         /* Acorn ANH01 Joysticks */
-	SLOT_INTERFACE("voltmace3b",  BBC_VOLTMACE3B)       /* Voltmace Delta 3b "Twin" Joysticks */
-//  SLOT_INTERFACE("quinkey",   BBC_QUINKEY)          /* Microwriter Quinkey */
-SLOT_INTERFACE_END
+void bbc_analogue_devices(device_slot_interface &device)
+{
+	device.option_add("acornjoy",    BBC_ACORNJOY);         /* Acorn ANH01 Joysticks */
+	device.option_add("bitstik1",    BBC_BITSTIK1);         /* Acorn ANF04 Bitstik */
+	device.option_add("bitstik2",    BBC_BITSTIK2);         /* Robocom Bitstik 2 */
+	//device.option_add("lightpen",    BBC_LIGHTPEN);         /* RH Electronics Lightpen */
+	//device.option_add("micromike",   BBC_MICROMIKE);        /* Micro Mike */
+	device.option_add("voltmace3b",  BBC_VOLTMACE3B);       /* Voltmace Delta 3b "Twin" Joysticks */
+	//device.option_add("quinkey",     BBC_QUINKEY);          /* Microwriter Quinkey */
+	device.option_add_internal("cfa3000a", CFA3000_ANLG);   /* Hanson CFA 3000 Analogue */
+}

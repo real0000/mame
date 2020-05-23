@@ -10,7 +10,7 @@
 
 #include "formats/ms0515_dsk.h"
 
-#include <assert.h>
+#include <cassert>
 
 ms0515_format::ms0515_format() : wd177x_format(formats)
 {
@@ -39,7 +39,7 @@ const ms0515_format::format ms0515_format::formats[] = {
 		10, 80, 1,
 		512, {},
 		1, {},
-		80, 30, 22
+		50, 22, 30
 	},
 	{
 		floppy_image::FF_525, floppy_image::DSDD, floppy_image::MFM,
@@ -47,7 +47,7 @@ const ms0515_format::format ms0515_format::formats[] = {
 		10, 80, 2,
 		512, {},
 		1, {},
-		80, 30, 22
+		50, 22, 30
 	},
 	{}
 };

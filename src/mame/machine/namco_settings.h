@@ -3,11 +3,10 @@
 
 // Namco system 12/23 settings device
 
-#ifndef __NAMCO_SETTINGS_H__
-#define __NAMCO_SETTINGS_H__
+#ifndef MAME_MACHINE_NAMCO_SETTINGS_H
+#define MAME_MACHINE_NAMCO_SETTINGS_H
 
-#define MCFG_NAMCO_SETTINGS_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, NAMCO_SETTINGS, 0)
+#pragma once
 
 class namco_settings_device : public device_t {
 public:
@@ -27,6 +26,6 @@ private:
 	uint8_t adr, value;
 };
 
-extern const device_type NAMCO_SETTINGS;
+DECLARE_DEVICE_TYPE(NAMCO_SETTINGS, namco_settings_device)
 
-#endif
+#endif // MAME_MACHINE_NAMCO_SETTINGS_H

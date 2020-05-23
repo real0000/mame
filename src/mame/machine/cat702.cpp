@@ -87,11 +87,14 @@
 #include "emu.h"
 #include "cat702.h"
 
-const device_type CAT702 = device_creator<cat702_device>;
+DEFINE_DEVICE_TYPE(CAT702, cat702_device, "cat702", "CAT702")
 
 cat702_device::cat702_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, CAT702, "CAT702", tag, owner, clock, "cat702", __FILE__),
+	device_t(mconfig, CAT702, tag, owner, clock),
 	m_region(*this, DEVICE_SELF),
+	m_select(1),
+	m_clock(1),
+	m_datain(1),
 	m_dataout_handler(*this)
 {
 }

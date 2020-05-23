@@ -15,7 +15,7 @@
 #include "video/t6a04.h"
 
 // devices
-const device_type T6A04 = device_creator<t6a04_device>;
+DEFINE_DEVICE_TYPE(T6A04, t6a04_device, "t6a04", "Toshiba T6A04 LCD Controller")
 
 //-------------------------------------------------
 //  device_validity_check - perform validity checks
@@ -37,10 +37,12 @@ void t6a04_device::device_validity_check(validity_checker &valid) const
 //-------------------------------------------------
 
 t6a04_device::t6a04_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, T6A04, "T6A04", tag, owner, clock, "t6a04", __FILE__), m_busy_flag(0), m_display_on(0), m_contrast(0), m_xpos(0), m_ypos(0), m_zpos(0), m_direction(0),
-	m_active_counter(0), m_word_len(0), m_opa1(0), m_opa2(0), m_output_reg(0),
-	m_height(0),
-	m_width(0)
+	device_t(mconfig, T6A04, tag, owner, clock),
+	m_busy_flag(0), m_display_on(0), m_contrast(0),
+	m_xpos(0), m_ypos(0), m_zpos(0),
+	m_direction(0), m_active_counter(0), m_word_len(0),
+	m_opa1(0), m_opa2(0), m_output_reg(0),
+	m_height(0), m_width(0)
 {
 }
 
@@ -121,7 +123,7 @@ uint32_t t6a04_device::screen_update(screen_device &screen, bitmap_ind16 &bitmap
 	return 0;
 }
 
-WRITE8_MEMBER(t6a04_device::control_write)
+void t6a04_device::control_write(uint8_t data)
 {
 	if ((data & 0xc0) == 0xc0) // SCE (set contrast)
 	{
@@ -166,7 +168,7 @@ WRITE8_MEMBER(t6a04_device::control_write)
 	}
 }
 
-READ8_MEMBER(t6a04_device::control_read)
+uint8_t t6a04_device::control_read()
 {
 	/*
 	    status read
@@ -182,7 +184,7 @@ READ8_MEMBER(t6a04_device::control_read)
 	return (m_busy_flag<<7) | (m_word_len<<6) | (m_display_on<<5) | (m_active_counter<<1) | (m_direction == 1 ? 1 : 0);
 }
 
-WRITE8_MEMBER(t6a04_device::data_write)
+void t6a04_device::data_write(uint8_t data)
 {
 	if (m_word_len)
 	{
@@ -209,7 +211,7 @@ WRITE8_MEMBER(t6a04_device::data_write)
 
 }
 
-READ8_MEMBER(t6a04_device::data_read)
+uint8_t t6a04_device::data_read()
 {
 	uint8_t data = m_output_reg;
 	uint8_t output_reg;
@@ -229,7 +231,7 @@ READ8_MEMBER(t6a04_device::data_read)
 		output_reg = ((((*ti82_video)<<8)+ti82_video[1])>>(10-pos_bit));
 	}
 
-	if (!machine().side_effect_disabled())
+	if (!machine().side_effects_disabled())
 	{
 		m_output_reg = output_reg;
 

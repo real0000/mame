@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:Olivier Galibert
 
-#include <glm/glm/geometric.hpp>
+#include <glm/geometric.hpp>
 
 #include "emu.h"
 #include "cpu/mb86233/mb86233.h"
@@ -451,28 +451,28 @@ int model1_state::quad_t::compare(const model1_state::quad_t* other) const
 
 void model1_state::sort_quads() const
 {
-	const int count = m_quadpt - m_quaddb;
+	const int count = m_quadpt - &m_quaddb[0];
 	for (int i = 0; i < count; i++)
 	{
-		m_quadind[i] = m_quaddb + i;
+		m_quadind[i] = &m_quaddb[i];
 	}
-	qsort(m_quadind, count, sizeof(model1_state::quad_t*), comp_quads);
+	qsort(&m_quadind[0], count, sizeof(model1_state::quad_t*), comp_quads);
 }
 
 void model1_state::unsort_quads() const
 {
-	const int count = m_quadpt - m_quaddb;
+	const int count = m_quadpt - &m_quaddb[0];
 	for (int i = 0; i < count; i++)
 	{
-		m_quadind[i] = m_quaddb + i;
+		m_quadind[i] = &m_quaddb[i];
 	}
 }
 
 
 void model1_state::draw_quads(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	view_t *view = m_view;
-	int count = m_quadpt - m_quaddb;
+	view_t *view = m_view.get();
+	int count = m_quadpt - &m_quaddb[0];
 
 	/* clip to the cliprect */
 	int save_x1 = view->x1;
@@ -598,7 +598,7 @@ void model1_state::fclip_push_quad_next(int level, quad_t& q, point_t *p1, point
 
 void model1_state::fclip_push_quad(int level, quad_t& q)
 {
-	view_t *view = m_view;
+	view_t *view = m_view.get();
 
 	if (level == 4)
 	{
@@ -755,7 +755,12 @@ float model1_state::compute_specular(glm::vec3& normal, glm::vec3& light, float 
 	return 0;
 }
 
-void model1_state::push_object(uint32_t tex_adr, uint32_t poly_adr, uint32_t size) {
+void model1_state::push_object(uint32_t tex_adr, uint32_t poly_adr, uint32_t size)
+{
+	// Protect against bad data when attacking a super destroyer
+	if(tex_adr == 0xffffffff || size >= 0x1000000)
+		return;
+
 #if 0
 	int dump;
 #endif
@@ -764,7 +769,7 @@ void model1_state::push_object(uint32_t tex_adr, uint32_t poly_adr, uint32_t siz
 	if (poly_adr & 0x800000)
 		poly_data = (float *)m_poly_ram.get();
 	else
-		poly_data = (float *)m_poly_rom;
+		poly_data = (float *)m_poly_rom.target();
 
 	poly_adr &= 0x7fffff;
 #if 0
@@ -1176,15 +1181,15 @@ int model1_state::skip_direct(int list_offset) const
 
 void model1_state::draw_objects(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	if (m_quadpt != m_quaddb)
+	if (m_quadpt != &m_quaddb[0])
 	{
 		LOG_TGP(("VIDEO: sort&draw\n"));
 		sort_quads();
 		draw_quads(bitmap, cliprect);
 	}
 
-	m_quadpt = m_quaddb;
-	m_pointpt = m_pointdb;
+	m_quadpt = &m_quaddb[0];
+	m_pointpt = &m_pointdb[0];
 }
 
 
@@ -1199,8 +1204,8 @@ int model1_state::draw_direct(bitmap_rgb32 &bitmap, const rectangle &cliprect, i
 	unsort_quads();
 	draw_quads(bitmap, cliprect);
 
-	m_quadpt = m_quaddb;
-	m_pointpt = m_pointdb;
+	m_quadpt = &m_quaddb[0];
+	m_pointpt = &m_pointdb[0];
 
 	return list_offset;
 }
@@ -1562,19 +1567,18 @@ void model1_state::tgp_scan()
 	m_render_done = 0;
 }
 
-VIDEO_START_MEMBER(model1_state, model1)
+void model1_state::video_start()
 {
-	m_view = auto_alloc_clear(machine(), <model1_state::view_t>());
+	m_view = std::make_unique<model1_state::view_t>();
 
-	m_poly_rom = (uint32_t *)memregion("user1")->base();
 	m_poly_ram = make_unique_clear<uint32_t[]>(0x400000);
 	m_tgp_ram = make_unique_clear<uint16_t[]>(0x100000-0x40000);
-	m_pointdb = auto_alloc_array_clear(machine(), model1_state::point_t, 1000000*2);
-	m_quaddb  = auto_alloc_array_clear(machine(), model1_state::quad_t, 1000000);
-	m_quadind = auto_alloc_array_clear(machine(), model1_state::quad_t *, 1000000);
+	m_pointdb = make_unique_clear<model1_state::point_t[]>(1000000*2);
+	m_quaddb  = make_unique_clear<model1_state::quad_t[]>(1000000);
+	m_quadind = make_unique_clear<model1_state::quad_t *[]>(1000000);
 
-	m_pointpt = m_pointdb;
-	m_quadpt = m_quaddb;
+	m_pointpt = &m_pointdb[0];
+	m_quadpt = &m_quaddb[0];
 	m_listctl[0] = m_listctl[1] = 0;
 
 	m_clipfn[0].m_isclipped = &model1_state::fclip_isc_bottom;
@@ -1586,14 +1590,14 @@ VIDEO_START_MEMBER(model1_state, model1)
 	m_clipfn[3].m_isclipped = &model1_state::fclip_isc_right;
 	m_clipfn[3].m_clip = &model1_state::fclip_clip_right;
 
-	save_pointer(NAME(m_tgp_ram.get()), 0x100000-0x40000);
-	save_pointer(NAME(m_poly_ram.get()), 0x40000);
+	save_pointer(NAME(m_tgp_ram), 0x100000-0x40000);
+	save_pointer(NAME(m_poly_ram), 0x40000);
 	save_item(NAME(m_listctl));
 }
 
 uint32_t model1_state::screen_update_model1(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	model1_state::view_t *view = m_view;
+	model1_state::view_t *view = m_view.get();
 #if 0
 	{
 		bool mod = false;
@@ -1650,7 +1654,7 @@ uint32_t model1_state::screen_update_model1(screen_device &screen, bitmap_rgb32 
 	view->ayys = sin(view->ayy);
 
 	screen.priority().fill(0);
-	bitmap.fill(m_palette->pen(0), cliprect);
+	bitmap.fill(m_palette->pen(0x400), cliprect);
 
 	m_tiles->draw(screen, bitmap, cliprect, 6, 0, 0);
 	m_tiles->draw(screen, bitmap, cliprect, 4, 0, 0);
@@ -1667,7 +1671,7 @@ uint32_t model1_state::screen_update_model1(screen_device &screen, bitmap_rgb32 
 	return 0;
 }
 
-void model1_state::screen_eof_model1(screen_device &screen, bool state)
+WRITE_LINE_MEMBER(model1_state::screen_vblank_model1)
 {
 	// on rising edge
 	if (state)

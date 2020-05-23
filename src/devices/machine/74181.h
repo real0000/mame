@@ -8,19 +8,11 @@
 
 ***************************************************************************/
 
+#ifndef MAME_MACHINE_74181_H
+#define MAME_MACHINE_74181_H
+
 #pragma once
 
-#ifndef __74181_H__
-#define __74181_H__
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_TTL74181_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, TTL74181, 0)
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -32,7 +24,7 @@ class ttl74181_device : public device_t
 {
 public:
 	// construction/destruction
-	ttl74181_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	ttl74181_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
 	// inputs
 	void input_a_w(uint8_t data);
@@ -73,7 +65,6 @@ private:
 
 
 // device type definition
-extern const device_type TTL74181;
+DECLARE_DEVICE_TYPE(TTL74181, ttl74181_device)
 
-
-#endif  /* __74181_H__ */
+#endif // MAME_MACHINE_74181_H

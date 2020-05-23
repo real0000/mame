@@ -8,18 +8,10 @@
 
 ***************************************************************************/
 
+#ifndef MAME_MACHINE_6883SAM_H
+#define MAME_MACHINE_6883SAM_H
+
 #pragma once
-
-#ifndef __6883SAM__
-#define __6883SAM__
-
-
-#define MCFG_SAM6883_ADD(_tag, _clock, _cputag, _cpuspace) \
-	MCFG_DEVICE_ADD(_tag, SAM6883, _clock) \
-	sam6883_device::configure_cpu(*device, _cputag, _cpuspace);
-
-#define MCFG_SAM6883_RES_CALLBACK(_read) \
-	devcb = &sam6883_device::set_res_rd_callback(*device, DEVCB_##_read);
 
 
 //**************************************************************************
@@ -27,10 +19,10 @@
 //**************************************************************************
 
 // base class so that GIME emulation can use some functionality
-class sam6883_friend_device
+class sam6883_friend_device_interface : public device_interface
 {
 public:
-	sam6883_friend_device() { m_cpu = nullptr; m_sam_state = 0x0000; }
+	sam6883_friend_device_interface(const machine_config &mconfig, device_t &device, int divider);
 
 protected:
 	// SAM state constants
@@ -52,12 +44,15 @@ protected:
 	static const uint16_t SAM_STATE_V0 = 0x0001;
 
 	// incidentals
-	cpu_device *            m_cpu;
+	required_device<cpu_device> m_cpu;
 
 	// device state
-	uint16_t                  m_sam_state;
+	uint16_t m_sam_state;
 
-	ATTR_FORCE_INLINE uint16_t display_offset(void)
+	// base clock divider (/4 for MC6883, /8 for GIME)
+	int m_divider;
+
+	ATTR_FORCE_INLINE uint16_t display_offset()
 	{
 		return ((m_sam_state & (SAM_STATE_F0|SAM_STATE_F1|SAM_STATE_F2|SAM_STATE_F3|SAM_STATE_F4|SAM_STATE_F5|SAM_STATE_F6)) / SAM_STATE_F0) << 9;
 	}
@@ -80,29 +75,27 @@ protected:
 		return xorval;
 	}
 
-	void update_cpu_clock(void);
+	void update_cpu_clock();
 };
 
-class sam6883_device : public device_t, public sam6883_friend_device
+class sam6883_device : public device_t, public device_memory_interface, public sam6883_friend_device_interface
 {
 public:
-	sam6883_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-
-	template<class _Object> static devcb_base &set_res_rd_callback(device_t &device, _Object object) { return downcast<sam6883_device &>(device).m_read_res.set_callback(object); }
-
-	static void configure_cpu(device_t &device, const char *tag, address_spacenum space)
+	template <typename T>
+	sam6883_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock, T &&cpu_tag)
+		: sam6883_device(mconfig, tag, owner, clock)
 	{
-		sam6883_device &dev = downcast<sam6883_device &>(device);
-		dev.m_cpu_tag = tag;
-		dev.m_cpu_space_ref = space;
+		m_cpu.set_tag(std::forward<T>(cpu_tag));
 	}
 
-	// called to configure banks
-	void configure_bank(int bank, uint8_t *memory, uint32_t memory_size, bool is_read_only);
-	void configure_bank(int bank, read8_delegate rhandler, write8_delegate whandler);
+	sam6883_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+	// CPU read/write handlers
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 
 	// typically called by VDG
-	ATTR_FORCE_INLINE DECLARE_READ8_MEMBER( display_read )
+	ATTR_FORCE_INLINE uint8_t display_read(offs_t offset)
 	{
 		if (offset == (offs_t) ~0)
 		{
@@ -121,14 +114,10 @@ public:
 			if (bit3_carry)
 				counter_carry_bit3();
 		}
-		return m_read_res((m_counter & m_counter_mask) | m_counter_or);
+		return m_ram_space->read_byte(m_counter & m_counter_mask);
 	}
 
 	DECLARE_WRITE_LINE_MEMBER( hs_w );
-
-	// typically called by machine
-	address_space *mpu_address_space(void) const { return m_cpu_space; }
-	void set_bank_offset(int bank, offs_t offset);
 
 protected:
 	// device-level overrides
@@ -136,71 +125,38 @@ protected:
 	virtual void device_reset() override;
 	virtual void device_post_load() override;
 
+	// device_memory_interface overrides
+	virtual space_config_vector memory_space_config() const override;
+
 private:
-	// represents an external memory bank - memory or IO that the SAM
-	// points to with the S2/S1/S0 output
-	struct sam_bank
-	{
-		uint8_t *             m_memory;
-		uint32_t              m_memory_size;
-		offs_t              m_memory_offset;
-		bool                m_memory_read_only;
-		read8_delegate      m_rhandler;
-		write8_delegate     m_whandler;
-	};
+	// memory space configuratino
+	address_space_config        m_ram_config;
+	address_space_config        m_rom0_config;
+	address_space_config        m_rom1_config;
+	address_space_config        m_rom2_config;
+	address_space_config        m_io0_config;
+	address_space_config        m_io1_config;
+	address_space_config        m_io2_config;
+	address_space_config        m_boot_config;
 
-	// represents one of the memory "spaces" (e.g. - $8000-$9FFF) that
-	// can ultimately point to a bank
-	template<uint16_t _addrstart, uint16_t _addrend>
-	class sam_space
-	{
-	public:
-		sam_space(sam6883_device &owner);
-		void point(const sam_bank *bank, uint16_t offset, uint32_t length = ~0);
-
-	private:
-		sam6883_device &    m_owner;
-		memory_bank *       m_read_bank;
-		memory_bank *       m_write_bank;
-		uint32_t              m_length;
-
-		address_space &cpu_space() const;
-		void point_specific_bank(const sam_bank *bank, uint32_t offset, uint32_t mask, memory_bank *&memory_bank, uint32_t addrstart, uint32_t addrend, bool is_write);
-	};
-
-	const char *        m_cpu_tag;
-	address_spacenum    m_cpu_space_ref;
-
-	// incidentals
-	address_space *             m_cpu_space;
-	devcb_read8                m_read_res;
-	sam_bank                    m_banks[8];
-	sam_space<0x0000, 0x7FFF>   m_space_0000;
-	sam_space<0x8000, 0x9FFF>   m_space_8000;
-	sam_space<0xA000, 0xBFFF>   m_space_A000;
-	sam_space<0xC000, 0xFEFF>   m_space_C000;
-	sam_space<0xFF00, 0xFF1F>   m_space_FF00;
-	sam_space<0xFF20, 0xFF3F>   m_space_FF20;
-	sam_space<0xFF40, 0xFF5F>   m_space_FF40;
-	sam_space<0xFF60, 0xFFBF>   m_space_FF60;
-	sam_space<0xFFE0, 0xFFFF>   m_space_FFE0;
-	uint16_t                      m_counter_mask;
-	uint16_t                      m_counter_or;
+	// memory spaces
+	using memory_cache_8be = memory_access_cache<0, 0, ENDIANNESS_BIG>;
+	memory_cache_8be *          m_ram_space;
+	memory_cache_8be *          m_rom_space[3];
+	address_space *             m_io_space[3];
+	memory_cache_8be *          m_boot_space;
+	uint16_t                    m_counter_mask;
 
 	// SAM state
-	uint16_t                      m_counter;
-	uint8_t                       m_counter_xdiv;
-	uint8_t                       m_counter_ydiv;
-
-	// dummy scratch memory
-	uint8_t                       m_dummy[0x8000];
+	uint16_t                    m_counter;
+	uint8_t                     m_counter_xdiv;
+	uint8_t                     m_counter_ydiv;
 
 	// typically called by CPU
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	void internal_write(offs_t offset, uint8_t data);
 
 	// called when there is a carry out of bit 3 on the counter
-	ATTR_FORCE_INLINE void counter_carry_bit3(void)
+	ATTR_FORCE_INLINE void counter_carry_bit3()
 	{
 		uint8_t x_division;
 		switch((m_sam_state & (SAM_STATE_V2|SAM_STATE_V1|SAM_STATE_V0)) / SAM_STATE_V0)
@@ -228,7 +184,7 @@ private:
 	}
 
 	// called when there is a carry out of bit 4 on the counter
-	ATTR_FORCE_INLINE void counter_carry_bit4(void)
+	ATTR_FORCE_INLINE void counter_carry_bit4()
 	{
 		uint8_t y_division;
 		switch((m_sam_state & (SAM_STATE_V2|SAM_STATE_V1|SAM_STATE_V0)) / SAM_STATE_V0)
@@ -254,12 +210,11 @@ private:
 	}
 
 	// other members
-	void configure_bank(int bank, uint8_t *memory, uint32_t memory_size, bool is_read_only, read8_delegate rhandler, write8_delegate whandler);
-	void horizontal_sync(void);
-	void update_state(void);
-	void update_memory(void);
+	void horizontal_sync();
+	void update_state();
+	void update_memory();
 };
 
-extern const device_type SAM6883;
+DECLARE_DEVICE_TYPE(SAM6883, sam6883_device)
 
-#endif /* __6883SAM__ */
+#endif // MAME_MACHINE_6883SAM_H

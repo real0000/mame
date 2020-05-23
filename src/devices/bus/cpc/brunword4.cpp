@@ -14,7 +14,7 @@
 #include "emu.h"
 #include "brunword4.h"
 
-const device_type CPC_BRUNWORD_MK4 = device_creator<cpc_brunword4_device>;
+DEFINE_DEVICE_TYPE(CPC_BRUNWORD_MK4, cpc_brunword4_device, "cpc_brunword4", "Brunword Elite MK4")
 
 
 ROM_START( cpc_brunword4 )
@@ -64,18 +64,17 @@ const tiny_rom_entry *cpc_brunword4_device::device_rom_region() const
 }
 
 cpc_brunword4_device::cpc_brunword4_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, CPC_BRUNWORD_MK4, "Brunword Elite MK4", tag, owner, clock, "cpc_brunword4", __FILE__),
-	device_cpc_expansion_card_interface(mconfig, *this), m_slot(nullptr), m_rombank_active(false), m_bank_sel(0)
+	device_t(mconfig, CPC_BRUNWORD_MK4, tag, owner, clock),
+	device_cpc_expansion_card_interface(mconfig, *this),
+	m_slot(nullptr), m_rombank_active(false), m_bank_sel(0)
 {
 }
 
 void cpc_brunword4_device::device_start()
 {
-	device_t* cpu = machine().device("maincpu");
-	address_space& space = cpu->memory().space(AS_IO);
 	m_slot = dynamic_cast<cpc_expansion_slot_device *>(owner());
-
-	space.install_write_handler(0xdf00,0xdfff,write8_delegate(FUNC(cpc_brunword4_device::rombank_w),this));
+	address_space &space = m_slot->cpu().space(AS_IO);
+	space.install_write_handler(0xdf00,0xdfff, write8_delegate(*this, FUNC(cpc_brunword4_device::rombank_w)));
 }
 
 void cpc_brunword4_device::device_reset()

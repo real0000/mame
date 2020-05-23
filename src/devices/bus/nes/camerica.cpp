@@ -41,24 +41,24 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type NES_BF9093 = device_creator<nes_bf9093_device>;
-const device_type NES_BF9096 = device_creator<nes_bf9096_device>;
-const device_type NES_GOLDEN5 = device_creator<nes_golden5_device>;
+DEFINE_DEVICE_TYPE(NES_BF9093,  nes_bf9093_device,  "nes_bf9093",  "NES Cart Camerica BF9093 PCB")
+DEFINE_DEVICE_TYPE(NES_BF9096,  nes_bf9096_device,  "nes_bf9096",  "NES Cart Camerica BF9096 PCB")
+DEFINE_DEVICE_TYPE(NES_GOLDEN5, nes_golden5_device, "nes_golden5", "NES Cart Camerica Golden 5 PCB")
 
 
 nes_bf9093_device::nes_bf9093_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_BF9093, "NES Cart Camerica BF9093 PCB", tag, owner, clock, "nes_bf9093", __FILE__)
+	: nes_nrom_device(mconfig, NES_BF9093, tag, owner, clock)
 {
 }
 
 nes_bf9096_device::nes_bf9096_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_BF9096, "NES Cart Camerica BF9096 PCB", tag, owner, clock, "nes_bf9096", __FILE__), m_bank_base(0), m_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_BF9096, tag, owner, clock), m_bank_base(0), m_latch(0)
+{
 }
 
 nes_golden5_device::nes_golden5_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_GOLDEN5, "NES Cart Camerica Golden 5 PCB", tag, owner, clock, "nes_golden5", __FILE__), m_bank_base(0), m_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_GOLDEN5, tag, owner, clock), m_bank_base(0), m_latch(0)
+{
 }
 
 
@@ -136,7 +136,7 @@ void nes_golden5_device::pcb_reset()
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_bf9093_device::write_h)
+void nes_bf9093_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("bf9093 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -174,7 +174,7 @@ WRITE8_MEMBER(nes_bf9093_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_bf9096_device::write_h)
+void nes_bf9096_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("bf9096 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -203,7 +203,7 @@ WRITE8_MEMBER(nes_bf9096_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_golden5_device::write_h)
+void nes_golden5_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("golden5 write_h, offset: %04x, data: %02x\n", offset, data));
 

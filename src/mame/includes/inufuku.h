@@ -5,6 +5,8 @@
 
 #include "video/vsystem_spr.h"
 #include "machine/gen_latch.h"
+#include "emupal.h"
+#include "tilemap.h"
 
 class inufuku_state : public driver_device
 {
@@ -23,6 +25,12 @@ public:
 		m_spr(*this, "vsystem_spr"),
 		m_soundlatch(*this, "soundlatch") { }
 
+	void inufuku(machine_config &config);
+	void _3on3dunk(machine_config &config);
+
+	DECLARE_READ_LINE_MEMBER(soundflag_r);
+
+private:
 	/* memory pointers */
 	required_shared_ptr<uint16_t> m_bg_videoram;
 	required_shared_ptr<uint16_t> m_bg_rasterram;
@@ -43,9 +51,6 @@ public:
 	std::unique_ptr<uint16_t[]>     m_spriteram1_old;
 	uint32_t  inufuku_tile_callback( uint32_t code );
 
-	/* misc */
-	uint16_t    m_pending_command;
-
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
@@ -54,8 +59,6 @@ public:
 	required_device<vsystem_spr_device> m_spr;
 	required_device<generic_latch_8_device> m_soundlatch;
 
-	DECLARE_WRITE16_MEMBER(inufuku_soundcommand_w);
-	DECLARE_WRITE8_MEMBER(pending_command_clear_w);
 	DECLARE_WRITE8_MEMBER(inufuku_soundrombank_w);
 	DECLARE_WRITE16_MEMBER(inufuku_palettereg_w);
 	DECLARE_WRITE16_MEMBER(inufuku_scrollreg_w);
@@ -63,14 +66,16 @@ public:
 	DECLARE_WRITE16_MEMBER(inufuku_bg_videoram_w);
 	DECLARE_READ16_MEMBER(inufuku_tx_videoram_r);
 	DECLARE_WRITE16_MEMBER(inufuku_tx_videoram_w);
-	DECLARE_CUSTOM_INPUT_MEMBER(soundflag_r);
 	TILE_GET_INFO_MEMBER(get_inufuku_bg_tile_info);
 	TILE_GET_INFO_MEMBER(get_inufuku_tx_tile_info);
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
 	virtual void video_start() override;
 	uint32_t screen_update_inufuku(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void screen_eof_inufuku(screen_device &screen, bool state);
+	DECLARE_WRITE_LINE_MEMBER(screen_vblank_inufuku);
+	void inufuku_map(address_map &map);
+	void inufuku_sound_io_map(address_map &map);
+	void inufuku_sound_map(address_map &map);
 };
 
 #endif // MAME_INCLUDES_INUFUKU_H

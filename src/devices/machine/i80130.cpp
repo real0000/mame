@@ -16,18 +16,20 @@
 //**************************************************************************
 
 // device type definition
-const device_type I80130 = device_creator<i80130_device>;
+DEFINE_DEVICE_TYPE(I80130, i80130_device, "i80130", "I80130")
 
 
-DEVICE_ADDRESS_MAP_START( rom_map, 16, i80130_device )
-	//AM_RANGE(0x0000, 0x3fff) AM_ROM AM_REGION("rom", 0)
-ADDRESS_MAP_END
+void i80130_device::rom_map(address_map &map)
+{
+	//map(0x0000, 0x3fff).rom().region("rom", 0);
+}
 
-DEVICE_ADDRESS_MAP_START( io_map, 16, i80130_device )
-	AM_RANGE(0x00, 0x0f) AM_READWRITE(io_r, io_w)
-	//AM_RANGE(0x00, 0x01) AM_MIRROR(0x2) AM_DEVREADWRITE8("pic", pic8259_device, read, write, 0x00ff)
-	//AM_RANGE(0x08, 0x0f) AM_DEVREADWRITE8("pit", pit8254_device, read, write, 0x00ff)
-ADDRESS_MAP_END
+void i80130_device::io_map(address_map &map)
+{
+	map(0x00, 0x0f).rw(FUNC(i80130_device::io_r), FUNC(i80130_device::io_w));
+	//map(0x00, 0x01).mirror(0x2).rw("pic", FUNC(pic8259_device::read), FUNC(pic8259_device::write)).umask16(0x00ff);
+	//map(0x08, 0x0f).rw("pit", FUNC(pit8254_device::read), FUNC(pit8254_device::write)).umask16(0x00ff);
+}
 
 READ16_MEMBER( i80130_device::io_r )
 {
@@ -38,14 +40,14 @@ READ16_MEMBER( i80130_device::io_r )
 	case 0: case 1:
 		if (ACCESSING_BITS_0_7)
 		{
-			data = m_pic->read(space, offset & 0x01);
+			data = m_pic->read(offset & 0x01);
 		}
 		break;
 
 	case 4: case 5: case 6: case 7:
 		if (ACCESSING_BITS_0_7)
 		{
-			data = m_pit->read(space, offset & 0x03);
+			data = m_pit->read(offset & 0x03);
 		}
 		break;
 	}
@@ -60,14 +62,14 @@ WRITE16_MEMBER( i80130_device::io_w )
 	case 0: case 1:
 		if (ACCESSING_BITS_0_7)
 		{
-			m_pic->write(space, offset & 0x01, data & 0xff);
+			m_pic->write(offset & 0x01, data & 0xff);
 		}
 		break;
 
 	case 4: case 5: case 6: case 7:
 		if (ACCESSING_BITS_0_7)
 		{
-			m_pit->write(space, offset & 0x03, data & 0xff);
+			m_pit->write(offset & 0x03, data & 0xff);
 		}
 		break;
 	}
@@ -78,47 +80,38 @@ WRITE16_MEMBER( i80130_device::io_w )
 //  ROM( i80130 )
 //-------------------------------------------------
 
-ROM_START( i80130 )
-	ROM_REGION16_LE( 0x4000, "rom", 0 )
-	ROM_LOAD( "80130", 0x0000, 0x4000, NO_DUMP )
-ROM_END
+//ROM_START( i80130 )
+//	ROM_REGION16_LE( 0x4000, "rom", 0 )
+//	ROM_LOAD( "80130", 0x0000, 0x4000, NO_DUMP )
+//ROM_END
 
 
 //-------------------------------------------------
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *i80130_device::device_rom_region() const
+//const tiny_rom_entry *i80130_device::device_rom_region() const
+//{
+//	return ROM_NAME( i80130 );
+//}
+
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void i80130_device::device_add_mconfig(machine_config &config)
 {
-	return ROM_NAME( i80130 );
-}
+	PIC8259(config, m_pic, 0);
+	m_pic->out_int_callback().set(FUNC(i80130_device::irq_w));
 
-
-//-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( i80130 )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( i80130 )
-	MCFG_PIC8259_ADD("pic", DEVWRITELINE(DEVICE_SELF, i80130_device, irq_w), VCC, NOOP)
-
-	MCFG_DEVICE_ADD("pit", PIT8254, 0)
-	MCFG_PIT8253_CLK0(0)
-	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(i80130_device, systick_w))
-	MCFG_PIT8253_CLK1(0)
-	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(i80130_device, delay_w))
-	MCFG_PIT8253_CLK2(0)
-	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(i80130_device, baud_w))
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor i80130_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( i80130 );
+	PIT8254(config, m_pit, 0);
+	m_pit->set_clk<0>(0);
+	m_pit->out_handler<0>().set(FUNC(i80130_device::systick_w));
+	m_pit->set_clk<1>(0);
+	m_pit->out_handler<1>().set(FUNC(i80130_device::delay_w));
+	m_pit->set_clk<2>(0);
+	m_pit->out_handler<2>().set(FUNC(i80130_device::baud_w));
 }
 
 
@@ -132,7 +125,7 @@ machine_config_constructor i80130_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 i80130_device::i80130_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, I80130, "I80130", tag, owner, clock, "i80130", __FILE__),
+	: device_t(mconfig, I80130, tag, owner, clock),
 		m_pic(*this, "pic"),
 		m_pit(*this, "pit"),
 		m_write_irq(*this),

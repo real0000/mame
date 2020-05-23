@@ -6,11 +6,11 @@
 
 **********************************************************************/
 
+#ifndef MAME_BUS_INTV_CTRL_ECS_CTRL_H
+#define MAME_BUS_INTV_CTRL_ECS_CTRL_H
 
 #pragma once
 
-#ifndef __INTVECS_CONTROL_PORT__
-#define __INTVECS_CONTROL_PORT__
 
 #include "bus/intv_ctrl/ctrl.h"
 #include "bus/intv_ctrl/handctrl.h"
@@ -23,61 +23,58 @@ class intvecs_control_port_device;
 
 // ======================> device_intvecs_control_port_interface
 
-class device_intvecs_control_port_interface : public device_slot_card_interface
+class device_intvecs_control_port_interface : public device_interface
 {
 public:
 	// construction/destruction
-	device_intvecs_control_port_interface(const machine_config &mconfig, device_t &device);
 	virtual ~device_intvecs_control_port_interface();
 
-	virtual uint8_t read_portA() { return 0xff; };
-	virtual uint8_t read_portB() { return 0xff; };
-	virtual void write_portA(uint8_t data) { };
+	virtual uint8_t read_portA() { return 0xff; }
+	virtual uint8_t read_portB() { return 0xff; }
+	virtual void write_portA(uint8_t data) { }
 
 protected:
+	device_intvecs_control_port_interface(const machine_config &mconfig, device_t &device);
+
 	intvecs_control_port_device *m_port;
 };
 
 // ======================> intvecs_control_port_device
 
-class intvecs_control_port_device : public device_t,
-								public device_slot_interface
+class intvecs_control_port_device : public device_t, public device_single_card_slot_interface<device_intvecs_control_port_interface>
 {
 public:
 	// construction/destruction
-	intvecs_control_port_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	template <typename T>
+	intvecs_control_port_device(machine_config const &mconfig, char const *tag, device_t *owner, T &&opts, char const *dflt)
+		: intvecs_control_port_device(mconfig, tag, owner, 0)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
+
+	intvecs_control_port_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 	virtual ~intvecs_control_port_device();
 
-	DECLARE_READ8_MEMBER( portA_r ) { return read_portA(); }
-	DECLARE_READ8_MEMBER( portB_r ) { return read_portB(); }
-	DECLARE_WRITE8_MEMBER( portA_w ) { return write_portA(data); }
+	uint8_t porta_r() { return m_device ? m_device->read_portA() : 0; }
+	uint8_t portb_r() { return m_device ? m_device->read_portB() : 0; }
+	void porta_w(uint8_t data) { if (m_device) m_device->write_portA(data); }
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
-	uint8_t read_portA();
-	uint8_t read_portB();
-	void write_portA(uint8_t data);
 
 	device_intvecs_control_port_interface *m_device;
 };
 
 
 // device type definition
-extern const device_type INTVECS_CONTROL_PORT;
+DECLARE_DEVICE_TYPE(INTVECS_CONTROL_PORT, intvecs_control_port_device)
 
 
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_INTVECS_CONTROL_PORT_ADD(_tag, _slot_intf, _def_slot) \
-	MCFG_DEVICE_ADD(_tag, INTVECS_CONTROL_PORT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
-
-
-
-SLOT_INTERFACE_EXTERN( intvecs_control_port_devices );
+void intvecs_control_port_devices(device_slot_interface &device);
 
 
 //**************************************************************************
@@ -93,13 +90,13 @@ public:
 	// construction/destruction
 	intvecs_ctrls_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+
+	// optional information overrides
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	virtual uint8_t read_portA() override;
 	virtual uint8_t read_portB() override;
@@ -161,10 +158,9 @@ private:
 
 
 // device type definition
-extern const device_type ECS_CTRLS;
-extern const device_type ECS_KEYBD;
-extern const device_type ECS_SYNTH;
+DECLARE_DEVICE_TYPE(ECS_CTRLS, intvecs_ctrls_device)
+DECLARE_DEVICE_TYPE(ECS_KEYBD, intvecs_keybd_device)
+DECLARE_DEVICE_TYPE(ECS_SYNTH, intvecs_synth_device)
 
 
-
-#endif
+#endif // MAME_BUS_INTV_CTRL_ECS_CTRL_H

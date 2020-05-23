@@ -15,7 +15,7 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type APF_CART_SLOT = device_creator<apf_cart_slot_device>;
+DEFINE_DEVICE_TYPE(APF_CART_SLOT, apf_cart_slot_device, "apf_cart_slot", "APF Cartridge Slot")
 
 //**************************************************************************
 //    APF Cartridges Interface
@@ -25,10 +25,10 @@ const device_type APF_CART_SLOT = device_creator<apf_cart_slot_device>;
 //  device_apf_cart_interface - constructor
 //-------------------------------------------------
 
-device_apf_cart_interface::device_apf_cart_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig, device),
-		m_rom(nullptr),
-		m_rom_size(0)
+device_apf_cart_interface::device_apf_cart_interface(const machine_config &mconfig, device_t &device) :
+	device_interface(device, "apfcart"),
+	m_rom(nullptr),
+	m_rom_size(0)
 {
 }
 
@@ -73,10 +73,11 @@ void device_apf_cart_interface::ram_alloc(uint32_t size)
 //  apf_cart_slot_device - constructor
 //-------------------------------------------------
 apf_cart_slot_device::apf_cart_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-						device_t(mconfig, APF_CART_SLOT, "APF Cartridge Slot", tag, owner, clock, "apf_cart_slot", __FILE__),
-						device_image_interface(mconfig, *this),
-						device_slot_interface(mconfig, *this),
-						m_type(APF_STD), m_cart(nullptr)
+	device_t(mconfig, APF_CART_SLOT, tag, owner, clock),
+	device_image_interface(mconfig, *this),
+	device_single_card_slot_interface<device_apf_cart_interface>(mconfig, *this),
+	m_type(APF_STD),
+	m_cart(nullptr)
 {
 }
 
@@ -95,7 +96,7 @@ apf_cart_slot_device::~apf_cart_slot_device()
 
 void apf_cart_slot_device::device_start()
 {
-	m_cart = dynamic_cast<device_apf_cart_interface *>(get_card_device());
+	m_cart = get_card_device();
 }
 
 
@@ -198,12 +199,12 @@ image_init_result apf_cart_slot_device::call_load()
  get default card software
  -------------------------------------------------*/
 
-std::string apf_cart_slot_device::get_default_card_software()
+std::string apf_cart_slot_device::get_default_card_software(get_default_card_software_hook &hook) const
 {
-	if (open_image_file(mconfig().options()))
+	if (hook.image_file())
 	{
 		const char *slot_string;
-		uint32_t size = m_file->size();
+		uint32_t size = hook.image_file()->size();
 		int type = APF_STD;
 
 		// attempt to identify Space Destroyer, which needs 1K of additional RAM
@@ -215,7 +216,6 @@ std::string apf_cart_slot_device::get_default_card_software()
 		slot_string = apf_get_slot(type);
 
 		//printf("type: %s\n", slot_string);
-		clear();
 
 		return std::string(slot_string);
 	}
@@ -227,10 +227,10 @@ std::string apf_cart_slot_device::get_default_card_software()
  read
  -------------------------------------------------*/
 
-READ8_MEMBER(apf_cart_slot_device::read_rom)
+uint8_t apf_cart_slot_device::read_rom(offs_t offset)
 {
 	if (m_cart)
-		return m_cart->read_rom(space, offset);
+		return m_cart->read_rom(offset);
 	else
 		return 0xff;
 }
@@ -239,10 +239,10 @@ READ8_MEMBER(apf_cart_slot_device::read_rom)
  read
  -------------------------------------------------*/
 
-READ8_MEMBER(apf_cart_slot_device::extra_rom)
+uint8_t apf_cart_slot_device::extra_rom(offs_t offset)
 {
 	if (m_cart)
-		return m_cart->extra_rom(space, offset);
+		return m_cart->extra_rom(offset);
 	else
 		return 0xff;
 }
@@ -251,10 +251,10 @@ READ8_MEMBER(apf_cart_slot_device::extra_rom)
  read
  -------------------------------------------------*/
 
-READ8_MEMBER(apf_cart_slot_device::read_ram)
+uint8_t apf_cart_slot_device::read_ram(offs_t offset)
 {
 	if (m_cart)
-		return m_cart->read_ram(space, offset);
+		return m_cart->read_ram(offset);
 	else
 		return 0xff;
 }
@@ -263,8 +263,8 @@ READ8_MEMBER(apf_cart_slot_device::read_ram)
  write
  -------------------------------------------------*/
 
-WRITE8_MEMBER(apf_cart_slot_device::write_ram)
+void apf_cart_slot_device::write_ram(offs_t offset, uint8_t data)
 {
 	if (m_cart)
-		m_cart->write_ram(space, offset, data);
+		m_cart->write_ram(offset, data);
 }

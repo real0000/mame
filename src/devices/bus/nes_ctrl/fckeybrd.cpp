@@ -13,7 +13,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type NES_FCKEYBOARD = device_creator<nes_fckeybrd_device>;
+DEFINE_DEVICE_TYPE(NES_FCKEYBOARD, nes_fckeybrd_device, "nes_fckeybrd", "Nintendo Family Computer Keyboard Component")
 
 
 static INPUT_PORTS_START( fc_keyboard )
@@ -119,21 +119,15 @@ ioport_constructor nes_fckeybrd_device::device_input_ports() const
 }
 
 
-static MACHINE_CONFIG_FRAGMENT( fc_keyboard )
-	MCFG_CASSETTE_ADD("tape")
-	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
-	MCFG_CASSETTE_INTERFACE("fc_cass")
-MACHINE_CONFIG_END
-
-
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor nes_fckeybrd_device::device_mconfig_additions() const
+void nes_fckeybrd_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( fc_keyboard );
+	CASSETTE(config, m_cassette);
+	m_cassette->set_default_state(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED);
+	m_cassette->set_interface("fc_cass");
 }
 
 
@@ -146,7 +140,7 @@ machine_config_constructor nes_fckeybrd_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 nes_fckeybrd_device::nes_fckeybrd_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, NES_FCKEYBOARD, "Nintendo Family Computer Keyboard Component", tag, owner, clock, "nes_fckeybrd", __FILE__)
+	: device_t(mconfig, NES_FCKEYBOARD, tag, owner, clock)
 	, device_nes_control_port_interface(mconfig, *this)
 	, m_cassette(*this, "tape")
 	, m_kbd(*this, "FCKEY.%u", 0)

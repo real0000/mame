@@ -30,7 +30,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type VIC20_VIDEO_PAK = device_creator<vic20_video_pak_t>;
+DEFINE_DEVICE_TYPE(VIC20_VIDEO_PAK, vic20_video_pak_device, "vic20_videopak", "Data 20 Video Pak")
 
 
 //-------------------------------------------------
@@ -48,7 +48,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *vic20_video_pak_t::device_rom_region() const
+const tiny_rom_entry *vic20_video_pak_device::device_rom_region() const
 {
 	return ROM_NAME( videopak );
 }
@@ -57,7 +57,7 @@ const tiny_rom_entry *vic20_video_pak_t::device_rom_region() const
 //  mc6845
 //-------------------------------------------------
 
-MC6845_UPDATE_ROW( vic20_video_pak_t::crtc_update_row )
+MC6845_UPDATE_ROW( vic20_video_pak_device::crtc_update_row )
 {
 	const pen_t *pen = m_palette->pens();
 
@@ -88,40 +88,31 @@ MC6845_UPDATE_ROW( vic20_video_pak_t::crtc_update_row )
 //  GFXDECODE( vic20_video_pak )
 //-------------------------------------------------
 
-static GFXDECODE_START( vic20_video_pak )
+static GFXDECODE_START( gfx_vic20_video_pak )
 	GFXDECODE_ENTRY(MC6845_TAG, 0x0000, gfx_8x8x1, 0, 1)
 GFXDECODE_END
 
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( vic20_video_pak )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( vic20_video_pak )
-	MCFG_SCREEN_ADD_MONOCHROME(MC6845_SCREEN_TAG, RASTER, rgb_t::white())
-	MCFG_SCREEN_UPDATE_DEVICE(MC6845_TAG, h46505_device, screen_update)
-	MCFG_SCREEN_SIZE(80*8, 24*8)
-	MCFG_SCREEN_VISIBLE_AREA(0, 80*8-1, 0, 24*8-1)
-	MCFG_SCREEN_REFRESH_RATE(50)
-
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", vic20_video_pak)
-	MCFG_PALETTE_ADD_MONOCHROME("palette")
-
-	MCFG_MC6845_ADD(MC6845_TAG, H46505, MC6845_SCREEN_TAG, XTAL_14_31818MHz / 8)
-	MCFG_MC6845_SHOW_BORDER_AREA(true)
-	MCFG_MC6845_CHAR_WIDTH(8)
-	MCFG_MC6845_UPDATE_ROW_CB(vic20_video_pak_t, crtc_update_row)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor vic20_video_pak_t::device_mconfig_additions() const
+void vic20_video_pak_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( vic20_video_pak );
+	screen_device &screen(SCREEN(config, MC6845_SCREEN_TAG, SCREEN_TYPE_RASTER, rgb_t::white()));
+	screen.set_screen_update(MC6845_TAG, FUNC(mc6845_device::screen_update));
+	screen.set_size(80*8, 24*8);
+	screen.set_visarea(0, 80*8-1, 0, 24*8-1);
+	screen.set_refresh_hz(50);
+
+	GFXDECODE(config, "gfxdecode", m_palette, gfx_vic20_video_pak);
+	PALETTE(config, m_palette, palette_device::MONOCHROME);
+
+	MC6845(config, m_crtc, XTAL(14'318'181) / 8); // HD46505RP or similar
+	m_crtc->set_screen(MC6845_SCREEN_TAG);
+	m_crtc->set_show_border_area(true);
+	m_crtc->set_char_width(8);
+	m_crtc->set_update_row_callback(FUNC(vic20_video_pak_device::crtc_update_row));
 }
 
 
@@ -131,11 +122,11 @@ machine_config_constructor vic20_video_pak_t::device_mconfig_additions() const
 //**************************************************************************
 
 //-------------------------------------------------
-//  vic20_video_pak_t - constructor
+//  vic20_video_pak_device - constructor
 //-------------------------------------------------
 
-vic20_video_pak_t::vic20_video_pak_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, VIC20_VIDEO_PAK, "Data 20 Video Pak", tag, owner, clock, "videopak", __FILE__),
+vic20_video_pak_device::vic20_video_pak_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, VIC20_VIDEO_PAK, tag, owner, clock),
 	device_vic20_expansion_card_interface(mconfig, *this),
 	m_crtc(*this, MC6845_TAG),
 	m_palette(*this, "palette"),
@@ -150,7 +141,7 @@ vic20_video_pak_t::vic20_video_pak_t(const machine_config &mconfig, const char *
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void vic20_video_pak_t::device_start()
+void vic20_video_pak_device::device_start()
 {
 	// allocate memory
 	m_videoram.allocate(VIDEORAM_SIZE);
@@ -162,7 +153,7 @@ void vic20_video_pak_t::device_start()
 //  device_reset - device-specific reset
 //-------------------------------------------------
 
-void vic20_video_pak_t::device_reset()
+void vic20_video_pak_device::device_reset()
 {
 }
 
@@ -171,7 +162,7 @@ void vic20_video_pak_t::device_reset()
 //  vic20_cd_r - cartridge data read
 //-------------------------------------------------
 
-uint8_t vic20_video_pak_t::vic20_cd_r(address_space &space, offs_t offset, uint8_t data, int ram1, int ram2, int ram3, int blk1, int blk2, int blk3, int blk5, int io2, int io3)
+uint8_t vic20_video_pak_device::vic20_cd_r(offs_t offset, uint8_t data, int ram1, int ram2, int ram3, int blk1, int blk2, int blk3, int blk5, int io2, int io3)
 {
 	if (!m_ram_enable)
 	{
@@ -180,14 +171,12 @@ uint8_t vic20_video_pak_t::vic20_cd_r(address_space &space, offs_t offset, uint8
 			if (!blk1)
 			{
 				offs_t addr = m_bank_msb << 15 | m_bank_lsb << 14 | offset;
-
 				data = m_ram[addr];
 			}
 
 			if (!blk2)
 			{
 				offs_t addr = m_bank_msb << 15 | m_bank_lsb << 14 | 0x2000 | offset;
-
 				data = m_ram[addr];
 			}
 		}
@@ -196,21 +185,18 @@ uint8_t vic20_video_pak_t::vic20_cd_r(address_space &space, offs_t offset, uint8
 			if (!blk1)
 			{
 				offs_t addr = m_bank_msb << 15 | offset;
-
 				data = m_ram[addr];
 			}
 
 			if (!blk2)
 			{
 				offs_t addr = m_bank_msb << 15 | 0x2000 | offset;
-
 				data = m_ram[addr];
 			}
 
 			if (!blk3)
 			{
 				offs_t addr = m_bank_msb << 15 | 0x4000 | offset;
-
 				data = m_ram[addr];
 			}
 		}
@@ -221,7 +207,8 @@ uint8_t vic20_video_pak_t::vic20_cd_r(address_space &space, offs_t offset, uint8
 		switch ((offset >> 11) & 0x03)
 		{
 		case 0:
-			data = m_blk5[offset & 0x7ff];
+			if (m_blk5)
+				data = m_blk5[offset & 0x7ff];
 			break;
 
 		case 3:
@@ -234,7 +221,7 @@ uint8_t vic20_video_pak_t::vic20_cd_r(address_space &space, offs_t offset, uint8
 	{
 		if (offset == 0x1bf9)
 		{
-			data = m_crtc->register_r(space, 0);
+			data = m_crtc->register_r();
 		}
 	}
 
@@ -246,7 +233,7 @@ uint8_t vic20_video_pak_t::vic20_cd_r(address_space &space, offs_t offset, uint8
 //  vic20_cd_w - cartridge data write
 //-------------------------------------------------
 
-void vic20_video_pak_t::vic20_cd_w(address_space &space, offs_t offset, uint8_t data, int ram1, int ram2, int ram3, int blk1, int blk2, int blk3, int blk5, int io2, int io3)
+void vic20_video_pak_device::vic20_cd_w(offs_t offset, uint8_t data, int ram1, int ram2, int ram3, int blk1, int blk2, int blk3, int blk5, int io2, int io3)
 {
 	if (!m_ram_enable)
 	{
@@ -306,11 +293,11 @@ void vic20_video_pak_t::vic20_cd_w(address_space &space, offs_t offset, uint8_t 
 		switch (offset)
 		{
 		case 0x1bf8:
-			m_crtc->address_w(space, 0, data);
+			m_crtc->address_w(data);
 			break;
 
 		case 0x1bf9:
-			m_crtc->register_w(space, 0, data);
+			m_crtc->register_w(data);
 			break;
 
 		case 0x1bfc:

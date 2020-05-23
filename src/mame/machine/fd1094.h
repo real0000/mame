@@ -12,8 +12,10 @@
 
 ***************************************************************************/
 
-#ifndef __FD1094_H__
-#define __FD1094_H__
+#ifndef MAME_MACHINE_FD1094_H
+#define MAME_MACHINE_FD1094_H
+
+#pragma once
 
 #include "cpu/m68000/m68000.h"
 
@@ -23,16 +25,13 @@
 //**************************************************************************
 
 // device type definition
-extern const device_type FD1094;
+DECLARE_DEVICE_TYPE(FD1094, fd1094_device)
 
 
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
-
-class fd1094_device;
-
 
 // ======================> fd1094_decryption_cache
 
@@ -87,6 +86,7 @@ public:
 		STATE_RTE = 0x300
 	};
 
+	void decrypted_opcodes_map(address_map &map);
 protected:
 	required_memory_bank m_decrypted_opcodes_bank;
 
@@ -127,4 +127,4 @@ struct fd1094_constraint
 	uint16_t  mask;
 };
 
-#endif
+#endif // MAME_MACHINE_FD1094_H

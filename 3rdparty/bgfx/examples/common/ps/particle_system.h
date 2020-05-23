@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2019 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
  */
 
@@ -11,6 +11,15 @@
 #include <bx/rng.h>
 
 #include "../bounds.h"
+
+struct EmitterHandle       { uint16_t idx; };
+struct EmitterSpriteHandle { uint16_t idx; };
+
+template<typename Ty>
+inline bool isValid(Ty _handle)
+{
+	return _handle.idx != UINT16_MAX;
+}
 
 struct EmitterShape
 {
@@ -60,15 +69,21 @@ struct EmitterUniforms
 	bx::Easing::Enum m_easeRgba;
 	bx::Easing::Enum m_easeBlend;
 	bx::Easing::Enum m_easeScale;
-};
 
-struct EmitterHandle { uint16_t idx; };
+	EmitterSpriteHandle m_handle;
+};
 
 ///
 void psInit(uint16_t _maxEmitters = 64, bx::AllocatorI* _allocator = NULL);
 
 ///
 void psShutdown();
+
+///
+EmitterSpriteHandle psCreateSprite(uint16_t _width, uint16_t _height, const void* _data);
+
+///
+void psDestroy(EmitterSpriteHandle _handle);
 
 ///
 EmitterHandle psCreateEmitter(EmitterShape::Enum _shape, EmitterDirection::Enum _direction, uint32_t _maxParticles);
@@ -86,6 +101,6 @@ void psDestroyEmitter(EmitterHandle _handle);
 void psUpdate(float _dt);
 
 ///
-void psRender(uint8_t _view, const float* _mtxView, const float* _eye);
+void psRender(uint8_t _view, const float* _mtxView, const bx::Vec3& _eye);
 
 #endif // PARTICLE_SYSTEM_H_HEADER_GUARD

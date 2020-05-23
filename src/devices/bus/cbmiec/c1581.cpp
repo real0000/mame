@@ -33,8 +33,8 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type C1563 = device_creator<c1563_t>;
-const device_type C1581 = device_creator<c1581_t>;
+DEFINE_DEVICE_TYPE(C1563, c1563_device, "c1563", "Commodore 1563 3.5\" Disk Drive")
+DEFINE_DEVICE_TYPE(C1581, c1581_device, "c1581", "Commodore 1581 3.5\" Disk Drive")
 
 
 //-------------------------------------------------
@@ -45,13 +45,13 @@ ROM_START( c1581 )
 	ROM_REGION( 0x8000, M6502_TAG, 0 )
 	ROM_DEFAULT_BIOS("r1")
 	ROM_SYSTEM_BIOS( 0, "beta", "Beta" )
-	ROMX_LOAD( "beta.u2",          0x0000, 0x8000, CRC(ecc223cd) SHA1(a331d0d46ead1f0275b4ca594f87c6694d9d9594), ROM_BIOS(1) )
+	ROMX_LOAD( "beta.u2",          0x0000, 0x8000, CRC(ecc223cd) SHA1(a331d0d46ead1f0275b4ca594f87c6694d9d9594), ROM_BIOS(0) )
 	ROM_SYSTEM_BIOS( 1, "r1", "Revision 1" )
-	ROMX_LOAD( "318045-01.u2",     0x0000, 0x8000, CRC(113af078) SHA1(3fc088349ab83e8f5948b7670c866a3c954e6164), ROM_BIOS(2) )
+	ROMX_LOAD( "318045-01.u2",     0x0000, 0x8000, CRC(113af078) SHA1(3fc088349ab83e8f5948b7670c866a3c954e6164), ROM_BIOS(1) )
 	ROM_SYSTEM_BIOS( 2, "r2", "Revision 2" )
-	ROMX_LOAD( "318045-02.u2",     0x0000, 0x8000, CRC(a9011b84) SHA1(01228eae6f066bd9b7b2b6a7fa3f667e41dad393), ROM_BIOS(3) )
+	ROMX_LOAD( "318045-02.u2",     0x0000, 0x8000, CRC(a9011b84) SHA1(01228eae6f066bd9b7b2b6a7fa3f667e41dad393), ROM_BIOS(2) )
 	ROM_SYSTEM_BIOS( 3, "jiffydos", "JiffyDOS v6.01" )
-	ROMX_LOAD( "jiffydos 1581.u2", 0x0000, 0x8000, CRC(98873d0f) SHA1(65bbf2be7bcd5bdcbff609d6c66471ffb9d04bfe), ROM_BIOS(4) )
+	ROMX_LOAD( "jiffydos 1581.u2", 0x0000, 0x8000, CRC(98873d0f) SHA1(65bbf2be7bcd5bdcbff609d6c66471ffb9d04bfe), ROM_BIOS(3) )
 ROM_END
 
 
@@ -59,7 +59,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *c1581_t::device_rom_region() const
+const tiny_rom_entry *c1581_device::device_rom_region() const
 {
 	return ROM_NAME( c1581 );
 }
@@ -79,7 +79,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *c1563_t::device_rom_region() const
+const tiny_rom_entry *c1563_device::device_rom_region() const
 {
 	return ROM_NAME( c1563 );
 }
@@ -89,33 +89,34 @@ const tiny_rom_entry *c1563_t::device_rom_region() const
 //  ADDRESS_MAP( c1581_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( c1581_mem, AS_PROGRAM, 8, c1581_t )
-	AM_RANGE(0x0000, 0x1fff) AM_MIRROR(0x2000) AM_RAM
-	AM_RANGE(0x4000, 0x400f) AM_MIRROR(0x1ff0) AM_DEVREADWRITE(M8520_TAG, mos8520_device, read, write)
-	AM_RANGE(0x6000, 0x6003) AM_MIRROR(0x1ffc) AM_DEVREADWRITE(WD1772_TAG, wd1772_t, read, write)
-	AM_RANGE(0x8000, 0xffff) AM_ROM AM_REGION(M6502_TAG, 0)
-ADDRESS_MAP_END
+void c1581_device::c1581_mem(address_map &map)
+{
+	map(0x0000, 0x1fff).mirror(0x2000).ram();
+	map(0x4000, 0x400f).mirror(0x1ff0).rw(M8520_TAG, FUNC(mos8520_device::read), FUNC(mos8520_device::write));
+	map(0x6000, 0x6003).mirror(0x1ffc).rw(WD1772_TAG, FUNC(wd1772_device::read), FUNC(wd1772_device::write));
+	map(0x8000, 0xffff).rom().region(M6502_TAG, 0);
+}
 
 
 //-------------------------------------------------
 //  MOS8520_INTERFACE( cia_intf )
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( c1581_t::cnt_w )
+WRITE_LINE_MEMBER( c1581_device::cnt_w )
 {
 	m_cnt_out = state;
 
 	update_iec();
 }
 
-WRITE_LINE_MEMBER( c1581_t::sp_w )
+WRITE_LINE_MEMBER( c1581_device::sp_w )
 {
 	m_sp_out = state;
 
 	update_iec();
 }
 
-READ8_MEMBER( c1581_t::cia_pa_r )
+uint8_t c1581_device::cia_pa_r()
 {
 	/*
 
@@ -146,7 +147,7 @@ READ8_MEMBER( c1581_t::cia_pa_r )
 	return data;
 }
 
-WRITE8_MEMBER( c1581_t::cia_pa_w )
+void c1581_device::cia_pa_w(uint8_t data)
 {
 	/*
 
@@ -170,13 +171,13 @@ WRITE8_MEMBER( c1581_t::cia_pa_w )
 	m_floppy->mon_w(BIT(data, 2));
 
 	// power led
-	machine().output().set_led_value(LED_POWER, BIT(data, 5));
+	m_leds[LED_POWER] = BIT(data, 5);
 
 	// activity led
-	machine().output().set_led_value(LED_ACT, BIT(data, 6));
+	m_leds[LED_ACT] = BIT(data, 6);
 }
 
-READ8_MEMBER( c1581_t::cia_pb_r )
+uint8_t c1581_device::cia_pb_r()
 {
 	/*
 
@@ -210,7 +211,7 @@ READ8_MEMBER( c1581_t::cia_pb_r )
 	return data;
 }
 
-WRITE8_MEMBER( c1581_t::cia_pb_w )
+void c1581_device::cia_pb_w(uint8_t data)
 {
 	/*
 
@@ -247,50 +248,41 @@ WRITE8_MEMBER( c1581_t::cia_pb_w )
 //  SLOT_INTERFACE( c1581_floppies )
 //-------------------------------------------------
 
-static SLOT_INTERFACE_START( c1581_floppies )
-	SLOT_INTERFACE( "35dd", FLOPPY_35_DD ) // Chinon F-354-E
-SLOT_INTERFACE_END
+static void c1581_floppies(device_slot_interface &device)
+{
+	device.option_add("35dd", FLOPPY_35_DD); // Chinon F-354-E
+}
 
 
 //-------------------------------------------------
-//  FLOPPY_FORMATS( c1581_t::floppy_formats )
+//  FLOPPY_FORMATS( c1581_device::floppy_formats )
 //-------------------------------------------------
 
-FLOPPY_FORMATS_MEMBER( c1581_t::floppy_formats )
+FLOPPY_FORMATS_MEMBER( c1581_device::floppy_formats )
 	FLOPPY_D81_FORMAT
 FLOPPY_FORMATS_END
 
 
 //-------------------------------------------------
-//  MACHINE_DRIVER( c1581 )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( c1581 )
-	MCFG_CPU_ADD(M6502_TAG, M6502, XTAL_16MHz/8)
-	MCFG_CPU_PROGRAM_MAP(c1581_mem)
-
-	MCFG_DEVICE_ADD(M8520_TAG, MOS8520, XTAL_16MHz/8)
-	MCFG_MOS6526_IRQ_CALLBACK(INPUTLINE(M6502_TAG, INPUT_LINE_IRQ0))
-	MCFG_MOS6526_CNT_CALLBACK(WRITELINE(c1581_t, cnt_w))
-	MCFG_MOS6526_SP_CALLBACK(WRITELINE(c1581_t, sp_w))
-	MCFG_MOS6526_PA_INPUT_CALLBACK(READ8(c1581_t, cia_pa_r))
-	MCFG_MOS6526_PA_OUTPUT_CALLBACK(WRITE8(c1581_t, cia_pa_w))
-	MCFG_MOS6526_PB_INPUT_CALLBACK(READ8(c1581_t, cia_pb_r))
-	MCFG_MOS6526_PB_OUTPUT_CALLBACK(WRITE8(c1581_t, cia_pb_w))
-
-	MCFG_WD1772_ADD(WD1772_TAG, XTAL_16MHz/2)
-	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG":0", c1581_floppies, "35dd", c1581_t::floppy_formats)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor c1581_t::device_mconfig_additions() const
+void c1581_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( c1581 );
+	M6502(config, m_maincpu, 16_MHz_XTAL / 8);
+	m_maincpu->set_addrmap(AS_PROGRAM, &c1581_device::c1581_mem);
+
+	MOS8520(config, m_cia, 16_MHz_XTAL / 8);
+	m_cia->irq_wr_callback().set_inputline(m_maincpu, INPUT_LINE_IRQ0);
+	m_cia->cnt_wr_callback().set(FUNC(c1581_device::cnt_w));
+	m_cia->sp_wr_callback().set(FUNC(c1581_device::sp_w));
+	m_cia->pa_rd_callback().set(FUNC(c1581_device::cia_pa_r));
+	m_cia->pa_wr_callback().set(FUNC(c1581_device::cia_pa_w));
+	m_cia->pb_rd_callback().set(FUNC(c1581_device::cia_pb_r));
+	m_cia->pb_wr_callback().set(FUNC(c1581_device::cia_pb_w));
+
+	WD1772(config, m_fdc, 16_MHz_XTAL / 2);
+	FLOPPY_CONNECTOR(config, WD1772_TAG":0", c1581_floppies, "35dd", c1581_device::floppy_formats, true);
 }
 
 
@@ -312,7 +304,7 @@ INPUT_PORTS_END
 //  input_ports - device-specific input ports
 //-------------------------------------------------
 
-ioport_constructor c1581_t::device_input_ports() const
+ioport_constructor c1581_device::device_input_ports() const
 {
 	return INPUT_PORTS_NAME( c1581 );
 }
@@ -324,17 +316,18 @@ ioport_constructor c1581_t::device_input_ports() const
 //**************************************************************************
 
 //-------------------------------------------------
-//  c1581_t - constructor
+//  c1581_device - constructor
 //-------------------------------------------------
 
-c1581_t::c1581_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+c1581_device::c1581_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock),
 		device_cbm_iec_interface(mconfig, *this),
 		m_maincpu(*this, M6502_TAG),
 		m_cia(*this, M8520_TAG),
 		m_fdc(*this, WD1772_TAG),
 		m_floppy(*this, WD1772_TAG":0:35dd"),
 		m_address(*this, "ADDRESS"),
+		m_leds(*this, "led%u", 0U),
 		m_data_out(0),
 		m_atn_ack(0),
 		m_fast_ser_dir(0),
@@ -343,37 +336,28 @@ c1581_t::c1581_t(const machine_config &mconfig, device_type type, const char *na
 {
 }
 
-c1581_t::c1581_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, C1581, "C1581", tag, owner, clock, "c1581", __FILE__),
-		device_cbm_iec_interface(mconfig, *this),
-		m_maincpu(*this, M6502_TAG),
-		m_cia(*this, M8520_TAG),
-		m_fdc(*this, WD1772_TAG),
-		m_floppy(*this, WD1772_TAG":0:35dd"),
-		m_address(*this, "ADDRESS"),
-		m_data_out(0),
-		m_atn_ack(0),
-		m_fast_ser_dir(0),
-		m_sp_out(1),
-		m_cnt_out(1)
+c1581_device::c1581_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: c1581_device(mconfig, C1581, tag, owner, clock)
 {
 }
 
 
 //-------------------------------------------------
-//  c1563_t - constructor
+//  c1563_device - constructor
 //-------------------------------------------------
 
-c1563_t::c1563_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: c1581_t(mconfig, C1563, "C1563", tag, owner, clock, "c1563", __FILE__) { }
+c1563_device::c1563_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: c1581_device(mconfig, C1563, tag, owner, clock) { }
 
 
 //-------------------------------------------------
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void c1581_t::device_start()
+void c1581_device::device_start()
 {
+	m_leds.resolve();
+
 	// state saving
 	save_item(NAME(m_data_out));
 	save_item(NAME(m_atn_ack));
@@ -387,7 +371,7 @@ void c1581_t::device_start()
 //  device_reset - device-specific reset
 //-------------------------------------------------
 
-void c1581_t::device_reset()
+void c1581_device::device_reset()
 {
 	m_maincpu->reset();
 
@@ -408,7 +392,7 @@ void c1581_t::device_reset()
 //  cbm_iec_srq -
 //-------------------------------------------------
 
-void c1581_t::cbm_iec_srq(int state)
+void c1581_device::cbm_iec_srq(int state)
 {
 	update_iec();
 }
@@ -418,7 +402,7 @@ void c1581_t::cbm_iec_srq(int state)
 //  cbm_iec_atn -
 //-------------------------------------------------
 
-void c1581_t::cbm_iec_atn(int state)
+void c1581_device::cbm_iec_atn(int state)
 {
 	update_iec();
 }
@@ -428,7 +412,7 @@ void c1581_t::cbm_iec_atn(int state)
 //  cbm_iec_data -
 //-------------------------------------------------
 
-void c1581_t::cbm_iec_data(int state)
+void c1581_device::cbm_iec_data(int state)
 {
 	update_iec();
 }
@@ -438,7 +422,7 @@ void c1581_t::cbm_iec_data(int state)
 //  cbm_iec_reset -
 //-------------------------------------------------
 
-void c1581_t::cbm_iec_reset(int state)
+void c1581_device::cbm_iec_reset(int state)
 {
 	if (!state)
 	{
@@ -451,7 +435,7 @@ void c1581_t::cbm_iec_reset(int state)
 //  update_iec -
 //-------------------------------------------------
 
-void c1581_t::update_iec()
+void c1581_device::update_iec()
 {
 	m_cia->cnt_w(m_fast_ser_dir || m_bus->srq_r());
 	m_cia->sp_w(m_fast_ser_dir || m_bus->data_r());

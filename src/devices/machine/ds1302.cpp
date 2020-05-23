@@ -18,14 +18,13 @@
 #include "emu.h"
 #include "ds1302.h"
 
+//#define VERBOSE 1
+#include "logmacro.h"
 
 
 //**************************************************************************
 //  MACROS / CONSTANTS
 //**************************************************************************
-
-#define LOG 0
-
 
 #define RAM_SIZE    0x1f    // 31 bytes
 
@@ -66,7 +65,7 @@ enum
 //**************************************************************************
 
 // device type definition
-const device_type DS1302 = device_creator<ds1302_device>;
+DEFINE_DEVICE_TYPE(DS1302, ds1302_device, "ds1302", "DS1302 Timekeeper")
 
 
 //-------------------------------------------------
@@ -74,7 +73,7 @@ const device_type DS1302 = device_creator<ds1302_device>;
 //-------------------------------------------------
 
 ds1302_device::ds1302_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, DS1302, "DS1302", tag, owner, clock, "ds1302", __FILE__),
+	: device_t(mconfig, DS1302, tag, owner, clock),
 		device_rtc_interface(mconfig, *this),
 		device_nvram_interface(mconfig, *this)
 {
@@ -190,18 +189,20 @@ void ds1302_device::rtc_clock_updated(int year, int month, int day, int day_of_w
 
 WRITE_LINE_MEMBER( ds1302_device::ce_w )
 {
-	if (LOG) logerror("DS1302 '%s' CE: %u\n", tag(), state);
-
-	if (!state && m_ce)
+	if (state && !m_ce)
 	{
+		LOG("DS1302 CE: 1\n");
+
 		// synchronize user buffers
 		for (int i = 0; i < 9; i++)
 		{
 			m_user[i] = m_reg[i];
 		}
 	}
-	else if (state && !m_ce)
+	else if (!state && m_ce)
 	{
+		LOG("DS1302 CE: 0\n");
+
 		// terminate data transfer
 		m_state = STATE_COMMAND;
 		m_bits = 0;
@@ -223,26 +224,26 @@ void ds1302_device::load_shift_register()
 		{
 			m_data = m_ram[m_addr];
 
-			if (LOG) logerror("DS1302 '%s' Read RAM %u:%02x\n", tag(), m_addr, m_data);
+			LOG("DS1302 Read RAM %u:%02x\n", m_addr, m_data);
 		}
 		else
 		{
 			m_data = m_user[m_addr];
 
-			if (LOG) logerror("DS1302 '%s' Read Clock %u:%02x\n", tag(), m_addr, m_data);
+			LOG("DS1302 Read Clock %u:%02x\n", m_addr, m_data);
 		}
 	}
 	else
 	{
 		if (COMMAND_RAM)
 		{
-			if (LOG) logerror("DS1302 '%s' Write RAM %u:%02x\n", tag(), m_addr, m_data);
+			LOG("DS1302 Write RAM %u:%02x\n", m_addr, m_data);
 
 			m_ram[m_addr] = m_data;
 		}
 		else if (m_addr < 9)
 		{
-			if (LOG) logerror("DS1302 '%s' Write Clock %u:%02x\n", tag(), m_addr, m_data);
+			LOG("DS1302 Write Clock %u:%02x\n", m_addr, m_data);
 
 			m_reg[m_addr] = m_data;
 		}
@@ -263,9 +264,11 @@ void ds1302_device::input_bit()
 		m_cmd |= (m_io << 7);
 		m_bits++;
 
+		LOG("DS1302 Input Bit: %u\n", m_io);
+
 		if (m_bits == 8)
 		{
-			if (LOG) logerror("DS1302 '%s' Command: %02x\n", tag(), m_cmd);
+			LOG("DS1302 Command: %02x\n", m_cmd);
 
 			m_bits = 0;
 			m_addr = (m_cmd >> 1) & 0x1f;
@@ -300,9 +303,11 @@ void ds1302_device::input_bit()
 		m_data |= (m_io << 7);
 		m_bits++;
 
+		LOG("DS1302 Input Bit: %u\n", m_io);
+
 		if (m_bits == 8)
 		{
-			if (LOG) logerror("DS1302 '%s' Data: %02x\n", tag(), m_data);
+			LOG("DS1302 Data: %02x\n", m_data);
 
 			m_bits = 0;
 
@@ -364,6 +369,8 @@ void ds1302_device::output_bit()
 			m_state = STATE_COMMAND;
 		}
 	}
+
+	LOG("DS1302 Output Bit: %u\n", m_io);
 }
 
 
@@ -373,17 +380,14 @@ void ds1302_device::output_bit()
 
 WRITE_LINE_MEMBER( ds1302_device::sclk_w )
 {
-	if (LOG) logerror("DS1302 '%s' CLK: %u\n", tag(), state);
+	//LOG("DS1302 CLK: %u\n", state);
 
-	if (!m_ce) return;
-
-	if (!m_clk && state) // rising edge
+	if (m_ce)
 	{
-		input_bit();
-	}
-	else if (m_clk && !state) // falling edge
-	{
-		output_bit();
+		if (!m_clk && state) // rising edge
+			input_bit();
+		else if (m_clk && !state) // falling edge
+			output_bit();
 	}
 
 	m_clk = state;
@@ -396,7 +400,7 @@ WRITE_LINE_MEMBER( ds1302_device::sclk_w )
 
 WRITE_LINE_MEMBER( ds1302_device::io_w )
 {
-	if (LOG) logerror("DS1302 '%s' I/O: %u\n", tag(), state);
+	//LOG("DS1302 I/O: %u\n", state);
 
 	m_io = state;
 }

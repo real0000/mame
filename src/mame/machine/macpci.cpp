@@ -30,14 +30,14 @@ WRITE_LINE_MEMBER(macpci_state::mac_via_irq)
 {
 }
 
-READ8_MEMBER(macpci_state::mac_via_in_a)
+uint8_t macpci_state::mac_via_in_a()
 {
 //    printf("VIA1 IN_A (PC %x)\n", mac->m_maincpu->pc());
 
 	return 0x80;
 }
 
-READ8_MEMBER(macpci_state::mac_via_in_b)
+uint8_t macpci_state::mac_via_in_b()
 {
 	int val = 0;
 	val |= m_cuda->get_treq()<<3;
@@ -47,12 +47,12 @@ READ8_MEMBER(macpci_state::mac_via_in_b)
 	return val;
 }
 
-WRITE8_MEMBER(macpci_state::mac_via_out_a)
+void macpci_state::mac_via_out_a(uint8_t data)
 {
 //    printf("VIA1 OUT A: %02x (PC %x)\n", data, m_maincpu->pc());
 }
 
-WRITE8_MEMBER(macpci_state::mac_via_out_b)
+void macpci_state::mac_via_out_b(uint8_t data)
 {
 //    printf("VIA1 OUT B: %02x (PC %x)\n", data, m_maincpu->pc());
 
@@ -72,7 +72,7 @@ READ16_MEMBER ( macpci_state::mac_via_r )
 
 	if (LOG_VIA)
 		printf("mac_via_r: offset=0x%02x (PC=%x)\n", offset, m_maincpu->pc());
-	data = m_via1->read(space, offset);
+	data = m_via1->read(offset);
 
 	m_maincpu->adjust_icount(m_via_cycles);
 
@@ -88,9 +88,9 @@ WRITE16_MEMBER ( macpci_state::mac_via_w )
 		printf("mac_via_w: offset=0x%02x data=0x%08x (PC=%x)\n", offset, data, m_maincpu->pc());
 
 	if (ACCESSING_BITS_0_7)
-		m_via1->write(space, offset, data & 0xff);
+		m_via1->write(offset, data & 0xff);
 	if (ACCESSING_BITS_8_15)
-		m_via1->write(space, offset, (data >> 8) & 0xff);
+		m_via1->write(offset, (data >> 8) & 0xff);
 
 	m_maincpu->adjust_icount(m_via_cycles);
 }
@@ -143,7 +143,7 @@ void macpci_state::mac_driver_init(model_t model)
 }
 
 #define MAC_DRIVER_INIT(label, model)   \
-DRIVER_INIT_MEMBER(macpci_state,label)  \
+void macpci_state::init_##label()  \
 {   \
 	mac_driver_init(model ); \
 }
@@ -168,34 +168,29 @@ READ32_MEMBER(macpci_state::mac_read_id)
 
 READ16_MEMBER ( macpci_state::mac_scc_r )
 {
-	scc8530_t *scc = space.machine().device<scc8530_t>("scc");
-	uint16_t result;
-
-	result = scc->reg_r(space, offset);
+	uint16_t result = m_scc->reg_r(offset);
 	return (result << 8) | result;
 }
 
 WRITE16_MEMBER ( macpci_state::mac_scc_w )
 {
-	scc8530_t *scc = space.machine().device<scc8530_t>("scc");
-	scc->reg_w(space, offset, data);
+	m_scc->reg_w(offset, data);
 }
 
 WRITE16_MEMBER ( macpci_state::mac_scc_2_w )
 {
-	scc8530_t *scc = space.machine().device<scc8530_t>("scc");
-	scc->reg_w(space, offset, data >> 8);
+	m_scc->reg_w(offset, data >> 8);
 }
 
 READ8_MEMBER(macpci_state::mac_5396_r)
 {
 	if (offset < 0x100)
 	{
-		return m_539x_1->read(space, offset>>4);
+		return m_539x_1->read(offset>>4);
 	}
 	else    // pseudo-DMA: read from the FIFO
 	{
-		return m_539x_1->read(space, 2);
+		return m_539x_1->read(2);
 	}
 
 	// never executed
@@ -206,11 +201,11 @@ WRITE8_MEMBER(macpci_state::mac_5396_w)
 {
 	if (offset < 0x100)
 	{
-		m_539x_1->write(space, offset>>4, data);
+		m_539x_1->write(offset>>4, data);
 	}
 	else    // pseudo-DMA: write to the FIFO
 	{
-		m_539x_1->write(space, 2, data);
+		m_539x_1->write(2, data);
 	}
 }
 

@@ -15,6 +15,9 @@
 
 #include "debugger.h"
 
+#include "util/xmlfile.h"
+
+
 //============================================================
 //  NOTIFICATIONS
 //============================================================
@@ -22,6 +25,7 @@
 NSString *const MAMEHideDebuggerNotification = @"MAMEHideDebuggerNotification";
 NSString *const MAMEShowDebuggerNotification = @"MAMEShowDebuggerNotification";
 NSString *const MAMEAuxiliaryDebugWindowWillCloseNotification = @"MAMEAuxiliaryDebugWindowWillCloseNotification";
+NSString *const MAMESaveDebuggerConfigurationNotification = @"MAMESaveDebuggerConfigurationNotification";
 
 
 //============================================================
@@ -38,7 +42,7 @@ NSString *const MAMEAuxiliaryDebugWindowWillCloseNotification = @"MAMEAuxiliaryD
 	NSMenuItem *runParentItem = [menu addItemWithTitle:@"Run"
 												action:@selector(debugRun:)
 										 keyEquivalent:[NSString stringWithFormat:@"%C", (short)NSF5FunctionKey]];
-	NSMenu *runMenu = [[NSMenu allocWithZone:[NSMenu menuZone]] initWithTitle:@"Run"];
+	NSMenu *runMenu = [[NSMenu alloc] initWithTitle:@"Run"];
 	[runParentItem setSubmenu:runMenu];
 	[runMenu release];
 	[runParentItem setKeyEquivalentModifierMask:0];
@@ -60,7 +64,7 @@ NSString *const MAMEAuxiliaryDebugWindowWillCloseNotification = @"MAMEAuxiliaryD
 	 setKeyEquivalentModifierMask:0];
 
 	NSMenuItem *stepParentItem = [menu addItemWithTitle:@"Step" action:NULL keyEquivalent:@""];
-	NSMenu *stepMenu = [[NSMenu allocWithZone:[NSMenu menuZone]] initWithTitle:@"Step"];
+	NSMenu *stepMenu = [[NSMenu alloc] initWithTitle:@"Step"];
 	[stepParentItem setSubmenu:stepMenu];
 	[stepMenu release];
 	[[stepMenu addItemWithTitle:@"Into"
@@ -77,7 +81,7 @@ NSString *const MAMEAuxiliaryDebugWindowWillCloseNotification = @"MAMEAuxiliaryD
 	 setKeyEquivalentModifierMask:NSShiftKeyMask];
 
 	NSMenuItem *resetParentItem = [menu addItemWithTitle:@"Reset" action:NULL keyEquivalent:@""];
-	NSMenu *resetMenu = [[NSMenu allocWithZone:[NSMenu menuZone]] initWithTitle:@"Reset"];
+	NSMenu *resetMenu = [[NSMenu alloc] initWithTitle:@"Reset"];
 	[resetParentItem setSubmenu:resetMenu];
 	[resetMenu release];
 	[[resetMenu addItemWithTitle:@"Soft"
@@ -92,7 +96,7 @@ NSString *const MAMEAuxiliaryDebugWindowWillCloseNotification = @"MAMEAuxiliaryD
 	[menu addItem:[NSMenuItem separatorItem]];
 
 	NSMenuItem *newParentItem = [menu addItemWithTitle:@"New" action:NULL keyEquivalent:@""];
-	NSMenu *newMenu = [[NSMenu allocWithZone:[NSMenu menuZone]] initWithTitle:@"New"];
+	NSMenu *newMenu = [[NSMenu alloc] initWithTitle:@"New"];
 	[newParentItem setSubmenu:newMenu];
 	[newMenu release];
 	[newMenu addItemWithTitle:@"Memory Window"
@@ -130,14 +134,6 @@ NSString *const MAMEAuxiliaryDebugWindowWillCloseNotification = @"MAMEAuxiliaryD
 }
 
 
-+ (device_debug::breakpoint *)findBreakpointAtAddress:(offs_t)address forDevice:(device_t &)device {
-	device_debug *const cpuinfo = device.debug();
-	device_debug::breakpoint *bp = cpuinfo->breakpoint_first();
-	while ((bp != nullptr) && (address != bp->address())) bp = bp->next();
-	return bp;
-}
-
-
 - (id)initWithMachine:(running_machine &)m title:(NSString *)t {
 	if (!(self = [super init]))
 		return nil;
@@ -154,6 +150,10 @@ NSString *const MAMEAuxiliaryDebugWindowWillCloseNotification = @"MAMEAuxiliaryD
 	[window setTitle:t];
 	[window setContentMinSize:NSMakeSize(320, 240)];
 
+	[[NSNotificationCenter defaultCenter] addObserver:self
+											 selector:@selector(saveConfig:)
+												 name:MAMESaveDebuggerConfigurationNotification
+											   object:nil];
 	[[NSNotificationCenter defaultCenter] addObserver:self
 											 selector:@selector(showDebugger:)
 												 name:MAMEShowDebuggerNotification
@@ -267,6 +267,46 @@ NSString *const MAMEAuxiliaryDebugWindowWillCloseNotification = @"MAMEAuxiliaryD
 	running_machine *m = (running_machine *)[[[notification userInfo] objectForKey:@"MAMEDebugMachine"] pointerValue];
 	if (m == machine)
 		[window orderOut:self];
+}
+
+
+- (void)saveConfig:(NSNotification *)notification {
+	running_machine *m = (running_machine *)[[[notification userInfo] objectForKey:@"MAMEDebugMachine"] pointerValue];
+	if (m == machine)
+	{
+		util::xml::data_node *parentnode = (util::xml::data_node *)[[[notification userInfo] objectForKey:@"MAMEDebugParentNode"] pointerValue];
+		util::xml::data_node *node = parentnode->add_child("window", nullptr);
+		if (node)
+			[self saveConfigurationToNode:node];
+	}
+}
+
+
+- (void)saveConfigurationToNode:(util::xml::data_node *)node {
+	NSRect frame = [window frame];
+	node->set_attribute_float("position_x", frame.origin.x);
+	node->set_attribute_float("position_y", frame.origin.y);
+	node->set_attribute_float("size_x", frame.size.width);
+	node->set_attribute_float("size_y", frame.size.height);
+}
+
+
+- (void)restoreConfigurationFromNode:(util::xml::data_node const *)node {
+	NSRect frame = [window frame];
+	frame.origin.x = node->get_attribute_float("position_x", frame.origin.x);
+	frame.origin.y = node->get_attribute_float("position_y", frame.origin.y);
+	frame.size.width = node->get_attribute_float("size_x", frame.size.width);
+	frame.size.height = node->get_attribute_float("size_y", frame.size.height);
+
+	NSSize min = [window minSize];
+	frame.size.width = std::max(frame.size.width, min.width);
+	frame.size.height = std::max(frame.size.height, min.height);
+
+	NSSize max = [window maxSize];
+	frame.size.width = std::min(frame.size.width, max.width);
+	frame.size.height = std::min(frame.size.height, max.height);
+
+	[window setFrame:frame display:YES];
 }
 
 @end
@@ -447,6 +487,20 @@ NSString *const MAMEAuxiliaryDebugWindowWillCloseNotification = @"MAMEAuxiliaryD
 		}
 	}
 	return NO;
+}
+
+
+- (void)saveConfigurationToNode:(util::xml::data_node *)node {
+	[super saveConfigurationToNode:node];
+	node->add_child("expression", util::xml::normalize_string([[self expression] UTF8String]));
+}
+
+
+- (void)restoreConfigurationFromNode:(util::xml::data_node const *)node {
+	[super restoreConfigurationFromNode:node];
+	util::xml::data_node const *const expr = node->get_child("expression");
+	if (expr && expr->get_value())
+		[self setExpression:[NSString stringWithUTF8String:expr->get_value()]];
 }
 
 @end

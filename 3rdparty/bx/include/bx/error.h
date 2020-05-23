@@ -1,18 +1,16 @@
 /*
- * Copyright 2010-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2010-2019 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bx#license-bsd-2-clause
  */
 
 #ifndef BX_ERROR_H_HEADER_GUARD
 #define BX_ERROR_H_HEADER_GUARD
 
-#include "bx.h"
 #include "string.h"
 
 #define BX_ERROR_SET(_ptr, _result, _msg) \
 			BX_MACRO_BLOCK_BEGIN \
-				BX_TRACE("Error %d: %s", _result.code, "" _msg); \
-				_ptr->setError(_result,  "" _msg); \
+				(_ptr)->setError(_result,  "" _msg); \
 			BX_MACRO_BLOCK_END
 
 #define BX_ERROR_USE_TEMP_WHEN_NULL(_ptr) \
@@ -94,6 +92,6 @@ namespace bx
 
 } // namespace bx
 
-#include "error.inl"
+#include "inline/error.inl"
 
 #endif // BX_ERROR_H_HEADER_GUARD

@@ -7,18 +7,21 @@
     Controls execution of the core MAME system.
 
 ***************************************************************************/
+#ifndef MAME_FRONTEND_MAME_LUAENGINE_H
+#define MAME_FRONTEND_MAME_LUAENGINE_H
 
 #pragma once
 
-#ifndef __EMU_H__
-#error Dont include this file directly; include emu.h instead.
+#include "iptseqpoll.h"
+
+#include <condition_variable>
+#include <map>
+#include <memory>
+
+#if defined(__GNUC__) && (__GNUC__ > 6)
+#pragma GCC diagnostic ignored "-Wnoexcept-type"
 #endif
 
-#ifndef __LUA_ENGINE_H__
-#define __LUA_ENGINE_H__
-
-#include <map>
-#include <condition_variable>
 #define SOL_SAFE_USERTYPE
 //#define SOL_CHECK_ARGUMENTS
 #include "sol2/sol.hpp"
@@ -41,11 +44,14 @@ public:
 	void menu_populate(const std::string &menu, std::vector<std::tuple<std::string, std::string, std::string>> &menu_list);
 	bool menu_callback(const std::string &menu, int index, const std::string &event);
 
-	void set_machine(running_machine *machine) { m_machine = machine; }
+	void set_machine(running_machine *machine);
 	std::vector<std::string> &get_menu() { return m_menu; }
 	void attach_notifiers();
 	void on_frame_done();
+	void on_sound_update();
 	void on_periodic();
+	bool on_missing_mandatory_image(const std::string &instance_name);
+	void on_machine_before_load_settings();
 
 	template<typename T, typename U>
 	bool call_plugin(const std::string &name, const T in, U &out)
@@ -103,11 +109,13 @@ public:
 	}
 
 	sol::state_view &sol() const { return *m_sol_state; }
+
 private:
 	// internal state
 	lua_State *m_lua_state;
-	sol::state_view *m_sol_state;
+	std::unique_ptr<sol::state_view> m_sol_state;
 	running_machine *m_machine;
+	std::unique_ptr<input_sequence_poller> m_seq_poll;
 
 	std::vector<std::string> m_menu;
 
@@ -122,19 +130,19 @@ private:
 
 	void resume(void *ptr, int nparam);
 	void register_function(sol::function func, const char *id);
+	int enumerate_functions(const char *id, std::function<bool(const sol::protected_function &func)> &&callback);
 	bool execute_function(const char *id);
 	sol::object call_plugin(const std::string &name, sol::object in);
 
 	struct addr_space {
 		addr_space(address_space &space, device_memory_interface &dev) :
 			space(space), dev(dev) {}
-		template<typename T> T mem_read(offs_t address, sol::object shift);
-		template<typename T> void mem_write(offs_t address, T val, sol::object shift);
+		template<typename T> T mem_read(offs_t address);
+		template<typename T> void mem_write(offs_t address, T val);
 		template<typename T> T log_mem_read(offs_t address);
 		template<typename T> void log_mem_write(offs_t address, T val);
 		template<typename T> T direct_mem_read(offs_t address);
 		template<typename T> void direct_mem_write(offs_t address, T val);
-		const char *name() const { return space.name(); }
 
 		address_space &space;
 		device_memory_interface &dev;
@@ -149,6 +157,9 @@ private:
 		void *base;
 		unsigned int size;
 		unsigned int count;
+		unsigned int valcount;
+		unsigned int blockcount;
+		unsigned int stride;
 	};
 
 	void close();
@@ -163,6 +174,9 @@ private:
 		bool busy;
 		bool yield;
 	};
+
+	template<typename TFunc, typename... TArgs>
+	sol::protected_function_result invoke(TFunc &&func, TArgs&&... args);
 };
 
-#endif  /* __LUA_ENGINE_H__ */
+#endif // MAME_FRONTEND_MAME_LUAENGINE_H

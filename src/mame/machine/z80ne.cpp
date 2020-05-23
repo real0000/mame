@@ -13,14 +13,8 @@
 #include "emu.h"
 #include "includes/z80ne.h"
 
-/* Components */
-#include "machine/ay31015.h"
-
-/* Devices */
-#include "imagedev/flopdrv.h"
-
-#define VERBOSE 0
-#define LOG(x) do { if (VERBOSE) logerror x; } while (0)
+//#define VERBOSE 1
+#include "logmacro.h"
 
 
 
@@ -48,7 +42,7 @@ TIMER_CALLBACK_MEMBER(z80ne_state::z80ne_cassette_tc)
 		m_cass_data.input.level = cass_ws;
 		m_cass_data.input.bit = ((m_cass_data.input.length < m_cass_data.wave_filter) || (m_cass_data.input.length > 0x20)) ? 1 : 0;
 		m_cass_data.input.length = 0;
-		m_ay31015->set_input_pin(AY31015_SI, m_cass_data.input.bit);
+		m_uart->write_si(m_cass_data.input.bit);
 	}
 	m_cass_data.input.level = cass_ws;
 
@@ -63,7 +57,7 @@ TIMER_CALLBACK_MEMBER(z80ne_state::z80ne_cassette_tc)
 		else
 		{
 			m_cass_data.output.level=1;
-			cass_ws = m_ay31015->get_output_pin(AY31015_SO);
+			cass_ws = m_uart->so_r();
 			m_cass_data.wave_length = cass_ws ? m_cass_data.wave_short : m_cass_data.wave_long;
 		}
 		cassette_device_image()->output(m_cass_data.output.level ? -1.0 : +1.0);
@@ -72,7 +66,7 @@ TIMER_CALLBACK_MEMBER(z80ne_state::z80ne_cassette_tc)
 }
 
 
-DRIVER_INIT_MEMBER(z80ne_state,z80ne)
+void z80ne_state::driver_init()
 {
 	/* first two entries point to rom on reset */
 	uint8_t *RAM = m_region_z80ne->base();
@@ -81,16 +75,12 @@ DRIVER_INIT_MEMBER(z80ne_state,z80ne)
 	m_bank2->configure_entry(0, &RAM[0x14000]); /* ep382 at 0x8000 */
 }
 
-DRIVER_INIT_MEMBER(z80ne_state,z80net)
+void z80net_state::driver_init()
 {
-	DRIVER_INIT_CALL(z80ne);
+	z80ne_state::driver_init();
 }
 
-DRIVER_INIT_MEMBER(z80ne_state,z80netb)
-{
-}
-
-DRIVER_INIT_MEMBER(z80ne_state,z80netf)
+void z80netf_state::driver_init()
 {
 	/* first two entries point to rom on reset */
 	uint8_t *RAM = m_region_z80ne->base();
@@ -159,7 +149,7 @@ void z80ne_state::device_timer(emu_timer &timer, device_timer_id id, int param, 
 	switch (id)
 	{
 	case 0:
-		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_maincpu->pulse_input_line(INPUT_LINE_NMI, attotime::zero);
 		break;
 	case 1:
 		// switch to RAM bank at address 0x0000
@@ -168,10 +158,10 @@ void z80ne_state::device_timer(emu_timer &timer, device_timer_id id, int param, 
 	}
 }
 
-void z80ne_state::reset_lx388()
+void z80net_state::reset_lx387()
 {
-	m_lx388_kr2376->set_input_pin( KR2376_DSII, 0);
-	m_lx388_kr2376->set_input_pin( KR2376_PII, 0);
+	m_lx387_kr2376->set_input_pin( kr2376_device::KR2376_DSII, 0);
+	m_lx387_kr2376->set_input_pin( kr2376_device::KR2376_PII, 0);
 }
 
 void z80ne_state::reset_lx382_banking()
@@ -184,7 +174,7 @@ void z80ne_state::reset_lx382_banking()
 	m_timer_reset->adjust(m_maincpu->cycles_to_attotime(2));
 }
 
-void z80ne_state::reset_lx390_banking()
+void z80netf_state::reset_lx390_banking()
 {
 	switch (m_io_config->read() & 0x07)
 	{
@@ -237,13 +227,9 @@ void z80ne_state::reset_lx390_banking()
 	 */
 }
 
-MACHINE_RESET_MEMBER(z80ne_state,z80ne_base)
+void z80ne_state::base_reset()
 {
-	int i;
-
-	LOG(("In machine_reset z80ne_base\n"));
-
-	for ( i=0; i<LX383_KEYS; i++)
+	for (int i = 0; i < LX383_KEYS; i++)
 		m_lx383_key[i] = 0xf0 | i;
 	m_lx383_scan_counter = 0x0f;
 	m_lx383_downsampler = LX383_DOWNSAMPLING;
@@ -275,47 +261,42 @@ MACHINE_RESET_MEMBER(z80ne_state,z80ne_base)
 	m_cass_data.input.length = 0;
 	m_cass_data.input.bit = 1;
 
-	m_ay31015->set_input_pin(AY31015_CS, 0);
-	m_ay31015->set_input_pin(AY31015_NB1, 1);
-	m_ay31015->set_input_pin(AY31015_NB2, 1);
-	m_ay31015->set_input_pin(AY31015_TSB, 1);
-	m_ay31015->set_input_pin(AY31015_EPS, 1);
-	m_ay31015->set_input_pin(AY31015_NP, m_io_lx_385->read() & 0x80 ? 1 : 0);
-	m_ay31015->set_input_pin(AY31015_CS, 1);
-	m_ay31015->set_receiver_clock(m_cass_data.speed * 16.0);
-	m_ay31015->set_transmitter_clock(m_cass_data.speed * 16.0);
+	m_uart->write_cs(0);
+	m_uart->write_nb1(1);
+	m_uart->write_nb2(1);
+	m_uart->write_tsb(1);
+	m_uart->write_eps(1);
+	m_uart->write_np(m_io_lx_385->read() & 0x80 ? 1 : 0);
+	m_uart->write_cs(1);
+	m_uart_clock->set_unscaled_clock(m_cass_data.speed * 16);
 
-	lx385_ctrl_w(m_maincpu->space(AS_PROGRAM), 0, 0);
+	lx385_ctrl_w(0);
 
 }
 
-MACHINE_RESET_MEMBER(z80ne_state,z80ne)
+void z80ne_state::machine_reset()
 {
-	LOG(("In machine_reset z80ne\n"));
 	reset_lx382_banking();
-	MACHINE_RESET_CALL_MEMBER( z80ne_base );
+	base_reset();
 }
 
-MACHINE_RESET_MEMBER(z80ne_state,z80net)
+void z80net_state::machine_reset()
 {
-	LOG(("In machine_reset z80net\n"));
-	MACHINE_RESET_CALL_MEMBER( z80ne );
-	reset_lx388();
+	z80ne_state::machine_reset();
+	reset_lx387();
 }
 
-MACHINE_RESET_MEMBER(z80ne_state,z80netb)
+void z80netb_state::machine_reset()
 {
-	LOG(("In machine_reset z80netb\n"));
-	MACHINE_RESET_CALL_MEMBER( z80ne_base );
-	reset_lx388();
+	base_reset();
+	reset_lx387();
 }
 
-MACHINE_RESET_MEMBER(z80ne_state,z80netf)
+void z80netf_state::machine_reset()
 {
-	LOG(("In machine_reset z80netf\n"));
 	reset_lx390_banking();
-	MACHINE_RESET_CALL_MEMBER( z80ne_base );
-	reset_lx388();
+	base_reset();
+	reset_lx387();
 }
 
 INPUT_CHANGED_MEMBER(z80ne_state::z80ne_reset)
@@ -329,48 +310,37 @@ INPUT_CHANGED_MEMBER(z80ne_state::z80ne_reset)
 	}
 }
 
-INPUT_CHANGED_MEMBER(z80ne_state::z80ne_nmi)
+INPUT_CHANGED_MEMBER(z80net_state::z80net_nmi)
 {
 	uint8_t nmi;
-	nmi = m_io_lx388_brk->read();
+	nmi = m_io_lx387_brk->read();
 
 	if ( ! BIT(nmi, 0))
 	{
-		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_maincpu->pulse_input_line(INPUT_LINE_NMI, attotime::zero);
 	}
 }
 
-MACHINE_START_MEMBER(z80ne_state,z80ne)
+void z80ne_state::machine_start()
 {
-	LOG(("In MACHINE_START z80ne\n"));
-
 	m_timer_nmi = timer_alloc(0);
 	m_timer_reset = timer_alloc(1);
+
+	m_lx383_digits.resolve();
 
 	m_lx385_ctrl = 0x1f;
 	save_item(NAME(m_lx383_scan_counter));
 	save_item(NAME(m_lx383_downsampler));
 	save_item(NAME(m_lx383_key));
-	m_cassette_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(z80ne_state::z80ne_cassette_tc),this));
-	machine().scheduler().timer_pulse( attotime::from_hz(1000), timer_expired_delegate(FUNC(z80ne_state::z80ne_kbd_scan),this));
+	m_cassette_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(z80ne_state::z80ne_cassette_tc), this));
+	m_kbd_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(z80ne_state::z80ne_kbd_scan), this));
+	m_kbd_timer->adjust(attotime::from_hz(1000), 0, attotime::from_hz(1000));
 }
 
-MACHINE_START_MEMBER(z80ne_state,z80net)
+void z80netf_state::machine_start()
 {
-	MACHINE_START_CALL_MEMBER( z80ne );
-	LOG(("In MACHINE_START z80net\n"));
-}
-
-MACHINE_START_MEMBER(z80ne_state,z80netb)
-{
-	MACHINE_START_CALL_MEMBER( z80net );
-	LOG(("In MACHINE_START z80netb\n"));
-}
-
-MACHINE_START_MEMBER(z80ne_state,z80netf)
-{
-	MACHINE_START_CALL_MEMBER( z80net );
-	LOG(("In MACHINE_START z80netf\n"));
+	z80ne_state::machine_start();
+	m_drv_led.resolve();
 }
 
 /******************************************************************************
@@ -378,7 +348,7 @@ MACHINE_START_MEMBER(z80ne_state,z80netf)
 ******************************************************************************/
 
 /* LX.383 - LX.384 HEX keyboard and display */
-READ8_MEMBER(z80ne_state::lx383_r)
+uint8_t z80ne_state::lx383_r()
 {
 	/*
 	 * Keyboard scanning
@@ -400,14 +370,14 @@ READ8_MEMBER(z80ne_state::lx383_r)
 	return m_lx383_key[m_lx383_scan_counter];
 }
 
-WRITE8_MEMBER(z80ne_state::lx383_w)
+void z80ne_state::lx383_w(offs_t offset, uint8_t data)
 {
 	/*
 	 * First 8 locations (F0-F7) are mapped to a dual-port 8-byte RAM
 	 * The 1KHz NE-555 astable oscillator circuit drive
 	 * a 4-bit 74LS93 binary counter.
-	 * The 3 least sigificant bits of the counter are connected
-	 * both to the read addres of the dual-port ram and to
+	 * The 3 least significant bits of the counter are connected
+	 * both to the read address of the dual-port ram and to
 	 * a 74LS156 3 to 8 binary decoder driving the cathode
 	 * of 8 7-segments LEDS.
 	 * The data output of the dual-port ram drive the anodes
@@ -423,12 +393,12 @@ WRITE8_MEMBER(z80ne_state::lx383_w)
 	 *   P   0x80 (represented by DP in original schematics)
 	 *
 	 *   A write in the range F0-FF starts a 74LS90 counter
-	 *   that trigger the NMI line of the CPU afther 2 instruction
+	 *   that trigger the NMI line of the CPU after 2 instruction
 	 *   fetch cycles for single step execution.
 	 */
 
 	if ( offset < 8 )
-		output().set_digit_value( offset, data ^ 0xff );
+		m_lx383_digits[offset] = data ^ 0xff;
 	else
 	{
 		// after writing to port 0xF8 and the first ~M1 cycles strike a NMI for single step execution
@@ -478,38 +448,32 @@ WRITE8_MEMBER(z80ne_state::lx383_w)
 
     A manchester encoder is used. A flip-flop synchronises input
     data on the positive-edge of the clock pulse.
+
+    The UART is a RCA CDP1854 CMOS device with pin 2 jumpered to GND to select the
+    AY-3-1015 compatibility mode. The jumper at P4 can be switched to place 12 V on
+    pin 2 for an old PMOS UART.
  *
  */
-READ8_MEMBER(z80ne_state::lx385_data_r)
-{
-	return m_ay31015->get_received_data();
-}
-
-READ8_MEMBER(z80ne_state::lx385_ctrl_r)
+uint8_t z80ne_state::lx385_ctrl_r()
 {
 	/* set unused bits high */
 	uint8_t data = 0xc0;
 
-	m_ay31015->set_input_pin(AY31015_SWE, 0);
-	data |= (m_ay31015->get_output_pin(AY31015_OR  ) ? 0x01 : 0);
-	data |= (m_ay31015->get_output_pin(AY31015_FE  ) ? 0x02 : 0);
-	data |= (m_ay31015->get_output_pin(AY31015_PE  ) ? 0x04 : 0);
-	data |= (m_ay31015->get_output_pin(AY31015_TBMT) ? 0x08 : 0);
-	data |= (m_ay31015->get_output_pin(AY31015_DAV ) ? 0x10 : 0);
-	data |= (m_ay31015->get_output_pin(AY31015_EOC ) ? 0x20 : 0);
-	m_ay31015->set_input_pin(AY31015_SWE, 1);
+	m_uart->write_swe(0);
+	data |= (m_uart->or_r(  ) ? 0x01 : 0);
+	data |= (m_uart->fe_r(  ) ? 0x02 : 0);
+	data |= (m_uart->pe_r(  ) ? 0x04 : 0);
+	data |= (m_uart->tbmt_r() ? 0x08 : 0);
+	data |= (m_uart->dav_r( ) ? 0x10 : 0);
+	data |= (m_uart->eoc_r( ) ? 0x20 : 0);
+	m_uart->write_swe(1);
 
 	return data;
 }
 
-WRITE8_MEMBER(z80ne_state::lx385_data_w)
-{
-	m_ay31015->set_transmit_data(data);
-}
-
 #define LX385_CASSETTE_MOTOR_MASK ((1<<3)|(1<<4))
 
-WRITE8_MEMBER(z80ne_state::lx385_ctrl_w)
+void z80ne_state::lx385_ctrl_w(uint8_t data)
 {
 	/* Translate data to control signals
 	 *     0 bit1=0, bit0=0   UART Reset pulse
@@ -518,35 +482,30 @@ WRITE8_MEMBER(z80ne_state::lx385_ctrl_w)
 	 *     3 *TAPEA Enable (active low) (at reset: low)
 	 *     4 *TAPEB Enable (active low) (at reset: low)
 	 */
-	uint8_t uart_reset, uart_rdav, uart_tx_clock;
+	uint8_t uart_reset, uart_rdav;
 	uint8_t motor_a, motor_b;
 	uint8_t changed_bits = (m_lx385_ctrl ^ data) & 0x1C;
 	m_lx385_ctrl = data;
 
 	uart_reset = ((data & 0x03) == 0x00);
 	uart_rdav  = ((data & 0x03) == 0x01);
-	uart_tx_clock = ((data & 0x04) == 0x04);
 	motor_a = ((data & 0x08) == 0x00);
 	motor_b = ((data & 0x10) == 0x00);
 
 	/* UART Reset and RDAV */
 	if (uart_reset)
 	{
-		m_ay31015->set_input_pin(AY31015_XR, 1);
-		m_ay31015->set_input_pin(AY31015_XR, 0);
+		m_uart->write_xr(1);
+		m_uart->write_xr(0);
 	}
 
 	if (uart_rdav)
 	{
-		m_ay31015->set_input_pin(AY31015_RDAV, 1);
-		m_ay31015->set_input_pin(AY31015_RDAV, 0);
+		m_uart->write_rdav(1);
+		m_uart->write_rdav(0);
 	}
 
 	if (!changed_bits) return;
-
-	/* UART Tx Clock enable/disable */
-	if (changed_bits & 0x04)
-		m_ay31015->set_transmitter_clock(uart_tx_clock ? m_cass_data.speed * 16.0 : 0.0);
 
 	/* motors */
 	if(changed_bits & 0x18)
@@ -564,31 +523,44 @@ WRITE8_MEMBER(z80ne_state::lx385_ctrl_w)
 	}
 }
 
-READ8_MEMBER(z80ne_state::lx388_mc6847_videoram_r)
+WRITE_LINE_MEMBER(z80ne_state::lx385_uart_tx_clock_w)
+{
+	if (BIT(m_lx385_ctrl, 2))
+		m_uart->write_tcp(state);
+}
+
+READ_LINE_MEMBER(z80net_state::lx387_shift_r)
+{
+	return BIT(m_io_modifiers->read(), 0) || BIT(m_io_modifiers->read(), 2);
+}
+
+READ_LINE_MEMBER(z80net_state::lx387_control_r)
+{
+	return BIT(m_io_modifiers->read(), 1);
+}
+
+uint8_t z80net_state::lx388_mc6847_videoram_r(offs_t offset)
 {
 	if (offset == ~0) return 0xff;
 
-	uint8_t *videoram = m_videoram;
-	int d6 = BIT(videoram[offset], 6);
-	int d7 = BIT(videoram[offset], 7);
+	int d6 = BIT(m_videoram[offset], 6);
+	int d7 = BIT(m_videoram[offset], 7);
 
 	m_vdg->inv_w(d6 && d7);
 	m_vdg->as_w(!d6 && d7);
 	m_vdg->intext_w(!d6 && d7);
 
-	return videoram[offset];
+	return m_videoram[offset];
 }
 
-READ8_MEMBER(z80ne_state::lx388_data_r)
+uint8_t z80net_state::lx387_data_r()
 {
-	uint8_t data;
-
-	data = m_lx388_kr2376->data_r(space, 0) & 0x7f;
-	data |= m_lx388_kr2376->get_output_pin(KR2376_SO) << 7;
+	uint8_t data = m_lx387_kr2376->data_r() & 0x7f;
+	data |= m_lx387_kr2376->get_output_pin(kr2376_device::KR2376_SO) << 7;
 	return data;
 }
 
-READ8_MEMBER(z80ne_state::lx388_read_field_sync)
+uint8_t z80net_state::lx388_read_field_sync()
 {
 	return m_vdg->fs_r() << 7;
 }
@@ -602,7 +574,7 @@ READ8_MEMBER(z80ne_state::lx388_read_field_sync)
  *
  */
 
-WRITE8_MEMBER(z80ne_state::lx390_motor_w)
+void z80netf_state::lx390_motor_w(uint8_t data)
 {
 	/* Selection of drive and parameters
 	 A write also causes the selected drive motor to turn on for about 3 seconds.
@@ -618,10 +590,9 @@ WRITE8_MEMBER(z80ne_state::lx390_motor_w)
 
 	floppy_image_device *floppy = nullptr;
 
-	if (BIT(data, 0)) floppy = m_floppy0->get_device();
-	if (BIT(data, 1)) floppy = m_floppy1->get_device();
-	if (BIT(data, 2)) floppy = m_floppy2->get_device();
-	if (BIT(data, 3)) floppy = m_floppy3->get_device();
+	for (int f = 0; f < 4; f++)
+		if (BIT(data, f))
+			floppy = m_floppy[f]->get_device();
 
 	m_wd1771->set_floppy(floppy);
 
@@ -637,12 +608,12 @@ WRITE8_MEMBER(z80ne_state::lx390_motor_w)
 	/* no drive selected, turn off all leds */
 	if (!m_wd17xx_state.drive)
 	{
-		output().set_value("drv0", 0);
-		output().set_value("drv1", 0);
+		m_drv_led[0] = 0;
+		m_drv_led[1] = 0;
 	}
 }
 
-READ8_MEMBER(z80ne_state::lx390_reset_bank)
+uint8_t z80netf_state::lx390_reset_bank()
 {
 	offs_t pc;
 
@@ -650,45 +621,45 @@ READ8_MEMBER(z80ne_state::lx390_reset_bank)
 	pc = m_maincpu->pc();
 	if((pc >= 0xf000) && (pc <=0xffff))
 	{
-		LOG(("lx390_reset_bank, reset memory bank 1\n"));
+		LOG("lx390_reset_bank, reset memory bank 1\n");
 		m_bank1->set_entry(0); /* RAM at 0x0000 (bank 1) */
 	}
 	else
 	{
-		LOG(("lx390_reset_bank, bypass because in debugger\n"));
+		LOG("lx390_reset_bank, bypass because in debugger\n");
 	}
 	return 0xff;
 }
 
-READ8_MEMBER(z80ne_state::lx390_fdc_r)
+uint8_t z80netf_state::lx390_fdc_r(offs_t offset)
 {
 	uint8_t d;
 
 	switch(offset)
 	{
 	case 0:
-		d = m_wd1771->status_r(space, 0) ^ 0xff;
-		LOG(("lx390_fdc_r, WD17xx status: %02x\n", d));
+		d = m_wd1771->status_r() ^ 0xff;
+		LOG("lx390_fdc_r, WD17xx status: %02x\n", d);
 		break;
 	case 1:
-		d = m_wd1771->track_r(space, 0) ^ 0xff;
-		LOG(("lx390_fdc_r, WD17xx track:  %02x\n", d));
+		d = m_wd1771->track_r() ^ 0xff;
+		LOG("lx390_fdc_r, WD17xx track:  %02x\n", d);
 		break;
 	case 2:
-		d = m_wd1771->sector_r(space, 0) ^ 0xff;
-		LOG(("lx390_fdc_r, WD17xx sector: %02x\n", d));
+		d = m_wd1771->sector_r() ^ 0xff;
+		LOG("lx390_fdc_r, WD17xx sector: %02x\n", d);
 		break;
 	case 3:
-		d = m_wd1771->data_r(space, 0) ^ 0xff;
-		LOG(("lx390_fdc_r, WD17xx data3:  %02x\n", d));
+		d = m_wd1771->data_r() ^ 0xff;
+		LOG("lx390_fdc_r, WD17xx data3:  %02x\n", d);
 		break;
 	case 6:
 		d = 0xff;
-		lx390_reset_bank(space, 0);
+		lx390_reset_bank();
 		break;
 	case 7:
-		d = m_wd1771->data_r(space, 3) ^ 0xff;
-		LOG(("lx390_fdc_r, WD17xx data7, force:  %02x\n", d));
+		d = m_wd1771->data_r() ^ 0xff;
+		LOG("lx390_fdc_r, WD17xx data7, force:  %02x\n", d);
 		break;
 	default:
 		d = 0x00;
@@ -696,40 +667,38 @@ READ8_MEMBER(z80ne_state::lx390_fdc_r)
 	return d;
 }
 
-WRITE8_MEMBER(z80ne_state::lx390_fdc_w)
+void z80netf_state::lx390_fdc_w(offs_t offset, uint8_t data)
 {
-	uint8_t d;
-
-	d = data;
+	uint8_t d = data;
 	switch(offset)
 	{
 	case 0:
-		LOG(("lx390_fdc_w, WD17xx command: %02x\n", d));
-		m_wd1771->cmd_w(space, offset, d ^ 0xff);
+		LOG("lx390_fdc_w, WD17xx command: %02x\n", d);
+		m_wd1771->cmd_w(d ^ 0xff);
 		if (m_wd17xx_state.drive & 1)
-			output().set_value("drv0", 2);
+			m_drv_led[0] = 2;
 		else if (m_wd17xx_state.drive & 2)
-			output().set_value("drv1", 2);
+			m_drv_led[1] = 2;
 		break;
 	case 1:
-		LOG(("lx390_fdc_w, WD17xx track:   %02x\n", d));
-		m_wd1771->track_w(space, offset, d ^ 0xff);
+		LOG("lx390_fdc_w, WD17xx track:   %02x\n", d);
+		m_wd1771->track_w(d ^ 0xff);
 		break;
 	case 2:
-		LOG(("lx390_fdc_w, WD17xx sector:  %02x\n", d));
-		m_wd1771->sector_w(space, offset, d ^ 0xff);
+		LOG("lx390_fdc_w, WD17xx sector:  %02x\n", d);
+		m_wd1771->sector_w(d ^ 0xff);
 		break;
 	case 3:
-		m_wd1771->data_w(space, 0, d ^ 0xff);
-		LOG(("lx390_fdc_w, WD17xx data3:   %02x\n", d));
+		m_wd1771->data_w(d ^ 0xff);
+		LOG("lx390_fdc_w, WD17xx data3:   %02x\n", d);
 		break;
 	case 6:
-		LOG(("lx390_fdc_w, motor_w:   %02x\n", d));
-		lx390_motor_w(space, 0, d);
+		LOG("lx390_fdc_w, motor_w:   %02x\n", d);
+		lx390_motor_w(d);
 		break;
 	case 7:
-		LOG(("lx390_fdc_w, WD17xx data7, force:   %02x\n", d));
-		m_wd1771->data_w(space, 3, d ^ 0xff);
+		LOG("lx390_fdc_w, WD17xx data7, force:   %02x\n", d);
+		m_wd1771->data_w(d ^ 0xff);
 		break;
 	}
 }

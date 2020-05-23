@@ -1,9 +1,9 @@
 // license:BSD-3-Clause
 // copyright-holders:Derrick Renaud, Couriersud
-#pragma once
+#ifndef MAME_SOUND_FLT_RC_H
+#define MAME_SOUND_FLT_RC_H
 
-#ifndef __FLT_RC_H__
-#define __FLT_RC_H__
+#pragma once
 
 #include "machine/rescap.h"
 
@@ -33,50 +33,55 @@
  * Same as FLT_RC_HIGHPASS, but with standard frequency of 16 HZ
  * This filter may be setup just with
  *
- * MCFG_FILTER_RC_ADD("tag", 0)
- * MCFG_FILTER_RC_AC()
+ * FILTER_RC(config, "tag", 0).set_ac();
  *
  * Default behaviour:
  *
- * Without MCFG_FILTER_RC_AC, a disabled FLT_RC_LOWPASS is created
+ * Without set_ac(), a disabled FLT_RC_LOWPASS is created
  *
  */
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_FILTER_RC_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, FILTER_RC, _clock)
-
-#define MCFG_FILTER_RC_REPLACE(_tag, _clock) \
-	MCFG_DEVICE_REPLACE(_tag, FILTER_RC, _clock)
-
-#define MCFG_FILTER_RC_AC() \
-	filter_rc_device::static_set_rc(*device, FLT_RC_AC, 10000, 0, 0, CAP_U(1));
-
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-#define FLT_RC_LOWPASS      0
-#define FLT_RC_HIGHPASS     1
-#define FLT_RC_AC           2
-
 // ======================> filter_rc_device
 
-class filter_rc_device : public device_t,
-							public device_sound_interface
+class filter_rc_device : public device_t, public device_sound_interface
 {
 public:
-	filter_rc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~filter_rc_device() { }
+	enum
+	{
+		LOWPASS      = 0,
+		HIGHPASS     = 1,
+		AC           = 2
+	};
 
-	// static configuration
-	static void static_set_rc(device_t &device, int type, double R1, double R2, double R3, double C);
+	filter_rc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
-	void filter_rc_set_RC(int type, double R1, double R2, double R3, double C);
+	// configuration
+	filter_rc_device &set_rc(int type, double R1, double R2, double R3, double C)
+	{
+		m_type = type;
+		m_R1 = R1;
+		m_R2 = R2;
+		m_R3 = R3;
+		m_C = C;
+		return *this;
+	}
+
+	filter_rc_device &filter_rc_set_RC(int type, double R1, double R2, double R3, double C)
+	{
+		m_stream->update();
+		set_rc(type, R1, R2, R3, C);
+		recalc();
+		return *this;
+	}
+
+	filter_rc_device &set_ac()
+	{
+		return set_rc(filter_rc_device::AC, 10000, 0, 0, CAP_U(1));
+	}
 
 protected:
 	// device-level overrides
@@ -99,6 +104,6 @@ private:
 	double         m_C;
 };
 
-extern const device_type FILTER_RC;
+DECLARE_DEVICE_TYPE(FILTER_RC, filter_rc_device)
 
-#endif /* __FLT_RC_H__ */
+#endif // MAME_SOUND_FLT_RC_H

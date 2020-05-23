@@ -1,9 +1,9 @@
 // license:BSD-3-Clause
 // copyright-holders:Farfetch'd, R. Belmont
-#pragma once
+#ifndef MAME_CPU_I960_I960_H
+#define MAME_CPU_I960_I960_H
 
-#ifndef __I960_H__
-#define __I960_H__
+#pragma once
 
 
 enum
@@ -63,9 +63,6 @@ enum
 };
 
 
-enum { I960_RCACHE_SIZE = 4 };
-
-
 class i960_cpu_device :  public cpu_device
 {
 public:
@@ -76,33 +73,46 @@ public:
 	// on the real hardware (e.g. Model 2's interrupt control registers)
 	void i960_noburst() { m_bursting = 0; }
 
-	void i960_stall() { m_IP = m_PIP; }
+	void i960_stall()
+	{
+		m_stalled = true;
+		m_IP = m_PIP;
+	}
 
 protected:
+	enum { I960_RCACHE_SIZE = 4 };
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 1; } /* ???? TODO: Exact timing unknown */
-	virtual uint32_t execute_max_cycles() const override { return 1; } /* ???? TODO: Exact timing unknown */
-	virtual uint32_t execute_input_lines() const override { return 4; }
-	virtual uint32_t execute_default_irq_vector() const override { return 0xffffffff; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 1; } /* ???? TODO: Exact timing unknown */
+	virtual uint32_t execute_max_cycles() const noexcept override { return 1; } /* ???? TODO: Exact timing unknown */
+	virtual uint32_t execute_input_lines() const noexcept override { return 4; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : nullptr; }
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 4; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 8; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 private:
+	void burst_stall_save(uint32_t t1, uint32_t t2, int index, int size, bool iswriteop);
+
+	struct {
+		uint32_t t1 = 0, t2 = 0;
+		int index = 0, size = 0;
+		bool burst_mode = false;
+		bool iswriteop = false;
+	}m_stall_state;
+	bool m_stalled;
+
 	address_space_config m_program_config;
 
 	uint32_t m_r[0x20];
@@ -128,7 +138,7 @@ private:
 	int  m_immediate_pri;
 
 	address_space *m_program;
-	direct_read_data *m_direct;
+	memory_access_cache<2, 0, ENDIANNESS_LITTLE> *m_cache;
 
 	int m_icount;
 
@@ -164,6 +174,7 @@ private:
 	void fxx(uint32_t opcode, int mask);
 	void test(uint32_t opcode, int mask);
 	void execute_op(uint32_t opcode);
+	void execute_burst_stall_op(uint32_t opcode);
 	void take_interrupt(int vector, int lvl);
 	void check_irqs();
 	void do_call(uint32_t adr, int type, uint32_t stack);
@@ -172,7 +183,6 @@ private:
 };
 
 
-extern const device_type I960;
+DECLARE_DEVICE_TYPE(I960, i960_cpu_device)
 
-
-#endif /* __I960_H__ */
+#endif // MAME_CPU_I960_I960_H

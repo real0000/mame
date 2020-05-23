@@ -46,7 +46,10 @@ VIDEO_START_MEMBER(midyunit_state,common)
 	m_local_videoram = make_unique_clear<uint16_t[]>(0x80000/2);
 	m_pen_map = std::make_unique<pen_t[]>(65536);
 
-	machine().device<nvram_device>("nvram")->set_base(m_cmos_ram.get(), 0x2000 * 4);
+	m_nvram->set_base(m_cmos_ram.get(), 0x2000 * 4);
+
+	m_dma_timer = timer_alloc(TIMER_DMA);
+	m_autoerase_line_timer = timer_alloc(TIMER_AUTOERASE_LINE);
 
 	/* reset all the globals */
 	m_cmos_page = 0;
@@ -59,8 +62,8 @@ VIDEO_START_MEMBER(midyunit_state,common)
 
 	/* register for state saving */
 	save_item(NAME(m_autoerase_enable));
-	save_pointer(NAME(m_local_videoram.get()), 0x80000/2);
-	save_pointer(NAME(m_cmos_ram.get()), (0x2000 * 4)/2);
+	save_pointer(NAME(m_local_videoram), 0x80000/2);
+	save_pointer(NAME(m_cmos_ram), (0x2000 * 4)/2);
 	save_item(NAME(m_videobank_select));
 	save_item(NAME(m_dma_register));
 }
@@ -369,7 +372,7 @@ void midyunit_state::device_timer(emu_timer &timer, device_timer_id id, int para
 		autoerase_line(ptr, param);
 		break;
 	default:
-		assert_always(false, "Unknown id in midyunit_state::device_timer");
+		throw emu_fatalerror("Unknown id in midyunit_state::device_timer");
 	}
 }
 
@@ -530,7 +533,7 @@ if (LOG_DMA)
 	}
 
 	/* signal we're done */
-	timer_set(attotime::from_nsec(41 * dma_state.width * dma_state.height), TIMER_DMA);
+	m_dma_timer->adjust(attotime::from_nsec(41 * dma_state.width * dma_state.height));
 
 	g_profiler.stop();
 }
@@ -569,5 +572,5 @@ TMS340X0_SCANLINE_IND16_CB_MEMBER(midyunit_state::scanline_update)
 	/* if this is the last update of the screen, set a timer to clear out the final line */
 	/* (since we update one behind) */
 	if (scanline == screen.visible_area().max_y)
-		timer_set(screen.time_until_pos(scanline + 1), midyunit_state::TIMER_AUTOERASE_LINE, params->rowaddr);
+		m_autoerase_line_timer->adjust(screen.time_until_pos(scanline + 1), params->rowaddr);
 }

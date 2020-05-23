@@ -15,7 +15,7 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type PORTFOLIO_MEMORY_CARD_SLOT = device_creator<portfolio_memory_card_slot_t>;
+DEFINE_DEVICE_TYPE(PORTFOLIO_MEMORY_CARD_SLOT, portfolio_memory_card_slot_device, "portfolio_ccm_slot", "Atari Portfolio memory card port")
 
 
 
@@ -28,11 +28,11 @@ const device_type PORTFOLIO_MEMORY_CARD_SLOT = device_creator<portfolio_memory_c
 //-------------------------------------------------
 
 device_portfolio_memory_card_slot_interface::device_portfolio_memory_card_slot_interface(const machine_config &mconfig, device_t &device) :
-	device_slot_card_interface(mconfig, device),
+	device_interface(device, "pofoccm"),
 	m_rom(*this, "rom"),
 	m_nvram(*this, "nvram")
 {
-	m_slot = dynamic_cast<portfolio_memory_card_slot_t *>(device.owner());
+	m_slot = dynamic_cast<portfolio_memory_card_slot_device *>(device.owner());
 }
 
 
@@ -42,12 +42,12 @@ device_portfolio_memory_card_slot_interface::device_portfolio_memory_card_slot_i
 //**************************************************************************
 
 //-------------------------------------------------
-//  portfolio_memory_card_slot_t - constructor
+//  portfolio_memory_card_slot_device - constructor
 //-------------------------------------------------
 
-portfolio_memory_card_slot_t::portfolio_memory_card_slot_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, PORTFOLIO_MEMORY_CARD_SLOT, "Atari Portfolio memory card port", tag, owner, clock, "portfolio_ccm_slot", __FILE__),
-	device_slot_interface(mconfig, *this),
+portfolio_memory_card_slot_device::portfolio_memory_card_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, PORTFOLIO_MEMORY_CARD_SLOT, tag, owner, clock),
+	device_single_card_slot_interface<device_portfolio_memory_card_slot_interface>(mconfig, *this),
 	device_image_interface(mconfig, *this),
 	m_card(nullptr)
 {
@@ -58,9 +58,9 @@ portfolio_memory_card_slot_t::portfolio_memory_card_slot_t(const machine_config 
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void portfolio_memory_card_slot_t::device_start()
+void portfolio_memory_card_slot_device::device_start()
 {
-	m_card = dynamic_cast<device_portfolio_memory_card_slot_interface *>(get_card_device());
+	m_card = get_card_device();
 }
 
 
@@ -68,18 +68,14 @@ void portfolio_memory_card_slot_t::device_start()
 //  call_load -
 //-------------------------------------------------
 
-image_init_result portfolio_memory_card_slot_t::call_load()
+image_init_result portfolio_memory_card_slot_device::call_load()
 {
 	if (m_card)
 	{
 		if (!loaded_through_softlist())
-		{
 			fread(m_card->m_rom, length());
-		}
 		else
-		{
 			load_software_region("rom", m_card->m_rom);
-		}
 	}
 
 	return image_init_result::PASS;
@@ -90,7 +86,7 @@ image_init_result portfolio_memory_card_slot_t::call_load()
 //  get_default_card_software -
 //-------------------------------------------------
 
-std::string portfolio_memory_card_slot_t::get_default_card_software()
+std::string portfolio_memory_card_slot_device::get_default_card_software(get_default_card_software_hook &hook) const
 {
 	return software_get_default_slot("rom");
 }
@@ -104,7 +100,8 @@ std::string portfolio_memory_card_slot_t::get_default_card_software()
 #include "ram.h"
 #include "rom.h"
 
-SLOT_INTERFACE_START( portfolio_memory_cards )
-	SLOT_INTERFACE("ram", PORTFOLIO_RAM_CARD)
-	SLOT_INTERFACE("rom", PORTFOLIO_ROM_CARD)
-SLOT_INTERFACE_END
+void portfolio_memory_cards(device_slot_interface &device)
+{
+	device.option_add("ram", PORTFOLIO_RAM_CARD);
+	device.option_add("rom", PORTFOLIO_ROM_CARD);
+}

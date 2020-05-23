@@ -21,7 +21,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type COMX_THM = device_creator<comx_thm_device>;
+DEFINE_DEVICE_TYPE(COMX_THM, comx_thm_device, "comx_thm", "COMX-35 Thermal Printer Card")
 
 
 //-------------------------------------------------
@@ -53,7 +53,7 @@ const tiny_rom_entry *comx_thm_device::device_rom_region() const
 //-------------------------------------------------
 
 comx_thm_device::comx_thm_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, COMX_THM, "COMX-35 Thermal Printer Card", tag, owner, clock, "comx_thm", __FILE__),
+	device_t(mconfig, COMX_THM, tag, owner, clock),
 	device_comx_expansion_card_interface(mconfig, *this),
 	m_rom(*this, "c000")
 {
@@ -82,7 +82,7 @@ void comx_thm_device::device_reset()
 //  comx_mrd_r - memory read
 //-------------------------------------------------
 
-uint8_t comx_thm_device::comx_mrd_r(address_space &space, offs_t offset, int *extrom)
+uint8_t comx_thm_device::comx_mrd_r(offs_t offset, int *extrom)
 {
 	uint8_t data = 0;
 
@@ -99,7 +99,7 @@ uint8_t comx_thm_device::comx_mrd_r(address_space &space, offs_t offset, int *ex
 //  comx_io_r - I/O read
 //-------------------------------------------------
 
-uint8_t comx_thm_device::comx_io_r(address_space &space, offs_t offset)
+uint8_t comx_thm_device::comx_io_r(offs_t offset)
 {
 	/*
 	    INP 2 is used for the printer status, where:
@@ -116,7 +116,7 @@ uint8_t comx_thm_device::comx_io_r(address_space &space, offs_t offset)
 //  comx_io_w - I/O write
 //-------------------------------------------------
 
-void comx_thm_device::comx_io_w(address_space &space, offs_t offset, uint8_t data)
+void comx_thm_device::comx_io_w(offs_t offset, uint8_t data)
 {
 	/*
 	    OUT 2 is used to control the thermal printer where:

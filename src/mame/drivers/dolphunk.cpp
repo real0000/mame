@@ -83,9 +83,10 @@
 #include "emu.h"
 #include "cpu/s2650/s2650.h"
 #include "imagedev/cassette.h"
+#include "machine/timer.h"
 #include "sound/spkrdev.h"
-#include "sound/wave.h"
 #include "speaker.h"
+#include "video/pwm.h"
 
 #include "dolphunk.lh"
 
@@ -98,38 +99,39 @@ public:
 		, m_maincpu(*this, "maincpu")
 		, m_speaker(*this, "speaker")
 		, m_cass(*this, "cassette")
+		, m_display(*this, "display")
 	{ }
 
-	DECLARE_READ8_MEMBER(cass_r);
-	DECLARE_WRITE_LINE_MEMBER(cass_w);
+	void dauphin(machine_config &config);
+
+private:
+	DECLARE_READ_LINE_MEMBER(cass_r);
 	DECLARE_READ8_MEMBER(port07_r);
 	DECLARE_WRITE8_MEMBER(port00_w);
 	DECLARE_WRITE8_MEMBER(port06_w);
-	TIMER_DEVICE_CALLBACK_MEMBER(dauphin_c);
-private:
+	TIMER_DEVICE_CALLBACK_MEMBER(kansas_w);
+	void dauphin_io(address_map &map);
+	void dauphin_mem(address_map &map);
+
 	uint8_t m_cass_data;
 	uint8_t m_last_key;
-	bool m_cass_state;
+	bool m_cassbit;
 	bool m_cassold;
 	bool m_speaker_state;
-	required_device<cpu_device> m_maincpu;
+	required_device<s2650_device> m_maincpu;
 	required_device<speaker_sound_device> m_speaker;
 	required_device<cassette_image_device> m_cass;
+	required_device<pwm_display_device> m_display;
 };
 
-READ8_MEMBER( dauphin_state::cass_r )
+READ_LINE_MEMBER( dauphin_state::cass_r )
 {
 	return (m_cass->input() > 0.03) ? 1 : 0;
 }
 
-WRITE_LINE_MEMBER( dauphin_state::cass_w )
-{
-	m_cass_state = state; // get flag bit
-}
-
 WRITE8_MEMBER( dauphin_state::port00_w )
 {
-	output().set_digit_value(offset, data);
+	m_display->matrix(1<<offset, data);
 }
 
 WRITE8_MEMBER( dauphin_state::port06_w )
@@ -164,37 +166,37 @@ READ8_MEMBER( dauphin_state::port07_r )
 	return data;
 }
 
-TIMER_DEVICE_CALLBACK_MEMBER(dauphin_state::dauphin_c)
+TIMER_DEVICE_CALLBACK_MEMBER(dauphin_state::kansas_w)
 {
 	m_cass_data++;
 
-	if (m_cass_state != m_cassold)
+	if (m_cassbit != m_cassold)
 	{
 		m_cass_data = 0;
-		m_cassold = m_cass_state;
+		m_cassold = m_cassbit;
 	}
 
-	if (m_cass_state)
+	if (m_cassbit)
 		m_cass->output(BIT(m_cass_data, 1) ? -1.0 : +1.0); // 1000Hz
 	else
 		m_cass->output(BIT(m_cass_data, 0) ? -1.0 : +1.0); // 2000Hz
 }
 
-static ADDRESS_MAP_START( dauphin_mem, AS_PROGRAM, 8, dauphin_state )
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE( 0x0000, 0x01ff) AM_ROM
-	AM_RANGE( 0x0200, 0x02ff) AM_RAM
-	AM_RANGE( 0x0c00, 0x0fff) AM_ROM
-ADDRESS_MAP_END
+void dauphin_state::dauphin_mem(address_map &map)
+{
+	map.unmap_value_high();
+	map(0x0000, 0x01ff).rom();
+	map(0x0200, 0x02ff).ram();
+	map(0x0c00, 0x0fff).rom();
+}
 
-static ADDRESS_MAP_START( dauphin_io, AS_IO, 8, dauphin_state )
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x00, 0x03) AM_WRITE(port00_w) // 4-led display
-	AM_RANGE(0x06, 0x06) AM_WRITE(port06_w)  // speaker (NOT a keyclick)
-	AM_RANGE(0x07, 0x07) AM_READ(port07_r) // pushbuttons
-	AM_RANGE(S2650_SENSE_PORT, S2650_SENSE_PORT) AM_READ(cass_r)
-	AM_RANGE(0x102, 0x103) AM_NOP // stops error log filling up while using debug
-ADDRESS_MAP_END
+void dauphin_state::dauphin_io(address_map &map)
+{
+	map.unmap_value_high();
+	map(0x00, 0x03).w(FUNC(dauphin_state::port00_w)); // 4-led display
+	map(0x06, 0x06).w(FUNC(dauphin_state::port06_w));  // speaker (NOT a keyclick)
+	map(0x07, 0x07).r(FUNC(dauphin_state::port07_r)); // pushbuttons
+}
 
 /* Input ports */
 static INPUT_PORTS_START( dauphin )
@@ -224,31 +226,33 @@ static INPUT_PORTS_START( dauphin )
 INPUT_PORTS_END
 
 
-static MACHINE_CONFIG_START( dauphin, dauphin_state )
+void dauphin_state::dauphin(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu",S2650, XTAL_1MHz)
-	MCFG_CPU_PROGRAM_MAP(dauphin_mem)
-	MCFG_CPU_IO_MAP(dauphin_io)
-	MCFG_S2650_FLAG_HANDLER(WRITELINE(dauphin_state, cass_w))
+	S2650(config, m_maincpu, XTAL(1'000'000));
+	m_maincpu->set_addrmap(AS_PROGRAM, &dauphin_state::dauphin_mem);
+	m_maincpu->set_addrmap(AS_IO, &dauphin_state::dauphin_io);
+	m_maincpu->sense_handler().set(FUNC(dauphin_state::cass_r));
+	m_maincpu->flag_handler().set([this] (bool state) { m_cassbit = state; });
 
 	/* video hardware */
-	MCFG_DEFAULT_LAYOUT(layout_dolphunk)
+	config.set_default_layout(layout_dolphunk);
+	PWM_DISPLAY(config, m_display).set_size(4, 8);
+	m_display->set_segmask(0x0f, 0xff);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
+	SPEAKER(config, "mono").front_center();
+	SPEAKER_SOUND(config, m_speaker).add_route(ALL_OUTPUTS, "mono", 1.00);
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( "cassette" )
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("dauphin_c", dauphin_state, dauphin_c, attotime::from_hz(4000))
-MACHINE_CONFIG_END
+	CASSETTE(config, m_cass);
+	m_cass->add_route(ALL_OUTPUTS, "mono", 0.05);
+	TIMER(config, "kansas_w").configure_periodic(FUNC(dauphin_state::kansas_w), attotime::from_hz(4000));
+}
 
 /* ROM definition */
 ROM_START( dauphin )
-	ROM_REGION( 0x8000, "maincpu", 0 )
+	ROM_REGION( 0x1000, "maincpu", 0 )
 	ROM_LOAD( "dolphin_mo.rom", 0x0000, 0x0100, CRC(a8811f48) SHA1(233c629dc20fac286c8c1559e461bb0b742a675e) )
 	// This one is used in winarcadia but it is a bad dump, we use the corrected one above
 	//ROM_LOAD( "dolphin_mo.rom", 0x0000, 0x0100, BAD_DUMP CRC(1ac4ac18) SHA1(62a63de6fcd6cd5fcee930d31c73fe603647f06c) )
@@ -264,5 +268,5 @@ ROM_END
 
 /* Driver */
 
-/*    YEAR  NAME       PARENT   COMPAT   MACHINE    INPUT     CLASS         INIT     COMPANY             FULLNAME   FLAGS */
-COMP( 1979, dauphin,   0,       0,       dauphin,  dauphin, driver_device, 0,     "LCD EPFL Stoppani", "Dauphin", 0 )
+//    YEAR  NAME     PARENT  COMPAT  MACHINE  INPUT    CLASS          INIT        COMPANY              FULLNAME   FLAGS
+COMP( 1979, dauphin, 0,      0,      dauphin, dauphin, dauphin_state, empty_init, "LCD EPFL Stoppani", "Dauphin", 0 )

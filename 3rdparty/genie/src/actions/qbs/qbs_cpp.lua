@@ -31,9 +31,10 @@ function qbs.generate_project(prj)
 
 	if prj.kind == "ConsoleApp" then
 		_p(indent, 'CppApplication {')
-		_p(indent, 'consoleApplication: true')
+		_p(indent + 1, 'consoleApplication: true')
 	elseif prj.kind == "WindowedApp" then
 		_p(indent, 'CppApplication {')
+		_p(indent + 1, 'consoleApplication: false')
 	elseif prj.kind == "StaticLib" then
 		_p(indent, 'StaticLibrary {')
 	elseif prj.kind == "SharedLib" then
@@ -43,7 +44,6 @@ function qbs.generate_project(prj)
 	indent = indent + 1
 	_p(indent, 'name: "' .. prj.name .. '"')
 
-	_p(indent, 'cpp.cxxLanguageVersion: "c++11"')
 --	_p(indent, 'cpp.enableReproducibleBuilds: true')
 
 	_p(indent, 'Depends { name: "cpp" }')
@@ -99,6 +99,26 @@ function qbs.generate_project(prj)
 --					, cc.getcppflags(cfg)
 --					)
 
+				if cfg.flags.Cpp11 then
+					_p(indent, 'cpp.cxxLanguageVersion: "c++11"')
+				elseif cfg.flags.Cpp14 then
+					_p(indent, 'cpp.cxxLanguageVersion: "c++14"')
+				elseif cfg.flags.Cpp17 then
+					_p(indent, 'cpp.cxxLanguageVersion: "c++17"')
+				else
+					_p(indent, 'cpp.cxxLanguageVersion: "c++98"')
+				end
+
+				if os.is("windows") then
+					if not cfg.flags.WinMain and (cfg.kind == 'ConsoleApp' or cfg.kind == 'WindowedApp') then
+						if cfg.flags.Unicode then
+							_p(indent, 'cpp.entryPoint: "wmainCRTStartup"')
+						else
+							_p(indent, 'cpp.entryPoint: "mainCRTStartup"')
+						end
+					end
+				end
+
 				qbs.list(
 					  indent
 					, "cpp.commonCompilerFlags"
@@ -135,7 +155,9 @@ function qbs.generate_project(prj)
 					_p(indent, 'cpp.runtimeLibrary: "dynamic"')
 				end
 
-				if cfg.flags.ExtraWarnings then
+				if cfg.flags.PedanticWarnings
+				or cfg.flags.ExtraWarnings
+				then
 					_p(indent, 'cpp.warningLevel: "all"')
 				else
 					_p(indent, 'cpp.warningLevel: "default"')
@@ -197,18 +219,7 @@ function qbs.generate_project(prj)
 					, cfg.defines
 				)
 
-				local sortedincdirs = {}
-				for _, includedir in ipairs(cfg.userincludedirs) do
-					if includedir ~= nil then
-						table.insert(sortedincdirs, includedir)
-					end
-				end
-				for _, includedir in ipairs(cfg.includedirs) do
-					if includedir ~= nil then
-						table.insert(sortedincdirs, includedir)
-					end
-				end
-
+				local sortedincdirs = table.join(cfg.userincludedirs, cfg.includedirs, cfg.systemincludedirs)
 				table.sort(sortedincdirs, includesort)
 				qbs.list(
 					  indent
@@ -241,6 +252,7 @@ function qbs.generate_project(prj)
 						if path.iscfile(file)
 						or path.iscppfile(file)
 						or path.isobjcfile(file)
+						or path.isresourcefile(file)
 						or path.iscppheader(file) then
 							if not is_excluded(prj, cfg, file) then
 								_p(indent+1, '"%s",', file)
@@ -254,7 +266,7 @@ function qbs.generate_project(prj)
 					_p(indent, 'excludeFiles: [')
 					table.sort(prj.excludes)
 					for _, file in ipairs(prj.excludes) do
-						if path.isSourceFile(file) then
+						if path.issourcefile(file) then
 							_p(indent+1, '"%s",', file)
 						end
 					end

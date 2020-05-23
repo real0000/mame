@@ -1,43 +1,41 @@
 // license:BSD-3-Clause
 // copyright-holders:Ernesto Corvi, Nicola Salmoria, David Haywood, Vas Crabb
+#ifndef MAME_MACHINE_TAITO68705INTERFACE_H
+#define MAME_MACHINE_TAITO68705INTERFACE_H
+
+#pragma once
 
 #include "cpu/m6805/m68705.h"
 
 
-extern const device_type TAITO68705_MCU;
-extern const device_type TAITO68705_MCU_TIGER;
-extern const device_type ARKANOID_68705P3;
-extern const device_type ARKANOID_68705P5;
+DECLARE_DEVICE_TYPE(TAITO68705_MCU,       taito68705_mcu_device)
+DECLARE_DEVICE_TYPE(TAITO68705_MCU_TIGER, taito68705_mcu_tiger_device)
+DECLARE_DEVICE_TYPE(ARKANOID_68705P3,     arkanoid_68705p3_device)
+DECLARE_DEVICE_TYPE(ARKANOID_68705P5,     arkanoid_68705p5_device)
 
 
 class taito68705_mcu_device_base : public device_t
 {
 public:
-	template <typename Obj> static devcb_base &set_semaphore_cb(device_t &device, Obj &&object)
-	{ return downcast<taito68705_mcu_device_base &>(device).m_semaphore_cb.set_callback(std::forward<Obj>(object)); }
-
 	// host interface
-	DECLARE_READ8_MEMBER(data_r);
-	DECLARE_WRITE8_MEMBER(data_w);
+	u8 data_r();
+	void data_w(u8 data);
 	DECLARE_WRITE_LINE_MEMBER(reset_w);
-	DECLARE_READ_LINE_MEMBER(host_semaphore_r) { return m_host_flag ? ASSERT_LINE : CLEAR_LINE; }
-	DECLARE_READ_LINE_MEMBER(mcu_semaphore_r) { return m_mcu_flag ? ASSERT_LINE : CLEAR_LINE; }
-	DECLARE_CUSTOM_INPUT_MEMBER(host_semaphore_r) { return m_host_flag ? 1 : 0; }
-	DECLARE_CUSTOM_INPUT_MEMBER(mcu_semaphore_r) { return m_mcu_flag ? 1 : 0; }
-
-	// MCU callbacks
-	DECLARE_WRITE8_MEMBER(mcu_pa_w);
+	DECLARE_READ_LINE_MEMBER(host_semaphore_r) { return m_host_flag ? 1 : 0; }
+	DECLARE_READ_LINE_MEMBER(mcu_semaphore_r) { return m_mcu_flag ? 1 : 0; }
 
 protected:
 	taito68705_mcu_device_base(
 			machine_config const &mconfig,
 			device_type type,
-			char const *name,
 			char const *tag,
 			device_t *owner,
-			u32 clock,
-			char const *shortname,
-			char const *source);
+			u32 clock);
+
+	auto semaphore_cb() { return m_semaphore_cb.bind(); }
+
+	// MCU callbacks
+	void mcu_pa_w(u8 data);
 
 	virtual void device_start() override;
 	virtual void device_reset() override;
@@ -62,24 +60,20 @@ private:
 };
 
 
-#define MCFG_TAITO_M68705_AUX_STROBE_CB(cb) \
-		taito68705_mcu_device::set_aux_strobe_cb(*device, DEVCB_##cb);
-
 class taito68705_mcu_device : public taito68705_mcu_device_base
 {
 public:
-	template <typename Obj> static devcb_base &set_aux_strobe_cb(device_t &device, Obj &&object)
-	{ return downcast<taito68705_mcu_device &>(device).m_aux_strobe_cb.set_callback(std::forward<Obj>(object)); }
+	auto aux_strobe_cb() { return m_aux_strobe_cb.bind(); }
 
 	taito68705_mcu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	virtual DECLARE_READ8_MEMBER(mcu_portc_r);
-	DECLARE_WRITE8_MEMBER(mcu_portb_w);
-
 protected:
-	taito68705_mcu_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, u32 clock, const char *shortname, const char *source);
+	taito68705_mcu_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock);
 
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual u8 mcu_portc_r();
+	void mcu_portb_w(offs_t offset, u8 data, u8 mem_mask = ~0);
+
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 
 	devcb_write8    m_aux_strobe_cb;
@@ -92,37 +86,30 @@ class taito68705_mcu_tiger_device : public taito68705_mcu_device
 {
 public:
 	taito68705_mcu_tiger_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock);
-	virtual DECLARE_READ8_MEMBER( mcu_portc_r ) override;
+
+protected:
+	virtual u8 mcu_portc_r() override;
 };
 
-
-#define MCFG_ARKANOID_MCU_SEMAPHORE_CB(cb) \
-		arkanoid_mcu_device_base::set_semaphore_cb(*device, DEVCB_##cb);
-
-#define MCFG_ARKANOID_MCU_PORTB_R_CB(cb) \
-		arkanoid_mcu_device_base::set_portb_r_cb(*device, DEVCB_##cb);
 
 class arkanoid_mcu_device_base : public taito68705_mcu_device_base
 {
 public:
-	template <typename Obj> static devcb_base &set_portb_r_cb(device_t &device, Obj &&object)
-	{ return downcast<arkanoid_mcu_device_base &>(device).m_portb_r_cb.set_callback(std::forward<Obj>(object)); }
-
-	// MCU callbacks
-	DECLARE_READ8_MEMBER(mcu_pb_r);
-	DECLARE_READ8_MEMBER(mcu_pc_r);
-	DECLARE_WRITE8_MEMBER(mcu_pc_w);
+	using taito68705_mcu_device_base::semaphore_cb;
+	auto portb_r_cb() { return m_portb_r_cb.bind(); }
 
 protected:
 	arkanoid_mcu_device_base(
 			machine_config const &mconfig,
 			device_type type,
-			char const *name,
 			char const *tag,
 			device_t *owner,
-			u32 clock,
-			char const *shortname,
-			char const *source);
+			u32 clock);
+
+	// MCU callbacks
+	u8 mcu_pb_r();
+	u8 mcu_pc_r();
+	void mcu_pc_w(u8 data);
 
 	virtual void device_start() override;
 
@@ -138,7 +125,7 @@ public:
 	arkanoid_68705p3_device(machine_config const &mconfig, char const *tag, device_t *owner, u32 clock);
 
 protected:
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 };
 
 
@@ -148,5 +135,7 @@ public:
 	arkanoid_68705p5_device(machine_config const &mconfig, char const *tag, device_t *owner, u32 clock);
 
 protected:
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 };
+
+#endif // MAME_MACHINE_TAITO68705INTERFACE_H

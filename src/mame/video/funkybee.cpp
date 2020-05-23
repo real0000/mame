@@ -11,33 +11,32 @@
 #include "emu.h"
 #include "includes/funkybee.h"
 
-PALETTE_INIT_MEMBER(funkybee_state, funkybee)
+void funkybee_state::funkybee_palette(palette_device &palette) const
 {
 	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
 
-	/* first, the character/sprite palette */
-	for (i = 0; i < 32; i++)
+	// first, the character/sprite palette
+	for (int i = 0; i < 32; i++)
 	{
-		int bit0, bit1, bit2, r, g, b;
+		int bit0, bit1, bit2;
 
-		/* red component */
-		bit0 = (*color_prom >> 0) & 0x01;
-		bit1 = (*color_prom >> 1) & 0x01;
-		bit2 = (*color_prom >> 2) & 0x01;
-		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
-		/* green component */
-		bit0 = (*color_prom >> 3) & 0x01;
-		bit1 = (*color_prom >> 4) & 0x01;
-		bit2 = (*color_prom >> 5) & 0x01;
-		g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
-		/* blue component */
+		// red component
+		bit0 = BIT(*color_prom, 0);
+		bit1 = BIT(*color_prom, 1);
+		bit2 = BIT(*color_prom, 2);
+		int const r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+		// green component
+		bit0 = BIT(*color_prom, 3);
+		bit1 = BIT(*color_prom, 4);
+		bit2 = BIT(*color_prom, 5);
+		int const g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+		// blue component
 		bit0 = 0;
-		bit1 = (*color_prom >> 6) & 0x01;
-		bit2 = (*color_prom >> 7) & 0x01;
-		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+		bit1 = BIT(*color_prom, 6);
+		bit2 = BIT(*color_prom, 7);
+		int const b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette.set_pen_color(i, rgb_t(r,g,b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 		color_prom++;
 	}
 }
@@ -54,13 +53,10 @@ WRITE8_MEMBER(funkybee_state::funkybee_colorram_w)
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
-WRITE8_MEMBER(funkybee_state::funkybee_gfx_bank_w)
+WRITE_LINE_MEMBER(funkybee_state::gfx_bank_w)
 {
-	if (m_gfx_bank != (data & 0x01))
-	{
-		m_gfx_bank = data & 0x01;
-		machine().tilemap().mark_all_dirty();
-	}
+	m_gfx_bank = state;
+	machine().tilemap().mark_all_dirty();
 }
 
 WRITE8_MEMBER(funkybee_state::funkybee_scroll_w)
@@ -68,9 +64,9 @@ WRITE8_MEMBER(funkybee_state::funkybee_scroll_w)
 	m_bg_tilemap->set_scrollx(0, flip_screen() ? -data : data);
 }
 
-WRITE8_MEMBER(funkybee_state::funkybee_flipscreen_w)
+WRITE_LINE_MEMBER(funkybee_state::flipscreen_w)
 {
-	flip_screen_set(data & 0x01);
+	flip_screen_set(state);
 }
 
 TILE_GET_INFO_MEMBER(funkybee_state::get_bg_tile_info)
@@ -78,7 +74,7 @@ TILE_GET_INFO_MEMBER(funkybee_state::get_bg_tile_info)
 	int code = m_videoram[tile_index] + ((m_colorram[tile_index] & 0x80) << 1);
 	int color = m_colorram[tile_index] & 0x03;
 
-	SET_TILE_INFO_MEMBER(m_gfx_bank, code, color, 0);
+	tileinfo.set(m_gfx_bank, code, color, 0);
 }
 
 TILEMAP_MAPPER_MEMBER(funkybee_state::funkybee_tilemap_scan)
@@ -89,7 +85,7 @@ TILEMAP_MAPPER_MEMBER(funkybee_state::funkybee_tilemap_scan)
 
 void funkybee_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(funkybee_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(funkybee_state::funkybee_tilemap_scan),this), 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(funkybee_state::get_bg_tile_info)), tilemap_mapper_delegate(*this, FUNC(funkybee_state::funkybee_tilemap_scan)), 8, 8, 32, 32);
 }
 
 void funkybee_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )

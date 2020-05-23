@@ -18,19 +18,10 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-extern const device_type GOTTLIEB_SOUND_REV0;
-extern const device_type GOTTLIEB_SOUND_REV1;
-extern const device_type GOTTLIEB_SOUND_REV1_WITH_VOTRAX;
-extern const device_type GOTTLIEB_SOUND_REV2;
-
-
-
-//**************************************************************************
-//  DEVICE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_GOTTLIEB_ENABLE_COBRAM3_MODS() \
-	gottlieb_sound_r2_device::static_enable_cobram3_mods(*device);
+DECLARE_DEVICE_TYPE(GOTTLIEB_SOUND_REV0,        gottlieb_sound_r0_device)
+DECLARE_DEVICE_TYPE(GOTTLIEB_SOUND_REV1,        gottlieb_sound_r1_device)
+DECLARE_DEVICE_TYPE(GOTTLIEB_SOUND_REV1_VOTRAX, gottlieb_sound_r1_with_votrax_device)
+DECLARE_DEVICE_TYPE(GOTTLIEB_SOUND_REV2,        gottlieb_sound_r2_device)
 
 
 //**************************************************************************
@@ -44,20 +35,21 @@ class gottlieb_sound_r0_device : public device_t, public device_mixer_interface
 {
 public:
 	// construction/destruction
-	gottlieb_sound_r0_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	gottlieb_sound_r0_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
 	// read/write
-	DECLARE_WRITE8_MEMBER( write );
+	void write(offs_t offset, uint8_t data);
 
 	// internal communications
-	DECLARE_READ8_MEMBER( r6530b_r );
 	DECLARE_INPUT_CHANGED_MEMBER(audio_nmi);
 
 protected:
 	// device-level overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual ioport_constructor device_input_ports() const override;
 	virtual void device_start() override;
+
+	void gottlieb_sound_r0_map(address_map &map);
 
 private:
 	// devices
@@ -65,6 +57,8 @@ private:
 	required_device<mos6530_device>     m_r6530;
 
 	uint8_t m_sndcmd;
+
+	uint8_t r6530b_r();
 };
 
 // ======================> gottlieb_sound_r1_device
@@ -74,43 +68,29 @@ class gottlieb_sound_r1_device : public device_t, public device_mixer_interface
 {
 public:
 	// construction/destruction
-	gottlieb_sound_r1_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	gottlieb_sound_r1_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
 	// read/write
-	DECLARE_WRITE8_MEMBER( write );
-
-	// internal communications
-	DECLARE_WRITE_LINE_MEMBER( snd_interrupt );
-	DECLARE_WRITE8_MEMBER( r6532_portb_w );
-	DECLARE_WRITE8_MEMBER( votrax_data_w );
-	DECLARE_WRITE8_MEMBER( speech_clock_dac_w );
-	DECLARE_WRITE_LINE_MEMBER( votrax_request );
+	void write(u8 data);
 
 protected:
 	gottlieb_sound_r1_device(
 			const machine_config &mconfig,
 			device_type type,
-			const char *name,
 			const char *tag,
 			device_t *owner,
-			uint32_t clock,
-			const char *shortname,
-			const char *source);
+			uint32_t clock);
 
 	// device-level overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual ioport_constructor device_input_ports() const override;
 	virtual void device_start() override;
 
+	virtual void gottlieb_sound_r1_map(address_map &map);
+
 private:
 	// devices
-	required_device<m6502_device>       m_audiocpu;
-	required_device<riot6532_device>    m_riot;
-	optional_device<votrax_sc01_device> m_votrax;
-
-	// internal state
-	//bool            m_populate_votrax;
-	uint8_t           m_last_speech_clock;
+	required_device<riot6532_device> m_riot;
 };
 
 // fully populated rev 1 sound board
@@ -118,12 +98,27 @@ class gottlieb_sound_r1_with_votrax_device : public gottlieb_sound_r1_device
 {
 public:
 	// construction/destruction
-	gottlieb_sound_r1_with_votrax_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	gottlieb_sound_r1_with_votrax_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
 protected:
 	// device-level overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual ioport_constructor device_input_ports() const override;
+	virtual void device_start() override;
+	virtual void device_post_load() override;
+
+	// internal communications
+	void votrax_data_w(uint8_t data);
+	void speech_clock_dac_w(uint8_t data);
+
+	virtual void gottlieb_sound_r1_map(address_map &map) override;
+
+private:
+	// devices
+	required_device<votrax_sc01_device> m_votrax;
+
+	// internal state
+	uint8_t m_last_speech_clock;
 };
 
 
@@ -134,27 +129,29 @@ class gottlieb_sound_r2_device : public device_t, public device_mixer_interface
 {
 public:
 	// construction/destruction
-	gottlieb_sound_r2_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	gottlieb_sound_r2_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
-	// static configuration helpers
-	static void static_enable_cobram3_mods(device_t &device);
+	// configuration helpers
+	void enable_cobram3_mods() { m_cobram3_mod = true; }
 
 	// read/write
-	DECLARE_WRITE8_MEMBER( write );
+	void write(u8 data);
 
 	// internal communications
-	DECLARE_READ8_MEMBER( speech_data_r );
-	DECLARE_READ8_MEMBER( audio_data_r );
-	DECLARE_WRITE8_MEMBER( signal_audio_nmi_w );
-	DECLARE_WRITE8_MEMBER( nmi_rate_w );
+	uint8_t speech_data_r();
+	uint8_t audio_data_r();
+	void signal_audio_nmi_w(uint8_t data);
+	void nmi_rate_w(uint8_t data);
 	CUSTOM_INPUT_MEMBER( speech_drq_custom_r );
-	DECLARE_WRITE8_MEMBER( speech_control_w );
-	DECLARE_WRITE8_MEMBER( sp0250_latch_w );
-	DECLARE_WRITE8_MEMBER( psg_latch_w );
+	void speech_control_w(uint8_t data);
+	void sp0250_latch_w(uint8_t data);
+	void psg_latch_w(uint8_t data);
 
+	void gottlieb_sound_r2_map(address_map &map);
+	void gottlieb_speech_r2_map(address_map &map);
 protected:
 	// device-level overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual ioport_constructor device_input_ports() const override;
 	virtual void device_start() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;

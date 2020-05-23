@@ -9,8 +9,7 @@
 #include "emu.h"
 #include "debugger.h"
 #include "ssem.h"
-
-CPU_DISASSEMBLE( ssem );
+#include "ssemdasm.h"
 
 
 #define SSEM_DISASM_ON_UNIMPL           0
@@ -76,20 +75,20 @@ inline void ssem_device::program_write32(uint32_t address, uint32_t data)
 
 /*****************************************************************************/
 
-const device_type SSEMCPU = device_creator<ssem_device>;
+DEFINE_DEVICE_TYPE(SSEMCPU, ssem_device, "ssem_cpu", "Manchester SSEM")
 
 //-------------------------------------------------
 //  ssem_device - constructor
 //-------------------------------------------------
 
 ssem_device::ssem_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, SSEMCPU, "SSEMCPU", tag, owner, clock, "ssem_cpu", __FILE__),
-		m_program_config("program", ENDIANNESS_LITTLE, 8, 16),
-		m_pc(1),
-		m_shifted_pc(1<<2),
-		m_a(0),
-		m_halt(0),
-		m_icount(0)
+	: cpu_device(mconfig, SSEMCPU, tag, owner, clock)
+	, m_program_config("program", ENDIANNESS_LITTLE, 8, 16)
+	, m_pc(1)
+	, m_shifted_pc(1<<2)
+	, m_a(0)
+	, m_halt(0)
+	, m_icount(0)
 {
 	// Allocate & setup
 }
@@ -113,7 +112,7 @@ void ssem_device::device_start()
 	save_item(NAME(m_halt));
 
 	// set our instruction counter
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 }
 
 void ssem_device::device_stop()
@@ -135,13 +134,11 @@ void ssem_device::device_reset()
 //  the space doesn't exist
 //-------------------------------------------------
 
-const address_space_config *ssem_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector ssem_device::memory_space_config() const
 {
-	if (spacenum == AS_PROGRAM)
-	{
-		return &m_program_config;
-	}
-	return nullptr;
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
 }
 
 
@@ -162,36 +159,13 @@ void ssem_device::state_string_export(const device_state_entry &entry, std::stri
 
 
 //-------------------------------------------------
-//  disasm_min_opcode_bytes - return the length
-//  of the shortest instruction, in bytes
-//-------------------------------------------------
-
-uint32_t ssem_device::disasm_min_opcode_bytes() const
-{
-	return 4;
-}
-
-
-//-------------------------------------------------
-//  disasm_max_opcode_bytes - return the length
-//  of the longest instruction, in bytes
-//-------------------------------------------------
-
-uint32_t ssem_device::disasm_max_opcode_bytes() const
-{
-	return 4;
-}
-
-
-//-------------------------------------------------
-//  disasm_disassemble - call the disassembly
+//  disassemble - call the disassembly
 //  helper function
 //-------------------------------------------------
 
-offs_t ssem_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> ssem_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( ssem );
-	return CPU_DISASSEMBLE_NAME(ssem)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<ssem_disassembler>();
 }
 
 
@@ -204,7 +178,7 @@ offs_t ssem_device::disasm_disassemble(std::ostream &stream, offs_t pc, const ui
 //  cycles it takes for one instruction to execute
 //-------------------------------------------------
 
-uint32_t ssem_device::execute_min_cycles() const
+uint32_t ssem_device::execute_min_cycles() const noexcept
 {
 	return 1;
 }
@@ -215,7 +189,7 @@ uint32_t ssem_device::execute_min_cycles() const
 //  cycles it takes for one instruction to execute
 //-------------------------------------------------
 
-uint32_t ssem_device::execute_max_cycles() const
+uint32_t ssem_device::execute_max_cycles() const noexcept
 {
 	return 1;
 }
@@ -226,7 +200,7 @@ uint32_t ssem_device::execute_max_cycles() const
 //  input/interrupt lines
 //-------------------------------------------------
 
-uint32_t ssem_device::execute_input_lines() const
+uint32_t ssem_device::execute_input_lines() const noexcept
 {
 	return 0;
 }
@@ -256,7 +230,7 @@ void ssem_device::execute_run()
 
 	while (m_icount > 0)
 	{
-		debugger_instruction_hook(this, m_pc);
+		debugger_instruction_hook(m_pc);
 
 		op = program_read32(m_pc);
 

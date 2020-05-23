@@ -71,7 +71,7 @@ address lines), and then reading it from the 051962.
 052109 memory layout:
 0000-07ff: layer FIX tilemap (attributes)
 0800-0fff: layer A tilemap (attributes)
-1000-1fff: layer B tilemap (attributes)
+1000-17ff: layer B tilemap (attributes)
 180c-1833: A y scroll
 1a00-1bff: A x scroll
 1c00     : ?
@@ -86,9 +86,11 @@ address lines), and then reading it from the 051962.
                     1 = 64 (actually 40) columns
            ---xx--- layer B row scroll
            --x----- layer B column scroll
-           surpratk sets this register to 70 during the second boss. There is
-           nothing obviously wrong so it's not clear what should happen.
+           suratk sets this register to 70 during the second boss to produce rotating star field, using X and Y scroll in the same time.
+           not emulated due to MAME's tilemaps restrictions, currently handled in hacky way.
            glfgreat sets it to 30 when showing the leader board
+           mariorou sets it to 36 when ingame, while actually does per-row scroll for layer A and per-collumn scroll for layer B.
+           such usage not supported by current implementation, hacked in game driver instead.
 1d00     : bits 0 & 1 might enable NMI and FIRQ, not sure
          : bit 2 = IRQ enable
 1d80     : ROM bank selector bits 0-3 = bank 0 bits 4-7 = bank 1
@@ -123,10 +125,13 @@ to through the chip.
 #include "emu.h"
 #include "k052109.h"
 
-#define VERBOSE 0
-#define LOG(x) do { if (VERBOSE) logerror x; } while (0)
+#include "screen.h"
 
-const device_type K052109 = device_creator<k052109_device>;
+#define VERBOSE 0
+#include "logmacro.h"
+
+
+DEFINE_DEVICE_TYPE(K052109, k052109_device, "k052109", "K052109 Tilemap Generator")
 
 const gfx_layout k052109_device::charlayout =
 {
@@ -160,8 +165,9 @@ GFXDECODE_END
 
 
 k052109_device::k052109_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, K052109, "K052109 Tilemap Generator", tag, owner, clock, "k052109", __FILE__),
+	: device_t(mconfig, K052109, tag, owner, clock),
 	device_gfx_interface(mconfig, *this, gfxinfo),
+	device_video_interface(mconfig, *this, false),
 	m_ram(nullptr),
 	m_videoram_F(nullptr),
 	m_videoram_A(nullptr),
@@ -178,8 +184,10 @@ k052109_device::k052109_device(const machine_config &mconfig, const char *tag, d
 	m_irq_enabled(0),
 	m_romsubbank(0),
 	m_scrollctrl(0),
+	m_dx(0),
+	m_dy(0),
 	m_char_rom(*this, DEVICE_SELF),
-	m_screen(*this, finder_base::DUMMY_TAG),
+	m_k052109_cb(*this),
 	m_irq_handler(*this),
 	m_firq_handler(*this),
 	m_nmi_handler(*this)
@@ -187,14 +195,12 @@ k052109_device::k052109_device(const machine_config &mconfig, const char *tag, d
 }
 
 
-void k052109_device::set_ram(device_t &device, bool ram)
+void k052109_device::set_char_ram(bool ram)
 {
-	k052109_device &dev = downcast<k052109_device &>(device);
-
 	if (ram)
-		device_gfx_interface::static_set_info(dev, gfxinfo_ram);
+		set_info(gfxinfo_ram);
 	else
-		device_gfx_interface::static_set_info(dev, gfxinfo);
+		set_info(gfxinfo);
 }
 
 
@@ -204,15 +210,22 @@ void k052109_device::set_ram(device_t &device, bool ram)
 
 void k052109_device::device_start()
 {
-	if (m_screen.found())
+	if (has_screen())
 	{
 		// make sure our screen is started
-		if (!m_screen->started())
+		if (!screen().started())
 			throw device_missing_dependencies();
 
 		// and register a callback for vblank state
-		m_screen->register_vblank_callback(vblank_state_delegate(&k052109_device::vblank_callback, this));
+		screen().register_vblank_callback(vblank_state_delegate(&k052109_device::vblank_callback, this));
 	}
+
+	// resolve callbacks
+	m_k052109_cb.resolve();
+
+	m_irq_handler.resolve_safe();
+	m_firq_handler.resolve_safe();
+	m_nmi_handler.resolve_safe();
 
 	decode_gfx();
 	gfx(0)->set_colors(palette().entries() / gfx(0)->depth());
@@ -229,23 +242,22 @@ void k052109_device::device_start()
 	m_videoram2_A = &m_ram[0x4800];
 	m_videoram2_B = &m_ram[0x5000];
 
-	m_tilemap[0] = &machine().tilemap().create(*this, tilemap_get_info_delegate(FUNC(k052109_device::get_tile_info0),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
-	m_tilemap[1] = &machine().tilemap().create(*this, tilemap_get_info_delegate(FUNC(k052109_device::get_tile_info1),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
-	m_tilemap[2] = &machine().tilemap().create(*this, tilemap_get_info_delegate(FUNC(k052109_device::get_tile_info2),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_tilemap[0] = &machine().tilemap().create(*this, tilemap_get_info_delegate(*this, FUNC(k052109_device::get_tile_info0)), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_tilemap[1] = &machine().tilemap().create(*this, tilemap_get_info_delegate(*this, FUNC(k052109_device::get_tile_info1)), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_tilemap[2] = &machine().tilemap().create(*this, tilemap_get_info_delegate(*this, FUNC(k052109_device::get_tile_info2)), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_tilemap[0]->set_transparent_pen(0);
 	m_tilemap[1]->set_transparent_pen(0);
 	m_tilemap[2]->set_transparent_pen(0);
 
-	// bind callbacks
-	m_k052109_cb.bind_relative_to(*owner());
+	m_tilemap[0]->set_scrolldx(m_dx, m_dx);
+	m_tilemap[1]->set_scrolldx(m_dx+6, m_dx+6);
+	m_tilemap[2]->set_scrolldx(m_dx+6, m_dx+6);
+	m_tilemap[0]->set_scrolldy(m_dy, m_dy);
+	m_tilemap[1]->set_scrolldy(m_dy, m_dy);
+	m_tilemap[2]->set_scrolldy(m_dy, m_dy);
 
-	// resolve callbacks
-	m_irq_handler.resolve_safe();
-	m_firq_handler.resolve_safe();
-	m_nmi_handler.resolve_safe();
-
-	save_pointer(NAME(m_ram.get()), 0x6000);
+	save_pointer(NAME(m_ram), 0x6000);
 	save_item(NAME(m_rmrd_line));
 	save_item(NAME(m_romsubbank));
 	save_item(NAME(m_scrollctrl));
@@ -253,7 +265,6 @@ void k052109_device::device_start()
 	save_item(NAME(m_charrombank));
 	save_item(NAME(m_charrombank_2));
 	save_item(NAME(m_has_extra_video_ram));
-	machine().save().register_postload(save_prepost_delegate(FUNC(k052109_device::tileflip_reset), this));
 }
 
 //-------------------------------------------------
@@ -277,27 +288,31 @@ void k052109_device::device_reset()
 }
 
 //-------------------------------------------------
-//  set_screen_tag - set screen we are attached to
+//  device_post_load - device-specific postload
 //-------------------------------------------------
 
-void k052109_device::set_screen_tag(device_t &device, const char *tag)
+void k052109_device::device_post_load()
 {
-	k052109_device &dev = dynamic_cast<k052109_device &>(device);
-	dev.m_screen.set_tag(tag);
+	tileflip_reset();
 }
-
 
 /*****************************************************************************
     DEVICE HANDLERS
 *****************************************************************************/
 
+void k052109_device::set_xy_offset(int dx, int dy)
+{
+	m_dx = dx;
+	m_dy = dy;
+}
+
 void k052109_device::vblank_callback(screen_device &screen, bool state)
 {
-	if (state)
+	if (state && m_irq_enabled)
 		m_irq_handler(ASSERT_LINE);
 }
 
-READ8_MEMBER( k052109_device::read )
+u8 k052109_device::read(offs_t offset)
 {
 	if (m_rmrd_line == CLEAR_LINE)
 	{
@@ -314,7 +329,7 @@ READ8_MEMBER( k052109_device::read )
 			else if (offset >= 0x3a00 && offset < 0x3c00)
 			{   /* B x scroll */    }
 //          else
-//logerror("%04x: read from unknown 052109 address %04x\n",space.device().safe_pc(),offset);
+//logerror("%s: read from unknown 052109 address %04x\n",m_maincpu->pc(),offset);
 		}
 
 		return m_ram[offset];
@@ -340,13 +355,13 @@ READ8_MEMBER( k052109_device::read )
 	addr = (code << 5) + (offset & 0x1f);
 	addr &= m_char_rom.mask();
 
-//      logerror("%04x: off = %04x sub = %02x (bnk = %x) adr = %06x\n", space.device().safe_pc(), offset, m_romsubbank, bank, addr);
+//      logerror("%s: off = %04x sub = %02x (bnk = %x) adr = %06x\n", m_maincpu->pc(), offset, m_romsubbank, bank, addr);
 
 		return m_char_rom[addr];
 	}
 }
 
-WRITE8_MEMBER( k052109_device::write )
+void k052109_device::write(offs_t offset, u8 data)
 {
 	if ((offset & 0x1fff) < 0x1800) /* tilemap RAM */
 	{
@@ -369,17 +384,17 @@ WRITE8_MEMBER( k052109_device::write )
 			if (m_scrollctrl != data)
 			{
 //popmessage("scrollcontrol = %02x", data);
-//logerror("%04x: rowscrollcontrol = %02x\n", space.device().safe_pc(), data);
+//logerror("%s: rowscrollcontrol = %02x\n", m_maincpu->pc(), data);
 				m_scrollctrl = data;
 			}
 		}
 		else if (offset == 0x1d00)
 		{
-//logerror("%04x: 052109 register 1d00 = %02x\n", space.device().safe_pc(), data);
+//logerror("%s: 052109 register 1d00 = %02x\n", m_maincpu->pc(), data);
 			/* bit 2 = irq enable */
 			/* the custom chip can also generate NMI and FIRQ, for use with a 6809 */
 			m_irq_enabled = data & 0x04;
-			if (m_irq_enabled)
+			if (!m_irq_enabled)
 				m_irq_handler(CLEAR_LINE);
 		}
 		else if (offset == 0x1d80)
@@ -410,12 +425,12 @@ WRITE8_MEMBER( k052109_device::write )
 		}
 		else if (offset == 0x1e00 || offset == 0x3e00) // Surprise Attack uses offset 0x3e00
 		{
-//logerror("%04x: 052109 register 1e00 = %02x\n",space.device().safe_pc(),data);
+//logerror("%s: 052109 register 1e00 = %02x\n",m_maincpu->pc(),data);
 			m_romsubbank = data;
 		}
 		else if (offset == 0x1e80)
 		{
-//if ((data & 0xfe)) logerror("%04x: 052109 register 1e80 = %02x\n",space.device().safe_pc(),data);
+//if ((data & 0xfe)) logerror("%s: 052109 register 1e80 = %02x\n",m_maincpu->pc(),data);
 			m_tilemap[0]->set_flip((data & 1) ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);
 			m_tilemap[1]->set_flip((data & 1) ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);
 			m_tilemap[2]->set_flip((data & 1) ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);
@@ -470,32 +485,21 @@ WRITE8_MEMBER( k052109_device::write )
 			m_charrombank_2[3] = (data >> 4) & 0x0f;
 		}
 //      else
-//          logerror("%04x: write %02x to unknown 052109 address %04x\n",space.device().safe_pc(),data,offset);
+//          logerror("%s: write %02x to unknown 052109 address %04x\n",m_maincpu->pc(),data,offset);
 	}
 }
 
-READ16_MEMBER( k052109_device::word_r )
+u16 k052109_device::word_r(offs_t offset)
 {
-	return read(space, offset + 0x2000) | (read(space, offset) << 8);
+	return read(offset + 0x2000) | (read(offset) << 8);
 }
 
-WRITE16_MEMBER( k052109_device::word_w )
+void k052109_device::word_w(offs_t offset, u16 data, u16 mem_mask)
 {
 	if (ACCESSING_BITS_8_15)
-		write(space, offset, (data >> 8) & 0xff);
+		write(offset, (data >> 8) & 0xff);
 	if (ACCESSING_BITS_0_7)
-		write(space, offset + 0x2000, data & 0xff);
-}
-
-READ16_MEMBER( k052109_device::lsb_r )
-{
-	return read(space, offset);
-}
-
-WRITE16_MEMBER( k052109_device::lsb_w )
-{
-	if(ACCESSING_BITS_0_7)
-		write(space, offset, data & 0xff);
+		write(offset + 0x2000, data & 0xff);
 }
 
 void k052109_device::set_rmrd_line( int state )
@@ -529,19 +533,21 @@ popmessage("%x %x %x %x",
 }
 #endif
 
+// note: this chip can do both per-column and per-row scroll in the same time, currently not emulated.
+
 	if ((m_scrollctrl & 0x03) == 0x02)
 	{
 		uint8_t *scrollram = &m_ram[0x1a00];
 
-		m_tilemap[1]->set_scroll_rows(256);
+		m_tilemap[1]->set_scroll_rows(32);
 		m_tilemap[1]->set_scroll_cols(1);
 		yscroll = m_ram[0x180c];
 		m_tilemap[1]->set_scrolly(0, yscroll);
-		for (offs = 0; offs < 256; offs++)
+		yscroll /= 8;
+		for (offs = 0; offs < 32; offs++)
 		{
-			xscroll = scrollram[2 * (offs & 0xfff8) + 0] + 256 * scrollram[2 * (offs & 0xfff8) + 1];
-			xscroll -= 6;
-			m_tilemap[1]->set_scrollx((offs + yscroll) & 0xff, xscroll);
+			xscroll = scrollram[16 * offs + 0] + 256 * scrollram[16 * offs + 1];
+			m_tilemap[1]->set_scrollx((offs + yscroll) & 31, xscroll);
 		}
 	}
 	else if ((m_scrollctrl & 0x03) == 0x03)
@@ -555,7 +561,6 @@ popmessage("%x %x %x %x",
 		for (offs = 0; offs < 256; offs++)
 		{
 			xscroll = scrollram[2 * offs + 0] + 256 * scrollram[2 * offs + 1];
-			xscroll -= 6;
 			m_tilemap[1]->set_scrollx((offs + yscroll) & 0xff, xscroll);
 		}
 	}
@@ -564,14 +569,14 @@ popmessage("%x %x %x %x",
 		uint8_t *scrollram = &m_ram[0x1800];
 
 		m_tilemap[1]->set_scroll_rows(1);
-		m_tilemap[1]->set_scroll_cols(512);
+		m_tilemap[1]->set_scroll_cols(64);
 		xscroll = m_ram[0x1a00] + 256 * m_ram[0x1a01];
-		xscroll -= 6;
 		m_tilemap[1]->set_scrollx(0, xscroll);
-		for (offs = 0; offs < 512; offs++)
+		xscroll /= 8;
+		for (offs = 0; offs < 64; offs++)
 		{
-			yscroll = scrollram[offs / 8];
-			m_tilemap[1]->set_scrolly((offs + xscroll) & 0x1ff, yscroll);
+			yscroll = scrollram[offs];
+			m_tilemap[1]->set_scrolly((offs + xscroll) & 63, yscroll);
 		}
 	}
 	else
@@ -581,7 +586,6 @@ popmessage("%x %x %x %x",
 		m_tilemap[1]->set_scroll_rows(1);
 		m_tilemap[1]->set_scroll_cols(1);
 		xscroll = scrollram[0] + 256 * scrollram[1];
-		xscroll -= 6;
 		yscroll = m_ram[0x180c];
 		m_tilemap[1]->set_scrollx(0, xscroll);
 		m_tilemap[1]->set_scrolly(0, yscroll);
@@ -591,15 +595,18 @@ popmessage("%x %x %x %x",
 	{
 		uint8_t *scrollram = &m_ram[0x3a00];
 
-		m_tilemap[2]->set_scroll_rows(256);
+		m_tilemap[2]->set_scroll_rows(32);
 		m_tilemap[2]->set_scroll_cols(1);
 		yscroll = m_ram[0x380c];
+		//
+		if (m_scrollctrl == 0x70) yscroll = m_ram[0x3823]; // hack for suratk 2nd boss rotating star field
+		//
 		m_tilemap[2]->set_scrolly(0, yscroll);
-		for (offs = 0; offs < 256; offs++)
+		yscroll /= 8;
+		for (offs = 0; offs < 32; offs++)
 		{
-			xscroll = scrollram[2 * (offs & 0xfff8) + 0] + 256 * scrollram[2 * (offs & 0xfff8) + 1];
-			xscroll -= 6;
-			m_tilemap[2]->set_scrollx((offs + yscroll) & 0xff, xscroll);
+			xscroll = scrollram[16 * offs + 0] + 256 * scrollram[16 * offs + 1];
+			m_tilemap[2]->set_scrollx((offs + yscroll) & 31, xscroll);
 		}
 	}
 	else if ((m_scrollctrl & 0x18) == 0x18)
@@ -613,7 +620,6 @@ popmessage("%x %x %x %x",
 		for (offs = 0; offs < 256; offs++)
 		{
 			xscroll = scrollram[2 * offs + 0] + 256 * scrollram[2 * offs + 1];
-			xscroll -= 6;
 			m_tilemap[2]->set_scrollx((offs + yscroll) & 0xff, xscroll);
 		}
 	}
@@ -622,14 +628,14 @@ popmessage("%x %x %x %x",
 		uint8_t *scrollram = &m_ram[0x3800];
 
 		m_tilemap[2]->set_scroll_rows(1);
-		m_tilemap[2]->set_scroll_cols(512);
+		m_tilemap[2]->set_scroll_cols(64);
 		xscroll = m_ram[0x3a00] + 256 * m_ram[0x3a01];
-		xscroll -= 6;
 		m_tilemap[2]->set_scrollx(0, xscroll);
-		for (offs = 0; offs < 512; offs++)
+		xscroll /= 8;
+		for (offs = 0; offs < 64; offs++)
 		{
-			yscroll = scrollram[offs / 8];
-			m_tilemap[2]->set_scrolly((offs + xscroll) & 0x1ff, yscroll);
+			yscroll = scrollram[offs];
+			m_tilemap[2]->set_scrolly((offs + xscroll) & 63, yscroll);
 		}
 	}
 	else
@@ -639,7 +645,6 @@ popmessage("%x %x %x %x",
 		m_tilemap[2]->set_scroll_rows(1);
 		m_tilemap[2]->set_scroll_cols(1);
 		xscroll = scrollram[0] + 256 * scrollram[1];
-		xscroll -= 6;
 		yscroll = m_ram[0x380c];
 		m_tilemap[2]->set_scrollx(0, xscroll);
 		m_tilemap[2]->set_scrolly(0, yscroll);
@@ -670,11 +675,6 @@ if (machine().input().code_pressed(KEYCODE_F))
 void k052109_device::tilemap_draw( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int tmap_num, uint32_t flags, uint8_t priority )
 {
 	m_tilemap[tmap_num]->draw(screen, bitmap, cliprect, flags, priority);
-}
-
-int k052109_device::is_irq_enabled( )
-{
-	return m_irq_enabled;
 }
 
 
@@ -721,7 +721,7 @@ void k052109_device::get_tile_info( tile_data &tileinfo, int tile_index, int lay
 	if (flipy && (m_tileflip_enable & 2))
 		flags |= TILE_FLIPY;
 
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 			code,
 			color,
 			flags);

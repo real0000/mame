@@ -1,4 +1,4 @@
-// license:GPL-2.0+
+// license:BSD-3-Clause
 // copyright-holders:Dirk Best
 /***************************************************************************
 
@@ -19,19 +19,10 @@
 
 ***************************************************************************/
 
+#ifndef MAME_VIDEO_TEA1002_H
+#define MAME_VIDEO_TEA1002_H
+
 #pragma once
-
-#ifndef __TEA1002_H__
-#define __TEA1002_H__
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_TEA1002_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, TEA1002, _clock)
 
 
 //**************************************************************************
@@ -60,6 +51,6 @@ private:
 };
 
 // device type definition
-extern const device_type TEA1002;
+DECLARE_DEVICE_TYPE(TEA1002, tea1002_device)
 
-#endif // __TEA1002_H__
+#endif // MAME_VIDEO_TEA1002_H

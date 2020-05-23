@@ -7,26 +7,25 @@
     Votrax SC01A simulation
 
 ***************************************************************************/
+#ifndef MAME_SOUND_VOTRAX_H
+#define MAME_SOUND_VOTRAX_H
 
 #pragma once
 
-#ifndef VOTRAX_H
-#define VOTRAX_H
-
-#define MCFG_VOTRAX_SC01_REQUEST_CB(_devcb) \
-	devcb = &downcast<votrax_sc01_device *>(device)->set_ar_callback(DEVCB_##_devcb);
 
 class votrax_sc01_device :  public device_t,
 							public device_sound_interface
 {
 public:
+	static constexpr feature_type imperfect_features() { return feature::SOUND; }
+
 	// construction/destruction
 	votrax_sc01_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> devcb_base &set_ar_callback(_Object object) { return m_ar_cb.set_callback(object); }
+	auto ar_callback() { return m_ar_cb.bind(); }
 
-	DECLARE_WRITE8_MEMBER(write);
-	DECLARE_WRITE8_MEMBER(inflection_w);
+	void write(uint8_t data);
+	void inflection_w(uint8_t data);
 	DECLARE_READ_LINE_MEMBER(request) { m_stream->update(); return m_ar_state; }
 
 protected:
@@ -182,12 +181,11 @@ private:
 };
 
 
-
 //**************************************************************************
 //  GLOBAL VARIABLES
 //**************************************************************************
 
 // device type definition
-extern const device_type VOTRAX_SC01;
+DECLARE_DEVICE_TYPE(VOTRAX_SC01, votrax_sc01_device)
 
-#endif /* VOTRAX_H */
+#endif // MAME_SOUND_VOTRAX_H

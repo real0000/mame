@@ -8,19 +8,22 @@
 
 ***************************************************************************/
 
-#ifndef CIRRUS_H
-#define CIRRUS_H
+#ifndef MAME_BUS_LPCI_CIRRUS_H
+#define MAME_BUS_LPCI_CIRRUS_H
+
+#pragma once
 
 #include "bus/lpci/pci.h"
 
-// ======================> cirrus_device
+// ======================> pci_cirrus_svga_device
 
-class cirrus_device : public device_t,
-						public pci_device_interface
+class pci_cirrus_svga_device : public device_t, public pci_device_interface
 {
 public:
-		// construction/destruction
-	cirrus_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	// construction/destruction
+	pci_cirrus_svga_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	template <typename T>
+	void set_vga(T &&tag) { m_vga.set_tag(std::forward<T>(tag)); }
 
 	virtual uint32_t pci_read(pci_bus_device *pcibus, int function, int offset, uint32_t mem_mask) override;
 	virtual void pci_write(pci_bus_device *pcibus, int function, int offset, uint32_t data, uint32_t mem_mask) override;
@@ -31,10 +34,12 @@ protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+
+	required_device<vga_device> m_vga;
 };
 
 
 // device type definition
-extern const device_type CIRRUS;
+DECLARE_DEVICE_TYPE(PCI_CIRRUS_SVGA, pci_cirrus_svga_device)
 
-#endif /* CIRRUS_H */
+#endif // MAME_BUS_LPCI_CIRRUS_H

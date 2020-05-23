@@ -23,7 +23,9 @@
 #include "includes/skullxbo.h"
 
 #include "cpu/m68000/m68000.h"
+#include "machine/eeprompar.h"
 #include "machine/watchdog.h"
+#include "emupal.h"
 #include "speaker.h"
 
 
@@ -34,30 +36,35 @@
  *
  *************************************/
 
-void skullxbo_state::update_interrupts()
+TIMER_CALLBACK_MEMBER(skullxbo_state::scanline_interrupt)
 {
-	m_maincpu->set_input_line(1, m_scanline_int_state ? ASSERT_LINE : CLEAR_LINE);
-	m_maincpu->set_input_line(2, m_video_int_state ? ASSERT_LINE : CLEAR_LINE);
-	m_maincpu->set_input_line(4, m_sound_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(M68K_IRQ_1, ASSERT_LINE);
+}
+
+
+void skullxbo_state::scanline_int_ack_w(uint16_t data)
+{
+	m_maincpu->set_input_line(M68K_IRQ_1, CLEAR_LINE);
+}
+
+
+void skullxbo_state::video_int_ack_w(uint16_t data)
+{
+	m_maincpu->set_input_line(M68K_IRQ_2, CLEAR_LINE);
 }
 
 
 TIMER_DEVICE_CALLBACK_MEMBER(skullxbo_state::scanline_timer)
 {
-	scanline_int_gen(*m_maincpu);
-}
-
-
-void skullxbo_state::scanline_update(screen_device &screen, int scanline)
-{
 	/* check for interrupts in the alpha ram */
 	/* the interrupt occurs on the HBLANK of the 6th scanline following */
+	int scanline = param;
 	int offset = (scanline / 8) * 64 + 42;
 	if (offset < 0x7c0 && (m_alpha_tilemap->basemem_read(offset) & 0x8000))
 	{
-		int width = screen.width();
-		attotime period = screen.time_until_pos(screen.vpos() + 6, width * 0.9);
-		m_scanline_timer->adjust(period);
+		int width = m_screen->width();
+		attotime period = m_screen->time_until_pos(m_screen->vpos() + 6, width * 0.9);
+		m_scanline_int_timer->adjust(period);
 	}
 
 	/* update the playfield and motion objects */
@@ -67,14 +74,17 @@ void skullxbo_state::scanline_update(screen_device &screen, int scanline)
 
 WRITE16_MEMBER(skullxbo_state::skullxbo_halt_until_hblank_0_w)
 {
-	halt_until_hblank_0(space.device(), *m_screen);
+	halt_until_hblank_0(*m_maincpu, *m_screen);
 }
 
 
-MACHINE_RESET_MEMBER(skullxbo_state,skullxbo)
+void skullxbo_state::machine_start()
 {
-	atarigen_state::machine_reset();
-	scanline_timer_reset(*m_screen, 8);
+	atarigen_state::machine_start();
+
+	m_scanline_int_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(skullxbo_state::scanline_interrupt), this));
+
+	save_item(NAME(m_scanline_int_state));
 }
 
 
@@ -98,36 +108,37 @@ WRITE16_MEMBER(skullxbo_state::skullxbo_mobwr_w)
  *
  *************************************/
 
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, skullxbo_state )
-	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0xff0000, 0xff07ff) AM_WRITE(skullxbo_mobmsb_w)
-	AM_RANGE(0xff0800, 0xff0bff) AM_WRITE(skullxbo_halt_until_hblank_0_w)
-	AM_RANGE(0xff0c00, 0xff0fff) AM_DEVWRITE("eeprom", atari_eeprom_device, unlock_write)
-	AM_RANGE(0xff1000, 0xff13ff) AM_WRITE(video_int_ack_w)
-	AM_RANGE(0xff1400, 0xff17ff) AM_DEVWRITE8("jsa", atari_jsa_ii_device, main_command_w, 0x00ff)
-	AM_RANGE(0xff1800, 0xff1bff) AM_DEVWRITE("jsa", atari_jsa_ii_device, sound_reset_w)
-	AM_RANGE(0xff1c00, 0xff1c7f) AM_WRITE(playfield_latch_w)
-	AM_RANGE(0xff1c80, 0xff1cff) AM_WRITE(skullxbo_xscroll_w) AM_SHARE("xscroll")
-	AM_RANGE(0xff1d00, 0xff1d7f) AM_WRITE(scanline_int_ack_w)
-	AM_RANGE(0xff1d80, 0xff1dff) AM_DEVWRITE("watchdog", watchdog_timer_device, reset16_w)
-	AM_RANGE(0xff1e00, 0xff1e7f) AM_WRITE(playfield_latch_w)
-	AM_RANGE(0xff1e80, 0xff1eff) AM_WRITE(skullxbo_xscroll_w)
-	AM_RANGE(0xff1f00, 0xff1f7f) AM_WRITE(scanline_int_ack_w)
-	AM_RANGE(0xff1f80, 0xff1fff) AM_DEVWRITE("watchdog", watchdog_timer_device, reset16_w)
-	AM_RANGE(0xff2000, 0xff2fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0xff4000, 0xff47ff) AM_WRITE(skullxbo_yscroll_w) AM_SHARE("yscroll")
-	AM_RANGE(0xff4800, 0xff4fff) AM_WRITE(skullxbo_mobwr_w)
-	AM_RANGE(0xff5000, 0xff5001) AM_DEVREAD8("jsa", atari_jsa_ii_device, main_response_r, 0x00ff)
-	AM_RANGE(0xff5800, 0xff5801) AM_READ_PORT("FF5800")
-	AM_RANGE(0xff5802, 0xff5803) AM_READ_PORT("FF5802")
-	AM_RANGE(0xff6000, 0xff6fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
-	AM_RANGE(0xff8000, 0xff9fff) AM_RAM_WRITE(playfield_latched_w) AM_SHARE("playfield")
-	AM_RANGE(0xffa000, 0xffbfff) AM_RAM_DEVWRITE("playfield", tilemap_device, write_ext) AM_SHARE("playfield_ext")
-	AM_RANGE(0xffc000, 0xffcf7f) AM_RAM_DEVWRITE("alpha", tilemap_device, write) AM_SHARE("alpha")
-	AM_RANGE(0xffcf80, 0xffcfff) AM_RAM AM_SHARE("mob:slip")
-	AM_RANGE(0xffd000, 0xffdfff) AM_RAM AM_SHARE("mob")
-	AM_RANGE(0xffe000, 0xffffff) AM_RAM
-ADDRESS_MAP_END
+void skullxbo_state::main_map(address_map &map)
+{
+	map(0x000000, 0x07ffff).rom();
+	map(0xff0000, 0xff07ff).w(FUNC(skullxbo_state::skullxbo_mobmsb_w));
+	map(0xff0800, 0xff0bff).w(FUNC(skullxbo_state::skullxbo_halt_until_hblank_0_w));
+	map(0xff0c00, 0xff0fff).w("eeprom", FUNC(eeprom_parallel_28xx_device::unlock_write16));
+	map(0xff1000, 0xff13ff).w(FUNC(skullxbo_state::video_int_ack_w));
+	map(0xff1400, 0xff17ff).w(m_jsa, FUNC(atari_jsa_ii_device::main_command_w)).umask16(0x00ff);
+	map(0xff1800, 0xff1bff).w(m_jsa, FUNC(atari_jsa_ii_device::sound_reset_w));
+	map(0xff1c00, 0xff1c7f).w(FUNC(skullxbo_state::playfield_latch_w));
+	map(0xff1c80, 0xff1cff).w(FUNC(skullxbo_state::skullxbo_xscroll_w)).share("xscroll");
+	map(0xff1d00, 0xff1d7f).w(FUNC(skullxbo_state::scanline_int_ack_w));
+	map(0xff1d80, 0xff1dff).w("watchdog", FUNC(watchdog_timer_device::reset16_w));
+	map(0xff1e00, 0xff1e7f).w(FUNC(skullxbo_state::playfield_latch_w));
+	map(0xff1e80, 0xff1eff).w(FUNC(skullxbo_state::skullxbo_xscroll_w));
+	map(0xff1f00, 0xff1f7f).w(FUNC(skullxbo_state::scanline_int_ack_w));
+	map(0xff1f80, 0xff1fff).w("watchdog", FUNC(watchdog_timer_device::reset16_w));
+	map(0xff2000, 0xff2fff).ram().w("palette", FUNC(palette_device::write16)).share("palette");
+	map(0xff4000, 0xff47ff).w(FUNC(skullxbo_state::skullxbo_yscroll_w)).share("yscroll");
+	map(0xff4800, 0xff4fff).w(FUNC(skullxbo_state::skullxbo_mobwr_w));
+	map(0xff5001, 0xff5001).r(m_jsa, FUNC(atari_jsa_ii_device::main_response_r));
+	map(0xff5800, 0xff5801).portr("FF5800");
+	map(0xff5802, 0xff5803).portr("FF5802");
+	map(0xff6000, 0xff6fff).rw("eeprom", FUNC(eeprom_parallel_28xx_device::read), FUNC(eeprom_parallel_28xx_device::write)).umask16(0x00ff);
+	map(0xff8000, 0xff9fff).ram().w(FUNC(skullxbo_state::playfield_latched_w)).share("playfield");
+	map(0xffa000, 0xffbfff).ram().w(m_playfield_tilemap, FUNC(tilemap_device::write16_ext)).share("playfield_ext");
+	map(0xffc000, 0xffcf7f).ram().w(m_alpha_tilemap, FUNC(tilemap_device::write16)).share("alpha");
+	map(0xffcf80, 0xffcfff).ram().share("mob:slip");
+	map(0xffd000, 0xffdfff).ram().share("mob");
+	map(0xffe000, 0xffffff).ram();
+}
 
 
 
@@ -210,7 +221,7 @@ static const gfx_layout molayout =
 };
 
 
-static GFXDECODE_START( skullxbo )
+static GFXDECODE_START( gfx_skullxbo )
 	GFXDECODE_ENTRY( "gfx1", 0, molayout, 0x000, 32 )
 	GFXDECODE_ENTRY( "gfx2", 0, pflayout, 0x200, 16 )
 	GFXDECODE_ENTRY( "gfx3", 0, anlayout, 0x300, 16 )
@@ -224,47 +235,45 @@ GFXDECODE_END
  *
  *************************************/
 
-static MACHINE_CONFIG_START( skullxbo, skullxbo_state )
-
+void skullxbo_state::skullxbo(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, ATARI_CLOCK_14MHz/2)
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_DEVICE_VBLANK_INT_DRIVER("screen", atarigen_state, video_int_gen)
+	M68000(config, m_maincpu, 14.318181_MHz_XTAL/2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &skullxbo_state::main_map);
 
-	MCFG_TIMER_DRIVER_ADD("scan_timer", skullxbo_state, scanline_timer)
-	MCFG_MACHINE_RESET_OVERRIDE(skullxbo_state,skullxbo)
+	TIMER(config, "scantimer").configure_scanline(FUNC(skullxbo_state::scanline_timer), m_screen, 0, 8);
 
-	MCFG_ATARI_EEPROM_2816_ADD("eeprom")
+	EEPROM_2816(config, "eeprom").lock_after_write(true);
 
-	MCFG_WATCHDOG_ADD("watchdog")
+	WATCHDOG_TIMER(config, "watchdog");
 
 	/* video hardware */
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", skullxbo)
-	MCFG_PALETTE_ADD("palette", 2048)
-	MCFG_PALETTE_FORMAT(IRRRRRGGGGGBBBBB)
+	GFXDECODE(config, m_gfxdecode, "palette", gfx_skullxbo);
+	PALETTE(config, "palette").set_format(palette_device::IRGB_1555, 2048);
 
-	MCFG_TILEMAP_ADD_STANDARD("playfield", "gfxdecode", 2, skullxbo_state, get_playfield_tile_info, 16,8, SCAN_COLS, 64,64)
-	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", "gfxdecode", 2, skullxbo_state, get_alpha_tile_info, 16,8, SCAN_ROWS, 64,32, 0)
-	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", skullxbo_state::s_mob_config)
-	MCFG_ATARI_MOTION_OBJECTS_GFXDECODE("gfxdecode")
+	TILEMAP(config, m_playfield_tilemap, m_gfxdecode, 2, 16,8, TILEMAP_SCAN_COLS, 64,64).set_info_callback(FUNC(skullxbo_state::get_playfield_tile_info));
+	TILEMAP(config, m_alpha_tilemap, m_gfxdecode, 2, 16,8, TILEMAP_SCAN_ROWS, 64,32, 0).set_info_callback(FUNC(skullxbo_state::get_alpha_tile_info));
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
+	ATARI_MOTION_OBJECTS(config, m_mob, 0, m_screen, skullxbo_state::s_mob_config);
+	m_mob->set_gfxdecode(m_gfxdecode);
+
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_video_attributes(VIDEO_UPDATE_BEFORE_VBLANK);
 	/* note: these parameters are from published specs, not derived */
 	/* the board uses an SOS-2 chip to generate video signals */
-	MCFG_SCREEN_RAW_PARAMS(ATARI_CLOCK_14MHz, 456*2, 0, 336*2, 262, 0, 240)
-	MCFG_SCREEN_UPDATE_DRIVER(skullxbo_state, screen_update_skullxbo)
-	MCFG_SCREEN_PALETTE("palette")
-
-	MCFG_VIDEO_START_OVERRIDE(skullxbo_state,skullxbo)
+	m_screen->set_raw(14.318181_MHz_XTAL, 456*2, 0, 336*2, 262, 0, 240);
+	m_screen->set_screen_update(FUNC(skullxbo_state::screen_update_skullxbo));
+	m_screen->set_palette("palette");
+	m_screen->screen_vblank().set_inputline(m_maincpu, M68K_IRQ_2, ASSERT_LINE);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_ATARI_JSA_II_ADD("jsa", WRITELINE(atarigen_state, sound_int_write_line))
-	MCFG_ATARI_JSA_TEST_PORT("FF5802", 7)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	ATARI_JSA_II(config, m_jsa, 0);
+	m_jsa->main_int_cb().set_inputline(m_maincpu, M68K_IRQ_4);
+	m_jsa->test_read_cb().set_ioport("FF5802").bit(7);
+	m_jsa->add_route(ALL_OUTPUTS, "mono", 1.0);
+}
 
 
 
@@ -596,7 +605,7 @@ ROM_END
  *
  *************************************/
 
-DRIVER_INIT_MEMBER(skullxbo_state,skullxbo)
+void skullxbo_state::init_skullxbo()
 {
 	memset(memregion("gfx1")->base() + 0x170000, 0, 0x20000);
 }
@@ -609,8 +618,8 @@ DRIVER_INIT_MEMBER(skullxbo_state,skullxbo)
  *
  *************************************/
 
-GAME( 1989, skullxbo,  0,        skullxbo, skullxbo, skullxbo_state, skullxbo, ROT0, "Atari Games", "Skull & Crossbones (rev 5)", 0 )
-GAME( 1989, skullxbo4, skullxbo, skullxbo, skullxbo, skullxbo_state, skullxbo, ROT0, "Atari Games", "Skull & Crossbones (rev 4)", 0 )
-GAME( 1989, skullxbo3, skullxbo, skullxbo, skullxbo, skullxbo_state, skullxbo, ROT0, "Atari Games", "Skull & Crossbones (rev 3)", 0 )
-GAME( 1989, skullxbo2, skullxbo, skullxbo, skullxbo, skullxbo_state, skullxbo, ROT0, "Atari Games", "Skull & Crossbones (rev 2)", 0 )
-GAME( 1989, skullxbo1, skullxbo, skullxbo, skullxbo, skullxbo_state, skullxbo, ROT0, "Atari Games", "Skull & Crossbones (rev 1)", 0 )
+GAME( 1989, skullxbo,  0,        skullxbo, skullxbo, skullxbo_state, init_skullxbo, ROT0, "Atari Games", "Skull & Crossbones (rev 5)", 0 )
+GAME( 1989, skullxbo4, skullxbo, skullxbo, skullxbo, skullxbo_state, init_skullxbo, ROT0, "Atari Games", "Skull & Crossbones (rev 4)", 0 )
+GAME( 1989, skullxbo3, skullxbo, skullxbo, skullxbo, skullxbo_state, init_skullxbo, ROT0, "Atari Games", "Skull & Crossbones (rev 3)", 0 )
+GAME( 1989, skullxbo2, skullxbo, skullxbo, skullxbo, skullxbo_state, init_skullxbo, ROT0, "Atari Games", "Skull & Crossbones (rev 2)", 0 )
+GAME( 1989, skullxbo1, skullxbo, skullxbo, skullxbo, skullxbo_state, init_skullxbo, ROT0, "Atari Games", "Skull & Crossbones (rev 1)", 0 )

@@ -120,14 +120,16 @@ actually used, since the priority is taken from the external ports.
 #include "emu.h"
 #include "k053251.h"
 #include "konami_helper.h"
+#include "tilemap.h"
 
 #define VERBOSE 0
-#define LOG(x) do { if (VERBOSE) logerror x; } while (0)
+#include "logmacro.h"
 
-const device_type K053251 = device_creator<k053251_device>;
+
+DEFINE_DEVICE_TYPE(K053251, k053251_device, "k053251", "K053251 Priority Encoder")
 
 k053251_device::k053251_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, K053251, "K053251 Priority Encoder", tag, owner, clock, "k053251", __FILE__),
+	: device_t(mconfig, K053251, tag, owner, clock),
 	//m_dirty_tmap[5],
 	//m_ram[16],
 	m_tilemaps_set(0)
@@ -144,8 +146,6 @@ void k053251_device::device_start()
 	save_item(NAME(m_ram));
 	save_item(NAME(m_tilemaps_set));
 	save_item(NAME(m_dirty_tmap));
-
-	machine().save().register_postload(save_prepost_delegate(FUNC(k053251_device::reset_indexes), this));
 }
 
 //-------------------------------------------------
@@ -167,11 +167,20 @@ void k053251_device::device_reset()
 	reset_indexes();
 }
 
+//-------------------------------------------------
+//  device_post_load - device-specific postload
+//-------------------------------------------------
+
+void k053251_device::device_post_load()
+{
+	reset_indexes();
+}
+
 /*****************************************************************************
     DEVICE HANDLERS
 *****************************************************************************/
 
-WRITE8_MEMBER( k053251_device::write )
+void k053251_device::write(offs_t offset, u8 data)
 {
 	int i, newind;
 
@@ -194,7 +203,7 @@ WRITE8_MEMBER( k053251_device::write )
 			}
 
 			if (!m_tilemaps_set)
-				space.machine().tilemap().mark_all_dirty();
+				machine().tilemap().mark_all_dirty();
 		}
 		else if (offset == 10)
 		{
@@ -210,21 +219,9 @@ WRITE8_MEMBER( k053251_device::write )
 			}
 
 			if (!m_tilemaps_set)
-				space.machine().tilemap().mark_all_dirty();
+				machine().tilemap().mark_all_dirty();
 		}
 	}
-}
-
-WRITE16_MEMBER( k053251_device::lsb_w )
-{
-	if (ACCESSING_BITS_0_7)
-		write(space, offset, data & 0xff);
-}
-
-WRITE16_MEMBER( k053251_device::msb_w )
-{
-	if (ACCESSING_BITS_8_15)
-		write(space, offset, (data >> 8) & 0xff);
 }
 
 int k053251_device::get_priority( int ci )
@@ -260,12 +257,7 @@ void k053251_device::reset_indexes()
 
 // debug handlers
 
-READ16_MEMBER( k053251_device::lsb_r )
+u8 k053251_device::read(offs_t offset)
 {
-	return(m_ram[offset]);
-}       // PCU1
-
-READ16_MEMBER( k053251_device::msb_r )
-{
-	return(m_ram[offset] << 8);
+	return m_ram[offset];
 }       // PCU1

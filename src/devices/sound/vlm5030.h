@@ -1,22 +1,20 @@
 // license:BSD-3-Clause
 // copyright-holders:Tatsuyuki Satoh
+#ifndef MAME_SOUND_VLM5030_H
+#define MAME_SOUND_VLM5030_H
+
 #pragma once
 
-#ifndef __VLM5030_H__
-#define __VLM5030_H__
-
-	class vlm5030_device : public device_t,
-									public device_sound_interface, public device_rom_interface
-	{
-	public:
+class vlm5030_device : public device_t, public device_sound_interface, public device_rom_interface
+{
+public:
 	vlm5030_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~vlm5030_device() {}
 
 	/* get BSY pin level */
 	DECLARE_READ_LINE_MEMBER( bsy );
 
 	/* latch contoll data */
-	DECLARE_WRITE8_MEMBER( data_w );
+	void data_w(uint8_t data);
 
 	/* set RST pin level : reset / set table address A8-A15 */
 	DECLARE_WRITE_LINE_MEMBER( rst );
@@ -31,6 +29,7 @@ protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+	virtual void device_post_load() override;
 
 	// sound stream update overrides
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples) override;
@@ -43,7 +42,7 @@ private:
 	const address_space_config m_space_config;
 
 	// internal state
-	sound_stream * m_channel;
+	sound_stream *m_channel;
 
 	/* coefficient tables */
 	const struct tms5100_coeffs *m_coeff;
@@ -95,7 +94,6 @@ private:
 	void restore_state();
 };
 
-extern const device_type VLM5030;
+DECLARE_DEVICE_TYPE(VLM5030, vlm5030_device)
 
-
-#endif /* __VLM5030_H__ */
+#endif // MAME_SOUND_VLM5030_H

@@ -1,24 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:Olivier Galibert
-#ifndef MB8795_H
-#define MB8795_H
-
-#define MCFG_MB8795_ADD(_tag, _tx_irq, _rx_irq, _tx_drq, _rx_drq)    \
-	MCFG_DEVICE_ADD(_tag, MB8795, 0)                                 \
-	downcast<mb8795_device *>(device)->set_irq_cb(_tx_irq, _rx_irq); \
-	downcast<mb8795_device *>(device)->set_drq_cb(_tx_drq, _rx_drq);
-
-#define MCFG_MB8795_TX_IRQ_CALLBACK(_write) \
-	devcb = &mb8795_device::set_tx_irq_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_MB8795_RX_IRQ_CALLBACK(_write) \
-	devcb = &mb8795_device::set_rx_irq_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_MB8795_TX_DRQ_CALLBACK(_write) \
-	devcb = &mb8795_device::set_tx_drq_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_MB8795_RX_DRQ_CALLBACK(_write) \
-	devcb = &mb8795_device::set_rx_drq_wr_callback(*device, DEVCB_##_write);
+#ifndef MAME_MACHINE_MB8795_H
+#define MAME_MACHINE_MB8795_H
 
 class mb8795_device :   public device_t,
 						public device_network_interface
@@ -26,32 +9,15 @@ class mb8795_device :   public device_t,
 public:
 	mb8795_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_tx_irq_wr_callback(device_t &device, _Object object) { return downcast<mb8795_device &>(device).irq_tx_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_rx_irq_wr_callback(device_t &device, _Object object) { return downcast<mb8795_device &>(device).irq_rx_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_tx_drq_wr_callback(device_t &device, _Object object) { return downcast<mb8795_device &>(device).drq_tx_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_rx_drq_wr_callback(device_t &device, _Object object) { return downcast<mb8795_device &>(device).drq_rx_cb.set_callback(object); }
-
-	DECLARE_ADDRESS_MAP(map, 8);
-
-	DECLARE_READ8_MEMBER(txstat_r);
-	DECLARE_WRITE8_MEMBER(txstat_w);
-	DECLARE_READ8_MEMBER(txmask_r);
-	DECLARE_WRITE8_MEMBER(txmask_w);
-	DECLARE_READ8_MEMBER(rxstat_r);
-	DECLARE_WRITE8_MEMBER(rxstat_w);
-	DECLARE_READ8_MEMBER(rxmask_r);
-	DECLARE_WRITE8_MEMBER(rxmask_w);
-	DECLARE_READ8_MEMBER(txmode_r);
-	DECLARE_WRITE8_MEMBER(txmode_w);
-	DECLARE_READ8_MEMBER(rxmode_r);
-	DECLARE_WRITE8_MEMBER(rxmode_w);
-	DECLARE_WRITE8_MEMBER(reset_w);
-	DECLARE_READ8_MEMBER(tdc_lsb_r);
-	DECLARE_READ8_MEMBER(mac_r);
-	DECLARE_WRITE8_MEMBER(mac_w);
+	auto tx_irq() { return irq_tx_cb.bind(); }
+	auto rx_irq() { return irq_rx_cb.bind(); }
+	auto tx_drq() { return drq_tx_cb.bind(); }
+	auto rx_drq() { return drq_rx_cb.bind(); }
 
 	void tx_dma_w(uint8_t data, bool eof);
 	void rx_dma_r(uint8_t &data, bool &eof);
+
+	void map(address_map &map);
 
 protected:
 	virtual void device_start() override;
@@ -117,8 +83,25 @@ private:
 	bool recv_is_me();
 	bool recv_is_multicast();
 	bool recv_is_local_multicast();
+
+	uint8_t txstat_r();
+	void txstat_w(uint8_t data);
+	uint8_t txmask_r();
+	void txmask_w(uint8_t data);
+	uint8_t rxstat_r();
+	void rxstat_w(uint8_t data);
+	uint8_t rxmask_r();
+	void rxmask_w(uint8_t data);
+	uint8_t txmode_r();
+	void txmode_w(uint8_t data);
+	uint8_t rxmode_r();
+	void rxmode_w(uint8_t data);
+	void reset_w(uint8_t data);
+	uint8_t tdc_lsb_r();
+	uint8_t mac_r(offs_t offset);
+	void mac_w(offs_t offset, uint8_t data);
 };
 
-extern const device_type MB8795;
+DECLARE_DEVICE_TYPE(MB8795, mb8795_device)
 
-#endif
+#endif // MAME_MACHINE_MB8795_H

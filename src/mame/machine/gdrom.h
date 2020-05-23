@@ -6,10 +6,12 @@
 
 ***************************************************************************/
 
-#ifndef _GDROM_H_
-#define _GDROM_H_
+#ifndef MAME_MACHINE_GDROM_H
+#define MAME_MACHINE_GDROM_H
 
-#include "machine/atapicdr.h"
+#pragma once
+
+#include "bus/ata/atapicdr.h"
 
 class gdrom_device : public atapi_cdrom_device
 {
@@ -24,6 +26,8 @@ public:
 
 protected:
 	virtual void process_buffer() override;
+	virtual void signature() override;
+	virtual void SetDevice(void *device) override;
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -34,9 +38,9 @@ private:
 	uint32_t read_type;   // for command 0x30 only
 	uint32_t data_select; // for command 0x30 only
 	uint32_t transferOffset;
+	bool is_real_gdrom_disc;
 };
 
-// device type definition
-extern const device_type GDROM;
+DECLARE_DEVICE_TYPE(GDROM, gdrom_device)
 
-#endif
+#endif // MAME_MACHINE_GDROM_H

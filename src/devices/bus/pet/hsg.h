@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_PET_HSG_H
+#define MAME_BUS_PET_HSG_H
 
-#ifndef __CBM8000_HSG__
-#define __CBM8000_HSG__
+#pragma once
 
 #include "exp.h"
 #include "video/ef9365.h"
@@ -20,65 +20,70 @@
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-// ======================> cbm8000_hsg_t
+// ======================> cbm8000_hsg_device
 
-class cbm8000_hsg_t : public device_t,
-						public device_pet_expansion_card_interface
+class cbm8000_hsg_device : public device_t, public device_pet_expansion_card_interface
 {
-public:
+protected:
 	// construction/destruction
-	cbm8000_hsg_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
+	cbm8000_hsg_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
+	// device-level overrides
+	virtual void device_start() override;
+	virtual void device_reset() override;
 
 	// optional information overrides
 	virtual const tiny_rom_entry *device_rom_region() const override;
 
 	// device_pet_expansion_card_interface overrides
-	virtual int pet_norom_r(address_space &space, offs_t offset, int sel) override;
-	virtual uint8_t pet_bd_r(address_space &space, offs_t offset, uint8_t data, int &sel) override;
-	virtual void pet_bd_w(address_space &space, offs_t offset, uint8_t data, int &sel) override;
+	virtual int pet_norom_r(offs_t offset, int sel) override;
+	virtual uint8_t pet_bd_r(offs_t offset, uint8_t data, int &sel) override;
+	virtual void pet_bd_w(offs_t offset, uint8_t data, int &sel) override;
 
-protected:
-	// device-level overrides
-	virtual void device_start() override;
-	virtual void device_reset() override;
+	required_device<ef9365_device> m_gdc;
 
 private:
-	required_device<ef9365_device> m_gdc;
 	required_memory_region m_9000;
 	required_memory_region m_a000;
 };
 
 
-// ======================> cbm8000_hsg_a_t
+// ======================> cbm8000_hsg_a_device
 
-class cbm8000_hsg_a_t :  public cbm8000_hsg_t
+class cbm8000_hsg_a_device :  public cbm8000_hsg_device
 {
 public:
 	// construction/destruction
-	cbm8000_hsg_a_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	cbm8000_hsg_a_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
+protected:
 	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
+private:
+	void hsg_a_map(address_map &map);
 };
 
 
-// ======================> cbm8000_hsg_b_t
+// ======================> cbm8000_hsg_b_device
 
-class cbm8000_hsg_b_t :  public cbm8000_hsg_t
+class cbm8000_hsg_b_device :  public cbm8000_hsg_device
 {
 public:
 	// construction/destruction
-	cbm8000_hsg_b_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	cbm8000_hsg_b_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
+protected:
 	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
+private:
+	void hsg_b_map(address_map &map);
 };
 
 
 // device type definition
-extern const device_type CBM8000_HSG_A;
-extern const device_type CBM8000_HSG_B;
+DECLARE_DEVICE_TYPE(CBM8000_HSG_A, cbm8000_hsg_a_device)
+DECLARE_DEVICE_TYPE(CBM8000_HSG_B, cbm8000_hsg_b_device)
 
-
-
-#endif
+#endif // MAME_BUS_PET_HSG_H

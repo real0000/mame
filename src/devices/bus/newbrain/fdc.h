@@ -6,13 +6,14 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_NEWBRAIN_FDC_H
+#define MAME_BUS_NEWBRAIN_FDC_H
 
-#ifndef __NEWBRAIN_FDC__
-#define __NEWBRAIN_FDC__
+#pragma once
 
 #include "exp.h"
 #include "cpu/z80/z80.h"
+#include "imagedev/floppy.h"
 #include "machine/upd765.h"
 
 
@@ -21,43 +22,46 @@
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-// ======================> newbrain_fdc_t
+// ======================> newbrain_fdc_device
 
-class newbrain_fdc_t :  public device_t,
-						public device_newbrain_expansion_slot_interface
+class newbrain_fdc_device :  public device_t, public device_newbrain_expansion_slot_interface
 {
 public:
 	// construction/destruction
-	newbrain_fdc_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-
-	// optional information overrides
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
-	DECLARE_WRITE_LINE_MEMBER( fdc_int_w );
-	DECLARE_WRITE8_MEMBER( fdc_auxiliary_w );
-	DECLARE_READ8_MEMBER( fdc_control_r );
-	DECLARE_WRITE8_MEMBER( io_dec_w );
+	newbrain_fdc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
+	// optional information overrides
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
 	// device_newbrain_expansion_slot_interface overrides
-	virtual uint8_t mreq_r(address_space &space, offs_t offset, uint8_t data, bool &romov, int &exrm, bool &raminh) override;
-	virtual void mreq_w(address_space &space, offs_t offset, uint8_t data, bool &romov, int &exrm, bool &raminh) override;
-	virtual uint8_t iorq_r(address_space &space, offs_t offset, uint8_t data, bool &prtov) override;
-	virtual void iorq_w(address_space &space, offs_t offset, uint8_t data, bool &prtov) override;
+	virtual uint8_t mreq_r(offs_t offset, uint8_t data, bool &romov, int &exrm, bool &raminh) override;
+	virtual void mreq_w(offs_t offset, uint8_t data, bool &romov, int &exrm, bool &raminh) override;
+	virtual uint8_t iorq_r(offs_t offset, uint8_t data, bool &prtov) override;
+	virtual void iorq_w(offs_t offset, uint8_t data, bool &prtov) override;
 
 private:
+	DECLARE_WRITE_LINE_MEMBER( fdc_int_w );
+
+	void fdc_auxiliary_w(uint8_t data);
+	uint8_t fdc_control_r();
+	void io_dec_w(uint8_t data);
+
+	void newbrain_fdc_io(address_map &map);
+	void newbrain_fdc_mem(address_map &map);
+
 	required_device<z80_device> m_maincpu;
 	required_device<upd765a_device> m_fdc;
 	required_device<floppy_connector> m_floppy0;
 	required_device<floppy_connector> m_floppy1;
 	required_device<floppy_connector> m_floppy2;
 	required_device<floppy_connector> m_floppy3;
-	required_device<newbrain_expansion_slot_t> m_exp;
+	required_device<newbrain_expansion_slot_device> m_exp;
 
 	void moton(int state);
 
@@ -71,8 +75,6 @@ private:
 
 
 // device type definition
-extern const device_type NEWBRAIN_FDC;
+DECLARE_DEVICE_TYPE(NEWBRAIN_FDC, newbrain_fdc_device)
 
-
-
-#endif
+#endif // MAME_BUS_NEWBRAIN_FDC_H

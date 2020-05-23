@@ -4,7 +4,7 @@
 
 /*
  todo:
-  - fix sound emulation
+  - fix sound emulation (speed needs verifying + sample playback)
   - fix sprite communication / banking
     * bit "output bit 0x02 %d (IC21)" at 0x42 might be important
     * mag_exzi currently requires a gross hack to stop the sprite CPU crashing on startup
@@ -22,6 +22,12 @@
     * there seem to be 2 checks, one based on a weird sector on the discs, the other based on
       a port read
   - add additional hardware notes from ArcadeHacker
+  - layer enables on War Mission? (transitions from title screen etc.)
+
+ notes:
+  - high scores will be defaulted if the data in the table is corrupt, the games give no
+    option to do this otherwise.  A backup copy of the score table is kept, so you also
+    have to enter and exit service mode.
 
 */
 
@@ -49,7 +55,7 @@
   - Crazy Driver
   - Jungle Trophy
   - Quadrum
-  - War Mission **
+  - War Mission ** *
   - The Burning Cave
   - Scorpio
   - Paris Dakar **
@@ -93,18 +99,178 @@ The hardware consists of 5 main PCBs in a cage.
 2x Plane PCBs (both identical aside from jumper settings)
 1x Sprite PCB
 
-There are small memory sub-boards on the Master PCB and Sprite PCB; due to the awkwardness of
+On some systems, there are small memory sub-boards on the Master PCB and Sprite PCB; due to the awkwardness of
 the banking at times (and the fact that even with 4 banks of 256 colours, only one can be active)
 I suspect the additional memory was an afterthought.
 
-(put more details hardware notes here)
+SOUND BOARD
+   __________________________________________________________________________
+   |  __________      __________      ___________________      __________   |
+   | |OKI M5205|     |_MC74HC02|     |Z843004PSC Z80 CTC|     |_MC74HC74|   |
+   |                  __________     |__________________|      __________   |
+   |  __________     |MC74HC393|      ___________________     |_MC74HC00|   |
+   | |__MF10CN_|      __________     |Z843004PSC Z80 CTC|      __________   |
+   |                 |_MC74HC03|     |__________________|     |_MC74HC14|   |
+   |  __________                                               __________   |
+   | |__MF10CN_|      __________    _____________________     |_MC74HC32|   |
+   |                 |HCF40105BE   |AY-3-8910A          |    ____________   _| 5
+   |                  __________   |____________________|   |_SS74HC241E|   _| 0
+   |  __________     |_MC74HC74|                             ____________   _|
+   | |_TC4066BP|      __________    _____________________   |_MC74HC374_|   _| P
+   |                 |MC74HC138|   |AY-3-8910A          |    ____________   _| I
+   |                  __________   |____________________|   |_MC74HC245_|   _| N
+   |                 |TC4013BP_|    _____________________    ____________   _|
+   |                  __________   |Z840004PSC Z80 CPU  |   |_MC74HC244_|   _| C
+   |                 |MC74HC74_|   |____________________|    ____________   _| O
+   |                                __________ __________   |_MC74HC244_|   _| N
+   |                  __________   |MC74HC157||MC74HC157|      __________   |
+   |                 |CD74HC04E|                              |MC74HC157|   |
+   |                  __________    __________ __________      __________   |
+   |                 |CD74HC393|  TMM41464P-15 TMM41464P-15   |MC74HC393|   |
+   |________________________________________________________________________|
 
+
+MASTER BOARD
+   __________________________________________________________________________
+   |                                                               J10 CONN |
+   |   _____________________                                   __________   |
+   |  | SIEMENS SAB 2797B P|                                  |MC74HC244|   |
+   |  |____________________|        __________                 __________   |
+   |                               |_MC74HC00|                |_MC74HC74|   |
+   |                                              _____________________     _| 5
+   |   __________    __________     __________   |Z0842004PSC Z80 PIO  |    _| 0
+   |  |MC74HC393|   |CD74HC04E|    |TC74HC138P   |_____________________|    _|
+   |   __________    __________     __________    _____________________     _| P
+   |  |_SN7406N_|   |CD74HC04E|    |MC74HC139|   |Z0842004PSC Z80 PIO  |    _| I
+   |   __________    __________   ____________   |_____________________|    _| N
+   |  |SN74LS14N|   |_MC74HC10|  |AMPAL16R8PC|    _____________________     _|
+   |   __________ __________  ________________   |Z0840004PSC Z80 CPU  |    _| C
+   |  |_MC74HC32||_MC74HC08| |VID E03 MBM2764|   |_____________________|    _| O
+   |   __________            |_______________|                              _| N
+   |  |_MC74HC74|                                                           |
+   |      __________   __________   __________    __________                |
+   |     |_MC74HC86|  |_MC74HC74|  |MC74HC174|   |MC74HC157|                |
+   |      __________   __________   __________    __________  __________    |
+   |     |CD74HC04E|  |_MC74F04N|  |_MC74HC74|   |MC74HC157| M74ALS161AP    |
+   |      __________                __________    __________  __________    |
+   |     |_MC74HC14|  ____   ____  |_MC74HC27|   HYB41256-12 M74ALS161AP    |
+   |                  XTAL1  XTAL2  __________    __________  __________    _| 5
+   |                               |_MC74HC10|   HYB41256-12 M74ALS161AP    _| 0
+ __|    ____________   __________   __________    __________  __________    _|
+|__    |_MC74HC244_|  |_SN7406N_|  |_MC74HC08|   |MC74HC157| AMPAL16R4APC   _| P
+|__     ____________   __________   __________    __________  __________    _| I
+|__    |_MC74HC244_|  |_MC74HC00|  |TC4040BP_|   |MC74HC157| |CD74HC374E    _| N
+|__     ____________   __________  ___________    __________  __________    _|
+|__    |_MC74HC244_|  |_MC74HC00| |_MC74HC244|   |MC74HC157| |CD74HC374E    _| C
+|__                   ___________   __________    __________  __________    _| O
+|__                  |_MC74HC273|  |MM2114N-3L   |MC74HC157| |MC74HC244|    _| N
+|__                    __________   __________    __________   _________    |
+|__                   |MC74HC174|  |MM2114N-3L   |MC74HC157|  |MC74HC157    |
+|__                    __________   __________    __________   _________    |
+|__                   |MC74HC174|  |MM2114N-3L   |MC74HC157|  |MC74HC393    |
+|__     CONN                                                                |
+   |________________________________________________________________________|
+
+
+ PLANES BOARD
+   ___________________________________________________________________________
+   |    __________   __________   __________   __________    __________      |
+   |   |KM4164B-15  |_MC74HC02|  |_MC74HC74|  |MC74HC157|   |_MC74HC02|      |
+   |    __________   __________                __________    __________      |
+   |   |KM4164B-15  |_SN7406N_|               |MC74HC139|   |_MC74HC04|      |
+   |    __________   __________   __________   __________    __________ CONN |
+   |   |KM4164B-15  |_MC74HC74|  |MC74HC157|  |MC74HC393|   |_MC74HC00|      _| 5
+   |    __________   __________   __________   __________    __________      _| 0
+   |   |KM4164B-15  |_MC74HC86|  |MC74HC161|  |_MC74HC74|   |_MC74HC04|      _|
+   |    __________   __________   ___________  __________    __________      _| P
+   |   |KM4164B-15  |_MC74HC86|  |_MC74HC273| |MC74HC153|   |MC74HC153|      _| I
+   |    __________   __________   __________   __________    ___________     _| N
+   |   |KM4164B-15  |MC74HC153|  |MC74HC161|  |MC74HC161|   |_MC74HC241|     _|
+   |    __________   __________   __________   __________    __________      _| C
+   |   |KM4164B-15  |MC74HC153|  |MC74HC157|  |MC74HC161|   |_MC74HC74|      _| O
+   |    __________   __________   __________   __________    ___________     _| N
+   |   |KM4164B-15  |_MC74HC08|  |MC74HC393|  |MC74HC157|   |_MC74HC245|     |
+   |    _______________________                __________    ___________     |
+   |   |Z0842004PSC Z80 PIO   |               SN74ALS161BN  |_MC74HC244|     |
+   |   |______________________|                                              |
+   |    _______________________                                              |
+   |   |Z0842004PSC Z80 PIO   |   __________   __________    ___________     |
+   |   |______________________|  |_MC74HC86|  |MC74HC157|   |_MC74HC244|     |
+   |    __________   __________   __________   ________________________      _| 5
+   |   |KM4164B-15  SN74ALS161BN |MC74HC161|  |Z0840004PSC Z80 CPU    |      _| 0
+   |    __________                            |_______________________|      _|
+   |   |KM4164B-15                                                           _| P
+   |    __________   __________   __________   __________    __________      _| I
+   |   |KM4164B-15  SN74ALS161BN |_MC74HC86|  |_MC74HC32_|  |_MC74HC157| ··  _| N
+   |    __________   ___________  __________   __________    __________  ··  _|
+   |   |KM4164B-15  |_MC74HC273| |MC74HC161|  |_MC74HC08_|  |_MC74HC38N| ··  _| C
+   |    __________   __________                              __________      _| O
+   |   |KM4164B-15  |_MC74HC27|                             |_MC74HC38N| ··  _| N
+   |    __________   ___________  __________   __________    __________  ··  |
+   |   |KM4164B-15  |_MC74HC273| |_MC74HC10|  |_MC74F32N_|  |_MC74HC38N| ··  |
+   |    __________                                                       ··  |
+   |   |KM4164B-15                                                       ··  |
+   |    __________   ___________  __________   __________    __________  ··  |
+   |   |KM4164B-15  |_MC74HC245| |_MC74HC14|  |_MC74HC11_|  |_MC74HC164| ··  |
+   |_________________________________________________________________________|
+
+
+ SPRITES BOARD
+
+   ___________________________________________________________________________
+   |    __________   __________   __________   ________________________      |
+   |   SN74ALS161BN |MC74HC153|  |MC74HC161|  |MK3881N-4 Z80 PIO      |      |
+   |                                          |_______________________|      |
+   |    __________   __________   __________   ________________________      |
+   |   |MC74HC153|  |MC74HC153|  |MC74HC161|  |MK3881N-4 Z80 PIO      | CONN |
+   |                                          |_______________________|      _| 5
+   |    ___________  __________   __________   ________________________      _| 0
+   |   |_MC74HC273| |_MC74HC86|  |MC74HC161|  |MK3881N-4 Z80 PIO      |      _|
+   |    __________   __________   __________  |_______________________|      _| P
+   |   |MC74HC86_|  |_MC74HC74|  |_MC74HC86|   ________________________      _| I
+   |    __________   __________   __________  |X0840004PSC Z80 CPU    |      _| N
+   |   |MC74HC138|  |MC74HC153|  SN74ALS161BN |_______________________|      _|
+   |    __________   __________   __________   __________    __________      _| C
+   |   |MC74HC245|  |_MC74HC04|  |_MC74HC86|  SN74ALS161BN  |_MC74HC04|      _| O
+   |                 __________   __________   __________    ___________     _| N
+   |                |MC74HC153|  |MC74HC161|  |MC74HC393|   |_MC74HC241|     |
+   |    __________   __________   __________   __________    __________      |
+   |   |KM4164B-15  TMS4256-12NL |MC74HC157|  |MC74HC157|   |MC74HC161|      |
+   |    __________   __________   __________   __________    ___________     |
+   |   |KM4164B-15  TMS4256-12NL |_MC74HC74|  |MC74HC161|   |_MC74HC245|     |
+   |    __________   __________   __________   __________    ___________     |
+   |   |KM4164B-15  TMS4256-12NL |_MC74F32N|  |MC74HC161|   |_MC74HC244|     |
+   |    __________   __________   __________   __________    ___________     _| 5
+   |   |KM4164B-15  TMS4256-12NL |MC74HC153|  |MC74HC161|   |_MC74HC244|     _| 0
+   |    __________   __________   __________   __________    ___________     _|
+   |   |KM4164B-15  TMS4256-12NL |_MC74HC08|  |MC74HC157|   |_MC74HC244|     _| P
+   |    __________   __________   __________   __________    ___________     _| I
+   |   |KM4164B-15  TMS4256-12NL |MC74HC157|  |MC74HC161|   |_MC74HC244|     _| N
+   |    __________   __________   __________   __________    __________      _|
+   |   |KM4164B-15  TMS4256-12NL |MC74HC139|  |MC74HC161|   |_MC74HC11|      _| C
+   |    __________   __________   __________   __________    __________      _| O
+   |   |KM4164B-15  TMS4256-12NL |_MC74HC00|  |MC74HC164|   |SN74LS38N|      _| N
+   |    ___________  ___________  __________   __________    __________     |
+   |   |_MC74HC273| |_MC74HC273| |_MC74HC20|  |_MC74HC10|   |_MC74HC27|     |
+   |    __________   __________   __________   __________    __________     |
+   |   |_MC74HC10|  |MC74HC157|  |_MC74HC74|  |_MC74HC08|   |MC74HC38N|     |
+   |    __________   __________   __________   __________    __________     |
+   |   |_MC74HC74|  |MC74HC153|  |_MC74HC27|  |_MC74HC02|   |MC74HC38N|     |
+   |    __________   __________   __________   __________    __________     |
+   |   |_MC74HC74|  |MC74HC153|  |_MC74HC08|  |_MC74HC04|   |_MC74HC14|     |
+   |    __________   __________   __________   __________    __________     |
+   |   |_MC74HC74|  |_MC74HC00|  |MC74HC393|  |_MC74HC08|   |MC74HC164|     |
+   |    __________   __________   __________   __________    __________     |
+   |   |_SN7406N_|  |_MC74HC74|  |_MC74HC32|  |_MC74HC02|   M74ALS161AP     |
+   |                                                         __________     |
+   |                                                        |MC74HC157|     |
+   |________________________________________________________________________|
 
 */
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "cpu/z80/z80daisy.h"
+#include "machine/z80daisy.h"
 #include "machine/z80pio.h"
 #include "machine/bankdev.h"
 #include "machine/z80ctc.h"
@@ -115,6 +281,7 @@ I suspect the additional memory was an afterthought.
 #include "machine/cedar_magnet_sprite.h"
 #include "machine/cedar_magnet_flop.h"
 
+#include "emupal.h"
 #include "screen.h"
 
 
@@ -126,92 +293,99 @@ class cedar_magnet_state : public driver_device
 {
 public:
 	cedar_magnet_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_bank0(*this, "bank0"),
-		m_sub_ram_bankdev(*this, "mb_sub_ram"),
-		m_sub_pal_bankdev(*this, "mb_sub_pal"),
-		m_ram0(*this, "ram0"),
-		m_pal_r(*this, "pal_r"),
-		m_pal_g(*this, "pal_g"),
-		m_pal_b(*this, "pal_b"),
-
-		m_ic48_pio(*this, "z80pio_ic48"),
-		m_ic49_pio(*this, "z80pio_ic49"),
-		m_palette(*this, "palette"),
-		m_maincpu(*this, "maincpu"),
-		m_cedsound(*this, "cedtop"),
-		m_cedplane0(*this, "cedplane0"),
-		m_cedplane1(*this, "cedplane1"),
-		m_cedsprite(*this, "cedsprite")
+		: driver_device(mconfig, type, tag)
+		, m_bank0(*this, "bank0")
+		, m_sub_ram_bankdev(*this, "mb_sub_ram")
+		, m_sub_pal_bankdev(*this, "mb_sub_pal")
+		, m_ram0(*this, "ram0")
+		, m_pal_r(*this, "pal_r")
+		, m_pal_g(*this, "pal_g")
+		, m_pal_b(*this, "pal_b")
+		, m_ic48_pio(*this, "z80pio_ic48")
+		, m_ic49_pio(*this, "z80pio_ic49")
+		, m_io_coin(*this, "COIN%u", 1U)
+		, m_ic48_pio_pa_val(0xff)
+		, m_ic48_pio_pb_val(0xff)
+		, m_ic49_pio_pb_val(0xff)
+		, m_address1hack(-1)
+		, m_address2hack(-1)
+		, m_palette(*this, "palette")
+		, m_maincpu(*this, "maincpu")
+		, m_cedsound(*this, "cedtop")
+		, m_cedplane0(*this, "cedplane0")
+		, m_cedplane1(*this, "cedplane1")
+		, m_cedsprite(*this, "cedsprite")
 	{
-		m_ic48_pio_pa_val = 0xff;
-		m_ic48_pio_pb_val = 0xff;
-		m_ic49_pio_pb_val = 0xff;
-		m_prothack = nullptr;
 	}
 
+	void cedar_magnet(machine_config &config);
+
+private:
 	required_device<address_map_bank_device> m_bank0;
 	required_device<address_map_bank_device> m_sub_ram_bankdev;
 	required_device<address_map_bank_device> m_sub_pal_bankdev;
 
-	required_shared_ptr<uint8_t> m_ram0;
-	required_shared_ptr<uint8_t> m_pal_r;
-	required_shared_ptr<uint8_t> m_pal_g;
-	required_shared_ptr<uint8_t> m_pal_b;
+	required_shared_ptr<u8> m_ram0;
+	required_shared_ptr<u8> m_pal_r;
+	required_shared_ptr<u8> m_pal_g;
+	required_shared_ptr<u8> m_pal_b;
 
 	required_device<z80pio_device> m_ic48_pio;
 	required_device<z80pio_device> m_ic49_pio;
 
-	DECLARE_READ8_MEMBER(ic48_pio_pa_r);
-	DECLARE_WRITE8_MEMBER(ic48_pio_pa_w);
+	optional_ioport_array<2> m_io_coin;
 
-	DECLARE_READ8_MEMBER(ic48_pio_pb_r);
-	DECLARE_WRITE8_MEMBER(ic48_pio_pb_w);
+	u8 ic48_pio_pa_r();
+	void ic48_pio_pa_w(u8 data);
 
-	DECLARE_READ8_MEMBER(ic49_pio_pb_r);
-	DECLARE_WRITE8_MEMBER(ic49_pio_pb_w);
+	u8 ic48_pio_pb_r();
+	void ic48_pio_pb_w(u8 data);
+
+	u8 ic49_pio_pb_r();
+	void ic49_pio_pb_w(u8 data);
 
 	// 1x range ports
-	DECLARE_WRITE8_MEMBER(port18_w);
-	DECLARE_WRITE8_MEMBER(port19_w);
-	DECLARE_WRITE8_MEMBER(port1b_w);
+	void port18_w(u8 data);
+	void port19_w(u8 data);
+	void port1b_w(u8 data);
 
-	DECLARE_READ8_MEMBER(port18_r);
-	DECLARE_READ8_MEMBER(port19_r);
-	DECLARE_READ8_MEMBER(port1a_r);
+	u8 port18_r();
+	u8 port19_r();
+	u8 port1a_r();
 
 	// 7x range ports
-	DECLARE_WRITE8_MEMBER(rambank_palbank_w);
-	DECLARE_WRITE8_MEMBER(palupload_w);
-	DECLARE_WRITE8_MEMBER(paladdr_w);
-	DECLARE_READ8_MEMBER(watchdog_r);
-	DECLARE_READ8_MEMBER(port7c_r);
+	void rambank_palbank_w(u8 data);
+	void palupload_w(u8 data);
+	void paladdr_w(u8 data);
+	u8 watchdog_r();
+	u8 port7c_r();
 
 	// other ports
+	u8 other_cpu_r(offs_t offset);
+	void other_cpu_w(offs_t offset, u8 data);
 
-	DECLARE_READ8_MEMBER(other_cpu_r);
-	DECLARE_WRITE8_MEMBER(other_cpu_w);
-
-	uint8_t m_paladdr;
+	u8 m_paladdr;
 	int m_palbank;
 
-	uint8_t m_ic48_pio_pa_val;
-	uint8_t m_ic48_pio_pb_val;
-	uint8_t m_ic49_pio_pb_val;
+	u8 m_ic48_pio_pa_val;
+	u8 m_ic48_pio_pb_val;
+	u8 m_ic49_pio_pb_val;
 
 	void set_palette(int offset);
-	DECLARE_WRITE8_MEMBER(palette_r_w);
-	DECLARE_WRITE8_MEMBER(palette_g_w);
-	DECLARE_WRITE8_MEMBER(palette_b_w);
+	void palette_r_w(offs_t offset, u8 data);
+	void palette_g_w(offs_t offset, u8 data);
+	void palette_b_w(offs_t offset, u8 data);
 
 	void handle_sub_board_cpu_lines(cedar_magnet_board_interface &dev, int old_data, int data);
 	INTERRUPT_GEN_MEMBER(irq);
-	void(*m_prothack)(cedar_magnet_state*);
+	void kludge_protection();
+	int m_address1hack;
+	int m_address2hack;
 
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
 	virtual void video_start() override;
-	uint32_t screen_update_cedar_magnet(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	u32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<palette_device> m_palette;
 	required_device<cpu_device> m_maincpu;
 
@@ -220,9 +394,11 @@ public:
 	required_device<cedar_magnet_plane_device> m_cedplane1;
 	required_device<cedar_magnet_sprite_device> m_cedsprite;
 
-	DECLARE_DRIVER_INIT(mag_time);
-	DECLARE_DRIVER_INIT(mag_xain);
-	DECLARE_DRIVER_INIT(mag_exzi);
+	void cedar_bank0(address_map &map);
+	void cedar_magnet_io(address_map &map);
+	void cedar_magnet_mainboard_sub_pal_map(address_map &map);
+	void cedar_magnet_mainboard_sub_ram_map(address_map &map);
+	void cedar_magnet_map(address_map &map);
 };
 
 /***********************
@@ -231,65 +407,70 @@ public:
 
 ***********************/
 
-static ADDRESS_MAP_START( cedar_magnet_mainboard_sub_pal_map, AS_PROGRAM, 8, cedar_magnet_state )
+void cedar_magnet_state::cedar_magnet_mainboard_sub_pal_map(address_map &map)
+{
 // these are 3x MOTOROLA MM2114N SRAM 4096 bit RAM (twice the size because we map bytes, but only 4 bits are used)
 // these are on the master board memory sub-board
-	AM_RANGE(0x2400, 0x27ff) AM_RAM_WRITE(palette_r_w) AM_SHARE("pal_r")
-	AM_RANGE(0x2800, 0x2bff) AM_RAM_WRITE(palette_g_w) AM_SHARE("pal_g")
-	AM_RANGE(0x3000, 0x33ff) AM_RAM_WRITE(palette_b_w) AM_SHARE("pal_b")
-ADDRESS_MAP_END
+	map(0x2400, 0x27ff).ram().w(FUNC(cedar_magnet_state::palette_r_w)).share("pal_r");
+	map(0x2800, 0x2bff).ram().w(FUNC(cedar_magnet_state::palette_g_w)).share("pal_g");
+	map(0x3000, 0x33ff).ram().w(FUNC(cedar_magnet_state::palette_b_w)).share("pal_b");
+}
 
-static ADDRESS_MAP_START( cedar_magnet_mainboard_sub_ram_map, AS_PROGRAM, 8, cedar_magnet_state )
+void cedar_magnet_state::cedar_magnet_mainboard_sub_ram_map(address_map &map)
+{
 // these are 8x SIEMENS HYB 41256-15 AA - 262,144 bit DRAM (32kbytes)
 // these are on the master board memory sub-board
-	AM_RANGE(0x00000, 0x3ffff) AM_RAM AM_SHARE("ram0")
-ADDRESS_MAP_END
+	map(0x00000, 0x3ffff).ram().share("ram0");
+}
 
-static ADDRESS_MAP_START( cedar_magnet_map, AS_PROGRAM, 8, cedar_magnet_state )
-	AM_RANGE(0x0000, 0xffff) AM_DEVICE("bank0", address_map_bank_device, amap8)
-ADDRESS_MAP_END
+void cedar_magnet_state::cedar_magnet_map(address_map &map)
+{
+	map(0x0000, 0xffff).m(m_bank0, FUNC(address_map_bank_device::amap8));
+}
 
-static ADDRESS_MAP_START( cedar_magnet_io, AS_IO, 8, cedar_magnet_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
+void cedar_magnet_state::cedar_magnet_io(address_map &map)
+{
+	map.global_mask(0xff);
 
-	AM_RANGE(0x18, 0x18) AM_READWRITE(port18_r, port18_w)
-	AM_RANGE(0x19, 0x19) AM_READWRITE(port19_r, port19_w)
-	AM_RANGE(0x1a, 0x1a) AM_READ(port1a_r)
-	AM_RANGE(0x1b, 0x1b) AM_WRITE(port1b_w)
+	map(0x18, 0x18).rw(FUNC(cedar_magnet_state::port18_r), FUNC(cedar_magnet_state::port18_w));
+	map(0x19, 0x19).rw(FUNC(cedar_magnet_state::port19_r), FUNC(cedar_magnet_state::port19_w));
+	map(0x1a, 0x1a).r(FUNC(cedar_magnet_state::port1a_r));
+	map(0x1b, 0x1b).w(FUNC(cedar_magnet_state::port1b_w));
 
-	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE("z80pio_ic48", z80pio_device, read_alt, write_alt)
-	AM_RANGE(0x40, 0x43) AM_DEVREADWRITE("z80pio_ic49", z80pio_device, read_alt, write_alt)
+	map(0x20, 0x23).rw(m_ic48_pio, FUNC(z80pio_device::read_alt), FUNC(z80pio_device::write_alt));
+	map(0x40, 0x43).rw(m_ic49_pio, FUNC(z80pio_device::read_alt), FUNC(z80pio_device::write_alt));
 
-	AM_RANGE(0x60, 0x63) AM_DEVREADWRITE("flop", cedar_magnet_flop_device, read, write)
+	map(0x60, 0x63).rw("flop", FUNC(cedar_magnet_flop_device::read), FUNC(cedar_magnet_flop_device::write));
 
-	AM_RANGE(0x64, 0x64) AM_READ_PORT("P1_IN")
-	AM_RANGE(0x68, 0x68) AM_READ_PORT("P2_IN")
-	AM_RANGE(0x6c, 0x6c) AM_READ_PORT("TEST")
+	map(0x64, 0x64).portr("P1_IN");
+	map(0x68, 0x68).portr("P2_IN");
+	map(0x6c, 0x6c).portr("TEST");
 
 	// banking / access controls to the sub-board memory
-	AM_RANGE(0x70, 0x70) AM_WRITE(rambank_palbank_w)
-	AM_RANGE(0x74, 0x74) AM_WRITE(palupload_w)
-	AM_RANGE(0x78, 0x78) AM_READWRITE(watchdog_r, paladdr_w)
-	AM_RANGE(0x7c, 0x7c) AM_READ(port7c_r) // protection??
+	map(0x70, 0x70).w(FUNC(cedar_magnet_state::rambank_palbank_w));
+	map(0x74, 0x74).w(FUNC(cedar_magnet_state::palupload_w));
+	map(0x78, 0x78).rw(FUNC(cedar_magnet_state::watchdog_r), FUNC(cedar_magnet_state::paladdr_w));
+	map(0x7c, 0x7c).r(FUNC(cedar_magnet_state::port7c_r)); // protection??
 
-	AM_RANGE(0xff, 0xff) AM_DEVWRITE("cedtop", cedar_magnet_sound_device, sound_command_w)
-ADDRESS_MAP_END
+	map(0xff, 0xff).w(m_cedsound, FUNC(cedar_magnet_sound_device::sound_command_w));
+}
 
-static ADDRESS_MAP_START( cedar_bank0, AS_PROGRAM, 8, cedar_magnet_state )
+void cedar_magnet_state::cedar_bank0(address_map &map)
+{
 	/* memory configuration 0 */
-	AM_RANGE(0x00000, 0x0ffff) AM_DEVICE("mb_sub_ram", address_map_bank_device, amap8)
+	map(0x00000, 0x0ffff).m(m_sub_ram_bankdev, FUNC(address_map_bank_device::amap8));
 
 	/* memory configuration  1 */
-	AM_RANGE(0x10000, 0x1dfff) AM_DEVICE("mb_sub_ram", address_map_bank_device, amap8)
-	AM_RANGE(0x1e000, 0x1ffff) AM_ROM AM_REGION("maincpu", 0x0000)
+	map(0x10000, 0x1dfff).m(m_sub_ram_bankdev, FUNC(address_map_bank_device::amap8));
+	map(0x1e000, 0x1ffff).rom().region("maincpu", 0x0000);
 
 	/* memory configuration  2*/
-	AM_RANGE(0x20000, 0x2bfff) AM_DEVICE("mb_sub_ram", address_map_bank_device, amap8)
-	AM_RANGE(0x2c000, 0x2ffff) AM_READWRITE(other_cpu_r, other_cpu_w)
+	map(0x20000, 0x2bfff).m(m_sub_ram_bankdev, FUNC(address_map_bank_device::amap8));
+	map(0x2c000, 0x2ffff).rw(FUNC(cedar_magnet_state::other_cpu_r), FUNC(cedar_magnet_state::other_cpu_w));
 
 	/* memory configuration 3*/
-	AM_RANGE(0x30000, 0x31fff) AM_ROM AM_REGION("maincpu", 0x0000) AM_MIRROR(0x0e000)
-ADDRESS_MAP_END
+	map(0x30000, 0x31fff).rom().region("maincpu", 0x0000).mirror(0x0e000);
+}
 
 
 /***********************
@@ -299,7 +480,7 @@ ADDRESS_MAP_END
 
 ***********************/
 
-WRITE8_MEMBER(cedar_magnet_state::rambank_palbank_w)
+void cedar_magnet_state::rambank_palbank_w(u8 data)
 {
 	// ---- --xx
 	// xx = program bank
@@ -311,17 +492,17 @@ WRITE8_MEMBER(cedar_magnet_state::rambank_palbank_w)
 	m_sub_pal_bankdev->set_bank(palbank);
 }
 
-WRITE8_MEMBER(cedar_magnet_state::palupload_w)
+void cedar_magnet_state::palupload_w(u8 data)
 {
-	m_sub_pal_bankdev->write8(space, m_paladdr, data);
+	m_sub_pal_bankdev->write8(m_paladdr, data);
 }
 
-WRITE8_MEMBER(cedar_magnet_state::paladdr_w)
+void cedar_magnet_state::paladdr_w(u8 data)
 {
 	m_paladdr = data;
 }
 
-READ8_MEMBER(cedar_magnet_state::watchdog_r)
+u8 cedar_magnet_state::watchdog_r()
 {
 	// watchdog
 	return 0x00;
@@ -334,9 +515,9 @@ READ8_MEMBER(cedar_magnet_state::watchdog_r)
 
 ***********************/
 
-READ8_MEMBER(cedar_magnet_state::port7c_r)
+u8 cedar_magnet_state::port7c_r()
 {
-	//printf("%s: port7c_r\n", machine().describe_context());
+	//logerror("%s: port7c_r\n", machine().describe_context());
 	return 0x01;
 }
 
@@ -348,21 +529,21 @@ READ8_MEMBER(cedar_magnet_state::port7c_r)
 
 ***********************/
 
-READ8_MEMBER(cedar_magnet_state::port18_r)
+u8 cedar_magnet_state::port18_r()
 {
-//  printf("%s: port18_r\n", machine().describe_context());
+//  logerror("%s: port18_r\n", machine().describe_context());
 	return 0x00;
 }
 
-WRITE8_MEMBER(cedar_magnet_state::port18_w)
+void cedar_magnet_state::port18_w(u8 data)
 {
-//  printf("%s: port18_w %02x\n", machine().describe_context(), data);
+//  logerror("%s: port18_w %02x\n", machine().describe_context(), data);
 }
 
-READ8_MEMBER(cedar_magnet_state::port19_r)
+u8 cedar_magnet_state::port19_r()
 {
-	uint8_t ret = 0x00;
-//  printf("%s: port19_r\n", machine().describe_context());
+	u8 ret = 0x00;
+//  logerror("%s: port19_r\n", machine().describe_context());
 
 // 9496 in a,($19)
 // 9498 bit 2,a
@@ -372,21 +553,21 @@ READ8_MEMBER(cedar_magnet_state::port19_r)
 	return ret;
 }
 
-READ8_MEMBER(cedar_magnet_state::port1a_r)
+u8 cedar_magnet_state::port1a_r()
 {
-//  printf("%s: port1a_r\n", machine().describe_context());
+//  logerror("%s: port1a_r\n", machine().describe_context());
 	return 0x00;
 }
 
 
-WRITE8_MEMBER(cedar_magnet_state::port19_w)
+void cedar_magnet_state::port19_w(u8 data)
 {
-//  printf("%s: port19_w %02x\n", machine().describe_context(), data);
+//  logerror("%s: port19_w %02x\n", machine().describe_context(), data);
 }
 
-WRITE8_MEMBER(cedar_magnet_state::port1b_w)
+void cedar_magnet_state::port1b_w(u8 data)
 {
-//  printf("%s: port1b_w %02x\n", machine().describe_context(), data);
+//  logerror("%s: port1b_w %02x\n", machine().describe_context(), data);
 }
 
 /***********************
@@ -400,27 +581,26 @@ void cedar_magnet_state::set_palette(int offset)
 	m_palette->set_pen_color(offset^0xff, pal4bit(m_pal_r[offset]), pal4bit(m_pal_g[offset]), pal4bit(m_pal_b[offset]));
 }
 
-WRITE8_MEMBER(cedar_magnet_state::palette_r_w)
+void cedar_magnet_state::palette_r_w(offs_t offset, u8 data)
 {
 	m_pal_r[offset] = data;
 	set_palette(offset);
 }
 
-WRITE8_MEMBER(cedar_magnet_state::palette_g_w)
+void cedar_magnet_state::palette_g_w(offs_t offset, u8 data)
 {
 	m_pal_g[offset] = data;
 	set_palette(offset);
 }
 
-WRITE8_MEMBER(cedar_magnet_state::palette_b_w)
+void cedar_magnet_state::palette_b_w(offs_t offset, u8 data)
 {
 	m_pal_b[offset] = data;
 	set_palette(offset);
 }
 
-uint32_t cedar_magnet_state::screen_update_cedar_magnet(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+u32 cedar_magnet_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	int pal = (m_palbank >> 6);
@@ -442,7 +622,7 @@ void cedar_magnet_state::video_start()
 
 ***********************/
 
-READ8_MEMBER(cedar_magnet_state::other_cpu_r)
+u8 cedar_magnet_state::other_cpu_r(offs_t offset)
 {
 	int bankbit0 = (m_ic48_pio_pa_val & 0x60) >> 5;
 	int plane0select = (m_ic48_pio_pa_val & 0x07) >> 0;
@@ -453,7 +633,7 @@ READ8_MEMBER(cedar_magnet_state::other_cpu_r)
 	int unk2 = (m_ic49_pio_pb_val & 0x03) >> 0;
 
 	int cpus_accessed = 0;
-	uint8_t ret = 0x00;
+	u8 ret = 0x00;
 
 	int offset2 = offset + windowbank * 0x4000;
 
@@ -491,7 +671,7 @@ READ8_MEMBER(cedar_magnet_state::other_cpu_r)
 	return ret;
 }
 
-WRITE8_MEMBER(cedar_magnet_state::other_cpu_w)
+void cedar_magnet_state::other_cpu_w(offs_t offset, u8 data)
 {
 	int bankbit0 = (m_ic48_pio_pa_val & 0x60) >> 5;
 	int plane0select = (m_ic48_pio_pa_val & 0x07) >> 0;
@@ -527,14 +707,14 @@ WRITE8_MEMBER(cedar_magnet_state::other_cpu_w)
 	{
 		cpus_accessed++;
 		m_cedsound->write_cpu_bus(offset2, data);
-	//  printf("%s: sound cpu write %04x %02x - bank bits %d %d %d %d %d %d %d\n", machine().describe_context(), offset,data, bankbit0, plane0select, plane1select, spriteselect, soundselect, windowbank, unk2);
+	//  logerror("%s: sound cpu write %04x %02x - bank bits %d %d %d %d %d %d %d\n", machine().describe_context(), offset,data, bankbit0, plane0select, plane1select, spriteselect, soundselect, windowbank, unk2);
 	}
 
 	if (cpus_accessed != 1)
 		logerror("%s: writing multiple CPUS!!! %04x %02x - bank bits %d %d %d %d %d %d %d\n", machine().describe_context(), offset,data, bankbit0, plane0select, plane1select, spriteselect, soundselect, windowbank, unk2);
 
 //  if ((offset==0) || (offset2 == 0xe) || (offset2 == 0xf) || (offset2 == 0x68))
-//      printf("%s: other cpu write %04x %02x - bank bits %d %d %d %d %d %d %d\n", machine().describe_context(), offset,data, bankbit0, plane0select, plane1select, spriteselect, soundselect, windowbank, unk2);
+//      logerror("%s: other cpu write %04x %02x - bank bits %d %d %d %d %d %d %d\n", machine().describe_context(), offset,data, bankbit0, plane0select, plane1select, spriteselect, soundselect, windowbank, unk2);
 }
 
 
@@ -561,21 +741,21 @@ void cedar_magnet_state::handle_sub_board_cpu_lines(cedar_magnet_board_interface
 
 ***********************/
 
-READ8_MEMBER( cedar_magnet_state::ic48_pio_pa_r ) // 0x20
+u8 cedar_magnet_state::ic48_pio_pa_r() // 0x20
 {
-	uint8_t ret = m_ic48_pio_pa_val & ~0x08;
+	u8 ret = m_ic48_pio_pa_val & ~0x08;
 
-	ret |= ioport("COIN1")->read()<<3;
+	ret |= m_io_coin[0]->read()<<3;
 	if (!m_cedplane0->is_running()) ret &= ~0x01;
 
 	// interrupt source stuff??
 	ret &= ~0x10;
 
-	if (LOG_IC48_PIO_PA) printf("%s: ic48_pio_pa_r (returning %02x)\n", machine().describe_context(), ret);
+	if (LOG_IC48_PIO_PA) logerror("%s: ic48_pio_pa_r (returning %02x)\n", machine().describe_context(), ret);
 	return ret;
 }
 
-WRITE8_MEMBER( cedar_magnet_state::ic48_pio_pa_w ) // 0x20
+void cedar_magnet_state::ic48_pio_pa_w(u8 data) // 0x20
 {
 	int oldplane0select = (m_ic48_pio_pa_val & 0x07) >> 0;
 
@@ -583,16 +763,16 @@ WRITE8_MEMBER( cedar_magnet_state::ic48_pio_pa_w ) // 0x20
 	m_ic48_pio_pa_val = data;
 
 	// address 0x20 - pio ic48 port a
-	if (LOG_IC48_PIO_PA) printf("%s: ic48_pio_pa_w %02x (memory banking etc.)\n", machine().describe_context(), data);
+	if (LOG_IC48_PIO_PA) logerror("%s: ic48_pio_pa_w %02x (memory banking etc.)\n", machine().describe_context(), data);
 
-	if (LOG_IC48_PIO_PA) printf("output bit 0x80 %d (unused)\n", (data >> 7)&1); // A7 -> 12 J4 unpopulated
-	if (LOG_IC48_PIO_PA) printf("output bit 0x40 %d (bank)\n", (data >> 6)&1); // A6 -> 2 74HC10 3NAND IC19
-	if (LOG_IC48_PIO_PA) printf("output bit 0x20 %d (bank)\n", (data >> 5)&1); // A5 -> 4 74HC10 3NAND IC19
-	if (LOG_IC48_PIO_PA) printf("input  bit 0x10 %d (interrupt source related?)\n", (data >> 4)&1); // 10 in // A4 <- 9 74HC74 IC20 <- input from 18 74LS244 IC61
-	if (LOG_IC48_PIO_PA) printf("input  bit 0x08 %d (COIN1)\n", (data >> 3)&1); // 08 in // A3 <- 4 74HC14P (inverter) IC4 <- EDGE 21 COIN1
-	if (LOG_IC48_PIO_PA) printf("output bit 0x04 %d (plane0 CPU/bus related?)\n", (data >> 2)&1); // A2 -> 45 J6
-	if (LOG_IC48_PIO_PA) printf("output bit 0x02 %d (plane0 CPU/bus related?)\n", (data >> 1)&1); // A1 -> 47 J6
-	if (LOG_IC48_PIO_PA) printf("input  bit 0x01 %d (plane0 CPU/bus related?)\n", (data >> 0)&1); // A0 -> 49 J6
+	if (LOG_IC48_PIO_PA) logerror("output bit 0x80 %d (unused)\n", (data >> 7)&1); // A7 -> 12 J4 unpopulated
+	if (LOG_IC48_PIO_PA) logerror("output bit 0x40 %d (bank)\n", (data >> 6)&1); // A6 -> 2 74HC10 3NAND IC19
+	if (LOG_IC48_PIO_PA) logerror("output bit 0x20 %d (bank)\n", (data >> 5)&1); // A5 -> 4 74HC10 3NAND IC19
+	if (LOG_IC48_PIO_PA) logerror("input  bit 0x10 %d (interrupt source related?)\n", (data >> 4)&1); // 10 in // A4 <- 9 74HC74 IC20 <- input from 18 74LS244 IC61
+	if (LOG_IC48_PIO_PA) logerror("input  bit 0x08 %d (COIN1)\n", (data >> 3)&1); // 08 in // A3 <- 4 74HC14P (inverter) IC4 <- EDGE 21 COIN1
+	if (LOG_IC48_PIO_PA) logerror("output bit 0x04 %d (plane0 CPU/bus related?)\n", (data >> 2)&1); // A2 -> 45 J6
+	if (LOG_IC48_PIO_PA) logerror("output bit 0x02 %d (plane0 CPU/bus related?)\n", (data >> 1)&1); // A1 -> 47 J6
+	if (LOG_IC48_PIO_PA) logerror("input  bit 0x01 %d (plane0 CPU/bus related?)\n", (data >> 0)&1); // A0 -> 49 J6
 
 	int bankbit0 = (m_ic48_pio_pa_val & 0x60) >> 5;
 	m_bank0->set_bank(bankbit0);
@@ -603,37 +783,37 @@ WRITE8_MEMBER( cedar_magnet_state::ic48_pio_pa_w ) // 0x20
 }
 
 
-READ8_MEMBER( cedar_magnet_state::ic48_pio_pb_r ) // 0x22
+u8 cedar_magnet_state::ic48_pio_pb_r() // 0x22
 {
-	uint8_t ret = m_ic48_pio_pb_val & ~0x80;
+	u8 ret = m_ic48_pio_pb_val & ~0x80;
 
-	ret |= ioport("COIN2")->read()<<7;
+	ret |= m_io_coin[1]->read()<<7;
 
 	if (!m_cedsprite->is_running()) ret &= ~0x10;
 	if (!m_cedplane1->is_running()) ret &= ~0x01;
 
-	if (LOG_IC48_PIO_PB) printf("%s: ic48_pio_pb_r (returning %02x)\n", machine().describe_context(), ret);
+	if (LOG_IC48_PIO_PB) logerror("%s: ic48_pio_pb_r (returning %02x)\n", machine().describe_context(), ret);
 	return ret;
 }
 
-WRITE8_MEMBER(cedar_magnet_state::ic48_pio_pb_w) // 0x22
+void cedar_magnet_state::ic48_pio_pb_w(u8 data) // 0x22
 {
 	int oldplane1select = (m_ic48_pio_pb_val & 0x07) >> 0;
 	int oldspriteselect = (m_ic48_pio_pb_val & 0x70) >> 4;
 
 	m_ic48_pio_pb_val = data;
 
-	if (LOG_IC48_PIO_PB)  printf("%s: ic48_pio_pb_w %02x\n", machine().describe_context(), data);
+	if (LOG_IC48_PIO_PB)  logerror("%s: ic48_pio_pb_w %02x\n", machine().describe_context(), data);
 
 	// address 0x22 - pio ic48 port b
-	if (LOG_IC48_PIO_PB) printf("input  bit 0x80 %d (COIN2)\n", (data >> 7)&1); // B7 <- 2 74HC14P (inverter) IC4 <- EDGE 22 COIN2
-	if (LOG_IC48_PIO_PB) printf("output bit 0x40 (J6) (sprite CPU/bus related?) %d\n", (data >> 6)&1); // B6 -> 41 J6
-	if (LOG_IC48_PIO_PB) printf("output bit 0x20 (J6) (sprite CPU/bus related?) %d\n", (data >> 5)&1); // B5 -> 43 J6
-	if (LOG_IC48_PIO_PB) printf("input  bit 0x10 (J6) (sprite CPU/bus related?) %d\n", (data >> 4)&1); // B4 -> 44 J6
-	if (LOG_IC48_PIO_PB) printf("output bit 0x08 (Q8) %d\n", (data >> 3)&1); // B3 -> Q8 transistor
-	if (LOG_IC48_PIO_PB) printf("output bit 0x04 (J6) (plane1 CPU/bus related?) %d\n", (data >> 2)&1); // B2 -> 46 J6
-	if (LOG_IC48_PIO_PB) printf("output bit 0x02 (J6) (plane1 CPU/bus related?) %d\n", (data >> 1)&1); // B1 -> 48 J6
-	if (LOG_IC48_PIO_PB) printf("input  bit 0x01 (J6) (plane1 CPU/bus related?) %d\n", (data >> 0)&1); // B0 -> 50 J6
+	if (LOG_IC48_PIO_PB) logerror("input  bit 0x80 %d (COIN2)\n", (data >> 7)&1); // B7 <- 2 74HC14P (inverter) IC4 <- EDGE 22 COIN2
+	if (LOG_IC48_PIO_PB) logerror("output bit 0x40 (J6) (sprite CPU/bus related?) %d\n", (data >> 6)&1); // B6 -> 41 J6
+	if (LOG_IC48_PIO_PB) logerror("output bit 0x20 (J6) (sprite CPU/bus related?) %d\n", (data >> 5)&1); // B5 -> 43 J6
+	if (LOG_IC48_PIO_PB) logerror("input  bit 0x10 (J6) (sprite CPU/bus related?) %d\n", (data >> 4)&1); // B4 -> 44 J6
+	if (LOG_IC48_PIO_PB) logerror("output bit 0x08 (Q8) %d\n", (data >> 3)&1); // B3 -> Q8 transistor
+	if (LOG_IC48_PIO_PB) logerror("output bit 0x04 (J6) (plane1 CPU/bus related?) %d\n", (data >> 2)&1); // B2 -> 46 J6
+	if (LOG_IC48_PIO_PB) logerror("output bit 0x02 (J6) (plane1 CPU/bus related?) %d\n", (data >> 1)&1); // B1 -> 48 J6
+	if (LOG_IC48_PIO_PB) logerror("input  bit 0x01 (J6) (plane1 CPU/bus related?) %d\n", (data >> 0)&1); // B0 -> 50 J6
 
 	int plane1select = (m_ic48_pio_pb_val & 0x07) >> 0;
 	int spriteselect = (m_ic48_pio_pb_val & 0x70) >> 4;
@@ -649,34 +829,34 @@ WRITE8_MEMBER(cedar_magnet_state::ic48_pio_pb_w) // 0x22
 
 ***********************/
 
-READ8_MEMBER( cedar_magnet_state::ic49_pio_pb_r ) // 0x42
+u8 cedar_magnet_state::ic49_pio_pb_r() // 0x42
 {
-	uint8_t ret = m_ic49_pio_pb_val;
+	u8 ret = m_ic49_pio_pb_val;
 
 	if (!m_cedsound->is_running()) ret &= ~0x10;
 
-	if (LOG_IC49_PIO_PB) printf("%s: ic49_pio_pb_r (returning %02x)\n", machine().describe_context(), ret);
+	if (LOG_IC49_PIO_PB) logerror("%s: ic49_pio_pb_r (returning %02x)\n", machine().describe_context(), ret);
 	return ret;
 }
 
-WRITE8_MEMBER( cedar_magnet_state::ic49_pio_pb_w ) // 0x42
+void cedar_magnet_state::ic49_pio_pb_w(u8 data) // 0x42
 {
 	int oldsoundselect = (m_ic49_pio_pb_val & 0x70) >> 4;
 
 	m_ic49_pio_pb_val = data;
 
-	//printf("%s: ic49_pio_pb_w %02x\n", machine().describe_context(), data);
+	//logerror("%s: ic49_pio_pb_w %02x\n", machine().describe_context(), data);
 
 	// address 0x42 - pio ic49 port b
-	if (LOG_IC49_PIO_PB) printf("output bit 0x80 %d (Q9)\n", (data >> 7)&1); // B7 -> Q9 transistor
-	if (LOG_IC49_PIO_PB) printf("output bit 0x40 %d (sound CPU bus related) (J3)\n", (data >> 6)&1); // B6 -> 9 J3
-	if (LOG_IC49_PIO_PB) printf("output bit 0x20 %d (sound CPU bus related) (J3)\n", (data >> 5)&1); // B5 -> 8 J3
-	if (LOG_IC49_PIO_PB) printf("input  bit 0x10 %d (sound CPU bus related) (J3)\n", (data >> 4)&1); // B4 -> 7 J3       // input?
-	if (LOG_IC49_PIO_PB) printf("output bit 0x08 %d (J7)\n", (data >> 3)&1); // B3 -> 35 J7  bank bits
-	if (LOG_IC49_PIO_PB) printf("output bit 0x04 %d (J7)\n", (data >> 2)&1); // B2 -> 36 J7  bank bits
+	if (LOG_IC49_PIO_PB) logerror("output bit 0x80 %d (Q9)\n", (data >> 7)&1); // B7 -> Q9 transistor
+	if (LOG_IC49_PIO_PB) logerror("output bit 0x40 %d (sound CPU bus related) (J3)\n", (data >> 6)&1); // B6 -> 9 J3
+	if (LOG_IC49_PIO_PB) logerror("output bit 0x20 %d (sound CPU bus related) (J3)\n", (data >> 5)&1); // B5 -> 8 J3
+	if (LOG_IC49_PIO_PB) logerror("input  bit 0x10 %d (sound CPU bus related) (J3)\n", (data >> 4)&1); // B4 -> 7 J3       // input?
+	if (LOG_IC49_PIO_PB) logerror("output bit 0x08 %d (J7)\n", (data >> 3)&1); // B3 -> 35 J7  bank bits
+	if (LOG_IC49_PIO_PB) logerror("output bit 0x04 %d (J7)\n", (data >> 2)&1); // B2 -> 36 J7  bank bits
 	// there is code to mask out both bottom bits here before load operations?
-	if (LOG_IC49_PIO_PB) printf("output bit 0x02 %d (IC21)\n", (data >> 1)&1); // B1 -> 3 74HC04 IC21 (set before some SPRITE cpu operations, possibly halts the blitter?)
-	if (LOG_IC49_PIO_PB) printf("output bit 0x01 (LED) %d\n", (data >> 0)&1); // B0 -> LED LD1
+	if (LOG_IC49_PIO_PB) logerror("output bit 0x02 %d (IC21)\n", (data >> 1)&1); // B1 -> 3 74HC04 IC21 (set before some SPRITE cpu operations, possibly halts the blitter?)
+	if (LOG_IC49_PIO_PB) logerror("output bit 0x01 (LED) %d\n", (data >> 0)&1); // B0 -> LED LD1
 
 
 
@@ -741,8 +921,7 @@ INPUT_PORTS_END
 
 INTERRUPT_GEN_MEMBER(cedar_magnet_state::irq)
 {
-	if (m_prothack)
-		m_prothack(this);
+	kludge_protection();
 
 	m_maincpu->set_input_line(0, HOLD_LINE);
 	m_cedplane0->irq_hold();
@@ -750,74 +929,57 @@ INTERRUPT_GEN_MEMBER(cedar_magnet_state::irq)
 	m_cedsprite->irq_hold();
 }
 
-static MACHINE_CONFIG_START( cedar_magnet, cedar_magnet_state )
-
+void cedar_magnet_state::cedar_magnet(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80,4000000)         /* ? MHz */
-	MCFG_CPU_PROGRAM_MAP(cedar_magnet_map)
-	MCFG_CPU_IO_MAP(cedar_magnet_io)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", cedar_magnet_state,  irq)
+	Z80(config, m_maincpu, 4000000);         /* ? MHz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &cedar_magnet_state::cedar_magnet_map);
+	m_maincpu->set_addrmap(AS_IO, &cedar_magnet_state::cedar_magnet_io);
+	m_maincpu->set_vblank_int("screen", FUNC(cedar_magnet_state::irq));
 
-	MCFG_DEVICE_ADD("bank0", ADDRESS_MAP_BANK, 0)
-	MCFG_DEVICE_PROGRAM_MAP(cedar_bank0)
-	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(18)
-	MCFG_ADDRESS_MAP_BANK_STRIDE(0x10000)
+	ADDRESS_MAP_BANK(config, "bank0").set_map(&cedar_magnet_state::cedar_bank0).set_options(ENDIANNESS_LITTLE, 8, 18, 0x10000);
+	ADDRESS_MAP_BANK(config, "mb_sub_ram").set_map(&cedar_magnet_state::cedar_magnet_mainboard_sub_ram_map).set_options(ENDIANNESS_LITTLE, 8, 18, 0x10000);
+	ADDRESS_MAP_BANK(config, "mb_sub_pal").set_map(&cedar_magnet_state::cedar_magnet_mainboard_sub_pal_map).set_options(ENDIANNESS_LITTLE, 8, 8+6, 0x100);
 
-	MCFG_DEVICE_ADD("mb_sub_ram", ADDRESS_MAP_BANK, 0)
-	MCFG_DEVICE_PROGRAM_MAP(cedar_magnet_mainboard_sub_ram_map)
-	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(18)
-	MCFG_ADDRESS_MAP_BANK_STRIDE(0x10000)
+	Z80PIO(config, m_ic48_pio, 4000000/2);
+//  m_ic48_pio->out_int_callback().set_inputline(m_maincpu, INPUT_LINE_IRQ0);
+	m_ic48_pio->in_pa_callback().set(FUNC(cedar_magnet_state::ic48_pio_pa_r));
+	m_ic48_pio->out_pa_callback().set(FUNC(cedar_magnet_state::ic48_pio_pa_w));
+	m_ic48_pio->in_pb_callback().set(FUNC(cedar_magnet_state::ic48_pio_pb_r));
+	m_ic48_pio->out_pb_callback().set(FUNC(cedar_magnet_state::ic48_pio_pb_w));
 
-	MCFG_DEVICE_ADD("mb_sub_pal", ADDRESS_MAP_BANK, 0)
-	MCFG_DEVICE_PROGRAM_MAP(cedar_magnet_mainboard_sub_pal_map)
-	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(8+6)
-	MCFG_ADDRESS_MAP_BANK_STRIDE(0x100)
-
-	MCFG_DEVICE_ADD("z80pio_ic48", Z80PIO, 4000000/2)
-//  MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
-	MCFG_Z80PIO_IN_PA_CB(READ8(cedar_magnet_state, ic48_pio_pa_r))
-	MCFG_Z80PIO_OUT_PA_CB(WRITE8(cedar_magnet_state, ic48_pio_pa_w))
-	MCFG_Z80PIO_IN_PB_CB(READ8(cedar_magnet_state, ic48_pio_pb_r))
-	MCFG_Z80PIO_OUT_PB_CB(WRITE8(cedar_magnet_state, ic48_pio_pb_w))
-
-	MCFG_DEVICE_ADD("z80pio_ic49", Z80PIO, 4000000/2)
-//  MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
-//  MCFG_Z80PIO_IN_PA_CB(READ8(cedar_magnet_state, ic49_pio_pa_r)) // NOT USED
-//  MCFG_Z80PIO_OUT_PA_CB(WRITE8(cedar_magnet_state, ic49_pio_pa_w)) // NOT USED
-	MCFG_Z80PIO_IN_PB_CB(READ8(cedar_magnet_state, ic49_pio_pb_r))
-	MCFG_Z80PIO_OUT_PB_CB(WRITE8(cedar_magnet_state, ic49_pio_pb_w))
+	Z80PIO(config, m_ic49_pio, 4000000/2);
+//  m_ic49_pio->out_int_callback().set_inputline(m_maincpu, INPUT_LINE_IRQ0);
+//  m_ic49_pio->in_pa_callback().set(FUNC(cedar_magnet_state::ic49_pio_pa_r)); // NOT USED
+//  m_ic49_pio->out_pa_callback().set(FUNC(cedar_magnet_state::ic49_pio_pa_w)); // NOT USED
+	m_ic49_pio->in_pb_callback().set(FUNC(cedar_magnet_state::ic49_pio_pb_r));
+	m_ic49_pio->out_pb_callback().set(FUNC(cedar_magnet_state::ic49_pio_pb_w));
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(256, 256)
-	MCFG_SCREEN_VISIBLE_AREA(0, 256-8-1, 0, 192-1)
-	MCFG_SCREEN_UPDATE_DRIVER(cedar_magnet_state, screen_update_cedar_magnet)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(50);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(256, 256);
+	screen.set_visarea(0, 256-8-1, 0, 192-1);
+	screen.set_screen_update(FUNC(cedar_magnet_state::screen_update));
+	screen.set_palette(m_palette);
 
-	MCFG_PALETTE_ADD("palette", 0x400)
+	PALETTE(config, m_palette).set_entries(0x400);
 
-	MCFG_CEDAR_MAGNET_SOUND_ADD("cedtop")
-	MCFG_CEDAR_MAGNET_PLANE_ADD("cedplane0")
-	MCFG_CEDAR_MAGNET_PLANE_ADD("cedplane1")
-	MCFG_CEDAR_MAGNET_SPRITE_ADD("cedsprite")
+	CEDAR_MAGNET_SOUND(config, m_cedsound, 0);
+	CEDAR_MAGNET_PLANE(config, m_cedplane0, 0);
+	CEDAR_MAGNET_PLANE(config, m_cedplane1, 0);
+	CEDAR_MAGNET_SPRITE(config, m_cedsprite, 0);
 
-	MCFG_CEDAR_MAGNET_FLOP_ADD("flop")
+	CEDAR_MAGNET_FLOP(config, "flop", 0);
 
-	MCFG_QUANTUM_PERFECT_CPU("maincpu")
-MACHINE_CONFIG_END
+	config.set_perfect_quantum(m_maincpu);
+}
 
 
 #define BIOS_ROM \
 	ROM_REGION( 0x10000, "maincpu", 0 ) \
-	ROM_LOAD( "Magnet-Master-VID-E03.BIN", 0x00000, 0x02000, CRC(86c4a4f0) SHA1(6db1a006b2e0b2a7cc9748ade881debb098b6757) )
+	ROM_LOAD( "magnet-master-vid-e03.bin", 0x00000, 0x02000, CRC(86c4a4f0) SHA1(6db1a006b2e0b2a7cc9748ade881debb098b6757) )
 
 
 
@@ -849,6 +1011,56 @@ ROM_START( mag_xain )
 	ROM_LOAD( "xain.img", 0x00000, 0xf0000, CRC(5647849f) SHA1(edd2f3f6359424583bf526bf4601476dc849e617) )
 ROM_END
 
+
+/*
+    Data after 0xd56b0 would not read consistently, however the game only appears to use the first 24 tracks (up to 0x48fff)
+    as it loads once on startup, not during gameplay, and all tracks before that gave consistent reads.  There is data after this
+    point but it is likely leftovers from another game / whatever was on the disk before, so for our purposes this should be fine.
+
+    Some bullets do seem to spawn from locations where there are no enemies, but I think this is just annoying game design.
+*/
+ROM_START( mag_war )
+	BIOS_ROM
+
+	ROM_REGION( 0x100000, "flop:disk", ROMREGION_ERASE00 )
+	ROM_LOAD( "war mission wm 4_6_87.img", 0x00000, 0xf0000, CRC(7c813520) SHA1(2ba5999709a52302aa367fb46199b331421a0d56) )
+ROM_END
+
+/*
+    Data read 100% consistently with multiple drives
+*/
+ROM_START( mag_wara )
+	BIOS_ROM
+
+	ROM_REGION( 0x100000, "flop:disk", ROMREGION_ERASE00 )
+	ROM_LOAD( "war mission wm 9_4_87.img", 0x00000, 0xf0000, CRC(6296ea6f) SHA1(c0aaf51362bfa3362ef39c3fb1e1c848b73fd780) )
+ROM_END
+
+/*
+    Data read 100% consistently with multiple drives
+*/
+ROM_START( mag_burn )
+	BIOS_ROM
+
+	ROM_REGION( 0x100000, "flop:disk", ROMREGION_ERASE00 ) //
+	ROM_LOAD( "theburningcavern 31_3_87.img", 0x00000, 0xf0000, CRC(c95911f8) SHA1(eda3bdbbcc3e00a7da83253209e832855c2968b1) )
+ROM_END
+
+/*
+    Data read 100% consistently with non-original drive (usually gives worse results)
+    later tracks showed differences with original drive on each read (around 0xeef80 onwards, doesn't seem to be game data)
+
+    weirdly there's was a single byte in an earlier track that read consistently, but in a different way for each drive
+    0x2480e: 9d (non-original) vs 1d (original drive)
+    1d seems to be correct as the same data is also elsewhere on the disc
+*/
+ROM_START( mag_day )
+	BIOS_ROM
+
+	ROM_REGION( 0x100000, "flop:disk", ROMREGION_ERASE00 )
+	ROM_LOAD( "adayinspace 31_3_87.img", 0x00000, 0xf0000, CRC(bc65302d) SHA1(6ace68a0b5f7a07a8f5c318c5359011074e7f2ec) )
+ROM_END
+
 /*
     protection? (Time Scanner note)
 
@@ -864,46 +1076,56 @@ ROM_END
 */
 
 
-void protection_hack(uint8_t* ram, int address1, int address2)
+void cedar_magnet_state::kludge_protection()
 {
-	if ((ram[address1] == 0x3e) && (ram[address1+1] == 0xff)) ram[address1] = 0xc9;
-	if ((ram[address2] == 0x3e) && (ram[address2+1] == 0xff)) ram[address2] = 0xc9;
+	const int max_addr = 0x3ffff;
+
+	if (m_address1hack == -1)
+	{
+		for (int i = 0; i < max_addr - 4; i++)
+		{
+			if ((m_ram0[i + 0] == 0x7f) && (m_ram0[i + 1] == 0xc8) && (m_ram0[i + 2] == 0x3e) && (m_ram0[i + 3] == 0xff))
+			{
+				m_address1hack = i + 2;
+				logerror("found patch at %06x\n", i + 2);
+				break;
+			}
+		}
+	}
+	else
+	{
+		if ((m_ram0[m_address1hack] == 0x3e) && (m_ram0[m_address1hack + 1] == 0xff)) m_ram0[m_address1hack] = 0xc9;
+	}
+
+	if (m_address2hack == -1)
+	{
+		for (int i = 0; i < max_addr - 4; i++)
+		{
+			if ((m_ram0[i + 0] == 0x10) && (m_ram0[i + 1] == 0xdd) && (m_ram0[i + 2] == 0x3e) && (m_ram0[i + 3] == 0xff))
+			{
+				m_address2hack = i + 2;
+				logerror("found patch at %06x\n", i + 2);
+				break;
+			}
+		}
+	}
+	else
+	{
+		if ((m_ram0[m_address2hack] == 0x3e) && (m_ram0[m_address2hack + 1] == 0xff)) m_ram0[m_address2hack] = 0xc9;
+	}
 }
 
-void mag_time_protection_hack(cedar_magnet_state* state)
-{
-	protection_hack(state->m_ram0, 0x8bc, 0x905);
-}
+GAME( 1987, cedmag,   0,      cedar_magnet, cedar_magnet, cedar_magnet_state, empty_init, ROT0,  "EFO SA / Cedar", "Magnet System",                         MACHINE_IS_BIOS_ROOT )
 
-void mag_xain_protection_hack(cedar_magnet_state* state)
-{
-	protection_hack(state->m_ram0, 0x796, 0x7df);
-}
+GAME( 1987, mag_time, cedmag, cedar_magnet, cedar_magnet, cedar_magnet_state, empty_init, ROT90, "EFO SA / Cedar", "Time Scanner (TS 2.0, Magnet System)",  MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND ) // original game was by Sega
 
-void mag_exzi_protection_hack(cedar_magnet_state* state)
-{
-	protection_hack(state->m_ram0, 0x8b6, 0x8ff);
-}
+GAME( 1987, mag_exzi, cedmag, cedar_magnet, cedar_magnet, cedar_magnet_state, empty_init, ROT0,  "EFO SA / Cedar", "Exzisus (EX 1.0, Magnet System)",       MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND ) // original game was by Taito
 
+GAME( 1987, mag_xain, cedmag, cedar_magnet, cedar_magnet, cedar_magnet_state, empty_init, ROT0,  "EFO SA / Cedar", "Xain'd Sleena (SC 3.0, Magnet System)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND ) // original game was by Technos
 
+GAME( 1987, mag_war,  cedmag, cedar_magnet, cedar_magnet, cedar_magnet_state, empty_init, ROT90, "EFO SA / Cedar", "War Mission (WM 04/06/87)",             MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND ) // date in program
+GAME( 1987, mag_wara, mag_war,cedar_magnet, cedar_magnet, cedar_magnet_state, empty_init, ROT90, "EFO SA / Cedar", "War Mission (WM 09/04/87)",             MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND ) // the '9' was handwritten over a printed letter on disk label, date not in program
 
-DRIVER_INIT_MEMBER(cedar_magnet_state, mag_time)
-{
-	m_prothack = mag_time_protection_hack;
-}
+GAME( 1987, mag_burn, cedmag, cedar_magnet, cedar_magnet, cedar_magnet_state, empty_init, ROT0,  "EFO SA / Cedar", "The Burning Cavern (31/03/87)",         MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND ) // date on label
 
-DRIVER_INIT_MEMBER(cedar_magnet_state, mag_xain)
-{
-	m_prothack = mag_xain_protection_hack;
-}
-
-DRIVER_INIT_MEMBER(cedar_magnet_state, mag_exzi)
-{
-	m_prothack = mag_exzi_protection_hack;
-}
-
-GAME( 1987, cedmag,    0,         cedar_magnet, cedar_magnet, driver_device,       0,        ROT0,  "EFO SA / Cedar", "Magnet System", MACHINE_IS_BIOS_ROOT )
-
-GAME( 1987, mag_time,  cedmag,    cedar_magnet, cedar_magnet, cedar_magnet_state,  mag_time, ROT90, "EFO SA / Cedar", "Time Scanner (TS 2.0, Magnet System)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND ) // original game was by Sega
-GAME( 1987, mag_exzi,  cedmag,    cedar_magnet, cedar_magnet, cedar_magnet_state,  mag_exzi, ROT0,  "EFO SA / Cedar", "Exzisus (EX 1.0, Magnet System)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND ) // original game was by Taito
-GAME( 1987, mag_xain,  cedmag,    cedar_magnet, cedar_magnet, cedar_magnet_state,  mag_xain, ROT0,  "EFO SA / Cedar", "Xain'd Sleena (SC 3.0, Magnet System)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND ) // original game was by Technos
+GAME( 1987, mag_day,  cedmag, cedar_magnet, cedar_magnet, cedar_magnet_state, empty_init, ROT90, "EFO SA / Cedar", "A Day In Space (31/03/87)",             MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND ) // date on label

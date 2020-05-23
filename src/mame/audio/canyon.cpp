@@ -18,25 +18,13 @@
 
 WRITE8_MEMBER(canyon_state::canyon_motor_w)
 {
-	m_discrete->write(space, NODE_RELATIVE(CANYON_MOTOR1_DATA, (offset & 0x01)), data & 0x0f);
+	m_discrete->write(NODE_RELATIVE(CANYON_MOTOR1_DATA, (offset & 0x01)), data & 0x0f);
 }
 
 
 WRITE8_MEMBER(canyon_state::canyon_explode_w)
 {
-	m_discrete->write(space, CANYON_EXPLODE_DATA, data >> 4);
-}
-
-
-WRITE8_MEMBER(canyon_state::canyon_attract_w)
-{
-	m_discrete->write(space, NODE_RELATIVE(CANYON_ATTRACT1_EN, (offset & 0x01)), offset & 0x02);
-}
-
-
-WRITE8_MEMBER(canyon_state::canyon_whistle_w)
-{
-	m_discrete->write(space, NODE_RELATIVE(CANYON_WHISTLE1_EN, (offset & 0x01)), offset & 0x02);
+	m_discrete->write(CANYON_EXPLODE_DATA, data >> 4);
 }
 
 
@@ -74,7 +62,7 @@ static const discrete_lfsr_desc canyon_lfsr =
 #define CANYON_WHISTLESND2      NODE_14
 #define CANYON_NOISE            NODE_15
 
-DISCRETE_SOUND_START(canyon)
+DISCRETE_SOUND_START(canyon_discrete)
 	/************************************************/
 	/* Canyon sound system: 5 Sound Sources         */
 	/*                     Relative Volume          */

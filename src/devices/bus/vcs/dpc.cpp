@@ -14,11 +14,11 @@
 
 // DPC device
 
-const device_type ATARI_DPC = device_creator<dpc_device>;
+DEFINE_DEVICE_TYPE(ATARI_DPC, dpc_device, "atari_dpc", "Atari DPC")
 
 
 dpc_device::dpc_device(const machine_config& mconfig, const char* tag, device_t* owner, uint32_t clock) :
-	device_t(mconfig, ATARI_DPC, "Atari DCP", tag, owner, clock, "atari_dcp", __FILE__),
+	device_t(mconfig, ATARI_DPC, tag, owner, clock),
 	m_movamt(0),
 	m_latch_62(0),
 	m_latch_64(0),
@@ -35,16 +35,13 @@ void dpc_device::device_start()
 	m_oscillator = timer_alloc(TIMER_OSC);
 	m_oscillator->reset();
 
-	for (int i = 0; i < 8; i++)
-	{
-		save_item(NAME(m_df[i].top), i);
-		save_item(NAME(m_df[i].bottom), i);
-		save_item(NAME(m_df[i].low), i);
-		save_item(NAME(m_df[i].high), i);
-		save_item(NAME(m_df[i].flag), i);
-		save_item(NAME(m_df[i].music_mode), i);
-		save_item(NAME(m_df[i].osc_clk), i);
-	}
+	save_item(STRUCT_MEMBER(m_df, top));
+	save_item(STRUCT_MEMBER(m_df, bottom));
+	save_item(STRUCT_MEMBER(m_df, low));
+	save_item(STRUCT_MEMBER(m_df, high));
+	save_item(STRUCT_MEMBER(m_df, flag));
+	save_item(STRUCT_MEMBER(m_df, music_mode));
+	save_item(STRUCT_MEMBER(m_df, osc_clk));
 
 	save_item(NAME(m_movamt));
 	save_item(NAME(m_latch_62));
@@ -120,7 +117,7 @@ READ8_MEMBER(dpc_device::read)
 	uint8_t   data_fetcher = offset & 0x07;
 	uint8_t   data = 0xff;
 
-	//logerror("%04X: Read from DPC offset $%02X\n", machine().device<cpu_device>("maincpu")->pc(), offset);
+	//logerror("%s: Read from DPC offset $%02X\n", machine().describe_context(), offset);
 	if (offset < 0x08)
 	{
 		switch(offset & 0x06)
@@ -160,10 +157,10 @@ READ8_MEMBER(dpc_device::read)
 				data = m_df[data_fetcher].flag ? display_data : 0x00;
 				break;
 			case 0x18:          // display data AND'd w/flag, nibbles swapped
-				data = m_df[data_fetcher].flag ? BITSWAP8(display_data,3,2,1,0,7,6,5,4) : 0x00;
+				data = m_df[data_fetcher].flag ? bitswap<8>(display_data,3,2,1,0,7,6,5,4) : 0x00;
 				break;
 			case 0x20:          // display data AND'd w/flag, byte reversed
-				data = m_df[data_fetcher].flag ? BITSWAP8(display_data,0,1,2,3,4,5,6,7) : 0x00;
+				data = m_df[data_fetcher].flag ? bitswap<8>(display_data,0,1,2,3,4,5,6,7) : 0x00;
 				break;
 			case 0x28:          // display data AND'd w/flag, rotated right
 				data = m_df[data_fetcher].flag ? (display_data >> 1) : 0x00;
@@ -223,13 +220,13 @@ WRITE8_MEMBER(dpc_device::write)
 			m_movamt = data;
 			break;
 		case 0x28:          // Not used
-			logerror("%04X: Write to unused DPC register $%02X, data $%02X\n", machine().device<cpu_device>("maincpu")->pc(), offset, data);
+			logerror("%s: Write to unused DPC register $%02X, data $%02X\n", machine().describe_context(), offset, data);
 			break;
 		case 0x30:          // Random number generator reset
 			m_shift_reg = 0;
 			break;
 		case 0x38:          // Not used
-			logerror("%04X: Write to unused DPC register $%02X, data $%02X\n", machine().device<cpu_device>("maincpu")->pc(), offset, data);
+			logerror("%s: Write to unused DPC register $%02X, data $%02X\n", machine().describe_context(), offset, data);
 			break;
 	}
 }
@@ -238,12 +235,11 @@ WRITE8_MEMBER(dpc_device::write)
 
 // cart device
 
-const device_type A26_ROM_DPC = device_creator<a26_rom_dpc_device>;
+DEFINE_DEVICE_TYPE(A26_ROM_DPC, a26_rom_dpc_device, "a2600_dpc", "Atari 2600 ROM Cart Pitfall II")
 
 
 a26_rom_dpc_device::a26_rom_dpc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-						: a26_rom_f8_device(mconfig, A26_ROM_DPC, "Atari 2600 ROM Cart Pitfall II", tag, owner, clock, "a2600_dcp", __FILE__),
-						m_dpc(*this, "dpc")
+	: a26_rom_f8_device(mconfig, A26_ROM_DPC, tag, owner, clock), m_dpc(*this, "dpc")
 {
 }
 
@@ -267,15 +263,10 @@ void a26_rom_dpc_device::setup_addon_ptr(uint8_t *ptr)
 }
 
 
-static MACHINE_CONFIG_FRAGMENT( a26_dpc )
-	MCFG_DEVICE_ADD("dpc", ATARI_DPC, 0)
-MACHINE_CONFIG_END
-
-machine_config_constructor a26_rom_dpc_device::device_mconfig_additions() const
+void a26_rom_dpc_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( a26_dpc );
+	ATARI_DPC(config, m_dpc, 0);
 }
-
 
 READ8_MEMBER(a26_rom_dpc_device::read_rom)
 {

@@ -6,24 +6,17 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_CBMIEC_FD2000_H
+#define MAME_BUS_CBMIEC_FD2000_H
 
-#ifndef __FD2000__
-#define __FD2000__
+#pragma once
 
 #include "cbmiec.h"
 #include "cpu/m6502/m65c02.h"
 #include "formats/d81_dsk.h"
+#include "imagedev/floppy.h"
 #include "machine/6522via.h"
 #include "machine/upd765.h"
-
-
-
-//**************************************************************************
-//  MACROS / CONSTANTS
-//**************************************************************************
-
-#define FD2000_TAG          "fd2000"
 
 
 
@@ -39,29 +32,24 @@ class fd2000_device :  public device_t,
 public:
 	// construction/destruction
 	fd2000_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	fd2000_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source);
 
-	enum
-	{
-		TYPE_FD2000,
-		TYPE_FD4000
-	};
-
-	// optional information overrides
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
-	DECLARE_READ8_MEMBER( via_pa_r );
-	DECLARE_WRITE8_MEMBER( via_pa_w );
-	DECLARE_READ8_MEMBER( via_pb_r );
-	DECLARE_WRITE8_MEMBER( via_pb_w );
+	uint8_t via_pa_r();
+	void via_pa_w(uint8_t data);
+	uint8_t via_pb_r();
+	void via_pb_w(uint8_t data);
 
 	//DECLARE_FLOPPY_FORMATS( floppy_formats );
 
 protected:
+	fd2000_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+
+	// optional information overrides
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	// device_cbm_iec_interface overrides
 	void cbm_iec_srq(int state) override;
@@ -69,11 +57,14 @@ protected:
 	void cbm_iec_data(int state) override;
 	void cbm_iec_reset(int state) override;
 
+	void add_common_devices(machine_config &config);
+
 	required_device<m65c02_device> m_maincpu;
 	required_device<upd765_family_device> m_fdc;
 	required_device<floppy_connector> m_floppy0;
 
-	int m_variant;
+private:
+	void fd2000_mem(address_map &map);
 };
 
 
@@ -84,13 +75,19 @@ class fd4000_device :  public fd2000_device
 public:
 	// construction/destruction
 	fd4000_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+protected:
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
+private:
+	void fd4000_mem(address_map &map);
 };
 
 
 // device type definition
-extern const device_type FD2000;
-extern const device_type FD4000;
+DECLARE_DEVICE_TYPE(FD2000, fd2000_device)
+DECLARE_DEVICE_TYPE(FD4000, fd4000_device)
 
 
-
-#endif
+#endif // MAME_BUS_CBMIEC_FD2000_H

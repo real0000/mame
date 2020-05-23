@@ -3,36 +3,30 @@
 #include "emu.h"
 #include "i82439tx.h"
 
-const device_type I82439TX_NEW = device_creator<i82439tx_host_device>;
+DEFINE_DEVICE_TYPE(I82439TX, i82439tx_host_device, "i82439tx", "Intel 82439TX northbridge")
 
-DEVICE_ADDRESS_MAP_START(config_map, 32, i82439tx_host_device)
-	AM_RANGE(0x50, 0x53) AM_READWRITE8(pcon_r,   pcon_w,   0x000000ff)
-	AM_RANGE(0x50, 0x53) AM_READWRITE8(cc_r,     cc_w,     0x00ff0000)
-	AM_RANGE(0x54, 0x57) AM_READWRITE8(dramec_r, dramec_w, 0x00ff0000)
-	AM_RANGE(0x54, 0x57) AM_READWRITE8(dramc_r,  dramc_w,  0xff000000)
-	AM_RANGE(0x58, 0x5b) AM_READWRITE8(dramt_r,  dramt_w,  0x000000ff)
-	AM_RANGE(0x58, 0x5b) AM_READWRITE8(pam0_r,   pam0_w,   0xffffff00)
-	AM_RANGE(0x5c, 0x5f) AM_READWRITE8(pam3_r,   pam3_w,   0xffffffff)
-	AM_RANGE(0x60, 0x67) AM_READWRITE8(drb_r,    drb_w,    0xffffffff)
-	AM_RANGE(0x68, 0x6b) AM_READWRITE8(drt_r,    drt_w,    0x000000ff)
-	AM_RANGE(0x68, 0x6b) AM_READWRITE8(drat_r,   drat_w,   0x0000ff00)
-	AM_RANGE(0x70, 0x73) AM_READWRITE8(smram_r,  smram_w,  0x00ff0000)
-	AM_RANGE(0x90, 0x93) AM_READWRITE8(errcmd_r, errcmd_w, 0x000000ff)
-	AM_RANGE(0x90, 0x93) AM_READWRITE8(errsts_r, errsts_w, 0x0000ff00)
-	AM_RANGE(0x90, 0x93) AM_READ8     (errsyn_r,           0x00ff0000)
-
-
-	AM_INHERIT_FROM(pci_host_device::config_map)
-ADDRESS_MAP_END
-
-i82439tx_host_device::i82439tx_host_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: pci_host_device(mconfig, I82439TX_NEW, "i82439tx northbridge", tag, owner, clock, "i82439tx_new", __FILE__)
+void i82439tx_host_device::config_map(address_map &map)
 {
+	pci_host_device::config_map(map);
+	map(0x50, 0x50).rw(FUNC(i82439tx_host_device::pcon_r), FUNC(i82439tx_host_device::pcon_w));
+	map(0x52, 0x52).rw(FUNC(i82439tx_host_device::cc_r), FUNC(i82439tx_host_device::cc_w));
+	map(0x56, 0x56).rw(FUNC(i82439tx_host_device::dramec_r), FUNC(i82439tx_host_device::dramec_w));
+	map(0x57, 0x57).rw(FUNC(i82439tx_host_device::dramc_r), FUNC(i82439tx_host_device::dramc_w));
+	map(0x58, 0x5f).rw(FUNC(i82439tx_host_device::pam_r), FUNC(i82439tx_host_device::pam_w));
+	map(0x58, 0x58).rw(FUNC(i82439tx_host_device::dramt_r), FUNC(i82439tx_host_device::dramt_w));
+	map(0x60, 0x67).rw(FUNC(i82439tx_host_device::drb_r), FUNC(i82439tx_host_device::drb_w));
+	map(0x68, 0x68).rw(FUNC(i82439tx_host_device::drt_r), FUNC(i82439tx_host_device::drt_w));
+	map(0x69, 0x69).rw(FUNC(i82439tx_host_device::drat_r), FUNC(i82439tx_host_device::drat_w));
+	map(0x72, 0x72).rw(FUNC(i82439tx_host_device::smram_r), FUNC(i82439tx_host_device::smram_w));
+	map(0x90, 0x90).rw(FUNC(i82439tx_host_device::errcmd_r), FUNC(i82439tx_host_device::errcmd_w));
+	map(0x91, 0x91).rw(FUNC(i82439tx_host_device::errsts_r), FUNC(i82439tx_host_device::errsts_w));
+	map(0x92, 0x92).r(FUNC(i82439tx_host_device::errsyn_r));
 }
 
-void i82439tx_host_device::set_cpu_tag(const char *_cpu_tag)
+i82439tx_host_device::i82439tx_host_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: pci_host_device(mconfig, I82439TX, tag, owner, clock)
+	, cpu(*this, finder_base::DUMMY_TAG)
 {
-	cpu_tag = _cpu_tag;
 }
 
 void i82439tx_host_device::set_ram_size(int _ram_size)
@@ -43,7 +37,6 @@ void i82439tx_host_device::set_ram_size(int _ram_size)
 void i82439tx_host_device::device_start()
 {
 	pci_host_device::device_start();
-	cpu = machine().device<cpu_device>(cpu_tag);
 	memory_space = &cpu->space(AS_PROGRAM);
 	io_space = &cpu->space(AS_IO);
 
@@ -156,154 +149,142 @@ void i82439tx_host_device::map_extra(uint64_t memory_window_start, uint64_t memo
 }
 
 
-READ8_MEMBER (i82439tx_host_device::pcon_r)
+uint8_t i82439tx_host_device::pcon_r()
 {
 	return pcon;
 }
 
-WRITE8_MEMBER(i82439tx_host_device::pcon_w)
+void i82439tx_host_device::pcon_w(uint8_t data)
 {
 	pcon = data;
 	logerror("pcon = %02x\n", pcon);
 }
 
-READ8_MEMBER (i82439tx_host_device::cc_r)
+uint8_t i82439tx_host_device::cc_r()
 {
 	return cc;
 }
 
-WRITE8_MEMBER(i82439tx_host_device::cc_w)
+void i82439tx_host_device::cc_w(uint8_t data)
 {
 	cc = data;
 	logerror("cc = %02x\n", cc);
 }
 
-READ8_MEMBER (i82439tx_host_device::dramec_r)
+uint8_t i82439tx_host_device::dramec_r()
 {
 	return dramec;
 }
 
-WRITE8_MEMBER(i82439tx_host_device::dramec_w)
+void i82439tx_host_device::dramec_w(uint8_t data)
 {
 	dramec = data;
 	logerror("dramec = %02x\n", dramec);
 }
 
-READ8_MEMBER (i82439tx_host_device::dramc_r)
+uint8_t i82439tx_host_device::dramc_r()
 {
 	return dramc;
 }
 
-WRITE8_MEMBER(i82439tx_host_device::dramc_w)
+void i82439tx_host_device::dramc_w(uint8_t data)
 {
 	dramc = data;
 	logerror("dramc = %02x\n", dramc);
 	remap_cb();
 }
 
-READ8_MEMBER (i82439tx_host_device::dramt_r)
+uint8_t i82439tx_host_device::dramt_r()
 {
 	return dramt;
 }
 
-WRITE8_MEMBER(i82439tx_host_device::dramt_w)
+void i82439tx_host_device::dramt_w(uint8_t data)
 {
 	dramt = data;
 	logerror("dramt = %02x\n", dramt);
 }
 
-READ8_MEMBER (i82439tx_host_device::pam0_r)
+uint8_t i82439tx_host_device::pam_r(offs_t offset)
 {
-	return pam[offset];
+	return pam[offset - 1];
 }
 
-WRITE8_MEMBER(i82439tx_host_device::pam0_w)
+void i82439tx_host_device::pam_w(offs_t offset, uint8_t data)
 {
-	pam[offset] = data;
-	logerror("pam[%d] = %02x\n", offset, pam[offset]);
+	pam[offset - 1] = data;
+	logerror("pam[%d] = %02x\n", offset - 1, pam[offset - 1]);
 	remap_cb();
 }
 
-READ8_MEMBER (i82439tx_host_device::pam3_r)
-{
-	return pam[3+offset];
-}
-
-WRITE8_MEMBER(i82439tx_host_device::pam3_w)
-{
-	pam[3+offset] = data;
-	logerror("pam[%d] = %02x\n", 3+offset, pam[3+offset]);
-	remap_cb();
-}
-
-READ8_MEMBER (i82439tx_host_device::drb_r)
+uint8_t i82439tx_host_device::drb_r(offs_t offset)
 {
 	return drb[offset];
 }
 
-WRITE8_MEMBER(i82439tx_host_device::drb_w)
+void i82439tx_host_device::drb_w(offs_t offset, uint8_t data)
 {
 	drb[offset] = data;
 	logerror("drb[%d] = %02x\n", offset, drb[offset]);
 }
 
-READ8_MEMBER (i82439tx_host_device::drt_r)
+uint8_t i82439tx_host_device::drt_r()
 {
 	return drt;
 }
 
-WRITE8_MEMBER(i82439tx_host_device::drt_w)
+void i82439tx_host_device::drt_w(uint8_t data)
 {
 	drt = data;
 	logerror("drt = %02x\n", drt);
 }
 
-READ8_MEMBER (i82439tx_host_device::drat_r)
+uint8_t i82439tx_host_device::drat_r()
 {
 	return drat;
 }
 
-WRITE8_MEMBER(i82439tx_host_device::drat_w)
+void i82439tx_host_device::drat_w(uint8_t data)
 {
 	drat = data;
 	logerror("drat = %02x\n", drat);
 }
 
-READ8_MEMBER (i82439tx_host_device::smram_r)
+uint8_t i82439tx_host_device::smram_r()
 {
 	return smram;
 }
 
-WRITE8_MEMBER(i82439tx_host_device::smram_w)
+void i82439tx_host_device::smram_w(uint8_t data)
 {
 	smram = data;
 	logerror("smram = %02x\n", smram);
 	remap_cb();
 }
 
-READ8_MEMBER (i82439tx_host_device::errcmd_r)
+uint8_t i82439tx_host_device::errcmd_r()
 {
 	return errcmd;
 }
 
-WRITE8_MEMBER(i82439tx_host_device::errcmd_w)
+void i82439tx_host_device::errcmd_w(uint8_t data)
 {
 	errcmd = data;
 	logerror("errcmd = %02x\n", errcmd);
 }
 
-READ8_MEMBER (i82439tx_host_device::errsts_r)
+uint8_t i82439tx_host_device::errsts_r()
 {
 	return errsts;
 }
 
-WRITE8_MEMBER(i82439tx_host_device::errsts_w)
+void i82439tx_host_device::errsts_w(uint8_t data)
 {
 	errsts = data;
 	logerror("errsts = %02x\n", errsts);
 }
 
-READ8_MEMBER (i82439tx_host_device::errsyn_r)
+uint8_t i82439tx_host_device::errsyn_r()
 {
 	return errsyn;
 }

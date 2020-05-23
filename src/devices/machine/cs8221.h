@@ -15,45 +15,31 @@
 
 ***************************************************************************/
 
+#ifndef MAME_MACHINE_CS8221_H
+#define MAME_MACHINE_CS8221_H
+
 #pragma once
-
-#ifndef __CS8221_H__
-#define __CS8221_H__
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_CS8221_ADD(_tag, _cputag, _isatag, _biostag) \
-	MCFG_DEVICE_ADD(_tag, CS8221, 0) \
-	cs8221_device::static_set_cputag(*device, _cputag); \
-	cs8221_device::static_set_isatag(*device, _isatag); \
-	cs8221_device::static_set_biostag(*device, _biostag);
-
-
-//**************************************************************************
-//  TYPE DEFINITIONS
-//**************************************************************************
-
-// ======================> cs8221_device
 
 class cs8221_device : public device_t
 {
 public:
 	// construction/destruction
+	cs8221_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock, const char *cputag, const char *isatag, const char *biostag)
+		: cs8221_device(mconfig, tag, owner, clock)
+	{
+		set_cputag(cputag);
+		set_isatag(isatag);
+		set_biostag(biostag);
+	}
+
 	cs8221_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_WRITE8_MEMBER( address_w );
-	DECLARE_READ8_MEMBER( data_r );
-	DECLARE_WRITE8_MEMBER( data_w );
-	DECLARE_ADDRESS_MAP(map, 16);
-
 	// inline configuration
-	static void static_set_cputag(device_t &device, const char *tag);
-	static void static_set_isatag(device_t &device, const char *tag);
-	static void static_set_biostag(device_t &device, const char *tag);
+	void set_cputag(const char *tag) { m_cputag = tag; }
+	void set_isatag(const char *tag) { m_isatag = tag; }
+	void set_biostag(const char *tag) { m_biostag = tag; }
+
+	void map(address_map &map);
 
 protected:
 	// device-level overrides
@@ -76,13 +62,13 @@ private:
 	const char *m_isatag;
 	const char *m_biostag;
 
-
 	uint8_t m_registers[0x10];
+
+	void address_w(uint8_t data);
+	uint8_t data_r();
+	void data_w(uint8_t data);
 };
 
+DECLARE_DEVICE_TYPE(CS8221, cs8221_device)
 
-// device type definition
-extern const device_type CS8221;
-
-
-#endif  /* __CS8221_H__ */
+#endif // MAME_MACHINE_CS8221_H

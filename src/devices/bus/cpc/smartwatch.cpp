@@ -11,24 +11,20 @@
 
 #include "emu.h"
 #include "smartwatch.h"
-SLOT_INTERFACE_EXTERN(cpc_exp_cards);
 
 //**************************************************************************
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type CPC_SMARTWATCH = device_creator<cpc_smartwatch_device>;
+DEFINE_DEVICE_TYPE(CPC_SMARTWATCH, cpc_smartwatch_device, "cpc_smartwatch", "Dobbertin Smartwatch")
 
 
-static MACHINE_CONFIG_FRAGMENT( cpc_smartwatch )
-	MCFG_DS1315_ADD("rtc")
-	// no pass-through (?)
-MACHINE_CONFIG_END
-
-machine_config_constructor cpc_smartwatch_device::device_mconfig_additions() const
+void cpc_smartwatch_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( cpc_smartwatch );
+	DS1315(config, m_rtc, 0);
+	// no pass-through (?)
 }
+
 
 ROM_START( cpc_smartwatch )
 	ROM_REGION( 0x4000, "exp_rom", 0 )
@@ -45,7 +41,7 @@ const tiny_rom_entry *cpc_smartwatch_device::device_rom_region() const
 //**************************************************************************
 
 cpc_smartwatch_device::cpc_smartwatch_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, CPC_SMARTWATCH, "Dobbertin Smartwatch", tag, owner, clock, "cpc_smartwatch", __FILE__),
+	device_t(mconfig, CPC_SMARTWATCH, tag, owner, clock),
 	device_cpc_expansion_card_interface(mconfig, *this), m_slot(nullptr),
 	m_rtc(*this,"rtc"), m_bank(nullptr)
 {
@@ -66,25 +62,27 @@ void cpc_smartwatch_device::device_start()
 
 void cpc_smartwatch_device::device_reset()
 {
-	device_t* cpu = machine().device(":maincpu");
-	address_space& space = cpu->memory().space(AS_PROGRAM);
-	space.install_read_handler(0xc000,0xc001,read8_delegate(FUNC(cpc_smartwatch_device::rtc_w),this));
-	space.install_read_handler(0xc004,0xc004,read8_delegate(FUNC(cpc_smartwatch_device::rtc_r),this));
+	address_space &space = m_slot->cpu().space(AS_PROGRAM);
+	space.install_read_handler(0xc000,0xc001, read8_delegate(*this, FUNC(cpc_smartwatch_device::rtc_w)));
+	space.install_read_handler(0xc004,0xc004, read8_delegate(*this, FUNC(cpc_smartwatch_device::rtc_r)));
 	m_bank = membank(":bank7");
 }
 
 READ8_MEMBER(cpc_smartwatch_device::rtc_w)
 {
 	uint8_t* bank = (uint8_t*)m_bank->base();
-	if(offset & 1)
-		m_rtc->read_1(space,0);
-	else
-		m_rtc->read_0(space,0);
+	if (!machine().side_effects_disabled())
+	{
+		if(offset & 1)
+			m_rtc->read_1();
+		else
+			m_rtc->read_0();
+	}
 	return bank[offset & 1];
 }
 
 READ8_MEMBER(cpc_smartwatch_device::rtc_r)
 {
 	uint8_t* bank = (uint8_t*)m_bank->base();
-	return ((bank[(offset & 1)+4]) & 0xfe) | (m_rtc->read_data(space,0) & 0x01);
+	return ((bank[(offset & 1)+4]) & 0xfe) | (m_rtc->read_data() & 0x01);
 }

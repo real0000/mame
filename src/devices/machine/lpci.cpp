@@ -74,13 +74,15 @@
 #include "emu.h"
 #include "machine/lpci.h"
 
-#define LOG_PCI 0
+//#define VERBOSE 1
+#include "logmacro.h"
+
 
 //**************************************************************************
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type PCI_BUS_LEGACY = device_creator<pci_bus_legacy_device>;
+DEFINE_DEVICE_TYPE(PCI_BUS_LEGACY, pci_bus_legacy_device, "pci_bus_legacy", "PCI Bus Legacy")
 
 //**************************************************************************
 //  LIVE DEVICE
@@ -90,15 +92,14 @@ const device_type PCI_BUS_LEGACY = device_creator<pci_bus_legacy_device>;
 //  pci_bus_legacy_device - constructor
 //-------------------------------------------------
 pci_bus_legacy_device::pci_bus_legacy_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-		device_t(mconfig, PCI_BUS_LEGACY, "PCI Bus Legacy", tag, owner, clock, "pci_bus_legacy", __FILE__),
-		m_father(nullptr)
+	device_t(mconfig, PCI_BUS_LEGACY, tag, owner, clock),
+	m_read_callback(*this),
+	m_write_callback(*this),
+	m_father(nullptr),
+	m_siblings_count(0)
 {
-	for (int i = 0; i < ARRAY_LENGTH(m_devtag); i++) {
-		m_devtag[i]= nullptr;
-		m_read_callback[i] = nullptr;
-		m_write_callback[i] = nullptr;
-	}
-	m_siblings_count = 0;
+	std::fill(std::begin(m_siblings), std::end(m_siblings), nullptr);
+	std::fill(std::begin(m_siblings_busnum), std::end(m_siblings_busnum), 0);
 }
 
 /***************************************************************************
@@ -121,19 +122,18 @@ READ32_MEMBER( pci_bus_legacy_device::read )
 		case 1:
 			if (m_devicenum != -1)
 			{
-				pci_read_func read = m_busnumaddr->m_read_callback[m_devicenum];
-				if (read != nullptr)
+				pci_bus_legacy_read_delegate &read = m_busnumaddr->m_read_callback[m_devicenum];
+				if (!read.isnull())
 				{
 					function = (m_address >> 8) & 0x07;
 					reg = (m_address >> 0) & 0xfc;
-					result = (*read)(m_busnumaddr, m_busnumaddr->m_device[m_devicenum], function, reg, mem_mask);
+					result = read(function, reg, mem_mask);
 				}
 			}
 			break;
 	}
 
-	if (LOG_PCI)
-		logerror("read('%s'): offset=%d result=0x%08X\n", tag(), offset, result);
+	LOG("read('%s'): offset=%d result=0x%08X\n", tag(), offset, result);
 
 	return result;
 }
@@ -164,8 +164,7 @@ WRITE32_MEMBER( pci_bus_legacy_device::write )
 {
 	offset %= 2;
 
-	if (LOG_PCI)
-		logerror("write('%s'): offset=%d data=0x%08X\n", tag(), offset, data);
+	LOG("write('%s'): offset=%d data=0x%08X\n", tag(), offset, data);
 
 	switch (offset)
 	{
@@ -185,23 +184,21 @@ WRITE32_MEMBER( pci_bus_legacy_device::write )
 				}
 				else
 					m_devicenum = -1;
-				if (LOG_PCI)
-					logerror("  bus:%d device:%d\n", busnum, devicenum);
+				LOG("  bus:%d device:%d\n", busnum, devicenum);
 			}
 			break;
 
 		case 1:
 			if (m_devicenum != -1)
 			{
-				pci_write_func write = m_busnumaddr->m_write_callback[m_devicenum];
-				if (write != nullptr)
+				pci_bus_legacy_write_delegate &write = m_busnumaddr->m_write_callback[m_devicenum];
+				if (!write.isnull())
 				{
 					int function = (m_address >> 8) & 0x07;
 					int reg = (m_address >> 0) & 0xfc;
-					(*write)(m_busnumaddr, m_busnumaddr->m_device[m_devicenum], function, reg, data, mem_mask);
+					write(function, reg, data, mem_mask);
 				}
-				if (LOG_PCI)
-					logerror("  function:%d register:%d\n", (m_address >> 8) & 0x07, (m_address >> 0) & 0xfc);
+				LOG("  function:%d register:%d\n", (m_address >> 8) & 0x07, (m_address >> 0) & 0xfc);
 			}
 			break;
 	}
@@ -212,18 +209,18 @@ WRITE32_MEMBER( pci_bus_legacy_device::write )
 READ64_MEMBER(pci_bus_legacy_device::read_64be)
 {
 	uint64_t result = 0;
-	mem_mask = flipendian_int64(mem_mask);
+	mem_mask = swapendian_int64(mem_mask);
 	if (ACCESSING_BITS_0_31)
 		result |= (uint64_t)read(space, offset * 2 + 0, mem_mask >> 0) << 0;
 	if (ACCESSING_BITS_32_63)
 		result |= (uint64_t)read(space, offset * 2 + 1, mem_mask >> 32) << 32;
-	return flipendian_int64(result);
+	return swapendian_int64(result);
 }
 
 WRITE64_MEMBER(pci_bus_legacy_device::write_64be)
 {
-	data = flipendian_int64(data);
-	mem_mask = flipendian_int64(mem_mask);
+	data = swapendian_int64(data);
+	mem_mask = swapendian_int64(mem_mask);
 	if (ACCESSING_BITS_0_31)
 		write(space, offset * 2 + 0, data >> 0, mem_mask >> 0);
 	if (ACCESSING_BITS_32_63)
@@ -261,12 +258,11 @@ void pci_bus_legacy_device::device_start()
 	/* store a pointer back to the device */
 	m_devicenum = -1;
 
-	/* find all our devices */
-	for (int i = 0; i < ARRAY_LENGTH(m_devtag); i++)
-		if (m_devtag[i] != nullptr)
-			m_device[i] = machine().device(m_devtag[i]);
+	/* find all our device callbacks */
+	m_read_callback.resolve_all();
+	m_write_callback.resolve_all();
 
-	if (m_father != nullptr) {
+	if (m_father) {
 		pci_bus_legacy_device *father = machine().device<pci_bus_legacy_device>(m_father);
 		if (father)
 			father->add_sibling(this, m_busnum);

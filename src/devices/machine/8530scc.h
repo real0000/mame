@@ -8,13 +8,10 @@
 
 *********************************************************************/
 
-#ifndef __8530SCC_H__
-#define __8530SCC_H__
+#ifndef MAME_MACHINE_8530SCC_H
+#define MAME_MACHINE_8530SCC_H
 
-#define MCFG_Z8530_INTRQ_CALLBACK(_write) \
-	devcb = &scc8530_t::set_intrq_wr_callback(*device, DEVCB_##_write);
-
-class scc8530_t : public device_t
+class scc8530_legacy_device : public device_t
 {
 public:
 	enum IRQType_t {
@@ -29,9 +26,9 @@ public:
 		IRQ_B_EXT
 	};
 
-	scc8530_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	scc8530_legacy_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_intrq_wr_callback(device_t &device, _Object object) { return downcast<scc8530_t &>(device).intrq_cb.set_callback(object); }
+	auto intrq_callback() { return intrq_cb.bind(); }
 
 	uint8_t get_reg_a(int reg);
 	uint8_t get_reg_b(int reg);
@@ -40,8 +37,8 @@ public:
 
 	void set_status(int status);
 
-	DECLARE_READ8_MEMBER(reg_r);
-	DECLARE_WRITE8_MEMBER(reg_w);
+	uint8_t reg_r(offs_t offset);
+	void reg_w(offs_t offset, uint8_t data);
 
 	void write_reg(int offset, uint8_t data);
 	uint8_t read_reg(int offset);
@@ -101,6 +98,6 @@ private:
     MACROS
 ***************************************************************************/
 
-extern const device_type SCC8530;
+DECLARE_DEVICE_TYPE(SCC8530, scc8530_legacy_device)
 
-#endif /* __8530SCC_H__ */
+#endif // MAME_MACHINE_8530SCC_H

@@ -59,24 +59,20 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 // device type definition
-const device_type MC68153_CHANNEL   = device_creator<bim68153_channel>;
-const device_type MC68153           = device_creator<bim68153_device>;
-const device_type EI68C153          = device_creator<ei68c153_device>;
+DEFINE_DEVICE_TYPE(MC68153_CHANNEL, bim68153_channel, "bim68153_channel", "68153 BIM channel")
+DEFINE_DEVICE_TYPE(MC68153,         bim68153_device,  "m68153bim",        "Motorola MC68153 BIM")
+DEFINE_DEVICE_TYPE(EI68C153,        ei68c153_device,  "ei68c153",         "EPIC EI68C153 BIM")
 
 //-------------------------------------------------
-//  device_mconfig_additions -
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
-MACHINE_CONFIG_FRAGMENT( m68153 )
-	MCFG_DEVICE_ADD(CHN0_TAG, MC68153_CHANNEL, 0)
-	MCFG_DEVICE_ADD(CHN1_TAG, MC68153_CHANNEL, 0)
-	MCFG_DEVICE_ADD(CHN2_TAG, MC68153_CHANNEL, 0)
-	MCFG_DEVICE_ADD(CHN3_TAG, MC68153_CHANNEL, 0)
-MACHINE_CONFIG_END
 
-machine_config_constructor bim68153_device::device_mconfig_additions() const
+void bim68153_device::device_add_mconfig(machine_config &config)
 {
-	LOG("%s\n", FUNCNAME);
-	return MACHINE_CONFIG_NAME( m68153 );
+	MC68153_CHANNEL(config, m_chn[0], 0);
+	MC68153_CHANNEL(config, m_chn[1], 0);
+	MC68153_CHANNEL(config, m_chn[2], 0);
+	MC68153_CHANNEL(config, m_chn[3], 0);
 }
 
 //**************************************************************************
@@ -86,35 +82,29 @@ machine_config_constructor bim68153_device::device_mconfig_additions() const
 //-------------------------------------------------
 //  bim68153_device - constructor
 //-------------------------------------------------
-bim68153_device::bim68153_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source)
-	,m_chn{{*this, CHN0_TAG}, {*this, CHN1_TAG}, {*this, CHN2_TAG}, {*this, CHN3_TAG}}
-	,m_out_int_cb(*this)
-	,m_out_intal0_cb(*this)
-	,m_out_intal1_cb(*this)
-	,m_out_iackout_cb(*this)
-	,m_iackin(ASSERT_LINE)
-	,m_irq_level(0)
+bim68153_device::bim68153_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint32_t variant)
+	: device_t(mconfig, type, tag, owner, clock)
+	, m_chn{{*this, CHN0_TAG}, {*this, CHN1_TAG}, {*this, CHN2_TAG}, {*this, CHN3_TAG}}
+	, m_out_int_cb(*this)
+	, m_out_intal0_cb(*this)
+	, m_out_intal1_cb(*this)
+	, m_out_iackout_cb(*this)
+	, m_iackin(ASSERT_LINE)
+	, m_irq_level(0)
 {
+	// FIXME: is the unused 'variant' parameter supposed to be useful for something?
 	LOG("%s\n", FUNCNAME);
 }
 
 bim68153_device::bim68153_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, MC68153, "Motorola MC68153 BIM", tag, owner, clock, "m68153bim", __FILE__)
-	,m_chn{{*this, CHN0_TAG}, {*this, CHN1_TAG}, {*this, CHN2_TAG}, {*this, CHN3_TAG}}
-	,m_out_int_cb(*this)
-	,m_out_intal0_cb(*this)
-	,m_out_intal1_cb(*this)
-	,m_out_iackout_cb(*this)
-	,m_iackin(ASSERT_LINE)
-	,m_irq_level(0)
+	: bim68153_device(mconfig, MC68153, tag, owner, clock, TYPE_MC68153)
 {
 	LOG("%s\n", FUNCNAME);
 }
 
 /* The EPIC EI68C153 is a CMOS implementation that is fully compatible with the bipolar MC68153 from Motorola */
 ei68c153_device::ei68c153_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: bim68153_device(mconfig, EI68C153, "EPIC EI68C153 BIM", tag, owner, clock, TYPE_EI68C153, "ei68c153", __FILE__)
+	: bim68153_device(mconfig, EI68C153, tag, owner, clock, TYPE_EI68C153)
 {
 	LOG("%s\n", FUNCNAME);
 }
@@ -176,9 +166,8 @@ void bim68153_device::device_reset()
   cycle is initiated in BIM by receiving IACK low R/W, A1, A2, A3 are latched, and the interrupt level on line A1-A3
   is compared with any interrupt requests pending in the chip. Further activity can be one of four cases.*/
 #define MAX_VECTOR 255
-IRQ_CALLBACK_MEMBER(bim68153_device::iack)
+u16 bim68153_device::iack(int irqline)
 {
-	int vec = M68K_INT_ACK_AUTOVECTOR;
 	int found = 0;
 	//  int level = 0;
 	int ch = -1;
@@ -193,7 +182,7 @@ IRQ_CALLBACK_MEMBER(bim68153_device::iack)
 		LOGIACK(" - IRQ cleared due to IACKIN\n");
 		m_out_iackout_cb(CLEAR_LINE);
 		m_out_int_cb(CLEAR_LINE);  // should really be tristated
-		return MAX_VECTOR + 1; // This is a 68K emulation specific response and will terminate the iack cycle
+		return 0x18;
 	}
 
 	for (auto & elem : m_chn)
@@ -215,10 +204,11 @@ IRQ_CALLBACK_MEMBER(bim68153_device::iack)
 	{
 		m_out_iackout_cb(CLEAR_LINE); // No more interrupts to serve, pass the message to next device in daisy chain
 		m_out_int_cb(CLEAR_LINE); // should really be tristated but board driver must make sure to mitigate if this is a problem
-		return MAX_VECTOR + 1; // This is a 68K emulation specific response and will terminate the iack cycle
+		return 0x18;
 	}
 
 	m_irq_level = m_chn[ch]->m_control & bim68153_channel::REG_CNTRL_INT_LVL_MSK;
+	int vec;
 
 	if ((m_chn[ch]->m_control & bim68153_channel::REG_CNTRL_INT_EXT) == 0)
 	{
@@ -297,7 +287,7 @@ void bim68153_device::trigger_interrupt(int ch)
 //-------------------------------------------------
 //  read
 //-------------------------------------------------
-READ8_MEMBER( bim68153_device::read )
+uint8_t bim68153_device::read(offs_t offset)
 {
 	int vc = offset & REG_VECTOR;
 	int ch = offset & CHN_MSK;
@@ -311,7 +301,7 @@ READ8_MEMBER( bim68153_device::read )
 //-------------------------------------------------
 //  write
 //-------------------------------------------------
-WRITE8_MEMBER( bim68153_device::write )
+void bim68153_device::write(offs_t offset, uint8_t data)
 {
 	int vc = offset & REG_VECTOR;
 	int ch = offset & CHN_MSK;
@@ -329,11 +319,11 @@ WRITE8_MEMBER( bim68153_device::write )
 //**************************************************************************
 
 bim68153_channel::bim68153_channel(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, MC68153_CHANNEL, "BIM channel", tag, owner, clock, "bim68153_channel", __FILE__)
-	,m_out_iack_cb(*this)
-	,m_int_state(NONE)
-	,m_control(0)
-	,m_vector(0)
+	: device_t(mconfig, MC68153_CHANNEL, tag, owner, clock)
+	, m_out_iack_cb(*this)
+	, m_int_state(NONE)
+	, m_control(0)
+	, m_vector(0)
 {
 	LOG("%s\n",FUNCNAME);
 }

@@ -50,9 +50,9 @@
 #include <vector>
 
 #include <fcntl.h>
-#include <limits.h>
+#include <climits>
 #include <sys/stat.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <unistd.h>
 
 
@@ -93,7 +93,7 @@ public:
 	{
 		ssize_t result;
 
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__DragonFly__) || defined(EMSCRIPTEN) || defined(__ANDROID__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__DragonFly__) || defined(__EMSCRIPTEN__) || defined(__ANDROID__)
 		result = ::pread(m_fd, buffer, size_t(count), off_t(std::make_unsigned_t<off_t>(offset)));
 #elif defined(WIN32) || defined(SDLMAME_NO64BITIO)
 		if (lseek(m_fd, off_t(std::make_unsigned_t<off_t>(offset)), SEEK_SET) < 0)
@@ -114,7 +114,7 @@ public:
 	{
 		ssize_t result;
 
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__DragonFly__) || defined(EMSCRIPTEN) || defined(__ANDROID__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__DragonFly__) || defined(__EMSCRIPTEN__) || defined(__ANDROID__)
 		result = ::pwrite(m_fd, buffer, size_t(count), off_t(std::make_unsigned_t<off_t>(offset)));
 #elif defined(WIN32) || defined(SDLMAME_NO64BITIO)
 		if (lseek(m_fd, off_t(std::make_unsigned_t<off_t>(offset)), SEEK_SET) < 0)
@@ -135,7 +135,7 @@ public:
 	{
 		int result;
 
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__DragonFly__) || defined(EMSCRIPTEN) || defined(WIN32) || defined(SDLMAME_NO64BITIO) || defined(__ANDROID__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__DragonFly__) || defined(__EMSCRIPTEN__) || defined(WIN32) || defined(SDLMAME_NO64BITIO) || defined(__ANDROID__)
 		result = ::ftruncate(m_fd, off_t(std::make_unsigned_t<off_t>(offset)));
 #else
 		result = ::ftruncate64(m_fd, off64_t(offset));
@@ -217,6 +217,8 @@ osd_file::error osd_file::open(std::string const &path, std::uint32_t openflags,
 		return posix_open_socket(path, openflags, file, filesize);
 	else if (posix_check_ptty_path(path))
 		return posix_open_ptty(openflags, file, filesize, dst);
+	else if (posix_check_domain_path(path))
+		return posix_open_domain(path, openflags, file, filesize);
 
 	// select the file open modes
 	int access;
@@ -446,7 +448,7 @@ bool osd_is_absolute_path(std::string const &path)
 	if (!path.empty() && is_path_separator(path[0]))
 		return true;
 #if !defined(WIN32)
-	else if (!path.empty() && (path[0] == '.'))
+	else if (!path.empty() && (path[0] == '.') && (!path[1] || is_path_separator(path[1]))) // FIXME: why is this even here? foo/./bar is a valid way to refer to foo/bar
 		return true;
 #elif !defined(UNDER_CE)
 	else if ((path.length() > 1) && (path[1] == ':'))

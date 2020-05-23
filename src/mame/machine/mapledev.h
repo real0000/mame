@@ -1,24 +1,24 @@
 // license:BSD-3-Clause
 // copyright-holders:Olivier Galibert
-#ifndef _MAPLEDEV_H_
-#define _MAPLEDEV_H_
+#ifndef MAME_MACHINE_MAPLEDEV_H
+#define MAME_MACHINE_MAPLEDEV_H
 
-#define MCFG_MAPLE_DEVICE_ADD(_tag, _type, _clock, _host_tag, _host_port) \
-	MCFG_DEVICE_ADD(_tag, _type, _clock) \
-	maple_device::static_set_host(*device, _host_tag, _host_port);
+
+#include "maple-dc.h"
 
 class maple_device : public device_t
 {
 public:
-	maple_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
+	void set_host_port(int _host_port) { host_port = _host_port; }
 
-	static void static_set_host(device_t &device, const char *_host_tag, int _host_port);
 	virtual void maple_w(const uint32_t *data, uint32_t in_size) = 0;
 	void maple_r(uint32_t *data, uint32_t &out_size, bool &partial);
 	virtual void maple_reset();
 
 protected:
 	enum { TIMER_ID = 1000 };
+
+	maple_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
 
 	uint32_t reply_size;
 	bool reply_partial;
@@ -39,12 +39,11 @@ protected:
 	void reply_start(uint8_t code, uint8_t source, uint8_t size);
 
 	// Configuration
-	class maple_dc_device *host;
-	const char *host_tag;
+	required_device<maple_dc_device> host;
 	int host_port;
 
 private:
 	emu_timer *timer;
 };
 
-#endif // _MAPLEDEV_H_
+#endif // MAME_MACHINE_MAPLEDEV_H

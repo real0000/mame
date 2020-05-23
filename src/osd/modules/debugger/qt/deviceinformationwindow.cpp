@@ -70,7 +70,7 @@ void DeviceInformationWindow::fill_device_information()
 		f->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
 		QVBoxLayout *vb = new QVBoxLayout(f);
 		bool first = true;
-		for(address_spacenum i=AS_0; i<ADDRESS_SPACES; i++)
+		for(int i=0; i<d_memory->max_space_count(); i++)
 			if(d_memory->has_space(i)) {
 				QFrame *ff = new QFrame(f);
 				QHBoxLayout *hb = new QHBoxLayout(ff);
@@ -92,7 +92,7 @@ void DeviceInformationWindow::fill_device_information()
 
 void DeviceInformationWindow::set_device(const char *tag)
 {
-	m_device = m_machine->device(tag);
+	m_device = m_machine->root_device().subdevice(tag);
 	if(!m_device)
 		m_device = &m_machine->root_device();
 	fill_device_information();

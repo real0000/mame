@@ -2,7 +2,7 @@
 // copyright-holders:Raphael Nabet
 /****************************************************************************
 
-    fat.c
+    fat.cpp
 
     PC FAT disk images
 
@@ -134,8 +134,8 @@
 
 ****************************************************************************/
 
-#include <time.h>
-#include <ctype.h>
+#include <ctime>
+#include <cctype>
 #include "imgtool.h"
 #include "formats/imageutl.h"
 #include "unicode.h"
@@ -184,8 +184,8 @@ struct fat_dirent
 	uint32_t first_cluster;
 	uint32_t dirent_sector_index;
 	uint32_t dirent_sector_offset;
-	time_t creation_time;
-	time_t lastmodified_time;
+	imgtool::datetime creation_time;
+	imgtool::datetime lastmodified_time;
 };
 
 struct fat_freeentry_info
@@ -534,7 +534,10 @@ static imgtoolerr_t fat_partition_create(imgtool::image &image, uint64_t first_b
 	place_integer_le(header, 32, 4, (uint32_t) (block_count >> 16));
 	place_integer_le(header, 36, 1, 0xFF);
 	place_integer_le(header, 38, 1, 0x28);
-	place_integer_le(header, 39, 4, imgtool::image::rand());
+	place_integer_le(header, 39, 1, std::rand());
+	place_integer_le(header, 40, 1, std::rand());
+	place_integer_le(header, 41, 1, std::rand());
+	place_integer_le(header, 42, 1, std::rand());
 	memcpy(&header[43], "           ", 11);
 	memcpy(&header[54], fat_bits_string, 8);
 
@@ -1208,7 +1211,7 @@ static void fat_calc_dirent_lfnchecksum(uint8_t *entry, size_t entry_len)
 
 
 
-static char fat_cannonicalize_sfn_char(char ch)
+static char fat_canonicalize_sfn_char(char ch)
 {
 	/* return the display version of this short file name character */
 	return tolower(ch);
@@ -1216,7 +1219,7 @@ static char fat_cannonicalize_sfn_char(char ch)
 
 
 
-static void fat_cannonicalize_sfn(char *sfn, const uint8_t *sfn_bytes)
+static void fat_canonicalize_sfn(char *sfn, const uint8_t *sfn_bytes)
 {
 	/* return the display version of this short file name */
 	int i;
@@ -1233,38 +1236,30 @@ static void fat_cannonicalize_sfn(char *sfn, const uint8_t *sfn_bytes)
 		rtrim(sfn);
 	}
 	for (i = 0; sfn[i]; i++)
-		sfn[i] = fat_cannonicalize_sfn_char(sfn[i]);
+		sfn[i] = fat_canonicalize_sfn_char(sfn[i]);
 }
 
 
 
-static time_t fat_crack_time(uint32_t fat_time)
+static imgtool::datetime fat_crack_time(uint32_t fat_time)
 {
-	struct tm t;
-	time_t now;
-
-	time(&now);
-	t = *localtime(&now);
-
-	t.tm_sec    = ((fat_time >>  0) & 0x001F) * 2;
-	t.tm_min    = ((fat_time >>  5) & 0x003F);
-	t.tm_hour   = ((fat_time >> 11) & 0x001F);
-	t.tm_mday   = ((fat_time >> 16) & 0x001F);
-	t.tm_mon    = ((fat_time >> 21) & 0x000F);
-	t.tm_year   = ((fat_time >> 25) & 0x007F) + 1980 - 1900;
-
-	return mktime(&t);
+	util::arbitrary_datetime dt;
+	dt.second       = ((fat_time >>  0) & 0x001F) * 2;
+	dt.minute       = ((fat_time >>  5) & 0x003F);
+	dt.hour         = ((fat_time >> 11) & 0x001F);
+	dt.day_of_month = ((fat_time >> 16) & 0x001F);
+	dt.month        = ((fat_time >> 21) & 0x000F);
+	dt.year         = ((fat_time >> 25) & 0x007F) + 1980;
+	return imgtool::datetime(imgtool::datetime::LOCAL, dt);
 }
 
 
 
 static uint32_t fat_setup_time(time_t ansi_time)
 {
-	struct tm t;
+	std::tm t = *localtime(&ansi_time);
+
 	uint32_t result = 0;
-
-	t = *localtime(&ansi_time);
-
 	result |= (((uint32_t) (t.tm_sec / 2))            & 0x001F) <<  0;
 	result |= (((uint32_t) t.tm_min)                  & 0x003F) <<  5;
 	result |= (((uint32_t) t.tm_hour)                 & 0x001F) << 11;
@@ -1365,7 +1360,7 @@ static imgtoolerr_t fat_read_dirent(imgtool::partition &partition, fat_file *fil
 	}
 
 	/* pick apart short filename */
-	fat_cannonicalize_sfn(ent.short_filename, entry);
+	fat_canonicalize_sfn(ent.short_filename, entry);
 
 	/* and the long filename */
 	if (lfn_lastentry == 1)
@@ -1416,7 +1411,7 @@ static imgtoolerr_t fat_construct_dirent(const char *filename, creation_policy_t
 	char32_t ch;
 	char last_short_char = ' ';
 	char short_char = '\0';
-	char cannonical_short_char;
+	char canonical_short_char;
 	char16_t buf[UTF16_CHAR_MAX];
 	int i, len;
 	int sfn_pos = 0;
@@ -1462,10 +1457,10 @@ static imgtoolerr_t fat_construct_dirent(const char *filename, creation_policy_t
 			short_char = (char) ch;
 		else
 			short_char = '\0';  /* illegal SFN char */
-		cannonical_short_char = fat_cannonicalize_sfn_char((char) ch);
-		if (!short_char || (short_char != cannonical_short_char))
+		canonical_short_char = fat_canonicalize_sfn_char((char) ch);
+		if (!short_char || (short_char != canonical_short_char))
 		{
-			if (toupper(short_char) == toupper(cannonical_short_char))
+			if (toupper(short_char) == toupper(canonical_short_char))
 				sfn_disposition = std::max(sfn_disposition, SFN_DERIVATIVE);
 			else
 				sfn_disposition = SFN_MANGLED;
@@ -1562,6 +1557,7 @@ static imgtoolerr_t fat_construct_dirent(const char *filename, creation_policy_t
 		memcpy(created_entry, created_entry + created_entry_len - FAT_DIRENT_SIZE, FAT_DIRENT_SIZE);
 		created_entry_len = FAT_DIRENT_SIZE;
 		free(created_entry);
+		created_entry = NULL;
 		new_created_entry = (uint8_t *) malloc(created_entry_len);
 		if (!new_created_entry)
 		{
@@ -1635,7 +1631,7 @@ static void fat_bump_dirent(imgtool::partition &partition, uint8_t *entry, size_
 	{
 		/* extreme degenerate case; simply randomize the filename */
 		for (i = 0; i < 6; i++)
-			sfn_entry[i] = 'A' + (imgtool::image::rand() % 26);
+			sfn_entry[i] = 'A' + (std::rand() % 26);
 		sfn_entry[6] = '~';
 		sfn_entry[7] = '0';
 	}
@@ -1736,7 +1732,7 @@ static imgtoolerr_t fat_lookup_path(imgtool::partition &partition, const char *p
 						goto done;
 
 					bumped_sfn = false;
-					fat_cannonicalize_sfn(sfn, &created_entry[created_entry_len - FAT_DIRENT_SIZE]);
+					fat_canonicalize_sfn(sfn, &created_entry[created_entry_len - FAT_DIRENT_SIZE]);
 
 					do
 					{
@@ -1748,7 +1744,7 @@ static imgtoolerr_t fat_lookup_path(imgtool::partition &partition, const char *p
 						{
 							bumped_sfn = true;
 							fat_bump_dirent(partition, created_entry, created_entry_len);
-							fat_cannonicalize_sfn(sfn, &created_entry[created_entry_len - FAT_DIRENT_SIZE]);
+							fat_canonicalize_sfn(sfn, &created_entry[created_entry_len - FAT_DIRENT_SIZE]);
 						}
 					}
 					while(!ent.eof);

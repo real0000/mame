@@ -19,6 +19,8 @@ The cpu speed could be adjusted by using a potentiometer, the range being
 We emulate the original version. Later enhancements included more RAM, speech
 synthesis and various attachments, however I have no information on these.
 
+2018-11-08 Obtained fresh dumps from the original designers.
+
 Pasting:
         0-F : as is
         + (inc) : ^
@@ -34,7 +36,7 @@ GO (execute program at current address) is the X key.
 SHIFT - later monitor versions utilised an extra shift button. Hold
         it down and press another key (use Left Shift).
 
-Whenever a program listing mentions RESET, do a Soft Reset.
+Whenever a program listing mentions RESET, press Left-Alt key.
 
 Each key causes a beep to be heard. You may need to press more than once
 to get it to register.
@@ -59,10 +61,8 @@ and an optional LCD, but the games of the tec1 have been removed.
 
 
 ToDo:
-- After a Soft Reset, pressing keys can crash the emulation.
-- The 74C923 code may need to be revisited to improve keyboard response.
-  Sometimes have to press a key a few times before it registers.
-- The 10ms debounce is not emulated.
+- Save state support
+
 
 
 JMON ToDo:
@@ -74,9 +74,11 @@ JMON ToDo:
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "imagedev/cassette.h"
+#include "machine/mm74c922.h"
+#include "machine/rescap.h"
 #include "sound/spkrdev.h"
-#include "sound/wave.h"
 #include "speaker.h"
+#include "video/pwm.h"
 
 #include "tec1.lh"
 
@@ -85,44 +87,43 @@ class tec1_state : public driver_device
 {
 public:
 	tec1_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu"),
-		m_speaker(*this, "speaker"),
-		m_cass(*this, "cassette"),
-		m_wave(*this, WAVE_TAG),
-		m_key_pressed(0),
-		m_io_line0(*this, "LINE0"),
-		m_io_line1(*this, "LINE1"),
-		m_io_line2(*this, "LINE2"),
-		m_io_line3(*this, "LINE3"),
-		m_io_shift(*this, "SHIFT")
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_speaker(*this, "speaker")
+		, m_cass(*this, "cassette")
+		, m_kb(*this, "keyboard")
+		, m_key_pressed(0)
+		, m_io_shift(*this, "SHIFT")
+		, m_display(*this, "display")
 	{ }
 
+	void tec1(machine_config &config);
+	void tecjmon(machine_config &config);
+
+	DECLARE_INPUT_CHANGED_MEMBER(reset_button);
+
+private:
 	required_device<cpu_device> m_maincpu;
 	required_device<speaker_sound_device> m_speaker;
 	optional_device<cassette_image_device> m_cass;
-	optional_device<wave_device> m_wave;
+	required_device<mm74c923_device> m_kb;
 	bool m_key_pressed;
-	required_ioport m_io_line0;
-	required_ioport m_io_line1;
-	required_ioport m_io_line2;
-	required_ioport m_io_line3;
 	required_ioport m_io_shift;
-	emu_timer *m_kbd_timer;
-	DECLARE_READ8_MEMBER( tec1_kbd_r );
-	DECLARE_READ8_MEMBER( latch_r );
-	DECLARE_WRITE8_MEMBER( tec1_digit_w );
-	DECLARE_WRITE8_MEMBER( tecjmon_digit_w );
-	DECLARE_WRITE8_MEMBER( tec1_segment_w );
-	uint8_t m_kbd;
-	uint8_t m_segment;
+	required_device<pwm_display_device> m_display;
+
+	DECLARE_READ8_MEMBER(kbd_r);
+	DECLARE_READ8_MEMBER(latch_r);
+	DECLARE_WRITE8_MEMBER(tec1_digit_w);
+	DECLARE_WRITE8_MEMBER(tecjmon_digit_w);
+	DECLARE_WRITE8_MEMBER(segment_w);
+	DECLARE_WRITE_LINE_MEMBER(da_w);
+	uint8_t m_seg;
 	uint8_t m_digit;
-	uint8_t m_kbd_row;
-	uint8_t m_refresh[6];
-	uint8_t tec1_convert_col_to_bin( uint8_t col, uint8_t row );
-	virtual void machine_reset() override;
-	virtual void machine_start() override;
-	TIMER_CALLBACK_MEMBER(tec1_kbd_callback);
+
+	void tec1_io(address_map &map);
+	void tec1_map(address_map &map);
+	void tecjmon_io(address_map &map);
+	void tecjmon_map(address_map &map);
 };
 
 
@@ -134,7 +135,7 @@ public:
 
 ***************************************************************************/
 
-WRITE8_MEMBER( tec1_state::tec1_segment_w )
+WRITE8_MEMBER( tec1_state::segment_w )
 {
 /*  d7 segment d
     d6 segment e
@@ -145,7 +146,8 @@ WRITE8_MEMBER( tec1_state::tec1_segment_w )
     d1 segment f
     d0 segment a */
 
-	m_segment = BITSWAP8(data, 4, 2, 1, 6, 7, 5, 3, 0);
+	m_seg = bitswap<8>(data, 4, 2, 1, 6, 7, 5, 3, 0);
+	m_display->matrix(m_digit, m_seg);
 }
 
 WRITE8_MEMBER( tec1_state::tec1_digit_w )
@@ -161,7 +163,8 @@ WRITE8_MEMBER( tec1_state::tec1_digit_w )
 
 	m_speaker->level_w(BIT(data, 7));
 
-	m_digit = data & 0x3f;
+	m_digit = data;
+	m_display->matrix(m_digit, m_seg);
 }
 
 WRITE8_MEMBER( tec1_state::tecjmon_digit_w )
@@ -177,7 +180,8 @@ WRITE8_MEMBER( tec1_state::tecjmon_digit_w )
 
 	m_speaker->level_w(BIT(data, 7));
 	m_cass->output(BIT(data, 7) ? -1.0 : +1.0);
-	m_digit = data & 0x3f;
+	m_digit = data;
+	m_display->matrix(m_digit, m_seg);
 }
 
 
@@ -199,100 +203,15 @@ READ8_MEMBER( tec1_state::latch_r )
 }
 
 
-READ8_MEMBER( tec1_state::tec1_kbd_r )
+READ8_MEMBER( tec1_state::kbd_r )
 {
-	m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-	return m_kbd | m_io_shift->read();
+	return m_kb->read() | m_io_shift->read();
 }
 
-uint8_t tec1_state::tec1_convert_col_to_bin( uint8_t col, uint8_t row )
+WRITE_LINE_MEMBER( tec1_state::da_w )
 {
-	uint8_t data = row;
-
-	if (BIT(col, 1))
-		data |= 4;
-	else
-	if (BIT(col, 2))
-		data |= 8;
-	else
-	if (BIT(col, 3))
-		data |= 12;
-	else
-	if (BIT(col, 4))
-		data |= 16;
-
-	return data;
-}
-
-TIMER_CALLBACK_MEMBER(tec1_state::tec1_kbd_callback)
-{
-	uint8_t i;
-
-	// Display the digits. Blank any digits that haven't been refreshed for a while.
-	// This will fix the problem reported by a user.
-	for (i = 0; i < 6; i++)
-	{
-		if (BIT(m_digit, i))
-		{
-			m_refresh[i] = 1;
-			output().set_digit_value(i, m_segment);
-		}
-		else
-		if (m_refresh[i] == 0x80)
-		{
-			output().set_digit_value(i, 0);
-			m_refresh[i] = 0;
-		}
-		else
-		if (m_refresh[i])
-			m_refresh[i]++;
-	}
-
-	// 74C923 4 by 5 key encoder.
-
-	/* Look at old row */
-	if (m_kbd_row == 0)
-		i = m_io_line0->read();
-	else
-	if (m_kbd_row == 1)
-		i = m_io_line1->read();
-	else
-	if (m_kbd_row == 2)
-		i = m_io_line2->read();
-	else
-	if (m_kbd_row == 3)
-		i = m_io_line3->read();
-
-	/* if previous key is still held, bail out */
-	if (i)
-		if (tec1_convert_col_to_bin(i, m_kbd_row) == m_kbd)
-			return;
-
-	m_kbd_row++;
-	m_kbd_row &= 3;
-
-	/* Look at a new row */
-	if (m_kbd_row == 0)
-		i = m_io_line0->read();
-	else
-	if (m_kbd_row == 1)
-		i = m_io_line1->read();
-	else
-	if (m_kbd_row == 2)
-		i = m_io_line2->read();
-	else
-	if (m_kbd_row == 3)
-		i = m_io_line3->read();
-
-	/* see if a key pressed */
-	if (i)
-	{
-		m_kbd = tec1_convert_col_to_bin(i, m_kbd_row);
-		m_maincpu->set_input_line(INPUT_LINE_NMI, HOLD_LINE);
-		m_key_pressed = true;
-	}
-	else
-		m_key_pressed = false;
+	m_key_pressed = state;
+	m_maincpu->set_input_line(INPUT_LINE_NMI, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -302,17 +221,6 @@ TIMER_CALLBACK_MEMBER(tec1_state::tec1_kbd_callback)
 
 ***************************************************************************/
 
-void tec1_state::machine_start()
-{
-	m_kbd_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(tec1_state::tec1_kbd_callback),this));
-	m_kbd_timer->adjust( attotime::zero, 0, attotime::from_hz(500) );
-}
-
-void tec1_state::machine_reset()
-{
-	m_kbd = 0;
-}
-
 
 
 /***************************************************************************
@@ -321,37 +229,41 @@ void tec1_state::machine_reset()
 
 ***************************************************************************/
 
-static ADDRESS_MAP_START( tec1_map, AS_PROGRAM, 8, tec1_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x3fff)
-	AM_RANGE(0x0000, 0x07ff) AM_ROM
-	AM_RANGE(0x0800, 0x0fff) AM_RAM // on main board
-	AM_RANGE(0x1000, 0x3fff) AM_RAM // expansion
-ADDRESS_MAP_END
+void tec1_state::tec1_map(address_map &map)
+{
+	map.global_mask(0x3fff);
+	map(0x0000, 0x07ff).rom();
+	map(0x0800, 0x0fff).ram(); // on main board
+	map(0x1000, 0x3fff).ram(); // expansion
+}
 
-static ADDRESS_MAP_START( tec1_io, AS_IO, 8, tec1_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x07)
-	AM_RANGE(0x00, 0x00) AM_READ(tec1_kbd_r)
-	AM_RANGE(0x01, 0x01) AM_WRITE(tec1_digit_w)
-	AM_RANGE(0x02, 0x02) AM_WRITE(tec1_segment_w)
-ADDRESS_MAP_END
+void tec1_state::tec1_io(address_map &map)
+{
+	map.global_mask(0x07);
+	map(0x00, 0x00).r(FUNC(tec1_state::kbd_r));
+	map(0x01, 0x01).w(FUNC(tec1_state::tec1_digit_w));
+	map(0x02, 0x02).w(FUNC(tec1_state::segment_w));
+}
 
 
-static ADDRESS_MAP_START( tecjmon_map, AS_PROGRAM, 8, tec1_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x3fff)
-	AM_RANGE(0x0000, 0x07ff) AM_ROM
-	AM_RANGE(0x0800, 0x37ff) AM_RAM
-	AM_RANGE(0x3800, 0x3fff) AM_ROM
-ADDRESS_MAP_END
+void tec1_state::tecjmon_map(address_map &map)
+{
+	map.global_mask(0x3fff);
+	map(0x0000, 0x07ff).rom();
+	map(0x0800, 0x37ff).ram();
+	map(0x3800, 0x3fff).rom();
+}
 
-static ADDRESS_MAP_START( tecjmon_io, AS_IO, 8, tec1_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_READ(tec1_kbd_r)
-	AM_RANGE(0x01, 0x01) AM_WRITE(tecjmon_digit_w)
-	AM_RANGE(0x02, 0x02) AM_WRITE(tec1_segment_w)
-	AM_RANGE(0x03, 0x03) AM_READ(latch_r)
-	//AM_RANGE(0x04, 0x04) AM_WRITE(lcd_en_w)
-	//AM_RANGE(0x84, 0x84) AM_WRITE(lcd_2nd_w)
-ADDRESS_MAP_END
+void tec1_state::tecjmon_io(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).r(FUNC(tec1_state::kbd_r));
+	map(0x01, 0x01).w(FUNC(tec1_state::tecjmon_digit_w));
+	map(0x02, 0x02).w(FUNC(tec1_state::segment_w));
+	map(0x03, 0x03).r(FUNC(tec1_state::latch_r));
+	//map(0x04, 0x04).w(FUNC(tec1_state::lcd_en_w));
+	//map(0x84, 0x84).w(FUNC(tec1_state::lcd_2nd_w));
+}
 
 
 /**************************************************************************
@@ -362,38 +274,46 @@ ADDRESS_MAP_END
 
 static INPUT_PORTS_START( tec1 )
 	PORT_START("LINE0") /* KEY ROW 0 */
-	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("0") PORT_CODE(KEYCODE_0)    PORT_CHAR('0')
-	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("4") PORT_CODE(KEYCODE_4)    PORT_CHAR('4')
-	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("8") PORT_CODE(KEYCODE_8)    PORT_CHAR('8')
-	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("C") PORT_CODE(KEYCODE_C)    PORT_CHAR('C')
-	PORT_BIT(0x10, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("+") PORT_CODE(KEYCODE_UP)   PORT_CHAR('^')
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("0") PORT_CODE(KEYCODE_0)    PORT_CHAR('0')
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("4") PORT_CODE(KEYCODE_4)    PORT_CHAR('4')
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("8") PORT_CODE(KEYCODE_8)    PORT_CHAR('8')
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("C") PORT_CODE(KEYCODE_C)    PORT_CHAR('C')
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("+") PORT_CODE(KEYCODE_UP)   PORT_CHAR('^')
 
 	PORT_START("LINE1") /* KEY ROW 1 */
-	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("1") PORT_CODE(KEYCODE_1)    PORT_CHAR('1')
-	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("5") PORT_CODE(KEYCODE_5)    PORT_CHAR('5')
-	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("9") PORT_CODE(KEYCODE_9)    PORT_CHAR('9')
-	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("D") PORT_CODE(KEYCODE_D)    PORT_CHAR('D')
-	PORT_BIT(0x10, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("-") PORT_CODE(KEYCODE_DOWN) PORT_CHAR('V')
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("1") PORT_CODE(KEYCODE_1)    PORT_CHAR('1')
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("5") PORT_CODE(KEYCODE_5)    PORT_CHAR('5')
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("9") PORT_CODE(KEYCODE_9)    PORT_CHAR('9')
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("D") PORT_CODE(KEYCODE_D)    PORT_CHAR('D')
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("-") PORT_CODE(KEYCODE_DOWN) PORT_CHAR('V')
 
 	PORT_START("LINE2") /* KEY ROW 2 */
-	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("2") PORT_CODE(KEYCODE_2)    PORT_CHAR('2')
-	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("6") PORT_CODE(KEYCODE_6)    PORT_CHAR('6')
-	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("A") PORT_CODE(KEYCODE_A)    PORT_CHAR('A')
-	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("E") PORT_CODE(KEYCODE_E)    PORT_CHAR('E')
-	PORT_BIT(0x10, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("GO") PORT_CODE(KEYCODE_X)   PORT_CHAR('X')
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("2") PORT_CODE(KEYCODE_2)    PORT_CHAR('2')
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("6") PORT_CODE(KEYCODE_6)    PORT_CHAR('6')
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("A") PORT_CODE(KEYCODE_A)    PORT_CHAR('A')
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("E") PORT_CODE(KEYCODE_E)    PORT_CHAR('E')
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("GO") PORT_CODE(KEYCODE_X)   PORT_CHAR('X')
 
 	PORT_START("LINE3") /* KEY ROW 3 */
-	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("3") PORT_CODE(KEYCODE_3)    PORT_CHAR('3')
-	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("7") PORT_CODE(KEYCODE_7)    PORT_CHAR('7')
-	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("B") PORT_CODE(KEYCODE_B)    PORT_CHAR('B')
-	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("F") PORT_CODE(KEYCODE_F)    PORT_CHAR('F')
-	PORT_BIT(0x10, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("AD") PORT_CODE(KEYCODE_MINUS)   PORT_CHAR('-')
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("3") PORT_CODE(KEYCODE_3)    PORT_CHAR('3')
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("7") PORT_CODE(KEYCODE_7)    PORT_CHAR('7')
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("B") PORT_CODE(KEYCODE_B)    PORT_CHAR('B')
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("F") PORT_CODE(KEYCODE_F)    PORT_CHAR('F')
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("AD") PORT_CODE(KEYCODE_MINUS)   PORT_CHAR('-')
 
 	PORT_START("SHIFT")
 	PORT_BIT(0x1f, IP_ACTIVE_HIGH, IPT_UNUSED)
 	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Shift") PORT_CODE(KEYCODE_LSHIFT)
 	PORT_BIT(0xc0, IP_ACTIVE_LOW, IPT_UNUSED)
+
+	PORT_START("RESET")
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("RESET") PORT_CODE(KEYCODE_LALT) PORT_CHANGED_MEMBER(DEVICE_SELF, tec1_state, reset_button, 0)
 INPUT_PORTS_END
+
+INPUT_CHANGED_MEMBER(tec1_state::reset_button)
+{
+	m_maincpu->set_input_line(INPUT_LINE_RESET, newval ? ASSERT_LINE : CLEAR_LINE);
+}
 
 
 /***************************************************************************
@@ -402,40 +322,61 @@ INPUT_PORTS_END
 
 ***************************************************************************/
 
-static MACHINE_CONFIG_START( tec1, tec1_state )
+void tec1_state::tec1(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, 1000000)   /* speed can be varied between 250kHz and 2MHz */
-	MCFG_CPU_PROGRAM_MAP(tec1_map)
-	MCFG_CPU_IO_MAP(tec1_io)
+	Z80(config, m_maincpu, 1000000);   /* speed can be varied between 250kHz and 2MHz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &tec1_state::tec1_map);
+	m_maincpu->set_addrmap(AS_IO, &tec1_state::tec1_io);
 
 	/* video hardware */
-	MCFG_DEFAULT_LAYOUT(layout_tec1)
+	config.set_default_layout(layout_tec1);
+	PWM_DISPLAY(config, m_display).set_size(6, 8);
+	m_display->set_segmask(0x3f, 0xff);
+
+	MM74C923(config, m_kb, 0);
+	m_kb->set_cap_osc(CAP_N(100));
+	m_kb->set_cap_debounce(CAP_U(1));
+	m_kb->da_wr_callback().set(FUNC(tec1_state::da_w));
+	m_kb->x1_rd_callback().set_ioport("LINE0");
+	m_kb->x2_rd_callback().set_ioport("LINE1");
+	m_kb->x3_rd_callback().set_ioport("LINE2");
+	m_kb->x4_rd_callback().set_ioport("LINE3");
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-MACHINE_CONFIG_END
+	SPEAKER(config, "mono").front_center();
+	SPEAKER_SOUND(config, m_speaker).add_route(ALL_OUTPUTS, "mono", 0.50);
+}
 
-static MACHINE_CONFIG_START( tecjmon, tec1_state )
+void tec1_state::tecjmon(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, XTAL_3_579545MHz / 2)
-	MCFG_CPU_PROGRAM_MAP(tecjmon_map)
-	MCFG_CPU_IO_MAP(tecjmon_io)
+	Z80(config, m_maincpu, XTAL(3'579'545) / 2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &tec1_state::tecjmon_map);
+	m_maincpu->set_addrmap(AS_IO, &tec1_state::tecjmon_io);
 
 	/* video hardware */
-	MCFG_DEFAULT_LAYOUT(layout_tec1)
+	config.set_default_layout(layout_tec1);
+	PWM_DISPLAY(config, m_display).set_size(6, 8);
+	m_display->set_segmask(0x3f, 0xff);
+
+	MM74C923(config, m_kb, 0);
+	m_kb->set_cap_osc(CAP_N(100));
+	m_kb->set_cap_debounce(CAP_U(1));
+	m_kb->da_wr_callback().set(FUNC(tec1_state::da_w));
+	m_kb->x1_rd_callback().set_ioport("LINE0");
+	m_kb->x2_rd_callback().set_ioport("LINE1");
+	m_kb->x3_rd_callback().set_ioport("LINE2");
+	m_kb->x4_rd_callback().set_ioport("LINE3");
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.05)
+	SPEAKER(config, "mono").front_center();
+	SPEAKER_SOUND(config, m_speaker).add_route(ALL_OUTPUTS, "mono", 0.50);
 
 	/* Devices */
-	MCFG_CASSETTE_ADD( "cassette" )
-MACHINE_CONFIG_END
+	CASSETTE(config, m_cass);
+	m_cass->set_default_state(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED);
+}
 
 
 /***************************************************************************
@@ -447,11 +388,14 @@ MACHINE_CONFIG_END
 ROM_START(tec1)
 	ROM_REGION(0x10000, "maincpu", ROMREGION_ERASEFF)
 	ROM_SYSTEM_BIOS(0, "mon1", "MON1")
-	ROMX_LOAD("mon1.rom",    0x0000, 0x0800, CRC(b3390c36) SHA1(18aabc68d473206b7fc4e365c6b57a4e218482c3), ROM_BIOS(1))
-	ROM_SYSTEM_BIOS(1, "mon1b", "MON1B")
-	ROMX_LOAD("mon1b.rom",   0x0000, 0x0800, CRC(60daea3c) SHA1(383b7e7f02e91fb18c87eb03c5949e31156771d4), ROM_BIOS(2))
-	ROM_SYSTEM_BIOS(2, "mon2", "MON2")
-	ROMX_LOAD("mon2.rom",   0x0000, 0x0800, CRC(082fd7e7) SHA1(7659add30ca22b15a03d1cbac0892a5c25e47ecd), ROM_BIOS(3))
+	ROMX_LOAD( "mon1.rom",   0x0000, 0x0800, CRC(5d379e6c) SHA1(5c810885a3f0d03c54aea74aaaa8fae8a2fd9ad4), ROM_BIOS(0) )
+	ROM_SYSTEM_BIOS(1, "mon1a", "MON1A")
+	ROMX_LOAD("mon1a.rom",   0x0000, 0x0800, CRC(b3390c36) SHA1(18aabc68d473206b7fc4e365c6b57a4e218482c3), ROM_BIOS(1))
+	ROM_SYSTEM_BIOS(2, "mon1b", "MON1B")
+	//ROMX_LOAD("mon1b.rom",   0x0000, 0x0800, CRC(60daea3c) SHA1(383b7e7f02e91fb18c87eb03c5949e31156771d4), ROM_BIOS(2))
+	ROMX_LOAD("mon1b.rom",   0x0000, 0x0800, CRC(6088811d) SHA1(2cec14a24fae769f22f6598b5a63fc79d90db394), ROM_BIOS(2))    // redump
+	ROM_SYSTEM_BIOS(3, "mon2", "MON2")
+	ROMX_LOAD("mon2.rom",    0x0000, 0x0800, CRC(082fd7e7) SHA1(7659add30ca22b15a03d1cbac0892a5c25e47ecd), ROM_BIOS(3))
 ROM_END
 
 ROM_START(tecjmon)
@@ -460,6 +404,6 @@ ROM_START(tecjmon)
 	ROM_LOAD("util.rom",    0x3800, 0x0800, CRC(7c19700d) SHA1(dc5b3ade66bb11c54430056966ed99cdd299d82b) )
 ROM_END
 
-/*    YEAR  NAME      PARENT  COMPAT  MACHINE     INPUT    INIT       COMPANY                     FULLNAME */
-COMP( 1984, tec1,     0,      0,      tec1,       tec1, driver_device,    0,    "Talking Electronics magazine",  "TEC-1" , 0 )
-COMP( 1984, tecjmon,  tec1,   0,      tecjmon,    tec1, driver_device,    0,    "Talking Electronics magazine",  "TEC-1A with JMON" , 0 )
+//    YEAR  NAME      PARENT  COMPAT  MACHINE  INPUT  CLASS       INIT        COMPANY                         FULLNAME            FLAGS
+COMP( 1984, tec1,     0,      0,      tec1,    tec1,  tec1_state, empty_init, "Talking Electronics magazine", "TEC-1",            0 )
+COMP( 1984, tecjmon,  tec1,   0,      tecjmon, tec1,  tec1_state, empty_init, "Talking Electronics magazine", "TEC-1A with JMON", 0 )

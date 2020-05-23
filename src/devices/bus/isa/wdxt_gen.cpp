@@ -53,8 +53,6 @@ Notes:
 //**************************************************************************
 
 #define WD1015_TAG      "u6"
-#define WD11C00_17_TAG  "u11"
-#define WD2010A_TAG     "u7"
 
 
 
@@ -62,7 +60,7 @@ Notes:
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type ISA8_WDXT_GEN = device_creator<wdxt_gen_device>;
+DEFINE_DEVICE_TYPE(ISA8_WDXT_GEN, wdxt_gen_device, "wdxt_gen", "Western Digital WDXT-GEN (Amstrad PC1512/1640)")
 
 
 //-------------------------------------------------
@@ -92,13 +90,10 @@ const tiny_rom_entry *wdxt_gen_device::device_rom_region() const
 //  ADDRESS_MAP( wd1015_io )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( wd1015_io, AS_IO, 8, wdxt_gen_device )
-	AM_RANGE(0x00, 0xff) AM_DEVREADWRITE(WD11C00_17_TAG, wd11c00_17_device, read, write)
-	AM_RANGE(MCS48_PORT_T0, MCS48_PORT_T0) AM_READ(wd1015_t0_r)
-	AM_RANGE(MCS48_PORT_T1, MCS48_PORT_T1) AM_READ(wd1015_t1_r)
-	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_READWRITE(wd1015_p1_r, wd1015_p1_w)
-	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_READWRITE(wd1015_p2_r, wd1015_p2_w)
-ADDRESS_MAP_END
+void wdxt_gen_device::wd1015_io(address_map &map)
+{
+	map(0x00, 0xff).rw(m_host, FUNC(wd11c00_17_device::read), FUNC(wd11c00_17_device::write));
+}
 
 
 //-------------------------------------------------
@@ -123,62 +118,59 @@ WRITE_LINE_MEMBER( wdxt_gen_device::mr_w )
 	}
 }
 
-READ8_MEMBER( wdxt_gen_device::rd322_r )
+uint8_t wdxt_gen_device::rd322_r()
 {
 	return 0xff;
 }
 
-READ8_MEMBER( wdxt_gen_device::ram_r )
+uint8_t wdxt_gen_device::ram_r(offs_t offset)
 {
 	return m_ram[offset];
 }
 
-WRITE8_MEMBER( wdxt_gen_device::ram_w )
+void wdxt_gen_device::ram_w(offs_t offset, uint8_t data)
 {
 	m_ram[offset] = data;
 }
 
 //-------------------------------------------------
-//  MACHINE_DRIVER( wdxt_gen )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( wdxt_gen )
-	MCFG_CPU_ADD(WD1015_TAG, I8049, 5000000)
-	MCFG_CPU_IO_MAP(wd1015_io)
-
-	MCFG_DEVICE_ADD(WD11C00_17_TAG, WD11C00_17, 5000000)
-	MCFG_WD11C00_17_OUT_IRQ5_CB(WRITELINE(wdxt_gen_device, irq5_w))
-	MCFG_WD11C00_17_OUT_DRQ3_CB(WRITELINE(wdxt_gen_device, drq3_w))
-	MCFG_WD11C00_17_OUT_MR_CB(WRITELINE(wdxt_gen_device, mr_w))
-	MCFG_WD11C00_17_OUT_RA3_CB(INPUTLINE(WD1015_TAG, MCS48_INPUT_IRQ))
-	MCFG_WD11C00_17_IN_RD322_CB(READ8(wdxt_gen_device, rd322_r))
-	MCFG_WD11C00_17_IN_RAMCS_CB(READ8(wdxt_gen_device, ram_r))
-	MCFG_WD11C00_17_OUT_RAMWR_CB(WRITE8(wdxt_gen_device, ram_w))
-	MCFG_WD11C00_17_IN_CS1010_CB(DEVREAD8(WD2010A_TAG, wd2010_device, read))
-	MCFG_WD11C00_17_OUT_CS1010_CB(DEVWRITE8(WD2010A_TAG, wd2010_device, write))
-	MCFG_DEVICE_ADD(WD2010A_TAG, WD2010, 5000000)
-	MCFG_WD2010_OUT_BCR_CB(DEVWRITELINE(WD11C00_17_TAG, wd11c00_17_device, clct_w))
-	MCFG_WD2010_IN_BCS_CB(DEVREAD8(WD11C00_17_TAG, wd11c00_17_device, read))
-	MCFG_WD2010_OUT_BCS_CB(DEVWRITE8(WD11C00_17_TAG, wd11c00_17_device, write))
-	MCFG_WD2010_IN_DRDY_CB(VCC)
-	MCFG_WD2010_IN_INDEX_CB(VCC)
-	MCFG_WD2010_IN_WF_CB(VCC)
-	MCFG_WD2010_IN_TK000_CB(VCC)
-	MCFG_WD2010_IN_SC_CB(VCC)
-
-	MCFG_HARDDISK_ADD("hard0")
-	MCFG_HARDDISK_ADD("hard1")
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor wdxt_gen_device::device_mconfig_additions() const
+void wdxt_gen_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( wdxt_gen );
+	mcs48_cpu_device &cpu(I8049(config, m_maincpu, 5000000));
+	cpu.set_addrmap(AS_IO, &wdxt_gen_device::wd1015_io);
+	cpu.t0_in_cb().set(m_host, FUNC(wd11c00_17_device::busy_r));
+	cpu.t1_in_cb().set(FUNC(wdxt_gen_device::wd1015_t1_r));
+	cpu.p1_in_cb().set(FUNC(wdxt_gen_device::wd1015_p1_r));
+	cpu.p1_out_cb().set(FUNC(wdxt_gen_device::wd1015_p1_w));
+	cpu.p2_in_cb().set(FUNC(wdxt_gen_device::wd1015_p2_r));
+	cpu.p2_out_cb().set(FUNC(wdxt_gen_device::wd1015_p2_w));
+
+	WD11C00_17(config, m_host, 5000000);
+	m_host->out_irq5_callback().set(FUNC(wdxt_gen_device::irq5_w));
+	m_host->out_drq3_callback().set(FUNC(wdxt_gen_device::drq3_w));
+	m_host->out_mr_callback().set(FUNC(wdxt_gen_device::mr_w));
+	m_host->out_ra3_callback().set_inputline(m_maincpu, MCS48_INPUT_IRQ);
+	m_host->in_rd322_callback().set(FUNC(wdxt_gen_device::rd322_r));
+	m_host->in_ramcs_callback().set(FUNC(wdxt_gen_device::ram_r));
+	m_host->out_ramwr_callback().set(FUNC(wdxt_gen_device::ram_w));
+	m_host->in_cs1010_callback().set(m_hdc, FUNC(wd2010_device::read));
+	m_host->out_cs1010_callback().set(m_hdc, FUNC(wd2010_device::write));
+
+	WD2010(config, m_hdc, 5000000);
+	m_hdc->out_bcr_callback().set(m_host, FUNC(wd11c00_17_device::clct_w));
+	m_hdc->in_bcs_callback().set(m_host, FUNC(wd11c00_17_device::read));
+	m_hdc->out_bcs_callback().set(m_host, FUNC(wd11c00_17_device::write));
+	m_hdc->in_drdy_callback().set_constant(1);
+	m_hdc->in_index_callback().set_constant(1);
+	m_hdc->in_wf_callback().set_constant(1);
+	m_hdc->in_tk000_callback().set_constant(1);
+	m_hdc->in_sc_callback().set_constant(1);
+
+	HARDDISK(config, "hard0", 0);
+	HARDDISK(config, "hard1", 0);
 }
 
 
@@ -191,11 +183,11 @@ machine_config_constructor wdxt_gen_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 wdxt_gen_device::wdxt_gen_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, ISA8_WDXT_GEN, "Western Digital WDXT-GEN (Amstrad PC1512/1640)", tag, owner, clock, "wdxt_gen", __FILE__),
-		device_isa8_card_interface(mconfig, *this),
-		m_maincpu(*this, WD1015_TAG),
-		m_host(*this, WD11C00_17_TAG),
-		m_hdc(*this, WD2010A_TAG)
+	: device_t(mconfig, ISA8_WDXT_GEN, tag, owner, clock)
+	, device_isa8_card_interface(mconfig, *this)
+	, m_maincpu(*this, WD1015_TAG)
+	, m_host(*this, "u11")
+	, m_hdc(*this, "u7")
 {
 }
 
@@ -208,7 +200,7 @@ void wdxt_gen_device::device_start()
 {
 	set_isa_device();
 	m_isa->install_rom(this, 0xc8000, 0xc9fff, "hdc", "hdc");
-	m_isa->install_device(0x0320, 0x0323, READ8_DEVICE_DELEGATE(m_host, wd11c00_17_device, io_r), WRITE8_DEVICE_DELEGATE(m_host, wd11c00_17_device, io_w));
+	m_isa->install_device(0x0320, 0x0323, read8sm_delegate(*m_host, FUNC(wd11c00_17_device::io_r)), write8sm_delegate(*m_host, FUNC(wd11c00_17_device::io_w)));
 	m_isa->set_dma_channel(3, this, false);
 }
 
@@ -243,13 +235,14 @@ void wdxt_gen_device::dack_w(int line, uint8_t data)
 	m_host->dack_w(data);
 }
 
+
 //-------------------------------------------------
-//  wd1015_t0_r -
+//  dack_line_w -
 //-------------------------------------------------
 
-READ8_MEMBER( wdxt_gen_device::wd1015_t0_r )
+void wdxt_gen_device::dack_line_w(int line, int state)
 {
-	return m_host->busy_r();
+	m_host->dack3_w(state);
 }
 
 
@@ -257,7 +250,7 @@ READ8_MEMBER( wdxt_gen_device::wd1015_t0_r )
 //  wd1015_t1_r -
 //-------------------------------------------------
 
-READ8_MEMBER( wdxt_gen_device::wd1015_t1_r )
+READ_LINE_MEMBER( wdxt_gen_device::wd1015_t1_r )
 {
 	return 0; // TODO
 }
@@ -267,7 +260,7 @@ READ8_MEMBER( wdxt_gen_device::wd1015_t1_r )
 //  wd1015_p1_r -
 //-------------------------------------------------
 
-READ8_MEMBER( wdxt_gen_device::wd1015_p1_r )
+uint8_t wdxt_gen_device::wd1015_p1_r()
 {
 	/*
 
@@ -296,7 +289,7 @@ READ8_MEMBER( wdxt_gen_device::wd1015_p1_r )
 //  wd1015_p1_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( wdxt_gen_device::wd1015_p1_w )
+void wdxt_gen_device::wd1015_p1_w(uint8_t data)
 {
 	/*
 
@@ -323,7 +316,7 @@ WRITE8_MEMBER( wdxt_gen_device::wd1015_p1_w )
 //  wd1015_p2_r -
 //-------------------------------------------------
 
-READ8_MEMBER( wdxt_gen_device::wd1015_p2_r )
+uint8_t wdxt_gen_device::wd1015_p2_r()
 {
 	/*
 
@@ -354,7 +347,7 @@ READ8_MEMBER( wdxt_gen_device::wd1015_p2_r )
 //  wd1015_p2_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( wdxt_gen_device::wd1015_p2_w )
+void wdxt_gen_device::wd1015_p2_w(uint8_t data)
 {
 	/*
 

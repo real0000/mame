@@ -35,7 +35,6 @@
 #define M6532_0_TAG     "uc1"
 #define M6532_1_TAG     "ue1"
 #define M6504_TAG       "uh3"
-#define M6522_TAG       "um3"
 #define M6530_TAG       "uk3"
 #define FDC_TAG         "fdc"
 
@@ -54,10 +53,10 @@ enum
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type C8050 = device_creator<c8050_t>;
-const device_type C8250 = device_creator<c8250_t>;
-const device_type C8250LP = device_creator<c8250lp_t>;
-const device_type SFD1001 = device_creator<sfd1001_t>;
+DEFINE_DEVICE_TYPE(C8050,   c8050_device,   "c8050",    "Commodore 8050")
+DEFINE_DEVICE_TYPE(C8250,   c8250_device,   "c8250",    "Commodore 8250")
+DEFINE_DEVICE_TYPE(C8250LP, c8250lp_device, "c8250lp",  "Commodore 8250LP")
+DEFINE_DEVICE_TYPE(SFD1001, sfd1001_device, "sfd10001", "Commodore SFD-1001")
 
 
 //-------------------------------------------------
@@ -80,20 +79,21 @@ const device_type SFD1001 = device_creator<sfd1001_t>;
 */
 
 ROM_START( c8050 ) // schematic 8050001
-	ROM_REGION( 0x4000, M6502_TAG, 0 )
 	ROM_DEFAULT_BIOS("dos27")
 	ROM_SYSTEM_BIOS( 0, "dos25r1", "DOS 2.5 Revision 1" )
-	ROMX_LOAD( "901482-01.ul1", 0x0000, 0x2000, NO_DUMP, ROM_BIOS(1) )
-	ROMX_LOAD( "901482-02.uh1", 0x2000, 0x2000, NO_DUMP, ROM_BIOS(1) )
 	ROM_SYSTEM_BIOS( 1, "dos25r2", "DOS 2.5 Revision 2" )
-	ROMX_LOAD( "901482-03.ul1", 0x0000, 0x2000, CRC(09a609b9) SHA1(166d8bfaaa9c4767f9b17ad63fc7ae77c199a64e), ROM_BIOS(2) )
-	ROMX_LOAD( "901482-04.uh1", 0x2000, 0x2000, CRC(1bcf9df9) SHA1(217f4a8b348658bb365f4a1de21ecbaa6402b1c0), ROM_BIOS(2) )
 	ROM_SYSTEM_BIOS( 2, "dos25r3", "DOS 2.5 Revision 3" )
-	ROMX_LOAD( "901482-06.ul1", 0x0000, 0x2000, CRC(3cbd2756) SHA1(7f5fbed0cddb95138dd99b8fe84fddab900e3650), ROM_BIOS(3) )
-	ROMX_LOAD( "901482-07.uh1", 0x2000, 0x2000, CRC(c7532d90) SHA1(0b6d1e55afea612516df5f07f4a6dccd3bd73963), ROM_BIOS(3) )
 	ROM_SYSTEM_BIOS( 3, "dos27", "DOS 2.7" )// 2364 ROM DOS 2.7
-	ROMX_LOAD( "901887-01.ul1", 0x0000, 0x2000, CRC(0073b8b2) SHA1(b10603195f240118fe5fb6c6dfe5c5097463d890), ROM_BIOS(4) )
-	ROMX_LOAD( "901888-01.uh1", 0x2000, 0x2000, CRC(de9b6132) SHA1(2e6c2d7ca934e5c550ad14bd5e9e7749686b7af4), ROM_BIOS(4) )
+
+	ROM_REGION( 0x4000, M6502_TAG, 0 )
+	ROMX_LOAD( "901482-01.ul1", 0x0000, 0x2000, NO_DUMP, ROM_BIOS(0) )
+	ROMX_LOAD( "901482-02.uh1", 0x2000, 0x2000, NO_DUMP, ROM_BIOS(0) )
+	ROMX_LOAD( "901482-03.ul1", 0x0000, 0x2000, CRC(09a609b9) SHA1(166d8bfaaa9c4767f9b17ad63fc7ae77c199a64e), ROM_BIOS(1) )
+	ROMX_LOAD( "901482-04.uh1", 0x2000, 0x2000, CRC(1bcf9df9) SHA1(217f4a8b348658bb365f4a1de21ecbaa6402b1c0), ROM_BIOS(1) )
+	ROMX_LOAD( "901482-06.ul1", 0x0000, 0x2000, CRC(3cbd2756) SHA1(7f5fbed0cddb95138dd99b8fe84fddab900e3650), ROM_BIOS(2) )
+	ROMX_LOAD( "901482-07.uh1", 0x2000, 0x2000, CRC(c7532d90) SHA1(0b6d1e55afea612516df5f07f4a6dccd3bd73963), ROM_BIOS(2) )
+	ROMX_LOAD( "901887-01.ul1", 0x0000, 0x2000, CRC(0073b8b2) SHA1(b10603195f240118fe5fb6c6dfe5c5097463d890), ROM_BIOS(3) )
+	ROMX_LOAD( "901888-01.uh1", 0x2000, 0x2000, CRC(de9b6132) SHA1(2e6c2d7ca934e5c550ad14bd5e9e7749686b7af4), ROM_BIOS(3) )
 
 	ROM_REGION( 0x400, M6530_TAG, 0 )
 	ROM_LOAD_OPTIONAL( "901483-02.uk3", 0x000, 0x400, CRC(d7277f95) SHA1(7607f9357f3a08f2a9f20931058d60d9e3c17d39) ) // 6530-036
@@ -110,7 +110,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *c8050_t::device_rom_region() const
+const tiny_rom_entry *c8050_device::device_rom_region() const
 {
 	return ROM_NAME( c8050 );
 }
@@ -121,22 +121,23 @@ const tiny_rom_entry *c8050_t::device_rom_region() const
 //-------------------------------------------------
 
 ROM_START( c8250lp )
-	ROM_REGION( 0x4000, M6502_TAG, 0 )
 	ROM_DEFAULT_BIOS("dos27")
 	ROM_SYSTEM_BIOS( 0, "dos27", "DOS 2.7" )
-	ROMX_LOAD( "251165-01.ua11",  0x0000, 0x2000, NO_DUMP, ROM_BIOS(1) )
-	ROMX_LOAD( "251166-01.ua13",  0x2000, 0x2000, NO_DUMP, ROM_BIOS(1) )
 	ROM_SYSTEM_BIOS( 1, "dos27b", "DOS 2.7B" )
-	ROMX_LOAD( "dos-2.7b.bin", 0x0000, 0x4000, CRC(96e3b209) SHA1(9849300be9f2e0143c2ed2564d26a4ba3b27526c), ROM_BIOS(2) ) // CBM DOS 2.7B from the 8250LP inside 8296D
 	ROM_SYSTEM_BIOS( 2, "speeddos", "SpeedDOS" )
-	ROMX_LOAD( "speeddos-c000.ua11", 0x0000, 0x2000, CRC(46cc260f) SHA1(e9838635d6868e35ec9c161b6e5c1ad92a4a241a), ROM_BIOS(3) )
-	ROMX_LOAD( "speeddos-e000.ua13", 0x2000, 0x2000, CRC(88cfd505) SHA1(0fb570b180504cd1fcb7d203d8d37ea3d7e72ab4), ROM_BIOS(3) )
+
+	ROM_REGION( 0x4000, M6502_TAG, 0 )
+	ROMX_LOAD( "251165-01.ua11",  0x0000, 0x2000, NO_DUMP, ROM_BIOS(0) )
+	ROMX_LOAD( "251166-01.ua13",  0x2000, 0x2000, NO_DUMP, ROM_BIOS(0) )
+	ROMX_LOAD( "dos-2.7b.bin", 0x0000, 0x4000, CRC(96e3b209) SHA1(9849300be9f2e0143c2ed2564d26a4ba3b27526c), ROM_BIOS(1) ) // CBM DOS 2.7B from the 8250LP inside 8296D
+	ROMX_LOAD( "speeddos-c000.ua11", 0x0000, 0x2000, CRC(46cc260f) SHA1(e9838635d6868e35ec9c161b6e5c1ad92a4a241a), ROM_BIOS(2) )
+	ROMX_LOAD( "speeddos-e000.ua13", 0x2000, 0x2000, CRC(88cfd505) SHA1(0fb570b180504cd1fcb7d203d8d37ea3d7e72ab4), ROM_BIOS(2) )
 
 	ROM_REGION( 0x800, M6504_TAG, 0 )
-	ROMX_LOAD( "251256-02", 0x000, 0x400, NO_DUMP, ROM_BIOS(1) ) // 6530-050
-	ROMX_LOAD( "251474-01b", 0x000, 0x400, CRC(9e9a9f90) SHA1(39498d7369a31ea7527b5044071acf35a84ea2ac), ROM_BIOS(1) ) // Matsushita
-	ROMX_LOAD( "fdc-2.7b.bin", 0x000, 0x800, CRC(13a24482) SHA1(1cfa52d2ed245a95e6369b46a36c6c7aa3929931), ROM_BIOS(2) ) // CBM DOS 2.7B FDC ROM from the 8250LP inside 8296D
-	ROMX_LOAD( "speeddos-fdc-f800.bin", 0x000, 0x800, CRC(253e760f) SHA1(3f7892a9bab84b633f45686bbbbe66bc2948c8e5), ROM_BIOS(3) )
+	ROMX_LOAD( "251256-02", 0x000, 0x400, NO_DUMP, ROM_BIOS(0) ) // 6530-050
+	ROMX_LOAD( "251474-01b", 0x000, 0x400, CRC(9e9a9f90) SHA1(39498d7369a31ea7527b5044071acf35a84ea2ac), ROM_BIOS(0) ) // Matsushita
+	ROMX_LOAD( "fdc-2.7b.bin", 0x000, 0x800, CRC(13a24482) SHA1(1cfa52d2ed245a95e6369b46a36c6c7aa3929931), ROM_BIOS(1) ) // CBM DOS 2.7B FDC ROM from the 8250LP inside 8296D
+	ROMX_LOAD( "speeddos-fdc-f800.bin", 0x000, 0x800, CRC(253e760f) SHA1(3f7892a9bab84b633f45686bbbbe66bc2948c8e5), ROM_BIOS(2) )
 ROM_END
 
 
@@ -144,7 +145,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *c8250lp_t::device_rom_region() const
+const tiny_rom_entry *c8250lp_device::device_rom_region() const
 {
 	return ROM_NAME( c8250lp );
 }
@@ -174,7 +175,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *sfd1001_t::device_rom_region() const
+const tiny_rom_entry *sfd1001_device::device_rom_region() const
 {
 	return ROM_NAME( sfd1001 );
 }
@@ -184,75 +185,79 @@ const tiny_rom_entry *sfd1001_t::device_rom_region() const
 //  ADDRESS_MAP( c8050_main_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( c8050_main_mem, AS_PROGRAM, 8, c8050_t )
-	AM_RANGE(0x0000, 0x007f) AM_MIRROR(0x0100) AM_DEVICE(M6532_0_TAG, mos6532_t, ram_map)
-	AM_RANGE(0x0080, 0x00ff) AM_MIRROR(0x0100) AM_DEVICE(M6532_1_TAG, mos6532_t, ram_map)
-	AM_RANGE(0x0200, 0x021f) AM_MIRROR(0x0d60) AM_DEVICE(M6532_0_TAG, mos6532_t, io_map)
-	AM_RANGE(0x0280, 0x029f) AM_MIRROR(0x0d60) AM_DEVICE(M6532_1_TAG, mos6532_t, io_map)
-	AM_RANGE(0x1000, 0x13ff) AM_MIRROR(0x0c00) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0x2000, 0x23ff) AM_MIRROR(0x0c00) AM_RAM AM_SHARE("share2")
-	AM_RANGE(0x3000, 0x33ff) AM_MIRROR(0x0c00) AM_RAM AM_SHARE("share3")
-	AM_RANGE(0x4000, 0x43ff) AM_MIRROR(0x0c00) AM_RAM AM_SHARE("share4")
-	AM_RANGE(0xc000, 0xffff) AM_ROM AM_REGION(M6502_TAG, 0)
-ADDRESS_MAP_END
+void c8050_device::c8050_main_mem(address_map &map)
+{
+	map(0x0000, 0x007f).mirror(0x0100).m(M6532_0_TAG, FUNC(mos6532_new_device::ram_map));
+	map(0x0080, 0x00ff).mirror(0x0100).m(M6532_1_TAG, FUNC(mos6532_new_device::ram_map));
+	map(0x0200, 0x021f).mirror(0x0d60).m(M6532_0_TAG, FUNC(mos6532_new_device::io_map));
+	map(0x0280, 0x029f).mirror(0x0d60).m(M6532_1_TAG, FUNC(mos6532_new_device::io_map));
+	map(0x1000, 0x13ff).mirror(0x0c00).ram().share("share1");
+	map(0x2000, 0x23ff).mirror(0x0c00).ram().share("share2");
+	map(0x3000, 0x33ff).mirror(0x0c00).ram().share("share3");
+	map(0x4000, 0x43ff).mirror(0x0c00).ram().share("share4");
+	map(0xc000, 0xffff).rom().region(M6502_TAG, 0);
+}
 
 
 //-------------------------------------------------
 //  ADDRESS_MAP( c8050_fdc_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( c8050_fdc_mem, AS_PROGRAM, 8, c8050_t )
-	ADDRESS_MAP_GLOBAL_MASK(0x1fff)
-	AM_RANGE(0x0000, 0x003f) AM_MIRROR(0x0300) AM_DEVICE(M6530_TAG, mos6530_t, ram_map)
-	AM_RANGE(0x0040, 0x004f) AM_MIRROR(0x0330) AM_DEVICE(M6522_TAG, via6522_device, map)
-	AM_RANGE(0x0080, 0x008f) AM_MIRROR(0x0330) AM_DEVICE(M6530_TAG, mos6530_t, io_map)
-	AM_RANGE(0x0400, 0x07ff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0x0800, 0x0bff) AM_RAM AM_SHARE("share2")
-	AM_RANGE(0x0c00, 0x0fff) AM_RAM AM_SHARE("share3")
-	AM_RANGE(0x1000, 0x13ff) AM_RAM AM_SHARE("share4")
-	AM_RANGE(0x1c00, 0x1fff) AM_DEVICE(M6530_TAG, mos6530_t, rom_map)
-ADDRESS_MAP_END
+void c8050_device::c8050_fdc_mem(address_map &map)
+{
+	map.global_mask(0x1fff);
+	map(0x0000, 0x003f).mirror(0x0300).m(m_miot, FUNC(mos6530_new_device::ram_map));
+	map(0x0040, 0x004f).mirror(0x0330).m(m_via, FUNC(via6522_device::map));
+	map(0x0080, 0x008f).mirror(0x0330).m(m_miot, FUNC(mos6530_new_device::io_map));
+	map(0x0400, 0x07ff).ram().share("share1");
+	map(0x0800, 0x0bff).ram().share("share2");
+	map(0x0c00, 0x0fff).ram().share("share3");
+	map(0x1000, 0x13ff).ram().share("share4");
+	map(0x1c00, 0x1fff).m(m_miot, FUNC(mos6530_new_device::rom_map));
+}
 
 
 //-------------------------------------------------
 //  ADDRESS_MAP( c8250lp_fdc_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( c8250lp_fdc_mem, AS_PROGRAM, 8, c8050_t )
-	ADDRESS_MAP_GLOBAL_MASK(0x1fff)
-	AM_RANGE(0x0000, 0x003f) AM_MIRROR(0x0300) AM_DEVICE(M6530_TAG, mos6530_t, ram_map)
-	AM_RANGE(0x0040, 0x004f) AM_MIRROR(0x0330) AM_DEVICE(M6522_TAG, via6522_device, map)
-	AM_RANGE(0x0080, 0x008f) AM_MIRROR(0x0330) AM_DEVICE(M6530_TAG, mos6530_t, io_map)
-	AM_RANGE(0x0400, 0x07ff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0x0800, 0x0bff) AM_RAM AM_SHARE("share2")
-	AM_RANGE(0x0c00, 0x0fff) AM_RAM AM_SHARE("share3")
-	AM_RANGE(0x1000, 0x13ff) AM_RAM AM_SHARE("share4")
-	AM_RANGE(0x1800, 0x1fff) AM_ROM AM_REGION(M6504_TAG, 0)
-ADDRESS_MAP_END
+void c8050_device::c8250lp_fdc_mem(address_map &map)
+{
+	map.global_mask(0x1fff);
+	map(0x0000, 0x003f).mirror(0x0300).m(m_miot, FUNC(mos6530_new_device::ram_map));
+	map(0x0040, 0x004f).mirror(0x0330).m(m_via, FUNC(via6522_device::map));
+	map(0x0080, 0x008f).mirror(0x0330).m(m_miot, FUNC(mos6530_new_device::io_map));
+	map(0x0400, 0x07ff).ram().share("share1");
+	map(0x0800, 0x0bff).ram().share("share2");
+	map(0x0c00, 0x0fff).ram().share("share3");
+	map(0x1000, 0x13ff).ram().share("share4");
+	map(0x1800, 0x1fff).rom().region(M6504_TAG, 0);
+}
 
 
 //-------------------------------------------------
 //  ADDRESS_MAP( sfd1001_fdc_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( sfd1001_fdc_mem, AS_PROGRAM, 8, c8050_t )
-	ADDRESS_MAP_GLOBAL_MASK(0x1fff)
-	AM_RANGE(0x0000, 0x003f) AM_MIRROR(0x0300) AM_DEVICE(M6530_TAG, mos6530_t, ram_map)
-	AM_RANGE(0x0040, 0x004f) AM_MIRROR(0x0330) AM_DEVICE(M6522_TAG, via6522_device, map)
-	AM_RANGE(0x0080, 0x008f) AM_MIRROR(0x0330) AM_DEVICE(M6530_TAG, mos6530_t, io_map)
-	AM_RANGE(0x0400, 0x07ff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0x0800, 0x0bff) AM_RAM AM_SHARE("share2")
-	AM_RANGE(0x0c00, 0x0fff) AM_RAM AM_SHARE("share3")
-	AM_RANGE(0x1000, 0x13ff) AM_RAM AM_SHARE("share4")
-	AM_RANGE(0x1800, 0x1fff) AM_ROM AM_REGION(M6504_TAG, 0)
-ADDRESS_MAP_END
+void c8050_device::sfd1001_fdc_mem(address_map &map)
+{
+	map.global_mask(0x1fff);
+	map(0x0000, 0x003f).mirror(0x0300).m(m_miot, FUNC(mos6530_new_device::ram_map));
+	map(0x0040, 0x004f).mirror(0x0330).m(m_via, FUNC(via6522_device::map));
+	map(0x0080, 0x008f).mirror(0x0330).m(m_miot, FUNC(mos6530_new_device::io_map));
+	map(0x0400, 0x07ff).ram().share("share1");
+	map(0x0800, 0x0bff).ram().share("share2");
+	map(0x0c00, 0x0fff).ram().share("share3");
+	map(0x1000, 0x13ff).ram().share("share4");
+	map(0x1800, 0x1fff).rom().region(M6504_TAG, 0);
+}
 
 
 //-------------------------------------------------
 //  riot6532 uc1
 //-------------------------------------------------
 
-READ8_MEMBER( c8050_t::dio_r )
+uint8_t c8050_device::dio_r()
 {
 	/*
 
@@ -272,7 +277,7 @@ READ8_MEMBER( c8050_t::dio_r )
 	return m_bus->dio_r();
 }
 
-WRITE8_MEMBER( c8050_t::dio_w )
+void c8050_device::dio_w(uint8_t data)
 {
 	/*
 
@@ -296,7 +301,7 @@ WRITE8_MEMBER( c8050_t::dio_w )
 //  riot6532 ue1
 //-------------------------------------------------
 
-READ8_MEMBER( c8050_t::riot1_pa_r )
+uint8_t c8050_device::riot1_pa_r()
 {
 	/*
 
@@ -327,7 +332,7 @@ READ8_MEMBER( c8050_t::riot1_pa_r )
 	return data;
 }
 
-WRITE8_MEMBER( c8050_t::riot1_pa_w )
+void c8050_device::riot1_pa_w(uint8_t data)
 {
 	/*
 
@@ -362,7 +367,7 @@ WRITE8_MEMBER( c8050_t::riot1_pa_w )
 	update_ieee_signals();
 }
 
-READ8_MEMBER( c8050_t::riot1_pb_r )
+uint8_t c8050_device::riot1_pb_r()
 {
 	/*
 
@@ -393,7 +398,7 @@ READ8_MEMBER( c8050_t::riot1_pb_r )
 	return data;
 }
 
-WRITE8_MEMBER( c8050_t::riot1_pb_w )
+void c8050_device::riot1_pb_w(uint8_t data)
 {
 	/*
 
@@ -411,16 +416,16 @@ WRITE8_MEMBER( c8050_t::riot1_pb_w )
 	*/
 
 	// activity led 1
-	machine().output().set_led_value(LED_ACT1, BIT(data, 3));
+	m_leds[LED_ACT1] = BIT(data, 3);
 
 	// activity led 0
-	machine().output().set_led_value(LED_ACT0, BIT(data, 4));
+	m_leds[LED_ACT0] = BIT(data, 4);
 
 	// error led
-	machine().output().set_led_value(LED_ERR, BIT(data, 5));
+	m_leds[LED_ERR] = BIT(data, 5);
 }
 
-WRITE8_MEMBER( c8050_t::via_pb_w )
+void c8050_device::via_pb_w(uint8_t data)
 {
 	/*
 
@@ -458,16 +463,17 @@ WRITE8_MEMBER( c8050_t::via_pb_w )
 //  SLOT_INTERFACE( c8050_floppies )
 //-------------------------------------------------
 
-static SLOT_INTERFACE_START( c8050_floppies )
-	SLOT_INTERFACE( "525ssqd", FLOPPY_525_SSQD )
-SLOT_INTERFACE_END
+static void c8050_floppies(device_slot_interface &device)
+{
+	device.option_add("525ssqd", FLOPPY_525_SSQD);
+}
 
 
 //-------------------------------------------------
 //  FLOPPY_FORMATS( floppy_formats )
 //-------------------------------------------------
 
-FLOPPY_FORMATS_MEMBER( c8050_t::floppy_formats )
+FLOPPY_FORMATS_MEMBER( c8050_device::floppy_formats )
 	FLOPPY_D80_FORMAT
 FLOPPY_FORMATS_END
 
@@ -476,25 +482,27 @@ FLOPPY_FORMATS_END
 //  SLOT_INTERFACE( c8250_floppies )
 //-------------------------------------------------
 
-static SLOT_INTERFACE_START( c8250_floppies )
-	SLOT_INTERFACE( "525qd", FLOPPY_525_QD )
-SLOT_INTERFACE_END
+static void c8250_floppies(device_slot_interface &device)
+{
+	device.option_add("525qd", FLOPPY_525_QD);
+}
 
 
 //-------------------------------------------------
 //  SLOT_INTERFACE( sfd1001_floppies )
 //-------------------------------------------------
 
-static SLOT_INTERFACE_START( sfd1001_floppies )
-	SLOT_INTERFACE( "525qd", FLOPPY_525_QD ) // Matsushita JU-570 / JU-570-2
-SLOT_INTERFACE_END
+static void sfd1001_floppies(device_slot_interface &device)
+{
+	device.option_add("525qd", FLOPPY_525_QD); // Matsushita JU-570 / JU-570-2
+}
 
 
 //-------------------------------------------------
 //  FLOPPY_FORMATS( floppy_formats )
 //-------------------------------------------------
 
-FLOPPY_FORMATS_MEMBER( c8250_t::floppy_formats )
+FLOPPY_FORMATS_MEMBER( c8250_device::floppy_formats )
 	FLOPPY_D80_FORMAT,
 	FLOPPY_D82_FORMAT
 FLOPPY_FORMATS_END
@@ -504,7 +512,7 @@ FLOPPY_FORMATS_END
 //  FLOPPY_FORMATS( floppy_formats )
 //-------------------------------------------------
 
-FLOPPY_FORMATS_MEMBER( c8250lp_t::floppy_formats )
+FLOPPY_FORMATS_MEMBER( c8250lp_device::floppy_formats )
 	FLOPPY_D80_FORMAT,
 	FLOPPY_D82_FORMAT
 FLOPPY_FORMATS_END
@@ -514,250 +522,100 @@ FLOPPY_FORMATS_END
 //  FLOPPY_FORMATS( floppy_formats )
 //-------------------------------------------------
 
-FLOPPY_FORMATS_MEMBER( sfd1001_t::floppy_formats )
+FLOPPY_FORMATS_MEMBER( sfd1001_device::floppy_formats )
 	FLOPPY_D80_FORMAT,
 	FLOPPY_D82_FORMAT
 FLOPPY_FORMATS_END
 
 
-//-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( c8050 )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( c8050 )
+void c8050_device::add_common_devices(machine_config &config)
+{
 	// DOS
-	MCFG_CPU_ADD(M6502_TAG, M6502, XTAL_12MHz/12)
-	MCFG_CPU_PROGRAM_MAP(c8050_main_mem)
+	M6502(config, m_maincpu, XTAL(12'000'000)/12);
+	m_maincpu->set_addrmap(AS_PROGRAM, &c8050_device::c8050_main_mem);
 
-	MCFG_DEVICE_ADD(M6532_0_TAG, MOS6532n, XTAL_12MHz/12)
-	MCFG_MOS6530n_IN_PA_CB(READ8(c8050_t, dio_r))
-	MCFG_MOS6530n_OUT_PB_CB(WRITE8(c8050_t, dio_w))
+	MOS6532_NEW(config, m_riot0, XTAL(12'000'000)/12);
+	m_riot0->pa_rd_callback().set(FUNC(c8050_device::dio_r));
+	m_riot0->pb_wr_callback().set(FUNC(c8050_device::dio_w));
 
-	MCFG_DEVICE_ADD(M6532_1_TAG, MOS6532n, XTAL_12MHz/12)
-	MCFG_MOS6530n_IN_PA_CB(READ8(c8050_t, riot1_pa_r))
-	MCFG_MOS6530n_OUT_PA_CB(WRITE8(c8050_t, riot1_pa_w))
-	MCFG_MOS6530n_IN_PB_CB(READ8(c8050_t, riot1_pb_r))
-	MCFG_MOS6530n_OUT_PB_CB(WRITE8(c8050_t, riot1_pb_w))
-	MCFG_MOS6530n_IRQ_CB(INPUTLINE(M6502_TAG, INPUT_LINE_IRQ0))
+	MOS6532_NEW(config, m_riot1, XTAL(12'000'000)/12);
+	m_riot1->pa_rd_callback().set(FUNC(c8050_device::riot1_pa_r));
+	m_riot1->pa_wr_callback().set(FUNC(c8050_device::riot1_pa_w));
+	m_riot1->pb_rd_callback().set(FUNC(c8050_device::riot1_pb_r));
+	m_riot1->pb_wr_callback().set(FUNC(c8050_device::riot1_pb_w));
+	m_riot1->irq_wr_callback().set_inputline(m_maincpu, INPUT_LINE_IRQ0);
 
 	// controller
-	MCFG_CPU_ADD(M6504_TAG, M6504, XTAL_12MHz/12)
-	MCFG_CPU_PROGRAM_MAP(c8050_fdc_mem)
+	M6504(config, m_fdccpu, XTAL(12'000'000)/12);
 
-	MCFG_DEVICE_ADD(M6522_TAG, VIA6522, XTAL_12MHz/12)
-	MCFG_VIA6522_READPA_HANDLER(DEVREAD8(FDC_TAG, c8050_fdc_t, read))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(c8050_t, via_pb_w))
-	MCFG_VIA6522_CA2_HANDLER(DEVWRITELINE(FDC_TAG, c8050_fdc_t, mode_sel_w))
-	MCFG_VIA6522_CB2_HANDLER(DEVWRITELINE(FDC_TAG, c8050_fdc_t, rw_sel_w))
+	VIA6522(config, m_via, XTAL(12'000'000)/12);
+	m_via->readpa_handler().set(m_fdc, FUNC(c8050_fdc_device::read));
+	m_via->writepb_handler().set(FUNC(c8050_device::via_pb_w));
+	m_via->ca2_handler().set(m_fdc, FUNC(c8050_fdc_device::mode_sel_w));
+	m_via->cb2_handler().set(m_fdc, FUNC(c8050_fdc_device::rw_sel_w));
 
-	MCFG_DEVICE_ADD(M6530_TAG, MOS6530n, XTAL_12MHz/12)
-	MCFG_MOS6530n_OUT_PA_CB(DEVWRITE8(FDC_TAG, c8050_fdc_t, write))
-	MCFG_MOS6530n_OUT_PB0_CB(DEVWRITELINE(FDC_TAG, c8050_fdc_t, drv_sel_w))
-	MCFG_MOS6530n_OUT_PB1_CB(DEVWRITELINE(FDC_TAG, c8050_fdc_t, ds0_w))
-	MCFG_MOS6530n_OUT_PB2_CB(DEVWRITELINE(FDC_TAG, c8050_fdc_t, ds1_w))
-	MCFG_MOS6530n_IN_PB3_CB(DEVREADLINE(FDC_TAG, c8050_fdc_t, wps_r))
-	MCFG_MOS6530n_IN_PB6_CB(VCC) // SINGLE SIDED
-	MCFG_MOS6530n_OUT_PB7_CB(INPUTLINE(M6504_TAG, M6502_IRQ_LINE))
+	MOS6530_NEW(config, m_miot, XTAL(12'000'000)/12);
+	m_miot->pa_wr_callback().set(m_fdc, FUNC(c8050_fdc_device::write));
+	m_miot->pb_wr_callback<1>().set(m_fdc, FUNC(c8050_fdc_device::ds0_w));
+	m_miot->pb_wr_callback<2>().set(m_fdc, FUNC(c8050_fdc_device::ds1_w));
+	m_miot->pb_rd_callback<3>().set(m_fdc, FUNC(c8050_fdc_device::wps_r));
+	m_miot->pb_rd_callback<6>().set_constant(1); // SINGLE SIDED
+	m_miot->pb_wr_callback<7>().set_inputline(m_fdccpu, M6502_IRQ_LINE);
 
-	MCFG_DEVICE_ADD(FDC_TAG, C8050_FDC, XTAL_12MHz/2)
-	MCFG_C8050_SYNC_CALLBACK(DEVWRITELINE(M6522_TAG, via6522_device, write_pb7))
-	MCFG_C8050_READY_CALLBACK(DEVWRITELINE(M6522_TAG, via6522_device, write_ca1))
-	MCFG_C8050_BRDY_CALLBACK(INPUTLINE(M6504_TAG, M6502_SET_OVERFLOW)) MCFG_DEVCB_XOR(1)
-	MCFG_C8050_ERROR_CALLBACK(DEVWRITELINE(M6522_TAG, via6522_device, write_cb1))
-	MCFG_FLOPPY_DRIVE_ADD(FDC_TAG ":0", c8050_floppies, "525ssqd", c8050_t::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(FDC_TAG ":1", c8050_floppies, "525ssqd", c8050_t::floppy_formats)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor c8050_t::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( c8050 );
+	C8050_FDC(config, m_fdc, XTAL(12'000'000)/2);
+	m_fdc->sync_wr_callback().set(m_via, FUNC(via6522_device::write_pb7));
+	m_fdc->ready_wr_callback().set(m_via, FUNC(via6522_device::write_ca1));
+	m_fdc->brdy_wr_callback().set_inputline(m_fdccpu, M6502_SET_OVERFLOW).invert();
+	m_fdc->error_wr_callback().set(m_via, FUNC(via6522_device::write_cb1));
 }
 
-
-//-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( c8250 )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( c8250 )
-	// DOS
-	MCFG_CPU_ADD(M6502_TAG, M6502, XTAL_12MHz/12)
-	MCFG_CPU_PROGRAM_MAP(c8050_main_mem)
-
-	MCFG_DEVICE_ADD(M6532_0_TAG, MOS6532n, XTAL_12MHz/12)
-	MCFG_MOS6530n_IN_PA_CB(READ8(c8050_t, dio_r))
-	MCFG_MOS6530n_OUT_PB_CB(WRITE8(c8050_t, dio_w))
-
-	MCFG_DEVICE_ADD(M6532_1_TAG, MOS6532n, XTAL_12MHz/12)
-	MCFG_MOS6530n_IN_PA_CB(READ8(c8050_t, riot1_pa_r))
-	MCFG_MOS6530n_OUT_PA_CB(WRITE8(c8050_t, riot1_pa_w))
-	MCFG_MOS6530n_IN_PB_CB(READ8(c8050_t, riot1_pb_r))
-	MCFG_MOS6530n_OUT_PB_CB(WRITE8(c8050_t, riot1_pb_w))
-	MCFG_MOS6530n_IRQ_CB(INPUTLINE(M6502_TAG, INPUT_LINE_IRQ0))
-
-	// controller
-	MCFG_CPU_ADD(M6504_TAG, M6504, XTAL_12MHz/12)
-	MCFG_CPU_PROGRAM_MAP(c8050_fdc_mem)
-
-	MCFG_DEVICE_ADD(M6522_TAG, VIA6522, XTAL_12MHz/12)
-	MCFG_VIA6522_READPA_HANDLER(DEVREAD8(FDC_TAG, c8050_fdc_t, read))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(c8050_t, via_pb_w))
-	MCFG_VIA6522_CA2_HANDLER(DEVWRITELINE(FDC_TAG, c8050_fdc_t, mode_sel_w))
-	MCFG_VIA6522_CB2_HANDLER(DEVWRITELINE(FDC_TAG, c8050_fdc_t, rw_sel_w))
-
-	MCFG_DEVICE_ADD(M6530_TAG, MOS6530n, XTAL_12MHz/12)
-	MCFG_MOS6530n_OUT_PA_CB(DEVWRITE8(FDC_TAG, c8050_fdc_t, write))
-	MCFG_MOS6530n_OUT_PB0_CB(DEVWRITELINE(FDC_TAG, c8050_fdc_t, drv_sel_w))
-	MCFG_MOS6530n_OUT_PB1_CB(DEVWRITELINE(FDC_TAG, c8050_fdc_t, ds0_w))
-	MCFG_MOS6530n_OUT_PB2_CB(DEVWRITELINE(FDC_TAG, c8050_fdc_t, ds1_w))
-	MCFG_MOS6530n_IN_PB3_CB(DEVREADLINE(FDC_TAG, c8050_fdc_t, wps_r))
-	MCFG_MOS6530n_OUT_PB4_CB(DEVWRITELINE(FDC_TAG, c8050_fdc_t, odd_hd_w))
-	MCFG_MOS6530n_IN_PB6_CB(GND) // DOUBLE SIDED
-	MCFG_MOS6530n_OUT_PB7_CB(INPUTLINE(M6504_TAG, M6502_IRQ_LINE))
-
-	MCFG_DEVICE_ADD(FDC_TAG, C8050_FDC, XTAL_12MHz/2)
-	MCFG_C8050_SYNC_CALLBACK(DEVWRITELINE(M6522_TAG, via6522_device, write_pb7))
-	MCFG_C8050_READY_CALLBACK(DEVWRITELINE(M6522_TAG, via6522_device, write_ca1))
-	MCFG_C8050_BRDY_CALLBACK(INPUTLINE(M6504_TAG, M6502_SET_OVERFLOW)) MCFG_DEVCB_XOR(1)
-	MCFG_C8050_ERROR_CALLBACK(DEVWRITELINE(M6522_TAG, via6522_device, write_cb1))
-	MCFG_FLOPPY_DRIVE_ADD(FDC_TAG ":0", c8250_floppies, "525qd", c8250_t::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(FDC_TAG ":1", c8250_floppies, "525qd", c8250_t::floppy_formats)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor c8250_t::device_mconfig_additions() const
+void c8050_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( c8250 );
+	add_common_devices(config);
+	m_fdccpu->set_addrmap(AS_PROGRAM, &c8050_device::c8050_fdc_mem);
+
+	m_miot->pb_wr_callback<0>().set(m_fdc, FUNC(c8050_fdc_device::drv_sel_w));
+	m_miot->pb_rd_callback<6>().set_constant(1); // SINGLE SIDED
+
+	FLOPPY_CONNECTOR(config, FDC_TAG ":0", c8050_floppies, "525ssqd", c8050_device::floppy_formats);
+	FLOPPY_CONNECTOR(config, FDC_TAG ":1", c8050_floppies, "525ssqd", c8050_device::floppy_formats);
 }
 
-
-//-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( c8250lp )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( c8250lp )
-	// DOS
-	MCFG_CPU_ADD(M6502_TAG, M6502, XTAL_12MHz/12)
-	MCFG_CPU_PROGRAM_MAP(c8050_main_mem)
-
-	MCFG_DEVICE_ADD(M6532_0_TAG, MOS6532n, XTAL_12MHz/12)
-	MCFG_MOS6530n_IN_PA_CB(READ8(c8050_t, dio_r))
-	MCFG_MOS6530n_OUT_PB_CB(WRITE8(c8050_t, dio_w))
-
-	MCFG_DEVICE_ADD(M6532_1_TAG, MOS6532n, XTAL_12MHz/12)
-	MCFG_MOS6530n_IN_PA_CB(READ8(c8050_t, riot1_pa_r))
-	MCFG_MOS6530n_OUT_PA_CB(WRITE8(c8050_t, riot1_pa_w))
-	MCFG_MOS6530n_IN_PB_CB(READ8(c8050_t, riot1_pb_r))
-	MCFG_MOS6530n_OUT_PB_CB(WRITE8(c8050_t, riot1_pb_w))
-	MCFG_MOS6530n_IRQ_CB(INPUTLINE(M6502_TAG, INPUT_LINE_IRQ0))
-
-	// controller
-	MCFG_CPU_ADD(M6504_TAG, M6504, XTAL_12MHz/12)
-	MCFG_CPU_PROGRAM_MAP(c8250lp_fdc_mem)
-
-	MCFG_DEVICE_ADD(M6522_TAG, VIA6522, XTAL_12MHz/12)
-	MCFG_VIA6522_READPA_HANDLER(DEVREAD8(FDC_TAG, c8050_fdc_t, read))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(c8050_t, via_pb_w))
-	MCFG_VIA6522_CA2_HANDLER(DEVWRITELINE(FDC_TAG, c8050_fdc_t, mode_sel_w))
-	MCFG_VIA6522_CB2_HANDLER(DEVWRITELINE(FDC_TAG, c8050_fdc_t, rw_sel_w))
-
-	MCFG_DEVICE_ADD(M6530_TAG, MOS6530n, XTAL_12MHz/12)
-	MCFG_MOS6530n_OUT_PA_CB(DEVWRITE8(FDC_TAG, c8050_fdc_t, write))
-	MCFG_MOS6530n_OUT_PB0_CB(DEVWRITELINE(FDC_TAG, c8050_fdc_t, drv_sel_w))
-	MCFG_MOS6530n_OUT_PB1_CB(DEVWRITELINE(FDC_TAG, c8050_fdc_t, ds0_w))
-	MCFG_MOS6530n_OUT_PB2_CB(DEVWRITELINE(FDC_TAG, c8050_fdc_t, ds1_w))
-	MCFG_MOS6530n_IN_PB3_CB(DEVREADLINE(FDC_TAG, c8050_fdc_t, wps_r))
-	MCFG_MOS6530n_OUT_PB4_CB(DEVWRITELINE(FDC_TAG, c8050_fdc_t, odd_hd_w))
-	MCFG_MOS6530n_IN_PB6_CB(GND) // DOUBLE SIDED
-	MCFG_MOS6530n_OUT_PB7_CB(INPUTLINE(M6504_TAG, M6502_IRQ_LINE))
-
-	MCFG_DEVICE_ADD(FDC_TAG, C8050_FDC, XTAL_12MHz/2)
-	MCFG_C8050_SYNC_CALLBACK(DEVWRITELINE(M6522_TAG, via6522_device, write_pb7))
-	MCFG_C8050_READY_CALLBACK(DEVWRITELINE(M6522_TAG, via6522_device, write_ca1))
-	MCFG_C8050_BRDY_CALLBACK(INPUTLINE(M6504_TAG, M6502_SET_OVERFLOW)) MCFG_DEVCB_XOR(1)
-	MCFG_C8050_ERROR_CALLBACK(DEVWRITELINE(M6522_TAG, via6522_device, write_cb1))
-	MCFG_FLOPPY_DRIVE_ADD(FDC_TAG ":0", c8250_floppies, "525qd", c8250lp_t::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(FDC_TAG ":1", c8250_floppies, "525qd", c8250lp_t::floppy_formats)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor c8250lp_t::device_mconfig_additions() const
+void c8250_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( c8250lp );
+	add_common_devices(config);
+	m_fdccpu->set_addrmap(AS_PROGRAM, &c8250_device::c8050_fdc_mem);
+
+	m_miot->pb_wr_callback<0>().set(m_fdc, FUNC(c8050_fdc_device::drv_sel_w));
+	m_miot->pb_wr_callback<4>().set(m_fdc, FUNC(c8050_fdc_device::odd_hd_w));
+	m_miot->pb_rd_callback<6>().set_constant(0); // DOUBLE SIDED
+
+	FLOPPY_CONNECTOR(config, FDC_TAG ":0", c8250_floppies, "525qd", c8250_device::floppy_formats);
+	FLOPPY_CONNECTOR(config, FDC_TAG ":1", c8250_floppies, "525qd", c8250_device::floppy_formats);
 }
 
-
-//-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( sfd1001 )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( sfd1001 )
-	// DOS
-	MCFG_CPU_ADD(M6502_TAG, M6502, XTAL_12MHz/12)
-	MCFG_CPU_PROGRAM_MAP(c8050_main_mem)
-
-	MCFG_DEVICE_ADD(M6532_0_TAG, MOS6532n, XTAL_12MHz/12)
-	MCFG_MOS6530n_IN_PA_CB(READ8(c8050_t, dio_r))
-	MCFG_MOS6530n_OUT_PB_CB(WRITE8(c8050_t, dio_w))
-
-	MCFG_DEVICE_ADD(M6532_1_TAG, MOS6532n, XTAL_12MHz/12)
-	MCFG_MOS6530n_IN_PA_CB(READ8(c8050_t, riot1_pa_r))
-	MCFG_MOS6530n_OUT_PA_CB(WRITE8(c8050_t, riot1_pa_w))
-	MCFG_MOS6530n_IN_PB_CB(READ8(c8050_t, riot1_pb_r))
-	MCFG_MOS6530n_OUT_PB_CB(WRITE8(c8050_t, riot1_pb_w))
-	MCFG_MOS6530n_IRQ_CB(INPUTLINE(M6502_TAG, INPUT_LINE_IRQ0))
-
-	// controller
-	MCFG_CPU_ADD(M6504_TAG, M6504, XTAL_12MHz/12)
-	MCFG_CPU_PROGRAM_MAP(sfd1001_fdc_mem)
-
-	MCFG_DEVICE_ADD(M6522_TAG, VIA6522, XTAL_12MHz/12)
-	MCFG_VIA6522_READPA_HANDLER(DEVREAD8(FDC_TAG, c8050_fdc_t, read))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(c8050_t, via_pb_w))
-	MCFG_VIA6522_CA2_HANDLER(DEVWRITELINE(FDC_TAG, c8050_fdc_t, mode_sel_w))
-	MCFG_VIA6522_CB2_HANDLER(DEVWRITELINE(FDC_TAG, c8050_fdc_t, rw_sel_w))
-
-	MCFG_DEVICE_ADD(M6530_TAG, MOS6530n, XTAL_12MHz/12)
-	MCFG_MOS6530n_OUT_PA_CB(DEVWRITE8(FDC_TAG, c8050_fdc_t, write))
-	MCFG_MOS6530n_OUT_PB1_CB(DEVWRITELINE(FDC_TAG, c8050_fdc_t, ds0_w))
-	MCFG_MOS6530n_OUT_PB2_CB(DEVWRITELINE(FDC_TAG, c8050_fdc_t, ds1_w))
-	MCFG_MOS6530n_IN_PB3_CB(DEVREADLINE(FDC_TAG, c8050_fdc_t, wps_r))
-	MCFG_MOS6530n_OUT_PB4_CB(DEVWRITELINE(FDC_TAG, c8050_fdc_t, odd_hd_w))
-	MCFG_MOS6530n_IN_PB6_CB(GND) // DOUBLE SIDED
-	MCFG_MOS6530n_OUT_PB7_CB(INPUTLINE(M6504_TAG, M6502_IRQ_LINE))
-
-	MCFG_DEVICE_ADD(FDC_TAG, C8050_FDC, XTAL_12MHz/2)
-	MCFG_C8050_SYNC_CALLBACK(DEVWRITELINE(M6522_TAG, via6522_device, write_pb7))
-	MCFG_C8050_READY_CALLBACK(DEVWRITELINE(M6522_TAG, via6522_device, write_ca1))
-	MCFG_C8050_BRDY_CALLBACK(INPUTLINE(M6504_TAG, M6502_SET_OVERFLOW)) MCFG_DEVCB_XOR(1)
-	MCFG_C8050_ERROR_CALLBACK(DEVWRITELINE(M6522_TAG, via6522_device, write_cb1))
-	MCFG_FLOPPY_DRIVE_ADD(FDC_TAG ":0", sfd1001_floppies, "525qd", sfd1001_t::floppy_formats)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor sfd1001_t::device_mconfig_additions() const
+void c8250lp_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( sfd1001 );
+	add_common_devices(config);
+	m_fdccpu->set_addrmap(AS_PROGRAM, &c8250lp_device::c8250lp_fdc_mem);
+
+	m_miot->pb_wr_callback<0>().set(m_fdc, FUNC(c8050_fdc_device::drv_sel_w));
+	m_miot->pb_wr_callback<4>().set(m_fdc, FUNC(c8050_fdc_device::odd_hd_w));
+	m_miot->pb_rd_callback<6>().set_constant(0); // DOUBLE SIDED
+
+	FLOPPY_CONNECTOR(config, FDC_TAG ":0", c8250_floppies, "525qd", c8250lp_device::floppy_formats);
+	FLOPPY_CONNECTOR(config, FDC_TAG ":1", c8250_floppies, "525qd", c8250lp_device::floppy_formats);
+}
+
+void sfd1001_device::device_add_mconfig(machine_config &config)
+{
+	add_common_devices(config);
+	m_fdccpu->set_addrmap(AS_PROGRAM, &sfd1001_device::sfd1001_fdc_mem);
+
+	m_miot->pb_wr_callback<4>().set(m_fdc, FUNC(c8050_fdc_device::odd_hd_w));
+	m_miot->pb_rd_callback<6>().set_constant(0); // DOUBLE SIDED
+
+	FLOPPY_CONNECTOR(config, FDC_TAG ":0", sfd1001_floppies, "525qd", sfd1001_device::floppy_formats);
 }
 
 
@@ -783,7 +641,7 @@ INPUT_PORTS_END
 //  input_ports - device-specific input ports
 //-------------------------------------------------
 
-ioport_constructor c8050_t::device_input_ports() const
+ioport_constructor c8050_device::device_input_ports() const
 {
 	return INPUT_PORTS_NAME( c8050 );
 }
@@ -798,7 +656,7 @@ ioport_constructor c8050_t::device_input_ports() const
 //  update_ieee_signals -
 //-------------------------------------------------
 
-inline void c8050_t::update_ieee_signals()
+inline void c8050_device::update_ieee_signals()
 {
 	int atn = m_bus->atn_r();
 	int nrfd = !(!(!(atn && m_atna) && m_rfdo) || !(atn || m_atna));
@@ -815,78 +673,74 @@ inline void c8050_t::update_ieee_signals()
 //**************************************************************************
 
 //-------------------------------------------------
-//  c8050_t - constructor
+//  c8050_device - constructor
 //-------------------------------------------------
 
-c8050_t::c8050_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+c8050_device::c8050_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, type, tag, owner, clock),
 	device_ieee488_interface(mconfig, *this),
 	m_maincpu(*this, M6502_TAG),
 	m_fdccpu(*this, M6504_TAG),
 	m_riot0(*this, M6532_0_TAG),
 	m_riot1(*this, M6532_1_TAG),
 	m_miot(*this, M6530_TAG),
-	m_via(*this, M6522_TAG),
+	m_via(*this, "um3"),
 	m_floppy0(*this, FDC_TAG ":0"),
 	m_floppy1(*this, FDC_TAG ":1"),
 	m_fdc(*this, FDC_TAG),
 	m_address(*this, "ADDRESS"),
+	m_leds(*this, "led%u", 0U),
 	m_rfdo(1),
 	m_daco(1),
-	m_atna(1), m_ifc(0)
+	m_atna(1),
+	m_ifc(0)
 {
 }
 
-c8050_t::c8050_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, C8050, "C8050", tag, owner, clock, "c8050", __FILE__),
-	device_ieee488_interface(mconfig, *this),
-	m_maincpu(*this, M6502_TAG),
-	m_fdccpu(*this, M6504_TAG),
-	m_riot0(*this, M6532_0_TAG),
-	m_riot1(*this, M6532_1_TAG),
-	m_miot(*this, M6530_TAG),
-	m_via(*this, M6522_TAG),
-	m_floppy0(*this, FDC_TAG ":0"),
-	m_floppy1(*this, FDC_TAG ":1"),
-	m_fdc(*this, FDC_TAG),
-	m_address(*this, "ADDRESS"),
-	m_rfdo(1),
-	m_daco(1),
-	m_atna(1), m_ifc(0)
+c8050_device::c8050_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	c8050_device(mconfig, C8050, tag, owner, clock)
 {
 }
 
 
 //-------------------------------------------------
-//  c8250_t - constructor
+//  c8250_device - constructor
 //-------------------------------------------------
 
-c8250_t::c8250_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	c8050_t(mconfig, C8250, "C8250", tag, owner, clock, "c8250", __FILE__) { }
-
-
-//-------------------------------------------------
-//  c8250lp_t - constructor
-//-------------------------------------------------
-
-c8250lp_t::c8250lp_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	c8050_t(mconfig, C8250LP, "C8250LP", tag, owner, clock, "c8250lp", __FILE__) { }
+c8250_device::c8250_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	c8050_device(mconfig, C8250, tag, owner, clock)
+{
+}
 
 
 //-------------------------------------------------
-//  sfd1001_t - constructor
+//  c8250lp_device - constructor
 //-------------------------------------------------
 
-sfd1001_t::sfd1001_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	c8050_t(mconfig, SFD1001, "SFD1001", tag, owner, clock, "sfd1001", __FILE__) { }
+c8250lp_device::c8250lp_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	c8050_device(mconfig, C8250LP, tag, owner, clock)
+{
+}
+
+
+//-------------------------------------------------
+//  sfd1001_device - constructor
+//-------------------------------------------------
+
+sfd1001_device::sfd1001_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	c8050_device(mconfig, SFD1001, tag, owner, clock)
+{
+}
 
 
 //-------------------------------------------------
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void c8050_t::device_start()
+void c8050_device::device_start()
 {
+	m_leds.resolve();
+
 	// install image callbacks
 	m_fdc->set_floppy(m_floppy0, m_floppy1);
 
@@ -901,7 +755,7 @@ void c8050_t::device_start()
 //  device_reset - device-specific reset
 //-------------------------------------------------
 
-void c8050_t::device_reset()
+void c8050_device::device_reset()
 {
 	m_maincpu->reset();
 
@@ -928,7 +782,7 @@ void c8050_t::device_reset()
 //  ieee488_atn -
 //-------------------------------------------------
 
-void c8050_t::ieee488_atn(int state)
+void c8050_device::ieee488_atn(int state)
 {
 	update_ieee_signals();
 
@@ -940,7 +794,7 @@ void c8050_t::ieee488_atn(int state)
 //  ieee488_ifc -
 //-------------------------------------------------
 
-void c8050_t::ieee488_ifc(int state)
+void c8050_device::ieee488_ifc(int state)
 {
 	if (!m_ifc && state)
 	{

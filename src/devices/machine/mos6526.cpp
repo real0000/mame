@@ -112,10 +112,10 @@ enum
 //  DEVICE TYPE DEFINITIONS
 //**************************************************************************
 
-const device_type MOS6526 = device_creator<mos6526_device>;
-const device_type MOS6526A = device_creator<mos6526a_device>;
-const device_type MOS8520 = device_creator<mos8520_device>;
-const device_type MOS5710 = device_creator<mos5710_device>;
+DEFINE_DEVICE_TYPE(MOS6526,  mos6526_device,  "mos6526",  "MOS 6526 CIA")
+DEFINE_DEVICE_TYPE(MOS6526A, mos6526a_device, "mos6526a", "MOS 6526A CIA")
+DEFINE_DEVICE_TYPE(MOS8520,  mos8520_device,  "mos8520",  "MOS 8520 CIA")
+DEFINE_DEVICE_TYPE(MOS5710,  mos5710_device,  "mos5710",  "MOS 5710 CIA")
 
 
 
@@ -587,8 +587,8 @@ inline void mos6526_device::synchronize()
 //  mos6526_device - constructor
 //-------------------------------------------------
 
-mos6526_device::mos6526_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+mos6526_device::mos6526_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint32_t variant)
+	: device_t(mconfig, type, tag, owner, clock),
 		device_execute_interface(mconfig, *this),
 		m_icount(0),
 		m_variant(variant),
@@ -605,29 +605,17 @@ mos6526_device::mos6526_device(const machine_config &mconfig, device_type type, 
 }
 
 mos6526_device::mos6526_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, MOS6526, "MOS6526", tag, owner, clock, "mos6526", __FILE__),
-		device_execute_interface(mconfig, *this),
-		m_icount(0),
-		m_variant(TYPE_6526),
-		m_tod_clock(0),
-		m_write_irq(*this),
-		m_write_pc(*this),
-		m_write_cnt(*this),
-		m_write_sp(*this),
-		m_read_pa(*this),
-		m_write_pa(*this),
-		m_read_pb(*this),
-		m_write_pb(*this)
+	: mos6526_device(mconfig, MOS6526, tag, owner, clock, TYPE_6526)
 { }
 
 mos6526a_device::mos6526a_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mos6526_device(mconfig, MOS6526A, "MOS6526A", tag, owner, clock, TYPE_6526A, "mos6526a", __FILE__) { }
+	: mos6526_device(mconfig, MOS6526A, tag, owner, clock, TYPE_6526A) { }
 
 mos8520_device::mos8520_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mos6526_device(mconfig, MOS8520, "MOS8520", tag, owner, clock, TYPE_8520, "mos8520", __FILE__) { }
+	: mos6526_device(mconfig, MOS8520, tag, owner, clock, TYPE_8520) { }
 
 mos5710_device::mos5710_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mos6526_device(mconfig, MOS5710, "MOS5710", tag, owner, clock, TYPE_5710, "mos5710", __FILE__) { }
+	: mos6526_device(mconfig, MOS5710, tag, owner, clock, TYPE_5710) { }
 
 
 //-------------------------------------------------
@@ -637,7 +625,7 @@ mos5710_device::mos5710_device(const machine_config &mconfig, const char *tag, d
 void mos6526_device::device_start()
 {
 	// set our instruction counter
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 
 	m_flag = 1;
 	m_cnt = 1;
@@ -800,16 +788,16 @@ void mos6526_device::execute_run()
 //  read -
 //-------------------------------------------------
 
-READ8_MEMBER( mos6526_device::read )
+uint8_t mos6526_device::read(offs_t offset)
 {
-	if (machine().side_effect_disabled())
-		return 0xff;
-
 	uint8_t data = 0;
 
 	switch (offset & 0x0f)
 	{
 	case PRA:
+		if (machine().side_effects_disabled())
+			return 0xff;
+
 		if (m_ddra != 0xff)
 			data = (m_read_pa(0) & ~m_ddra) | (m_pra & m_ddra);
 		else
@@ -818,6 +806,9 @@ READ8_MEMBER( mos6526_device::read )
 		break;
 
 	case PRB:
+		if (machine().side_effects_disabled())
+			return 0xff;
+
 		if (m_ddrb != 0xff)
 			data = (m_read_pb(0) & ~m_ddrb) | (m_prb & m_ddrb);
 		else
@@ -869,20 +860,32 @@ READ8_MEMBER( mos6526_device::read )
 		break;
 
 	case TOD_10THS:
+		if (machine().side_effects_disabled())
+			return 0xff;
+
 		data = read_tod(0);
 
 		m_tod_latched = false;
 		break;
 
 	case TOD_SEC:
+		if (machine().side_effects_disabled())
+			return 0xff;
+
 		data = read_tod(1);
 		break;
 
 	case TOD_MIN:
+		if (machine().side_effects_disabled())
+			return 0xff;
+
 		data = read_tod(2);
 		break;
 
 	case TOD_HR:
+		if (machine().side_effects_disabled())
+			return 0xff;
+
 		if (!m_tod_latched)
 		{
 			m_tod_latched = true;
@@ -898,6 +901,9 @@ READ8_MEMBER( mos6526_device::read )
 
 	case ICR:
 		data = (m_ir1 << 7) | m_icr;
+
+		if (machine().side_effects_disabled())
+			return data;
 
 		m_icr_read = true;
 
@@ -920,7 +926,7 @@ READ8_MEMBER( mos6526_device::read )
 	return data;
 }
 
-READ8_MEMBER( mos8520_device::read )
+uint8_t mos8520_device::read(offs_t offset)
 {
 	uint8_t data;
 
@@ -941,7 +947,7 @@ READ8_MEMBER( mos8520_device::read )
 		break;
 
 	default:
-		data = mos6526_device::read(space, offset);
+		data = mos6526_device::read(offset);
 	}
 
 	return data;
@@ -951,7 +957,7 @@ READ8_MEMBER( mos8520_device::read )
 //  write -
 //-------------------------------------------------
 
-WRITE8_MEMBER( mos6526_device::write )
+void mos6526_device::write(offs_t offset, uint8_t data)
 {
 	switch (offset & 0x0f)
 	{
@@ -1093,12 +1099,12 @@ WRITE8_MEMBER( mos6526_device::write )
 	}
 }
 
-WRITE8_MEMBER( mos8520_device::write )
+void mos8520_device::write(offs_t offset, uint8_t data)
 {
 	switch (offset & 0x0f)
 	{
 	default:
-		mos6526_device::write(space, offset, data);
+		mos6526_device::write(offset, data);
 		break;
 
 	case TOD_MIN:

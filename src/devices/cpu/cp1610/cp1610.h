@@ -9,36 +9,30 @@
  *
  *****************************************************************************/
 
+#ifndef MAME_CPU_CP1610_CP1610_H
+#define MAME_CPU_CP1610_CP1610_H
+
 #pragma once
 
-#ifndef __CP1610_H__
-#define __CP1610_H__
-
-enum
-{
-	CP1610_R0=1, CP1610_R1, CP1610_R2, CP1610_R3,
-	CP1610_R4, CP1610_R5, CP1610_R6, CP1610_R7
-};
-
-#define CP1610_INT_NONE     0
 #define CP1610_INT_INTRM    1                   /* Maskable */
-#define CP1610_RESET        INPUT_LINE_RESET    /* Non-Maskable */
 #define CP1610_INT_INTR     INPUT_LINE_NMI      /* Non-Maskable */
-
-#define MCFG_CP1610_BEXT_CALLBACK(_read) \
-	devcb = &downcast<cp1610_cpu_device *>(device)->set_bext_callback(DEVCB_##_read);
-
 
 class cp1610_cpu_device :  public cpu_device
 {
 public:
+	// public because drivers R7 through state interface on machine reset - where does the initial R7 actually come from?
+	enum
+	{
+		CP1610_R0=1, CP1610_R1, CP1610_R2, CP1610_R3,
+		CP1610_R4, CP1610_R5, CP1610_R6, CP1610_R7
+	};
+
 	// construction/destruction
 	cp1610_cpu_device(const machine_config &mconfig, const char *_tag, device_t *_owner, uint32_t _clock);
 
-	template<class _read> devcb_base &set_bext_callback(_read rd)
-	{
-		return m_read_bext.set_callback(rd);
-	}
+	auto bext() { return m_read_bext.bind(); }
+	auto iab() { return m_read_iab.bind(); }
+	auto intak() { return m_write_intak.bind(); }
 
 protected:
 	// device-level overrides
@@ -46,41 +40,40 @@ protected:
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 1; }
-	virtual uint32_t execute_max_cycles() const override { return 7; }
-	virtual uint32_t execute_input_lines() const override { return 2; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 7; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 2; }
+	virtual bool execute_input_edge_triggered(int inputnum) const noexcept override { return inputnum == CP1610_INT_INTR; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : nullptr; }
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 2; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 8; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 private:
 	address_space_config m_program_config;
 
 	uint16_t  m_r[8];   /* registers */
 	uint8_t   m_flags;  /* flags */
-	int     m_intr_enabled;
-	uint16_t  m_intr_vector;
-	int     m_reset_state;
+	bool    m_intr_enabled;
 	int     m_intr_state;
 	int     m_intrm_state;
-	int     m_reset_pending;
-	int     m_intr_pending;
-	int     m_intrm_pending;
-	int     m_mask_interrupts;
+	bool    m_reset_pending;
+	bool    m_intr_pending;
+	bool    m_intrm_pending;
+	bool    m_mask_interrupts;
 	address_space *m_program;
 	int m_icount;
 
 	devcb_read8 m_read_bext;
+	devcb_read16 m_read_iab;
+	devcb_write16 m_write_intak;
 
 	void cp1610_illegal();
 	void cp1610_hlt();
@@ -208,9 +201,6 @@ private:
 };
 
 
-extern const device_type CP1610;
+DECLARE_DEVICE_TYPE(CP1610, cp1610_cpu_device)
 
-
-CPU_DISASSEMBLE( cp1610 );
-
-#endif /* __CP1610_H__ */
+#endif // MAME_CPU_CP1610_CP1610_H

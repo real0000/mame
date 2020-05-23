@@ -10,14 +10,14 @@ Actually same HW as the Cisco Heat ones.
 
 TODO:
 -Understand what "devices" area needs to make this working.It's likely that the upper switches
-controls the UFO's and the lower switches the astronauts.
+ controls the UFO's and the lower switches the astronauts.
 -Back tilemap paging is likely to be incorrect.
 -3D Artworks for the UFO's,Astronauts etc.
 -Merge to the Cisco Heat driver.
 
 Notes:
 -The real HW is a redemption machine with two guns, similar to the "Cosmo Gang the Video"
-(Namco) bonus games.
+(Namco) redemption version.
 
 m68k irq table vectors
 lev 1 : 0x64 : 0000 04f0 - rte
@@ -59,83 +59,76 @@ JALCF1   BIN     1,048,576  02-07-99  1:11a JALCF1.BIN
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
+#include "machine/timer.h"
 #include "sound/okim6295.h"
+#include "video/ms1_tmap.h"
+#include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
+
+#include "acommand.lh"
 
 
 class acommand_state : public driver_device
 {
 public:
-	acommand_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_ac_bgvram(*this, "ac_bgvram"),
-		m_ac_txvram(*this, "ac_txvram"),
+	acommand_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
-		m_ac_devram(*this, "ac_devram"),
 		m_maincpu(*this, "maincpu"),
 		m_oki1(*this, "oki1"),
 		m_oki2(*this, "oki2"),
 		m_gfxdecode(*this, "gfxdecode"),
-		m_palette(*this, "palette") { }
+		m_palette(*this, "palette"),
+		m_bgtmap(*this, "bgtmap"),
+		m_txtmap(*this, "txtmap"),
+		m_digits(*this, "digit%u", 0U)
+	{ }
 
-	required_shared_ptr<uint16_t> m_ac_bgvram;
-	required_shared_ptr<uint16_t> m_ac_txvram;
-	required_shared_ptr<uint16_t> m_spriteram;
-	required_shared_ptr<uint16_t> m_ac_devram;
-	tilemap_t *m_tx_tilemap;
-	tilemap_t *m_bg_tilemap;
-	std::unique_ptr<uint16_t[]> m_ac_vregs;
-	uint16_t m_led0;
-	uint16_t m_led1;
-	uint16_t m_ufo_sw1;
-	uint16_t m_ufo_sw2;
-	DECLARE_WRITE16_MEMBER(ac_bgvram_w);
-	DECLARE_WRITE16_MEMBER(ac_txvram_w);
-	DECLARE_WRITE16_MEMBER(ac_bgscroll_w);
-	DECLARE_WRITE16_MEMBER(ac_txscroll_w);
-	DECLARE_READ16_MEMBER(ac_devices_r);
-	DECLARE_WRITE16_MEMBER(ac_devices_w);
+	void acommand(machine_config &config);
+
+private:
+	DECLARE_WRITE8_MEMBER(oki_bank_w);
+	DECLARE_WRITE16_MEMBER(output_7seg0_w);
+	DECLARE_WRITE16_MEMBER(output_7seg1_w);
+	DECLARE_WRITE16_MEMBER(output_lamps_w);
+
+	DECLARE_READ16_MEMBER(ext_devices_0_r);
+	DECLARE_WRITE16_MEMBER(ext_devices_0_w);
+	DECLARE_READ16_MEMBER(ext_devices_1_r);
+	DECLARE_WRITE16_MEMBER(ext_devices_1_w);
+	DECLARE_WRITE16_MEMBER(ext_devices_2_w);
+
 	DECLARE_WRITE16_MEMBER(ac_unk2_w);
 	TILEMAP_MAPPER_MEMBER(bg_scan);
-	TILE_GET_INFO_MEMBER(ac_get_bg_tile_info);
-	TILE_GET_INFO_MEMBER(ac_get_tx_tile_info);
-	virtual void video_start() override;
 	uint32_t screen_update_acommand(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(acommand_scanline);
-	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority, int pri_mask);
-	void draw_led(bitmap_ind16 &bitmap, int x, int y,uint8_t value);
+
+	void acommand_map(address_map &map);
+
+	virtual void machine_start() override;
+
+	required_shared_ptr<uint16_t> m_spriteram;
 	required_device<cpu_device> m_maincpu;
 	required_device<okim6295_device> m_oki1;
 	required_device<okim6295_device> m_oki2;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<palette_device> m_palette;
+	required_device<megasys1_tilemap_device> m_bgtmap;
+	required_device<megasys1_tilemap_device> m_txtmap;
+	output_finder<8> m_digits;
+
+	uint16_t m_7seg0;
+	uint16_t m_7seg1;
+	uint16_t m_ufo_lane[5];
+	uint8_t m_boss_door;
+
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority, int pri_mask);
 };
 
-
-
-TILEMAP_MAPPER_MEMBER(acommand_state::bg_scan)
+void acommand_state::machine_start()
 {
-	/* logical (col,row) -> memory offset */
-	return (row & 0x0f) + ((col & 0xff) << 4) + ((row & 0x70) << 8);
-}
-
-TILE_GET_INFO_MEMBER(acommand_state::ac_get_bg_tile_info)
-{
-	int code = m_ac_bgvram[tile_index];
-	SET_TILE_INFO_MEMBER(1,
-			code & 0xfff,
-			(code & 0xf000) >> 12,
-			0);
-}
-
-TILE_GET_INFO_MEMBER(acommand_state::ac_get_tx_tile_info)
-{
-	int code = m_ac_txvram[tile_index];
-	SET_TILE_INFO_MEMBER(0,
-			code & 0xfff,
-			(code & 0xf000) >> 12,
-			0);
+	m_digits.resolve();
 }
 
 void acommand_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority, int pri_mask)
@@ -154,8 +147,9 @@ void acommand_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 			int h = ((spriteram16[offs+0] & 0xf0) >> 4);
 			int sy = (spriteram16[offs+4] & 0x0ff) - ((h+1)*0x10);
 /**/        int pri = spriteram16[offs+5];
-/**/        int flipy = ((spriteram16[offs+1] & 0x0200) >> 9);
-/**/        int flipx = ((spriteram16[offs+1] & 0x0100) >> 8);
+/**/        int flipy = ((spriteram16[offs+1] & 0x2000) >> 13);
+			// "this is the boss" uses flip x
+			int flipx = ((spriteram16[offs+1] & 0x1000) >> 12);
 
 			int xx,yy,x;
 			int delta = 16;
@@ -175,18 +169,21 @@ void acommand_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 			yy = h;
 			do
 			{
-				x = sx;
+				x = flipx ? sx + w*16 : sx;
 				xx = w;
 				do
 				{
-					m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
+					m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 							code,
 							color,
 							flipx, flipy,
 							((x + 16) & 0x1ff) - 16,sy & 0x1ff,15);
 
 					code++;
-					x += delta;
+					if(flipx)
+						x -= delta;
+					else
+						x += delta;
 				} while (--xx >= 0);
 
 				sy += delta;
@@ -196,267 +193,20 @@ void acommand_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 }
 
 
-void acommand_state::video_start()
-{
-	m_tx_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(acommand_state::ac_get_tx_tile_info),this),TILEMAP_SCAN_COLS,8,8,512,32);
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(acommand_state::ac_get_bg_tile_info),this),tilemap_mapper_delegate(FUNC(acommand_state::bg_scan),this),16,16,256,16);
-
-	m_ac_vregs = std::make_unique<uint16_t[]>(0x80/2);
-
-	m_tx_tilemap->set_transparent_pen(15);
-}
-
-
-#define LED_ON      0x01c00
-#define LED_OFF     0x00000
-/*
-     a
-    ---
-f   | | b
-    -g-
-e   | | c
-    ---
-     d
-a & 1
-b & 2
-c & 4
-d & 8
-e & 10
-f & 20
-g & 40
-7f
-*/
-/*                                    0    1    2    3    4    5    6    7    8    9    a    b    c    d    e    f*/
-static const uint8_t led_fill[0x10] = { 0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f,0x00,0x00,0x00,0x00,0x00,0x00};
-
-void acommand_state::draw_led(bitmap_ind16 &bitmap, int x, int y,uint8_t value)
-{
-	bitmap.plot_box(x, y, 6, 10, 0x00000000);
-
-	/*a*/
-	bitmap.pix16(y+0, x+1) = ((led_fill[value] & 0x0001) ? LED_ON : LED_OFF);
-	bitmap.pix16(y+0, x+2) = ((led_fill[value] & 0x0001) ? LED_ON : LED_OFF);
-	bitmap.pix16(y+0, x+3) = ((led_fill[value] & 0x0001) ? LED_ON : LED_OFF);
-	/*b*/
-	bitmap.pix16(y+1, x+4) = ((led_fill[value] & 0x0002) ? LED_ON : LED_OFF);
-	bitmap.pix16(y+2, x+4) = ((led_fill[value] & 0x0002) ? LED_ON : LED_OFF);
-	bitmap.pix16(y+3, x+4) = ((led_fill[value] & 0x0002) ? LED_ON : LED_OFF);
-	/*c*/
-	bitmap.pix16(y+5, x+4) = ((led_fill[value] & 0x0004) ? LED_ON : LED_OFF);
-	bitmap.pix16(y+6, x+4) = ((led_fill[value] & 0x0004) ? LED_ON : LED_OFF);
-	bitmap.pix16(y+7, x+4) = ((led_fill[value] & 0x0004) ? LED_ON : LED_OFF);
-	/*d*/
-	bitmap.pix16(y+8, x+1) = ((led_fill[value] & 0x0008) ? LED_ON : LED_OFF);
-	bitmap.pix16(y+8, x+2) = ((led_fill[value] & 0x0008) ? LED_ON : LED_OFF);
-	bitmap.pix16(y+8, x+3) = ((led_fill[value] & 0x0008) ? LED_ON : LED_OFF);
-	/*e*/
-	bitmap.pix16(y+5, x+0) = ((led_fill[value] & 0x0010) ? LED_ON : LED_OFF);
-	bitmap.pix16(y+6, x+0) = ((led_fill[value] & 0x0010) ? LED_ON : LED_OFF);
-	bitmap.pix16(y+7, x+0) = ((led_fill[value] & 0x0010) ? LED_ON : LED_OFF);
-	/*f*/
-	bitmap.pix16(y+1, x+0) = ((led_fill[value] & 0x0020) ? LED_ON : LED_OFF);
-	bitmap.pix16(y+2, x+0) = ((led_fill[value] & 0x0020) ? LED_ON : LED_OFF);
-	bitmap.pix16(y+3, x+0) = ((led_fill[value] & 0x0020) ? LED_ON : LED_OFF);
-	/*g*/
-	bitmap.pix16(y+4, x+1) = ((led_fill[value] & 0x0040) ? LED_ON : LED_OFF);
-	bitmap.pix16(y+4, x+2) = ((led_fill[value] & 0x0040) ? LED_ON : LED_OFF);
-	bitmap.pix16(y+4, x+3) = ((led_fill[value] & 0x0040) ? LED_ON : LED_OFF);
-}
-
-
 uint32_t acommand_state::screen_update_acommand(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(screen, bitmap, cliprect, 0,0);
+	// reference has black pen background, as weird it might sound
+	bitmap.fill(m_palette->black_pen(), cliprect);
+
+	m_bgtmap->draw(screen, bitmap, cliprect, 0, 0);
 	draw_sprites(bitmap,cliprect,0,0);
-	m_tx_tilemap->draw(screen, bitmap, cliprect, 0,0);
+	m_txtmap->draw(screen, bitmap, cliprect, 0, 0);
 
-	/*Order might be wrong,but these for sure are the led numbers tested*/
-	draw_led(bitmap,  0, 20, (m_led0 & 0x0f00) >> 8);
-	draw_led(bitmap,  6, 20, (m_led0 & 0x00f0) >> 4);
-	draw_led(bitmap, 12, 20, (m_led0 & 0x000f));
-
-	draw_led(bitmap, 256-18,20,(m_led0 & 0xf000) >> 12);
-	draw_led(bitmap, 256-12,20,(m_led1 & 0xf0) >> 4);
-	draw_led(bitmap, 256-6,20, (m_led1 & 0xf));
 	return 0;
 }
 
 
-WRITE16_MEMBER(acommand_state::ac_bgvram_w)
-{
-	COMBINE_DATA(&m_ac_bgvram[offset]);
-	m_bg_tilemap->mark_tile_dirty(offset);
-}
-
-WRITE16_MEMBER(acommand_state::ac_txvram_w)
-{
-	COMBINE_DATA(&m_ac_txvram[offset]);
-	m_tx_tilemap->mark_tile_dirty(offset);
-}
-
-WRITE16_MEMBER(acommand_state::ac_bgscroll_w)
-{
-	switch(offset)
-	{
-		case 0: m_bg_tilemap->set_scrollx(0,data); break;
-		case 1: m_bg_tilemap->set_scrolly(0,data); break;
-		case 2: /*BG_TILEMAP priority?*/ break;
-	}
-}
-
-WRITE16_MEMBER(acommand_state::ac_txscroll_w)
-{
-	switch(offset)
-	{
-		case 0: m_tx_tilemap->set_scrollx(0,data); break;
-		case 1: m_tx_tilemap->set_scrolly(0,data); break;
-		case 2: /*TX_TILEMAP priority?*/ break;
-	}
-}
-
 /******************************************************************************************/
-
-
-READ16_MEMBER(acommand_state::ac_devices_r)
-{
-	logerror("(PC=%06x) read at %04x\n",space.device().safe_pc(),offset*2);
-
-	switch(offset)
-	{
-		case 0x0008/2:
-			/*
-			    --x- ---- ---- ---- Ticket Dispenser - 2
-			    ---x ---- ---- ---- Ticket Dispenser - 1
-			    ---- -x-- ---- ---- Right Gun HIT
-			    ---- ---x ---- ---- Left Gun HIT
-			    ---- ---- --x- ---- Service Mode (Toggle)
-			    ---- ---- ---x ---- Service Coin
-			    ---- ---- ---- x--- COIN2
-			    ---- ---- ---- -x-- COIN1
-			    ---- ---- ---- --x- (Activate Test)
-			    ---- ---- ---- ---x (Advance through Tests)
-			*/
-			return ioport("IN0")->read();
-		case 0x0014/2:
-		case 0x0016/2:
-			return m_oki1->read(space,0);
-		case 0x0018/2:
-		case 0x001a/2:
-			return m_oki2->read(space,0);
-		case 0x0040/2:
-			/*
-			    "Upper switch / Under Switch"
-			    xx-x ---- xx-x xx-x
-			    -x-- ---- ---- ---- Catch Switch - 3
-			    --x- ---- ---- ---- Lower Switch - 3
-			    ---x ---- ---- ---- Upper Switch - 3
-			    ---- -x-- ---- ---- Catch Switch - 2
-			    ---- --x- ---- ---- Lower Switch - 2
-			    ---- ---x ---- ---- Upper Switch - 2
-			    ---- ---- -x-- ---- Catch Switch - 1
-			    ---- ---- --x- ---- Lower Switch - 1 (active high)
-			    ---- ---- ---x ---- Upper Switch - 1 (active low)
-			    ---- ---- ---- --xx Boss Door - Motor
-			*/
-		//22dc8
-		{
-			m_ufo_sw1 = m_ac_devram[offset] & 3;
-			if(m_ac_devram[offset] & 0x10)
-				m_ufo_sw1|= 0x10;
-			if(m_ac_devram[offset] & 0x40)
-				m_ufo_sw1|= 0x20;
-			if(m_ac_devram[offset] & 0x100)
-				m_ufo_sw1|=0x100;
-			if(m_ac_devram[offset] & 0x400)
-				m_ufo_sw1|=0x200;
-			if(m_ac_devram[offset] & 0x1000)
-				m_ufo_sw1|=0x1000;
-			if(m_ac_devram[offset] & 0x4000)
-				m_ufo_sw1|=0x2000;
-//          if(m_ac_devram[0x0048/2] & 0x0001)
-//              m_ufo_sw1|=0x0040;
-//          if(m_ac_devram[0x0048/2] & 0x0004)
-//              m_ufo_sw1|=0x0400;
-//          if(m_ac_devram[0x0048/2] & 0x0100)
-//              m_ufo_sw1|=0x4000;
-			return m_ufo_sw1;
-		}
-		case 0x0044/2:
-			/*
-			    ---- ---- --x- ---- Lower Switch - 5
-			    ---- ---- ---x ---- Upper Switch - 5
-			    ---- ---- ---- --x- Lower Switch - 4 (active high)
-			    ---- ---- ---- ---x Upper Switch - 4 (active low)
-			*/
-		{
-			m_ufo_sw2 = 0;
-			if(m_ac_devram[offset] & 0x01)
-				m_ufo_sw2|= 1;
-			if(m_ac_devram[offset] & 0x04)
-				m_ufo_sw2|= 2;
-			if(m_ac_devram[offset] & 0x10)
-				m_ufo_sw2|=0x10;
-			if(m_ac_devram[offset] & 0x40)
-				m_ufo_sw2|=0x20;
-			return m_ufo_sw2;
-		}
-		case 0x0048/2:
-			return m_ac_devram[offset];
-		case 0x005c/2:
-			/*
-			    xxxx xxxx ---- ---- DIPSW4
-			    ---- ---- xxxx xxxx DIPSW3
-			*/
-			return ioport("IN1")->read();
-	}
-	return m_ac_devram[offset];
-}
-
-WRITE16_MEMBER(acommand_state::ac_devices_w)
-{
-	COMBINE_DATA(&m_ac_devram[offset]);
-	switch(offset)
-	{
-		case 0x00/2:
-			if (ACCESSING_BITS_0_7)
-			{
-				m_oki1->set_rom_bank(data & 0x3);
-				m_oki2->set_rom_bank((data & 0x30) >> 4);
-			}
-			break;
-		case 0x14/2:
-		case 0x16/2:
-			if(ACCESSING_BITS_0_7)
-			{
-				m_oki1->write(space,0,data);
-			}
-			break;
-		case 0x18/2:
-		case 0x1a/2:
-			if(ACCESSING_BITS_0_7)
-			{
-				m_oki2->write(space,0,data);
-			}
-			break;
-		case 0x1c/2:
-			/*IRQ mask?*/
-			break;
-		case 0x40/2:
-			break;
-		case 0x44/2:
-			break;
-		case 0x48/2:
-			break;
-		case 0x50/2:
-			m_led0 = m_ac_devram[offset];
-			//popmessage("%04x",m_led0);
-			break;
-		case 0x54/2:
-			m_led1 = m_ac_devram[offset];
-			//popmessage("%04x",m_led0);
-			break;
-	}
-}
 
 /*This is always zero ATM*/
 WRITE16_MEMBER(acommand_state::ac_unk2_w)
@@ -465,19 +215,144 @@ WRITE16_MEMBER(acommand_state::ac_unk2_w)
 		popmessage("UNK-2 enabled %04x",data);
 }
 
-static ADDRESS_MAP_START( acommand_map, AS_PROGRAM, 16, acommand_state )
-	AM_RANGE(0x000000, 0x03ffff) AM_ROM
-	AM_RANGE(0x082000, 0x082005) AM_WRITE(ac_bgscroll_w)
-	AM_RANGE(0x082100, 0x082105) AM_WRITE(ac_txscroll_w)
-	AM_RANGE(0x082208, 0x082209) AM_WRITE(ac_unk2_w)
-	AM_RANGE(0x0a0000, 0x0a3fff) AM_RAM_WRITE(ac_bgvram_w) AM_SHARE("ac_bgvram")
-	AM_RANGE(0x0b0000, 0x0b3fff) AM_RAM_WRITE(ac_txvram_w) AM_SHARE("ac_txvram")
-	AM_RANGE(0x0b8000, 0x0bffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0x0f0000, 0x0f7fff) AM_RAM
-	AM_RANGE(0x0f8000, 0x0f8fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x0f9000, 0x0fffff) AM_RAM
-	AM_RANGE(0x100000, 0x1000ff) AM_READ(ac_devices_r) AM_WRITE(ac_devices_w) AM_SHARE("ac_devram")
-ADDRESS_MAP_END
+/*************************************
+ *
+ * I/O
+ *
+ ************************************/
+
+WRITE8_MEMBER(acommand_state::oki_bank_w)
+{
+	m_oki1->set_rom_bank(data & 0x3);
+	m_oki2->set_rom_bank((data & 0x30) >> 4);
+}
+
+
+/*                                    0    1    2    3    4    5    6    7    8    9    a    b    c    d    e    f*/
+static const uint8_t led_fill[0x10] = { 0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f,0x00,0x00,0x00,0x00,0x00,0x00};
+
+WRITE16_MEMBER(acommand_state::output_7seg0_w)
+{
+	COMBINE_DATA(&m_7seg0);
+
+	// nybble 0,1,2: left 7segs, nybble 3: right 7seg 1st digit
+	for (int i = 0; i < 4; i++)
+		m_digits[i] = led_fill[m_7seg0 >> (i*4) & 0xf];
+}
+
+WRITE16_MEMBER(acommand_state::output_7seg1_w)
+{
+	COMBINE_DATA(&m_7seg1);
+
+	// nybble 0,1: right 7seg 2nd,3rd digit
+	for (int i = 0; i < 2; i++)
+		m_digits[i+4] = led_fill[m_7seg1 >> (i*4) & 0xf];
+
+	// other: ?
+}
+
+/*
+    "Upper switch / Under Switch"
+    xx-x ---- xx-x xx-x
+    -x-- ---- ---- ---- Catch Switch - 3
+    --x- ---- ---- ---- Lower Switch - 3
+    ---x ---- ---- ---- Upper Switch - 3
+    ---- -x-- ---- ---- Catch Switch - 2
+    ---- --x- ---- ---- Lower Switch - 2
+    ---- ---x ---- ---- Upper Switch - 2
+    ---- ---- -x-- ---- Catch Switch - 1
+    ---- ---- --x- ---- Lower Switch - 1 (active high)
+    ---- ---- ---x ---- Upper Switch - 1 (active low)
+    ---- ---- ---- --xx Boss Door - Motor
+    state of UFO lanes:
+    0x0
+    0x1
+    0x2
+    0x3
+    0x4
+    0x5 ufo lane limit switch
+    0x6
+    0x7 astronaut switch or jamming
+    0x8
+    0x9 ufo lane switch or motor
+    0xa astronaut switch or jamming
+    0xb ufo lane switch or motor
+    0xc ""
+    0xd ufo lane limit switch
+    0xe astronaut switch or jamming
+    0xf ""
+*/
+READ16_MEMBER(acommand_state::ext_devices_0_r)
+{
+	return 0xfffc | m_boss_door;
+}
+
+WRITE16_MEMBER(acommand_state::ext_devices_0_w)
+{
+	printf("%04x EXT 0\n",data);
+	m_boss_door = data & 3;
+	m_ufo_lane[0] = (data >> 8) & 0x1f;
+}
+
+/*
+    ---- ---- --x- ---- Lower Switch - 5
+    ---- ---- ---x ---- Upper Switch - 5
+    ---- ---- ---- --x- Lower Switch - 4 (active high)
+    ---- ---- ---- ---x Upper Switch - 4 (active low)
+*/
+READ16_MEMBER(acommand_state::ext_devices_1_r)
+{
+	return 0xffff;
+}
+
+WRITE16_MEMBER(acommand_state::ext_devices_1_w)
+{
+	//printf("%04x EXT 1\n",data);
+	m_ufo_lane[1] = (data >> 0) & 0x1f;
+	m_ufo_lane[2] = (data >> 8) & 0x1f;
+}
+
+WRITE16_MEMBER(acommand_state::ext_devices_2_w)
+{
+	//printf("%04x EXT 2\n",data);
+	m_ufo_lane[3] = (data >> 0) & 0x1f;
+	m_ufo_lane[4] = (data >> 8) & 0x1f;
+}
+
+WRITE16_MEMBER(acommand_state::output_lamps_w)
+{
+	machine().bookkeeping().coin_counter_w(0, data & 0x40);
+	machine().bookkeeping().coin_counter_w(1, data & 0x80);
+
+	// --xx --xx lamps
+}
+
+void acommand_state::acommand_map(address_map &map)
+{
+	map(0x000000, 0x03ffff).rom();
+	map(0x082000, 0x082005).w(m_bgtmap, FUNC(megasys1_tilemap_device::scroll_w));
+	map(0x082100, 0x082105).w(m_txtmap, FUNC(megasys1_tilemap_device::scroll_w));
+	map(0x082208, 0x082209).w(FUNC(acommand_state::ac_unk2_w));
+	map(0x0a0000, 0x0a3fff).ram().w(m_bgtmap, FUNC(megasys1_tilemap_device::write)).share("bgtmap");
+	map(0x0b0000, 0x0b3fff).ram().w(m_txtmap, FUNC(megasys1_tilemap_device::write)).share("txtmap");
+	map(0x0b8000, 0x0bffff).ram().w(m_palette, FUNC(palette_device::write16)).share("palette");
+	map(0x0f0000, 0x0f7fff).ram();
+	map(0x0f8000, 0x0f8fff).ram().share("spriteram");
+	map(0x0f9000, 0x0fffff).ram();
+
+	map(0x100001, 0x100001).w(FUNC(acommand_state::oki_bank_w));
+	map(0x100008, 0x100009).portr("IN0").w(FUNC(acommand_state::output_lamps_w));
+	map(0x100014, 0x100017).rw(m_oki1, FUNC(okim6295_device::read), FUNC(okim6295_device::write)).umask16(0x00ff);
+	map(0x100018, 0x10001b).rw(m_oki2, FUNC(okim6295_device::read), FUNC(okim6295_device::write)).umask16(0x00ff);
+
+	map(0x100040, 0x100041).rw(FUNC(acommand_state::ext_devices_0_r), FUNC(acommand_state::ext_devices_0_w));
+	map(0x100044, 0x100045).rw(FUNC(acommand_state::ext_devices_1_r), FUNC(acommand_state::ext_devices_1_w));
+	map(0x100048, 0x100049).w(FUNC(acommand_state::ext_devices_2_w));
+
+	map(0x100050, 0x100051).w(FUNC(acommand_state::output_7seg0_w));
+	map(0x100054, 0x100055).w(FUNC(acommand_state::output_7seg1_w));
+	map(0x10005c, 0x10005d).portr("DSW");
+}
 
 static INPUT_PORTS_START( acommand )
 	PORT_START("IN0")
@@ -514,7 +389,7 @@ static INPUT_PORTS_START( acommand )
 	PORT_DIPSETTING(      0x8000, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
 
-	PORT_START("IN1")
+	PORT_START("DSW")
 	PORT_DIPNAME( 0x0001, 0x0001, "IN2" )
 	PORT_DIPSETTING(      0x0001, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
@@ -565,17 +440,6 @@ static INPUT_PORTS_START( acommand )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
 INPUT_PORTS_END
 
-static const gfx_layout charlayout =
-{
-	8,8,
-	RGN_FRAC(1,1),
-	4,
-	{ 0, 1, 2, 3 },
-	{ 0*4, 1*4, 2*4, 3*4, 4*4, 5*4, 6*4, 7*4 },
-	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
-	32*8
-};
-
 static const gfx_layout tilelayout =
 {
 	16,16,
@@ -589,9 +453,7 @@ static const gfx_layout tilelayout =
 	32*32
 };
 
-static GFXDECODE_START( acommand )
-	GFXDECODE_ENTRY( "gfx1", 0, charlayout, 0x2700, 16 ) /*???*/
-	GFXDECODE_ENTRY( "gfx2", 0, tilelayout, 0x0f00, 256 )
+static GFXDECODE_START( gfx_acommand )
 	GFXDECODE_ENTRY( "gfx3", 0, tilelayout, 0x1800, 256 )
 GFXDECODE_END
 
@@ -606,37 +468,40 @@ TIMER_DEVICE_CALLBACK_MEMBER(acommand_state::acommand_scanline)
 		m_maincpu->set_input_line(3, HOLD_LINE);
 }
 
-static MACHINE_CONFIG_START( acommand, acommand_state )
-
+void acommand_state::acommand(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu",M68000,12000000)
-	MCFG_CPU_PROGRAM_MAP(acommand_map)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", acommand_state, acommand_scanline, "screen", 0, 1)
+	M68000(config, m_maincpu, 12000000);
+	m_maincpu->set_addrmap(AS_PROGRAM, &acommand_state::acommand_map);
+	TIMER(config, "scantimer").configure_scanline(FUNC(acommand_state::acommand_scanline), "screen", 0, 1);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(acommand_state, screen_update_acommand)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(32*8, 32*8);
+	screen.set_visarea(0*8, 32*8-1, 2*8, 30*8-1);
+	screen.set_screen_update(FUNC(acommand_state::screen_update_acommand));
+	screen.set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", acommand)
-	MCFG_PALETTE_ADD("palette", 0x4000)
-	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_acommand);
+	PALETTE(config, m_palette).set_format(palette_device::RRRRGGGGBBBBRGBx, 0x4000);
+
+	MEGASYS1_TILEMAP(config, m_bgtmap, m_palette, 0x0f00);
+	MEGASYS1_TILEMAP(config, m_txtmap, m_palette, 0x2700);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
 
-	MCFG_OKIM6295_ADD("oki1", 2112000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
+	OKIM6295(config, m_oki1, 2112000, okim6295_device::PIN7_HIGH); // clock frequency & pin 7 not verified
+	m_oki1->add_route(ALL_OUTPUTS, "lspeaker", 1.0);
+	m_oki1->add_route(ALL_OUTPUTS, "rspeaker", 1.0);
 
-	MCFG_OKIM6295_ADD("oki2", 2112000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
-MACHINE_CONFIG_END
+	OKIM6295(config, m_oki2, 2112000, okim6295_device::PIN7_HIGH); // clock frequency & pin 7 not verified
+	m_oki2->add_route(ALL_OUTPUTS, "lspeaker", 1.0);
+	m_oki2->add_route(ALL_OUTPUTS, "rspeaker", 1.0);
+}
 
 /***************************************************************************
 
@@ -649,10 +514,10 @@ ROM_START( acommand )
 	ROM_LOAD16_BYTE( "jalcf3.bin",   0x000000, 0x020000, CRC(f031abf7) SHA1(e381742fd6a6df4ddae42ddb3a074a55dc550b3c) )
 	ROM_LOAD16_BYTE( "jalcf4.bin",   0x000001, 0x020000, CRC(dd0c0540) SHA1(3e788fcb30ae725bd0ec9b57424e3946db1e946f) )
 
-	ROM_REGION( 0x20000, "gfx1", 0 ) /* BG0 */
+	ROM_REGION( 0x20000, "txtmap", 0 ) /* BG0 */
 	ROM_LOAD( "jalcf6.bin",   0x000000, 0x020000, CRC(442173d6) SHA1(56c02bc2761967040127977ecabe844fc45e2218) )
 
-	ROM_REGION( 0x080000, "gfx2", 0 ) /* BG1 */
+	ROM_REGION( 0x080000, "bgtmap", 0 ) /* BG1 */
 	ROM_LOAD( "jalcf5.bin",   0x000000, 0x080000, CRC(ff0be97f) SHA1(5ccab778318dec30849d7b7f25091d4aab8bde32) )
 
 	ROM_REGION( 0x400000, "gfx3", 0 ) /* SPR */
@@ -676,4 +541,4 @@ ROM_START( acommand )
 	ROM_LOAD( "jalmr17.bin",   0x080000, 0x080000, CRC(9d428fb7) SHA1(02f72938d73db932bd217620a175a05215f6016a) )
 ROM_END
 
-GAME( 1994, acommand,  0,       acommand,  acommand, driver_device,  0, ROT0, "Jaleco", "Alien Command" , MACHINE_NOT_WORKING | MACHINE_MECHANICAL)
+GAMEL( 1994, acommand, 0, acommand, acommand, acommand_state, empty_init, ROT0, "Jaleco", "Alien Command" , MACHINE_NOT_WORKING | MACHINE_MECHANICAL, layout_acommand )

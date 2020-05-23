@@ -1,19 +1,20 @@
 /*
- * Copyright 2011-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2019 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bx#license-bsd-2-clause
  */
 
 #ifndef BX_PIXEL_FORMAT_H_HEADER_GUARD
 #define BX_PIXEL_FORMAT_H_HEADER_GUARD
 
-#include <bx/fpumath.h>
-#include <bx/uint32_t.h>
+#include "math.h"
+#include "uint32_t.h"
 
 namespace bx
 {
+	///
 	struct EncodingType
 	{
-		enum Enum
+		enum Enum ///
 		{
 			Unorm,
 			Int,
@@ -39,6 +40,10 @@ namespace bx
 
 	///
 	float fromSnorm(int32_t _value, float _scale);
+
+	// A8
+	void packA8(void* _dst, const float* _src);
+	void unpackA8(float* _dst, const void* _src);
 
 	// R8
 	void packR8(void* _dst, const float* _src);
@@ -228,9 +233,9 @@ namespace bx
 	void packRgb10A2(void* _dst, const float* _src);
 	void unpackRgb10A2(float* _dst, const void* _src);
 
-	// R11G11B10F
-	void packR11G11B10F(void* _dst, const float* _src);
-	void unpackR11G11B10F(float* _dst, const void* _src);
+	// RG11B10F
+	void packRG11B10F(void* _dst, const float* _src);
+	void unpackRG11B10F(float* _dst, const void* _src);
 
 	// RG32F
 	void packRg32F(void* _dst, const float* _src);
@@ -238,6 +243,6 @@ namespace bx
 
 } // namespace bx
 
-#include "pixelformat.inl"
+#include "inline/pixelformat.inl"
 
 #endif // BX_PIXEL_FORMAT_H_HEADER_GUARD

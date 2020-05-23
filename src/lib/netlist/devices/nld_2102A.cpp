@@ -6,7 +6,7 @@
  */
 
 #include "nld_2102A.h"
-#include "../nl_base.h"
+#include "netlist/nl_base.h"
 
 #define ADDR2BYTE(a)    ((a) >> 3)
 #define ADDR2BIT(a)     ((a) & 0x7)
@@ -18,20 +18,22 @@ namespace netlist
 	NETLIB_OBJECT(2102A)
 	{
 		NETLIB_CONSTRUCTOR(2102A)
-		, m_A(*this, {{"A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9" }})
+		, m_A(*this, {"A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9" })
 		, m_CEQ(*this, "CEQ")
 		, m_RWQ(*this, "RWQ")
 		, m_DI(*this, "DI")
 		, m_DO(*this, "DO")
 		, m_ram(*this, "m_ram", 0)
 		, m_RAM(*this, "m_RAM", &m_ram[0])
+		, m_power_pins(*this)
 		{
 		}
 
 		NETLIB_RESETI();
 		NETLIB_UPDATEI();
 
-	protected:
+		friend class NETLIB_NAME(2102A_dip);
+	private:
 		object_array_t<logic_input_t, 10> m_A;
 		logic_input_t m_CEQ;
 		logic_input_t m_RWQ;
@@ -39,31 +41,41 @@ namespace netlist
 
 		logic_output_t m_DO;
 
-		state_var<uint8_t[128]> m_ram; // 1024x1 bits
+		state_container<std::array<uint8_t, 128>> m_ram; // 1024x1 bits
 		param_ptr_t m_RAM;
+		nld_power_pins m_power_pins;
 	};
 
-	NETLIB_OBJECT_DERIVED(2102A_dip, 2102A)
+	NETLIB_OBJECT(2102A_dip)
 	{
-		NETLIB_CONSTRUCTOR_DERIVED(2102A_dip, 2102A)
+		NETLIB_CONSTRUCTOR(2102A_dip)
+		, A(*this, "A")
 		{
-			register_subalias("8",     m_A[0]);
-			register_subalias("4",     m_A[1]);
-			register_subalias("5",     m_A[2]);
-			register_subalias("6",     m_A[3]);
-			register_subalias("7",     m_A[4]);
-			register_subalias("2",     m_A[5]);
-			register_subalias("1",     m_A[6]);
-			register_subalias("16",    m_A[7]);
-			register_subalias("15",    m_A[8]);
-			register_subalias("14",    m_A[9]);
+			register_subalias("8",     A.m_A[0]);
+			register_subalias("4",     A.m_A[1]);
+			register_subalias("5",     A.m_A[2]);
+			register_subalias("6",     A.m_A[3]);
+			register_subalias("7",     A.m_A[4]);
+			register_subalias("2",     A.m_A[5]);
+			register_subalias("1",     A.m_A[6]);
+			register_subalias("16",    A.m_A[7]);
+			register_subalias("15",    A.m_A[8]);
+			register_subalias("14",    A.m_A[9]);
 
-			register_subalias("13",    m_CEQ);
-			register_subalias("3",     m_RWQ);
+			register_subalias("13",    A.m_CEQ);
+			register_subalias("3",     A.m_RWQ);
 
-			register_subalias("11",    m_DI);
-			register_subalias("12",    m_DO);
+			register_subalias("11",    A.m_DI);
+			register_subalias("12",    A.m_DO);
+
+			register_subalias("10",    "A.VCC");
+			register_subalias("9",     "A.GND");
+
 		}
+		NETLIB_RESETI() {}
+		NETLIB_UPDATEI() {}
+	private:
+		NETLIB_SUB(2102A) A;
 	};
 
 	NETLIB_UPDATE(2102A)
@@ -92,13 +104,13 @@ namespace netlist
 
 	NETLIB_RESET(2102A)
 	{
-		m_RAM.setTo(&m_ram[0]);
+		m_RAM.set(&m_ram[0]);
 		for (std::size_t i=0; i<128; i++)
 			m_ram[i] = 0;
 	}
 
-	NETLIB_DEVICE_IMPL(2102A)
-	NETLIB_DEVICE_IMPL(2102A_dip)
+	NETLIB_DEVICE_IMPL(2102A,    "RAM_2102A",   "+CEQ,+A0,+A1,+A2,+A3,+A4,+A5,+A6,+A7,+A8,+A9,+RWQ,+DI,@VCC,@GND")
+	NETLIB_DEVICE_IMPL(2102A_dip,"RAM_2102A_DIP","")
 
 	} //namespace devices
 } // namespace netlist

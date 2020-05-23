@@ -6,14 +6,12 @@
 
 #pragma once
 
+#include "emupal.h"
 #include "screen.h"
+#include "tilemap.h"
 
 
-extern const device_type AIRRAID_VIDEO;
-
-#define MCFG_AIRRAID_VIDEO_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, AIRRAID_VIDEO, 0)
-
+DECLARE_DEVICE_TYPE(AIRRAID_VIDEO, airraid_video_device)
 
 class airraid_video_device :  public device_t
 /*  public device_video_interface */
@@ -22,14 +20,12 @@ public:
 	// construction/destruction
 	airraid_video_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_WRITE8_MEMBER(txram_w);
-	DECLARE_WRITE8_MEMBER(vregs_w);
+	void txram_w(offs_t offset, uint8_t data);
+	void vregs_w(offs_t offset, uint8_t data);
 	void layer_enable_w(uint8_t enable);
 
-	uint32_t screen_update_airraid(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-
 protected:
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
@@ -71,6 +67,8 @@ private:
 	bitmap_ind16 m_temp_bitmap;
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void mix_layer(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, uint8_t* clut, int base);
+
+	uint32_t screen_update_airraid(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 };
 
 #endif // MAME_VIDEO_AIRRAID_DEV_H

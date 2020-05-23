@@ -9,19 +9,13 @@
 
 ***************************************************************************/
 
-#ifndef __H8_TIMER8_H__
-#define __H8_TIMER8_H__
+#ifndef MAME_CPU_H8_H8_TIMER8_H
+#define MAME_CPU_H8_H8_TIMER8_H
+
+#pragma once
 
 #include "h8.h"
 #include "h8_intc.h"
-
-#define MCFG_H8_TIMER8_CHANNEL_ADD( _tag, intc, irq_ca, irq_cb, irq_v, div1, div2, div3, div4, div5, div6 ) \
-	MCFG_DEVICE_ADD( _tag, H8_TIMER8_CHANNEL, 0 )   \
-	downcast<h8_timer8_channel_device *>(device)->set_info(intc, irq_ca, irq_cb, irq_v, div1, div2, div3, div4, div5, div6);
-
-#define MCFG_H8H_TIMER8_CHANNEL_ADD( _tag, intc, irq_ca, irq_cb, irq_v, chain, chain_mode, has_adte, has_ice ) \
-	MCFG_DEVICE_ADD( _tag, H8H_TIMER8_CHANNEL, 0 )  \
-	downcast<h8h_timer8_channel_device *>(device)->set_info(intc, irq_ca, irq_cb, irq_v, chain, chain_mode, has_adte, has_ice);
 
 class h8_timer8_channel_device : public device_t {
 public:
@@ -36,7 +30,12 @@ public:
 	};
 
 	h8_timer8_channel_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	h8_timer8_channel_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
+	h8_timer8_channel_device(const machine_config &mconfig, const char *tag, device_t *owner, const char *intc, int irq_ca, int irq_cb, int irq_v,
+				int div1, int div2, int div3, int div4, int div5, int div6)
+		: h8_timer8_channel_device(mconfig, tag, owner, 0)
+	{
+		set_info(intc, irq_ca, irq_cb, irq_v, div1, div2, div3, div4, div5, div6);
+	}
 
 	void set_info(const char *intc, int irq_ca, int irq_cb, int irq_v, int div1, int div2, int div3, int div4, int div5, int div6);
 
@@ -89,6 +88,8 @@ protected:
 	int clock_type, clock_divider, clear_type, counter_cycle;
 	uint64_t last_clock_update, event_time;
 
+	h8_timer8_channel_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
@@ -102,12 +103,18 @@ protected:
 class h8h_timer8_channel_device : public h8_timer8_channel_device {
 public:
 	h8h_timer8_channel_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	h8h_timer8_channel_device(const machine_config &mconfig, const char *tag, device_t *owner, const char *intc, int irq_ca, int irq_cb, int irq_v,
+				const char *chain_tag, int chain_type, bool has_adte, bool has_ice)
+		: h8h_timer8_channel_device(mconfig, tag, owner, 0)
+	{
+		set_info(intc, irq_ca, irq_cb, irq_v, chain_tag, chain_type, has_adte, has_ice);
+	}
 	virtual ~h8h_timer8_channel_device();
 
 	void set_info(const char *intc, int irq_ca, int irq_cb, int irq_v, const char *chain_tag, int chain_type, bool has_adte, bool has_ice);
 };
 
-extern const device_type H8_TIMER8_CHANNEL;
-extern const device_type H8H_TIMER8_CHANNEL;
+DECLARE_DEVICE_TYPE(H8_TIMER8_CHANNEL,  h8_timer8_channel_device)
+DECLARE_DEVICE_TYPE(H8H_TIMER8_CHANNEL, h8h_timer8_channel_device)
 
-#endif
+#endif // MAME_CPU_H8_H8_TIMER8_H

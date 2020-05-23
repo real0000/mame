@@ -8,32 +8,11 @@
 
 ***************************************************************************/
 
+#ifndef MAME_MACHINE_6840PTM_H
+#define MAME_MACHINE_6840PTM_H
+
 #pragma once
 
-#ifndef __6840PTM_H__
-#define __6840PTM_H__
-
-
-
-
-//**************************************************************************
-//  DEVICE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_PTM6840_EXTERNAL_CLOCKS(_clk0, _clk1, _clk2) \
-	ptm6840_device::set_external_clocks(*device, _clk0, _clk1, _clk2);
-
-#define MCFG_PTM6840_OUT0_CB(_devcb) \
-	devcb = &ptm6840_device::set_out_callback(*device, 0, DEVCB_##_devcb);
-
-#define MCFG_PTM6840_OUT1_CB(_devcb) \
-	devcb = &ptm6840_device::set_out_callback(*device, 1, DEVCB_##_devcb);
-
-#define MCFG_PTM6840_OUT2_CB(_devcb) \
-	devcb = &ptm6840_device::set_out_callback(*device, 2, DEVCB_##_devcb);
-
-#define MCFG_PTM6840_IRQ_CB(_devcb) \
-	devcb = &ptm6840_device::set_irq_callback(*device, DEVCB_##_devcb);
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -47,9 +26,12 @@ public:
 	// construction/destruction
 	ptm6840_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	static void set_external_clocks(device_t &device, double clock0, double clock1, double clock2) { downcast<ptm6840_device &>(device).m_external_clock[0] = clock0; downcast<ptm6840_device &>(device).m_external_clock[1] = clock1; downcast<ptm6840_device &>(device).m_external_clock[2] = clock2; }
-	template<class _Object> static devcb_base &set_out_callback(device_t &device, int index, _Object object) { return downcast<ptm6840_device &>(device).m_out_cb[index].set_callback(object); }
-	template<class _Object> static devcb_base &set_irq_callback(device_t &device, _Object object) { return downcast<ptm6840_device &>(device).m_irq_cb.set_callback(object); }
+	void set_external_clocks(double clock0, double clock1, double clock2) { m_external_clock[0] = clock0; m_external_clock[1] = clock1; m_external_clock[2] = clock2; }
+	void set_external_clocks(const XTAL &clock0, const XTAL &clock1, const XTAL &clock2) { set_external_clocks(clock0.dvalue(), clock1.dvalue(), clock2.dvalue()); }
+	auto o1_callback() { return m_out_cb[0].bind(); }
+	auto o2_callback() { return m_out_cb[1].bind(); }
+	auto o3_callback() { return m_out_cb[2].bind(); }
+	auto irq_callback() { return m_irq_cb.bind(); }
 
 	int status(int clock) const { return m_enabled[clock]; } // get whether timer is enabled
 	int irq_state() const { return m_irq; }                 // get IRQ state
@@ -57,20 +39,18 @@ public:
 	void set_ext_clock(int counter, double clock);  // set clock frequency
 	int ext_clock(int counter) const { return m_external_clock[counter]; }  // get clock frequency
 
-	DECLARE_WRITE8_MEMBER( write );
-	void write(offs_t offset, uint8_t data) { write(machine().dummy_space(), offset, data); }
-	DECLARE_READ8_MEMBER( read );
-	uint8_t read(offs_t offset) { return read(machine().dummy_space(), offset); }
+	void write(offs_t offset, uint8_t data);
+	uint8_t read(offs_t offset);
 
 	void set_gate(int idx, int state);
-	DECLARE_WRITE_LINE_MEMBER( set_g1 );
-	DECLARE_WRITE_LINE_MEMBER( set_g2 );
-	DECLARE_WRITE_LINE_MEMBER( set_g3 );
+	DECLARE_WRITE_LINE_MEMBER( set_g1 ) { set_gate(0, state); }
+	DECLARE_WRITE_LINE_MEMBER( set_g2 ) { set_gate(1, state); }
+	DECLARE_WRITE_LINE_MEMBER( set_g3 ) { set_gate(2, state); }
 
 	void set_clock(int idx, int state);
-	DECLARE_WRITE_LINE_MEMBER( set_c1 );
-	DECLARE_WRITE_LINE_MEMBER( set_c2 );
-	DECLARE_WRITE_LINE_MEMBER( set_c3 );
+	DECLARE_WRITE_LINE_MEMBER( set_c1 ) { set_clock(0, state); }
+	DECLARE_WRITE_LINE_MEMBER( set_c2 ) { set_clock(1, state); }
+	DECLARE_WRITE_LINE_MEMBER( set_c3 ) { set_clock(2, state); }
 
 	void update_interrupts();
 
@@ -122,7 +102,7 @@ private:
 
 	double m_external_clock[3];
 
-	devcb_write_line m_out_cb[3];
+	devcb_write_line::array<3> m_out_cb;
 	devcb_write_line m_irq_cb;
 
 	uint8_t m_control_reg[3];
@@ -147,11 +127,13 @@ private:
 	uint16_t m_counter[3];
 
 	static const char *const opmode[];
+
+	// set in dual 8 bit mode to indicate Output high time cycle
+	bool m_hightime[3];
 };
 
 
 // device type definition
-extern const device_type PTM6840;
+DECLARE_DEVICE_TYPE(PTM6840, ptm6840_device)
 
-
-#endif /* __6840PTM_H__ */
+#endif // MAME_MACHINE_6840PTM_H

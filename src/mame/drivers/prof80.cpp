@@ -40,126 +40,87 @@
 
 void prof80_state::motor(int mon)
 {
-	if (m_floppy0->get_device()) m_floppy0->get_device()->mon_w(mon);
-	if (m_floppy1->get_device()) m_floppy1->get_device()->mon_w(mon);
+	if (m_floppy[0]->get_device()) m_floppy[0]->get_device()->mon_w(mon);
+	if (m_floppy[1]->get_device()) m_floppy[1]->get_device()->mon_w(mon);
 
 	m_motor = mon;
 }
 
 
-//-------------------------------------------------
-//  ls259_w -
-//-------------------------------------------------
-
-void prof80_state::ls259_w(int fa, int sa, int fb, int sb)
+WRITE_LINE_MEMBER(prof80_state::ready_w)
 {
-	switch (sa)
+	if (m_ready != state)
 	{
-	case 0: // C0/TDI
-		m_rtc->data_in_w(fa);
-		m_rtc->c0_w(fa);
-		m_c0 = fa;
-		break;
-
-	case 1: // C1
-		m_rtc->c1_w(fa);
-		m_c1 = fa;
-		break;
-
-	case 2: // C2
-		m_rtc->c2_w(fa);
-		m_c2 = fa;
-		break;
-
-	case 3: // READY
-		if (m_ready != fa)
-		{
-			m_fdc->set_ready_line_connected(!fa);
-			m_fdc->ready_w(!fa);
-			m_ready = fa;
-		}
-		break;
-
-	case 4: // TCK
-		m_rtc->clk_w(fa);
-		break;
-
-	case 5: // IN USE
-		//m_floppy->inuse_w(fa);
-		break;
-
-	case 6: // _MOTOR
-		if (fa)
-		{
-			// trigger floppy motor off NE555 timer
-			int t = 110 * RES_M(10) * CAP_U(6.8); // t = 1.1 * R8 * C6
-
-			timer_set(attotime::from_msec(t), TIMER_ID_MOTOR);
-		}
-		else
-		{
-			// turn on floppy motor
-			motor(0);
-
-			// reset floppy motor off NE555 timer
-			timer_set(attotime::never, TIMER_ID_MOTOR);
-		}
-		break;
-
-	case 7: // SELECT
-		if (m_select != fa)
-		{
-			//m_fdc->set_select_lines_connected(fa);
-			m_select = fa;
-		}
-		break;
+		m_fdc->set_ready_line_connected(!state);
+		m_fdc->ready_w(!state);
+		m_ready = state;
 	}
+}
 
-	switch (sb)
+
+WRITE_LINE_MEMBER(prof80_state::inuse_w)
+{
+	//m_floppy->inuse_w(state);
+}
+
+
+WRITE_LINE_MEMBER(prof80_state::motor_w)
+{
+	if (state)
 	{
-	case 0: // RESF
-		if (fb) m_fdc->soft_reset();
-		break;
+		// trigger floppy motor off NE555 timer
+		int t = 110 * RES_M(10) * CAP_U(6.8); // t = 1.1 * R8 * C6
 
-	case 1: // MINI
-		break;
+		m_floppy_motor_off_timer->adjust(attotime::from_msec(t));
+	}
+	else
+	{
+		// turn on floppy motor
+		motor(0);
 
-	case 2: // _RTS
-		m_rs232a->write_rts(fb);
-		break;
+		// reset floppy motor off NE555 timer
+		m_floppy_motor_off_timer->adjust(attotime::never);
+	}
+}
 
-	case 3: // TX
-		m_rs232a->write_txd(fb);
-		break;
 
-	case 4: // _MSTOP
-		if (!fb)
-		{
-			// turn off floppy motor
-			motor(1);
+WRITE_LINE_MEMBER(prof80_state::select_w)
+{
+	if (m_select != state)
+	{
+		//m_fdc->set_select_lines_connected(state);
+		m_select = state;
+	}
+}
 
-			// reset floppy motor off NE555 timer
-			timer_set(attotime::never, TIMER_ID_MOTOR);
-		}
-		break;
 
-	case 5: // TXP
-		m_rs232b->write_txd(fb);
-		break;
+WRITE_LINE_MEMBER(prof80_state::resf_w)
+{
+	if (state)
+		m_fdc->soft_reset();
+}
 
-	case 6: // TSTB
-		m_rtc->stb_w(fb);
-		break;
 
-	case 7: // MME
-		m_mmu->mme_w(fb);
-		break;
+WRITE_LINE_MEMBER(prof80_state::mini_w)
+{
+}
+
+
+WRITE_LINE_MEMBER(prof80_state::mstop_w)
+{
+	if (!state)
+	{
+		// turn off floppy motor
+		motor(1);
+
+		// reset floppy motor off NE555 timer
+		m_floppy_motor_off_timer->adjust(attotime::never);
 	}
 }
 
 
 //-------------------------------------------------
-//  flr_w -
+//  flr_w - flag register
 //-------------------------------------------------
 
 WRITE8_MEMBER( prof80_state::flr_w )
@@ -179,13 +140,8 @@ WRITE8_MEMBER( prof80_state::flr_w )
 
 	*/
 
-	int fa = BIT(data, 7);
-	int sa = (data >> 4) & 0x07;
-
-	int fb = BIT(data, 0);
-	int sb = (data >> 1) & 0x07;
-
-	ls259_w(fa, sa, fb, sb);
+	m_flra->write_bit((data >> 4) & 0x07, BIT(data, 7));
+	m_flrb->write_bit((data >> 1) & 0x07, BIT(data, 0));
 }
 
 
@@ -220,7 +176,7 @@ READ8_MEMBER( prof80_state::status_r )
 	data |= m_rs232b->cts_r() << 7;
 
 	// floppy index
-	data |= (m_floppy0->get_device() ? m_floppy0->get_device()->idx_r() : m_floppy1->get_device() ? m_floppy1->get_device()->idx_r() : 1) << 5;
+	data |= (m_floppy[0]->get_device() ? m_floppy[0]->get_device()->idx_r() : m_floppy[1]->get_device() ? m_floppy[1]->get_device()->idx_r() : 1) << 5;
 
 	return data;
 }
@@ -258,9 +214,9 @@ READ8_MEMBER( prof80_state::status2_r )
 	{
 	case 0: js4 = 0; break;
 	case 1: js4 = 1; break;
-	case 2: js4 = !m_c0; break;
-	case 3: js4 = !m_c1; break;
-	case 4: js4 = !m_c2; break;
+	case 2: js4 = !m_flra->q0_r(); break;
+	case 3: js4 = !m_flra->q1_r(); break;
+	case 4: js4 = !m_flra->q2_r(); break;
 	}
 
 	data |= js4 << 4;
@@ -270,9 +226,9 @@ READ8_MEMBER( prof80_state::status2_r )
 	{
 	case 0: js5 = 0; break;
 	case 1: js5 = 1; break;
-	case 2: js5 = !m_c0; break;
-	case 3: js5 = !m_c1; break;
-	case 4: js5 = !m_c2; break;
+	case 2: js5 = !m_flra->q0_r(); break;
+	case 3: js5 = !m_flra->q1_r(); break;
+	case 4: js5 = !m_flra->q2_r(); break;
 	}
 
 	data |= js5 << 4;
@@ -315,42 +271,45 @@ WRITE8_MEMBER( prof80_state::unio_ctrl_w )
 //  ADDRESS_MAP( prof80_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( prof80_mem, AS_PROGRAM, 8, prof80_state )
-	AM_RANGE(0x0000, 0xffff) AM_DEVICE(MMU_TAG, prof80_mmu_device, z80_program_map)
-ADDRESS_MAP_END
+void prof80_state::prof80_mem(address_map &map)
+{
+	map(0x0000, 0xffff).m(m_mmu, FUNC(prof80_mmu_device::z80_program_map));
+}
 
 
 //-------------------------------------------------
 //  ADDRESS_MAP( prof80_mmu )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( prof80_mmu, AS_PROGRAM, 8, prof80_state )
-	AM_RANGE(0x40000, 0x5ffff) AM_RAM
-	AM_RANGE(0xc0000, 0xdffff) AM_RAM
-	AM_RANGE(0xf0000, 0xf1fff) AM_MIRROR(0xe000) AM_ROM AM_REGION(Z80_TAG, 0)
-ADDRESS_MAP_END
+void prof80_state::prof80_mmu(address_map &map)
+{
+	map(0x40000, 0x5ffff).ram();
+	map(0xc0000, 0xdffff).ram();
+	map(0xf0000, 0xf1fff).mirror(0xe000).rom().region(Z80_TAG, 0);
+}
 
 
 //-------------------------------------------------
 //  ADDRESS_MAP( prof80_io )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( prof80_io, AS_IO, 8, prof80_state )
-	AM_RANGE(0x00, 0xd7) AM_MIRROR(0xff00) AM_DEVREADWRITE(ECBBUS_TAG, ecbbus_device, io_r, io_w)
-//  AM_RANGE(0x80, 0x8f) AM_MIRROR(0xff00) AM_DEVREADWRITE(UNIO_Z80STI_TAG, z80sti_device, read, write)
-//  AM_RANGE(0x94, 0x95) AM_MIRROR(0xff00) AM_DEVREADWRITE_LEGACY(UNIO_Z80SIO_TAG, z80sio_d_r, z80sio_d_w)
-//  AM_RANGE(0x96, 0x97) AM_MIRROR(0xff00) AM_DEVREADWRITE_LEGACY(UNIO_Z80SIO_TAG, z80sio_c_r, z80sio_c_w)
-//  AM_RANGE(0x9e, 0x9e) AM_MIRROR(0xff00) AM_WRITE(unio_ctrl_w)
-//  AM_RANGE(0x9c, 0x9c) AM_MIRROR(0xff00) AM_DEVWRITE(UNIO_CENTRONICS1_TAG, centronics_device, write)
-//  AM_RANGE(0x9d, 0x9d) AM_MIRROR(0xff00) AM_DEVWRITE(UNIO_CENTRONICS1_TAG, centronics_device, write)
-//  AM_RANGE(0xc0, 0xc0) AM_MIRROR(0xff00) AM_READ(gripc_r)
-//  AM_RANGE(0xc1, 0xc1) AM_MIRROR(0xff00) AM_READWRITE(gripd_r, gripd_w)
-	AM_RANGE(0xd8, 0xd8) AM_MIRROR(0xff00) AM_WRITE(flr_w)
-	AM_RANGE(0xda, 0xda) AM_MIRROR(0xff00) AM_READ(status_r)
-	AM_RANGE(0xdb, 0xdb) AM_MIRROR(0xff00) AM_READ(status2_r)
-	AM_RANGE(0xdc, 0xdd) AM_MIRROR(0xff00) AM_DEVICE(UPD765_TAG, upd765a_device, map)
-	AM_RANGE(0xde, 0xde) AM_MIRROR(0x0001) AM_SELECT(0xff00) AM_DEVWRITE(MMU_TAG, prof80_mmu_device, par_w)
-ADDRESS_MAP_END
+void prof80_state::prof80_io(address_map &map)
+{
+	map(0x00, 0xd7).mirror(0xff00).rw(m_ecb, FUNC(ecbbus_device::io_r), FUNC(ecbbus_device::io_w));
+//  map(0x80, 0x8f).mirror(0xff00).rw(UNIO_Z80STI_TAG, FUNC(z80sti_device::read), FUNC(z80sti_device::write));
+//  map(0x94, 0x95).mirror(0xff00).rw(UNIO_Z80SIO_TAG, FUNC(z80sio_device::z80sio_d_r), FUNC(z80sio_device::z80sio_d_w)); // TODO: these methods don't exist anymore
+//  map(0x96, 0x97).mirror(0xff00).rw(UNIO_Z80SIO_TAG, FUNC(z80sio_device::z80sio_c_r), FUNC(z80sio_device::z80sio_c_w)); // TODO: these methods don't exist anymore
+//  map(0x9e, 0x9e).mirror(0xff00).w(FUNC(prof80_state::unio_ctrl_w));
+//  map(0x9c, 0x9c).mirror(0xff00).w(UNIO_CENTRONICS1_TAG, FUNC(centronics_device::write));
+//  map(0x9d, 0x9d).mirror(0xff00).w(UNIO_CENTRONICS1_TAG, FUNC(centronics_device::write));
+//  map(0xc0, 0xc0).mirror(0xff00).r(FUNC(prof80_state::gripc_r));
+//  map(0xc1, 0xc1).mirror(0xff00).rw(FUNC(prof80_state::gripd_r), FUNC(prof80_state::gripd_w));
+	map(0xd8, 0xd8).mirror(0xff00).w(FUNC(prof80_state::flr_w));
+	map(0xda, 0xda).mirror(0xff00).r(FUNC(prof80_state::status_r));
+	map(0xdb, 0xdb).mirror(0xff00).r(FUNC(prof80_state::status2_r));
+	map(0xdc, 0xdd).mirror(0xff00).m(m_fdc, FUNC(upd765a_device::map));
+	map(0xde, 0xde).mirror(0x0001).select(0xff00).w(m_mmu, FUNC(prof80_mmu_device::par_w));
+}
 
 
 
@@ -436,9 +395,10 @@ INPUT_PORTS_END
 //  upd765_interface fdc_intf
 //-------------------------------------------------
 
-static SLOT_INTERFACE_START( prof80_floppies )
-	SLOT_INTERFACE( "525qd", FLOPPY_525_QD )
-SLOT_INTERFACE_END
+static void prof80_floppies(device_slot_interface &device)
+{
+	device.option_add("525qd", FLOPPY_525_QD);
+}
 
 
 
@@ -471,24 +431,13 @@ void prof80_state::machine_start()
 	m_rtc->cs_w(1);
 	m_rtc->oe_w(1);
 
+	// create timer
+	m_floppy_motor_off_timer = timer_alloc(TIMER_ID_MOTOR);
+
 	// register for state saving
-	save_item(NAME(m_c0));
-	save_item(NAME(m_c1));
-	save_item(NAME(m_c2));
 	save_item(NAME(m_motor));
 	save_item(NAME(m_ready));
 	save_item(NAME(m_select));
-}
-
-
-void prof80_state::machine_reset()
-{
-	int i;
-
-	for (i = 0; i < 8; i++)
-	{
-		ls259_w(0, i, 0, i);
-	}
 }
 
 
@@ -498,43 +447,69 @@ void prof80_state::machine_reset()
 //**************************************************************************
 
 //-------------------------------------------------
-//  MACHINE_CONFIG( prof80 )
+//  machine_config( prof80 )
 //-------------------------------------------------
 
-static MACHINE_CONFIG_START( prof80, prof80_state )
+void prof80_state::prof80(machine_config &config)
+{
 	// basic machine hardware
-	MCFG_CPU_ADD(Z80_TAG, Z80, XTAL_6MHz)
-	MCFG_CPU_PROGRAM_MAP(prof80_mem)
-	MCFG_CPU_IO_MAP(prof80_io)
+	Z80(config, m_maincpu, XTAL(6'000'000));
+	m_maincpu->set_addrmap(AS_PROGRAM, &prof80_state::prof80_mem);
+	m_maincpu->set_addrmap(AS_IO, &prof80_state::prof80_io);
 
-	// devices
-	MCFG_PROF80_MMU_ADD(MMU_TAG, prof80_mmu)
-	MCFG_UPD1990A_ADD(UPD1990A_TAG, XTAL_32_768kHz, NOOP, NOOP)
-	MCFG_UPD765A_ADD(UPD765_TAG, true, true)
-	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":0", prof80_floppies, "525qd", floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":1", prof80_floppies, "525qd", floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":2", prof80_floppies, nullptr,    floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":3", prof80_floppies, nullptr,    floppy_image_device::default_floppy_formats)
+	// MMU
+	PROF80_MMU(config, m_mmu, 0);
+	m_mmu->set_addrmap(AS_PROGRAM, &prof80_state::prof80_mmu);
+
+	// RTC
+	UPD1990A(config, m_rtc);
+
+	// FDC
+	UPD765A(config, m_fdc, 8'000'000, true, true);
+	FLOPPY_CONNECTOR(config, UPD765_TAG ":0", prof80_floppies, "525qd", floppy_image_device::default_floppy_formats);
+	FLOPPY_CONNECTOR(config, UPD765_TAG ":1", prof80_floppies, "525qd", floppy_image_device::default_floppy_formats);
+	FLOPPY_CONNECTOR(config, UPD765_TAG ":2", prof80_floppies, nullptr, floppy_image_device::default_floppy_formats);
+	FLOPPY_CONNECTOR(config, UPD765_TAG ":3", prof80_floppies, nullptr, floppy_image_device::default_floppy_formats);
+
+	// DEMUX latches
+	LS259(config, m_flra);
+	m_flra->q_out_cb<0>().set(m_rtc, FUNC(upd1990a_device::data_in_w)); // TDI
+	m_flra->q_out_cb<0>().append(m_rtc, FUNC(upd1990a_device::c0_w)); // C0
+	m_flra->q_out_cb<1>().set(m_rtc, FUNC(upd1990a_device::c1_w)); // C1
+	m_flra->q_out_cb<2>().set(m_rtc, FUNC(upd1990a_device::c2_w)); // C2
+	m_flra->q_out_cb<3>().set(FUNC(prof80_state::ready_w)); // READY
+	m_flra->q_out_cb<4>().set(m_rtc, FUNC(upd1990a_device::clk_w)); // TCK
+	m_flra->q_out_cb<5>().set(FUNC(prof80_state::inuse_w)); // IN USE
+	m_flra->q_out_cb<6>().set(FUNC(prof80_state::motor_w)); // _MOTOR
+	m_flra->q_out_cb<7>().set(FUNC(prof80_state::select_w)); // SELECT
+	LS259(config, m_flrb);
+	m_flrb->q_out_cb<0>().set(FUNC(prof80_state::resf_w)); // RESF
+	m_flrb->q_out_cb<1>().set(FUNC(prof80_state::mini_w)); // MINI
+	m_flrb->q_out_cb<2>().set(m_rs232a, FUNC(rs232_port_device::write_rts)); // _RTS
+	m_flrb->q_out_cb<3>().set(m_rs232a, FUNC(rs232_port_device::write_txd)); // TX
+	m_flrb->q_out_cb<4>().set(FUNC(prof80_state::mstop_w)); // _MSTOP
+	m_flrb->q_out_cb<5>().set(m_rs232b, FUNC(rs232_port_device::write_txd)); // TXP
+	m_flrb->q_out_cb<6>().set(m_rtc, FUNC(upd1990a_device::stb_w)); // TSTB
+	m_flrb->q_out_cb<7>().set(m_mmu, FUNC(prof80_mmu_device::mme_w)); // MME
 
 	// ECB bus
-	MCFG_ECBBUS_ADD()
-	MCFG_ECBBUS_SLOT_ADD(1, "ecb_1", ecbbus_cards, "grip21")
-	MCFG_ECBBUS_SLOT_ADD(2, "ecb_2", ecbbus_cards, nullptr)
-	MCFG_ECBBUS_SLOT_ADD(3, "ecb_3", ecbbus_cards, nullptr)
-	MCFG_ECBBUS_SLOT_ADD(4, "ecb_4", ecbbus_cards, nullptr)
-	MCFG_ECBBUS_SLOT_ADD(5, "ecb_5", ecbbus_cards, nullptr)
+	ECBBUS(config, m_ecb);
+	ECBBUS_SLOT(config, "ecb_1", m_ecb, 1, ecbbus_cards, "grip21");
+	ECBBUS_SLOT(config, "ecb_2", m_ecb, 2, ecbbus_cards, nullptr);
+	ECBBUS_SLOT(config, "ecb_3", m_ecb, 3, ecbbus_cards, nullptr);
+	ECBBUS_SLOT(config, "ecb_4", m_ecb, 4, ecbbus_cards, nullptr);
+	ECBBUS_SLOT(config, "ecb_5", m_ecb, 5, ecbbus_cards, nullptr);
 
 	// V24
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, nullptr)
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, nullptr)
+	RS232_PORT(config, m_rs232a, default_rs232_devices, nullptr);
+	RS232_PORT(config, m_rs232b, default_rs232_devices, nullptr);
 
 	// internal ram
-	MCFG_RAM_ADD(RAM_TAG)
-	MCFG_RAM_DEFAULT_SIZE("128K")
+	RAM(config, RAM_TAG).set_default_size("128K");
 
 	// software lists
-	MCFG_SOFTWARE_LIST_ADD("flop_list", "prof80")
-MACHINE_CONFIG_END
+	SOFTWARE_LIST(config, "flop_list").set_original("prof80");
+}
 
 
 
@@ -550,11 +525,11 @@ ROM_START( prof80 )
 	ROM_REGION( 0x2000, Z80_TAG, 0 )
 	ROM_DEFAULT_BIOS( "v17" )
 	ROM_SYSTEM_BIOS( 0, "v15", "v1.5" )
-	ROMX_LOAD( "prof80v15.z7", 0x0000, 0x2000, CRC(8f74134c) SHA1(83f9dcdbbe1a2f50006b41d406364f4d580daa1f), ROM_BIOS(1) )
+	ROMX_LOAD( "prof80v15.z7", 0x0000, 0x2000, CRC(8f74134c) SHA1(83f9dcdbbe1a2f50006b41d406364f4d580daa1f), ROM_BIOS(0) )
 	ROM_SYSTEM_BIOS( 1, "v16", "v1.6" )
-	ROMX_LOAD( "prof80v16.z7", 0x0000, 0x2000, CRC(7d3927b3) SHA1(bcc15fd04dbf1d6640115be595255c7b9d2a7281), ROM_BIOS(2) )
+	ROMX_LOAD( "prof80v16.z7", 0x0000, 0x2000, CRC(7d3927b3) SHA1(bcc15fd04dbf1d6640115be595255c7b9d2a7281), ROM_BIOS(1) )
 	ROM_SYSTEM_BIOS( 2, "v17", "v1.7" )
-	ROMX_LOAD( "prof80v17.z7", 0x0000, 0x2000, CRC(53305ff4) SHA1(3ea209093ac5ac8a5db618a47d75b705965cdf44), ROM_BIOS(3) )
+	ROMX_LOAD( "prof80v17.z7", 0x0000, 0x2000, CRC(53305ff4) SHA1(3ea209093ac5ac8a5db618a47d75b705965cdf44), ROM_BIOS(2) )
 ROM_END
 
 
@@ -563,5 +538,5 @@ ROM_END
 //  SYSTEM DRIVERS
 //**************************************************************************
 
-//    YEAR  NAME     PARENT  COMPAT  MACHINE  INPUT    INIT    COMPANY                          FULLNAME        FLAGS
-COMP( 1984, prof80,     0,      0,      prof80, prof80, driver_device,  0,      "Conitec Datensysteme", "PROF-80",              MACHINE_NOT_WORKING | MACHINE_NO_SOUND)
+//    YEAR  NAME     PARENT  COMPAT  MACHINE  INPUT   STATE         INIT        COMPANY                 FULLNAME    FLAGS
+COMP( 1984, prof80,  0,      0,      prof80,  prof80, prof80_state, empty_init, "Conitec Datensysteme", "PROF-80",  MACHINE_NOT_WORKING | MACHINE_NO_SOUND)

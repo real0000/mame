@@ -11,11 +11,12 @@
 
 
 #undef G65816_CALL_DEBUGGER
-#define G65816_CALL_DEBUGGER(x) debugger_instruction_hook(this, x)
+#define G65816_CALL_DEBUGGER(x) debugger_instruction_hook(x)
 
-#define g65816_read_8(addr)             m_program->read_byte(addr)
-#define g65816_write_8(addr,data)       m_program->write_byte(addr,data)
-#define g65816_read_8_immediate(A)      m_program->read_byte(A)
+#define g65816_read_8(addr)             m_data_space->read_byte(addr)
+#define g65816_write_8(addr,data)       m_data_space->write_byte(addr,data)
+#define g65816_read_8_immediate(A)      m_program_cache->read_byte(A)
+#define g65816_read_8_opcode(A)         m_opcode_cache->read_byte(A)
 #define g65816_jumping(A)
 #define g65816_branching(A)
 
@@ -24,31 +25,14 @@
 /* ================================ INCLUDES ============================== */
 /* ======================================================================== */
 
-#include <limits.h>
+#include <climits>
 
 
 /* ======================================================================== */
 /* ================================ GENERAL =============================== */
 /* ======================================================================== */
 
-/* This should be set to the default size of your processor (min 16 bit) */
-#undef uint
-#define uint unsigned int
-
-#undef uint8
-#define uint8 unsigned char
-
-#undef int8
-
-/* Allow for architectures that don't have 8-bit sizes */
-#if UCHAR_MAX == 0xff
-#define int8 signed char
-#define MAKE_INT_8(A) (int8)((A)&0xff)
-#else
-#define int8   int
-static inline int MAKE_INT_8(int A) {return (A & 0x80) ? A | ~0xff : A & 0xff;}
-#endif /* UCHAR_MAX == 0xff */
-
+#define MAKE_INT_8(A) (int8_t)((A)&0xff)
 #define MAKE_UINT_8(A) ((A)&0xff)
 #define MAKE_UINT_16(A) ((A)&0xffff)
 #define MAKE_UINT_24(A) ((A)&0xffffff)
@@ -92,7 +76,6 @@ static inline int MAKE_INT_8(int A) {return (A & 0x80) ? A | ~0xff : A & 0xff;}
 #define LINE_NMI        m_line_nmi  /* Status of the NMI line */
 #define REGISTER_IR     m_ir        /* Instruction Register */
 #define INT_ACK         m_int_ack   /* Interrupt Acknowledge function pointer */
-#define READ_VECTOR     m_read_vector   /* Vector reading override */
 #define CLOCKS          m_ICount        /* Clock cycles remaining */
 #define IRQ_DELAY       m_irq_delay /* Delay 1 instruction before checking IRQ */
 #define CPU_STOPPED         m_stopped   /* Stopped status of the CPU */
@@ -134,16 +117,16 @@ static inline int MAKE_INT_8(int A) {return (A & 0x80) ? A | ~0xff : A & 0xff;}
 /* ======================================================================== */
 
 #define CLK_OP          1
-#define CLK_R8          m_rw8_cycles
-#define CLK_R16         m_rw16_cycles
-#define CLK_R24         m_rw24_cycles
-#define CLK_W8          m_rw8_cycles
-#define CLK_W16         m_rw16_cycles
-#define CLK_W24         m_rw24_cycles
-#define CLK_RMW8        m_rw8_cycles+m_rw8_cycles + 1
-#define CLK_RMW16       m_rw16_cycles+m_rw16_cycles + 1
+#define CLK_R8          1
+#define CLK_R16         2
+#define CLK_R24         3
+#define CLK_W8          1
+#define CLK_W16         2
+#define CLK_W24         3
+#define CLK_RMW8        3
+#define CLK_RMW16       5
 
-#define CLK_IMPLIED     1
+
 #define CLK_IMPLIED     1
 #define CLK_RELATIVE_8  1
 #define CLK_RELATIVE_16 2
@@ -186,7 +169,7 @@ static inline int MAKE_INT_8(int A) {return (A & 0x80) ? A | ~0xff : A & 0xff;}
 #define CLK_W_S         2
 #define CLK_W_SIY       5
 
-#define CLK(A)          CLOCKS -= A
+#define CLK(A)          CLOCKS -= ((A)*(m_divider))
 #define CLK_BUS(A)      CLOCKS -= A
 #define USE_ALL_CLKS()  CLOCKS = 0
 
@@ -252,7 +235,7 @@ static inline int MAKE_INT_8(int A) {return (A & 0x80) ? A | ~0xff : A & 0xff;}
 #define NFLAG_8(A)      (A)
 #define NFLAG_16(A)     ((A)>>8)
 
-#define CFLAG_AS_1()    ((FLAG_C>>8)&1)
+#define CFLAG_1()    ((FLAG_C>>8)&1)
 
 
 

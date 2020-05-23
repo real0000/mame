@@ -21,40 +21,11 @@
 
 **********************************************************************/
 
+#ifndef MAME_VIDEO_CDP1862_H
+#define MAME_VIDEO_CDP1862_H
+
 #pragma once
 
-#ifndef __CDP1862__
-#define __CDP1862__
-
-
-
-
-//**************************************************************************
-//  MACROS / CONSTANTS
-//**************************************************************************
-
-#define CPD1862_CLOCK   XTAL_7_15909MHz
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_CDP1861_RD_CALLBACK(_read) \
-	devcb = &cdp1862_device::set_rd_rd_callback(*device, DEVCB_##_read);
-
-#define MCFG_CDP1861_BD_CALLBACK(_read) \
-	devcb = &cdp1862_device::set_bd_rd_callback(*device, DEVCB_##_read);
-
-#define MCFG_CDP1861_GD_CALLBACK(_read) \
-	devcb = &cdp1862_device::set_gd_rd_callback(*device, DEVCB_##_read);
-
-#define MCFG_CDP1862_LUMINANCE(_r, _b, _g, _bkg) \
-	cdp1862_device::static_set_luminance(*device, _r, _b, _g, _bkg);
-
-#define MCFG_CDP1862_CHROMINANCE(_r, _b, _g, _bkg) \
-	cdp1862_device::static_set_chrominance(*device, _r, _b, _g, _bkg);
 
 
 
@@ -71,16 +42,16 @@ public:
 	// construction/destruction
 	cdp1862_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_rd_rd_callback(device_t &device, _Object object) { return downcast<cdp1862_device &>(device).m_read_rd.set_callback(object); }
-	template<class _Object> static devcb_base &set_bd_rd_callback(device_t &device, _Object object) { return downcast<cdp1862_device &>(device).m_read_bd.set_callback(object); }
-	template<class _Object> static devcb_base &set_gd_rd_callback(device_t &device, _Object object) { return downcast<cdp1862_device &>(device).m_read_gd.set_callback(object); }
+	auto rdata_cb() { return m_read_rd.bind(); }
+	auto bdata_cb() { return m_read_bd.bind(); }
+	auto gdata_cb() { return m_read_gd.bind(); }
 
-	static void static_set_luminance(device_t &device, double r, double b, double g, double bkg) { downcast<cdp1862_device &>(device).m_lum_r = r; downcast<cdp1862_device &>(device).m_lum_b = b; downcast<cdp1862_device &>(device).m_lum_g = g; downcast<cdp1862_device &>(device).m_lum_bkg = bkg; }
-	static void static_set_chrominance(device_t &device, double r, double b, double g, double bkg) { downcast<cdp1862_device &>(device).m_chr_r = r; downcast<cdp1862_device &>(device).m_chr_b = b; downcast<cdp1862_device &>(device).m_chr_g = g; downcast<cdp1862_device &>(device).m_chr_bkg = bkg; }
+	void set_luminance(double r, double b, double g, double bkg) { m_lum_r = r; m_lum_b = b; m_lum_g = g; m_lum_bkg = bkg; }
+	void set_chrominance(double r, double b, double g, double bkg) { m_chr_r = r; m_chr_b = b; m_chr_g = g; m_chr_bkg = bkg; }
 
-	DECLARE_WRITE8_MEMBER( dma_w );
-	DECLARE_WRITE_LINE_MEMBER( bkg_w );
-	DECLARE_WRITE_LINE_MEMBER( con_w );
+	void dma_w(uint8_t data);
+	void bkg_w(int state);
+	void con_w(int state);
 
 	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
@@ -115,8 +86,6 @@ private:
 
 
 // device type definition
-extern const device_type CDP1862;
+DECLARE_DEVICE_TYPE(CDP1862, cdp1862_device)
 
-
-
-#endif
+#endif // MAME_VIDEO_CDP1862_H

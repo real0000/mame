@@ -5,8 +5,11 @@
     See ti990_10.c for documentation
 */
 
-#ifndef __TI990_10_H__
-#define __TI990_10_H__
+#ifndef MAME_CPU_TMS9900_TI990_10_H
+#define MAME_CPU_TMS9900_TI990_10_H
+
+#pragma once
+
 
 #include "debugger.h"
 #include "tms99com.h"
@@ -24,18 +27,16 @@ protected:
 	void        device_reset() override;
 
 	// device_execute_interface overrides
-	uint32_t      execute_min_cycles() const override;
-	uint32_t      execute_max_cycles() const override;
-	uint32_t      execute_input_lines() const override;
+	uint32_t      execute_min_cycles() const noexcept override;
+	uint32_t      execute_max_cycles() const noexcept override;
+	uint32_t      execute_input_lines() const noexcept override;
 	void        execute_set_input(int irqline, int state) override;
 	void        execute_run() override;
 
 	// device_disasm_interface overrides
-	uint32_t      disasm_min_opcode_bytes() const override;
-	uint32_t      disasm_max_opcode_bytes() const override;
-	offs_t      disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	const address_space_config* memory_space_config(address_spacenum spacenum) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	const address_space_config      m_program_config;
 	const address_space_config      m_io_config;
@@ -55,6 +56,6 @@ private:
 };
 
 // device type definition
-extern const device_type TI990_10;
+DECLARE_DEVICE_TYPE(TI990_10, ti990_10_device)
 
-#endif /* __TI990_10_H__ */
+#endif // MAME_CPU_TMS9900_TI990_10_H

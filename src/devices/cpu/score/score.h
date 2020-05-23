@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_CPU_SCORE_SCORE_H
+#define MAME_CPU_SCORE_SCORE_H
 
-#ifndef __SCORE_H__
-#define __SCORE_H__
+#pragma once
 
 
 //**************************************************************************
@@ -33,16 +33,17 @@ class score7_cpu_device : public cpu_device
 {
 public:
 	// construction/destruction
-	score7_cpu_device(const machine_config &mconfig, const char *_tag, device_t *_owner, uint32_t _clock);
+	score7_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 1; }
-	virtual uint32_t execute_max_cycles() const override { return 1; }
-	virtual uint32_t execute_input_lines() const override { return 64; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 64; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
@@ -50,12 +51,10 @@ protected:
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 2; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 4; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 private:
 	// helpers
@@ -72,9 +71,6 @@ private:
 	void check_irq();
 	void gen_exception(int cause, uint32_t param = 0);
 
-	offs_t disasm(std::ostream &stream, offs_t pc, uint32_t opcode);
-	void disasm32(std::ostream &stream, offs_t pc, uint32_t opcode);
-	void disasm16(std::ostream &stream, offs_t pc, uint16_t opcode);
 	void unemulated_op(const char * op);
 
 	// 32-bit opcodes
@@ -110,10 +106,9 @@ private:
 	void op_iform1a();
 	void op_iform1b();
 
-private:
 	address_space_config m_program_config;
 	address_space *     m_program;
-	direct_read_data *  m_direct;
+	memory_access_cache<2, 0, ENDIANNESS_LITTLE> *m_cache;
 
 	// internal state
 	int                 m_icount;
@@ -130,21 +125,8 @@ private:
 	typedef void (score7_cpu_device::*op_handler)();
 	static const op_handler s_opcode32_table[4*8];
 	static const op_handler s_opcode16_table[8];
-
-	// mnemonics
-	static const char *const m_cond[16];
-	static const char *const m_tcs[4];
-	static const char *const m_rix1_op[8];
-	static const char *const m_rix2_op[8];
-	static const char *const m_r2_op[16];
-	static const char *const m_i1_op[8];
-	static const char *const m_i2_op[8];
-	static const char *const m_ls_op[8];
-	static const char *const m_i1a_op[8];
-	static const char *const m_i1b_op[8];
-	static const char *const m_cr_op[2];
 };
 
-extern const device_type SCORE7;
+DECLARE_DEVICE_TYPE(SCORE7, score7_cpu_device)
 
-#endif /* __SCORE_H__ */
+#endif // MAME_CPU_SCORE_SCORE_H

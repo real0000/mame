@@ -13,33 +13,26 @@
 
 **********************************************************************/
 
-#ifndef __R10696_H__
-#define __R10696_H__
+#ifndef MAME_MACHINE_R10696_H
+#define MAME_MACHINE_R10696_H
+
+#pragma once
 
 #include "device.h"
 
-/*************************************
- *
- *  Device configuration macros
- *
- *************************************/
-
-/* Set the read and write group (4-bit; nibble) delegates */
-#define MCFG_R10696_IO(_devcb_rd,_devcb_wr) \
-	r10696_device::set_iord(*device, DEVCB_##_devcb_rd); \
-	r10696_device::set_iowr(*device, DEVCB_##_devcb_wr);
 
 class r10696_device : public device_t
 {
 public:
 	r10696_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~r10696_device() {}
 
-	DECLARE_READ8_MEMBER ( io_r );
-	DECLARE_WRITE8_MEMBER( io_w );
+	uint8_t io_r(offs_t offset);
+	void io_w(offs_t offset, uint8_t data);
 
-	template<class _Object> static devcb_base &set_iord(device_t &device, _Object object) { return downcast<r10696_device &>(device).m_iord.set_callback(object); }
-	template<class _Object> static devcb_base &set_iowr(device_t &device, _Object object) { return downcast<r10696_device &>(device).m_iowr.set_callback(object); }
+	/* Set the read and write group (4-bit; nibble) delegates */
+	auto iord_cb() { return m_iord.bind(); }
+	auto iowr_cb() { return m_iowr.bind(); }
+
 protected:
 	// device-level overrides
 	virtual void device_start() override;
@@ -53,6 +46,6 @@ private:
 	devcb_write8  m_iowr;   //!< output line (write, offset = group, data = 4 bits)
 };
 
-extern const device_type R10696;
+DECLARE_DEVICE_TYPE(R10696, r10696_device)
 
-#endif /* __R10696_H__ */
+#endif // MAME_MACHINE_R10696_H

@@ -16,7 +16,7 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type MACPDS_SLOT = device_creator<macpds_slot_device>;
+DEFINE_DEVICE_TYPE(MACPDS_SLOT, macpds_slot_device, "macpds_slot", "Mac 68000 Processor-Direct Slot")
 
 //**************************************************************************
 //  LIVE DEVICE
@@ -26,24 +26,16 @@ const device_type MACPDS_SLOT = device_creator<macpds_slot_device>;
 //  macpds_slot_device - constructor
 //-------------------------------------------------
 macpds_slot_device::macpds_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-		device_t(mconfig, MACPDS_SLOT, "Mac 68000 Processor-Direct Slot", tag, owner, clock, "macpds_slot", __FILE__),
-		device_slot_interface(mconfig, *this),
+	macpds_slot_device(mconfig, MACPDS_SLOT, tag, owner, clock)
+{
+}
+
+macpds_slot_device::macpds_slot_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, type, tag, owner, clock),
+	device_slot_interface(mconfig, *this),
 	m_macpds_tag(nullptr),
 	m_macpds_slottag(nullptr)
 {
-}
-
-macpds_slot_device::macpds_slot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-		device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-		device_slot_interface(mconfig, *this), m_macpds_tag(nullptr), m_macpds_slottag(nullptr)
-{
-}
-
-void macpds_slot_device::static_set_macpds_slot(device_t &device, const char *tag, const char *slottag)
-{
-	macpds_slot_device &macpds_card = dynamic_cast<macpds_slot_device &>(device);
-	macpds_card.m_macpds_tag = tag;
-	macpds_card.m_macpds_slottag = slottag;
 }
 
 //-------------------------------------------------
@@ -54,20 +46,14 @@ void macpds_slot_device::device_start()
 {
 	device_macpds_card_interface *dev = dynamic_cast<device_macpds_card_interface *>(get_card_device());
 
-	if (dev) device_macpds_card_interface::static_set_macpds_tag(*dev, m_macpds_tag, m_macpds_slottag);
+	if (dev) dev->set_macpds_tag(m_macpds_tag, m_macpds_slottag);
 }
 
 //**************************************************************************
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type MACPDS = device_creator<macpds_device>;
-
-void macpds_device::static_set_cputag(device_t &device, const char *tag)
-{
-	macpds_device &macpds = downcast<macpds_device &>(device);
-	macpds.m_cputag = tag;
-}
+DEFINE_DEVICE_TYPE(MACPDS, macpds_device, "macpds", "Mac 68000 Processor-Direct Bus")
 
 //**************************************************************************
 //  LIVE DEVICE
@@ -78,12 +64,14 @@ void macpds_device::static_set_cputag(device_t &device, const char *tag)
 //-------------------------------------------------
 
 macpds_device::macpds_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-		device_t(mconfig, MACPDS, "MACPDS", tag, owner, clock, "macpds", __FILE__), m_maincpu(nullptr), m_cputag(nullptr)
+	macpds_device(mconfig, MACPDS, tag, owner, clock)
 {
 }
 
-macpds_device::macpds_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-		device_t(mconfig, type, name, tag, owner, clock, shortname, source), m_maincpu(nullptr), m_cputag(nullptr)
+macpds_device::macpds_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, type, tag, owner, clock),
+	m_maincpu(nullptr),
+	m_cputag(nullptr)
 {
 }
 //-------------------------------------------------
@@ -148,7 +136,7 @@ void macpds_device::set_irq_line(int line, int state)
 //-------------------------------------------------
 
 device_macpds_card_interface::device_macpds_card_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig, device),
+	: device_interface(device, "macpds"),
 		m_macpds(nullptr),
 		m_macpds_tag(nullptr), m_macpds_slottag(nullptr), m_next(nullptr)
 {
@@ -163,13 +151,6 @@ device_macpds_card_interface::~device_macpds_card_interface()
 {
 }
 
-void device_macpds_card_interface::static_set_macpds_tag(device_t &device, const char *tag, const char *slottag)
-{
-	device_macpds_card_interface &macpds_card = dynamic_cast<device_macpds_card_interface &>(device);
-	macpds_card.m_macpds_tag = tag;
-	macpds_card.m_macpds_slottag = slottag;
-}
-
 void device_macpds_card_interface::set_macpds_device()
 {
 	m_macpds = dynamic_cast<macpds_device *>(device().machine().device(m_macpds_tag));
@@ -181,9 +162,7 @@ void device_macpds_card_interface::install_bank(offs_t start, offs_t end, const 
 	char bank[256];
 
 	// append an underscore and the slot name to the bank so it's guaranteed unique
-	strcpy(bank, tag);
-	strcat(bank, "_");
-	strcat(bank, m_macpds_slottag);
+	snprintf(bank, sizeof(bank), "%s_%s", tag, m_macpds_slottag);
 
 	m_macpds->install_bank(start, end, bank, data);
 }

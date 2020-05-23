@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_BW2_RAMCARD_H
+#define MAME_BUS_BW2_RAMCARD_H
 
-#ifndef __BW2_RAMCARD__
-#define __BW2_RAMCARD__
+#pragma once
 
 #include "exp.h"
 
@@ -37,9 +37,9 @@ protected:
 	virtual void device_reset() override;
 
 	// device_bw2_expansion_slot_interface overrides
-	virtual uint8_t bw2_cd_r(address_space &space, offs_t offset, uint8_t data, int ram2, int ram3, int ram4, int ram5, int ram6) override;
-	virtual void bw2_cd_w(address_space &space, offs_t offset, uint8_t data, int ram2, int ram3, int ram4, int ram5, int ram6) override;
-	virtual void bw2_slot_w(address_space &space, offs_t offset, uint8_t data) override;
+	virtual uint8_t bw2_cd_r(offs_t offset, uint8_t data, int ram2, int ram3, int ram4, int ram5, int ram6) override;
+	virtual void bw2_cd_w(offs_t offset, uint8_t data, int ram2, int ram3, int ram4, int ram5, int ram6) override;
+	virtual void bw2_slot_w(offs_t offset, uint8_t data) override;
 
 private:
 	required_memory_region m_rom;
@@ -51,8 +51,8 @@ private:
 
 
 // device type definition
-extern const device_type BW2_RAMCARD;
+DECLARE_DEVICE_TYPE(BW2_RAMCARD, bw2_ramcard_device)
 
 
 
-#endif
+#endif // MAME_BUS_BW2_RAMCARD_H

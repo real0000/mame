@@ -5,7 +5,7 @@
 #include "tiasound.h"
 
 // device type definition
-const device_type TIA = device_creator<tia_device>;
+DEFINE_DEVICE_TYPE(TIA, tia_device, "tia_sound", "Atari TIA (Sound)")
 
 
 //**************************************************************************
@@ -17,7 +17,7 @@ const device_type TIA = device_creator<tia_device>;
 //-------------------------------------------------
 
 tia_device::tia_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, TIA, "TIA", tag, owner, clock, "tia_sound", __FILE__),
+	: device_t(mconfig, TIA, tag, owner, clock),
 		device_sound_interface(mconfig, *this),
 		m_channel(nullptr),
 		m_chip(nullptr)
@@ -33,7 +33,8 @@ void tia_device::device_start()
 {
 	m_channel = stream_alloc(0, 1, clock());
 	m_chip = tia_sound_init(this, clock(), clock(), 16);
-	assert_always(m_chip != nullptr, "Error creating TIA chip");
+	if (!m_chip)
+		throw emu_fatalerror("tia_device(%s): Error creating TIA chip", tag());
 }
 
 
@@ -57,7 +58,7 @@ void tia_device::sound_stream_update(sound_stream &stream, stream_sample_t **inp
 }
 
 
-WRITE8_MEMBER( tia_device::tia_sound_w )
+void tia_device::tia_sound_w(offs_t offset, uint8_t data)
 {
 	m_channel->update();
 	tia_write(m_chip, offset, data);

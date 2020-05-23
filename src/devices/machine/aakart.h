@@ -6,32 +6,12 @@ Acorn Archimedes KART interface
 
 ***************************************************************************/
 
+#ifndef MAME_MACHINE_AAKART_H
+#define MAME_MACHINE_AAKART_H
+
 #pragma once
 
-#ifndef __AAKARTDEV_H__
-#define __AAKARTDEV_H__
 
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_AAKART_OUT_TX_CB(_devcb) \
-	devcb = &aakart_device::set_out_tx_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_AAKART_OUT_RX_CB(_devcb) \
-	devcb = &aakart_device::set_out_rx_callback(*device, DEVCB_##_devcb);
-
-
-enum{
-	STATUS_NORMAL = 0,
-	STATUS_KEYUP,
-	STATUS_KEYDOWN,
-	STATUS_MOUSE,
-	STATUS_HRST,
-	STATUS_UNDEFINED
-};
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -45,12 +25,12 @@ public:
 	// construction/destruction
 	aakart_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_out_tx_callback(device_t &device, _Object object) { return downcast<aakart_device &>(device).m_out_tx_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_rx_callback(device_t &device, _Object object) { return downcast<aakart_device &>(device).m_out_rx_cb.set_callback(object); }
+	auto out_tx_callback() { return m_out_tx_cb.bind(); }
+	auto out_rx_callback() { return m_out_rx_cb.bind(); }
 
 	// I/O operations
-	DECLARE_WRITE8_MEMBER( write );
-	DECLARE_READ8_MEMBER( read );
+	void write(uint8_t data);
+	uint8_t read();
 	void send_keycode_down(uint8_t row, uint8_t col);
 	void send_keycode_up(uint8_t row, uint8_t col);
 	void send_mouse(uint8_t x, uint8_t y);
@@ -63,6 +43,15 @@ protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
 private:
+	enum {
+		STATUS_NORMAL = 0,
+		STATUS_KEYUP,
+		STATUS_KEYDOWN,
+		STATUS_MOUSE,
+		STATUS_HRST,
+		STATUS_UNDEFINED
+	};
+
 	static const device_timer_id RX_TIMER = 1;
 	static const device_timer_id TX_TIMER = 2;
 	static const device_timer_id MOUSE_TIMER = 3;
@@ -87,14 +76,6 @@ private:
 
 
 // device type definition
-extern const device_type AAKART;
+DECLARE_DEVICE_TYPE(AAKART, aakart_device)
 
-
-
-//**************************************************************************
-//  GLOBAL VARIABLES
-//**************************************************************************
-
-
-
-#endif
+#endif // MAME_MACHINE_AAKART_H

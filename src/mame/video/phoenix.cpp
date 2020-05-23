@@ -2,16 +2,16 @@
 // copyright-holders:Richard Davies
 /***************************************************************************
 
-  video.c
+  phoenix.cpp
 
   Functions to emulate the video hardware of the machine.
 
 ***************************************************************************/
 
 #include "emu.h"
-#include "video/resnet.h"
 #include "includes/phoenix.h"
 
+#include "video/resnet.h"
 
 
 /***************************************************************************
@@ -77,53 +77,50 @@ static const res_net_info survival_net_info =
 	}
 };
 
-PALETTE_INIT_MEMBER(phoenix_state,phoenix)
+void phoenix_state::phoenix_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
-	std::vector<rgb_t> rgb;
+	uint8_t const *const color_prom = memregion("proms")->base();
 
+	std::vector<rgb_t> rgb;
 	compute_res_net_all(rgb, color_prom, phoenix_decode_info, phoenix_net_info);
-	/* native order */
-	for (i=0;i<256;i++)
+
+	// native order
+	for (int i = 0; i < 256; i++)
 	{
-		int col;
-		col = ((i << 3 ) & 0x18) | ((i>>2) & 0x07) | (i & 0x60);
-		palette.set_pen_color(i,rgb[col]);
+		int const col = bitswap<7>(i, 6, 5, 1, 0, 4, 3, 2);
+		palette.set_pen_color(i, rgb[col]);
 	}
 	palette.palette()->normalize_range(0, 255);
 }
 
-PALETTE_INIT_MEMBER(phoenix_state,survival)
+void phoenix_state::survival_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
-	std::vector<rgb_t> rgb;
+	uint8_t const *const color_prom = memregion("proms")->base();
 
+	std::vector<rgb_t> rgb;
 	compute_res_net_all(rgb, color_prom, phoenix_decode_info, survival_net_info);
-	/* native order */
-	for (i=0;i<256;i++)
+
+	// native order
+	for (int i = 0; i < 256; i++)
 	{
-		int col;
-		col = ((i << 3 ) & 0x18) | ((i>>2) & 0x07) | (i & 0x60);
-		palette.set_pen_color(i,rgb[col]);
+		int const col = bitswap<7>(i, 6, 5, 1, 0, 4, 3, 2);
+		palette.set_pen_color(i, rgb[col]);
 	}
 	palette.palette()->normalize_range(0, 255);
 }
 
-PALETTE_INIT_MEMBER(phoenix_state,pleiads)
+void phoenix_state::pleiads_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
-	std::vector<rgb_t> rgb;
+	uint8_t const *const color_prom = memregion("proms")->base();
 
+	std::vector<rgb_t> rgb;
 	compute_res_net_all(rgb, color_prom, phoenix_decode_info, pleiades_net_info);
-	/* native order */
-	for (i=0;i<256;i++)
+
+	// native order
+	for (int i = 0; i < 256; i++)
 	{
-		int col;
-		col = ((i << 3 ) & 0x18) | ((i>>2) & 0x07) | (i & 0xE0);
-		palette.set_pen_color(i,rgb[col]);
+		int const col = bitswap<8>(i, 7, 6, 5, 1, 0, 4, 3, 2);
+		palette.set_pen_color(i, rgb[col]);
 	}
 	palette.palette()->normalize_range(0, 255);
 }
@@ -141,7 +138,7 @@ TILE_GET_INFO_MEMBER(phoenix_state::get_fg_tile_info)
 	code = m_videoram_pg[m_videoram_pg_index][tile_index];
 	col = (code >> 5);
 	col = col | 0x08 | (m_palette_bank << 4);
-	SET_TILE_INFO_MEMBER(1,
+	tileinfo.set(1,
 			code,
 			col,
 			0);
@@ -154,7 +151,7 @@ TILE_GET_INFO_MEMBER(phoenix_state::get_bg_tile_info)
 	code = m_videoram_pg[m_videoram_pg_index][tile_index + 0x800];
 	col = (code >> 5);
 	col = col | 0x00 | (m_palette_bank << 4);
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 			code,
 			col,
 			0);
@@ -181,13 +178,13 @@ VIDEO_START_MEMBER(phoenix_state,phoenix)
 	m_palette_bank = 0;
 	m_cocktail_mode = 0;
 
-	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(phoenix_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(phoenix_state::get_bg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(phoenix_state::get_fg_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(phoenix_state::get_bg_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 
-	save_pointer(NAME(m_videoram_pg[0].get()), 0x1000);
-	save_pointer(NAME(m_videoram_pg[1].get()), 0x1000);
+	save_pointer(NAME(m_videoram_pg[0]), 0x1000);
+	save_pointer(NAME(m_videoram_pg[1]), 0x1000);
 	save_item(NAME(m_videoram_pg_index));
 	save_item(NAME(m_palette_bank));
 	save_item(NAME(m_cocktail_mode));
@@ -273,7 +270,7 @@ WRITE8_MEMBER(phoenix_state::pleiads_videoreg_w)
 
 	/* the palette table is at $0420-$042f and is set by $06bc.
 	   Four palette changes by level.  The palette selection is
-	   wrong, but the same paletter is used for both layers. */
+	   wrong, but the same palette is used for both layers. */
 
 	if (m_palette_bank != ((data >> 1) & 3))
 	{
@@ -287,7 +284,7 @@ WRITE8_MEMBER(phoenix_state::pleiads_videoreg_w)
 	m_pleiads_protection_question = data & 0xfc;
 
 	/* send two bits to sound control C (not sure if they are there) */
-	m_pleiads_custom->control_c_w(space, offset, data);
+	m_pleiads_custom->control_c_w(data);
 }
 
 
@@ -305,7 +302,7 @@ CUSTOM_INPUT_MEMBER(phoenix_state::player_input_r)
 		return (ioport("CTRL")->read() & 0x0f) >> 0;
 }
 
-CUSTOM_INPUT_MEMBER(phoenix_state::pleiads_protection_r)
+READ_LINE_MEMBER(phoenix_state::pleiads_protection_r)
 {
 	/* handle Pleiads protection */
 	switch (m_pleiads_protection_question)
@@ -422,7 +419,7 @@ READ8_MEMBER(phoenix_state::survival_input_port_0_r)
 	return m_survival_input_latches[0];
 }
 
-READ8_MEMBER(phoenix_state::survival_protection_r)
+uint8_t phoenix_state::survival_protection_r()
 {
 	return m_survival_protection_value;
 }

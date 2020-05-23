@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_VIP_VP550_H
+#define MAME_BUS_VIP_VP550_H
 
-#ifndef __VP550__
-#define __VP550__
+#pragma once
 
 #include "exp.h"
 #include "sound/cdp1863.h"
@@ -29,27 +29,24 @@ public:
 	// construction/destruction
 	vp550_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
-	// not really public
-	DECLARE_WRITE8_MEMBER( octave_w );
-	DECLARE_WRITE8_MEMBER( vlmna_w );
-	DECLARE_WRITE8_MEMBER( vlmnb_w );
-	DECLARE_WRITE8_MEMBER( sync_w );
-
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	// device_vip_expansion_card_interface overrides
-	virtual void vip_program_w(address_space &space, offs_t offset, uint8_t data, int cdef, int *minh) override;
-	virtual void vip_sc_w(int data) override;
+	virtual void vip_program_w(offs_t offset, uint8_t data, int cdef, int *minh) override;
+	virtual void vip_sc_w(int n, int sc) override;
 	virtual void vip_q_w(int state) override;
 	virtual void vip_run_w(int state) override;
 
 private:
+	void octave_w(uint8_t data);
+	void vlmna_w(uint8_t data);
+	void vlmnb_w(uint8_t data);
+	void sync_w(uint8_t data);
+
 	required_device<cdp1863_device> m_pfg_a;
 	required_device<cdp1863_device> m_pfg_b;
 
@@ -59,7 +56,6 @@ private:
 
 
 // device type definition
-extern const device_type VP550;
+DECLARE_DEVICE_TYPE(VP550, vp550_device)
 
-
-#endif
+#endif // MAME_BUS_VIP_VP550_H

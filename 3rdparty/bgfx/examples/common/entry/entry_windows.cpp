@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2019 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
  */
 
@@ -9,14 +9,18 @@
 
 #include <bgfx/platform.h>
 
-#include <bx/uint32_t.h>
-#include <bx/thread.h>
 #include <bx/mutex.h>
 #include <bx/handlealloc.h>
+#include <bx/os.h>
+#include <bx/thread.h>
 #include <bx/timer.h>
+#include <bx/uint32_t.h>
+
 #include <tinystl/allocator.h>
 #include <tinystl/string.h>
+#include <tinystl/vector.h>
 
+#include <windows.h>
 #include <windowsx.h>
 #include <xinput.h>
 
@@ -30,11 +34,21 @@
 
 namespace entry
 {
+	typedef tinystl::vector<WCHAR> WSTRING;
+
+	inline WSTRING UTF8ToUTF16(const char *utf8_str)
+	{
+		int len = MultiByteToWideChar(CP_UTF8, 0, utf8_str, -1, NULL, 0);
+		WSTRING utf16(len);
+		MultiByteToWideChar(CP_UTF8, 0, utf8_str, -1, utf16.data(), len);
+		return utf16;
+	}
+
 	///
 	inline void winSetHwnd(::HWND _window)
 	{
 		bgfx::PlatformData pd;
-		memset(&pd, 0, sizeof(pd) );
+		bx::memSet(&pd, 0, sizeof(pd) );
 		pd.nwh = _window;
 		bgfx::setPlatformData(pd);
 	}
@@ -75,8 +89,8 @@ namespace entry
 		XInput()
 			: m_xinputdll(NULL)
 		{
-			memset(m_connected, 0, sizeof(m_connected) );
-			memset(m_state, 0, sizeof(m_state) );
+			bx::memSet(m_connected, 0, sizeof(m_connected) );
+			bx::memSet(m_state, 0, sizeof(m_state) );
 
 			m_deadzone[GamepadAxis::LeftX ] =
 			m_deadzone[GamepadAxis::LeftY ] = XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
@@ -85,7 +99,7 @@ namespace entry
 			m_deadzone[GamepadAxis::LeftZ ] =
 			m_deadzone[GamepadAxis::RightZ] = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
 
-			memset(m_flip, 1, sizeof(m_flip) );
+			bx::memSet(m_flip, 1, sizeof(m_flip) );
 			m_flip[GamepadAxis::LeftY ] =
 			m_flip[GamepadAxis::RightY] = -1;
 		}
@@ -263,6 +277,7 @@ namespace entry
 		WM_USER_WINDOW_CREATE = WM_USER,
 		WM_USER_WINDOW_DESTROY,
 		WM_USER_WINDOW_SET_TITLE,
+		WM_USER_WINDOW_SET_FLAGS,
 		WM_USER_WINDOW_SET_POS,
 		WM_USER_WINDOW_SET_SIZE,
 		WM_USER_WINDOW_TOGGLE_FRAME,
@@ -308,9 +323,9 @@ namespace entry
 	struct MainThreadEntry
 	{
 		int m_argc;
-		char** m_argv;
+		const char* const* m_argv;
 
-		static int32_t threadFunc(void* _userData);
+		static int32_t threadFunc(bx::Thread* _thread, void* _userData);
 	};
 
 	struct Msg
@@ -321,6 +336,7 @@ namespace entry
 			, m_width(0)
 			, m_height(0)
 			, m_flags(0)
+			, m_flagsEnabled(false)
 		{
 		}
 
@@ -330,6 +346,7 @@ namespace entry
 		uint32_t m_height;
 		uint32_t m_flags;
 		tinystl::string m_title;
+		bool m_flagsEnabled;
 	};
 
 	static void mouseCapture(HWND _hwnd, bool _capture)
@@ -353,7 +370,8 @@ namespace entry
 			, m_init(false)
 			, m_exit(false)
 		{
-			memset(s_translateKey, 0, sizeof(s_translateKey) );
+			m_surrogate = 0;
+			bx::memSet(s_translateKey, 0, sizeof(s_translateKey) );
 			s_translateKey[VK_ESCAPE]     = Key::Esc;
 			s_translateKey[VK_RETURN]     = Key::Return;
 			s_translateKey[VK_TAB]        = Key::Tab;
@@ -378,7 +396,7 @@ namespace entry
 			s_translateKey[VK_OEM_7]      = Key::Quote;
 			s_translateKey[VK_OEM_COMMA]  = Key::Comma;
 			s_translateKey[VK_OEM_PERIOD] = Key::Period;
-			s_translateKey[VK_DECIMAL] 	  = Key::Period;
+			s_translateKey[VK_DECIMAL]    = Key::Period;
 			s_translateKey[VK_OEM_2]      = Key::Slash;
 			s_translateKey[VK_OEM_5]      = Key::Backslash;
 			s_translateKey[VK_OEM_3]      = Key::Tilde;
@@ -442,7 +460,7 @@ namespace entry
 			s_translateKey[uint8_t('Z')]  = Key::KeyZ;
 		}
 
-		int32_t run(int _argc, char** _argv)
+		int32_t run(int _argc, const char* const* _argv)
 		{
 			SetDllDirectoryA(".");
 
@@ -450,20 +468,22 @@ namespace entry
 
 			HINSTANCE instance = (HINSTANCE)GetModuleHandle(NULL);
 
-			WNDCLASSEXA wnd;
-			memset(&wnd, 0, sizeof(wnd) );
+			WNDCLASSEXW wnd;
+			bx::memSet(&wnd, 0, sizeof(wnd) );
 			wnd.cbSize = sizeof(wnd);
 			wnd.style = CS_HREDRAW | CS_VREDRAW;
 			wnd.lpfnWndProc = wndProc;
 			wnd.hInstance = instance;
 			wnd.hIcon = LoadIcon(NULL, IDI_APPLICATION);
 			wnd.hCursor = LoadCursor(NULL, IDC_ARROW);
-			wnd.lpszClassName = "bgfx";
+			wnd.lpszClassName = L"bgfx";
 			wnd.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
-			RegisterClassExA(&wnd);
+			RegisterClassExW(&wnd);
 
 			m_windowAlloc.alloc();
-			m_hwnd[0] = CreateWindowA("bgfx"
+			m_hwnd[0] = CreateWindowExA(
+				  WS_EX_ACCEPTFILES
+				, "bgfx"
 				, "BGFX"
 				, WS_OVERLAPPEDWINDOW|WS_VISIBLE
 				, 0
@@ -495,6 +515,8 @@ namespace entry
 			mte.m_argc = _argc;
 			mte.m_argv = _argv;
 
+			bgfx::renderFrame();
+
 			bx::Thread thread;
 			thread.init(mte.threadFunc, &mte);
 			m_init = true;
@@ -506,15 +528,19 @@ namespace entry
 
 			while (!m_exit)
 			{
+				bgfx::renderFrame();
+
 				s_xinput.update(m_eventQueue);
 				WaitForInputIdle(GetCurrentProcess(), 16);
 
-				while (0 != PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE) )
+				while (0 != PeekMessageW(&msg, NULL, 0U, 0U, PM_REMOVE) )
 				{
 					TranslateMessage(&msg);
-					DispatchMessage(&msg);
+					DispatchMessageW(&msg);
 				}
 			}
+
+			while (bgfx::RenderFrame::NoContext != bgfx::renderFrame() ) {};
 
 			thread.shutdown();
 
@@ -534,8 +560,8 @@ namespace entry
 				case WM_USER_WINDOW_CREATE:
 					{
 						Msg* msg = (Msg*)_lparam;
-						HWND hwnd = CreateWindowA("bgfx"
-							, msg->m_title.c_str()
+						HWND hwnd = CreateWindowW(L"bgfx"
+							, UTF8ToUTF16(msg->m_title.c_str()).data()
 							, WS_OVERLAPPEDWINDOW|WS_VISIBLE
 							, msg->m_x
 							, msg->m_y
@@ -576,7 +602,24 @@ namespace entry
 				case WM_USER_WINDOW_SET_TITLE:
 					{
 						Msg* msg = (Msg*)_lparam;
-						SetWindowTextA(m_hwnd[_wparam], msg->m_title.c_str() );
+						SetWindowTextW(m_hwnd[_wparam], UTF8ToUTF16(msg->m_title.c_str()).data() );
+						delete msg;
+					}
+					break;
+
+				case WM_USER_WINDOW_SET_FLAGS:
+					{
+						Msg* msg = (Msg*)_lparam;
+
+						if (msg->m_flagsEnabled)
+						{
+							m_flags[_wparam] |= msg->m_flags;
+						}
+						else
+						{
+							m_flags[_wparam] &= ~msg->m_flags;
+						}
+
 						delete msg;
 					}
 					break;
@@ -658,13 +701,23 @@ namespace entry
 							}
 
 							// Recalculate position using different anchor points
-							switch(_wparam)
+							switch (_wparam)
 							{
-							case WMSZ_LEFT:
 							case WMSZ_TOPLEFT:
+								rect.left = rect.right - width - m_frameWidth;
+								rect.top = rect.bottom - height - m_frameHeight;
+							  break;
+
+							case WMSZ_TOP:
+							case WMSZ_TOPRIGHT:
+								rect.right = rect.left + width + m_frameWidth;
+								rect.top = rect.bottom - height - m_frameHeight;
+								break;
+
+							case WMSZ_LEFT:
 							case WMSZ_BOTTOMLEFT:
-								rect.left   = rect.right - width  - m_frameWidth;
-								rect.bottom = rect.top   + height + m_frameHeight;
+								rect.left = rect.right - width - m_frameWidth;
+								rect.bottom = rect.top + height + m_frameHeight;
 								break;
 
 							default:
@@ -801,21 +854,50 @@ namespace entry
 
 				case WM_CHAR:
 					{
+						WCHAR utf16[2] = { (WCHAR)_wparam };
 						uint8_t utf8[4] = {};
-						uint8_t len = (uint8_t)WideCharToMultiByte(CP_UTF8
-											, 0
-											, (LPCWSTR)&_wparam
-											, 1
-											, (LPSTR)utf8
-											, BX_COUNTOF(utf8)
-											, NULL
-											, NULL
-											);
-						if (0 != len)
-						{
-							WindowHandle handle = findHandle(_hwnd);
-							m_eventQueue.postCharEvent(handle, len, utf8);
+
+						if (utf16[0] >= 0xD800 && utf16[0] <= 0xDBFF) {
+							m_surrogate = utf16[0];
+						} else {
+							int utf16_len;
+							if (utf16[0] >= 0xDC00 && utf16[0] <= 0xDFFF) {
+								utf16[1] = utf16[0];
+								utf16[0] = m_surrogate;
+								m_surrogate = 0;
+								utf16_len = 2;
+							} else {
+								utf16_len = 1;
+							}
+
+							uint8_t len = (uint8_t)WideCharToMultiByte(CP_UTF8
+												, 0
+												, utf16
+												, utf16_len
+												, (LPSTR)utf8
+												, BX_COUNTOF(utf8)
+												, NULL
+												, NULL
+												);
+							if (0 != len)
+							{
+								WindowHandle handle = findHandle(_hwnd);
+								m_eventQueue.postCharEvent(handle, len, utf8);
+							}
 						}
+					}
+					break;
+
+				case WM_DROPFILES:
+					{
+						HDROP drop = (HDROP)_wparam;
+						char tmp[bx::kMaxFilePath];
+						WCHAR utf16[bx::kMaxFilePath];
+						uint32_t result = DragQueryFileW(drop, 0, utf16, bx::kMaxFilePath);
+						BX_UNUSED(result);
+						WideCharToMultiByte(CP_UTF8, 0, utf16, -1, tmp, bx::kMaxFilePath, NULL, NULL);
+						WindowHandle handle = findHandle(_hwnd);
+						m_eventQueue.postDropFileEvent(handle, tmp);
 					}
 					break;
 
@@ -824,12 +906,12 @@ namespace entry
 				}
 			}
 
-			return DefWindowProc(_hwnd, _id, _wparam, _lparam);
+			return DefWindowProcW(_hwnd, _id, _wparam, _lparam);
 		}
 
 		WindowHandle findHandle(HWND _hwnd)
 		{
-			bx::LwMutexScope scope(m_lock);
+			bx::MutexScope scope(m_lock);
 			for (uint16_t ii = 0, num = m_windowAlloc.getNumHandles(); ii < num; ++ii)
 			{
 				uint16_t idx = m_windowAlloc.getHandleAt(ii);
@@ -852,6 +934,7 @@ namespace entry
 			HDC hdc = GetDC(_hwnd);
 			SelectObject(hdc, brush);
 			FillRect(hdc, &rect, brush);
+			ReleaseDC(_hwnd, hdc);
 		}
 
 		void adjust(HWND _hwnd, uint32_t _width, uint32_t _height, bool _windowFrame)
@@ -878,10 +961,6 @@ namespace entry
 			}
 			else
 			{
-#if defined(__MINGW32__)
-				rect  = m_rect;
-				style = m_style;
-#else
 				HMONITOR monitor = MonitorFromWindow(_hwnd, MONITOR_DEFAULTTONEAREST);
 				MONITORINFO mi;
 				mi.cbSize = sizeof(mi);
@@ -889,7 +968,6 @@ namespace entry
 				newrect = mi.rcMonitor;
 				rect = mi.rcMonitor;
 				m_aspectRatio = float(newrect.right  - newrect.left)/float(newrect.bottom - newrect.top);
-#endif // !defined(__MINGW__)
 			}
 
 			SetWindowLong(_hwnd, GWL_STYLE, style);
@@ -967,7 +1045,8 @@ namespace entry
 		static LRESULT CALLBACK wndProc(HWND _hwnd, UINT _id, WPARAM _wparam, LPARAM _lparam);
 
 		EventQueue m_eventQueue;
-		bx::LwMutex m_lock;
+		WCHAR m_surrogate;
+		bx::Mutex m_lock;
 
 		bx::HandleAllocT<ENTRY_CONFIG_MAX_WINDOWS> m_windowAlloc;
 
@@ -1018,7 +1097,7 @@ namespace entry
 
 	WindowHandle createWindow(int32_t _x, int32_t _y, uint32_t _width, uint32_t _height, uint32_t _flags, const char* _title)
 	{
-		bx::LwMutexScope scope(s_ctx.m_lock);
+		bx::MutexScope scope(s_ctx.m_lock);
 		WindowHandle handle = { s_ctx.m_windowAlloc.alloc() };
 
 		if (UINT16_MAX != handle.idx)
@@ -1042,7 +1121,7 @@ namespace entry
 		{
 			PostMessage(s_ctx.m_hwnd[0], WM_USER_WINDOW_DESTROY, _handle.idx, 0);
 
-			bx::LwMutexScope scope(s_ctx.m_lock);
+			bx::MutexScope scope(s_ctx.m_lock);
 			s_ctx.m_windowAlloc.free(_handle.idx);
 		}
 	}
@@ -1067,9 +1146,12 @@ namespace entry
 		PostMessage(s_ctx.m_hwnd[0], WM_USER_WINDOW_SET_TITLE, _handle.idx, (LPARAM)msg);
 	}
 
-	void toggleWindowFrame(WindowHandle _handle)
+	void setWindowFlags(WindowHandle _handle, uint32_t _flags, bool _enabled)
 	{
-		PostMessage(s_ctx.m_hwnd[0], WM_USER_WINDOW_TOGGLE_FRAME, _handle.idx, 0);
+		Msg* msg = new Msg;
+		msg->m_flags = _flags;
+		msg->m_flagsEnabled = _enabled;
+		PostMessage(s_ctx.m_hwnd[0], WM_USER_WINDOW_SET_FLAGS, _handle.idx, (LPARAM)msg);
 	}
 
 	void toggleFullscreen(WindowHandle _handle)
@@ -1082,7 +1164,7 @@ namespace entry
 		PostMessage(s_ctx.m_hwnd[0], WM_USER_WINDOW_MOUSE_LOCK, _handle.idx, _lock);
 	}
 
-	int32_t MainThreadEntry::threadFunc(void* _userData)
+	int32_t MainThreadEntry::threadFunc(bx::Thread* /*_thread*/, void* _userData)
 	{
 		MainThreadEntry* self = (MainThreadEntry*)_userData;
 		int32_t result = main(self->m_argc, self->m_argv);
@@ -1092,7 +1174,7 @@ namespace entry
 
 } // namespace entry
 
-int main(int _argc, char** _argv)
+int main(int _argc, const char* const* _argv)
 {
 	using namespace entry;
 	return s_ctx.run(_argc, _argv);

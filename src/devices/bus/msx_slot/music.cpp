@@ -4,11 +4,11 @@
 #include "music.h"
 
 
-const device_type MSX_SLOT_MUSIC = device_creator<msx_slot_music_device>;
+DEFINE_DEVICE_TYPE(MSX_SLOT_MUSIC, msx_slot_music_device, "msx_slot_music", "MSX Internal MSX-MUSIC")
 
 
 msx_slot_music_device::msx_slot_music_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: msx_slot_rom_device(mconfig, MSX_SLOT_MUSIC, "MSX Internal MSX-MUSIC", tag, owner, clock, "msx_slot_music", __FILE__)
+	: msx_slot_rom_device(mconfig, MSX_SLOT_MUSIC, tag, owner, clock)
 	, m_ym2413(nullptr)
 	, m_ym2413_tag(nullptr)
 {
@@ -32,18 +32,17 @@ void msx_slot_music_device::device_start()
 	}
 
 	// Install IO read/write handlers
-	address_space &space = machine().device<cpu_device>("maincpu")->space(AS_IO);
-	space.install_write_handler(0x7c, 0x7d, write8_delegate(FUNC(msx_slot_music_device::write_ym2413), this));
+	io_space().install_write_handler(0x7c, 0x7d, write8sm_delegate(*this, FUNC(msx_slot_music_device::write_ym2413)));
 }
 
 
-READ8_MEMBER(msx_slot_music_device::read)
+uint8_t msx_slot_music_device::read(offs_t offset)
 {
-	return msx_slot_rom_device::read(space, offset);
+	return msx_slot_rom_device::read(offset);
 }
 
 
-WRITE8_MEMBER(msx_slot_music_device::write_ym2413)
+void msx_slot_music_device::write_ym2413(offs_t offset, uint8_t data)
 {
-	m_ym2413->write(space, offset & 1, data);
+	m_ym2413->write(offset & 1, data);
 }

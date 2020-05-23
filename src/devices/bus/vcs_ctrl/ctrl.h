@@ -9,26 +9,10 @@
 
 **********************************************************************/
 
+#ifndef MAME_BUS_CVS_CTRL_CTRL_H
+#define MAME_BUS_CVS_CTRL_CTRL_H
+
 #pragma once
-
-#ifndef __VCS_CONTROL_PORT__
-#define __VCS_CONTROL_PORT__
-
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_VCS_CONTROL_PORT_ADD(_tag, _slot_intf, _def_slot) \
-	MCFG_DEVICE_ADD(_tag, VCS_CONTROL_PORT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
-
-
-#define MCFG_VCS_CONTROL_PORT_TRIGGER_CALLBACK(_write) \
-	devcb = &vcs_control_port_device::set_trigger_wr_callback(*device, DEVCB_##_write);
-
 
 
 //**************************************************************************
@@ -40,22 +24,22 @@ class vcs_control_port_device;
 
 // ======================> device_vcs_control_port_interface
 
-class device_vcs_control_port_interface : public device_slot_card_interface
+class device_vcs_control_port_interface : public device_interface
 {
 public:
-	// construction/destruction
-	device_vcs_control_port_interface(const machine_config &mconfig, device_t &device);
 	virtual ~device_vcs_control_port_interface() { }
 
-	virtual uint8_t vcs_joy_r() { return 0xff; };
-	virtual uint8_t vcs_pot_x_r() { return 0xff; };
-	virtual uint8_t vcs_pot_y_r() { return 0xff; };
-	virtual void vcs_joy_w(uint8_t data) { };
+	virtual uint8_t vcs_joy_r() { return 0xff; }
+	virtual uint8_t vcs_pot_x_r() { return 0xff; }
+	virtual uint8_t vcs_pot_y_r() { return 0xff; }
+	virtual void vcs_joy_w(uint8_t data) { }
 
 	virtual bool has_pot_x() { return false; }
 	virtual bool has_pot_y() { return false; }
 
 protected:
+	device_vcs_control_port_interface(const machine_config &mconfig, device_t &device);
+
 	vcs_control_port_device *m_port;
 };
 
@@ -67,11 +51,19 @@ class vcs_control_port_device : public device_t,
 {
 public:
 	// construction/destruction
-	vcs_control_port_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual ~vcs_control_port_device() { }
+	template <typename T>
+	vcs_control_port_device(const machine_config &mconfig, const char *tag, device_t *owner, T &&opts, char const* dflt)
+		: vcs_control_port_device(mconfig, tag, owner)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
+	vcs_control_port_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
 	// static configuration helpers
-	template<class _Object> static devcb_base &set_trigger_wr_callback(device_t &device, _Object object) { return downcast<vcs_control_port_device &>(device).m_write_trigger.set_callback(object); }
+	auto trigger_wr_callback() { return m_write_trigger.bind(); }
 
 	// computer interface
 
@@ -86,14 +78,11 @@ public:
 	//         pin 8 - GND
 	// bit 6 - pin 9 -
 	//
-	uint8_t joy_r() { uint8_t data = 0xff; if (exists()) data = m_device->vcs_joy_r(); return data; }
-	DECLARE_READ8_MEMBER( joy_r ) { return joy_r(); }
-	uint8_t pot_x_r() { uint8_t data = 0xff; if (exists()) data = m_device->vcs_pot_x_r(); return data; }
-	DECLARE_READ8_MEMBER( pot_x_r ) { return pot_x_r(); }
-	uint8_t pot_y_r() { uint8_t data = 0xff; if (exists()) data = m_device->vcs_pot_y_r(); return data; }
-	DECLARE_READ8_MEMBER( pot_y_r ) { return pot_y_r(); }
+	uint8_t read_joy() { return exists() ? m_device->vcs_joy_r() : 0xff; }
+	uint8_t read_pot_x() { return exists() ? m_device->vcs_pot_x_r() : 0xff; }
+	uint8_t read_pot_y() { return exists() ? m_device->vcs_pot_y_r() : 0xff; }
 
-	void joy_w( uint8_t data ) { if ( exists() ) m_device->vcs_joy_w( data ); }
+	void joy_w(uint8_t data) { if (exists()) m_device->vcs_joy_w(data); }
 
 	bool exists() { return m_device != nullptr; }
 	bool has_pot_x() { return exists() && m_device->has_pot_x(); }
@@ -113,10 +102,8 @@ private:
 
 
 // device type definition
-extern const device_type VCS_CONTROL_PORT;
+DECLARE_DEVICE_TYPE(VCS_CONTROL_PORT, vcs_control_port_device)
 
-SLOT_INTERFACE_EXTERN( vcs_control_port_devices );
+void vcs_control_port_devices(device_slot_interface &device);
 
-
-
-#endif
+#endif // MAME_BUS_CVS_CTRL_CTRL_H

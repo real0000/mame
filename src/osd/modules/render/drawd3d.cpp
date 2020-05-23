@@ -183,7 +183,11 @@ render_primitive_list *renderer_d3d9::get_primitives()
 	if (win == nullptr)
 		return nullptr;
 
-	GetClientRectExceptMenu(std::static_pointer_cast<win_window_info>(win)->platform_window(), &client, win->fullscreen());
+	HWND hWnd = std::static_pointer_cast<win_window_info>(win)->platform_window();
+	if (IsIconic(hWnd))
+		return nullptr;
+
+	GetClientRectExceptMenu(hWnd, &client, win->fullscreen());
 	if (rect_width(&client) > 0 && rect_height(&client) > 0)
 	{
 		win->target()->set_bounds(rect_width(&client), rect_height(&client), win->pixel_aspect());
@@ -524,7 +528,8 @@ void d3d_texture_manager::create_resources()
 		texture.height = m_default_bitmap.height();
 		texture.palette = nullptr;
 		texture.seqid = 0;
-		texture.osddata = 0;
+		texture.unique_id = ~0ULL;
+		texture.old_id = ~0ULL;
 
 		// now create it
 		auto tex = std::make_unique<texture_info>(this, &texture, win->prescale(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA) | PRIMFLAG_TEXFORMAT(TEXFORMAT_ARGB32));
@@ -555,10 +560,10 @@ texture_info *d3d_texture_manager::find_texinfo(const render_texinfo *texinfo, u
 	// find a match
 	for (auto it = m_texture_list.begin(); it != m_texture_list.end(); it++)
 	{
-		uint32_t test_screen = (uint32_t)(*it)->get_texinfo().osddata >> 1;
-		uint32_t test_page = (uint32_t)(*it)->get_texinfo().osddata & 1;
-		uint32_t prim_screen = (uint32_t)texinfo->osddata >> 1;
-		uint32_t prim_page = (uint32_t)texinfo->osddata & 1;
+		auto test_screen = (uint32_t)((*it)->get_texinfo().unique_id >> 57);
+		uint32_t test_page = (uint32_t)((*it)->get_texinfo().unique_id >> 56) & 1;
+		auto prim_screen = (uint32_t)(texinfo->unique_id >> 57);
+		uint32_t prim_page = (uint32_t)(texinfo->unique_id >> 56) & 1;
 		if (test_screen != prim_screen || test_page != prim_page)
 			continue;
 
@@ -839,34 +844,33 @@ void renderer_d3d9::update_presentation_parameters()
 
 void renderer_d3d9::update_gamma_ramp()
 {
-	if (m_gamma_supported)
+	if (!m_gamma_supported)
 	{
 		return;
 	}
 
 	auto win = assert_window();
 
-	// create a standard ramp
-	D3DGAMMARAMP ramp;
-
 	// set the gamma if we need to
 	if (win->fullscreen())
 	{
 		// only set the gamma if it's not 1.0
-		windows_options &options = downcast<windows_options &>(win->machine().options());
+		auto &options = downcast<windows_options &>(win->machine().options());
 		float brightness = options.full_screen_brightness();
 		float contrast = options.full_screen_contrast();
 		float gamma = options.full_screen_gamma();
 		if (brightness != 1.0f || contrast != 1.0f || gamma != 1.0f)
 		{
+			D3DGAMMARAMP ramp;
+
 			for (int i = 0; i < 256; i++)
 			{
 				ramp.red[i] = ramp.green[i] = ramp.blue[i] = apply_brightness_contrast_gamma(i, brightness, contrast, gamma) << 8;
 			}
+
+			m_device->SetGammaRamp(0, 0, &ramp);
 		}
 	}
-
-	m_device->SetGammaRamp(0, 0, &ramp);
 }
 
 
@@ -874,8 +878,12 @@ void renderer_d3d9::update_gamma_ramp()
 //  device_create
 //============================================================
 
-int renderer_d3d9::device_create(HWND device_hwnd)
+int renderer_d3d9::device_create(HWND hwnd)
 {
+	// identify the actual window; this is needed so that -attach_window
+	// can work on a non-root HWND
+	HWND device_hwnd = GetAncestor(hwnd, GA_ROOT);
+
 	// if a device exists, free it
 	if (m_device != nullptr)
 	{
@@ -1347,7 +1355,7 @@ int renderer_d3d9::config_adapter_mode()
 		// make sure it's a pixel format we can get behind
 		if (m_pixformat != D3DFMT_X1R5G5B5 && m_pixformat != D3DFMT_R5G6B5 && m_pixformat != D3DFMT_X8R8G8B8)
 		{
-			osd_printf_error("Device %s currently in an unsupported mode\n", win->monitor()->devicename().c_str());
+			osd_printf_error("Device %s currently in an unsupported mode\n", win->monitor()->devicename());
 			return 1;
 		}
 	}
@@ -1370,7 +1378,7 @@ int renderer_d3d9::config_adapter_mode()
 	result = d3dintf->d3dobj->CheckDeviceType(m_adapter, D3DDEVTYPE_HAL, m_pixformat, m_pixformat, !win->fullscreen());
 	if (FAILED(result))
 	{
-		osd_printf_error("Proposed video mode not supported on device %s\n", win->monitor()->devicename().c_str());
+		osd_printf_error("Proposed video mode not supported on device %s\n", win->monitor()->devicename());
 		return 1;
 	}
 
@@ -1419,7 +1427,7 @@ void renderer_d3d9::pick_best_mode()
 	auto win = assert_window();
 
 	// determine the refresh rate of the primary screen
-	const screen_device *primary_screen = win->machine().config().first_screen();
+	const screen_device *primary_screen = screen_device_iterator(win->machine().root_device()).first();
 	if (primary_screen != nullptr)
 	{
 		target_refresh = ATTOSECONDS_TO_HZ(primary_screen->refresh_attoseconds());
@@ -1600,8 +1608,8 @@ void renderer_d3d9::batch_vectors(int vector_count)
 			((rotation_0 || rotation_90) && orientation_swap_xy) ||
 			((rotation_180 || rotation_90) && !orientation_swap_xy);
 
-		float screen_width = float(this->get_width());
-		float screen_height = float(this->get_height());
+		auto screen_width = float(this->get_width());
+		auto screen_height = float(this->get_height());
 		float half_screen_width = screen_width * 0.5f;
 		float half_screen_height = screen_height * 0.5f;
 		float screen_swap_x_factor = 1.0f / screen_width * screen_height;
@@ -1730,10 +1738,10 @@ void renderer_d3d9::batch_vector(const render_primitive &prim)
 	}
 
 	// determine the color of the line
-	int32_t r = (int32_t)(prim.color.r * 255.0f);
-	int32_t g = (int32_t)(prim.color.g * 255.0f);
-	int32_t b = (int32_t)(prim.color.b * 255.0f);
-	int32_t a = (int32_t)(prim.color.a * 255.0f);
+	auto r = (int32_t)(prim.color.r * 255.0f);
+	auto g = (int32_t)(prim.color.g * 255.0f);
+	auto b = (int32_t)(prim.color.b * 255.0f);
+	auto a = (int32_t)(prim.color.a * 255.0f);
 	DWORD color = D3DCOLOR_ARGB(a, r, g, b);
 
 	// set the color, Z parameters to standard values
@@ -1800,10 +1808,10 @@ void renderer_d3d9::draw_line(const render_primitive &prim)
 	vertex[3].v0 = stop.c.y;
 
 	// determine the color of the line
-	int32_t r = (int32_t)(prim.color.r * 255.0f);
-	int32_t g = (int32_t)(prim.color.g * 255.0f);
-	int32_t b = (int32_t)(prim.color.b * 255.0f);
-	int32_t a = (int32_t)(prim.color.a * 255.0f);
+	auto r = (int32_t)(prim.color.r * 255.0f);
+	auto g = (int32_t)(prim.color.g * 255.0f);
+	auto b = (int32_t)(prim.color.b * 255.0f);
+	auto a = (int32_t)(prim.color.a * 255.0f);
 	DWORD color = D3DCOLOR_ARGB(a, r, g, b);
 
 	// set the color, Z parameters to standard values
@@ -1869,10 +1877,10 @@ void renderer_d3d9::draw_quad(const render_primitive &prim)
 	}
 
 	// determine the color, allowing for over modulation
-	int32_t r = (int32_t)(prim.color.r * 255.0f);
-	int32_t g = (int32_t)(prim.color.g * 255.0f);
-	int32_t b = (int32_t)(prim.color.b * 255.0f);
-	int32_t a = (int32_t)(prim.color.a * 255.0f);
+	auto r = (int32_t)(prim.color.r * 255.0f);
+	auto g = (int32_t)(prim.color.g * 255.0f);
+	auto b = (int32_t)(prim.color.b * 255.0f);
+	auto a = (int32_t)(prim.color.a * 255.0f);
 	DWORD color = D3DCOLOR_ARGB(a, r, g, b);
 
 	// adjust half pixel X/Y offset, set the color, Z parameters to standard values
@@ -2131,7 +2139,7 @@ texture_info::texture_info(d3d_texture_manager *manager, const render_texinfo* t
 		{
 			format = m_texture_manager->get_yuv_format();
 		}
-		else if (PRIMFLAG_GET_TEXFORMAT(flags) == TEXFORMAT_ARGB32 || PRIMFLAG_GET_TEXFORMAT(flags) == TEXFORMAT_PALETTEA16)
+		else if (PRIMFLAG_GET_TEXFORMAT(flags) == TEXFORMAT_ARGB32)
 		{
 			format = D3DFMT_A8R8G8B8;
 		}
@@ -2278,7 +2286,7 @@ void texture_info::compute_size(int texwidth, int texheight)
 	m_xborderpix = 0;
 	m_yborderpix = 0;
 
- 	bool shaders_enabled = m_renderer->get_shaders()->enabled();
+	bool shaders_enabled = m_renderer->get_shaders()->enabled();
 	bool wrap_texture = (m_flags & PRIMFLAG_TEXWRAP_MASK) == PRIMFLAG_TEXWRAP_MASK;
 
 	// skip border when shaders are enabled
@@ -2338,7 +2346,7 @@ void texture_info::compute_size(int texwidth, int texheight)
 //  copyline_palette16
 //============================================================
 
-static inline void copyline_palette16(uint32_t *dst, const uint16_t *src, int width, const rgb_t *palette, int xborderpix)
+inline void texture_info::copyline_palette16(uint32_t *dst, const uint16_t *src, int width, const rgb_t *palette, int xborderpix)
 {
 	if (xborderpix)
 		*dst++ = 0xff000000 | palette[*src];
@@ -2350,25 +2358,10 @@ static inline void copyline_palette16(uint32_t *dst, const uint16_t *src, int wi
 
 
 //============================================================
-//  copyline_palettea16
-//============================================================
-
-static inline void copyline_palettea16(uint32_t *dst, const uint16_t *src, int width, const rgb_t *palette, int xborderpix)
-{
-	if (xborderpix)
-		*dst++ = palette[*src];
-	for (int x = 0; x < width; x++)
-		*dst++ = palette[*src++];
-	if (xborderpix)
-		*dst++ = palette[*--src];
-}
-
-
-//============================================================
 //  copyline_rgb32
 //============================================================
 
-static inline void copyline_rgb32(uint32_t *dst, const uint32_t *src, int width, const rgb_t *palette, int xborderpix)
+inline void texture_info::copyline_rgb32(uint32_t *dst, const uint32_t *src, int width, const rgb_t *palette, int xborderpix)
 {
 	if (palette != nullptr)
 	{
@@ -2404,7 +2397,7 @@ static inline void copyline_rgb32(uint32_t *dst, const uint32_t *src, int width,
 //  copyline_argb32
 //============================================================
 
-static inline void copyline_argb32(uint32_t *dst, const uint32_t *src, int width, const rgb_t *palette, int xborderpix)
+inline void texture_info::copyline_argb32(uint32_t *dst, const uint32_t *src, int width, const rgb_t *palette, int xborderpix)
 {
 	if (palette != nullptr)
 	{
@@ -2441,7 +2434,7 @@ static inline void copyline_argb32(uint32_t *dst, const uint32_t *src, int width
 //  copyline_yuy16_to_yuy2
 //============================================================
 
-static inline void copyline_yuy16_to_yuy2(uint16_t *dst, const uint16_t *src, int width, const rgb_t *palette)
+inline void texture_info::copyline_yuy16_to_yuy2(uint16_t *dst, const uint16_t *src, int width, const rgb_t *palette)
 {
 	assert(width % 2 == 0);
 
@@ -2472,7 +2465,7 @@ static inline void copyline_yuy16_to_yuy2(uint16_t *dst, const uint16_t *src, in
 //  copyline_yuy16_to_uyvy
 //============================================================
 
-static inline void copyline_yuy16_to_uyvy(uint16_t *dst, const uint16_t *src, int width, const rgb_t *palette)
+inline void texture_info::copyline_yuy16_to_uyvy(uint16_t *dst, const uint16_t *src, int width, const rgb_t *palette)
 {
 	assert(width % 2 == 0);
 
@@ -2499,7 +2492,7 @@ static inline void copyline_yuy16_to_uyvy(uint16_t *dst, const uint16_t *src, in
 //  copyline_yuy16_to_argb
 //============================================================
 
-static inline void copyline_yuy16_to_argb(uint32_t *dst, const uint16_t *src, int width, const rgb_t *palette)
+inline void texture_info::copyline_yuy16_to_argb(uint32_t *dst, const uint16_t *src, int width, const rgb_t *palette)
 {
 	assert(width % 2 == 0);
 
@@ -2575,10 +2568,6 @@ void texture_info::set_data(const render_texinfo *texsource, uint32_t flags)
 			{
 				case TEXFORMAT_PALETTE16:
 					copyline_palette16((uint32_t *)dst, (uint16_t *)texsource->base + srcy * texsource->rowpixels, texsource->width, texsource->palette, m_xborderpix);
-					break;
-
-				case TEXFORMAT_PALETTEA16:
-					copyline_palettea16((uint32_t *)dst, (uint16_t *)texsource->base + srcy * texsource->rowpixels, texsource->width, texsource->palette, m_xborderpix);
 					break;
 
 				case TEXFORMAT_RGB32:
@@ -2833,7 +2822,7 @@ bool d3d_render_target::init(renderer_d3d9 *d3d, int source_width, int source_he
 
 	auto win = d3d->assert_window();
 
-	auto first_screen = win->machine().first_screen();
+	const screen_device *first_screen = screen_device_iterator(win->machine().root_device()).first();
 	bool vector_screen =
 		first_screen != nullptr &&
 		first_screen->screen_type() == SCREEN_TYPE_VECTOR;
@@ -2841,8 +2830,8 @@ bool d3d_render_target::init(renderer_d3d9 *d3d, int source_width, int source_he
 	float scale_factor = 0.75f;
 	int scale_count = vector_screen ? MAX_BLOOM_COUNT : HALF_BLOOM_COUNT;
 
-	float bloom_width = (float)source_width;
-	float bloom_height = (float)source_height;
+	auto bloom_width = (float)source_width;
+	auto bloom_height = (float)source_height;
 	float bloom_size = bloom_width < bloom_height ? bloom_width : bloom_height;
 	for (int bloom_index = 0; bloom_index < scale_count && bloom_size >= 2.0f; bloom_size *= scale_factor)
 	{

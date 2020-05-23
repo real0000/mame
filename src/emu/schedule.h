@@ -22,16 +22,7 @@
 //  MACROS
 //**************************************************************************
 
-// macro for the RC time constant on a 74LS123 with C > 1000pF
-// R is in ohms, C is in farads
-#define TIME_OF_74LS123(r,c)            (0.45 * (double)(r) * (double)(c))
-
-// macros for the RC time constant on a 555 timer IC
-// R is in ohms, C is in farads
-#define PERIOD_OF_555_MONOSTABLE_NSEC(r,c)  ((attoseconds_t)(1100000000 * (double)(r) * (double)(c)))
-#define PERIOD_OF_555_ASTABLE_NSEC(r1,r2,c) ((attoseconds_t)( 693000000 * ((double)(r1) + 2.0 * (double)(r2)) * (double)(c)))
-#define PERIOD_OF_555_MONOSTABLE(r,c)       attotime::from_nsec(PERIOD_OF_555_MONOSTABLE_NSEC(r,c))
-#define PERIOD_OF_555_ASTABLE(r1,r2,c)      attotime::from_nsec(PERIOD_OF_555_ASTABLE_NSEC(r1,r2,c))
+#define TIMER_CALLBACK_MEMBER(name)     void name(void *ptr, s32 param)
 
 
 //**************************************************************************
@@ -62,7 +53,7 @@ class emu_timer
 public:
 	// getters
 	emu_timer *next() const { return m_next; }
-	running_machine &machine() const { assert(m_machine != nullptr); return *m_machine; }
+	running_machine &machine() const noexcept { assert(m_machine != nullptr); return *m_machine; }
 	bool enabled() const { return m_enabled; }
 	int param() const { return m_param; }
 	void *ptr() const { return m_ptr; }
@@ -77,16 +68,18 @@ public:
 	void adjust(attotime start_delay, s32 param = 0, const attotime &periodicity = attotime::never);
 
 	// timing queries
-	attotime elapsed() const;
-	attotime remaining() const;
+	attotime elapsed() const noexcept;
+	attotime remaining() const noexcept;
 	attotime start() const { return m_start; }
 	attotime expire() const { return m_expire; }
+	attotime period() const { return m_period; }
 
 private:
 	// internal helpers
 	void register_save();
 	void schedule_next_period();
 	void dump() const;
+	static void device_timer_expired(emu_timer &timer, void *ptr, s32 param);
 
 	// internal state
 	running_machine *   m_machine;      // reference to the owning machine
@@ -118,10 +111,10 @@ public:
 	~device_scheduler();
 
 	// getters
-	running_machine &machine() const { return m_machine; }
-	attotime time() const;
+	running_machine &machine() const noexcept { return m_machine; }
+	attotime time() const noexcept;
 	emu_timer *first_timer() const { return m_timer_list; }
-	device_execute_interface *currently_executing() const { return m_executing_device; }
+	device_execute_interface *currently_executing() const noexcept { return m_executing_device; }
 	bool can_save() const;
 
 	// execution
@@ -134,7 +127,6 @@ public:
 	// timers, specified by callback/name
 	emu_timer *timer_alloc(timer_expired_delegate callback, void *ptr = nullptr);
 	void timer_set(const attotime &duration, timer_expired_delegate callback, int param = 0, void *ptr = nullptr);
-	void timer_pulse(const attotime &period, timer_expired_delegate callback, int param = 0, void *ptr = nullptr);
 	void synchronize(timer_expired_delegate callback = timer_expired_delegate(), int param = 0, void *ptr = nullptr) { timer_set(attotime::zero, callback, param, ptr); }
 
 	// timers, specified by device/id; generally devices should use the device_t methods instead
@@ -199,4 +191,4 @@ private:
 };
 
 
-#endif  // MAME_EMU_SCHEDULE_H */
+#endif  // MAME_EMU_SCHEDULE_H

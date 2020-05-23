@@ -8,8 +8,8 @@
 
 *********************************************************************/
 
-#include <string.h>
-#include <assert.h>
+#include <cstring>
+#include <cassert>
 
 #include "formats/pc_dsk.h"
 #include "formats/basicdsk.h"
@@ -192,6 +192,14 @@ const pc_format::format pc_format::formats[] = {
 	{   /*  360K 5 1/4 inch double density */
 		floppy_image::FF_525, floppy_image::DSDD, floppy_image::MFM,
 		2000,  9, 40, 2, 512, {}, 1, {}, 80, 50, 22, 80
+	},
+	{   /*  360K 5 1/4 inch double density, 41 tracks */
+		floppy_image::FF_525, floppy_image::DSDD, floppy_image::MFM,
+		2000,  9, 41, 2, 512, {}, 1, {}, 80, 50, 22, 80
+	},
+	{   /*  360K 5 1/4 inch double density, 42 tracks */
+		floppy_image::FF_525, floppy_image::DSDD, floppy_image::MFM,
+		2000,  9, 42, 2, 512, {}, 1, {}, 80, 50, 22, 80
 	},
 	{   /*  400K 5 1/4 inch double density - gaps unverified */
 		floppy_image::FF_525, floppy_image::DSDD, floppy_image::MFM,

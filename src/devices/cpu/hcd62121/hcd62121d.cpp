@@ -2,53 +2,17 @@
 // copyright-holders:Wilbert Pol
 
 #include "emu.h"
+#include "hcd62121d.h"
 
-enum
-{
-	ARG_NONE=0,    /* no argument or unknown */
-	ARG_REG,       /* register */
-	ARG_REGREG,    /* register1, register2, or register2, register1 or register1, imm byte */
-	ARG_IRG,       /* register indirect */
-	ARG_IRGREG,    /* 2 register indirect */
-	ARG_A16,       /* 16bit address */
-	ARG_A24,       /* seg:address */
-	ARG_F,         /* flag register */
-	ARG_CS,        /* cs register */
-	ARG_DS,        /* ds register */
-	ARG_SS,        /* ss register */
-	ARG_PC,        /* program counter */
-	ARG_SP,        /* stack pointer */
-	ARG_I8,        /* immediate 8 bit value */
-	ARG_I16,       /* immediate 16 bit value */
-	ARG_I64,       /* immediate 64 bit value */
-	ARG_I80,       /* immediate 80 bit value */
-	ARG_ILR,       /* indirect last address register access */
-	ARG_LAR,       /* last address register */
-	ARG_DSZ,       /* dsize register? */
-	ARG_TIM,       /* timing related register? */
-	ARG_KLO,       /* KO1 - KO8 output lines */
-	ARG_KHI,       /* KO9 - KO14(?) output lines */
-	ARG_KI,        /* K input lines */
-	ARG_4          /* for nibble shifts */
-};
-
-struct hcd62121_dasm
-{
-	const char *str;
-	u8       arg1;
-	u8       arg2;
-};
-
-
-static const hcd62121_dasm hcd62121_ops[256] =
+const hcd62121_disassembler::dasm hcd62121_disassembler::ops[256] =
 {
 	/* 0x00 */
-	{ "un00?",   ARG_NONE,   ARG_NONE }, { "un01?",   ARG_NONE,   ARG_NONE },
-	{ "un02?",   ARG_NONE,   ARG_NONE }, { "un03?",   ARG_NONE,   ARG_NONE },
+	{ "sh?b",    ARG_REG,    ARG_S8 },   { "sh?w",    ARG_REG,    ARG_S8   },
+	{ "sh?q",    ARG_REG,    ARG_S8 },   { "sh?t",    ARG_REG,    ARG_S8   },
 	{ "mskb",    ARG_REGREG, ARG_NONE }, { "mskw",    ARG_REGREG, ARG_NONE },
 	{ "mskq",    ARG_REGREG, ARG_NONE }, { "mskt",    ARG_REGREG, ARG_NONE },
-	{ "sh?b",    ARG_REG,    ARG_4    }, { "sh?w",    ARG_REG,    ARG_4    },
-	{ "sh?q",    ARG_REG,    ARG_4    }, { "sh?t",    ARG_REG,    ARG_4    },
+	{ "sh?b",    ARG_REG,    ARG_S4 },   { "sh?w",    ARG_REG,    ARG_S4   },
+	{ "sh?q",    ARG_REG,    ARG_S4 },   { "sh?t",    ARG_REG,    ARG_S4   },
 	{ "tstb",    ARG_REGREG, ARG_NONE }, { "tstw",    ARG_REGREG, ARG_NONE },
 	{ "tstq",    ARG_REGREG, ARG_NONE }, { "tstt",    ARG_REGREG, ARG_NONE },
 
@@ -59,16 +23,16 @@ static const hcd62121_dasm hcd62121_ops[256] =
 	{ "cmpq",    ARG_REGREG, ARG_NONE }, { "cmpt",    ARG_REGREG, ARG_NONE },
 	{ "movb",    ARG_REGREG, ARG_NONE }, { "movw",    ARG_REGREG, ARG_NONE },
 	{ "movq",    ARG_REGREG, ARG_NONE }, { "movt",    ARG_REGREG, ARG_NONE },
-	{ "imskb",   ARG_REGREG, ARG_NONE }, { "imskw",   ARG_REGREG, ARG_NONE },
-	{ "imskq",   ARG_REGREG, ARG_NONE }, { "imskt",   ARG_REGREG, ARG_NONE },
+	{ "cmpaddb", ARG_REGREG, ARG_NONE }, { "cmpaddw", ARG_REGREG, ARG_NONE },
+	{ "cmpaddq", ARG_REGREG, ARG_NONE }, { "cmpaddt", ARG_REGREG, ARG_NONE },
 
 	/* 0x20 */
-	{ "shrb",    ARG_REG,    ARG_NONE }, { "shrw",    ARG_REG,    ARG_NONE },
-	{ "shrq",    ARG_REG,    ARG_NONE }, { "shrt",    ARG_REG,    ARG_NONE },
+	{ "shrb",    ARG_REG,    ARG_S1   }, { "shrw",    ARG_REG,    ARG_S1   },
+	{ "shrq",    ARG_REG,    ARG_S1   }, { "shrt",    ARG_REG,    ARG_S1   },
 	{ "orb",     ARG_REGREG, ARG_NONE }, { "orw",     ARG_REGREG, ARG_NONE },
 	{ "orq",     ARG_REGREG, ARG_NONE }, { "ort",     ARG_REGREG, ARG_NONE },
-	{ "shlb",    ARG_REG,    ARG_NONE }, { "shlw",    ARG_REG,    ARG_NONE },
-	{ "shlq",    ARG_REG,    ARG_NONE }, { "shlt",    ARG_REG,    ARG_NONE },
+	{ "shlb",    ARG_REG,    ARG_S1   }, { "shlw",    ARG_REG,    ARG_S1   },
+	{ "shlq",    ARG_REG,    ARG_S1   }, { "shlt",    ARG_REG,    ARG_S1   },
 	{ "andb",    ARG_REGREG, ARG_NONE }, { "andw",    ARG_REGREG, ARG_NONE },
 	{ "andq",    ARG_REGREG, ARG_NONE }, { "andt",    ARG_REGREG, ARG_NONE },
 
@@ -83,12 +47,12 @@ static const hcd62121_dasm hcd62121_ops[256] =
 	{ "addq",    ARG_REGREG, ARG_NONE }, { "addt",    ARG_REGREG, ARG_NONE },
 
 	/* 0x40 */
-	{ "shrb?",   ARG_IRG,    ARG_NONE }, { "shrw?",   ARG_IRG,    ARG_NONE },
-	{ "shrq?",   ARG_IRG,    ARG_NONE }, { "shrt?",   ARG_IRG,    ARG_NONE },
+	{ "sh?b",    ARG_IRG,    ARG_S8   }, { "sh?w",    ARG_IRG,    ARG_S8   },
+	{ "sh?q",    ARG_IRG,    ARG_S8   }, { "sh?t",    ARG_IRG,    ARG_S8   },
 	{ "mskb",    ARG_IRGREG, ARG_NONE }, { "mskw",    ARG_IRGREG, ARG_NONE },
 	{ "mskq",    ARG_IRGREG, ARG_NONE }, { "mskt",    ARG_IRGREG, ARG_NONE },
-	{ "shrb",    ARG_IRG,    ARG_NONE }, { "shrw",    ARG_IRG,    ARG_NONE },
-	{ "shrq",    ARG_IRG,    ARG_NONE }, { "shrt",    ARG_IRG,    ARG_NONE },
+	{ "sh?b",    ARG_IRG,    ARG_S4   }, { "sh?w",    ARG_IRG,    ARG_S4   },
+	{ "sh?q",    ARG_IRG,    ARG_S4   }, { "sh?t",    ARG_IRG,    ARG_S4   },
 	{ "tstb",    ARG_IRGREG, ARG_NONE }, { "tstw",    ARG_IRGREG, ARG_NONE },
 	{ "tstq",    ARG_IRGREG, ARG_NONE }, { "tstt",    ARG_IRGREG, ARG_NONE },
 
@@ -99,16 +63,16 @@ static const hcd62121_dasm hcd62121_ops[256] =
 	{ "cmpq",    ARG_IRGREG, ARG_NONE }, { "cmpt",    ARG_IRGREG, ARG_NONE },
 	{ "movb",    ARG_IRGREG, ARG_NONE }, { "movw",    ARG_IRGREG, ARG_NONE },
 	{ "movq",    ARG_IRGREG, ARG_NONE }, { "movt",    ARG_IRGREG, ARG_NONE },
-	{ "imskb",   ARG_IRGREG, ARG_NONE }, { "imskw",   ARG_IRGREG, ARG_NONE },
-	{ "imskq",   ARG_IRGREG, ARG_NONE }, { "imskt",   ARG_IRGREG, ARG_NONE },
+	{ "cmpaddb", ARG_IRGREG, ARG_NONE }, { "cmpaddw", ARG_IRGREG, ARG_NONE },
+	{ "cmpaddq", ARG_IRGREG, ARG_NONE }, { "cmpaddt", ARG_IRGREG, ARG_NONE },
 
 	/* 0x60 */
-	{ "shrb",    ARG_IRG,    ARG_NONE }, { "shrw",    ARG_IRG,    ARG_NONE },
-	{ "shrq",    ARG_IRG,    ARG_NONE }, { "shrt",    ARG_IRG,    ARG_NONE },
+	{ "shrb",    ARG_IRG,    ARG_S1   }, { "shrw",    ARG_IRG,    ARG_S1   },
+	{ "shrq",    ARG_IRG,    ARG_S1   }, { "shrt",    ARG_IRG,    ARG_S1   },
 	{ "orb",     ARG_IRGREG, ARG_NONE }, { "orw",     ARG_IRGREG, ARG_NONE },
 	{ "orq",     ARG_IRGREG, ARG_NONE }, { "ort",     ARG_IRGREG, ARG_NONE },
-	{ "shlb",    ARG_IRG,    ARG_NONE }, { "shlw",    ARG_IRG,    ARG_NONE },
-	{ "shlq",    ARG_IRG,    ARG_NONE }, { "shlt",    ARG_IRG,    ARG_NONE },
+	{ "shlb",    ARG_IRG,    ARG_S1   }, { "shlw",    ARG_IRG,    ARG_S1   },
+	{ "shlq",    ARG_IRG,    ARG_S1   }, { "shlt",    ARG_IRG,    ARG_S1   },
 	{ "andb",    ARG_IRGREG, ARG_NONE }, { "andw",    ARG_IRGREG, ARG_NONE },
 	{ "andq",    ARG_IRGREG, ARG_NONE }, { "andt",    ARG_IRGREG, ARG_NONE },
 
@@ -129,13 +93,13 @@ static const hcd62121_dasm hcd62121_ops[256] =
 	{ "un86?",   ARG_NONE,   ARG_NONE }, { "un87?",   ARG_NONE,   ARG_NONE },
 	{ "jump",    ARG_A16,    ARG_NONE }, { "jump",    ARG_A24,    ARG_NONE },
 	{ "call",    ARG_A16,    ARG_NONE }, { "un8b?",   ARG_NONE,   ARG_NONE },
-	{ "un8C?",   ARG_NONE,   ARG_NONE }, { "un8D?",   ARG_NONE,   ARG_NONE },
+	{ "bstack_to_dmem", ARG_NONE, ARG_NONE }, { "fstack_to_dmem", ARG_NONE, ARG_NONE },
 	{ "un8E?",   ARG_NONE,   ARG_NONE }, { "un8F?",   ARG_NONE,   ARG_NONE },
 
 	/* 0x90 */
 	{ "retzh",   ARG_NONE,   ARG_NONE }, { "retzl",   ARG_NONE,   ARG_NONE },
 	{ "retc",    ARG_NONE,   ARG_NONE }, { "retz",    ARG_NONE,   ARG_NONE },
-	{ "retzc",   ARG_NONE,   ARG_NONE }, { "retcl",   ARG_NONE,   ARG_NONE },
+	{ "retnzh",  ARG_NONE,   ARG_NONE }, { "retnzl",  ARG_NONE,   ARG_NONE },
 	{ "retnc",   ARG_NONE,   ARG_NONE }, { "retnz",   ARG_NONE,   ARG_NONE },
 	{ "jump",    ARG_IRG,    ARG_NONE }, { "un99?",   ARG_NONE,   ARG_NONE },
 	{ "un9A?",   ARG_NONE,   ARG_NONE }, { "un9b?",   ARG_NONE,   ARG_NONE },
@@ -145,11 +109,11 @@ static const hcd62121_dasm hcd62121_ops[256] =
 	/* 0xa0 */
 	{ "jmpzh",   ARG_A16,    ARG_NONE }, { "jmpzl",   ARG_A16,    ARG_NONE },
 	{ "jmpc",    ARG_A16,    ARG_NONE }, { "jmpz",    ARG_A16,    ARG_NONE },
-	{ "jmpzc",   ARG_A16,    ARG_NONE }, { "jmpcl",   ARG_A16,    ARG_NONE },
+	{ "jmpnzh",  ARG_A16,    ARG_NONE }, { "jmpnzl",  ARG_A16,    ARG_NONE },
 	{ "jmpnc",   ARG_A16,    ARG_NONE }, { "jmpnz",   ARG_A16,    ARG_NONE },
 	{ "callzh",  ARG_A16,    ARG_NONE }, { "callzl",  ARG_A16,    ARG_NONE },
 	{ "callc",   ARG_A16,    ARG_NONE }, { "callz",   ARG_A16,    ARG_NONE },
-	{ "callzc",  ARG_A16,    ARG_NONE }, { "callcl",  ARG_A16,    ARG_NONE },
+	{ "callnzh", ARG_A16,    ARG_NONE }, { "callnzl", ARG_A16,    ARG_NONE },
 	{ "callnc",  ARG_A16,    ARG_NONE }, { "callnz",  ARG_A16,    ARG_NONE },
 
 	/* 0xb0 */
@@ -158,9 +122,9 @@ static const hcd62121_dasm hcd62121_ops[256] =
 	{ "out",     ARG_KHI,    ARG_REG  }, { "out",     ARG_KHI,    ARG_I8   },
 	{ "out",     ARG_KLO,    ARG_REG  }, { "out",     ARG_KLO,    ARG_I8   },
 	{ "unB8?",   ARG_NONE,   ARG_NONE }, { "unB9?",   ARG_I8,     ARG_NONE },
-	{ "unBA?",   ARG_NONE,   ARG_NONE }, { "jmpcl?",  ARG_A16,    ARG_NONE },
-	{ "unBC?",   ARG_NONE,   ARG_NONE }, { "unBD?",   ARG_NONE,   ARG_NONE },
-	{ "unBE?",   ARG_NONE,   ARG_NONE }, { "jmpncl?", ARG_A16,    ARG_NONE },
+	{ "unBA?",   ARG_NONE,   ARG_NONE }, { "jmpcl",   ARG_A16,    ARG_NONE },
+	{ "unBC?",   ARG_I8,     ARG_NONE }, { "unBD?",   ARG_NONE,   ARG_NONE },
+	{ "unBE?",   ARG_NONE,   ARG_NONE }, { "jmpncl",  ARG_A16,    ARG_NONE },
 
 	/* 0xc0 */
 	{ "movb",    ARG_REG,    ARG_I8   }, { "movw",    ARG_REG,    ARG_I16  },
@@ -180,21 +144,21 @@ static const hcd62121_dasm hcd62121_ops[256] =
 	{ "movb",    ARG_F,      ARG_REG  }, { "movb",    ARG_F,      ARG_I8   },
 	{ "unDA?",   ARG_NONE,   ARG_NONE }, { "unDb?",   ARG_NONE,   ARG_NONE },
 	{ "movb",    ARG_DS,     ARG_REG  }, { "movb",    ARG_DS,     ARG_I8   },
-	{ "movw",    ARG_LAR,    ARG_REG  }, { "movw?",   ARG_LAR,    ARG_I16  },
+	{ "movw",    ARG_LAR,    ARG_REG  }, { "movb",    ARG_LAR,    ARG_I8   },
 
 	/* 0xe0 */
-	{ "in0",     ARG_REG,    ARG_NONE }, { "unE1?",   ARG_I8,     ARG_NONE },
+	{ "in0",     ARG_REG,    ARG_NONE }, { "movb",    ARG_REG,    ARG_OPT  },
 	{ "in",      ARG_REG,    ARG_KI   }, { "movb",    ARG_REG,    ARG_DSZ  },
-	{ "movb",    ARG_REG,    ARG_F    }, { "movb",    ARG_REG,    ARG_TIM  },
-	{ "unE6?",   ARG_I8,     ARG_NONE }, { "unE7?",   ARG_I8,     ARG_NONE },
+	{ "movb",    ARG_REG,    ARG_F    }, { "unE5?",   ARG_I8,     ARG_NONE },
+	{ "movb",    ARG_REG,    ARG_PORT }, { "unE7?",   ARG_I8,     ARG_NONE },
 	{ "movw",    ARG_REG,    ARG_LAR  }, { "movw?",   ARG_REG,    ARG_LAR  },
 	{ "movw",    ARG_REG,    ARG_PC   }, { "movw",    ARG_REG,    ARG_SP   },
 	{ "unEC?",   ARG_NONE,   ARG_NONE }, { "movb",    ARG_REG,    ARG_DS   },
 	{ "movb",    ARG_REG,    ARG_CS   }, { "movb",    ARG_REG,    ARG_SS   },
 
 	/* 0xf0 */
-	{ "unF0?",   ARG_I8,     ARG_NONE }, { "unF1?",   ARG_I8,     ARG_NONE },
-	{ "unF2?",   ARG_I8,     ARG_NONE }, { "unF3?",   ARG_I8,     ARG_NONE },
+	{ "movb",    ARG_OPT,    ARG_REG  }, { "unF1?",   ARG_I8,     ARG_NONE },
+	{ "movb",    ARG_PORT,   ARG_REG  }, { "unF3?",   ARG_I8,     ARG_NONE },
 	{ "unF4?",   ARG_I8,     ARG_NONE }, { "unF5?",   ARG_I8,     ARG_NONE },
 	{ "unF6?",   ARG_I8,     ARG_NONE }, { "unF7?",   ARG_I8,     ARG_NONE },
 	{ "unF8?",   ARG_NONE,   ARG_NONE }, { "unF9?",   ARG_NONE,   ARG_NONE },
@@ -203,30 +167,34 @@ static const hcd62121_dasm hcd62121_ops[256] =
 	{ "unFE?",   ARG_NONE,   ARG_NONE }, { "nop",     ARG_NONE,   ARG_NONE }
 };
 
+u32 hcd62121_disassembler::opcode_alignment() const
+{
+	return 1;
+}
 
-CPU_DISASSEMBLE(hcd62121)
+offs_t hcd62121_disassembler::disassemble(std::ostream &stream, offs_t pc, const data_buffer &opcodes, const data_buffer &params)
 {
 	u8 op;
 	u8 op1;
 	u8 op2;
-	u32 pos = 0;
-	const hcd62121_dasm *inst;
+	offs_t base_pc = pc;
+	const dasm *inst;
 
-	op = oprom[pos++];
+	op = opcodes.r8(pc++);
 
-	inst = &hcd62121_ops[op];
+	inst = &ops[op];
 
-	/* Special case for nibble shift instruction */
-	if (inst->arg2 == ARG_4)
-		util::stream_format(stream, "sh%c%c    ", (oprom[pos] & 0x80) ? 'l' : 'r', inst->str[3]);
+	/* Special cases for shift and rotate instructions */
+	if (inst->arg2 == ARG_S4 || inst->arg2 == ARG_S8)
+		util::stream_format(stream, "%c%c%c%c    ", inst->str[0], inst->str[1], (opcodes.r8(pc) & 0x80) ? 'r' : 'l', inst->str[3]);
 	else
 		util::stream_format(stream, "%-8s", inst->str);
 
 	switch(inst->arg1)
 	{
 	case ARG_REGREG:
-		op1 = oprom[pos++];
-		op2 = oprom[pos++];
+		op1 = opcodes.r8(pc++);
+		op2 = opcodes.r8(pc++);
 		if (op1 & 0x80)
 		{
 			util::stream_format(stream, "r%02x,0x%02x", op1 & 0x7f, op2);
@@ -240,12 +208,12 @@ CPU_DISASSEMBLE(hcd62121)
 		}
 		break;
 	case ARG_REG:
-		util::stream_format(stream, "r%02x", oprom[pos++] & 0x7f);
+		util::stream_format(stream, "r%02x", opcodes.r8(pc++) & 0x7f);
 		break;
 	case ARG_IRGREG:
 		/* bit 6 = direction. 0 - regular, 1 - reverse */
-		op1 = oprom[pos++];
-		op2 = oprom[pos++];
+		op1 = opcodes.r8(pc++);
+		op2 = opcodes.r8(pc++);
 		if (op1 & 0x80)
 		{
 			util::stream_format(stream, "(r%02x),0x%02x", 0x40 | (op1 & 0x3f), op2);
@@ -260,7 +228,7 @@ CPU_DISASSEMBLE(hcd62121)
 		break;
 	case ARG_IRG:
 		/* bit 6 = direction. 0 - regular, 1 - reverse */
-		op1 = oprom[pos++];
+		op1 = opcodes.r8(pc++);
 		util::stream_format(stream, "(r%02x%s)", 0x40 | (op1 & 0x3f), (op1 & 0x40) ? ".r" : "");
 		break;
 	case ARG_F:
@@ -282,47 +250,55 @@ CPU_DISASSEMBLE(hcd62121)
 		util::stream_format(stream, "SP");
 		break;
 	case ARG_I8:
-		util::stream_format(stream, "0x%02x", oprom[pos++]);
+		util::stream_format(stream, "0x%02x", opcodes.r8(pc++));
 		break;
 	case ARG_I16:
 	case ARG_A16:
-		util::stream_format(stream, "0x%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
+		util::stream_format(stream, "0x%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
 		break;
 	case ARG_I64:
-		util::stream_format(stream, "0x%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
+		util::stream_format(stream, "0x%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
 		break;
 	case ARG_I80:
-		util::stream_format(stream, "0x%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
+		util::stream_format(stream, "0x%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
 		break;
 	case ARG_A24:
-		util::stream_format(stream, "0x%02x:", oprom[pos++]);
-		util::stream_format(stream, "0x%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
+		util::stream_format(stream, "0x%02x:", opcodes.r8(pc++));
+		util::stream_format(stream, "0x%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
 		break;
 	case ARG_ILR:
-		op1 = oprom[pos++];
-		op2 = oprom[pos++];
+		op1 = opcodes.r8(pc++);
+		op2 = opcodes.r8(pc++);
 		if ((op1 & 0x80) || (op2 & 0x80))
 		{
-			/* (lar),reg */
-			util::stream_format(stream, "(%slar%s),r%02x", (op1 & 0x20) ? ((op1 & 0x40) ? "--" : "++") : "", (op1 & 0x20) ? "" : ((op1 & 0x40) ? "--" : "++"), op2 & 0x7f);
+			if (op1 & 0x80)
+			{
+				/* (lar),imm */
+				util::stream_format(stream, "(%slar%s), %02x", (op1 & 0x20) ? ((op1 & 0x40) ? "--" : "++") : "", (op1 & 0x20) ? "" : ((op1 & 0x40) ? "--" : "++"), op2);
+			}
+			else
+			{
+				/* (lar),reg */
+				util::stream_format(stream, "(%slar%s),r%02x", (op1 & 0x20) ? ((op1 & 0x40) ? "--" : "++") : "", (op1 & 0x20) ? "" : ((op1 & 0x40) ? "--" : "++"), op2 & 0x7f);
+			}
 		}
 		else
 		{
@@ -335,6 +311,12 @@ CPU_DISASSEMBLE(hcd62121)
 		break;
 	case ARG_DSZ:
 		util::stream_format(stream, "dsize");
+		break;
+	case ARG_OPT:
+		util::stream_format(stream, "OPT");
+		break;
+	case ARG_PORT:
+		util::stream_format(stream, "PORT");
 		break;
 	case ARG_TIM:
 		util::stream_format(stream, "TIM?");
@@ -352,7 +334,7 @@ CPU_DISASSEMBLE(hcd62121)
 	switch(inst->arg2)
 	{
 	case ARG_REG:
-		util::stream_format(stream, ",r%02x", oprom[pos++] & 0x7f);
+		util::stream_format(stream, ",r%02x", opcodes.r8(pc++) & 0x7f);
 		break;
 	case ARG_F:
 		util::stream_format(stream, ",F");
@@ -373,39 +355,43 @@ CPU_DISASSEMBLE(hcd62121)
 		util::stream_format(stream, ",SP");
 		break;
 	case ARG_I8:
-		util::stream_format(stream, ",0x%02x", oprom[pos++]);
+		util::stream_format(stream, ",0x%02x", opcodes.r8(pc++));
 		break;
 	case ARG_I16:
+		util::stream_format(stream, ",0x%02x", opcodes.r8(pc+1));
+		util::stream_format(stream, "%02x", opcodes.r8(pc));
+		pc += 2;
+		break;
 	case ARG_A16:
-		util::stream_format(stream, ",0x%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
+		util::stream_format(stream, ",0x%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
 		break;
 	case ARG_I64:
-		util::stream_format(stream, ",0x%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
+		util::stream_format(stream, ",0x%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
 		break;
 	case ARG_I80:
-		util::stream_format(stream, ",0x%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
+		util::stream_format(stream, ",0x%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
 		break;
 	case ARG_A24:
-		util::stream_format(stream, ",0x%02x:", oprom[pos++]);
-		util::stream_format(stream, "0x%02x", oprom[pos++]);
-		util::stream_format(stream, "%02x", oprom[pos++]);
+		util::stream_format(stream, ",0x%02x:", opcodes.r8(pc++));
+		util::stream_format(stream, "0x%02x", opcodes.r8(pc++));
+		util::stream_format(stream, "%02x", opcodes.r8(pc++));
 		break;
 	case ARG_ILR:
 		/* Implemented by ARG_ILR section for arg1 */
@@ -416,19 +402,28 @@ CPU_DISASSEMBLE(hcd62121)
 	case ARG_DSZ:
 		util::stream_format(stream, ",dsize");
 		break;
+	case ARG_OPT:
+		util::stream_format(stream, ",OPT");
+		break;
+	case ARG_PORT:
+		util::stream_format(stream, ",PORT");
+		break;
 	case ARG_TIM:
 		util::stream_format(stream, ",TIM?");
 		break;
 	case ARG_KI:
 		util::stream_format(stream, ",KI");
 		break;
-	case ARG_4:
+	case ARG_S4:
 		util::stream_format(stream, ",4");
+		break;
+	case ARG_S8:
+		util::stream_format(stream, ",8");
 		break;
 	default:
 		break;
 	}
 
-	return pos | DASMFLAG_SUPPORTED;
+	return (pc - base_pc) | SUPPORTED;
 }
 

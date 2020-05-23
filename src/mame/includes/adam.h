@@ -2,15 +2,15 @@
 // copyright-holders:Curt Coder
 #pragma once
 
-#ifndef ADAM_H_
-#define ADAM_H_
+#ifndef MAME_INCLUDES_ADAM_H
+#define MAME_INCLUDES_ADAM_H
 
 #include "bus/adam/exp.h"
 #include "bus/adamnet/adamnet.h"
-#include "bus/coleco/ctrl.h"
-#include "bus/coleco/exp.h"
+#include "bus/coleco/controller/ctrl.h"
+#include "bus/coleco/cartridge/exp.h"
 #include "cpu/z80/z80.h"
-#include "cpu/m6800/m6800.h"
+#include "cpu/m6800/m6801.h"
 #include "machine/coleco.h"
 #include "machine/ram.h"
 #include "sound/sn76496.h"
@@ -34,7 +34,7 @@ public:
 		m_vdc(*this, TMS9928A_TAG),
 		m_psg(*this, SN76489A_TAG),
 		m_ram(*this, RAM_TAG),
-		m_adamnet(*this, ADAMNET_TAG),
+		m_adamnet(*this, "adamnet"),
 		m_slot1(*this, ADAM_LEFT_EXPANSION_SLOT_TAG),
 		m_slot2(*this, ADAM_CENTER_EXPANSION_SLOT_TAG),
 		m_slot3(*this, ADAM_RIGHT_EXPANSION_SLOT_TAG),
@@ -52,7 +52,7 @@ public:
 	{ }
 
 	required_device<cpu_device> m_maincpu;
-	required_device<cpu_device> m_netcpu;
+	required_device<m6801_cpu_device> m_netcpu;
 	required_device<tms9928a_device> m_vdc;
 	required_device<sn76489a_device> m_psg;
 	required_device<ram_device> m_ram;
@@ -79,12 +79,12 @@ public:
 	DECLARE_READ8_MEMBER( mioc_r );
 	DECLARE_WRITE8_MEMBER( mioc_w );
 
-	DECLARE_WRITE8_MEMBER( m6801_p1_w );
-	DECLARE_READ8_MEMBER( m6801_p2_r );
-	DECLARE_WRITE8_MEMBER( m6801_p2_w );
-	DECLARE_READ8_MEMBER( m6801_p3_r );
-	DECLARE_WRITE8_MEMBER( m6801_p3_w );
-	DECLARE_WRITE8_MEMBER( m6801_p4_w );
+	void m6801_p1_w(uint8_t data);
+	uint8_t m6801_p2_r();
+	void m6801_p2_w(uint8_t data);
+	uint8_t m6801_p3_r();
+	void m6801_p3_w(uint8_t data);
+	void m6801_p4_w(uint8_t data);
 
 	DECLARE_WRITE_LINE_MEMBER( vdc_int_w );
 
@@ -112,6 +112,10 @@ public:
 
 	// video state
 	int m_vdp_nmi;
+	void adam(machine_config &config);
+	void adam_io(address_map &map);
+	void adam_mem(address_map &map);
+	void m6801_mem(address_map &map);
 };
 
 #endif

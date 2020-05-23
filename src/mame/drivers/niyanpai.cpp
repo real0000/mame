@@ -37,39 +37,23 @@ Memo:
 
 #include "emu.h"
 #include "includes/niyanpai.h"
-#include "includes/nb1413m3.h"
 
-#include "cpu/z80/tmpz84c011.h"
 #include "cpu/m68000/m68000.h"
 #include "machine/nvram.h"
 #include "machine/tmp68301.h"
-#include "sound/3812intf.h"
-#include "sound/dac.h"
-#include "sound/volt_reg.h"
-#include "speaker.h"
 
 
-WRITE8_MEMBER(niyanpai_state::soundbank_w)
+
+void niyanpai_state::init_niyanpai()
 {
-	membank("soundbank")->set_entry(data & 0x03);
-}
-
-WRITE8_MEMBER(niyanpai_state::soundlatch_clear_w)
-{
-	if (!(data & 0x01)) m_soundlatch->clear_w(space, 0, 0);
-}
-
-
-DRIVER_INIT_MEMBER(niyanpai_state,niyanpai)
-{
-	uint8_t *SNDROM = memregion("audiocpu")->base();
+	//uint8_t *SNDROM = memregion(":nichisnd:audiorom")->base();
 
 	// sound program patch
-	SNDROM[0x0213] = 0x00;          // DI -> NOP
+	//SNDROM[0x0213] = 0x00;          // DI -> NOP
 
 	// initialize sound rom bank
-	membank("soundbank")->configure_entries(0, 3, memregion("audiocpu")->base() + 0x8000, 0x8000);
-	membank("soundbank")->set_entry(0);
+	//membank("soundbank")->configure_entries(0, 3, memregion(":nichisnd:audiorom")->base() + 0x8000, 0x8000);
+	//membank("soundbank")->set_entry(0);
 
 	// initialize out coin flag (musobana)
 	m_musobana_outcoin_flag = 1;
@@ -81,8 +65,8 @@ READ16_MEMBER(niyanpai_state::dipsw_r)
 	uint8_t dipsw_a = ioport("DSWA")->read();
 	uint8_t dipsw_b = ioport("DSWB")->read();
 
-	dipsw_a = BITSWAP8(dipsw_a,0,1,2,3,4,5,6,7);
-	dipsw_b = BITSWAP8(dipsw_b,0,1,2,3,4,5,6,7);
+	dipsw_a = bitswap<8>(dipsw_a,0,1,2,3,4,5,6,7);
+	dipsw_b = bitswap<8>(dipsw_b,0,1,2,3,4,5,6,7);
 
 	return ((dipsw_a << 8) | dipsw_b);
 }
@@ -112,7 +96,7 @@ READ16_MEMBER(niyanpai_state::musobana_inputport_0_r)
 	return (portdata);
 }
 
-WRITE16_MEMBER(niyanpai_state::tmp68301_parallel_port_w)
+void niyanpai_state::tmp68301_parallel_port_w(uint16_t data)
 {
 	// tmp68301_parallel_interface[0x05]
 	//  bit 0   coin counter
@@ -125,7 +109,7 @@ WRITE16_MEMBER(niyanpai_state::tmp68301_parallel_port_w)
 	machine().bookkeeping().coin_lockout_w(0,data & 0x08);
 }
 
-CUSTOM_INPUT_MEMBER(niyanpai_state::musobana_outcoin_flag_r)
+READ_LINE_MEMBER(niyanpai_state::musobana_outcoin_flag_r)
 {
 	if (m_motor_on) m_musobana_outcoin_flag ^= 1;
 	else m_musobana_outcoin_flag = 1;
@@ -138,168 +122,153 @@ WRITE16_MEMBER(niyanpai_state::musobana_inputport_w)
 	m_musobana_inputport = data;
 }
 
-static ADDRESS_MAP_START( niyanpai_map, AS_PROGRAM, 16, niyanpai_state )
-	AM_RANGE(0x000000, 0x03ffff) AM_ROM
-	AM_RANGE(0x040000, 0x040fff) AM_RAM AM_SHARE("nvram")
+void niyanpai_state::niyanpai_map(address_map &map)
+{
+	map(0x000000, 0x03ffff).rom();
+	map(0x040000, 0x040fff).ram().share("nvram");
 
-	AM_RANGE(0x0a0000, 0x0a08ff) AM_READWRITE(palette_r,palette_w)
-	AM_RANGE(0x0a0900, 0x0a11ff) AM_RAM // palette work ram?
+	map(0x0a0000, 0x0a08ff).rw(FUNC(niyanpai_state::palette_r), FUNC(niyanpai_state::palette_w));
+	map(0x0a0900, 0x0a11ff).ram(); // palette work ram?
 
-	AM_RANGE(0x0bf800, 0x0bffff) AM_RAM
+	map(0x0bf800, 0x0bffff).ram();
 
-	AM_RANGE(0x200000, 0x200001) AM_DEVWRITE8("soundlatch", generic_latch_8_device, write, 0xff00)
+	map(0x200000, 0x200000).w("nichisnd", FUNC(nichisnd_device::sound_host_command_w));
 
-	AM_RANGE(0x200200, 0x200201) AM_WRITENOP            // unknown
-	AM_RANGE(0x240000, 0x240009) AM_WRITENOP            // unknown
-	AM_RANGE(0x240200, 0x2403ff) AM_WRITENOP            // unknown
+	map(0x200200, 0x200201).nopw();            // unknown
+	map(0x240000, 0x240009).nopw();            // unknown
+	map(0x240200, 0x2403ff).nopw();            // unknown
 
-	AM_RANGE(0x240400, 0x240403) AM_READ8(blitter_0_r, 0x00ff)
-	AM_RANGE(0x240400, 0x24041f) AM_WRITE8(blitter_0_w, 0x00ff)
-	AM_RANGE(0x240420, 0x24043f) AM_WRITE8(clut_0_w, 0x00ff)
-	AM_RANGE(0x240600, 0x240603) AM_READ8(blitter_1_r, 0x00ff)
-	AM_RANGE(0x240600, 0x24061f) AM_WRITE8(blitter_1_w, 0x00ff)
-	AM_RANGE(0x240620, 0x24063f) AM_WRITE8(clut_1_w, 0x00ff)
-	AM_RANGE(0x240800, 0x240803) AM_READ8(blitter_2_r, 0x00ff)
-	AM_RANGE(0x240800, 0x24081f) AM_WRITE8(blitter_2_w, 0x00ff)
-	AM_RANGE(0x240820, 0x24083f) AM_WRITE8(clut_2_w, 0x00ff)
-	AM_RANGE(0x280000, 0x280001) AM_READ(dipsw_r)
+	map(0x240400, 0x240403).r(FUNC(niyanpai_state::blitter_0_r)).umask16(0x00ff);
+	map(0x240400, 0x24041f).w(FUNC(niyanpai_state::blitter_0_w)).umask16(0x00ff);
+	map(0x240420, 0x24043f).w(FUNC(niyanpai_state::clut_0_w)).umask16(0x00ff);
+	map(0x240600, 0x240603).r(FUNC(niyanpai_state::blitter_1_r)).umask16(0x00ff);
+	map(0x240600, 0x24061f).w(FUNC(niyanpai_state::blitter_1_w)).umask16(0x00ff);
+	map(0x240620, 0x24063f).w(FUNC(niyanpai_state::clut_1_w)).umask16(0x00ff);
+	map(0x240800, 0x240803).r(FUNC(niyanpai_state::blitter_2_r)).umask16(0x00ff);
+	map(0x240800, 0x24081f).w(FUNC(niyanpai_state::blitter_2_w)).umask16(0x00ff);
+	map(0x240820, 0x24083f).w(FUNC(niyanpai_state::clut_2_w)).umask16(0x00ff);
+	map(0x280000, 0x280001).r(FUNC(niyanpai_state::dipsw_r));
 
-	AM_RANGE(0x280200, 0x280201) AM_READ_PORT("P1_P2")
-	AM_RANGE(0x280400, 0x280401) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0x240a00, 0x240a01) AM_WRITE8(clutsel_0_w, 0x00ff)
-	AM_RANGE(0x240c00, 0x240c01) AM_WRITE8(clutsel_1_w, 0x00ff)
-	AM_RANGE(0x240e00, 0x240e01) AM_WRITE8(clutsel_2_w, 0x00ff)
+	map(0x280200, 0x280201).portr("P1_P2");
+	map(0x280400, 0x280401).portr("SYSTEM");
+	map(0x240a01, 0x240a01).w(FUNC(niyanpai_state::clutsel_0_w));
+	map(0x240c01, 0x240c01).w(FUNC(niyanpai_state::clutsel_1_w));
+	map(0x240e01, 0x240e01).w(FUNC(niyanpai_state::clutsel_2_w));
+}
 
-	AM_RANGE(0xfffc00, 0xffffff) AM_DEVREADWRITE("tmp68301", tmp68301_device, regs_r, regs_w)  // TMP68301 Registers
-ADDRESS_MAP_END
+void niyanpai_state::musobana_map(address_map &map)
+{
+	map(0x000000, 0x03ffff).rom();
+	map(0x040000, 0x040fff).ram();
 
-static ADDRESS_MAP_START( musobana_map, AS_PROGRAM, 16, niyanpai_state )
-	AM_RANGE(0x000000, 0x03ffff) AM_ROM
-	AM_RANGE(0x040000, 0x040fff) AM_RAM
+	map(0x0a0000, 0x0a08ff).rw(FUNC(niyanpai_state::palette_r), FUNC(niyanpai_state::palette_w));
+	map(0x0a0900, 0x0a11ff).ram();             // palette work ram?
 
-	AM_RANGE(0x0a0000, 0x0a08ff) AM_READWRITE(palette_r,palette_w)
-	AM_RANGE(0x0a0900, 0x0a11ff) AM_RAM             // palette work ram?
+	map(0x0a8000, 0x0a87ff).ram().share("nvram");
+	map(0x0bf800, 0x0bffff).ram();
 
-	AM_RANGE(0x0a8000, 0x0a87ff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0x0bf800, 0x0bffff) AM_RAM
+	map(0x200000, 0x200000).w("nichisnd", FUNC(nichisnd_device::sound_host_command_w));
 
-	AM_RANGE(0x200000, 0x200001) AM_DEVWRITE8("soundlatch", generic_latch_8_device, write, 0xff00)
+	map(0x200200, 0x200201).w(FUNC(niyanpai_state::musobana_inputport_w)); // inputport select
+	map(0x240000, 0x240009).nopw();            // unknown
+	map(0x240200, 0x2403ff).nopw();            // unknown
 
-	AM_RANGE(0x200200, 0x200201) AM_WRITE(musobana_inputport_w) // inputport select
-	AM_RANGE(0x240000, 0x240009) AM_WRITENOP            // unknown
-	AM_RANGE(0x240200, 0x2403ff) AM_WRITENOP            // unknown
+	map(0x240400, 0x240403).r(FUNC(niyanpai_state::blitter_0_r)).umask16(0x00ff);
+	map(0x240400, 0x24041f).w(FUNC(niyanpai_state::blitter_0_w)).umask16(0x00ff);
+	map(0x240420, 0x24043f).w(FUNC(niyanpai_state::clut_0_w)).umask16(0x00ff);
 
-	AM_RANGE(0x240400, 0x240403) AM_READ8(blitter_0_r, 0x00ff)
-	AM_RANGE(0x240400, 0x24041f) AM_WRITE8(blitter_0_w, 0x00ff)
-	AM_RANGE(0x240420, 0x24043f) AM_WRITE8(clut_0_w, 0x00ff)
+	map(0x240600, 0x240603).r(FUNC(niyanpai_state::blitter_1_r)).umask16(0x00ff);
+	map(0x240600, 0x24061f).w(FUNC(niyanpai_state::blitter_1_w)).umask16(0x00ff);
+	map(0x240620, 0x24063f).w(FUNC(niyanpai_state::clut_1_w)).umask16(0x00ff);
 
-	AM_RANGE(0x240600, 0x240603) AM_READ8(blitter_1_r, 0x00ff)
-	AM_RANGE(0x240600, 0x24061f) AM_WRITE8(blitter_1_w, 0x00ff)
-	AM_RANGE(0x240620, 0x24063f) AM_WRITE8(clut_1_w, 0x00ff)
+	map(0x240800, 0x240803).r(FUNC(niyanpai_state::blitter_2_r)).umask16(0x00ff);
+	map(0x240800, 0x24081f).w(FUNC(niyanpai_state::blitter_2_w)).umask16(0x00ff);
+	map(0x240820, 0x24083f).w(FUNC(niyanpai_state::clut_2_w)).umask16(0x00ff);
+	map(0x240a01, 0x240a01).w(FUNC(niyanpai_state::clutsel_0_w));
+	map(0x240c01, 0x240c01).w(FUNC(niyanpai_state::clutsel_1_w));
+	map(0x240e01, 0x240e01).w(FUNC(niyanpai_state::clutsel_2_w));
 
-	AM_RANGE(0x240800, 0x240803) AM_READ8(blitter_2_r, 0x00ff)
-	AM_RANGE(0x240800, 0x24081f) AM_WRITE8(blitter_2_w, 0x00ff)
-	AM_RANGE(0x240820, 0x24083f) AM_WRITE8(clut_2_w, 0x00ff)
-	AM_RANGE(0x240a00, 0x240a01) AM_WRITE8(clutsel_0_w, 0x00ff)
-	AM_RANGE(0x240c00, 0x240c01) AM_WRITE8(clutsel_1_w, 0x00ff)
-	AM_RANGE(0x240e00, 0x240e01) AM_WRITE8(clutsel_2_w, 0x00ff)
+	map(0x280000, 0x280001).r(FUNC(niyanpai_state::dipsw_r));
+	map(0x280200, 0x280201).r(FUNC(niyanpai_state::musobana_inputport_0_r));
+	map(0x280400, 0x280401).portr("SYSTEM");
+}
 
-	AM_RANGE(0x280000, 0x280001) AM_READ(dipsw_r)
-	AM_RANGE(0x280200, 0x280201) AM_READ(musobana_inputport_0_r)
-	AM_RANGE(0x280400, 0x280401) AM_READ_PORT("SYSTEM")
+void niyanpai_state::mhhonban_map(address_map &map)
+{
+	map(0x000000, 0x03ffff).rom();
+	map(0x040000, 0x040fff).ram();
 
-	AM_RANGE(0xfffc00, 0xffffff) AM_DEVREADWRITE("tmp68301", tmp68301_device, regs_r, regs_w)  // TMP68301 Registers
-ADDRESS_MAP_END
+	map(0x060000, 0x0608ff).rw(FUNC(niyanpai_state::palette_r), FUNC(niyanpai_state::palette_w));
+	map(0x060900, 0x0611ff).ram();             // palette work ram?
+	map(0x07f800, 0x07ffff).ram();
 
-static ADDRESS_MAP_START( mhhonban_map, AS_PROGRAM, 16, niyanpai_state )
-	AM_RANGE(0x000000, 0x03ffff) AM_ROM
-	AM_RANGE(0x040000, 0x040fff) AM_RAM
+	map(0x0a8000, 0x0a87ff).ram().share("nvram");
+	map(0x0bf000, 0x0bffff).ram();
 
-	AM_RANGE(0x060000, 0x0608ff) AM_READWRITE(palette_r,palette_w)
-	AM_RANGE(0x060900, 0x0611ff) AM_RAM             // palette work ram?
-	AM_RANGE(0x07f800, 0x07ffff) AM_RAM
+	map(0x200000, 0x200000).w("nichisnd", FUNC(nichisnd_device::sound_host_command_w));
 
-	AM_RANGE(0x0a8000, 0x0a87ff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0x0bf000, 0x0bffff) AM_RAM
+	map(0x200200, 0x200201).w(FUNC(niyanpai_state::musobana_inputport_w)); // inputport select
+	map(0x240000, 0x240009).nopw();            // unknown
+	map(0x240200, 0x2403ff).nopw();            // unknown
 
-	AM_RANGE(0x200000, 0x200001) AM_DEVWRITE8("soundlatch", generic_latch_8_device, write, 0xff00)
+	map(0x240400, 0x240403).r(FUNC(niyanpai_state::blitter_0_r)).umask16(0x00ff);
+	map(0x240400, 0x24041f).w(FUNC(niyanpai_state::blitter_0_w)).umask16(0x00ff);
+	map(0x240420, 0x24043f).w(FUNC(niyanpai_state::clut_0_w)).umask16(0x00ff);
 
-	AM_RANGE(0x200200, 0x200201) AM_WRITE(musobana_inputport_w) // inputport select
-	AM_RANGE(0x240000, 0x240009) AM_WRITENOP            // unknown
-	AM_RANGE(0x240200, 0x2403ff) AM_WRITENOP            // unknown
+	map(0x240600, 0x240603).r(FUNC(niyanpai_state::blitter_1_r)).umask16(0x00ff);
+	map(0x240600, 0x24061f).w(FUNC(niyanpai_state::blitter_1_w)).umask16(0x00ff);
+	map(0x240620, 0x24063f).w(FUNC(niyanpai_state::clut_1_w)).umask16(0x00ff);
 
-	AM_RANGE(0x240400, 0x240403) AM_READ8(blitter_0_r, 0x00ff)
-	AM_RANGE(0x240400, 0x24041f) AM_WRITE8(blitter_0_w, 0x00ff)
-	AM_RANGE(0x240420, 0x24043f) AM_WRITE8(clut_0_w, 0x00ff)
+	map(0x240800, 0x240803).r(FUNC(niyanpai_state::blitter_2_r)).umask16(0x00ff);
+	map(0x240800, 0x24081f).w(FUNC(niyanpai_state::blitter_2_w)).umask16(0x00ff);
+	map(0x240820, 0x24083f).w(FUNC(niyanpai_state::clut_2_w)).umask16(0x00ff);
 
-	AM_RANGE(0x240600, 0x240603) AM_READ8(blitter_1_r, 0x00ff)
-	AM_RANGE(0x240600, 0x24061f) AM_WRITE8(blitter_1_w, 0x00ff)
-	AM_RANGE(0x240620, 0x24063f) AM_WRITE8(clut_1_w, 0x00ff)
+	map(0x240a01, 0x240a01).w(FUNC(niyanpai_state::clutsel_0_w));
+	map(0x240c01, 0x240c01).w(FUNC(niyanpai_state::clutsel_1_w));
+	map(0x240e01, 0x240e01).w(FUNC(niyanpai_state::clutsel_2_w));
 
-	AM_RANGE(0x240800, 0x240803) AM_READ8(blitter_2_r, 0x00ff)
-	AM_RANGE(0x240800, 0x24081f) AM_WRITE8(blitter_2_w, 0x00ff)
-	AM_RANGE(0x240820, 0x24083f) AM_WRITE8(clut_2_w, 0x00ff)
+	map(0x280000, 0x280001).r(FUNC(niyanpai_state::dipsw_r));
+	map(0x280200, 0x280201).r(FUNC(niyanpai_state::musobana_inputport_0_r));
+	map(0x280400, 0x280401).portr("SYSTEM");
+}
 
-	AM_RANGE(0x240a00, 0x240a01) AM_WRITE8(clutsel_0_w, 0x00ff)
-	AM_RANGE(0x240c00, 0x240c01) AM_WRITE8(clutsel_1_w, 0x00ff)
-	AM_RANGE(0x240e00, 0x240e01) AM_WRITE8(clutsel_2_w, 0x00ff)
+void niyanpai_state::zokumahj_map(address_map &map)
+{
+	map(0x000000, 0x03ffff).rom();
+	map(0x0ff000, 0x0fffff).ram();
 
-	AM_RANGE(0x280000, 0x280001) AM_READ(dipsw_r)
-	AM_RANGE(0x280200, 0x280201) AM_READ(musobana_inputport_0_r)
-	AM_RANGE(0x280400, 0x280401) AM_READ_PORT("SYSTEM")
+	map(0x0e0000, 0x0e08ff).rw(FUNC(niyanpai_state::palette_r), FUNC(niyanpai_state::palette_w));
+	map(0x0e0900, 0x0e11ff).ram();             // palette work ram?
 
-	AM_RANGE(0xfffc00, 0xffffff) AM_DEVREADWRITE("tmp68301", tmp68301_device, regs_r, regs_w)  // TMP68301 Registers
-ADDRESS_MAP_END
+	map(0x0a8000, 0x0a87ff).ram().share("nvram");
+	map(0x0c0000, 0x0cffff).ram();
 
-static ADDRESS_MAP_START( zokumahj_map, AS_PROGRAM, 16, niyanpai_state )
-	AM_RANGE(0x000000, 0x03ffff) AM_ROM
-	AM_RANGE(0x0ff000, 0x0fffff) AM_RAM
+	map(0x200000, 0x200000).w("nichisnd", FUNC(nichisnd_device::sound_host_command_w));
 
-	AM_RANGE(0x0e0000, 0x0e08ff) AM_READWRITE(palette_r,palette_w)
-	AM_RANGE(0x0e0900, 0x0e11ff) AM_RAM             // palette work ram?
+	map(0x200200, 0x200201).w(FUNC(niyanpai_state::musobana_inputport_w)); // inputport select
+	map(0x240000, 0x240009).nopw();            // unknown
+	map(0x240200, 0x2403ff).nopw();            // unknown
 
-	AM_RANGE(0x0a8000, 0x0a87ff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0x0c0000, 0x0cffff) AM_RAM
+	map(0x240400, 0x240403).r(FUNC(niyanpai_state::blitter_0_r)).umask16(0x00ff);
+	map(0x240400, 0x24041f).w(FUNC(niyanpai_state::blitter_0_w)).umask16(0x00ff);
+	map(0x240420, 0x24043f).w(FUNC(niyanpai_state::clut_0_w)).umask16(0x00ff);
 
-	AM_RANGE(0x200000, 0x200001) AM_DEVWRITE8("soundlatch", generic_latch_8_device, write, 0xff00)
+	map(0x240600, 0x240603).r(FUNC(niyanpai_state::blitter_1_r)).umask16(0x00ff);
+	map(0x240600, 0x24061f).w(FUNC(niyanpai_state::blitter_1_w)).umask16(0x00ff);
+	map(0x240620, 0x24063f).w(FUNC(niyanpai_state::clut_1_w)).umask16(0x00ff);
 
-	AM_RANGE(0x200200, 0x200201) AM_WRITE(musobana_inputport_w) // inputport select
-	AM_RANGE(0x240000, 0x240009) AM_WRITENOP            // unknown
-	AM_RANGE(0x240200, 0x2403ff) AM_WRITENOP            // unknown
+	map(0x240800, 0x240803).r(FUNC(niyanpai_state::blitter_2_r)).umask16(0x00ff);
+	map(0x240800, 0x24081f).w(FUNC(niyanpai_state::blitter_2_w)).umask16(0x00ff);
+	map(0x240820, 0x24083f).w(FUNC(niyanpai_state::clut_2_w)).umask16(0x00ff);
 
-	AM_RANGE(0x240400, 0x240403) AM_READ8(blitter_0_r, 0x00ff)
-	AM_RANGE(0x240400, 0x24041f) AM_WRITE8(blitter_0_w, 0x00ff)
-	AM_RANGE(0x240420, 0x24043f) AM_WRITE8(clut_0_w, 0x00ff)
+	map(0x240a01, 0x240a01).w(FUNC(niyanpai_state::clutsel_0_w));
+	map(0x240c01, 0x240c01).w(FUNC(niyanpai_state::clutsel_1_w));
+	map(0x240e01, 0x240e01).w(FUNC(niyanpai_state::clutsel_2_w));
 
-	AM_RANGE(0x240600, 0x240603) AM_READ8(blitter_1_r, 0x00ff)
-	AM_RANGE(0x240600, 0x24061f) AM_WRITE8(blitter_1_w, 0x00ff)
-	AM_RANGE(0x240620, 0x24063f) AM_WRITE8(clut_1_w, 0x00ff)
-
-	AM_RANGE(0x240800, 0x240803) AM_READ8(blitter_2_r, 0x00ff)
-	AM_RANGE(0x240800, 0x24081f) AM_WRITE8(blitter_2_w, 0x00ff)
-	AM_RANGE(0x240820, 0x24083f) AM_WRITE8(clut_2_w, 0x00ff)
-
-	AM_RANGE(0x240a00, 0x240a01) AM_WRITE8(clutsel_0_w, 0x00ff)
-	AM_RANGE(0x240c00, 0x240c01) AM_WRITE8(clutsel_1_w, 0x00ff)
-	AM_RANGE(0x240e00, 0x240e01) AM_WRITE8(clutsel_2_w, 0x00ff)
-
-	AM_RANGE(0x280000, 0x280001) AM_READ(dipsw_r)
-	AM_RANGE(0x280200, 0x280201) AM_READ(musobana_inputport_0_r)
-	AM_RANGE(0x280400, 0x280401) AM_READ_PORT("SYSTEM")
-
-	AM_RANGE(0xfffc00, 0xffffff) AM_DEVREADWRITE("tmp68301", tmp68301_device, regs_r, regs_w)  // TMP68301 Registers
-ADDRESS_MAP_END
-
-
-static ADDRESS_MAP_START( niyanpai_sound_map, AS_PROGRAM, 8, niyanpai_state )
-	AM_RANGE(0x0000, 0x77ff) AM_ROM
-	AM_RANGE(0x7800, 0x7fff) AM_RAM
-	AM_RANGE(0x8000, 0xffff) AM_ROMBANK("soundbank")
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( niyanpai_sound_io_map, AS_IO, 8, niyanpai_state )
-	AM_RANGE(0x80, 0x81) AM_MIRROR(0xff00) AM_DEVWRITE("ymsnd", ym3812_device, write)
-ADDRESS_MAP_END
+	map(0x280000, 0x280001).r(FUNC(niyanpai_state::dipsw_r));
+	map(0x280200, 0x280201).r(FUNC(niyanpai_state::musobana_inputport_0_r));
+	map(0x280400, 0x280401).portr("SYSTEM");
+}
 
 
 static INPUT_PORTS_START( niyanpai )
@@ -513,7 +482,7 @@ static INPUT_PORTS_START( musobana )    // I don't have manual for this game.
 	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_START3 )           // CREDIT CLEAR
 	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_MEMORY_RESET )     // MEMORY RESET
 	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_SERVICE2 )         // ANALYZER
-	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, niyanpai_state,musobana_outcoin_flag_r, nullptr)   // OUT COIN
+	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(niyanpai_state, musobana_outcoin_flag_r)   // OUT COIN
 	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_SERVICE( 0x8000, IP_ACTIVE_LOW )                   // TEST
 
@@ -567,7 +536,7 @@ static INPUT_PORTS_START( 4psimasy )
 	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_START3 )           // CREDIT CLEAR
 	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_MEMORY_RESET )     // MEMORY RESET
 	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_SERVICE2 )         // ANALYZER
-	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, niyanpai_state,musobana_outcoin_flag_r, nullptr)   // OUT COIN
+	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(niyanpai_state, musobana_outcoin_flag_r)   // OUT COIN
 	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_SERVICE( 0x8000, IP_ACTIVE_LOW )                   // TEST
 
@@ -633,7 +602,7 @@ static INPUT_PORTS_START( mhhonban )    // I don't have manual for this game.
 	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_START3 )           // CREDIT CLEAR
 	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_MEMORY_RESET )     // MEMORY RESET
 	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_SERVICE2 )         // ANALYZER
-	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, niyanpai_state,musobana_outcoin_flag_r, nullptr)   // OUT COIN
+	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(niyanpai_state, musobana_outcoin_flag_r)   // OUT COIN
 	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_SERVICE( 0x8000, IP_ACTIVE_LOW )                   // TEST
 
@@ -699,7 +668,7 @@ static INPUT_PORTS_START( zokumahj )    // I don't have manual for this game.
 	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_START3 )           // CREDIT CLEAR
 	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_MEMORY_RESET )     // MEMORY RESET
 	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_SERVICE2 )         // ANALYZER
-	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, niyanpai_state,musobana_outcoin_flag_r, nullptr)   // OUT COIN
+	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(niyanpai_state, musobana_outcoin_flag_r)   // OUT COIN
 	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_SERVICE( 0x8000, IP_ACTIVE_LOW )                   // TEST
 
@@ -707,89 +676,63 @@ static INPUT_PORTS_START( zokumahj )    // I don't have manual for this game.
 INPUT_PORTS_END
 
 
-INTERRUPT_GEN_MEMBER(niyanpai_state::interrupt)
+WRITE_LINE_MEMBER(niyanpai_state::vblank_irq)
 {
-	m_tmp68301->external_interrupt_0();
+	if (state)
+		m_maincpu->external_interrupt_0();
 }
 
-static const z80_daisy_config daisy_chain_sound[] =
+
+void niyanpai_state::niyanpai(machine_config &config)
 {
-	TMPZ84C011_DAISY_INTERNAL,
-	{ nullptr }
-};
-
-static MACHINE_CONFIG_START( niyanpai, niyanpai_state )
-
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 12288000/2) /* TMP68301, 6.144 MHz */
-	MCFG_CPU_PROGRAM_MAP(niyanpai_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", niyanpai_state,  interrupt)
-	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("tmp68301",tmp68301_device,irq_callback)
+	TMP68301(config, m_maincpu, 12288000/2); /* TMP68301, 6.144 MHz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &niyanpai_state::niyanpai_map);
+	m_maincpu->out_parallel_callback().set(FUNC(niyanpai_state::tmp68301_parallel_port_w));
 
-	MCFG_DEVICE_ADD("tmp68301", TMP68301, 0)
-	MCFG_TMP68301_OUT_PARALLEL_CB(WRITE16(niyanpai_state, tmp68301_parallel_port_w))
-
-	MCFG_CPU_ADD("audiocpu", TMPZ84C011, 8000000) /* TMPZ84C011, 8.00 MHz */
-	MCFG_Z80_DAISY_CHAIN(daisy_chain_sound)
-	MCFG_CPU_PROGRAM_MAP(niyanpai_sound_map)
-	MCFG_CPU_IO_MAP(niyanpai_sound_io_map)
-	MCFG_TMPZ84C011_PORTD_READ_CB(DEVREAD8("soundlatch", generic_latch_8_device, read))
-	MCFG_TMPZ84C011_PORTA_WRITE_CB(WRITE8(niyanpai_state, soundbank_w))
-	MCFG_TMPZ84C011_PORTB_WRITE_CB(DEVWRITE8("dac1", dac_byte_interface, write))
-	MCFG_TMPZ84C011_PORTC_WRITE_CB(DEVWRITE8("dac2", dac_byte_interface, write))
-	MCFG_TMPZ84C011_PORTE_WRITE_CB(WRITE8(niyanpai_state, soundlatch_clear_w))
-	MCFG_TMPZ84C011_ZC0_CB(DEVWRITELINE("audiocpu", tmpz84c011_device, trg3))
-
-	MCFG_NVRAM_ADD_0FILL("nvram")
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(1024, 512)
-	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 240-1)
-	MCFG_SCREEN_UPDATE_DRIVER(niyanpai_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_refresh_hz(60);
+	m_screen->set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	m_screen->set_size(1024, 512);
+	m_screen->set_visarea(0, 640-1, 0, 240-1);
+	m_screen->set_screen_update(FUNC(niyanpai_state::screen_update));
+	m_screen->set_palette(m_palette);
+	m_screen->screen_vblank().set(FUNC(niyanpai_state::vblank_irq));
 
-	MCFG_PALETTE_ADD("palette", 256*3)
+	PALETTE(config, m_palette).set_entries(256*3);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("speaker")
+	NICHISND(config, "nichisnd", 0);
+}
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-
-	MCFG_SOUND_ADD("ymsnd", YM3812, 4000000)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 1.0)
-
-	MCFG_SOUND_ADD("dac1", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.37) // unknown DAC
-	MCFG_SOUND_ADD("dac2", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.37) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac1", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac1", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "dac2", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac2", -1.0, DAC_VREF_NEG_INPUT)
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_DERIVED( musobana, niyanpai )
+void niyanpai_state::musobana(machine_config &config)
+{
+	niyanpai(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(musobana_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &niyanpai_state::musobana_map);
 
 	MCFG_MACHINE_START_OVERRIDE(niyanpai_state, musobana)
-MACHINE_CONFIG_END
+}
 
-static MACHINE_CONFIG_DERIVED( mhhonban, musobana )
-
-	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(mhhonban_map)
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_DERIVED( zokumahj, musobana )
+void niyanpai_state::mhhonban(machine_config &config)
+{
+	musobana(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(zokumahj_map)
-MACHINE_CONFIG_END
+	m_maincpu->set_addrmap(AS_PROGRAM, &niyanpai_state::mhhonban_map);
+}
+
+void niyanpai_state::zokumahj(machine_config &config)
+{
+	musobana(config);
+
+	/* basic machine hardware */
+	m_maincpu->set_addrmap(AS_PROGRAM, &niyanpai_state::zokumahj_map);
+}
 
 
 ROM_START( niyanpai )
@@ -797,7 +740,7 @@ ROM_START( niyanpai )
 	ROM_LOAD16_BYTE( "npai_01.bin", 0x00000, 0x20000, CRC(a904e8a1) SHA1(77865d7b48cac96af1e3cac4a702f7de4b5ee82b) )
 	ROM_LOAD16_BYTE( "npai_02.bin", 0x00001, 0x20000, CRC(244f9d6f) SHA1(afde18f32c4879a66c0707671d783c21c54cffa4) )
 
-	ROM_REGION( 0x20000, "audiocpu", 0 ) /* TMPZ84C011 sound program */
+	ROM_REGION( 0x20000, ":nichisnd:audiorom", 0 ) /* TMPZ84C011 sound program */
 	ROM_LOAD( "npai_03.bin", 0x000000, 0x20000, CRC(d154306b) SHA1(3375568a6d387d850b8996b8bad3d0220de13993) )
 
 	ROM_REGION( 0x400000, "gfx1", 0 ) /* gfx */
@@ -816,7 +759,7 @@ ROM_START( musobana )
 	ROM_LOAD16_BYTE( "1.209", 0x00000, 0x20000, CRC(574929a1) SHA1(70ea96c3aa8a3512176b719de0928470541d85cb) )
 	ROM_LOAD16_BYTE( "2.208", 0x00001, 0x20000, CRC(12734fda) SHA1(46241efe4266ad6426eb31db757ae4852c70c25d) )
 
-	ROM_REGION( 0x20000, "audiocpu", 0 ) /* TMPZ84C011 sound program */
+	ROM_REGION( 0x20000, ":nichisnd:audiorom", 0 ) /* TMPZ84C011 sound program */
 	ROM_LOAD( "3.804",  0x000000, 0x20000, CRC(0be8f2ce) SHA1(c1ee8907c03f615fbc42654a3c37387714761560) )
 
 	ROM_REGION( 0x500000, "gfx1", 0 ) /* gfx */
@@ -837,7 +780,7 @@ ROM_START( 4psimasy )
 	ROM_LOAD16_BYTE( "1.209", 0x00000, 0x20000, CRC(28dda353) SHA1(3d4738189a7b8b8b0434b3e58550572c3ce74b42) )
 	ROM_LOAD16_BYTE( "2.208", 0x00001, 0x20000, CRC(3679c9fb) SHA1(74a940c3c95723680a63a281f194ef4bbe3dc58a) )
 
-	ROM_REGION( 0x20000, "audiocpu", 0 ) /* TMPZ84C011 sound program */
+	ROM_REGION( 0x20000, ":nichisnd:audiorom", 0 ) /* TMPZ84C011 sound program */
 	ROM_LOAD( "3.804",  0x000000, 0x20000, CRC(bd644726) SHA1(1f8e12a081657d6e1dd9c896056d1ffd977dfe95) )
 
 	ROM_REGION( 0x400000, "gfx1", 0 ) /* gfx */
@@ -856,7 +799,7 @@ ROM_START( mhhonban )
 	ROM_LOAD16_BYTE( "u209.bin", 0x00000, 0x20000, CRC(121c861f) SHA1(70a6b695998904dccb8791ea5d9acbf7484bd812) )
 	ROM_LOAD16_BYTE( "u208.bin", 0x00001, 0x20000, CRC(d6712d0b) SHA1(a384c8f508ec6885bccb989d150cfd7f36a6898d) )
 
-	ROM_REGION( 0x20000, "audiocpu", 0 ) /* TMPZ84C011 sound program */
+	ROM_REGION( 0x20000, ":nichisnd:audiorom", 0 ) /* TMPZ84C011 sound program */
 	ROM_LOAD( "u804.bin",  0x000000, 0x20000, CRC(48407507) SHA1(afd24d16d487fd2b6548d967e2f1ae122e2633a2) )
 
 	ROM_REGION( 0x300000, "gfx1", 0 ) /* gfx */
@@ -873,7 +816,7 @@ ROM_START( zokumahj )
 	ROM_LOAD16_BYTE( "1.bin", 0x00000, 0x20000, CRC(53ca34a9) SHA1(5a1e2660442665efd529ec6c98ffc994c6103419) )
 	ROM_LOAD16_BYTE( "2.bin", 0x00001, 0x20000, CRC(474f9303) SHA1(4b03e3b6b6ee864dfcce3978f19bf329e39b3fe7) )
 
-	ROM_REGION( 0x20000, "audiocpu", 0 ) /* TMPZ84C011 sound program */
+	ROM_REGION( 0x20000, ":nichisnd:audiorom", 0 ) /* TMPZ84C011 sound program */
 	ROM_LOAD( "3.bin",  0x000000, 0x20000, CRC(48407507) SHA1(afd24d16d487fd2b6548d967e2f1ae122e2633a2) )
 
 	ROM_REGION( 0x300000, "gfx1", 0 ) /* gfx */
@@ -886,8 +829,8 @@ ROM_START( zokumahj )
 ROM_END
 
 
-GAME( 1996, niyanpai, 0,        niyanpai, niyanpai, niyanpai_state, niyanpai, ROT0, "Nichibutsu", "Niyanpai (Japan)", MACHINE_SUPPORTS_SAVE )
-GAME( 1995, musobana, 0,        musobana, musobana, niyanpai_state, niyanpai, ROT0, "Nichibutsu / Yubis", "Musoubana (Japan)", MACHINE_SUPPORTS_SAVE )
-GAME( 1994, 4psimasy, 0,        musobana, 4psimasy, niyanpai_state, niyanpai, ROT0, "Sphinx / AV Japan", "Mahjong 4P Simasyo (Japan)", MACHINE_SUPPORTS_SAVE )
-GAME( 1994, mhhonban, 0,        mhhonban, mhhonban, niyanpai_state, niyanpai, ROT0, "Nichibutsu", "Mahjong Housoukyoku Honbanchuu (Japan)", MACHINE_SUPPORTS_SAVE )
-GAME( 199?, zokumahj, mhhonban, zokumahj, zokumahj, niyanpai_state, niyanpai, ROT0, "Nichibutsu?", "Zoku Mahjong Housoukyoku (Japan)", MACHINE_SUPPORTS_SAVE )
+GAME( 1996, niyanpai, 0,        niyanpai, niyanpai, niyanpai_state, init_niyanpai, ROT0, "Nichibutsu", "Niyanpai (Japan)", MACHINE_SUPPORTS_SAVE )
+GAME( 1995, musobana, 0,        musobana, musobana, niyanpai_state, init_niyanpai, ROT0, "Nichibutsu / Yubis", "Musoubana (Japan)", MACHINE_SUPPORTS_SAVE )
+GAME( 1994, 4psimasy, 0,        musobana, 4psimasy, niyanpai_state, init_niyanpai, ROT0, "Sphinx / AV Japan", "Mahjong 4P Simasyo (Japan)", MACHINE_SUPPORTS_SAVE )
+GAME( 1994, mhhonban, 0,        mhhonban, mhhonban, niyanpai_state, init_niyanpai, ROT0, "Nichibutsu", "Mahjong Housoukyoku Honbanchuu (Japan)", MACHINE_SUPPORTS_SAVE )
+GAME( 199?, zokumahj, mhhonban, zokumahj, zokumahj, niyanpai_state, init_niyanpai, ROT0, "Nichibutsu?", "Zoku Mahjong Housoukyoku (Japan)", MACHINE_SUPPORTS_SAVE )

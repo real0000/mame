@@ -22,6 +22,8 @@ WRITE8_MEMBER(simpsons_state::simpsons_eeprom_w)
 	simpsons_video_banking(data & 0x03);
 
 	m_firq_enabled = data & 0x04;
+	if (!m_firq_enabled)
+		m_maincpu->set_input_line(KONAMI_FIRQ_LINE, CLEAR_LINE);
 }
 
 /***************************************************************************
@@ -45,7 +47,7 @@ WRITE8_MEMBER(simpsons_state::simpsons_coin_counter_w)
 
 READ8_MEMBER(simpsons_state::simpsons_sound_interrupt_r)
 {
-	m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff );
+	m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff ); // Z80
 	return 0x00;
 }
 
@@ -56,7 +58,7 @@ READ8_MEMBER(simpsons_state::simpsons_sound_interrupt_r)
 
 ***************************************************************************/
 
-WRITE8_MEMBER( simpsons_state::banking_callback )
+void simpsons_state::banking_callback(u8 data)
 {
 	membank("bank1")->set_entry(data & 0x3f);
 }
@@ -71,10 +73,11 @@ void simpsons_state::machine_start()
 	membank("bank2")->configure_entries(2, 6, memregion("audiocpu")->base() + 0x10000, 0x4000);
 
 	save_item(NAME(m_firq_enabled));
+	save_item(NAME(m_nmi_enabled));
 	save_item(NAME(m_sprite_colorbase));
 	save_item(NAME(m_layer_colorbase));
 	save_item(NAME(m_layerpri));
-	save_pointer(NAME(m_spriteram.get()), 0x1000 / 2);
+	save_pointer(NAME(m_spriteram), 0x1000 / 2);
 }
 
 void simpsons_state::machine_reset()
@@ -87,6 +90,7 @@ void simpsons_state::machine_reset()
 
 	m_sprite_colorbase = 0;
 	m_firq_enabled = 0;
+	m_nmi_enabled = 0;
 
 	/* init the default banks */
 	membank("bank1")->set_entry(0);

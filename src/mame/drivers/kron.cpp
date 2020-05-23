@@ -6,9 +6,9 @@
  *
  *  27/10/2015
  *
- * I baught this hardware on Ebay to have something with a Z80 CPU to play with.
+ * I bought this hardware on Ebay to have something with a Z80 CPU to play with.
  * The hardware is a serial terminal controller with VGA output and a PC keyboard
- * and was manufactured mid 90:ies by a company from Vinnitsa,Ukraine called KRON.
+ * and was manufactured mid 90s by a company from Vinnitsa, Ukraine called KRON.
  * There is a character generator with support for both western and cyrilic characters.
  * The PCB is also filled with chips with cyrrilic characters on but thanks to this
  * page I managed to translate most of them into western TTL logic names:
@@ -101,22 +101,27 @@
 #include "emu.h"
 #include "cpu/z180/z180.h"
 #include "machine/pckeybrd.h"
+#include "emupal.h"
 #include "screen.h"
 
-#define VERBOSE 2
+#define LOG_IO     (1U << 1)
+#define LOG_SCAN   (1U << 2)
+#define LOG_SCREEN (1U << 3)
+#define LOG_KBD    (1U << 4)
+#define LOG_READ   (1U << 5)
+#define LOG_CS     (1U << 6)
 
-#define LOGPRINT(x) do { if (VERBOSE) logerror x; } while (0)
-#define LOG(x) {}
-#define LOGIO(x) {}
-#define LOGSCAN(x) {}
-#define LOGSCREEN(x) {}
-#define LOGKBD(x) LOGPRINT(x)
-#define RLOG(x) {}
-#define LOGCS(x) {}
+//#define VERBOSE (LOG_IO)
+//#define LOG_OUTPUT_STREAM std::cout
 
-#if VERBOSE >= 2
-#define logerror printf
-#endif
+#include "logmacro.h"
+
+#define LOGIO(...)     LOGMASKED(LOG_IO,     __VA_ARGS__)
+#define LOGSCAN(...)   LOGMASKED(LOG_SCAN,   __VA_ARGS__)
+#define LOGSCREEN(...) LOGMASKED(LOG_SCREEN, __VA_ARGS__)
+#define LOGKBD(...)    LOGMASKED(LOG_KBD,    __VA_ARGS__)
+#define LOGR(...)      LOGMASKED(LOG_READ,   __VA_ARGS__)
+#define LOGCS(...)     LOGMASKED(LOG_CS,     __VA_ARGS__)
 
 #ifdef _MSC_VER
 #define FUNCNAME __func__
@@ -127,40 +132,46 @@
 class kron180_state : public driver_device
 {
 public:
-kron180_state(const machine_config &mconfig, device_type type, const char *tag) :
-	driver_device (mconfig, type, tag)
-	,m_maincpu (*this, "maincpu")
-	,m_videoram(*this, "videoram")
-	,m_keyboard(*this, "pc_keyboard")
+	kron180_state(const machine_config &mconfig, device_type type, const char *tag)
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_chargen(*this, "chargen")
+		, m_vram(*this, "videoram")
+		, m_keyboard(*this, "pc_keyboard")
 	{ }
-	uint8_t *m_char_ptr;
-	uint8_t *m_vram;
+
+	void kron180(machine_config &config);
+
+private:
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_WRITE_LINE_MEMBER(keyb_interrupt);
-	DECLARE_WRITE8_MEMBER( sn74259_w ){     LOGIO(("%s %02x = %02x\n", FUNCNAME, offset & 0x07, offset & 0x08 ? 1 : 0)); }
-	DECLARE_WRITE8_MEMBER( ap5_w ){         LOGIO(("%s %02x = %02x\n", FUNCNAME, offset, data)); }
-	DECLARE_READ8_MEMBER( ap5_r ){          LOGIO(("%s() %02x = %02x\n",  FUNCNAME, offset, 1)); return 1; }
-	DECLARE_WRITE8_MEMBER( wkb_w ){         LOGIO(("%s %02x = %02x\n", FUNCNAME, offset, data)); }
-	DECLARE_WRITE8_MEMBER( sn74299_w ){     LOGIO(("%s %02x = %02x\n", FUNCNAME, offset, data)); }
-	DECLARE_READ8_MEMBER( sn74299_r ){      LOGIO(("%s() %02x = %02x\n", FUNCNAME, offset, 1)); return 1; }
-	DECLARE_WRITE8_MEMBER( txen_w ){        LOGIO(("%s %02x = %02x\n", FUNCNAME, offset, data)); }
-	DECLARE_WRITE8_MEMBER( kbd_reset_w ){   LOGIO(("%s %02x = %02x\n", FUNCNAME, offset, data)); }
-	DECLARE_WRITE8_MEMBER( dreq_w ){        LOGIO(("%s %02x = %02x\n", FUNCNAME, offset, data)); }
-protected:
+	DECLARE_WRITE8_MEMBER(sn74259_w) { LOGIO("%s %02x = %02x\n", FUNCNAME, offset & 0x07, offset & 0x08 ? 1 : 0); }
+	DECLARE_WRITE8_MEMBER(ap5_w) { LOGIO("%s %02x = %02x\n", FUNCNAME, offset, data); }
+	DECLARE_READ8_MEMBER(ap5_r) { LOGIO("%s() %02x = %02x\n", FUNCNAME, offset, 1); return 1; }
+	DECLARE_WRITE8_MEMBER(wkb_w) { LOGIO("%s %02x = %02x\n", FUNCNAME, offset, data); }
+	DECLARE_WRITE8_MEMBER(sn74299_w) { LOGIO("%s %02x = %02x\n", FUNCNAME, offset, data); }
+	DECLARE_READ8_MEMBER(sn74299_r) { LOGIO("%s() %02x = %02x\n", FUNCNAME, offset, 1); return 1; }
+	DECLARE_WRITE8_MEMBER(txen_w) { LOGIO("%s %02x = %02x\n", FUNCNAME, offset, data); }
+	DECLARE_WRITE8_MEMBER(kbd_reset_w) { LOGIO("%s %02x = %02x\n", FUNCNAME, offset, data); }
+	DECLARE_WRITE8_MEMBER(dreq_w) { LOGIO("%s %02x = %02x\n", FUNCNAME, offset, data); }
+	void kron180_iomap(address_map &map);
+	void kron180_mem(address_map &map);
+
 	required_device<cpu_device> m_maincpu;
-	required_shared_ptr<uint8_t> m_videoram;
+	required_region_ptr<uint8_t> m_chargen;
+	required_shared_ptr<uint8_t> m_vram;
 	required_device<pc_keyboard_device> m_keyboard;
 	uint8_t m_kbd_data;
-private:
-	virtual void machine_start () override;
 };
 
-static ADDRESS_MAP_START (kron180_mem, AS_PROGRAM, 8, kron180_state)
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE (0x0000, 0x7fff) AM_ROM AM_REGION("roms", 0x8000)
-	AM_RANGE (0x8000, 0x9fff) AM_RAM AM_MIRROR(0x6000)
-	AM_RANGE (0x8600, 0x95ff) AM_RAM AM_SHARE("videoram")
-ADDRESS_MAP_END
+void kron180_state::kron180_mem(address_map &map)
+{
+	map.unmap_value_high();
+	map(0x0000, 0x7fff).rom().region("roms", 0x8000);
+	map(0x8000, 0x85ff).ram().mirror(0x6000);
+	map(0x8600, 0x95ff).ram().share(m_vram).mirror(0x6000);
+	map(0x9600, 0x9fff).ram().mirror(0x6000);
+}
 
 /*   IO decoding
  *
@@ -183,7 +194,7 @@ ADDRESS_MAP_END
  *    0  1  1  0  x  x  x  x - Reset KBD
  *    0  1  1  1  x  x  x  x - DKA/DREQ0 Z180 = D0
  *
- * Now, in paralell there is alot of stuff going on in the upper I/O address lines
+ * Now, in parallel there is a lot of stuff going on in the upper I/O address lines
  * they are driving the character generator and some other signals
  *  A19 - not available on the DIP64 package
  *  A18 - multiplexed pin used as Tout pulsing the VT1 signal
@@ -192,17 +203,18 @@ ADDRESS_MAP_END
  *
  * At the moment we emulate the screen at a high level so I just disregard the special functions on A16 - A18 by mirroring the mapping below
  */
-static ADDRESS_MAP_START( kron180_iomap, AS_IO, 8, kron180_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE( 0x0000, 0x000f ) AM_WRITE(sn74259_w)
-	AM_RANGE( 0x0010, 0x001f ) AM_READWRITE(ap5_r, ap5_w)
-	AM_RANGE( 0x0020, 0x002f ) AM_WRITE(wkb_w)
-	AM_RANGE( 0x0030, 0x003f ) AM_READ(sn74299_r)
-	AM_RANGE( 0x0040, 0x004f ) AM_WRITE(sn74299_w)
-	AM_RANGE( 0x0050, 0x005f ) AM_WRITE(txen_w)
-	AM_RANGE( 0x0060, 0x006f ) AM_WRITE(kbd_reset_w)
-	AM_RANGE( 0x0070, 0x007f ) AM_WRITE(dreq_w)
-ADDRESS_MAP_END
+void kron180_state::kron180_iomap(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x0000, 0x000f).w(FUNC(kron180_state::sn74259_w));
+	map(0x0010, 0x001f).rw(FUNC(kron180_state::ap5_r), FUNC(kron180_state::ap5_w));
+	map(0x0020, 0x002f).w(FUNC(kron180_state::wkb_w));
+	map(0x0030, 0x003f).r(FUNC(kron180_state::sn74299_r));
+	map(0x0040, 0x004f).w(FUNC(kron180_state::sn74299_w));
+	map(0x0050, 0x005f).w(FUNC(kron180_state::txen_w));
+	map(0x0060, 0x006f).w(FUNC(kron180_state::kbd_reset_w));
+	map(0x0070, 0x007f).w(FUNC(kron180_state::dreq_w));
+}
 
 /* Input ports */
 static INPUT_PORTS_START (kron180)
@@ -217,7 +229,7 @@ uint32_t kron180_state::screen_update(screen_device &screen, bitmap_ind16 &bitma
 	uint8_t *chardata;
 	uint8_t charcode;
 
-	LOGSCREEN(("%s()\n", FUNCNAME));
+	LOGSCREEN("%s()\n", FUNCNAME);
 	vramad = 0;
 	for (int row = 0; row < 25 * 8; row += 8)
 	{
@@ -225,38 +237,26 @@ uint32_t kron180_state::screen_update(screen_device &screen, bitmap_ind16 &bitma
 		{
 			/* look up the character data */
 			charcode = m_vram[vramad];
-			if (VERBOSE && charcode != 0x20 && charcode != 0) LOGSCREEN(("\n %c at X=%d Y=%d: ", charcode, col, row));
-			chardata = &m_char_ptr[(charcode * 8) + 8];
+			if (VERBOSE && charcode != 0x20 && charcode != 0) LOGSCREEN("\n %c at X=%d Y=%d: ", charcode, col, row);
+			chardata = &m_chargen[(charcode * 8) + 8];
 			/* plot the character */
 			for (y = 0; y < 8; y++)
 			{
 				chardata--;
-				if (VERBOSE && charcode != 0x20 && charcode != 0) LOGSCREEN(("\n  %02x: ", *chardata));
+				if (VERBOSE && charcode != 0x20 && charcode != 0) LOGSCREEN("\n  %02x: ", *chardata);
 				for (x = 0; x < 8; x++)
 				{
-					if (VERBOSE && charcode != 0x20 && charcode != 0) LOGSCREEN((" %02x: ", *chardata));
+					if (VERBOSE && charcode != 0x20 && charcode != 0) LOGSCREEN(" %02x: ", *chardata);
 					bitmap.pix16(row + (8 - y), col + (8 - x)) = (*chardata & (1 << x)) ? 1 : 0;
 				}
 			}
 			vramad += 2;
 		}
-		if (VERBOSE && charcode != 0x20 && charcode != 0) LOGSCREEN(("\n"));
+		if (VERBOSE && charcode != 0x20 && charcode != 0) LOGSCREEN("\n");
 		vramad += 96; // Each row is aligned at a 128 byte boundary
 	}
 
 	return 0;
-}
-
-/* Start it up */
-void kron180_state::machine_start ()
-{
-	LOG(("%s()\n", FUNCNAME));
-	m_char_ptr  = memregion("chargen")->base();
-	m_vram      = (uint8_t *)m_videoram.target();
-
-	/* register for state saving */
-	save_pointer (NAME (m_char_ptr), sizeof(m_char_ptr));
-	save_pointer (NAME (m_vram), sizeof(m_vram));
 }
 
 /* Interrupt Handling */
@@ -279,9 +279,9 @@ INTERRUPT_GEN_MEMBER(kron180_state::interrupt)
 
 WRITE_LINE_MEMBER(kron180_state::keyb_interrupt)
 {
-	if(state && (m_kbd_data = m_keyboard->read(machine().dummy_space(), 0)))
+	if(state && (m_kbd_data = m_keyboard->read()))
 	{
-		LOGKBD(("%s(%02x)\n", FUNCNAME, m_kbd_data));
+		LOGKBD("%s(%02x)\n", FUNCNAME, m_kbd_data);
 		m_maincpu->set_input_line(2, ASSERT_LINE);
 		/* TODO: store and present this to K180 in a good way. */
 	}
@@ -290,36 +290,37 @@ WRITE_LINE_MEMBER(kron180_state::keyb_interrupt)
 /*
  * Machine configuration
  */
-static MACHINE_CONFIG_START (kron180, kron180_state)
+void kron180_state::kron180(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD ("maincpu", Z180, XTAL_12_288MHz)
-	MCFG_CPU_PROGRAM_MAP (kron180_mem)
-	MCFG_CPU_IO_MAP(kron180_iomap)
+	HD64180RP(config, m_maincpu, XTAL(12'288'000));
+	m_maincpu->set_addrmap(AS_PROGRAM, &kron180_state::kron180_mem);
+	m_maincpu->set_addrmap(AS_IO, &kron180_state::kron180_iomap);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_COLOR(rgb_t::green())
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_UPDATE_DRIVER(kron180_state, screen_update)
-	MCFG_SCREEN_SIZE(80 * 10, 24 * 10)
-	MCFG_SCREEN_VISIBLE_AREA(0, 639, 0, 199) // TODO: This need to be fixed once the real chartable is used...
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER, rgb_t::green()));
+	screen.set_refresh_hz(50);
+	screen.set_screen_update(FUNC(kron180_state::screen_update));
+	screen.set_size(80 * 10, 24 * 10);
+	screen.set_visarea(0, 639, 0, 199); // TODO: This need to be fixed once the real char table is used...
+	screen.set_palette("palette");
 
-	MCFG_PALETTE_ADD_MONOCHROME("palette")
+	PALETTE(config, "palette", palette_device::MONOCHROME);
 
 	/* keyboard TODO: fix it, doesn't work yet */
-	MCFG_PC_KEYB_ADD("pc_keyboard", WRITELINE(kron180_state, keyb_interrupt))
-MACHINE_CONFIG_END
+	PC_KEYB(config, m_keyboard);
+	m_keyboard->keypress().set(FUNC(kron180_state::keyb_interrupt));
+}
 
 /* ROM definitions */
 ROM_START (kron180)
 	ROM_REGION(0x10000, "roms", 0)
-	ROM_LOAD ("k180DD4-2.8M.bin", 0x000000, 0x10000, CRC (ae0642ad) SHA1 (2c53a714de6af4b64e46fcd34bca6d4438511765))
+	ROM_LOAD ("k180dd4-2.8m.bin", 0x000000, 0x10000, CRC (ae0642ad) SHA1 (2c53a714de6af4b64e46fcd34bca6d4438511765))
 
 	ROM_REGION(0x1000, "chargen",0) /* TODO: This character rom is taken from ibmjr rom set and will be replaced */
 	ROM_LOAD( "cga.chr", 0x0000, 0x1000, CRC(42009069) SHA1(ed08559ce2d7f97f68b9f540bddad5b6295294dd) )
 ROM_END
 
 /* Driver */
-/*    YEAR  NAME          PARENT  COMPAT   MACHINE         INPUT     CLASS          INIT COMPANY                  FULLNAME          FLAGS */
-COMP (1995, kron180,      0,      0,       kron180,        kron180, driver_device, 0,   "Kron Ltd",             "Kron K-180", MACHINE_NOT_WORKING | MACHINE_NO_SOUND )
+//     YEAR  NAME     PARENT  COMPAT  MACHINE  INPUT    CLASS          INIT        COMPANY     FULLNAME      FLAGS
+COMP ( 1995, kron180, 0,      0,      kron180, kron180, kron180_state, empty_init, "Kron Ltd", "Kron K-180", MACHINE_NOT_WORKING | MACHINE_NO_SOUND )

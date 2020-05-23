@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_C64_VIZASTAR_H
+#define MAME_BUS_C64_VIZASTAR_H
 
-#ifndef __VIZASTAR__
-#define __VIZASTAR__
+#pragma once
 
 
 #include "exp.h"
@@ -34,12 +34,12 @@ protected:
 	virtual void device_start() override;
 
 	// device_c64_expansion_card_interface overrides
-	virtual uint8_t c64_cd_r(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2) override;
+	virtual uint8_t c64_cd_r(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2) override;
 };
 
 
 // device type definition
-extern const device_type C64_VIZASTAR;
+DECLARE_DEVICE_TYPE(C64_VIZASTAR, c64_vizastar_cartridge_device)
 
 
-#endif
+#endif // MAME_BUS_C64_VIZASTAR_H

@@ -8,7 +8,9 @@
 
 #include "emu.h"
 #include "includes/dragrace.h"
+
 #include "cpu/m6800/m6800.h"
+#include "machine/74259.h"
 #include "sound/discrete.h"
 #include "speaker.h"
 
@@ -38,82 +40,22 @@ TIMER_DEVICE_CALLBACK_MEMBER(dragrace_state::dragrace_frame_callback)
 }
 
 
-void dragrace_state::dragrace_update_misc_flags( address_space &space )
+void dragrace_state::speed1_w(uint8_t data)
 {
-	/* 0x0900 = set 3SPEED1         0x00000001
-	 * 0x0901 = set 4SPEED1         0x00000002
-	 * 0x0902 = set 5SPEED1         0x00000004
-	 * 0x0903 = set 6SPEED1         0x00000008
-	 * 0x0904 = set 7SPEED1         0x00000010
-	 * 0x0905 = set EXPLOSION1      0x00000020
-	 * 0x0906 = set SCREECH1        0x00000040
-	 * 0x0920 - 0x0927 = clear 0x0900 - 0x0907
-
-	 * 0x0909 = set KLEXPL1         0x00000200
-	 * 0x090b = set MOTOR1          0x00000800
-	 * 0x090c = set ATTRACT         0x00001000
-	 * 0x090d = set LOTONE          0x00002000
-	 * 0x090f = set Player 1 Start Lamp 0x00008000
-	 * 0x0928 - 0x092f = clear 0x0908 - 0x090f
-
-	 * 0x0910 = set 3SPEED2         0x00010000
-	 * 0x0911 = set 4SPEED2         0x00020000
-	 * 0x0912 = set 5SPEED2         0x00040000
-	 * 0x0913 = set 6SPEED2         0x00080000
-	 * 0x0914 = set 7SPEED2         0x00100000
-	 * 0x0915 = set EXPLOSION2      0x00200000
-	 * 0x0916 = set SCREECH2        0x00400000
-	 * 0x0930 = clear 0x0910 - 0x0917
-
-	 * 0x0919 = set KLEXPL2         0x02000000
-	 * 0x091b = set MOTOR2          0x08000000
-	 * 0x091d = set HITONE          0x20000000
-	 * 0x091f = set Player 2 Start Lamp 0x80000000
-	 * 0x0938 = clear 0x0918 - 0x091f
-	 */
-	output().set_led_value(0, m_misc_flags & 0x00008000);
-	output().set_led_value(1, m_misc_flags & 0x80000000);
-
-	m_discrete->write(space, DRAGRACE_MOTOR1_DATA,  ~m_misc_flags & 0x0000001f);       // Speed1 data*
-	m_discrete->write(space, DRAGRACE_EXPLODE1_EN, (m_misc_flags & 0x00000020) ? 1: 0);    // Explosion1 enable
-	m_discrete->write(space, DRAGRACE_SCREECH1_EN, (m_misc_flags & 0x00000040) ? 1: 0);    // Screech1 enable
-	m_discrete->write(space, DRAGRACE_KLEXPL1_EN, (m_misc_flags & 0x00000200) ? 1: 0); // KLEXPL1 enable
-	m_discrete->write(space, DRAGRACE_MOTOR1_EN, (m_misc_flags & 0x00000800) ? 1: 0);  // Motor1 enable
-
-	m_discrete->write(space, DRAGRACE_MOTOR2_DATA, (~m_misc_flags & 0x001f0000) >> 0x10);  // Speed2 data*
-	m_discrete->write(space, DRAGRACE_EXPLODE2_EN, (m_misc_flags & 0x00200000) ? 1: 0);    // Explosion2 enable
-	m_discrete->write(space, DRAGRACE_SCREECH2_EN, (m_misc_flags & 0x00400000) ? 1: 0);    // Screech2 enable
-	m_discrete->write(space, DRAGRACE_KLEXPL2_EN, (m_misc_flags & 0x02000000) ? 1: 0); // KLEXPL2 enable
-	m_discrete->write(space, DRAGRACE_MOTOR2_EN, (m_misc_flags & 0x08000000) ? 1: 0);  // Motor2 enable
-
-	m_discrete->write(space, DRAGRACE_ATTRACT_EN, (m_misc_flags & 0x00001000) ? 1: 0); // Attract enable
-	m_discrete->write(space, DRAGRACE_LOTONE_EN, (m_misc_flags & 0x00002000) ? 1: 0);  // LoTone enable
-	m_discrete->write(space, DRAGRACE_HITONE_EN, (m_misc_flags & 0x20000000) ? 1: 0);  // HiTone enable
+	unsigned freq = ~data & 0x1f;
+	m_discrete->write(DRAGRACE_MOTOR1_DATA, freq);
 
 	// the tachometers are driven from the same frequency generator that creates the engine sound
-	output().set_value("tachometer", ~m_misc_flags & 0x0000001f);
-	output().set_value("tachometer2", (~m_misc_flags & 0x001f0000) >> 0x10);
+	output().set_value("tachometer", freq);
 }
 
-WRITE8_MEMBER(dragrace_state::dragrace_misc_w)
+void dragrace_state::speed2_w(uint8_t data)
 {
-	/* Set/clear individual bit */
-	uint32_t mask = 1 << offset;
-	if (data & 0x01)
-		m_misc_flags |= mask;
-	else
-		m_misc_flags &= (~mask);
-	logerror("Set   %#6x, Mask=%#10x, Flag=%#10x, Data=%x\n", 0x0900 + offset, mask, m_misc_flags, data & 0x01);
-	dragrace_update_misc_flags(space);
-}
+	unsigned freq = ~data & 0x1f;
+	m_discrete->write(DRAGRACE_MOTOR2_DATA, freq);
 
-WRITE8_MEMBER(dragrace_state::dragrace_misc_clear_w)
-{
-	/* Clear 8 bits */
-	uint32_t mask = 0xff << (((offset >> 3) & 0x03) * 8);
-	m_misc_flags &= (~mask);
-	logerror("Clear %#6x, Mask=%#10x, Flag=%#10x, Data=%x\n", 0x0920 + offset, mask, m_misc_flags, data & 0x01);
-	dragrace_update_misc_flags(space);
+	// the tachometers are driven from the same frequency generator that creates the engine sound
+	output().set_value("tachometer2", freq);
 }
 
 READ8_MEMBER(dragrace_state::dragrace_input_r)
@@ -165,19 +107,26 @@ READ8_MEMBER(dragrace_state::dragrace_scanline_r)
 }
 
 
-static ADDRESS_MAP_START( dragrace_map, AS_PROGRAM, 8, dragrace_state )
-	AM_RANGE(0x0080, 0x00ff) AM_RAM
-	AM_RANGE(0x0800, 0x083f) AM_READ(dragrace_input_r)
-	AM_RANGE(0x0900, 0x091f) AM_WRITE(dragrace_misc_w)
-	AM_RANGE(0x0920, 0x093f) AM_WRITE(dragrace_misc_clear_w)
-	AM_RANGE(0x0a00, 0x0aff) AM_WRITEONLY AM_SHARE("playfield_ram")
-	AM_RANGE(0x0b00, 0x0bff) AM_WRITEONLY AM_SHARE("position_ram")
-	AM_RANGE(0x0c00, 0x0c00) AM_READ(dragrace_steering_r)
-	AM_RANGE(0x0d00, 0x0d00) AM_READ(dragrace_scanline_r)
-	AM_RANGE(0x0e00, 0x0eff) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)
-	AM_RANGE(0x1000, 0x1fff) AM_ROM /* program */
-	AM_RANGE(0xf800, 0xffff) AM_ROM /* program mirror */
-ADDRESS_MAP_END
+void dragrace_state::dragrace_map(address_map &map)
+{
+	map(0x0080, 0x00ff).ram();
+	map(0x0800, 0x083f).r(FUNC(dragrace_state::dragrace_input_r));
+	map(0x0900, 0x0907).w("latch_f5", FUNC(addressable_latch_device::write_d0));
+	map(0x0908, 0x090f).w("latch_a5", FUNC(addressable_latch_device::write_d0));
+	map(0x0910, 0x0917).w("latch_h5", FUNC(addressable_latch_device::write_d0));
+	map(0x0918, 0x091f).w("latch_e5", FUNC(addressable_latch_device::write_d0));
+	map(0x0920, 0x0927).w("latch_f5", FUNC(addressable_latch_device::clear));
+	map(0x0928, 0x092f).w("latch_a5", FUNC(addressable_latch_device::clear));
+	map(0x0930, 0x0937).w("latch_h5", FUNC(addressable_latch_device::clear));
+	map(0x0938, 0x093f).w("latch_e5", FUNC(addressable_latch_device::clear));
+	map(0x0a00, 0x0aff).writeonly().share("playfield_ram");
+	map(0x0b00, 0x0bff).writeonly().share("position_ram");
+	map(0x0c00, 0x0c00).r(FUNC(dragrace_state::dragrace_steering_r));
+	map(0x0d00, 0x0d00).r(FUNC(dragrace_state::dragrace_scanline_r));
+	map(0x0e00, 0x0eff).w(m_watchdog, FUNC(watchdog_timer_device::reset_w));
+	map(0x1000, 0x1fff).rom(); /* program */
+	map(0xf800, 0xffff).rom(); /* program mirror */
+}
 
 
 static INPUT_PORTS_START( dragrace )
@@ -285,78 +234,97 @@ static const gfx_layout dragrace_tile_layout2 =
 };
 
 
-static GFXDECODE_START( dragrace )
+static GFXDECODE_START( gfx_dragrace )
 	GFXDECODE_ENTRY( "gfx1", 0, dragrace_tile_layout1, 0, 4 )
 	GFXDECODE_ENTRY( "gfx2", 0, dragrace_tile_layout2, 8, 2 )
 GFXDECODE_END
 
 
-PALETTE_INIT_MEMBER(dragrace_state, dragrace)
+void dragrace_state::dragrace_palette(palette_device &palette) const
 {
-	palette.set_pen_color(0, rgb_t(0xFF, 0xFF, 0xFF));   /* 2 color tiles */
+	palette.set_pen_color(0, rgb_t(0xff, 0xff, 0xff));   // 2 color tiles
 	palette.set_pen_color(1, rgb_t(0x00, 0x00, 0x00));
 	palette.set_pen_color(2, rgb_t(0x00, 0x00, 0x00));
-	palette.set_pen_color(3, rgb_t(0xFF, 0xFF, 0xFF));
+	palette.set_pen_color(3, rgb_t(0xff, 0xff, 0xff));
 	palette.set_pen_color(4, rgb_t(0x00, 0x00, 0x00));
 	palette.set_pen_color(5, rgb_t(0x00, 0x00, 0x00));
-	palette.set_pen_color(6, rgb_t(0xFF, 0xFF, 0xFF));
-	palette.set_pen_color(7, rgb_t(0xFF, 0xFF, 0xFF));
-	palette.set_pen_color(8, rgb_t(0xFF, 0xFF, 0xFF));   /* 4 color tiles */
-	palette.set_pen_color(9, rgb_t(0xB0, 0xB0, 0xB0));
-	palette.set_pen_color(10,rgb_t(0x5F, 0x5F, 0x5F));
+	palette.set_pen_color(6, rgb_t(0xff, 0xff, 0xff));
+	palette.set_pen_color(7, rgb_t(0xff, 0xff, 0xff));
+	palette.set_pen_color(8, rgb_t(0xff, 0xff, 0xff));   // 4 color tiles
+	palette.set_pen_color(9, rgb_t(0xb0, 0xb0, 0xb0));
+	palette.set_pen_color(10,rgb_t(0x5f, 0x5f, 0x5f));
 	palette.set_pen_color(11,rgb_t(0x00, 0x00, 0x00));
-	palette.set_pen_color(12,rgb_t(0xFF, 0xFF, 0xFF));
-	palette.set_pen_color(13,rgb_t(0x5F, 0x5F, 0x5F));
-	palette.set_pen_color(14,rgb_t(0xB0, 0xB0, 0xB0));
+	palette.set_pen_color(12,rgb_t(0xff, 0xff, 0xff));
+	palette.set_pen_color(13,rgb_t(0x5f, 0x5f, 0x5f));
+	palette.set_pen_color(14,rgb_t(0xb0, 0xb0, 0xb0));
 	palette.set_pen_color(15,rgb_t(0x00, 0x00, 0x00));
 }
 
 
 void dragrace_state::machine_start()
 {
-	save_item(NAME(m_misc_flags));
 	save_item(NAME(m_gear));
 }
 
 void dragrace_state::machine_reset()
 {
-	m_misc_flags = 0;
 	m_gear[0] = 0;
 	m_gear[1] = 0;
 }
 
-static MACHINE_CONFIG_START( dragrace, dragrace_state )
-
+void dragrace_state::dragrace(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6800, XTAL_12_096MHz / 12)
-	MCFG_CPU_PROGRAM_MAP(dragrace_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(dragrace_state, irq0_line_hold,  4*60)
+	M6800(config, m_maincpu, 12.096_MHz_XTAL / 12);
+	m_maincpu->set_addrmap(AS_PROGRAM, &dragrace_state::dragrace_map);
+	m_maincpu->set_periodic_int(FUNC(dragrace_state::irq0_line_hold), attotime::from_hz(4*60));
 
-	MCFG_WATCHDOG_ADD("watchdog")
-	MCFG_WATCHDOG_VBLANK_INIT("screen", 8)
+	WATCHDOG_TIMER(config, m_watchdog).set_vblank_count("screen", 8);
 
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("frame_timer", dragrace_state, dragrace_frame_callback, attotime::from_hz(60))
+	TIMER(config, "frame_timer").configure_periodic(FUNC(dragrace_state::dragrace_frame_callback), attotime::from_hz(60));
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_SIZE(256, 262)
-	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0, 239)
-	MCFG_SCREEN_UPDATE_DRIVER(dragrace_state, screen_update_dragrace)
-	MCFG_SCREEN_PALETTE("palette")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_refresh_hz(60);
+	m_screen->set_size(256, 262);
+	m_screen->set_visarea(0, 255, 0, 239);
+	m_screen->set_screen_update(FUNC(dragrace_state::screen_update_dragrace));
+	m_screen->set_palette("palette");
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dragrace)
-	MCFG_PALETTE_ADD("palette", 16)
-	MCFG_PALETTE_INIT_OWNER(dragrace_state, dragrace)
+	GFXDECODE(config, m_gfxdecode, "palette", gfx_dragrace);
+	PALETTE(config, "palette", FUNC(dragrace_state::dragrace_palette), 16);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
 
-	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_DISCRETE_INTF(dragrace)
-	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
-MACHINE_CONFIG_END
+	DISCRETE(config, m_discrete, dragrace_discrete);
+	m_discrete->add_route(0, "lspeaker", 1.0);
+	m_discrete->add_route(1, "rspeaker", 1.0);
+
+	f9334_device &latch_f5(F9334(config, "latch_f5")); // F5
+	latch_f5.parallel_out_cb().set(FUNC(dragrace_state::speed1_w)).mask(0x1f); // set 3SPEED1-7SPEED1
+	latch_f5.q_out_cb<5>().set(m_discrete, FUNC(discrete_device::write_line<DRAGRACE_EXPLODE1_EN>)); // Explosion1 enable
+	latch_f5.q_out_cb<6>().set(m_discrete, FUNC(discrete_device::write_line<DRAGRACE_SCREECH1_EN>)); // Screech1 enable
+
+	f9334_device &latch_a5(F9334(config, "latch_a5")); // A5
+	latch_a5.q_out_cb<1>().set(m_discrete, FUNC(discrete_device::write_line<DRAGRACE_KLEXPL1_EN>)); // KLEXPL1 enable
+	latch_a5.q_out_cb<3>().set(m_discrete, FUNC(discrete_device::write_line<DRAGRACE_MOTOR1_EN>)); // Motor1 enable
+	latch_a5.q_out_cb<4>().set(m_discrete, FUNC(discrete_device::write_line<DRAGRACE_ATTRACT_EN>)); // Attract enable
+	latch_a5.q_out_cb<5>().set(m_discrete, FUNC(discrete_device::write_line<DRAGRACE_LOTONE_EN>)); // LoTone enable
+	latch_a5.q_out_cb<7>().set_output("led0"); // Player 1 Start Lamp
+
+	f9334_device &latch_h5(F9334(config, "latch_h5")); // H5
+	latch_h5.parallel_out_cb().set(FUNC(dragrace_state::speed2_w)).mask(0x1f); // set 3SPEED2-7SPEED2
+	latch_h5.q_out_cb<5>().set(m_discrete, FUNC(discrete_device::write_line<DRAGRACE_EXPLODE2_EN>)); // Explosion2 enable
+	latch_h5.q_out_cb<6>().set(m_discrete, FUNC(discrete_device::write_line<DRAGRACE_SCREECH2_EN>)); // Screech2 enable
+
+	f9334_device &latch_e5(F9334(config, "latch_e5")); // E5
+	latch_e5.q_out_cb<1>().set(m_discrete, FUNC(discrete_device::write_line<DRAGRACE_KLEXPL2_EN>)); // KLEXPL2 enable
+	latch_e5.q_out_cb<3>().set(m_discrete, FUNC(discrete_device::write_line<DRAGRACE_MOTOR2_EN>)); // Motor2 enable
+	latch_e5.q_out_cb<5>().set(m_discrete, FUNC(discrete_device::write_line<DRAGRACE_HITONE_EN>)); // HiTone enable
+	latch_e5.q_out_cb<7>().set_output("led1"); // Player 2 Start Lamp
+}
 
 
 ROM_START( dragrace )
@@ -381,4 +349,4 @@ ROM_START( dragrace )
 ROM_END
 
 
-GAMEL(1977, dragrace, 0, dragrace, dragrace, driver_device, 0, 0, "Atari (Kee Games)", "Drag Race", MACHINE_SUPPORTS_SAVE, layout_dragrace )
+GAMEL( 1977, dragrace, 0, dragrace, dragrace, dragrace_state, empty_init, 0, "Atari (Kee Games)", "Drag Race", MACHINE_SUPPORTS_SAVE, layout_dragrace )

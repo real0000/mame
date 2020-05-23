@@ -1,4 +1,4 @@
-// license:GPL-2.0+
+// license:BSD-3-Clause
 // copyright-holders:Nigel Barnes
 /***************************************************************************
 
@@ -7,11 +7,10 @@
     Disk image formats
 
 ***************************************************************************/
+#ifndef MAME_FORMATS_AFS_DSK_H
+#define MAME_FORMATS_AFS_DSK_H
 
 #pragma once
-
-#ifndef __AFS_DSK_H__
-#define __AFS_DSK_H__
 
 #include "wd177x_dsk.h"
 
@@ -34,4 +33,4 @@ private:
 
 extern const floppy_format_type FLOPPY_AFS_FORMAT;
 
-#endif // __AFS_DSK_H__
+#endif // MAME_FORMATS_AFS_DSK_H

@@ -47,7 +47,6 @@
 #include "emu.h"
 #include "includes/arabian.h"
 
-#include "cpu/mb88xx/mb88xx.h"
 #include "cpu/z80/z80.h"
 #include "sound/ay8910.h"
 #include "screen.h"
@@ -55,7 +54,7 @@
 
 
 /* constants */
-#define MAIN_OSC        XTAL_12MHz
+#define MAIN_OSC        XTAL(12'000'000)
 
 
 /*************************************
@@ -64,7 +63,7 @@
  *
  *************************************/
 
-WRITE8_MEMBER(arabian_state::ay8910_porta_w)
+void arabian_state::ay8910_porta_w(uint8_t data)
 {
 	/*
 	    bit 7 = ENA
@@ -77,7 +76,7 @@ WRITE8_MEMBER(arabian_state::ay8910_porta_w)
 }
 
 
-WRITE8_MEMBER(arabian_state::ay8910_portb_w)
+void arabian_state::ay8910_portb_w(uint8_t data)
 {
 	/*
 	    bit 5 = /IREQ to custom CPU
@@ -102,33 +101,65 @@ WRITE8_MEMBER(arabian_state::ay8910_portb_w)
  *
  *************************************/
 
-READ8_MEMBER(arabian_state::mcu_port_r_r)
+uint8_t arabian_state::mcu_port_r0_r()
 {
-	uint8_t val = m_mcu_port_r[offset];
+	uint8_t val = m_mcu_port_r[0];
 
 	/* RAM mode is enabled */
-	if (offset == 0)
-		val |= 4;
+	val |= 4;
 
 	return val;
 }
 
-WRITE8_MEMBER(arabian_state::mcu_port_r_w)
+uint8_t arabian_state::mcu_port_r1_r()
 {
-	if (offset == 0)
-	{
-		uint32_t ram_addr = ((m_mcu_port_p & 7) << 8) | m_mcu_port_o;
+	uint8_t val = m_mcu_port_r[1];
 
-		if (~data & 2)
-			m_custom_cpu_ram[ram_addr] = 0xf0 | m_mcu_port_r[3];
-
-		m_flip_screen = data & 8;
-	}
-
-	m_mcu_port_r[offset] = data & 0x0f;
+	return val;
 }
 
-READ8_MEMBER(arabian_state::mcu_portk_r)
+uint8_t arabian_state::mcu_port_r2_r()
+{
+	uint8_t val = m_mcu_port_r[2];
+
+	return val;
+}
+
+uint8_t arabian_state::mcu_port_r3_r()
+{
+	uint8_t val = m_mcu_port_r[3];
+
+	return val;
+}
+
+void arabian_state::mcu_port_r0_w(uint8_t data)
+{
+	uint32_t ram_addr = ((m_mcu_port_p & 7) << 8) | m_mcu_port_o;
+
+	if (~data & 2)
+		m_custom_cpu_ram[ram_addr] = 0xf0 | m_mcu_port_r[3];
+
+	m_flip_screen = data & 8;
+
+	m_mcu_port_r[0] = data & 0x0f;
+}
+
+void arabian_state::mcu_port_r1_w(uint8_t data)
+{
+	m_mcu_port_r[1] = data & 0x0f;
+}
+
+void arabian_state::mcu_port_r2_w(uint8_t data)
+{
+	m_mcu_port_r[2] = data & 0x0f;
+}
+
+void arabian_state::mcu_port_r3_w(uint8_t data)
+{
+	m_mcu_port_r[3] = data & 0x0f;
+}
+
+uint8_t arabian_state::mcu_portk_r()
 {
 	uint8_t val = 0xf;
 
@@ -156,7 +187,7 @@ READ8_MEMBER(arabian_state::mcu_portk_r)
 	return val & 0x0f;
 }
 
-WRITE8_MEMBER(arabian_state::mcu_port_o_w)
+void arabian_state::mcu_port_o_w(uint8_t data)
 {
 	uint8_t out = data & 0x0f;
 
@@ -166,7 +197,7 @@ WRITE8_MEMBER(arabian_state::mcu_port_o_w)
 		m_mcu_port_o = (m_mcu_port_o & 0xf0) | out;
 }
 
-WRITE8_MEMBER(arabian_state::mcu_port_p_w)
+void arabian_state::mcu_port_p_w(uint8_t data)
 {
 	m_mcu_port_p = data & 0x0f;
 }
@@ -179,14 +210,15 @@ WRITE8_MEMBER(arabian_state::mcu_port_p_w)
  *
  *************************************/
 
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, arabian_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0xbfff) AM_WRITE(arabian_videoram_w)
-	AM_RANGE(0xc000, 0xc000) AM_MIRROR(0x01ff) AM_READ_PORT("IN0")
-	AM_RANGE(0xc200, 0xc200) AM_MIRROR(0x01ff) AM_READ_PORT("DSW1")
-	AM_RANGE(0xd000, 0xd7ff) AM_MIRROR(0x0800) AM_RAM AM_SHARE("custom_cpu_ram")
-	AM_RANGE(0xe000, 0xe007) AM_MIRROR(0x0ff8) AM_WRITE(arabian_blitter_w) AM_SHARE("blitter")
-ADDRESS_MAP_END
+void arabian_state::main_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0xbfff).w(FUNC(arabian_state::arabian_videoram_w));
+	map(0xc000, 0xc000).mirror(0x01ff).portr("IN0");
+	map(0xc200, 0xc200).mirror(0x01ff).portr("DSW1");
+	map(0xd000, 0xd7ff).mirror(0x0800).ram().share("custom_cpu_ram");
+	map(0xe000, 0xe007).mirror(0x0ff8).w(FUNC(arabian_state::arabian_blitter_w)).share("blitter");
+}
 
 
 
@@ -196,25 +228,11 @@ ADDRESS_MAP_END
  *
  *************************************/
 
-static ADDRESS_MAP_START( main_io_map, AS_IO, 8, arabian_state )
-	AM_RANGE(0xc800, 0xc800) AM_MIRROR(0x01ff) AM_DEVWRITE("aysnd", ay8910_device, address_w)
-	AM_RANGE(0xca00, 0xca00) AM_MIRROR(0x01ff) AM_DEVWRITE("aysnd", ay8910_device, data_w)
-ADDRESS_MAP_END
-
-
-
-/*************************************
- *
- *  MCU port handlers
- *
- *************************************/
-
-static ADDRESS_MAP_START( mcu_io_map, AS_IO, 8, arabian_state )
-	AM_RANGE(MB88_PORTK,  MB88_PORTK ) AM_READ(mcu_portk_r)
-	AM_RANGE(MB88_PORTO,  MB88_PORTO ) AM_WRITE(mcu_port_o_w)
-	AM_RANGE(MB88_PORTP,  MB88_PORTP ) AM_WRITE(mcu_port_p_w)
-	AM_RANGE(MB88_PORTR0, MB88_PORTR3) AM_READWRITE(mcu_port_r_r, mcu_port_r_w)
-ADDRESS_MAP_END
+void arabian_state::main_io_map(address_map &map)
+{
+	map(0xc800, 0xc800).mirror(0x01ff).w("aysnd", FUNC(ay8910_device::address_w));
+	map(0xca00, 0xca00).mirror(0x01ff).w("aysnd", FUNC(ay8910_device::data_w));
+}
 
 
 
@@ -336,40 +354,48 @@ void arabian_state::machine_reset()
 	m_video_control = 0;
 }
 
-static MACHINE_CONFIG_START( arabian, arabian_state )
-
+void arabian_state::arabian(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, MAIN_OSC/4)
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_CPU_IO_MAP(main_io_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", arabian_state,  irq0_line_hold)
+	Z80(config, m_maincpu, MAIN_OSC/4);
+	m_maincpu->set_addrmap(AS_PROGRAM, &arabian_state::main_map);
+	m_maincpu->set_addrmap(AS_IO, &arabian_state::main_io_map);
+	m_maincpu->set_vblank_int("screen", FUNC(arabian_state::irq0_line_hold));
 
-	MCFG_CPU_ADD("mcu", MB8841, MAIN_OSC/3/2)
-	MCFG_CPU_IO_MAP(mcu_io_map)
+	MB8841(config, m_mcu, MAIN_OSC/3/2);
+	m_mcu->read_k().set(FUNC(arabian_state::mcu_portk_r));
+	m_mcu->write_o().set(FUNC(arabian_state::mcu_port_o_w));
+	m_mcu->write_p().set(FUNC(arabian_state::mcu_port_p_w));
+	m_mcu->read_r<0>().set(FUNC(arabian_state::mcu_port_r0_r));
+	m_mcu->write_r<0>().set(FUNC(arabian_state::mcu_port_r0_w));
+	m_mcu->read_r<1>().set(FUNC(arabian_state::mcu_port_r1_r));
+	m_mcu->write_r<1>().set(FUNC(arabian_state::mcu_port_r1_w));
+	m_mcu->read_r<2>().set(FUNC(arabian_state::mcu_port_r2_r));
+	m_mcu->write_r<2>().set(FUNC(arabian_state::mcu_port_r2_w));
+	m_mcu->read_r<3>().set(FUNC(arabian_state::mcu_port_r3_r));
+	m_mcu->write_r<3>().set(FUNC(arabian_state::mcu_port_r3_w));
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
-
+	config.set_maximum_quantum(attotime::from_hz(6000));
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(256, 256)
-	MCFG_SCREEN_VISIBLE_AREA(0, 255, 11, 244)
-	MCFG_SCREEN_UPDATE_DRIVER(arabian_state, screen_update_arabian)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(256, 256);
+	screen.set_visarea(0, 255, 11, 244);
+	screen.set_screen_update(FUNC(arabian_state::screen_update_arabian));
+	screen.set_palette(m_palette);
 
-	MCFG_PALETTE_ADD("palette", 256*32)
-	MCFG_PALETTE_INIT_OWNER(arabian_state, arabian)
+	PALETTE(config, m_palette, FUNC(arabian_state::arabian_palette), 256 * 32);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("aysnd", AY8910, MAIN_OSC/4/2)
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(arabian_state, ay8910_porta_w))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(arabian_state, ay8910_portb_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-MACHINE_CONFIG_END
+	ay8910_device &aysnd(AY8910(config, "aysnd", MAIN_OSC/4/2));
+	aysnd.port_a_write_callback().set(FUNC(arabian_state::ay8910_porta_w));
+	aysnd.port_b_write_callback().set(FUNC(arabian_state::ay8910_portb_w));
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
+}
 
 
 
@@ -422,5 +448,5 @@ ROM_END
  *
  *************************************/
 
-GAME( 1983, arabian,  0,       arabian, arabian, driver_device,  0, ROT270, "Sun Electronics",                 "Arabian",         MACHINE_SUPPORTS_SAVE )
-GAME( 1983, arabiana, arabian, arabian, arabiana, driver_device, 0, ROT270, "Sun Electronics (Atari license)", "Arabian (Atari)", MACHINE_SUPPORTS_SAVE )
+GAME( 1983, arabian,  0,       arabian, arabian,  arabian_state, empty_init, ROT270, "Sun Electronics",                 "Arabian",         MACHINE_SUPPORTS_SAVE )
+GAME( 1983, arabiana, arabian, arabian, arabiana, arabian_state, empty_init, ROT270, "Sun Electronics (Atari license)", "Arabian (Atari)", MACHINE_SUPPORTS_SAVE )

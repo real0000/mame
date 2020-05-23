@@ -12,13 +12,17 @@
 #include "pc_joy.h"
 #include "pc_joy_sw.h"
 
-const device_type PC_JOY = device_creator<pc_joy_device>;
+DEFINE_DEVICE_TYPE(PC_JOY, pc_joy_device, "pc_joy", "PC joystick port")
 
 pc_joy_device::pc_joy_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, PC_JOY, "PC joystick port", tag, owner, clock, "pc_joy", __FILE__),
-	device_slot_interface(mconfig, *this),
+	device_t(mconfig, PC_JOY, tag, owner, clock),
+	device_single_card_slot_interface<device_pc_joy_interface>(mconfig, *this),
 	m_dev(nullptr)
 {
+	option_reset();
+	pc_joysticks(*this);
+	set_default_option("basic_joy");
+	set_fixed(false);
 }
 
 READ8_MEMBER ( pc_joy_device::joy_port_r )
@@ -41,11 +45,11 @@ WRITE8_MEMBER ( pc_joy_device::joy_port_w )
 
 void pc_joy_device::device_config_complete()
 {
-	m_dev = dynamic_cast<device_pc_joy_interface *>(get_card_device());
+	m_dev = get_card_device();
 }
 
 device_pc_joy_interface::device_pc_joy_interface(const machine_config &mconfig, device_t &device) :
-	device_slot_card_interface(mconfig, device)
+	device_interface(device, "pcjoy")
 {
 }
 
@@ -78,10 +82,10 @@ ioport_constructor pc_basic_joy_device::device_input_ports() const
 	return INPUT_PORTS_NAME( pc_joystick );
 }
 
-const device_type PC_BASIC_JOY = device_creator<pc_basic_joy_device>;
+DEFINE_DEVICE_TYPE(PC_BASIC_JOY, pc_basic_joy_device, "pc_basic_joy", "PC basic joystick")
 
 pc_basic_joy_device::pc_basic_joy_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, PC_BASIC_JOY, "PC basic joystick", tag, owner, clock, "basic_joy", __FILE__),
+	device_t(mconfig, PC_BASIC_JOY, tag, owner, clock),
 	device_pc_joy_interface(mconfig, *this),
 	m_btn(*this, "btn"),
 	m_x1(*this, "x1"),
@@ -91,7 +95,8 @@ pc_basic_joy_device::pc_basic_joy_device(const machine_config &mconfig, const ch
 {
 }
 
-SLOT_INTERFACE_START(pc_joysticks)
-	SLOT_INTERFACE("basic_joy", PC_BASIC_JOY)
-	SLOT_INTERFACE("mssw_pad", PC_MSSW_PAD)
-SLOT_INTERFACE_END
+void pc_joysticks(device_slot_interface &device)
+{
+	device.option_add("basic_joy", PC_BASIC_JOY);
+	device.option_add("mssw_pad", PC_MSSW_PAD);
+}

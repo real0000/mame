@@ -18,9 +18,9 @@
 
 *****************************************************************************/
 
-#include <string.h>
-#include <stdarg.h>
-#include <ctype.h>
+#include <cstring>
+#include <cstdarg>
+#include <cctype>
 
 #include "imgtool.h"
 #include "formats/imageutl.h"
@@ -51,7 +51,9 @@ struct basictoken_tableent
 struct basictokens
 {
 	uint16_t baseaddress;
+	uint8_t size_pos;
 	unsigned int skip_bytes : 15;
+	unsigned char bytes[20];
 	unsigned int be : 1;
 	const basictoken_tableent *entries;
 	int num_entries;
@@ -116,6 +118,8 @@ static imgtoolerr_t basic_readfile(const basictokens *tokens,
 		destf.printf("%u ", (unsigned) line_number);
 		shift = 0x00;
 
+		in_string = false; // in case the last line didn't terminate a string
+
 		while((mem_stream->read(&b, 1) > 0) && (b != 0x00))
 		{
 			if (b == 0x22)
@@ -179,7 +183,7 @@ static imgtoolerr_t basic_writefile(const basictokens *tokens,
 	int i, j, pos, in_quotes;
 	uint16_t line_number;
 	uint8_t line_header[4];
-	uint8_t file_header[3];
+	uint8_t file_size[2];
 	const basictoken_tableent *token_table;
 	const char *token;
 	uint8_t token_shift, token_value;
@@ -190,9 +194,8 @@ static imgtoolerr_t basic_writefile(const basictokens *tokens,
 	if (!mem_stream)
 		return IMGTOOLERR_OUTOFMEMORY;
 
-	/* skip first few bytes */
-	mem_stream->fill(0x00, tokens->skip_bytes);
-
+	/* write header */
+	mem_stream->write(tokens->bytes, tokens->skip_bytes);
 	/* loop until the file is complete */
 	while(!eof)
 	{
@@ -245,8 +248,8 @@ static imgtoolerr_t basic_writefile(const basictokens *tokens,
 			}
 			else
 			{
-				place_integer_be(line_header, 0, 2, address);
-				place_integer_be(line_header, 2, 2, line_number);
+				place_integer_le(line_header, 0, 2, address);
+				place_integer_le(line_header, 2, 2, line_number);
 			}
 
 			/* emit line header */
@@ -275,6 +278,7 @@ static imgtoolerr_t basic_writefile(const basictokens *tokens,
 				{
 					for (i = 0; (token == nullptr) && (i < tokens->num_entries); i++)
 					{
+						bool found = false;
 						token_table = &tokens->entries[i];
 						for (j = 0; (token == nullptr) && (j < token_table->num_tokens); j++)
 						{
@@ -284,8 +288,12 @@ static imgtoolerr_t basic_writefile(const basictokens *tokens,
 								token_shift = token_table->shift;
 								token_value = token_table->base + j;
 								pos += strlen(token);
+								found = true;
+								break;
 							}
 						}
+						if (found)
+							break;
 					}
 				}
 
@@ -313,22 +321,20 @@ static imgtoolerr_t basic_writefile(const basictokens *tokens,
 	mem_stream->fill(0x00, 2);
 
 	/* reset stream */
-	mem_stream->seek(0, SEEK_SET);
+	mem_stream->seek(tokens->size_pos, SEEK_SET);
 
 	/* this is somewhat gross */
 	if (tokens->skip_bytes >= 3)
 	{
 		if (tokens->be)
 		{
-			place_integer_be(file_header, 0, 1, 0xFF);
-			place_integer_be(file_header, 1, 2, mem_stream->size());
+			place_integer_be(file_size, 0, 2, mem_stream->size());
 		}
 		else
 		{
-			place_integer_le(file_header, 0, 1, 0xFF);
-			place_integer_le(file_header, 1, 2, mem_stream->size());
+			place_integer_le(file_size, 0, 2, mem_stream->size());
 		}
-		mem_stream->write(file_header, 3);
+		mem_stream->write(file_size, 2);
 		mem_stream->seek(0, SEEK_SET);
 	}
 
@@ -652,7 +658,7 @@ static const char *const dragonbas_functions[] =
 	"TIMER",    /* 0xff9e */
 	"PPOINT",   /* 0xff9f */
 	"STRING$",  /* 0xffa0 */
-	"USR"       /* 0xffa1 */
+	"USR",      /* 0xffa1 */
 	"CVN",      /* 0xffa2 */
 	"FREE",     /* 0xffa3 */
 	"LOC",      /* 0xffa4 */
@@ -2935,7 +2941,9 @@ static const basictoken_tableent cocobas_tokenents[] =
 static const basictokens cocobas_tokens =
 {
 	0x2600,
+	1,
 	3,
+	{0xFF, 0x00, 0x00},
 	true,
 	cocobas_tokenents,
 	ARRAY_LENGTH(cocobas_tokenents)
@@ -2978,8 +2986,10 @@ static const basictoken_tableent dragonbas_tokenents[] =
 
 static const basictokens dragonbas_tokens =
 {
-	0x2600,
+	0x2415,
 	4,
+	9,
+	{0x55, 0x01, 0x24, 0x01, 0x00, 0x2A, 0x8B, 0x8D, 0xAA},
 	true,
 	dragonbas_tokenents,
 	ARRAY_LENGTH(dragonbas_tokenents)
@@ -3025,6 +3035,8 @@ static const basictokens vzbas_tokens =
 {
 	0x7ae9,
 	0,
+	0,
+	{0x00},
 	false,
 	vzbas_tokenents,
 	ARRAY_LENGTH(vzbas_tokenents)
@@ -3068,7 +3080,9 @@ static const basictoken_tableent bml3bas_tokenents[] =
 static const basictokens bml3bas_tokens =
 {
 	0x2600,
+	1,
 	3,
+	{0xFF, 0x00, 0x00},
 	true,
 	bml3bas_tokenents,
 	ARRAY_LENGTH(bml3bas_tokenents)

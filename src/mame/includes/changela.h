@@ -2,6 +2,8 @@
 // copyright-holders:Jarek Burczynski, Phil Stroffolino, Tomasz Slanina
 
 #include "cpu/m6805/m68705.h"
+#include "machine/timer.h"
+#include "emupal.h"
 #include "screen.h"
 
 
@@ -54,18 +56,19 @@ public:
 	/* devices */
 	DECLARE_READ8_MEMBER(mcu_r);
 	DECLARE_WRITE8_MEMBER(mcu_w);
-	DECLARE_WRITE8_MEMBER(changela_68705_port_a_w);
-	DECLARE_WRITE8_MEMBER(changela_68705_port_c_w);
+	void changela_68705_port_a_w(uint8_t data);
+	void changela_68705_port_c_w(uint8_t data);
 	DECLARE_READ8_MEMBER(changela_24_r);
 	DECLARE_READ8_MEMBER(changela_25_r);
 	DECLARE_READ8_MEMBER(changela_30_r);
 	DECLARE_READ8_MEMBER(changela_31_r);
 	DECLARE_READ8_MEMBER(changela_2c_r);
 	DECLARE_READ8_MEMBER(changela_2d_r);
-	DECLARE_WRITE8_MEMBER(mcu_pc_0_w);
-	DECLARE_WRITE8_MEMBER(changela_collision_reset_0);
-	DECLARE_WRITE8_MEMBER(changela_collision_reset_1);
-	DECLARE_WRITE8_MEMBER(changela_coin_counter_w);
+	DECLARE_WRITE_LINE_MEMBER(mcu_pc_0_w);
+	DECLARE_WRITE_LINE_MEMBER(collision_reset_0_w);
+	DECLARE_WRITE_LINE_MEMBER(collision_reset_1_w);
+	DECLARE_WRITE_LINE_MEMBER(coin_counter_1_w);
+	DECLARE_WRITE_LINE_MEMBER(coin_counter_2_w);
 	DECLARE_WRITE8_MEMBER(changela_colors_w);
 	DECLARE_WRITE8_MEMBER(changela_mem_device_select_w);
 	DECLARE_WRITE8_MEMBER(changela_mem_device_w);
@@ -84,6 +87,8 @@ public:
 	void draw_river( bitmap_ind16 &bitmap, int sy );
 	void draw_tree( bitmap_ind16 &bitmap, int sy, int tree_num );
 
+	void changela(machine_config &config);
+	void changela_map(address_map &map);
 protected:
 	// memory pointers
 	required_shared_ptr<u8>         m_spriteram;

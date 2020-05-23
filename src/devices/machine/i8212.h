@@ -1,8 +1,8 @@
 // license:BSD-3-Clause
-// copyright-holders:Curt Coder
+// copyright-holders:Curt Coder,AJR
 /**********************************************************************
 
-    Intel 8212 8-Bit Input/Output Port emulation
+    Intel 8212/3212 8-Bit Input/Output Port (Multi-Mode Latch Buffer)
 
 **********************************************************************
                             _____   _____
@@ -12,7 +12,7 @@
                    DO1   4 |             | 21  DO8
                    DI2   5 |             | 20  DI7
                    DO2   6 |    8212     | 19  DO7
-                   DI3   7 |             | 18  DI6
+                   DI3   7 |    3212     | 18  DI6
                    DO3   8 |             | 17  DO6
                    DI4   9 |             | 16  DI5
                    DO4  10 |             | 15  DO5
@@ -21,62 +21,38 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_I8212_H
+#define MAME_MACHINE_I8212_H
+
 #pragma once
 
-#ifndef __I8212__
-#define __I8212__
-
-
-
-
-///*************************************************************************
-//  MACROS / CONSTANTS
-///*************************************************************************
-
-enum
+class i8212_device : public device_t
 {
-	I8212_MODE_INPUT = 0,
-	I8212_MODE_OUTPUT
-};
+	enum class mode : u8
+	{
+		INPUT,
+		OUTPUT
+	};
 
-
-
-///*************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-///*************************************************************************
-
-#define MCFG_I8212_IRQ_CALLBACK(_write) \
-	devcb = &i8212_device::set_irq_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_I8212_DI_CALLBACK(_read) \
-	devcb = &i8212_device::set_di_rd_callback(*device, DEVCB_##_read);
-
-#define MCFG_I8212_DO_CALLBACK(_write) \
-	devcb = &i8212_device::set_do_wr_callback(*device, DEVCB_##_write);
-
-
-
-///*************************************************************************
-//  TYPE DEFINITIONS
-///*************************************************************************
-
-// ======================> i8212_device
-
-class i8212_device :    public device_t
-{
 public:
 	// construction/destruction
-	i8212_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	i8212_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
-	template<class _Object> static devcb_base &set_irq_wr_callback(device_t &device, _Object object) { return downcast<i8212_device &>(device).m_write_irq.set_callback(object); }
-	template<class _Object> static devcb_base &set_di_rd_callback(device_t &device, _Object object) { return downcast<i8212_device &>(device).m_read_di.set_callback(object); }
-	template<class _Object> static devcb_base &set_do_wr_callback(device_t &device, _Object object) { return downcast<i8212_device &>(device).m_write_do.set_callback(object); }
+	auto int_wr_callback() { return m_write_int.bind(); }
+	auto di_rd_callback() { return m_read_di.bind(); }
+	auto do_wr_callback() { return m_write_do.bind(); }
+	auto md_rd_callback() { return m_read_md.bind(); }
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	// data read handlers
+	uint8_t read();
+	IRQ_CALLBACK_MEMBER(inta_cb);
 
-	DECLARE_WRITE_LINE_MEMBER( md_w );
-	DECLARE_WRITE_LINE_MEMBER( stb_w );
+	// data write handlers
+	void write(uint8_t data);
+	void strobe(uint8_t data);
+
+	// line write handlers
+	DECLARE_WRITE_LINE_MEMBER(stb_w);
 
 protected:
 	// device-level overrides
@@ -84,19 +60,20 @@ protected:
 	virtual void device_reset() override;
 
 private:
-	devcb_write_line   m_write_irq;
+	// helpers
+	mode get_mode();
+
+	devcb_write_line   m_write_int;
 	devcb_read8        m_read_di;
 	devcb_write8       m_write_do;
+	devcb_read_line    m_read_md;
 
-	int m_md;                   // mode
 	int m_stb;                  // strobe
-	uint8_t m_data;               // data latch
+	uint8_t m_data;             // data latch
 };
 
 
 // device type definition
-extern const device_type I8212;
+DECLARE_DEVICE_TYPE(I8212, i8212_device)
 
-
-
-#endif
+#endif // MAME_MACHINE_I8212_H

@@ -6,26 +6,11 @@
 
 **********************************************************************/
 
+#ifndef MAME_BUS_BBC_FDC_FDC_H
+#define MAME_BUS_BBC_FDC_FDC_H
+
 #pragma once
 
-#ifndef __BBC_FDC_SLOT__
-#define __BBC_FDC_SLOT__
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_BBC_FDC_SLOT_ADD(_tag, _slot_intf, _def_slot, _fixed) \
-	MCFG_DEVICE_ADD(_tag, BBC_FDC_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _fixed)
-
-#define MCFG_BBC_FDC_SLOT_INTRQ_HANDLER(_devcb) \
-	devcb = &bbc_fdc_slot_device::set_intrq_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_BBC_FDC_SLOT_DRQ_HANDLER(_devcb) \
-	devcb = &bbc_fdc_slot_device::set_drq_handler(*device, DEVCB_##_devcb);
 
 
 //**************************************************************************
@@ -36,53 +21,69 @@
 
 class device_bbc_fdc_interface;
 
-class bbc_fdc_slot_device : public device_t, public device_slot_interface
+class bbc_fdc_slot_device : public device_t, public device_single_card_slot_interface<device_bbc_fdc_interface>
 {
 public:
 	// construction/destruction
-	bbc_fdc_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual ~bbc_fdc_slot_device();
+	template <typename T>
+	bbc_fdc_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, uint32_t clock, T &&slot_options, const char *default_option)
+		: bbc_fdc_slot_device(mconfig, tag, owner, clock)
+	{
+		option_reset();
+		slot_options(*this);
+		set_default_option(default_option);
+		set_fixed(false);
+		set_insert_rom(true);
+	}
+
+	bbc_fdc_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, uint32_t clock);
+
+	void set_insert_rom(bool insert_rom) { m_insert_rom = insert_rom; }
+	bool insert_rom() { return m_insert_rom; }
 
 	// callbacks
-	template<class _Object> static devcb_base &set_intrq_handler(device_t &device, _Object object)
-		{ return downcast<bbc_fdc_slot_device &>(device).m_intrq_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_drq_handler(device_t &device, _Object object)
-		{ return downcast<bbc_fdc_slot_device &>(device).m_drq_handler.set_callback(object); }
+	auto intrq_wr_callback() { return m_intrq_cb.bind(); }
+	auto drq_wr_callback() { return m_drq_cb.bind(); }
 
-	DECLARE_WRITE_LINE_MEMBER( intrq_w ) { m_intrq_handler(state); }
-	DECLARE_WRITE_LINE_MEMBER( drq_w) { m_drq_handler(state); }
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
+
+	DECLARE_WRITE_LINE_MEMBER( intrq_w ) { m_intrq_cb(state); }
+	DECLARE_WRITE_LINE_MEMBER( drq_w) { m_drq_cb(state); }
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
-	virtual void device_reset() override;
 
 	device_bbc_fdc_interface *m_card;
 
 private:
-	devcb_write_line m_intrq_handler;
-	devcb_write_line m_drq_handler;
+	devcb_write_line m_intrq_cb;
+	devcb_write_line m_drq_cb;
+
+	bool m_insert_rom;
 };
 
 
 // ======================> device_bbc_fdc_interface
 
-class device_bbc_fdc_interface : public device_slot_card_interface
+class device_bbc_fdc_interface : public device_interface
 {
 public:
-	// construction/destruction
-	device_bbc_fdc_interface(const machine_config &mconfig, device_t &device);
-	virtual ~device_bbc_fdc_interface();
+	virtual uint8_t read(offs_t offset) { return 0xff; }
+	virtual void write(offs_t offset, uint8_t data) { }
 
 protected:
+	device_bbc_fdc_interface(const machine_config &mconfig, device_t &device);
+
 	bbc_fdc_slot_device *m_slot;
 };
 
 
 // device type definition
-extern const device_type BBC_FDC_SLOT;
+DECLARE_DEVICE_TYPE(BBC_FDC_SLOT, bbc_fdc_slot_device)
 
-SLOT_INTERFACE_EXTERN( bbc_fdc_devices );
+void bbc_fdc_devices(device_slot_interface &device);
 
 
-#endif
+#endif // MAME_BUS_BBC_FDC_FDC_H

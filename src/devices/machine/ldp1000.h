@@ -6,27 +6,20 @@
 
 ***************************************************************************/
 
-#pragma once
+#ifndef MAME_MACHINE_LDP1000_H
+#define MAME_MACHINE_LDP1000_H
 
-#ifndef __LDP1000DEV_H__
-#define __LDP1000DEV_H__
+#pragma once
 
 #include "laserdsc.h"
 
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_LASERDISC_LDP1000_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, SONY_LDP1000, 0)
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
 // device type definition
-extern const device_type SONY_LDP1000;
+DECLARE_DEVICE_TYPE(SONY_LDP1000, sony_ldp1000_device)
 
 // ======================> sony_ldp1000_device
 
@@ -37,8 +30,8 @@ public:
 	sony_ldp1000_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// I/O operations TODO: both actually protected
-	DECLARE_WRITE8_MEMBER( command_w );
-	DECLARE_READ8_MEMBER( status_r );
+	void command_w(uint8_t data);
+	uint8_t status_r();
 
 protected:
 	// device-level overrides
@@ -82,15 +75,4 @@ private:
 
 };
 
-
-
-
-
-
-//**************************************************************************
-//  GLOBAL VARIABLES
-//**************************************************************************
-
-
-
-#endif
+#endif // MAME_MACHINE_LDP1000_H

@@ -8,6 +8,7 @@
 
 #include "emu.h"
 #include "sg1000exp.h"
+
 // slot devices
 #include "sk1100.h"
 #include "fm_unit.h"
@@ -18,7 +19,7 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type SG1000_EXPANSION_SLOT = device_creator<sg1000_expansion_slot_device>;
+DEFINE_DEVICE_TYPE(SG1000_EXPANSION_SLOT, sg1000_expansion_slot_device, "sg1000_expansion_slot", "Sega SG-1000 expansion slot")
 
 
 
@@ -30,8 +31,8 @@ const device_type SG1000_EXPANSION_SLOT = device_creator<sg1000_expansion_slot_d
 //  device_sg1000_expansion_slot_interface - constructor
 //-------------------------------------------------
 
-device_sg1000_expansion_slot_interface::device_sg1000_expansion_slot_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig,device)
+device_sg1000_expansion_slot_interface::device_sg1000_expansion_slot_interface(const machine_config &mconfig, device_t &device) :
+	device_interface(device, "sg1000exp")
 {
 }
 
@@ -55,8 +56,9 @@ device_sg1000_expansion_slot_interface::~device_sg1000_expansion_slot_interface(
 //-------------------------------------------------
 
 sg1000_expansion_slot_device::sg1000_expansion_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-						device_t(mconfig, SG1000_EXPANSION_SLOT, "Sega SG-1000 expansion slot", tag, owner, clock, "sg1000_expansion_slot", __FILE__),
-						device_slot_interface(mconfig, *this), m_device(nullptr)
+	device_t(mconfig, SG1000_EXPANSION_SLOT, tag, owner, clock),
+	device_single_card_slot_interface<device_sg1000_expansion_slot_interface>(mconfig, *this),
+	m_device(nullptr)
 {
 }
 
@@ -76,7 +78,7 @@ sg1000_expansion_slot_device::~sg1000_expansion_slot_device()
 
 void sg1000_expansion_slot_device::device_start()
 {
-	m_device = dynamic_cast<device_sg1000_expansion_slot_interface *>(get_card_device());
+	m_device = get_card_device();
 }
 
 
@@ -119,7 +121,8 @@ bool sg1000_expansion_slot_device::is_writeable(uint8_t offset)
 //  SLOT_INTERFACE( sg1000_expansion_devices )
 //-------------------------------------------------
 
-SLOT_INTERFACE_START( sg1000_expansion_devices )
-	SLOT_INTERFACE("sk1100", SEGA_SK1100)
-	SLOT_INTERFACE("fm", SEGA_FM_UNIT)
-SLOT_INTERFACE_END
+void sg1000_expansion_devices(device_slot_interface &device)
+{
+	device.option_add("sk1100", SEGA_SK1100);
+	device.option_add("fm", SEGA_FM_UNIT);
+}

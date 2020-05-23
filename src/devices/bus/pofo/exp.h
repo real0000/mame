@@ -39,10 +39,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_POFO_EXP_H
+#define MAME_BUS_POFO_EXP_H
 
-#ifndef __PORTFOLIO_EXPANSION_SLOT__
-#define __PORTFOLIO_EXPANSION_SLOT__
+#pragma once
 
 
 
@@ -54,41 +54,17 @@
 #define PORTFOLIO_EXPANSION_SLOT_TAG      "exp"
 
 
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_PORTFOLIO_EXPANSION_SLOT_ADD(_tag, _clock, _slot_intf, _def_slot) \
-	MCFG_DEVICE_ADD(_tag, PORTFOLIO_EXPANSION_SLOT, _clock) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
-
-#define MCFG_PORTFOLIO_EXPANSION_SLOT_EINT_CALLBACK(_write) \
-	devcb = &portfolio_expansion_slot_t::set_eint_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_PORTFOLIO_EXPANSION_SLOT_NMIO_CALLBACK(_write) \
-	devcb = &portfolio_expansion_slot_t::set_nmio_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_PORTFOLIO_EXPANSION_SLOT_WAKE_CALLBACK(_write) \
-	devcb = &portfolio_expansion_slot_t::set_wake_wr_callback(*device, DEVCB_##_write);
-
-
-
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
 // ======================> device_portfolio_expansion_slot_interface
 
-class portfolio_expansion_slot_t;
+class portfolio_expansion_slot_device;
 
-class device_portfolio_expansion_slot_interface : public device_slot_card_interface
+class device_portfolio_expansion_slot_interface : public device_interface
 {
 public:
-	// construction/destruction
-	device_portfolio_expansion_slot_interface(const machine_config &mconfig, device_t &device);
-	virtual ~device_portfolio_expansion_slot_interface() { }
-
 	virtual bool nmd1() { return 1; }
 	virtual bool pdet() { return 0; }
 	virtual bool cdet() { return 1; }
@@ -96,33 +72,44 @@ public:
 	virtual uint8_t iack_r() { return 0xff; }
 	virtual uint8_t eack_r() { return 0xff; }
 
-	virtual uint8_t nrdi_r(address_space &space, offs_t offset, uint8_t data, bool iom, bool bcom, bool ncc1) { return data; };
-	virtual void nwri_w(address_space &space, offs_t offset, uint8_t data, bool iom, bool bcom, bool ncc1) { };
+	virtual uint8_t nrdi_r(offs_t offset, uint8_t data, bool iom, bool bcom, bool ncc1) { return data; }
+	virtual void nwri_w(offs_t offset, uint8_t data, bool iom, bool bcom, bool ncc1) { }
 
-	virtual WRITE_LINE_MEMBER( iint_w ) { };
+	virtual WRITE_LINE_MEMBER( iint_w ) { }
 
 	DECLARE_WRITE_LINE_MEMBER( eint_w );
 	DECLARE_WRITE_LINE_MEMBER( nmio_w );
 	DECLARE_WRITE_LINE_MEMBER( wake_w );
 
 protected:
-	portfolio_expansion_slot_t *m_slot;
+	// construction/destruction
+	device_portfolio_expansion_slot_interface(const machine_config &mconfig, device_t &device);
+
+	portfolio_expansion_slot_device *m_slot;
 };
 
 
-// ======================> portfolio_expansion_slot_t
+// ======================> portfolio_expansion_slot_device
 
-class portfolio_expansion_slot_t : public device_t,
-									public device_slot_interface
+class portfolio_expansion_slot_device : public device_t, public device_single_card_slot_interface<device_portfolio_expansion_slot_interface>
 {
 public:
 	// construction/destruction
-	portfolio_expansion_slot_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual ~portfolio_expansion_slot_t() { }
+	template <typename T>
+	portfolio_expansion_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, uint32_t clock, T &&opts, char const *dflt)
+		: portfolio_expansion_slot_device(mconfig, tag, owner, clock)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
 
-	template<class _Object> static devcb_base &set_eint_wr_callback(device_t &device, _Object object) { return downcast<portfolio_expansion_slot_t &>(device).m_write_eint.set_callback(object); }
-	template<class _Object> static devcb_base &set_nmio_wr_callback(device_t &device, _Object object) { return downcast<portfolio_expansion_slot_t &>(device).m_write_nmio.set_callback(object); }
-	template<class _Object> static devcb_base &set_wake_wr_callback(device_t &device, _Object object) { return downcast<portfolio_expansion_slot_t &>(device).m_write_wake.set_callback(object); }
+	portfolio_expansion_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+	auto eint_wr_callback() { return m_write_eint.bind(); }
+	auto nmio_wr_callback() { return m_write_nmio.bind(); }
+	auto wake_wr_callback() { return m_write_wake.bind(); }
 
 	// computer interface
 	bool nmd1_r() { return (m_card != nullptr) ? m_card->nmd1() : 1; }
@@ -132,8 +119,8 @@ public:
 	uint8_t iack_r() { return (m_card != nullptr) ? m_card->iack_r() : 0xff; };
 	uint8_t eack_r() { return (m_card != nullptr) ? m_card->eack_r() : 0xff; };
 
-	uint8_t nrdi_r(address_space &space, offs_t offset, uint8_t data, bool iom, bool bcom, bool ncc1) { return (m_card != nullptr) ? m_card->nrdi_r(space, offset, data, iom, bcom, ncc1) : data; }
-	void nwri_w(address_space &space, offs_t offset, uint8_t data, bool iom, bool bcom, bool ncc1) { if (m_card != nullptr) m_card->nwri_w(space, offset, data, iom, bcom, ncc1); }
+	uint8_t nrdi_r(offs_t offset, uint8_t data, bool iom, bool bcom, bool ncc1) { return (m_card != nullptr) ? m_card->nrdi_r(offset, data, iom, bcom, ncc1) : data; }
+	void nwri_w(offs_t offset, uint8_t data, bool iom, bool bcom, bool ncc1) { if (m_card != nullptr) m_card->nwri_w(offset, data, iom, bcom, ncc1); }
 
 	WRITE_LINE_MEMBER( iint_w ) { if (m_card != nullptr) m_card->iint_w(state); }
 
@@ -156,11 +143,9 @@ protected:
 
 
 // device type definition
-extern const device_type PORTFOLIO_EXPANSION_SLOT;
+DECLARE_DEVICE_TYPE(PORTFOLIO_EXPANSION_SLOT, portfolio_expansion_slot_device)
 
 
-SLOT_INTERFACE_EXTERN( portfolio_expansion_cards );
+void portfolio_expansion_cards(device_slot_interface &device);
 
-
-
-#endif
+#endif // MAME_BUS_POFO_EXP_H

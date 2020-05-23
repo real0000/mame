@@ -4,37 +4,34 @@
 #include "ne2000.h"
 
 
-static MACHINE_CONFIG_FRAGMENT(ne2000_config)
-	MCFG_DEVICE_ADD("dp8390d", DP8390D, 0)
-	MCFG_DP8390D_IRQ_CB(WRITELINE(ne2000_device, ne2000_irq_w))
-	MCFG_DP8390D_MEM_READ_CB(READ8(ne2000_device, ne2000_mem_read))
-	MCFG_DP8390D_MEM_WRITE_CB(WRITE8(ne2000_device, ne2000_mem_write))
-MACHINE_CONFIG_END
+DEFINE_DEVICE_TYPE(NE2000, ne2000_device, "ne2000", "NE2000 Network Adapter")
 
-const device_type NE2000 = device_creator<ne2000_device>;
-
-machine_config_constructor ne2000_device::device_mconfig_additions() const {
-	return MACHINE_CONFIG_NAME(ne2000_config);
+void ne2000_device::device_add_mconfig(machine_config &config)
+{
+	DP8390D(config, m_dp8390, 0);
+	m_dp8390->irq_callback().set(FUNC(ne2000_device::ne2000_irq_w));
+	m_dp8390->mem_read_callback().set(FUNC(ne2000_device::ne2000_mem_read));
+	m_dp8390->mem_write_callback().set(FUNC(ne2000_device::ne2000_mem_write));
 }
 
 ne2000_device::ne2000_device(const machine_config& mconfig, const char* tag, device_t* owner, uint32_t clock)
-	: device_t(mconfig, NE2000, "NE2000 Network Adapter", tag, owner, clock, "ne2000", __FILE__),
-		device_isa16_card_interface(mconfig, *this),
-		m_dp8390(*this, "dp8390d"),
-		m_irq(0)
+	: device_t(mconfig, NE2000, tag, owner, clock),
+	device_isa16_card_interface(mconfig, *this),
+	m_dp8390(*this, "dp8390d"),
+	m_irq(0)
 {
 }
 
 void ne2000_device::device_start() {
 	char mac[7];
-	uint32_t num = rand();
+	uint32_t num = machine().rand();
 	memset(m_prom, 0x57, 16);
 	sprintf(mac+2, "\x1b%c%c%c", (num >> 16) & 0xff, (num >> 8) & 0xff, num & 0xff);
 	mac[0] = 0; mac[1] = 0;  // avoid gcc warning
 	memcpy(m_prom, mac, 6);
 	m_dp8390->set_mac(mac);
 	set_isa_device();
-	m_isa->install16_device(0x0300, 0x031f, read16_delegate(FUNC(ne2000_device::ne2000_port_r), this), write16_delegate(FUNC(ne2000_device::ne2000_port_w), this));
+	m_isa->install16_device(0x0300, 0x031f, read16_delegate(*this, FUNC(ne2000_device::ne2000_port_r)), write16_delegate(*this, FUNC(ne2000_device::ne2000_port_w)));
 }
 
 void ne2000_device::device_reset() {
@@ -46,14 +43,14 @@ READ16_MEMBER(ne2000_device::ne2000_port_r) {
 	offset <<= 1;
 	if(offset < 16) {
 		m_dp8390->dp8390_cs(CLEAR_LINE);
-		return m_dp8390->dp8390_r(space, offset, 0xff) |
-				m_dp8390->dp8390_r(space, offset+1, 0xff) << 8;
+		return m_dp8390->dp8390_r(offset) |
+				m_dp8390->dp8390_r(offset+1) << 8;
 	}
 	if(mem_mask == 0xff00) offset++;
 	switch(offset) {
 	case 16:
 		m_dp8390->dp8390_cs(ASSERT_LINE);
-		return m_dp8390->dp8390_r(space, offset, mem_mask);
+		return m_dp8390->dp8390_r(offset);
 	case 31:
 		m_dp8390->dp8390_reset(CLEAR_LINE);
 		return 0;
@@ -71,15 +68,15 @@ WRITE16_MEMBER(ne2000_device::ne2000_port_w) {
 			data >>= 8;
 			offset++;
 		}
-		m_dp8390->dp8390_w(space, offset, data & 0xff, 0xff);
-		if(mem_mask == 0xffff) m_dp8390->dp8390_w(space, offset+1, data>>8, 0xff);
+		m_dp8390->dp8390_w(offset, data & 0xff);
+		if(mem_mask == 0xffff) m_dp8390->dp8390_w(offset+1, data>>8);
 		return;
 	}
 	if(mem_mask == 0xff00) offset++;
 	switch(offset) {
 	case 16:
 		m_dp8390->dp8390_cs(ASSERT_LINE);
-		m_dp8390->dp8390_w(space, offset, data, mem_mask);
+		m_dp8390->dp8390_w(offset, data);
 		return;
 	case 31:
 		m_dp8390->dp8390_reset(ASSERT_LINE);
@@ -107,7 +104,7 @@ WRITE_LINE_MEMBER(ne2000_device::ne2000_irq_w) {
 	}
 }
 
-READ8_MEMBER(ne2000_device::ne2000_mem_read) {
+uint8_t ne2000_device::ne2000_mem_read(offs_t offset) {
 	offset &= ~0x8000;
 	if(offset < 32) return m_prom[offset>>1];
 	if((offset < (16*1024)) || (offset >= (32*1024))) {
@@ -117,7 +114,7 @@ READ8_MEMBER(ne2000_device::ne2000_mem_read) {
 	return m_board_ram[offset - (16*1024)];
 }
 
-WRITE8_MEMBER(ne2000_device::ne2000_mem_write) {
+void ne2000_device::ne2000_mem_write(offs_t offset, uint8_t data) {
 	offset &= ~0x8000;
 	if((offset < (16*1024)) || (offset >= (32*1024))) {
 		logerror("ne2000: invalid memory write %04X\n", offset);

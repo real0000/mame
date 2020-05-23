@@ -62,10 +62,12 @@ Address  Function Register  R/W  When Reset          Remarks
 /* ================================ INCLUDES ============================== */
 /* ======================================================================== */
 
-#include <limits.h>
 #include "emu.h"
-#include "debugger.h"
 #include "spc700.h"
+
+#include "debugger.h"
+
+#include <climits>
 
 
 /* ======================================================================== */
@@ -191,7 +193,7 @@ static inline int MAKE_INT_8(int A) {return (A & 0x80) ? A | ~0xff : A & 0xff;}
 #define VFLAG_SUB_8(S, D, R)   ((S^D) & (R^D))
 #define VFLAG_SUB_16(S, D, R) (((S^D) & (R^D))>>8)
 
-#define CFLAG_AS_1()     ((FLAG_C>>8)&1)
+#define CFLAG_1()     ((FLAG_C>>8)&1)
 #define CFLAG_AS_NOT_1() (!(FLAG_C&CFLAG_SET))
 
 #define NZFLAG_16(A) (((A)&0x7f) | (((A)>>1)&0x40) | (((A)>>8)&0xff))
@@ -216,12 +218,17 @@ static inline int MAKE_INT_8(int A) {return (A & 0x80) ? A | ~0xff : A & 0xff;}
 
 
 
-const device_type SPC700 = device_creator<spc700_device>;
+DEFINE_DEVICE_TYPE(SPC700, spc700_device, "spc700", "Sony SPC700")
 
 
 spc700_device::spc700_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, SPC700, "SPC700", tag, owner, clock, "spc700", __FILE__)
-	, m_program_config("program", ENDIANNESS_LITTLE, 8, 16, 0)
+	: spc700_device(mconfig, SPC700, tag, owner, clock)
+{
+}
+
+spc700_device::spc700_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, address_map_constructor internal_map)
+	: cpu_device(mconfig, type, tag, owner, clock)
+	, m_program_config("program", ENDIANNESS_LITTLE, 8, 16, 0, internal_map)
 	, m_a(0)
 	, m_x(0)
 	, m_y(0)
@@ -232,13 +239,21 @@ spc700_device::spc700_device(const machine_config &mconfig, const char *tag, dev
 {
 }
 
+device_memory_interface::space_config_vector spc700_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
+}
+
 
 /* ======================================================================== */
 /* ============================ UTILITY MACROS ============================ */
 /* ======================================================================== */
 
 /* Use up clock cycles */
-#define CLK(A) CLOCKS -= (A)
+#define CLK_DIVIDER 2
+#define CLK(A) CLOCKS -= ((A)*(CLK_DIVIDER))
 #define CLK_ALL() CLOCKS = 0
 
 
@@ -405,11 +420,11 @@ uint32_t spc700_device::EA_ABS()   {return OPER_16_IMM();}
 uint32_t spc700_device::EA_ABX()   {return EA_ABS() + REG_X;}
 uint32_t spc700_device::EA_ABY()   {return EA_ABS() + REG_Y;}
 uint32_t spc700_device::EA_AXI()   {return OPER_16_ABX();}
-uint32_t spc700_device::EA_DP()   {return OPER_8_IMM();}
+uint32_t spc700_device::EA_DP()    {return OPER_8_IMM();}
 uint32_t spc700_device::EA_DPX()   {return (EA_DP() + REG_X)&0xff;}
 uint32_t spc700_device::EA_DPY()   {return (EA_DP() + REG_Y)&0xff;}
 uint32_t spc700_device::EA_DXI()   {return OPER_16_DPX();}
-uint32_t spc700_device::EA_DIY()   {uint32_t addr = OPER_16_DP(); if((addr&0xff00) != ((addr+REG_Y)&0xff00)) CLK(1); return addr + REG_Y;}
+uint32_t spc700_device::EA_DIY()   {uint32_t addr = OPER_16_DP(); return addr + REG_Y;}
 uint32_t spc700_device::EA_XI()    {return REG_X;}
 uint32_t spc700_device::EA_XII()   {uint32_t val = REG_X;REG_X = MAKE_UINT_8(REG_X+1);return val;}
 uint32_t spc700_device::EA_YI()    {return REG_Y;}
@@ -447,7 +462,7 @@ void spc700_device::SET_REG_YA(uint32_t value)
 	(FLAG_H& HFLAG_SET)     |   \
 	FLAG_I                  |   \
 	((!FLAG_Z) << 1)        |   \
-	CFLAG_AS_1())
+	CFLAG_1())
 
 /* Set the Process Status Register */
 void spc700_device::SET_REG_P(uint32_t value)
@@ -512,8 +527,8 @@ void spc700_device::SET_FLAG_I(uint32_t value)
 /* ======================================================================== */
 
 #define SUBOP_ADC(A, B)                     \
-	m_spc_int16 = (A) + (B) + CFLAG_AS_1();         \
-	TMP1 = ((A) & 0x0f) + (CFLAG_AS_1());           \
+	m_spc_int16 = (A) + (B) + CFLAG_1();         \
+	TMP1 = ((A) & 0x0f) + (CFLAG_1());           \
 	FLAG_C  = (m_spc_int16 > 0xff) ? CFLAG_SET : 0;     \
 	FLAG_V =  (~((A) ^ (B))) & (((A) ^ m_spc_int16) & 0x80); \
 	FLAG_H = (((m_spc_int16 & 0x0f) - TMP1) & 0x10) >> 1;   \
@@ -895,7 +910,7 @@ void spc700_device::SET_FLAG_I(uint32_t value)
 			CLK(BCLK);                                                      \
 			DST     = EA_##MODE();                                          \
 			FLAG_NZ = read_8_##MODE(DST);                                   \
-			FLAG_C  = FLAG_NZ << 8;                                         \
+			FLAG_C  = FLAG_N << 8;                                          \
 			FLAG_NZ >>= 1;                                                  \
 			write_8_##MODE(DST, FLAG_NZ)
 
@@ -1067,14 +1082,14 @@ void spc700_device::SET_FLAG_I(uint32_t value)
 /* Rotate Left the accumulator */
 #define OP_ROL(BCLK)                                                        \
 			CLK(BCLK);                                                      \
-			FLAG_C  = (REG_A<<1) | CFLAG_AS_1();                            \
+			FLAG_C  = (REG_A<<1) | CFLAG_1();                            \
 			FLAG_NZ = REG_A = MAKE_UINT_8(FLAG_C)
 
 /* Rotate Left an operand */
 #define OP_ROLM(BCLK, MODE)                                                 \
 			CLK(BCLK);                                                      \
 			DST     = EA_##MODE();                                          \
-			FLAG_C  = (read_8_##MODE(DST)<<1) | CFLAG_AS_1();               \
+			FLAG_C  = (read_8_##MODE(DST)<<1) | CFLAG_1();               \
 			FLAG_NZ = MAKE_UINT_8(FLAG_C);                                  \
 			write_8_##MODE(DST, FLAG_NZ)
 
@@ -1090,7 +1105,7 @@ void spc700_device::SET_FLAG_I(uint32_t value)
 			CLK(BCLK);                                                      \
 			DST     = EA_##MODE();                                          \
 			FLAG_NZ = read_8_##MODE(DST) | (FLAG_C & 0x100);                \
-			FLAG_C  = FLAG_NZ << 8;                                         \
+			FLAG_C  = FLAG_N << 8;                                          \
 			FLAG_NZ >>= 1;                                                  \
 			write_8_##MODE(DST, FLAG_NZ)
 
@@ -1098,7 +1113,7 @@ void spc700_device::SET_FLAG_I(uint32_t value)
 #define OP_SBC(BCLK, MODE)                  \
 			CLK(BCLK);              \
 			SRC     = OPER_8_##MODE();      \
-			TMP2 = REG_A - SRC - (CFLAG_AS_1() ^ 1); \
+			TMP2 = REG_A - SRC - (CFLAG_1() ^ 1); \
 			SUBOP_ADC(REG_A, ~SRC);         \
 			FLAG_C = (TMP2 <= 0xff) ? CFLAG_SET : 0; \
 			REG_A = (uint8_t)m_spc_int16;
@@ -1109,7 +1124,7 @@ void spc700_device::SET_FLAG_I(uint32_t value)
 			SRC     = OPER_8_##SMODE();     \
 			DST     = EA_##DMODE();         \
 			TMP3 = read_8_##DMODE(DST);     \
-			TMP2 = TMP3 - SRC - (CFLAG_AS_1() ^ 1); \
+			TMP2 = TMP3 - SRC - (CFLAG_1() ^ 1); \
 			SUBOP_ADC(~SRC, TMP3);          \
 			FLAG_C = (TMP2 <= 0xff) ? CFLAG_SET : 0; \
 			write_8_##DMODE(DST, (uint8_t)m_spc_int16)
@@ -1171,16 +1186,18 @@ void spc700_device::SET_FLAG_I(uint32_t value)
 			CLK(BCLK);                                                      \
 			DST     = EA_##MODE();                                          \
 			FLAG_NZ = read_8_##MODE(DST);                                   \
-			write_8_##MODE(DST, FLAG_NZ & ~REG_A);                          \
-			FLAG_NZ &= REG_A
+			m_spc_int16 = (short)REG_A - (short)(read_8_##MODE(DST)); \
+			write_8_##MODE(DST, FLAG_NZ & ~REG_A); \
+			FLAG_NZ = MAKE_UINT_8(m_spc_int16);
 
 /* Test and Set Bits */
 #define OP_TSET1(BCLK, MODE)                                                \
 			CLK(BCLK);                                                      \
 			DST     = EA_##MODE();                                          \
 			FLAG_NZ = read_8_##MODE(DST);                                   \
-			write_8_##MODE(DST, FLAG_NZ | REG_A);                           \
-			FLAG_NZ &= REG_A
+		m_spc_int16 = (short)REG_A - (short)(read_8_##MODE(DST)); \
+		write_8_##MODE(DST, FLAG_NZ | REG_A); \
+		FLAG_NZ = MAKE_UINT_8(m_spc_int16);
 
 /* Exchange high and low nybbles of accumulator */
 #define OP_XCN(BCLK)                                                        \
@@ -1240,7 +1257,7 @@ void spc700_device::device_start()
 	state_add(STATE_GENSP, "GENSP", m_debugger_temp).mask(0x1ff).callexport().formatstr("%04X").noshow();
 	state_add(STATE_GENFLAGS, "GENFLAGS",  m_debugger_temp).formatstr("%8s").noshow();
 
-	m_icountptr = &m_ICount;
+	set_icountptr(m_ICount);
 }
 
 
@@ -1250,14 +1267,14 @@ void spc700_device::state_string_export(const device_state_entry &entry, std::st
 	{
 		case STATE_GENFLAGS:
 			str = string_format("%c%c%c%c%c%c%c%c",
-				(m_flag_n & 0x80)        ? 'N':'.',
-				((m_flag_v & 0x80) >> 1) ? 'V':'.',
-				(m_flag_p>>3)            ? 'P':'.',
-				(m_flag_b)               ? 'B':'.',
-				(m_flag_h & HFLAG_SET)   ? 'H':'.',
-				( m_flag_i)              ? 'I':'.',
-				((!m_flag_z) << 1)       ? 'Z':'.',
-				((m_flag_c >> 8)&1)      ? 'C':'.'
+				(FLAG_N & 0x80)      ? 'N':'.',
+				(FLAG_V & 0x80)      ? 'V':'.',
+				(FLAG_P)             ? 'P':'.',
+				(FLAG_B)             ? 'B':'.',
+				(FLAG_H & HFLAG_SET) ? 'H':'.',
+				(FLAG_I)             ? 'I':'.',
+				(!FLAG_Z)            ? 'Z':'.',
+				(FLAG_C & 0x100)     ? 'C':'.'
 			);
 			break;
 	}
@@ -1280,14 +1297,14 @@ void spc700_device::state_export(const device_state_entry &entry)
 	switch (entry.index())
 	{
 		case SPC700_P:
-			m_debugger_temp = ((m_flag_n & 0x80)          |
-					((m_flag_v & 0x80) >> 1)    |
-					m_flag_p>>3             |
-					m_flag_b                    |
-					(m_flag_h & HFLAG_SET)  |
-					m_flag_i                    |
-					((!m_flag_z) << 1)      |
-					((m_flag_c >> 8)&1));
+			m_debugger_temp = ((FLAG_N & 0x80)          |
+					((FLAG_V & 0x80) >> 1)    |
+					FLAG_P>>3             |
+					FLAG_B                    |
+					(FLAG_H & HFLAG_SET)  |
+					FLAG_I                    |
+					((!FLAG_Z) << 1)      |
+					((FLAG_C >> 8)&1));
 			break;
 
 		case STATE_GENSP:
@@ -1344,9 +1361,9 @@ void spc700_device::execute_set_input( int inptnum, int state )
 
 #include "spc700ds.h"
 
-offs_t spc700_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> spc700_device::create_disassembler()
 {
-	return CPU_DISASSEMBLE_NAME(spc700)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<spc700_disassembler>();
 }
 
 //int dump_flag = 0;
@@ -1362,7 +1379,7 @@ void spc700_device::execute_run()
 	while(CLOCKS > 0)
 	{
 		REG_PPC = REG_PC;
-		debugger_instruction_hook(this, REG_PC);
+		debugger_instruction_hook(REG_PC);
 		REG_PC++;
 
 		switch(REG_IR = read_8_immediate(REG_PPC))

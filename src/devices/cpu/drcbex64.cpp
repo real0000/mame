@@ -166,7 +166,7 @@
 
 ***************************************************************************/
 
-#include <stddef.h>
+#include <cstddef>
 #include "emu.h"
 #include "debugger.h"
 #include "emuopts.h"
@@ -544,9 +544,10 @@ inline void drcbe_x64::normalize_commutative(be_parameter &inner, be_parameter &
 
 inline int32_t drcbe_x64::offset_from_rbp(const void *ptr)
 {
-	int64_t delta = reinterpret_cast<uint8_t *>(const_cast<void *>(ptr)) - m_rbpvalue;
-	assert_always((int32_t)delta == delta, "offset_from_rbp: delta out of range");
-	return (int32_t)delta;
+	const int64_t delta = reinterpret_cast<const uint8_t *>(ptr) - m_rbpvalue;
+	if (int32_t(delta) != delta)
+		throw emu_fatalerror("drcbe_x64::offset_from_rbp: delta out of range");
+	return int32_t(delta);
 }
 
 
@@ -558,7 +559,7 @@ inline int32_t drcbe_x64::offset_from_rbp(const void *ptr)
 
 inline int drcbe_x64::get_base_register_and_offset(x86code *&dst, void *target, uint8_t reg, int32_t &offset)
 {
-	int64_t delta = (uint8_t *)target - m_rbpvalue;
+	const int64_t delta = reinterpret_cast<uint8_t *>(target) - m_rbpvalue;
 	if (short_immediate(delta))
 	{
 		offset = delta;
@@ -567,7 +568,7 @@ inline int drcbe_x64::get_base_register_and_offset(x86code *&dst, void *target, 
 	else
 	{
 		offset = 0;
-		emit_mov_r64_imm(dst, reg, (uintptr_t)target);                                       // mov   reg,target
+		emit_mov_r64_imm(dst, reg, uintptr_t(target));                                       // mov   reg,target
 		return reg;
 	}
 }
@@ -580,12 +581,12 @@ inline int drcbe_x64::get_base_register_and_offset(x86code *&dst, void *target, 
 
 inline void drcbe_x64::emit_smart_call_r64(x86code *&dst, x86code *target, uint8_t reg)
 {
-	int64_t delta = target - (dst + 5);
+	const int64_t delta = target - (dst + 5);
 	if (short_immediate(delta))
 		emit_call(dst, target);                                                         // call  target
 	else
 	{
-		emit_mov_r64_imm(dst, reg, (uintptr_t)target);                                       // mov   reg,target
+		emit_mov_r64_imm(dst, reg, uintptr_t(target));                                  // mov   reg,target
 		emit_call_r64(dst, reg);                                                        // call  reg
 	}
 }
@@ -598,7 +599,7 @@ inline void drcbe_x64::emit_smart_call_r64(x86code *&dst, x86code *target, uint8
 
 inline void drcbe_x64::emit_smart_call_m64(x86code *&dst, x86code **target)
 {
-	int64_t delta = *target - (dst + 5);
+	const int64_t delta = *target - (dst + 5);
 	if (short_immediate(delta))
 		emit_call(dst, *target);                                                        // call  *target
 	else
@@ -618,7 +619,7 @@ inline void drcbe_x64::emit_smart_call_m64(x86code *&dst, x86code **target)
 drcbe_x64::drcbe_x64(drcuml_state &drcuml, device_t &device, drc_cache &cache, uint32_t flags, int modes, int addrbits, int ignorebits)
 	: drcbe_interface(drcuml, cache, device),
 		m_hash(cache, modes, addrbits, ignorebits),
-		m_map(cache, 0),
+		m_map(cache, 0xaaaaaaaa5555),
 		m_labels(cache),
 		m_log(nullptr),
 		m_sse41(false),
@@ -635,10 +636,10 @@ drcbe_x64::drcbe_x64(drcuml_state &drcuml, device_t &device, drc_cache &cache, u
 	// build up necessary arrays
 	static const uint32_t sse_control[4] =
 	{
-		0xffc0,     // ROUND_TRUNC
-		0x9fc0,     // ROUND_ROUND
-		0xdfc0,     // ROUND_CEIL
-		0xbfc0      // ROUND_FLOOR
+		0xff80,     // ROUND_TRUNC
+		0x9f80,     // ROUND_ROUND
+		0xdf80,     // ROUND_CEIL
+		0xbf80      // ROUND_FLOOR
 	};
 	memcpy(m_near.ssecontrol, sse_control, sizeof(m_near.ssecontrol));
 	m_near.single1 = 1.0f;
@@ -651,7 +652,9 @@ drcbe_x64::drcbe_x64(drcuml_state &drcuml, device_t &device, drc_cache &cache, u
 	m_absmask64[0] = m_absmask64[1] = 0x7fffffffffffffffU;
 
 	// get pointers to C functions we need to call
-	m_near.debug_cpu_instruction_hook = (x86code *)debugger_instruction_hook;
+	using debugger_hook_func = void (*)(device_debug *, offs_t);
+	static const debugger_hook_func debugger_inst_hook = [] (device_debug *dbg, offs_t pc) { dbg->instruction_hook(pc); }; // TODO: kill trampoline if possible
+	m_near.debug_cpu_instruction_hook = (x86code *)debugger_inst_hook;
 	if (LOG_HASHJMPS)
 	{
 		m_near.debug_log_hashjmp = (x86code *)debug_log_hashjmp;
@@ -2797,17 +2800,17 @@ void drcbe_x64::op_debug(x86code *&dst, const instruction &inst)
 		be_parameter pcp(*this, inst.param(0), PTYPE_MRI);
 
 		// test and branch
-		emit_mov_r64_imm(dst, REG_RAX, (uintptr_t)&m_device.machine().debug_flags);          // mov   rax,&debug_flags
+		emit_mov_r64_imm(dst, REG_RAX, (uintptr_t)&m_device.machine().debug_flags);     // mov   rax,&debug_flags
 		emit_test_m32_imm(dst, MBD(REG_RAX, 0), DEBUG_FLAG_CALL_HOOK);                  // test  [debug_flags],DEBUG_FLAG_CALL_HOOK
 		emit_link skip = { nullptr };
 		emit_jcc_short_link(dst, x64emit::COND_Z, skip);                                // jz    skip
 
 		// push the parameter
-		emit_mov_r64_imm(dst, REG_PARAM1, (uintptr_t)&m_device);                             // mov   param1,device
+		emit_mov_r64_imm(dst, REG_PARAM1, (uintptr_t)m_device.debug());                 // mov   param1,device.debug
 		emit_mov_r32_p32(dst, REG_PARAM2, pcp);                                         // mov   param2,pcp
 		emit_smart_call_m64(dst, &m_near.debug_cpu_instruction_hook);                   // call  debug_cpu_instruction_hook
 
-		resolve_link(dst, skip);                                                    // skip:
+		resolve_link(dst, skip);                                                        // skip:
 	}
 }
 

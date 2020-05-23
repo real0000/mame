@@ -10,6 +10,8 @@
 #include "includes/abc80x.h"
 #include "screen.h"
 
+//#define VERBOSE 1
+#include "logmacro.h"
 
 
 #define HORIZONTAL_PORCH_HACK   109
@@ -21,22 +23,24 @@
 //  hrs_w - high resolution memory banking
 //-------------------------------------------------
 
-WRITE8_MEMBER( abc806_state::hrs_w )
+void abc806_state::hrs_w(uint8_t data)
 {
 	/*
 
 	    bit     signal  description
 
-	    0       VM14    visible screen memory area bit 0
-	    1       VM15    visible screen memory area bit 1
-	    2       VM16    visible screen memory area bit 2
-	    3       VM17    visible screen memory area bit 3
-	    4       F14     cpu accessible screen memory area bit 0
-	    5       F15     cpu accessible screen memory area bit 1
-	    6       F16     cpu accessible screen memory area bit 2
-	    7       F17     cpu accessible screen memory area bit 3
+	    0       VM15    visible screen memory area bit 0
+	    1       VM16    visible screen memory area bit 1
+	    2       VM17    visible screen memory area bit 2
+	    3       VM18    visible screen memory area bit 3
+	    4       F15     cpu accessible screen memory area bit 0
+	    5       F16     cpu accessible screen memory area bit 1
+	    6       F17     cpu accessible screen memory area bit 2
+	    7       F18     cpu accessible screen memory area bit 3
 
 	*/
+
+	LOG("%s HRS %02x\n", machine().describe_context(), data);
 
 	m_hrs = data;
 }
@@ -46,7 +50,7 @@ WRITE8_MEMBER( abc806_state::hrs_w )
 //  hrc_w - high resolution color write
 //-------------------------------------------------
 
-WRITE8_MEMBER( abc806_state::hrc_w )
+void abc806_state::hrc_w(offs_t offset, uint8_t data)
 {
 	int reg = (offset >> 8) & 0x0f;
 
@@ -58,9 +62,10 @@ WRITE8_MEMBER( abc806_state::hrc_w )
 //  charram_r - character RAM read
 //-------------------------------------------------
 
-READ8_MEMBER( abc806_state::charram_r )
+uint8_t abc806_state::charram_r(offs_t offset)
 {
-	m_attr_data = m_attr_ram[offset];
+	if (!machine().side_effects_disabled())
+		m_attr_data = m_attr_ram[offset];
 
 	return m_char_ram[offset];
 }
@@ -70,9 +75,10 @@ READ8_MEMBER( abc806_state::charram_r )
 //  charram_w - character RAM write
 //-------------------------------------------------
 
-WRITE8_MEMBER( abc806_state::charram_w )
+void abc806_state::charram_w(offs_t offset, uint8_t data)
 {
-	m_attr_ram[offset] = m_attr_data;
+	if (!machine().side_effects_disabled())
+		m_attr_ram[offset] = m_attr_data;
 
 	m_char_ram[offset] = data;
 }
@@ -82,7 +88,7 @@ WRITE8_MEMBER( abc806_state::charram_w )
 //  ami_r - attribute memory read
 //-------------------------------------------------
 
-READ8_MEMBER( abc806_state::ami_r )
+uint8_t abc806_state::ami_r()
 {
 	return m_attr_data;
 }
@@ -92,7 +98,7 @@ READ8_MEMBER( abc806_state::ami_r )
 //  amo_w - attribute memory write
 //-------------------------------------------------
 
-WRITE8_MEMBER( abc806_state::amo_w )
+void abc806_state::amo_w(uint8_t data)
 {
 	m_attr_data = data;
 }
@@ -102,7 +108,7 @@ WRITE8_MEMBER( abc806_state::amo_w )
 //  cli_r - palette PROM read
 //-------------------------------------------------
 
-READ8_MEMBER( abc806_state::cli_r )
+uint8_t abc806_state::cli_r(offs_t offset)
 {
 	/*
 
@@ -122,7 +128,7 @@ READ8_MEMBER( abc806_state::cli_r )
 	uint16_t hru2_addr = (m_hru2_a8 << 8) | (offset >> 8);
 	uint8_t data = m_hru2_prom->base()[hru2_addr] & 0x0f;
 
-	logerror("HRU II %03x : %01x\n", hru2_addr, data);
+	LOG("HRU II %03x : %01x\n", hru2_addr, data);
 
 	data |= m_rtc->dio_r() << 7;
 
@@ -134,7 +140,7 @@ READ8_MEMBER( abc806_state::cli_r )
 //  sti_r - protection device read
 //-------------------------------------------------
 
-READ8_MEMBER( abc806_state::sti_r )
+uint8_t abc806_state::sti_r()
 {
 	/*
 
@@ -159,7 +165,7 @@ READ8_MEMBER( abc806_state::sti_r )
 //  sto_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( abc806_state::sto_w )
+void abc806_state::sto_w(uint8_t data)
 {
 	int level = BIT(data, 7);
 
@@ -167,6 +173,7 @@ WRITE8_MEMBER( abc806_state::sto_w )
 	{
 	case 0:
 		// external memory enable
+		LOG("%s EME %u\n", machine().describe_context(), level);
 		m_eme = level;
 		break;
 	case 1:
@@ -204,7 +211,7 @@ WRITE8_MEMBER( abc806_state::sto_w )
 //  sso_w - sync offset write
 //-------------------------------------------------
 
-WRITE8_MEMBER( abc806_state::sso_w )
+void abc806_state::sso_w(uint8_t data)
 {
 	m_sync = data & 0x3f;
 }
@@ -414,20 +421,12 @@ void abc806_state::hr_update(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 
 void abc806_state::video_start()
 {
-	// initialize variables
-	for (auto & elem : m_hrc)
-	{
-		elem = 0;
-	}
-
-	m_sync = 10;
-	m_d_vsync = 1;
-	m_vsync = 1;
-	m_40 = 1;
-
 	// allocate memory
-	m_char_ram.allocate(ABC806_CHAR_RAM_SIZE);
-	m_attr_ram.allocate(ABC806_ATTR_RAM_SIZE);
+	m_char_ram.allocate(m_char_ram_size);
+	m_attr_ram.allocate(m_char_ram_size);
+
+	uint32_t videoram_size = m_ram->size() - 0x8000;
+	m_video_ram.allocate(videoram_size);
 
 	// register for state saving
 	save_item(NAME(m_txoff));
@@ -443,6 +442,17 @@ void abc806_state::video_start()
 	save_item(NAME(m_vsync_shift));
 	save_item(NAME(m_vsync));
 	save_item(NAME(m_d_vsync));
+
+	// initialize variables
+	for (auto & elem : m_hrc)
+	{
+		elem = 0;
+	}
+
+	m_sync = 10;
+	m_d_vsync = 1;
+	m_vsync = 1;
+	m_40 = 1;
 }
 
 
@@ -472,35 +482,36 @@ uint32_t abc806_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap
 //  PALETTE_INIT( abc806 )
 //-------------------------------------------------
 
-PALETTE_INIT_MEMBER( abc806_state, abc806 )
+void abc806_state::abc806_palette(palette_device &palette) const
 {
-	palette.set_pen_color(0, rgb_t(0x00, 0x00, 0x00)); // black
+	palette.set_pen_color(0, rgb_t::black());
 	palette.set_pen_color(1, rgb_t(0xff, 0x00, 0x00)); // red
-	palette.set_pen_color(2, rgb_t(0x00, 0xff, 0x00)); // green
+	palette.set_pen_color(2, rgb_t::green());
 	palette.set_pen_color(3, rgb_t(0xff, 0xff, 0x00)); // yellow
 	palette.set_pen_color(4, rgb_t(0x00, 0x00, 0xff)); // blue
 	palette.set_pen_color(5, rgb_t(0xff, 0x00, 0xff)); // magenta
 	palette.set_pen_color(6, rgb_t(0x00, 0xff, 0xff)); // cyan
-	palette.set_pen_color(7, rgb_t(0xff, 0xff, 0xff)); // white
+	palette.set_pen_color(7, rgb_t::white());
 }
 
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( abc806_video )
+//  machine_config( abc806_video )
 //-------------------------------------------------
 
-MACHINE_CONFIG_FRAGMENT( abc806_video )
-	MCFG_MC6845_ADD(MC6845_TAG, MC6845, SCREEN_TAG, ABC800_CCLK)
-	MCFG_MC6845_SHOW_BORDER_AREA(true)
-	MCFG_MC6845_CHAR_WIDTH(ABC800_CHAR_WIDTH)
-	MCFG_MC6845_UPDATE_ROW_CB(abc806_state, abc806_update_row)
-	MCFG_MC6845_OUT_HSYNC_CB(WRITELINE(abc806_state, hs_w))
-	MCFG_MC6845_OUT_VSYNC_CB(WRITELINE(abc806_state, vs_w))
+void abc806_state::abc806_video(machine_config &config)
+{
+	MC6845(config, m_crtc, ABC800_CCLK);
+	m_crtc->set_screen(SCREEN_TAG);
+	m_crtc->set_show_border_area(true);
+	m_crtc->set_char_width(ABC800_CHAR_WIDTH);
+	m_crtc->set_update_row_callback(FUNC(abc806_state::abc806_update_row));
+	m_crtc->out_hsync_callback().set(FUNC(abc806_state::hs_w));
+	m_crtc->out_vsync_callback().set(FUNC(abc806_state::vs_w));
 
-	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
-	MCFG_SCREEN_UPDATE_DRIVER(abc806_state, screen_update)
-	MCFG_SCREEN_RAW_PARAMS(XTAL_12MHz, 0x300, 0, 0x1e0, 0x13a, 0, 0xfa)
+	screen_device &screen(SCREEN(config, SCREEN_TAG, SCREEN_TYPE_RASTER));
+	screen.set_screen_update(FUNC(abc806_state::screen_update));
+	screen.set_raw(XTAL(12'000'000), 0x300, 0, 0x1e0, 0x13a, 0, 0xfa);
 
-	MCFG_PALETTE_ADD("palette", 8)
-	MCFG_PALETTE_INIT_OWNER(abc806_state, abc806)
-MACHINE_CONFIG_END
+	PALETTE(config, m_palette, FUNC(abc806_state::abc806_palette), 8);
+}

@@ -5,9 +5,10 @@
 //  disasmviewinfo.h - Win32 debug window handling
 //
 //============================================================
+#ifndef MAME_DEBUGGER_WIN_DISASMVIEWINFO_H
+#define MAME_DEBUGGER_WIN_DISASMVIEWINFO_H
 
-#ifndef __DEBUG_WIN_DISASM_VIEW_INFO_H__
-#define __DEBUG_WIN_DISASM_VIEW_INFO_H__
+#pragma once
 
 #include "debugwin.h"
 
@@ -25,8 +26,8 @@ public:
 	disasm_right_column right_column() const;
 	offs_t selected_address() const;
 
-	void set_expression(const char *expression);
+	void set_expression(const std::string &expression);
 	void set_right_column(disasm_right_column contents);
 };
 
-#endif
+#endif // MAME_DEBUGGER_WIN_DISASMVIEWINFO_H

@@ -18,6 +18,193 @@
 #include "coreutil.h"
 
 
+#define S3C44B0_INTCON    (0x00 / 4) // Interrupt Control
+#define S3C44B0_INTPND    (0x04 / 4) // Interrupt Request Status
+#define S3C44B0_INTMOD    (0x08 / 4) // Interrupt Mode Control
+#define S3C44B0_INTMSK    (0x0C / 4) // Interrupt Mask Control
+#define S3C44B0_I_PSLV    (0x10 / 4)
+#define S3C44B0_I_PMST    (0x14 / 4)
+#define S3C44B0_I_CSLV    (0x18 / 4)
+#define S3C44B0_I_CMST    (0x1C / 4)
+#define S3C44B0_I_ISPR    (0x20 / 4)
+#define S3C44B0_I_ISPC    (0x24 / 4)
+#define S3C44B0_F_ISPR    (0x38 / 4)
+#define S3C44B0_F_ISPC    (0x3C / 4)
+
+#define S3C44B0_DCON      (0x00 / 4) // DMA Control
+#define S3C44B0_DISRC     (0x04 / 4) // DMA Initial Source
+#define S3C44B0_DIDST     (0x08 / 4) // DMA Initial Destination
+#define S3C44B0_DICNT     (0x0C / 4) // DMA Initial Transfer Count
+#define S3C44B0_DCSRC     (0x10 / 4) // DMA Current Source Address
+#define S3C44B0_DCDST     (0x14 / 4) // DMA Current Destination Address
+#define S3C44B0_DCCNT     (0x18 / 4) // DMA Current Transfer Count
+
+#define S3C44B0_PLLCON   (0x00 / 4) // PLL Control
+#define S3C44B0_CLKCON   (0x04 / 4) // Clock Generator Control
+#define S3C44B0_CLKSLOW  (0x08 / 4) // Slow Clock Control
+#define S3C44B0_LOCKTIME (0x0C / 4) // PLL lock time Counter
+
+#define S3C44B0_LCDCON1   (0x00 / 4) // LCD Control 1
+#define S3C44B0_LCDCON2   (0x04 / 4) // LCD Control 2
+#define S3C44B0_LCDSADDR1 (0x08 / 4) // Frame Buffer Start Address 1
+#define S3C44B0_LCDSADDR2 (0x0C / 4) // Frame Buffer Start Address 2
+#define S3C44B0_LCDSADDR3 (0x10 / 4) // Virtual Screen Address Set
+#define S3C44B0_REDLUT    (0x14 / 4) // STN: Red Lookup Table
+#define S3C44B0_GREENLUT  (0x18 / 4) // STN: Green Lookup Table
+#define S3C44B0_BLUELUT   (0x1C / 4) // STN: Blue Lookup Table
+#define S3C44B0_LCDCON3   (0x40 / 4) // LCD Control 3
+#define S3C44B0_DITHMODE  (0x44 / 4) // STN: Dithering Mode
+
+#define S3C44B0_ULCON   (0x00 / 4) // UART Line Control
+#define S3C44B0_UCON    (0x04 / 4) // UART Control
+#define S3C44B0_UFCON   (0x08 / 4) // UART FIFO Control
+#define S3C44B0_UMCON   (0x0C / 4) // UART Modem Control
+#define S3C44B0_UTRSTAT (0x10 / 4) // UART Tx/Rx Status
+#define S3C44B0_UERSTAT (0x14 / 4) // UART Rx Error Status
+#define S3C44B0_UFSTAT  (0x18 / 4) // UART FIFO Status
+#define S3C44B0_UMSTAT  (0x1C / 4) // UART Modem Status
+#define S3C44B0_UTXH    (0x20 / 4) // UART Transmission Hold
+#define S3C44B0_URXH    (0x24 / 4) // UART Receive Buffer
+#define S3C44B0_UBRDIV  (0x28 / 4) // UART Baud Rate Divisor
+
+#define S3C44B0_WTCON (0x00 / 4) // Watchdog Timer Mode
+#define S3C44B0_WTDAT (0x04 / 4) // Watchdog Timer Data
+#define S3C44B0_WTCNT (0x08 / 4) // Watchdog Timer Count
+
+#define S3C44B0_TCFG0  (0x00 / 4) // Timer Configuration
+#define S3C44B0_TCFG1  (0x04 / 4) // Timer Configuration
+#define S3C44B0_TCON   (0x08 / 4) // Timer Control
+#define S3C44B0_TCNTB0 (0x0C / 4) // Timer Count Buffer 0
+#define S3C44B0_TCMPB0 (0x10 / 4) // Timer Compare Buffer 0
+#define S3C44B0_TCNTO0 (0x14 / 4) // Timer Count Observation 0
+#define S3C44B0_TCNTB1 (0x18 / 4) // Timer Count Buffer 1
+#define S3C44B0_TCMPB1 (0x1C / 4) // Timer Compare Buffer 1
+#define S3C44B0_TCNTO1 (0x20 / 4) // Timer Count Observation 1
+#define S3C44B0_TCNTB2 (0x24 / 4) // Timer Count Buffer 2
+#define S3C44B0_TCMPB2 (0x28 / 4) // Timer Compare Buffer 2
+#define S3C44B0_TCNTO2 (0x2C / 4) // Timer Count Observation 2
+#define S3C44B0_TCNTB3 (0x30 / 4) // Timer Count Buffer 3
+#define S3C44B0_TCMPB3 (0x34 / 4) // Timer Compare Buffer 3
+#define S3C44B0_TCNTO3 (0x38 / 4) // Timer Count Observation 3
+#define S3C44B0_TCNTB4 (0x3C / 4) // Timer Count Buffer 4
+#define S3C44B0_TCMPB4 (0x40 / 4) // Timer Compare Buffer 4
+#define S3C44B0_TCNTO4 (0x44 / 4) // Timer Count Observation 4
+#define S3C44B0_TCNTB5 (0x48 / 4) // Timer Count Buffer 5
+#define S3C44B0_TCNTO5 (0x4C / 4) // Timer Count Observation 5
+
+#define S3C44B0_IICCON  (0x00 / 4) // IIC Control
+#define S3C44B0_IICSTAT (0x04 / 4) // IIC Status
+#define S3C44B0_IICADD  (0x08 / 4) // IIC Address
+#define S3C44B0_IICDS   (0x0C / 4) // IIC Data Shift
+
+#define S3C44B0_IISCON  (0x00 / 4) // IIS Control
+#define S3C44B0_IISMOD  (0x04 / 4) // IIS Mode
+#define S3C44B0_IISPSR  (0x08 / 4) // IIS Prescaler
+#define S3C44B0_IISFCON (0x0C / 4) // IIS FIFO Control
+#define S3C44B0_IISFIFO (0x10 / 4) // IIS FIFO Entry
+
+#define S3C44B0_GPACON    (0x00 / 4) // Port A Control
+#define S3C44B0_GPADAT    (0x04 / 4) // Port A Data
+#define S3C44B0_GPBCON    (0x08 / 4) // Port B Control
+#define S3C44B0_GPBDAT    (0x0C / 4) // Port B Data
+#define S3C44B0_GPCCON    (0x10 / 4) // Port C Control
+#define S3C44B0_GPCDAT    (0x14 / 4) // Port C Data
+#define S3C44B0_GPCUP     (0x18 / 4) // Pull-up Control C
+#define S3C44B0_GPDCON    (0x1C / 4) // Port D Control
+#define S3C44B0_GPDDAT    (0x20 / 4) // Port D Data
+#define S3C44B0_GPDUP     (0x24 / 4) // Pull-up Control D
+#define S3C44B0_GPECON    (0x28 / 4) // Port E Control
+#define S3C44B0_GPEDAT    (0x2C / 4) // Port E Data
+#define S3C44B0_GPEUP     (0x30 / 4) // Pull-up Control E
+#define S3C44B0_GPFCON    (0x34 / 4) // Port F Control
+#define S3C44B0_GPFDAT    (0x38 / 4) // Port F Data
+#define S3C44B0_GPFUP     (0x3C / 4) // Pull-up Control F
+#define S3C44B0_GPGCON    (0x40 / 4) // Port G Control
+#define S3C44B0_GPGDAT    (0x44 / 4) // Port G Data
+#define S3C44B0_GPGUP     (0x48 / 4) // Pull-up Control G
+#define S3C44B0_SPUCR     (0x4C / 4) // Special Pull-up
+#define S3C44B0_EXTINT    (0x50 / 4) // External Interrupt Control
+#define S3C44B0_EXTINTPND (0x54 / 4) // External Interrupt Pending
+
+#define S3C44B0_GPADAT_MASK 0x000003FF
+#define S3C44B0_GPBDAT_MASK 0x000007FF
+#define S3C44B0_GPCDAT_MASK 0x0000FFFF
+#define S3C44B0_GPDDAT_MASK 0x000000FF
+#define S3C44B0_GPEDAT_MASK 0x000001FF
+#define S3C44B0_GPFDAT_MASK 0x000001FF
+#define S3C44B0_GPGDAT_MASK 0x000000FF
+
+#define S3C44B0_RTCCON  (0x00 / 4) // RTC Control
+#define S3C44B0_RTCALM  (0x10 / 4) // RTC Alarm Control
+#define S3C44B0_ALMSEC  (0x14 / 4) // Alarm Second
+#define S3C44B0_ALMMIN  (0x18 / 4) // Alarm Minute
+#define S3C44B0_ALMHOUR (0x1C / 4) // Alarm Hour
+#define S3C44B0_ALMDAY  (0x20 / 4) // Alarm Day
+#define S3C44B0_ALMMON  (0x24 / 4) // Alarm Month
+#define S3C44B0_ALMYEAR (0x28 / 4) // Alarm Year
+#define S3C44B0_RTCRST  (0x2C / 4) // RTC Round Reset
+#define S3C44B0_BCDSEC  (0x30 / 4) // BCD Second
+#define S3C44B0_BCDMIN  (0x34 / 4) // BCD Minute
+#define S3C44B0_BCDHOUR (0x38 / 4) // BCD Hour
+#define S3C44B0_BCDDAY  (0x3C / 4) // BCD Day
+#define S3C44B0_BCDDOW  (0x40 / 4) // BCD Day of Week
+#define S3C44B0_BCDMON  (0x44 / 4) // BCD Month
+#define S3C44B0_BCDYEAR (0x48 / 4) // BCD Year
+#define S3C44B0_TICNT   (0x4C / 4) // Tick Time count
+
+#define S3C44B0_ADCCON  (0x00 / 4) // ADC Control
+#define S3C44B0_ADCPSR  (0x04 / 4) // ADC Prescaler
+#define S3C44B0_ADCDAT  (0x08 / 4) // ADC Data
+
+#define S3C44B0_SYSCFG    (0x00 / 4) // System Configuration
+#define S3C44B0_NCACHBE0  (0x04 / 4) // Non Cacheable Area 0
+#define S3C44B0_NCACHBE1  (0x08 / 4) // Non Cacheable Area 1
+
+#define S3C44B0_INT_ADC        0
+#define S3C44B0_INT_RTC        1
+#define S3C44B0_INT_UTXD1      2
+#define S3C44B0_INT_UTXD0      3
+#define S3C44B0_INT_SIO        4
+#define S3C44B0_INT_IIC        5
+#define S3C44B0_INT_URXD1      6
+#define S3C44B0_INT_URXD0      7
+#define S3C44B0_INT_TIMER5     8
+#define S3C44B0_INT_TIMER4     9
+#define S3C44B0_INT_TIMER3    10
+#define S3C44B0_INT_TIMER2    11
+#define S3C44B0_INT_TIMER1    12
+#define S3C44B0_INT_TIMER0    13
+#define S3C44B0_INT_UERR      14
+#define S3C44B0_INT_WDT       15
+#define S3C44B0_INT_BDMA1     16
+#define S3C44B0_INT_BDMA0     17
+#define S3C44B0_INT_ZDMA1     18
+#define S3C44B0_INT_ZDMA0     19
+#define S3C44B0_INT_TICK      20
+#define S3C44B0_INT_EINT4_7   21
+#define S3C44B0_INT_EINT3     22
+#define S3C44B0_INT_EINT2     23
+#define S3C44B0_INT_EINT1     24
+#define S3C44B0_INT_EINT0     25
+
+#define S3C44B0_MODESEL_01      0
+#define S3C44B0_MODESEL_02      1
+#define S3C44B0_MODESEL_04      2
+#define S3C44B0_MODESEL_08      3
+
+#define S3C44B0_PNRMODE_STN_04_DS  0
+#define S3C44B0_PNRMODE_STN_04_SS  1
+#define S3C44B0_PNRMODE_STN_08_SS  2
+
+#define S3C44B0_GPIO_PORT_A S3C44B0_GPIO_PORT_A
+#define S3C44B0_GPIO_PORT_B S3C44B0_GPIO_PORT_B
+#define S3C44B0_GPIO_PORT_C S3C44B0_GPIO_PORT_C
+#define S3C44B0_GPIO_PORT_D S3C44B0_GPIO_PORT_D
+#define S3C44B0_GPIO_PORT_E S3C44B0_GPIO_PORT_E
+#define S3C44B0_GPIO_PORT_F S3C44B0_GPIO_PORT_F
+#define S3C44B0_GPIO_PORT_G S3C44B0_GPIO_PORT_G
+
+
 #define VERBOSE_LEVEL ( 0 )
 
 static inline void ATTR_PRINTF(3,4) verboselog( device_t &device, int n_level, const char *s_fmt, ...)
@@ -33,17 +220,19 @@ static inline void ATTR_PRINTF(3,4) verboselog( device_t &device, int n_level, c
 	}
 }
 
-const device_type S3C44B0 = device_creator<s3c44b0_device>;
+DEFINE_DEVICE_TYPE(S3C44B0, s3c44b0_device, "s3c44b0", "Samsung S3C44B0 SoC")
 
 s3c44b0_device::s3c44b0_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-				: device_t(mconfig, S3C44B0, "Samsung S3C44B0", tag, owner, clock, "s3c44b0", __FILE__), m_cpu(nullptr),
-					m_port_r_cb(*this),
-					m_port_w_cb(*this),
-					m_scl_w_cb(*this),
-					m_sda_r_cb(*this),
-					m_sda_w_cb(*this),
-					m_data_r_cb(*this),
-					m_data_w_cb(*this)
+	: device_t(mconfig, S3C44B0, tag, owner, clock)
+	, device_video_interface(mconfig, *this)
+	, m_cpu(*this, finder_base::DUMMY_TAG)
+	, m_port_r_cb(*this)
+	, m_port_w_cb(*this)
+	, m_scl_w_cb(*this)
+	, m_sda_r_cb(*this)
+	, m_sda_w_cb(*this)
+	, m_data_r_cb(*this)
+	, m_data_w_cb(*this)
 {
 	memset(&m_irq, 0, sizeof(s3c44b0_irq_t));
 	memset(m_zdma, 0, sizeof(s3c44b0_dma_t)*2);
@@ -67,8 +256,6 @@ s3c44b0_device::s3c44b0_device(const machine_config &mconfig, const char *tag, d
 
 void s3c44b0_device::device_start()
 {
-	m_cpu = machine().device<cpu_device>("maincpu");
-
 	m_port_r_cb.resolve();
 	m_port_w_cb.resolve();
 	m_scl_w_cb.resolve();
@@ -77,6 +264,7 @@ void s3c44b0_device::device_start()
 	m_data_r_cb.resolve_safe(0);
 	m_data_w_cb.resolve();
 
+	m_cache = m_cpu->space(AS_PROGRAM).cache<2, 0, ENDIANNESS_LITTLE>();
 
 	for (int i = 0; i < 6; i++) m_pwm.timer[i] = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(s3c44b0_device::pwm_timer_exp),this));
 	for (auto & elem : m_uart) elem.timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(s3c44b0_device::uart_timer_exp),this));
@@ -142,8 +330,6 @@ void s3c44b0_device::device_start()
 	save_item(NAME(m_lcd.vpos_max));
 	save_item(NAME(m_lcd.vpos_end));
 	save_item(NAME(m_lcd.frame_time));
-
-	machine().save().register_postload(save_prepost_delegate(FUNC(s3c44b0_device::s3c44b0_postload), this));
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -257,7 +443,13 @@ void s3c44b0_device::device_start()
 }
 
 
-void s3c44b0_device::s3c44b0_postload()
+//-------------------------------------------------
+//  device_post_load - called after the loading a
+//  saved state, so that registered variables can
+//  be expaneded as necessary
+//-------------------------------------------------
+
+void s3c44b0_device::device_post_load()
 {
 	m_lcd.frame_period = HZ_TO_ATTOSECONDS(m_lcd.framerate);
 	m_lcd.scantime = m_lcd.frame_period / m_lcd.vpos_end;
@@ -345,27 +537,25 @@ void s3c44b0_device::lcd_dma_init()
 
 void s3c44b0_device::lcd_dma_read(int count, uint8_t *data)
 {
-	address_space &space = m_cpu->space(AS_PROGRAM);
-	uint8_t *vram = (uint8_t *)space.get_read_ptr(m_lcd.vramaddr_cur);
 	for (int i = 0; i < count / 2; i++)
 	{
 		if (m_lcd.bswp == 0)
 		{
 			if ((m_lcd.vramaddr_cur & 2) == 0)
 			{
-				data[0] = *(vram + 3);
-				data[1] = *(vram + 2);
+				data[0] = m_cache->read_byte(m_lcd.vramaddr_cur + 3);
+				data[1] = m_cache->read_byte(m_lcd.vramaddr_cur + 2);
 			}
 			else
 			{
-				data[0] = *(vram - 1);
-				data[1] = *(vram - 2);
+				data[0] = m_cache->read_byte(m_lcd.vramaddr_cur - 1);
+				data[1] = m_cache->read_byte(m_lcd.vramaddr_cur - 2);
 			}
 		}
 		else
 		{
-			data[0] = *(vram + 0);
-			data[1] = *(vram + 1);
+			data[0] = m_cache->read_byte(m_lcd.vramaddr_cur + 0);
+			data[1] = m_cache->read_byte(m_lcd.vramaddr_cur + 1);
 		}
 		m_lcd.vramaddr_cur += 2;
 		m_lcd.pagewidth_cur++;
@@ -377,11 +567,6 @@ void s3c44b0_device::lcd_dma_read(int count, uint8_t *data)
 				lcd_dma_reload();
 			}
 			m_lcd.pagewidth_cur = 0;
-			vram = (uint8_t *)space.get_read_ptr(m_lcd.vramaddr_cur);
-		}
-		else
-		{
-			vram += 2;
 		}
 		data += 2;
 	}
@@ -559,7 +744,6 @@ READ32_MEMBER( s3c44b0_device::lcd_r )
 
 void s3c44b0_device::lcd_configure()
 {
-	screen_device *screen = machine().first_screen();
 	int dismode, clkval, lineval, wdly, hozval, lineblank, wlh, mclk;
 	double vclk, framerate;
 	int width, height;
@@ -588,7 +772,7 @@ void s3c44b0_device::lcd_configure()
 	height = lineval + 1;
 	m_lcd.framerate = framerate;
 	verboselog( *this, 3, "video_screen_configure %d %d %f\n", width, height, m_lcd.framerate);
-	screen->configure(screen->width(), screen->height(), screen->visible_area(), HZ_TO_ATTOSECONDS(m_lcd.framerate));
+	screen().configure(screen().width(), screen().height(), screen().visible_area(), HZ_TO_ATTOSECONDS(m_lcd.framerate));
 	m_lcd.hpos_min = 25;
 	m_lcd.hpos_max = 25 + width - 1;
 	m_lcd.hpos_end = 25 + width - 1 + 25;
@@ -612,13 +796,12 @@ void s3c44b0_device::lcd_configure()
 
 void s3c44b0_device::lcd_start()
 {
-	screen_device *screen = machine().first_screen();
 	verboselog( *this, 1, "LCD start\n");
 	lcd_configure();
 	lcd_dma_init();
 	m_lcd.vpos = m_lcd.vpos_min;
 	m_lcd.hpos = m_lcd.hpos_min;
-	m_lcd.frame_time = screen->time_until_pos( 0, 0);
+	m_lcd.frame_time = screen().time_until_pos( 0, 0);
 	m_lcd.timer->adjust(m_lcd.frame_time, 0);
 	m_lcd.frame_time = machine().time() + m_lcd.frame_time;
 }

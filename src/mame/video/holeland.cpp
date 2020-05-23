@@ -21,7 +21,7 @@
 TILE_GET_INFO_MEMBER(holeland_state::holeland_get_tile_info)
 {
 	/*
-	--x- ---- priority?
+	x--- ---- priority (1) behind sprites
 	xxxx ---- color
 	---- xx-- flip yx
 	---- --xx tile upper bits
@@ -30,11 +30,11 @@ TILE_GET_INFO_MEMBER(holeland_state::holeland_get_tile_info)
 	int attr = m_colorram[tile_index];
 	int tile_number = m_videoram[tile_index] | ((attr & 0x03) << 8);
 
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 			tile_number,
 			m_palette_offset + ((attr >> 4) & 0x0f),
 			TILE_FLIPYX((attr >> 2) & 0x03));
-	tileinfo.group = (attr >> 5) & 1;
+	tileinfo.group = (attr >> 7) & 1;
 }
 
 TILE_GET_INFO_MEMBER(holeland_state::crzrally_get_tile_info)
@@ -42,7 +42,7 @@ TILE_GET_INFO_MEMBER(holeland_state::crzrally_get_tile_info)
 	int attr = m_colorram[tile_index];
 	int tile_number = m_videoram[tile_index] | ((attr & 0x03) << 8);
 
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 			tile_number,
 			m_palette_offset + ((attr >> 4) & 0x0f),
 			TILE_FLIPYX((attr >> 2) & 0x03));
@@ -57,20 +57,18 @@ TILE_GET_INFO_MEMBER(holeland_state::crzrally_get_tile_info)
 
 VIDEO_START_MEMBER(holeland_state,holeland)
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(holeland_state::holeland_get_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(holeland_state::holeland_get_tile_info)), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 
 	m_bg_tilemap->set_transmask(0, 0xff, 0x00); /* split type 0 is totally transparent in front half */
 	m_bg_tilemap->set_transmask(1, 0x01, 0xfe); /* split type 1 has pen 0? transparent in front half */
 
-	save_item(NAME(m_po));
 	save_item(NAME(m_palette_offset));
 }
 
 VIDEO_START_MEMBER(holeland_state,crzrally)
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(holeland_state::crzrally_get_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(holeland_state::crzrally_get_tile_info)), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
 
-	save_item(NAME(m_po));
 	save_item(NAME(m_palette_offset));
 }
 
@@ -86,12 +84,11 @@ WRITE8_MEMBER(holeland_state::colorram_w)
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
-WRITE8_MEMBER(holeland_state::pal_offs_w)
+void holeland_state::pal_offs_w(uint8_t data)
 {
-	if ((data & 1) != m_po[offset])
+	if ((m_palette_offset >> 4) != (data & 3))
 	{
-		m_po[offset] = data & 1;
-		m_palette_offset = (m_po[0] + (m_po[1] << 1)) << 4;
+		m_palette_offset = (data & 3) << 4;
 		machine().tilemap().mark_all_dirty();
 	}
 }
@@ -101,12 +98,14 @@ WRITE8_MEMBER(holeland_state::scroll_w)
 	m_bg_tilemap->set_scrollx(0, data);
 }
 
-WRITE8_MEMBER(holeland_state::flipscreen_w)
+WRITE_LINE_MEMBER(holeland_state::flipscreen_x_w)
 {
-	if (offset)
-		flip_screen_y_set(data);
-	else
-		flip_screen_x_set(data);
+	flip_screen_x_set(state);
+}
+
+WRITE_LINE_MEMBER(holeland_state::flipscreen_y_w)
+{
+	flip_screen_y_set(state);
 }
 
 

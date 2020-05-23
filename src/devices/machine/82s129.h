@@ -40,65 +40,25 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_82S129_H
+#define MAME_MACHINE_82S129_H
+
 #pragma once
 
-#ifndef PROM82S129_H
-#define PROM82S129_H
-
-
-#define MCFG_82S126_OUTPUT_CB(_devcb) \
-	devcb = &prom82s129_base_device::set_out_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_82S126_O1_CB(_devcb) \
-	devcb = &prom82s129_base_device::set_o1_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_82S126_O2_CB(_devcb) \
-	devcb = &prom82s129_base_device::set_o2_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_82S126_O3_CB(_devcb) \
-	devcb = &prom82s129_base_device::set_o3_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_82S126_O4_CB(_devcb) \
-	devcb = &prom82s129_base_device::set_o4_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_82S129_OUTPUT_CB(_devcb) \
-	devcb = &prom82s129_base_device::set_out_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_82S129_O1_CB(_devcb) \
-	devcb = &prom82s129_base_device::set_o1_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_82S129_O2_CB(_devcb) \
-	devcb = &prom82s129_base_device::set_o2_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_82S129_O3_CB(_devcb) \
-	devcb = &prom82s129_base_device::set_o3_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_82S129_O4_CB(_devcb) \
-	devcb = &prom82s129_base_device::set_o4_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_82S129_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, PROM82S129, 0)
-
-#define MCFG_82S126_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, PROM82S126, 0)
 
 class prom82s129_base_device : public device_t
 {
 public:
-	// construction/destruction
-	prom82s129_base_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname);
-
-	// static configuration helpers
-	template<class _Object> static devcb_base &set_out_cb(device_t &device, _Object object) { return downcast<prom82s129_base_device &>(device).m_out_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_o1_cb(device_t &device, _Object object) { return downcast<prom82s129_base_device &>(device).m_o1_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_o2_cb(device_t &device, _Object object) { return downcast<prom82s129_base_device &>(device).m_o2_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_o3_cb(device_t &device, _Object object) { return downcast<prom82s129_base_device &>(device).m_o3_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_o4_cb(device_t &device, _Object object) { return downcast<prom82s129_base_device &>(device).m_o4_func.set_callback(object); }
+	auto out_callback() { return m_out_func.bind(); }
+	auto o1_callback() { return m_o1_func.bind(); }
+	auto o2_callback() { return m_o2_func.bind(); }
+	auto o3_callback() { return m_o3_func.bind(); }
+	auto o4_callback() { return m_o4_func.bind(); }
 
 	DECLARE_WRITE_LINE_MEMBER( ce1_w );
 	DECLARE_WRITE_LINE_MEMBER( ce2_w );
 
-	DECLARE_WRITE8_MEMBER( a_w );
+	void a_w(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER( a0_w );
 	DECLARE_WRITE_LINE_MEMBER( a1_w );
 	DECLARE_WRITE_LINE_MEMBER( a2_w );
@@ -108,7 +68,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( a6_w );
 	DECLARE_WRITE_LINE_MEMBER( a7_w );
 
-	DECLARE_READ8_MEMBER( output_r );
+	uint8_t output_r();
 	DECLARE_READ_LINE_MEMBER( o1_r );
 	DECLARE_READ_LINE_MEMBER( o2_r );
 	DECLARE_READ_LINE_MEMBER( o3_r );
@@ -117,6 +77,9 @@ public:
 	uint8_t get_output() const { return m_out; }
 
 protected:
+	// construction/destruction
+	prom82s129_base_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
@@ -162,7 +125,7 @@ public:
 };
 
 // device type definition
-extern const device_type PROM82S126;
-extern const device_type PROM82S129;
+DECLARE_DEVICE_TYPE(PROM82S126, prom82s126_device)
+DECLARE_DEVICE_TYPE(PROM82S129, prom82s129_device)
 
-#endif /* PROM82S129_H */
+#endif // MAME_MACHINE_82S129_H

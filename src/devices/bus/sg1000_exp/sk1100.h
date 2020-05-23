@@ -6,16 +6,16 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_SG1000_EXP_SK1100_H
+#define MAME_BUS_SG1000_EXP_SK1100_H
 
-#ifndef __SEGA_SK1100__
-#define __SEGA_SK1100__
+#pragma once
 
 
 #include "sg1000exp.h"
+#include "sk1100prn.h"
 #include "formats/sc3000_bit.h"
 #include "imagedev/cassette.h"
-#include "imagedev/printer.h"
 #include "machine/i8255.h"
 
 
@@ -38,14 +38,10 @@ public:
 	// optional information overrides
 	virtual ioport_constructor device_input_ports() const override;
 
-	DECLARE_READ8_MEMBER( ppi_pa_r );
-	DECLARE_READ8_MEMBER( ppi_pb_r );
-	DECLARE_WRITE8_MEMBER( ppi_pc_w );
-
 protected:
 	// device-level overrides
 	virtual void device_start() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	// device_sg1000_expansion_slot_interface overrides
 	virtual DECLARE_READ8_MEMBER(peripheral_r) override;
@@ -53,8 +49,13 @@ protected:
 	virtual bool is_readable(uint8_t offset) override;
 
 private:
+	uint8_t ppi_pa_r();
+	uint8_t ppi_pb_r();
+	void ppi_pc_w(uint8_t data);
+
 	required_device<cassette_image_device> m_cassette;
 	required_device<i8255_device> m_ppi;
+	required_device<sk1100_printer_port_device> m_printer_port;
 	required_ioport_array<8> m_pa;
 	required_ioport_array<8> m_pb;
 
@@ -64,7 +65,7 @@ private:
 
 
 // device type definition
-extern const device_type SEGA_SK1100;
+DECLARE_DEVICE_TYPE(SEGA_SK1100, sega_sk1100_device)
 
 
-#endif
+#endif // MAME_BUS_SG1000_EXP_SK1100_H

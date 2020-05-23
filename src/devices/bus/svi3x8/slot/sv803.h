@@ -6,10 +6,10 @@
 
 ***************************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_SVI3X8_SLOT_SV803_H
+#define MAME_BUS_SVI3X8_SLOT_SV803_H
 
-#ifndef __SVI3X8_SLOT_SV803_H__
-#define __SVI3X8_SLOT_SV803_H__
+#pragma once
 
 #include "slot.h"
 
@@ -26,8 +26,8 @@ public:
 	// construction/destruction
 	sv803_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	virtual DECLARE_READ8_MEMBER( mreq_r ) override;
-	virtual DECLARE_WRITE8_MEMBER( mreq_w ) override;
+	virtual uint8_t mreq_r(offs_t offset) override;
+	virtual void mreq_w(offs_t offset, uint8_t data) override;
 
 protected:
 	virtual void device_start() override;
@@ -38,6 +38,6 @@ private:
 };
 
 // device type definition
-extern const device_type SV803;
+DECLARE_DEVICE_TYPE(SV803, sv803_device)
 
-#endif // __SVI3X8_SLOT_SV803_H__
+#endif // MAME_BUS_SVI3X8_SLOT_SV803_H

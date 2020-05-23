@@ -40,14 +40,10 @@
 
 *****************************************************************************/
 
-#ifndef TTL74148_H
-#define TTL74148_H
+#ifndef MAME_DEVICES_MACHINE_74148_H
+#define MAME_DEVICES_MACHINE_74148_H
 
-
-typedef device_delegate<void (void)> ttl74148_output_delegate;
-
-#define TTL74148_OUTPUT_CB(_name) void _name(void)
-
+#pragma once
 
 class ttl74148_device : public device_t
 {
@@ -55,7 +51,7 @@ public:
 	ttl74148_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 	~ttl74148_device() {}
 
-	static void set_output_callback(device_t &device, ttl74148_output_delegate callback) { downcast<ttl74148_device &>(device).m_output_cb = callback; }
+	auto out_cb() { return m_output_cb.bind(); }
 
 	/* must call update() after setting the inputs */
 	void update();
@@ -72,7 +68,7 @@ protected:
 	virtual void device_reset() override;
 private:
 	// internal state
-	ttl74148_output_delegate m_output_cb;
+	devcb_write8 m_output_cb;
 
 	/* inputs */
 	int m_input_lines[8]; /* pins 1-4,10-13 */
@@ -89,11 +85,6 @@ private:
 	int m_last_enable_output;
 };
 
-extern const device_type TTL74148;
+DECLARE_DEVICE_TYPE(TTL74148, ttl74148_device)
 
-
-#define MCFG_74148_OUTPUT_CB(_class, _method) \
-	ttl74148_device::set_output_callback(*device, ttl74148_output_delegate(&_class::_method, #_class "::" #_method, downcast<_class *>(owner)));
-
-
-#endif
+#endif // MAME_DEVICES_MACHINE_74148_H

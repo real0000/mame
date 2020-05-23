@@ -6,46 +6,10 @@
 
 */
 
-#ifndef _MELPS4_H_
-#define _MELPS4_H_
+#ifndef MAME_CPU_MELPS4_MELPS4_H
+#define MAME_CPU_MELPS4_MELPS4_H
 
-
-
-// I/O ports setup
-
-// K input or A/D input port, up to 16 pins
-#define MCFG_MELPS4_READ_K_CB(_devcb) \
-	devcb = &melps4_cpu_device::set_read_k_callback(*device, DEVCB_##_devcb);
-
-// D discrete I/O port, up to 16 pins - offset 0-15 for bit, 16 for all pins clear
-#define MCFG_MELPS4_READ_D_CB(_devcb) \
-	devcb = &melps4_cpu_device::set_read_d_callback(*device, DEVCB_##_devcb);
-#define MCFG_MELPS4_WRITE_D_CB(_devcb) \
-	devcb = &melps4_cpu_device::set_write_d_callback(*device, DEVCB_##_devcb);
-
-// 8-bit S generic I/O port
-#define MCFG_MELPS4_READ_S_CB(_devcb) \
-	devcb = &melps4_cpu_device::set_read_s_callback(*device, DEVCB_##_devcb);
-#define MCFG_MELPS4_WRITE_S_CB(_devcb) \
-	devcb = &melps4_cpu_device::set_write_s_callback(*device, DEVCB_##_devcb);
-
-// 4-bit F generic I/O port
-#define MCFG_MELPS4_READ_F_CB(_devcb) \
-	devcb = &melps4_cpu_device::set_read_f_callback(*device, DEVCB_##_devcb);
-#define MCFG_MELPS4_WRITE_F_CB(_devcb) \
-	devcb = &melps4_cpu_device::set_write_f_callback(*device, DEVCB_##_devcb);
-
-// 4-bit G generic output port
-#define MCFG_MELPS4_WRITE_G_CB(_devcb) \
-	devcb = &melps4_cpu_device::set_write_g_callback(*device, DEVCB_##_devcb);
-
-// 1-bit U generic output port
-#define MCFG_MELPS4_WRITE_U_CB(_devcb) \
-	devcb = &melps4_cpu_device::set_write_u_callback(*device, DEVCB_##_devcb);
-
-// T timer I/O pin (use execute_set_input for reads)
-#define MCFG_MELPS4_WRITE_T_CB(_devcb) \
-	devcb = &melps4_cpu_device::set_write_t_callback(*device, DEVCB_##_devcb);
+#pragma once
 
 
 #define MELPS4_PORTD_CLR 16
@@ -99,66 +63,55 @@ enum
 class melps4_cpu_device : public cpu_device
 {
 public:
-	// construction/destruction
-	melps4_cpu_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, int prgwidth, address_map_constructor program, int datawidth, address_map_constructor data, int d_pins, uint8_t sm_page, uint8_t int_page, const char *shortname, const char *source)
-		: cpu_device(mconfig, type, name, tag, owner, clock, shortname, source)
-		, m_program_config("program", ENDIANNESS_LITTLE, 16, prgwidth, -1, program)
-		, m_data_config("data", ENDIANNESS_LITTLE, 8, datawidth, 0, data)
-		, m_prgwidth(prgwidth)
-		, m_datawidth(datawidth)
-		, m_d_pins(d_pins)
-		, m_sm_page(sm_page)
-		, m_int_page(int_page)
-		, m_xami_mask(0xf)
-		, m_sp_mask(0x7<<4)
-		, m_ba_op(0x01)
-		, m_stack_levels(3)
-		, m_read_k(*this)
-		, m_read_d(*this)
-		, m_read_s(*this)
-		, m_read_f(*this)
-		, m_write_d(*this)
-		, m_write_s(*this)
-		, m_write_f(*this)
-		, m_write_g(*this)
-		, m_write_u(*this)
-		, m_write_t(*this)
-	{ }
+	// configuration helpers
+	// K input or A/D input port, up to 16 pins
+	auto read_k() { return m_read_k.bind(); }
 
-	// static configuration helpers
-	template<class _Object> static devcb_base &set_read_k_callback(device_t &device, _Object object) { return downcast<melps4_cpu_device &>(device).m_read_k.set_callback(object); }
-	template<class _Object> static devcb_base &set_read_d_callback(device_t &device, _Object object) { return downcast<melps4_cpu_device &>(device).m_read_d.set_callback(object); }
-	template<class _Object> static devcb_base &set_read_s_callback(device_t &device, _Object object) { return downcast<melps4_cpu_device &>(device).m_read_s.set_callback(object); }
-	template<class _Object> static devcb_base &set_read_f_callback(device_t &device, _Object object) { return downcast<melps4_cpu_device &>(device).m_read_f.set_callback(object); }
+	// D discrete I/O port, up to 16 pins - offset 0-15 for bit, 16 for all pins clear
+	auto read_d() { return m_read_d.bind(); }
+	auto write_d() { return m_write_d.bind(); }
 
-	template<class _Object> static devcb_base &set_write_d_callback(device_t &device, _Object object) { return downcast<melps4_cpu_device &>(device).m_write_d.set_callback(object); }
-	template<class _Object> static devcb_base &set_write_s_callback(device_t &device, _Object object) { return downcast<melps4_cpu_device &>(device).m_write_s.set_callback(object); }
-	template<class _Object> static devcb_base &set_write_f_callback(device_t &device, _Object object) { return downcast<melps4_cpu_device &>(device).m_write_f.set_callback(object); }
-	template<class _Object> static devcb_base &set_write_g_callback(device_t &device, _Object object) { return downcast<melps4_cpu_device &>(device).m_write_g.set_callback(object); }
-	template<class _Object> static devcb_base &set_write_u_callback(device_t &device, _Object object) { return downcast<melps4_cpu_device &>(device).m_write_u.set_callback(object); }
-	template<class _Object> static devcb_base &set_write_t_callback(device_t &device, _Object object) { return downcast<melps4_cpu_device &>(device).m_write_t.set_callback(object); }
+	// 8-bit S generic I/O port
+	auto read_s() { return m_read_s.bind(); }
+	auto write_s() { return m_write_s.bind(); }
+
+	// 4-bit F generic I/O port
+	auto read_f() { return m_read_f.bind(); }
+	auto write_f() { return m_write_f.bind(); }
+
+	// 4-bit G generic output port
+	auto write_g() { return m_write_g.bind(); }
+
+	// 1-bit U generic output port
+	auto write_u() { return m_write_u.bind(); }
+
+	// T timer I/O pin (use execute_set_input for reads)
+	auto write_t() { return m_write_t.bind(); }
 
 protected:
+	// construction/destruction
+	melps4_cpu_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, int prgwidth, address_map_constructor program, int datawidth, address_map_constructor data, int d_pins, uint8_t sm_page, uint8_t int_page);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint64_t execute_clocks_to_cycles(uint64_t clocks) const override { return (clocks + 6 - 1) / 6; } // 6 t-states per machine cycle
-	virtual uint64_t execute_cycles_to_clocks(uint64_t cycles) const override { return (cycles * 6); } // "
-	virtual uint32_t execute_min_cycles() const override { return 1; }
-	virtual uint32_t execute_max_cycles() const override { return 1+1; } // max opcode cycles + interrupt duration
-	virtual uint32_t execute_input_lines() const override { return 3; } // up to 3 (some internal)
+	virtual uint64_t execute_clocks_to_cycles(uint64_t clocks) const noexcept override { return (clocks + 6 - 1) / 6; } // 6 t-states per machine cycle
+	virtual uint64_t execute_cycles_to_clocks(uint64_t cycles) const noexcept override { return (cycles * 6); } // "
+	virtual uint32_t execute_min_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 1+1; } // max opcode cycles + interrupt duration
+	virtual uint32_t execute_input_lines() const noexcept override { return 3; } // up to 3 (some internal)
 	virtual void execute_set_input(int line, int state) override;
 	virtual void execute_run() override;
 	virtual void execute_one();
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return(spacenum == AS_PROGRAM) ? &m_program_config : ((spacenum == AS_DATA) ? &m_data_config : nullptr); }
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 2; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 2; }
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
+
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	address_space_config m_program_config;
@@ -361,5 +314,4 @@ protected:
 };
 
 
-
-#endif /* _MELPS4_H_ */
+#endif // MAME_CPU_MELPS4_MELPS4_H

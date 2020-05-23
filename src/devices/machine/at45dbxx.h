@@ -12,26 +12,10 @@
 
 */
 
-#ifndef _AT45DBXX_H_
-#define _AT45DBXX_H_
+#ifndef MAME_MACHINE_AT45DBXX_H
+#define MAME_MACHINE_AT45DBXX_H
 
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_AT45DB041_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, AT45DB041, 0)
-
-#define MCFG_AT45DB081_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, AT45DB081, 0)
-
-#define MCFG_AT45DB161_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, AT45DB161, 0)
-
-#define MCFG_AT45DBXXX_SO_CALLBACK(_cb) \
-	devcb = &at45db041_device::set_so_cb(*device, DEVCB_##_cb);
+#pragma once
 
 
 // ======================> at45db041_device
@@ -41,7 +25,6 @@ class at45db041_device : public device_t,
 {
 public:
 	at45db041_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	at45db041_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
 
 	DECLARE_WRITE_LINE_MEMBER(cs_w);
 	DECLARE_WRITE_LINE_MEMBER(sck_w);
@@ -50,10 +33,11 @@ public:
 
 	uint8_t *get_ptr() {  return &m_data[0];  }
 
-	template<class _Object> static devcb_base &set_so_cb(device_t &device, _Object object) { return downcast<at45db041_device &>(device).write_so.set_callback(object); }
-	devcb_write_line write_so;
+	auto so_callback() { return write_so.bind(); }
 
 protected:
+	at45db041_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
@@ -63,7 +47,6 @@ protected:
 	virtual void nvram_read(emu_file &file) override;
 	virtual void nvram_write(emu_file &file) override;
 
-protected:
 	virtual int num_pages() const { return 2048; }
 	virtual int page_size() const { return 264; }
 	virtual uint8_t device_id() const { return 0x18; }
@@ -73,6 +56,8 @@ protected:
 	virtual uint32_t flash_get_page_addr();
 	virtual uint32_t flash_get_byte_addr();
 	void write_byte(uint8_t data);
+
+	devcb_write_line write_so;
 
 	// internal state
 	std::vector<uint8_t> m_data;
@@ -144,8 +129,8 @@ protected:
 
 
 // device type definition
-extern const device_type AT45DB041;
-extern const device_type AT45DB081;
-extern const device_type AT45DB161;
+DECLARE_DEVICE_TYPE(AT45DB041, at45db041_device)
+DECLARE_DEVICE_TYPE(AT45DB081, at45db081_device)
+DECLARE_DEVICE_TYPE(AT45DB161, at45db161_device)
 
-#endif
+#endif // MAME_MACHINE_AT45DBXX_H

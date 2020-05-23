@@ -21,8 +21,7 @@
 #include "emu.h"
 #include "jy.h"
 
-#include "cpu/m6502/m6502.h"
-#include "video/ppu2c0x.h"      // this has to be included so that IRQ functions can access PPU_BOTTOM_VISIBLE_SCANLINE
+#include "video/ppu2c0x.h"      // this has to be included so that IRQ functions can access ppu2c0x_device::BOTTOM_VISIBLE_SCANLINE
 
 #ifdef NES_PCB_DEBUG
 #define VERBOSE 1
@@ -37,36 +36,34 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type NES_JY_TYPEA = device_creator<nes_jy_typea_device>;
-const device_type NES_JY_TYPEB = device_creator<nes_jy_typeb_device>;
-const device_type NES_JY_TYPEC = device_creator<nes_jy_typec_device>;
+DEFINE_DEVICE_TYPE(NES_JY_TYPEA, nes_jy_typea_device, "nes_jya", "NES Cart JY Company Type A PCB")
+DEFINE_DEVICE_TYPE(NES_JY_TYPEB, nes_jy_typeb_device, "nes_jyb", "NES Cart JY Company Type B PCB")
+DEFINE_DEVICE_TYPE(NES_JY_TYPEC, nes_jy_typec_device, "nes_jyc", "NES Cart JY Company Type C PCB")
 
 
-nes_jy_typea_device::nes_jy_typea_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: nes_nrom_device(mconfig, type, name, tag, owner, clock, shortname, source), m_latch(0), m_extra_chr_bank(0), m_extra_chr_mask(0), m_bank_6000(0),
+nes_jy_typea_device::nes_jy_typea_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: nes_nrom_device(mconfig, type, tag, owner, clock), m_latch(0), m_extra_chr_bank(0), m_extra_chr_mask(0), m_bank_6000(0),
 	m_irq_mode(0), m_irq_count(0), m_irq_prescale(0), m_irq_prescale_mask(0), m_irq_flip(0), m_irq_enable(0), m_irq_up(0), m_irq_down(0), irq_timer(nullptr)
-				{
-}
-
-nes_jy_typea_device::nes_jy_typea_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_JY_TYPEA, "NES Cart JY Company Type A PCB", tag, owner, clock, "nes_jya", __FILE__), m_latch(0), m_extra_chr_bank(0),
-	m_extra_chr_mask(0), m_bank_6000(0), m_irq_mode(0), m_irq_count(0), m_irq_prescale(0), m_irq_prescale_mask(0), m_irq_flip(0), m_irq_enable(0), m_irq_up(0),
-	m_irq_down(0), irq_timer(nullptr)
 {
 }
 
-nes_jy_typeb_device::nes_jy_typeb_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: nes_jy_typea_device(mconfig, type, name, tag, owner, clock, shortname, source)
+nes_jy_typea_device::nes_jy_typea_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: nes_nrom_device(mconfig, NES_JY_TYPEA, tag, owner, clock)
+{
+}
+
+nes_jy_typeb_device::nes_jy_typeb_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: nes_jy_typea_device(mconfig, type, tag, owner, clock)
 {
 }
 
 nes_jy_typeb_device::nes_jy_typeb_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_jy_typea_device(mconfig, NES_JY_TYPEB, "NES Cart JY Company Type B PCB", tag, owner, clock, "nes_jyb", __FILE__)
+	: nes_jy_typeb_device(mconfig, NES_JY_TYPEB, tag, owner, clock)
 {
 }
 
 nes_jy_typec_device::nes_jy_typec_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_jy_typeb_device(mconfig, NES_JY_TYPEC, "NES Cart JY Company Type C PCB", tag, owner, clock, "nes_jyc", __FILE__)
+	: nes_jy_typeb_device(mconfig, NES_JY_TYPEC, tag, owner, clock)
 {
 }
 
@@ -78,7 +75,7 @@ void nes_jy_typea_device::device_start()
 	common_start();
 	irq_timer = timer_alloc(TIMER_IRQ);
 	irq_timer->reset();
-	timer_freq = machine().device<cpu_device>("maincpu")->cycles_to_attotime(1);
+	timer_freq = clocks_to_attotime(1);
 
 	save_item(NAME(m_mul));
 	save_item(NAME(m_latch));
@@ -147,14 +144,14 @@ void nes_jy_typea_device::pcb_reset()
  -------------------------------------------------*/
 
 
-READ8_MEMBER(nes_jy_typea_device::nt_r)
+uint8_t nes_jy_typea_device::nt_r(offs_t offset)
 {
 	int page = ((offset & 0xc00) >> 10);
 	irq_clock(0, 2);
 	return m_nt_access[page][offset & 0x3ff];
 }
 
-READ8_MEMBER(nes_jy_typea_device::chr_r)
+uint8_t nes_jy_typea_device::chr_r(offs_t offset)
 {
 	int bank = offset >> 10;
 	irq_clock(0, 2);
@@ -223,7 +220,7 @@ void nes_jy_typea_device::irq_clock(int mode, int blanked)
 
 		// if count wraps, check if IRQ is enabled
 		if (fire && m_irq_enable && !blanked)
-			m_maincpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+			set_irq_line(ASSERT_LINE);
 
 	}
 }
@@ -238,13 +235,13 @@ void nes_jy_typea_device::device_timer(emu_timer &timer, device_timer_id id, int
 
 void nes_jy_typea_device::scanline_irq(int scanline, int vblank, int blanked)
 {
-	if (scanline < PPU_BOTTOM_VISIBLE_SCANLINE)
+	if (scanline < ppu2c0x_device::BOTTOM_VISIBLE_SCANLINE)
 		irq_clock(blanked, 1);
 }
 
 
 // 0x5000-0x5fff : sort of protection?
-READ8_MEMBER(nes_jy_typea_device::read_l)
+uint8_t nes_jy_typea_device::read_l(offs_t offset)
 {
 	LOG_MMC(("JY Company write_m, offset: %04x\n", offset));
 	offset += 0x100;
@@ -252,7 +249,7 @@ READ8_MEMBER(nes_jy_typea_device::read_l)
 	if (offset >= 0x1000 && offset < 0x1800)
 	{
 		// bit6/bit7 DSW read
-		return m_open_bus & 0x3f;
+		return get_open_bus() & 0x3f;
 	}
 
 	if (offset >= 0x1800)
@@ -265,10 +262,10 @@ READ8_MEMBER(nes_jy_typea_device::read_l)
 			return m_latch;
 	}
 
-	return m_open_bus;   // open bus
+	return get_open_bus();   // open bus
 }
 
-WRITE8_MEMBER(nes_jy_typea_device::write_l)
+void nes_jy_typea_device::write_l(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("JY Company write_m, offset: %04x, data: %02x\n", offset, data));
 	offset += 0x100;
@@ -285,20 +282,20 @@ WRITE8_MEMBER(nes_jy_typea_device::write_l)
 }
 
 // 0x6000-0x7fff : WRAM or open bus
-READ8_MEMBER(nes_jy_typea_device::read_m)
+uint8_t nes_jy_typea_device::read_m(offs_t offset)
 {
 	LOG_MMC(("JY Company write_m, offset: %04x\n", offset));
 
 	if (m_reg[0] & 0x80)
 		return m_prg[(m_bank_6000 & m_prg_mask) * 0x2000 + (offset & 0x1fff)];
 
-	return m_open_bus;   // open bus
+	return get_open_bus();   // open bus
 }
 
 
 inline uint8_t nes_jy_typea_device::unscramble(uint8_t bank)
 {
-	return BITSWAP8(bank & 0x7f,7,0,1,2,3,4,5,6);
+	return bitswap<8>(bank & 0x7f,7,0,1,2,3,4,5,6);
 }
 
 void nes_jy_typea_device::update_prg()
@@ -428,7 +425,7 @@ void nes_jy_typea_device::update_banks(int reg)
 }
 
 
-WRITE8_MEMBER(nes_jy_typea_device::write_h)
+void nes_jy_typea_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("JY Company write_m, offset: %04x, data: %02x\n", offset, data));
 
@@ -480,7 +477,7 @@ WRITE8_MEMBER(nes_jy_typea_device::write_h)
 						m_irq_enable = 1;
 					else
 					{
-						m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+						set_irq_line(CLEAR_LINE);
 						m_irq_enable = 0;
 					}
 					break;
@@ -495,7 +492,7 @@ WRITE8_MEMBER(nes_jy_typea_device::write_h)
 						irq_timer->adjust(attotime::never);
 					break;
 				case 2:
-					m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+					set_irq_line(CLEAR_LINE);
 					m_irq_enable = 0;
 					break;
 				case 3:
@@ -572,7 +569,7 @@ void nes_jy_typec_device::update_mirror_typec()
 		update_mirror_typea();
 }
 
-READ8_MEMBER(nes_jy_typec_device::chr_r)
+uint8_t nes_jy_typec_device::chr_r(offs_t offset)
 {
 	int bank = offset >> 10;
 

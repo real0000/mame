@@ -42,69 +42,19 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_74175_H
+#define MAME_MACHINE_74175_H
+
 #pragma once
 
-#ifndef TTL74175_H
-#define TTL74175_H
-
-
-#define MCFG_74174_Q1_CB(_devcb) \
-	devcb = &ttl741745_device::set_q1_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74174_Q2_CB(_devcb) \
-	devcb = &ttl741745_device::set_q2_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74174_Q3_CB(_devcb) \
-	devcb = &ttl741745_device::set_q3_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74174_Q4_CB(_devcb) \
-	devcb = &ttl741745_device::set_q4_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74175_Q1_CB(_devcb) \
-	devcb = &ttl741745_device::set_q1_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74175_Q2_CB(_devcb) \
-	devcb = &ttl741745_device::set_q2_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74175_Q3_CB(_devcb) \
-	devcb = &ttl741745_device::set_q3_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74175_Q4_CB(_devcb) \
-	devcb = &ttl741745_device::set_q4_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74174_Q5_CB(_devcb) \
-	devcb = &ttl74174_device::set_q5_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74174_Q6_CB(_devcb) \
-	devcb = &ttl74174_device::set_q6_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74175_NOT_Q1_CB(_devcb) \
-	devcb = &ttl74175_device::set_not_q1_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74175_NOT_Q2_CB(_devcb) \
-	devcb = &ttl74175_device::set_not_q2_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74175_NOT_Q3_CB(_devcb) \
-	devcb = &ttl74175_device::set_not_q3_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74175_NOT_Q4_CB(_devcb) \
-	devcb = &ttl74175_device::set_not_q1_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74174_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, TTL74174, 0)
-
-#define MCFG_74175_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, TTL74175, 0)
 
 class ttl741745_device : public device_t
 {
 public:
-	ttl741745_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname);
-
-	template<class _Object> static devcb_base &set_q1_cb(device_t &device, _Object object) { return downcast<ttl741745_device &>(device).m_q1_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_q2_cb(device_t &device, _Object object) { return downcast<ttl741745_device &>(device).m_q2_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_q3_cb(device_t &device, _Object object) { return downcast<ttl741745_device &>(device).m_q3_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_q4_cb(device_t &device, _Object object) { return downcast<ttl741745_device &>(device).m_q4_func.set_callback(object); }
+	auto q1_callback() { return m_q1_func.bind(); }
+	auto q2_callback() { return m_q2_func.bind(); }
+	auto q3_callback() { return m_q3_func.bind(); }
+	auto q4_callback() { return m_q4_func.bind(); }
 
 	DECLARE_WRITE_LINE_MEMBER( clear_w );
 	DECLARE_WRITE_LINE_MEMBER( d1_w );
@@ -116,6 +66,8 @@ public:
 	uint8_t q_w();
 
 protected:
+	ttl741745_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
@@ -144,10 +96,10 @@ protected:
 class ttl74174_device : public ttl741745_device
 {
 public:
-	ttl74174_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	ttl74174_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
-	template<class _Object> static devcb_base &set_q5_cb(device_t &device, _Object object) { return downcast<ttl74174_device &>(device).m_q5_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_q6_cb(device_t &device, _Object object) { return downcast<ttl74174_device &>(device).m_q6_func.set_callback(object); }
+	auto q5_cb() { return m_q5_func.bind(); }
+	auto q6_cb() { return m_q6_func.bind(); }
 
 	DECLARE_WRITE_LINE_MEMBER( d5_w );
 	DECLARE_WRITE_LINE_MEMBER( d6_w );
@@ -172,12 +124,12 @@ private:
 class ttl74175_device : public ttl741745_device
 {
 public:
-	ttl74175_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	ttl74175_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
-	template<class _Object> static devcb_base &set_not_q1_cb(device_t &device, _Object object) { return downcast<ttl74175_device &>(device).m_not_q1_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_not_q2_cb(device_t &device, _Object object) { return downcast<ttl74175_device &>(device).m_not_q2_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_not_q3_cb(device_t &device, _Object object) { return downcast<ttl74175_device &>(device).m_not_q3_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_not_q4_cb(device_t &device, _Object object) { return downcast<ttl74175_device &>(device).m_not_q4_func.set_callback(object); }
+	auto not_q1_cb() { return m_not_q1_func.bind(); }
+	auto not_q2_cb() { return m_not_q2_func.bind(); }
+	auto not_q3_cb() { return m_not_q3_func.bind(); }
+	auto not_q4_cb() { return m_not_q4_func.bind(); }
 
 protected:
 	virtual void device_start() override;
@@ -197,8 +149,7 @@ private:
 };
 
 // device type definition
-extern const device_type TTL74174;
-extern const device_type TTL74175;
+DECLARE_DEVICE_TYPE(TTL74174, ttl74174_device)
+DECLARE_DEVICE_TYPE(TTL74175, ttl74175_device)
 
-
-#endif /* TTL74175_H */
+#endif // MAME_MACHINE_74175_H

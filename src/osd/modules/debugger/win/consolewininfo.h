@@ -5,9 +5,10 @@
 //  consolewininfo.h - Win32 debug window handling
 //
 //============================================================
+#ifndef MAME_DEBUGGER_WIN_CONSOLEWININFO_H
+#define MAME_DEBUGGER_WIN_CONSOLEWININFO_H
 
-#ifndef __DEBUG_WIN_CONSOLE_WIN_INFO_H__
-#define __DEBUG_WIN_CONSOLE_WIN_INFO_H__
+#pragma once
 
 #include "debugwin.h"
 
@@ -33,21 +34,27 @@ private:
 		DEVOPTION_OPEN,
 		DEVOPTION_CREATE,
 		DEVOPTION_CLOSE,
+		DEVOPTION_ITEM,
 		DEVOPTION_CASSETTE_STOPPAUSE,
 		DEVOPTION_CASSETTE_PLAY,
 		DEVOPTION_CASSETTE_RECORD,
 		DEVOPTION_CASSETTE_REWIND,
 		DEVOPTION_CASSETTE_FASTFORWARD,
+		DEVOPTION_CASSETTE_MOTOR,
+		DEVOPTION_CASSETTE_SOUND,
 		DEVOPTION_MAX
 	};
 
-	virtual void process_string(char const *string) override;
+	virtual void process_string(std::string const &string) override;
 
 	static void build_generic_filter(device_image_interface *img, bool is_save, std::string &filter);
 	static void add_filter_entry(std::string &dest, char const *description, char const *extensions);
 	static void copy_extension_list(std::string &dest, char const *extensions);
+	bool get_softlist_info(device_image_interface *img);
 
+	device_t *m_current_cpu;
 	HMENU   m_devices_menu;
+	std::map<std::string,std::string> slmap;
 };
 
 #endif

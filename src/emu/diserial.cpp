@@ -8,9 +8,10 @@
 ***************************************************************************/
 
 #include "emu.h"
+#include "diserial.h"
 
-device_serial_interface::device_serial_interface(const machine_config &mconfig, device_t &device)
-	: device_interface(device, "serial"),
+device_serial_interface::device_serial_interface(const machine_config &mconfig, device_t &device) :
+	device_interface(device, "serial"),
 	m_start_bit_hack_for_external_clocks(false),
 	m_df_start_bit_count(0),
 	m_df_word_length(0),
@@ -56,38 +57,38 @@ device_serial_interface::~device_serial_interface()
 {
 }
 
-void device_serial_interface::register_save_state(save_manager &save, device_t *device)
-{
-	const char *module = device->name();
-	const char *tag = device->tag();
-	save.save_item(device, module, tag, 0, NAME(m_df_start_bit_count));
-	save.save_item(device, module, tag, 0, NAME(m_df_word_length));
-	save.save_item(device, module, tag, 0, NAME(m_df_parity));
-	save.save_item(device, module, tag, 0, NAME(m_df_stop_bit_count));
-	save.save_item(device, module, tag, 0, NAME(m_rcv_register_data));
-	save.save_item(device, module, tag, 0, NAME(m_rcv_flags));
-	save.save_item(device, module, tag, 0, NAME(m_rcv_bit_count_received));
-	save.save_item(device, module, tag, 0, NAME(m_rcv_bit_count));
-	save.save_item(device, module, tag, 0, NAME(m_rcv_byte_received));
-	save.save_item(device, module, tag, 0, NAME(m_rcv_framing_error));
-	save.save_item(device, module, tag, 0, NAME(m_rcv_parity_error));
-	save.save_item(device, module, tag, 0, NAME(m_tra_register_data));
-	save.save_item(device, module, tag, 0, NAME(m_tra_flags));
-	save.save_item(device, module, tag, 0, NAME(m_tra_bit_count_transmitted));
-	save.save_item(device, module, tag, 0, NAME(m_tra_bit_count));
-	save.save_item(device, module, tag, 0, NAME(m_rcv_rate));
-	save.save_item(device, module, tag, 0, NAME(m_tra_rate));
-	save.save_item(device, module, tag, 0, NAME(m_rcv_line));
-	save.save_item(device, module, tag, 0, NAME(m_tra_clock_state));
-	save.save_item(device, module, tag, 0, NAME(m_rcv_clock_state));
-}
-
 void device_serial_interface::interface_pre_start()
 {
-	m_rcv_clock = device().timer_alloc(RCV_TIMER_ID);
-	m_tra_clock = device().timer_alloc(TRA_TIMER_ID);
+	if (!m_rcv_clock)
+		m_rcv_clock = device().machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(device_serial_interface::rcv_clock), this));
+	if (!m_tra_clock)
+		m_tra_clock = device().machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(device_serial_interface::tra_clock), this));
 	m_rcv_clock_state = false;
 	m_tra_clock_state = false;
+}
+
+void device_serial_interface::interface_post_start()
+{
+	device().save_item(NAME(m_df_start_bit_count));
+	device().save_item(NAME(m_df_word_length));
+	device().save_item(NAME(m_df_parity));
+	device().save_item(NAME(m_df_stop_bit_count));
+	device().save_item(NAME(m_rcv_register_data));
+	device().save_item(NAME(m_rcv_flags));
+	device().save_item(NAME(m_rcv_bit_count_received));
+	device().save_item(NAME(m_rcv_bit_count));
+	device().save_item(NAME(m_rcv_byte_received));
+	device().save_item(NAME(m_rcv_framing_error));
+	device().save_item(NAME(m_rcv_parity_error));
+	device().save_item(NAME(m_tra_register_data));
+	device().save_item(NAME(m_tra_flags));
+	device().save_item(NAME(m_tra_bit_count_transmitted));
+	device().save_item(NAME(m_tra_bit_count));
+	device().save_item(NAME(m_rcv_rate));
+	device().save_item(NAME(m_tra_rate));
+	device().save_item(NAME(m_rcv_line));
+	device().save_item(NAME(m_tra_clock_state));
+	device().save_item(NAME(m_rcv_clock_state));
 }
 
 void device_serial_interface::set_rcv_rate(const attotime &rate)
@@ -153,17 +154,11 @@ WRITE_LINE_MEMBER(device_serial_interface::clock_w)
 	rx_clock_w(state);
 }
 
-void device_serial_interface::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
-{
-	switch(id) {
-	case TRA_TIMER_ID: tx_clock_w(!m_tra_clock_state); break;
-	case RCV_TIMER_ID: rx_clock_w(!m_rcv_clock_state); break;
-	}
-}
-
 
 void device_serial_interface::set_data_frame(int start_bit_count, int data_bit_count, parity_t parity, stop_bits_t stop_bits)
 {
+	//device().logerror("Start bits: %d; Data bits: %d; Parity: %s; Stop bits: %s\n", start_bit_count, data_bit_count, parity_tostring(parity), stop_bits_tostring(stop_bits));
+
 	m_df_word_length = data_bit_count;
 
 	switch (stop_bits)
@@ -221,6 +216,7 @@ WRITE_LINE_MEMBER(device_serial_interface::rx_w)
 	receive_register_update_bit(state);
 	if(m_rcv_flags & RECEIVE_REGISTER_SYNCHRONISED)
 	{
+		//device().logerror("Receiver is synchronized\n");
 		if(m_rcv_clock && !(m_rcv_rate.is_never()))
 			// make start delay just a bit longer to make sure we are called after the sender
 			m_rcv_clock->adjust(((m_rcv_rate*3)/2), 0, m_rcv_rate);
@@ -274,6 +270,7 @@ void device_serial_interface::receive_register_update_bit(int bit)
 	else
 	if (m_rcv_flags & RECEIVE_REGISTER_SYNCHRONISED)
 	{
+		//device().logerror("Received bit %d\n", m_rcv_bit_count_received);
 		m_rcv_bit_count_received++;
 
 		if (!bit && (m_rcv_bit_count_received > (m_rcv_bit_count - m_df_stop_bit_count)))
@@ -287,7 +284,7 @@ void device_serial_interface::receive_register_update_bit(int bit)
 			m_rcv_bit_count_received = 0;
 			m_rcv_flags &=~RECEIVE_REGISTER_SYNCHRONISED;
 			m_rcv_flags |= RECEIVE_REGISTER_WAITING_FOR_START_BIT;
-			//logerror("receive register full\n");
+			//device().logerror("Receive register full\n");
 			m_rcv_flags |= RECEIVE_REGISTER_FULL;
 		}
 	}
@@ -311,41 +308,31 @@ void device_serial_interface::receive_register_extract()
 	if(m_df_parity == PARITY_NONE)
 		return;
 
-	//unsigned char computed_parity;
-	//unsigned char parity_received;
-
 	/* get state of parity bit received */
-	//parity_received = (m_rcv_register_data>>m_df_word length) & 0x01;
+	u8 parity_received = (m_rcv_register_data >> (16 - m_rcv_bit_count + m_df_word_length)) & 0x01;
 
 	/* parity enable? */
 	switch (m_df_parity)
 	{
-		/* check parity */
-		case PARITY_ODD:
-		case PARITY_EVEN:
-		{
-			/* compute parity for received bits */
-			//computed_parity = serial_helper_get_parity(data);
-
-			if (m_df_parity == PARITY_ODD)
-			{
-				/* odd parity */
-
-
-			}
-			else
-			{
-				/* even parity */
-
-
-			}
-
-		}
+	case PARITY_ODD:
+		if (parity_received == serial_helper_get_parity(data))
+			m_rcv_parity_error = true;
 		break;
-		case PARITY_MARK:
-		case PARITY_SPACE:
-			//computed_parity = parity_received;
-			break;
+
+	case PARITY_EVEN:
+		if (parity_received != serial_helper_get_parity(data))
+			m_rcv_parity_error = true;
+		break;
+
+	case PARITY_MARK:
+		if (!parity_received)
+			m_rcv_parity_error = true;
+		break;
+
+	case PARITY_SPACE:
+		if (parity_received)
+			m_rcv_parity_error = true;
+		break;
 	}
 }
 
@@ -372,7 +359,7 @@ void device_serial_interface::transmit_register_add_bit(int bit)
 void device_serial_interface::transmit_register_setup(u8 data_byte)
 {
 	int i;
-	unsigned char transmit_data;
+	u8 transmit_data;
 
 	if(m_tra_clock && !m_tra_rate.is_never())
 		m_tra_clock->adjust(m_tra_rate, 0, m_tra_rate);
@@ -404,15 +391,17 @@ void device_serial_interface::transmit_register_setup(u8 data_byte)
 	if (m_df_parity!=PARITY_NONE)
 	{
 		/* odd or even parity */
-		unsigned char parity = 0;
-		switch(m_df_parity)
+		u8 parity = 0;
+		switch (m_df_parity)
 		{
-		case PARITY_EVEN:
 		case PARITY_ODD:
 
 			/* get parity */
 			/* if parity = 0, data has even parity - i.e. there is an even number of one bits in the data */
 			/* if parity = 1, data has odd parity - i.e. there is an odd number of one bits in the data */
+			parity = serial_helper_get_parity(data_byte) ^ 1;
+			break;
+		case PARITY_EVEN:
 			parity = serial_helper_get_parity(data_byte);
 			break;
 		case PARITY_MARK:
@@ -426,10 +415,9 @@ void device_serial_interface::transmit_register_setup(u8 data_byte)
 	}
 
 	/* stop bit(s) + 1 extra bit as delay between bytes, needed to get 1 stop bit to work.  */
-	for (i=0; i<=m_df_stop_bit_count; i++)
-	{
-		transmit_register_add_bit(1);
-	}
+	if (m_df_stop_bit_count)  // no stop bits for synchronous
+		for (i=0; i<=m_df_stop_bit_count; i++)   // ToDo - see if the hack on this line is still needed (was added 2016-04-10)
+			transmit_register_add_bit(1);
 }
 
 
@@ -441,6 +429,7 @@ u8 device_serial_interface::transmit_register_get_data_bit()
 	bit = (m_tra_register_data>>(m_tra_bit_count-1-m_tra_bit_count_transmitted))&1;
 
 	m_tra_bit_count_transmitted++;
+	//device().logerror("%d bits transmitted\n", m_tra_bit_count_transmitted);
 
 	/* have all bits of this stream formatted byte been sent? */
 	if (m_tra_bit_count_transmitted==m_tra_bit_count)
@@ -450,16 +439,6 @@ u8 device_serial_interface::transmit_register_get_data_bit()
 	}
 
 	return bit;
-}
-
-bool device_serial_interface::is_receive_register_full()
-{
-	return m_rcv_flags & RECEIVE_REGISTER_FULL;
-}
-
-bool device_serial_interface::is_transmit_register_empty()
-{
-	return m_tra_flags & TRANSMIT_REGISTER_EMPTY;
 }
 
 const char *device_serial_interface::parity_tostring(parity_t parity)

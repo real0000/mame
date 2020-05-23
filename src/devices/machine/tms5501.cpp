@@ -27,22 +27,23 @@ const uint8_t tms5501_device::rst_vector[] = { 0xc7, 0xcf, 0xd7, 0xdf, 0xe7, 0xe
 //**************************************************************************
 
 // device type definition
-const device_type TMS5501 = device_creator<tms5501_device>;
+DEFINE_DEVICE_TYPE(TMS5501, tms5501_device, "tms5501", "TMS5501 Multifunction I/O")
 
 
 // I/O address map
-DEVICE_ADDRESS_MAP_START( io_map, 8, tms5501_device )
-	AM_RANGE(0x00, 0x00) AM_READ(rb_r)
-	AM_RANGE(0x01, 0x01) AM_READ(xi_r)
-	AM_RANGE(0x02, 0x02) AM_READ(rst_r)
-	AM_RANGE(0x03, 0x03) AM_READ(sta_r)
-	AM_RANGE(0x04, 0x04) AM_WRITE(cmd_w)
-	AM_RANGE(0x05, 0x05) AM_WRITE(rr_w)
-	AM_RANGE(0x06, 0x06) AM_WRITE(tb_w)
-	AM_RANGE(0x07, 0x07) AM_WRITE(xo_w)
-	AM_RANGE(0x08, 0x08) AM_WRITE(mr_w)
-	AM_RANGE(0x09, 0x0d) AM_WRITE(tmr_w)
-ADDRESS_MAP_END
+void tms5501_device::io_map(address_map &map)
+{
+	map(0x00, 0x00).r(FUNC(tms5501_device::rb_r));
+	map(0x01, 0x01).r(FUNC(tms5501_device::xi_r));
+	map(0x02, 0x02).r(FUNC(tms5501_device::rst_r));
+	map(0x03, 0x03).r(FUNC(tms5501_device::sta_r));
+	map(0x04, 0x04).w(FUNC(tms5501_device::cmd_w));
+	map(0x05, 0x05).w(FUNC(tms5501_device::rr_w));
+	map(0x06, 0x06).w(FUNC(tms5501_device::tb_w));
+	map(0x07, 0x07).w(FUNC(tms5501_device::xo_w));
+	map(0x08, 0x08).w(FUNC(tms5501_device::mr_w));
+	map(0x09, 0x0d).w(FUNC(tms5501_device::tmr_w));
+}
 
 
 
@@ -55,9 +56,9 @@ ADDRESS_MAP_END
 //-------------------------------------------------
 
 tms5501_device::tms5501_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, TMS5501, "TMS5501", tag, owner, clock, "tms5501", __FILE__),
+	device_t(mconfig, TMS5501, tag, owner, clock),
 	device_serial_interface(mconfig, *this),
-	m_write_irq(*this),
+	m_write_int(*this),
 	m_write_xmt(*this),
 	m_read_xi(*this),
 	m_write_xo(*this),
@@ -81,7 +82,7 @@ tms5501_device::tms5501_device(const machine_config &mconfig, const char *tag, d
 void tms5501_device::device_start()
 {
 	// resolve callbacks
-	m_write_irq.resolve_safe();
+	m_write_int.resolve_safe();
 	m_write_xmt.resolve_safe();
 	m_read_xi.resolve_safe(0);
 	m_write_xo.resolve_safe();
@@ -152,7 +153,7 @@ void tms5501_device::device_timer(emu_timer &timer, device_timer_id id, int para
 		break;
 
 	default:
-		device_serial_interface::device_timer(timer, id, param, ptr);
+		break;
 	}
 }
 
@@ -218,7 +219,7 @@ void tms5501_device::rcv_complete()
 //  rb_r - read receiver buffer
 //-------------------------------------------------
 
-READ8_MEMBER( tms5501_device::rb_r )
+uint8_t tms5501_device::rb_r()
 {
 	m_sta &= ~STA_RBL;
 	m_irq &= ~IRQ_RB;
@@ -233,7 +234,7 @@ READ8_MEMBER( tms5501_device::rb_r )
 //  xi_r - read external inputs
 //-------------------------------------------------
 
-READ8_MEMBER( tms5501_device::xi_r )
+uint8_t tms5501_device::xi_r()
 {
 	uint8_t data = m_read_xi(0);
 
@@ -250,7 +251,7 @@ READ8_MEMBER( tms5501_device::xi_r )
 //  rst_r - read interrupt address
 //-------------------------------------------------
 
-READ8_MEMBER( tms5501_device::rst_r )
+uint8_t tms5501_device::rst_r()
 {
 	return get_vector();
 }
@@ -260,8 +261,11 @@ READ8_MEMBER( tms5501_device::rst_r )
 //  sta_r - read TMS5510 status
 //-------------------------------------------------
 
-READ8_MEMBER( tms5501_device::sta_r )
+uint8_t tms5501_device::sta_r()
 {
+	if(is_transmit_register_empty())
+		m_sta |= STA_XBE;
+
 	uint8_t data = m_sta;
 
 	m_sta &= ~STA_OE;
@@ -274,7 +278,7 @@ READ8_MEMBER( tms5501_device::sta_r )
 //  cmd_w - issue discrete commands
 //-------------------------------------------------
 
-WRITE8_MEMBER( tms5501_device::cmd_w )
+void tms5501_device::cmd_w(uint8_t data)
 {
 	if (LOG) logerror("TMS5501 '%s' Command %02x\n", tag(), data);
 
@@ -313,7 +317,7 @@ WRITE8_MEMBER( tms5501_device::cmd_w )
 //  rr_w - load rate register
 //-------------------------------------------------
 
-WRITE8_MEMBER( tms5501_device::rr_w )
+void tms5501_device::rr_w(uint8_t data)
 {
 	if (LOG) logerror("TMS5501 '%s' Rate Register %02x\n", tag(), data);
 
@@ -347,7 +351,7 @@ WRITE8_MEMBER( tms5501_device::rr_w )
 //  tb_w - load transmitter buffer
 //-------------------------------------------------
 
-WRITE8_MEMBER( tms5501_device::tb_w )
+void tms5501_device::tb_w(uint8_t data)
 {
 	if (LOG) logerror("TMS5501 '%s' Transmitter Buffer %02x\n", tag(), data);
 
@@ -372,7 +376,7 @@ WRITE8_MEMBER( tms5501_device::tb_w )
 //  xo_w - load output port
 //-------------------------------------------------
 
-WRITE8_MEMBER( tms5501_device::xo_w )
+void tms5501_device::xo_w(uint8_t data)
 {
 	if (LOG) logerror("TMS5501 '%s' Output %02x\n", tag(), data);
 
@@ -384,7 +388,7 @@ WRITE8_MEMBER( tms5501_device::xo_w )
 //  mr_w - load mask register
 //-------------------------------------------------
 
-WRITE8_MEMBER( tms5501_device::mr_w )
+void tms5501_device::mr_w(uint8_t data)
 {
 	if (LOG) logerror("TMS5501 '%s' Mask Register %02x\n", tag(), data);
 
@@ -398,7 +402,7 @@ WRITE8_MEMBER( tms5501_device::mr_w )
 //  tmr_w - load interval timer
 //-------------------------------------------------
 
-WRITE8_MEMBER( tms5501_device::tmr_w )
+void tms5501_device::tmr_w(offs_t offset, uint8_t data)
 {
 	if (LOG) logerror("TMS5501 '%s' Timer %u %02x\n", tag(), offset, data);
 
@@ -410,7 +414,7 @@ WRITE8_MEMBER( tms5501_device::tmr_w )
 //  rcv_w - receive data write
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( tms5501_device::rcv_w )
+void tms5501_device::rcv_w(int state)
 {
 	device_serial_interface::rx_w(state);
 
@@ -431,7 +435,7 @@ WRITE_LINE_MEMBER( tms5501_device::rcv_w )
 //  xi7_w -
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( tms5501_device::xi7_w )
+void tms5501_device::xi7_w(int state)
 {
 	if (m_cmd & CMD_XI7)
 	{
@@ -449,7 +453,7 @@ WRITE_LINE_MEMBER( tms5501_device::xi7_w )
 //  sens_w -
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( tms5501_device::sens_w )
+void tms5501_device::sens_w(int state)
 {
 	if (!m_sens && state)
 	{
@@ -495,11 +499,11 @@ void tms5501_device::check_interrupt()
 
 	if (m_cmd & CMD_IAE)
 	{
-		m_write_irq(state);
+		m_write_int(state);
 	}
 	else
 	{
-		m_write_irq(CLEAR_LINE);
+		m_write_int(CLEAR_LINE);
 	}
 }
 

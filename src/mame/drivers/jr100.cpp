@@ -1,15 +1,55 @@
 // license:BSD-3-Clause
-// copyright-holders:Miodrag Milanovic
+// copyright-holders:Miodrag Milanovic,Robbbert
 /***************************************************************************
 
-        JR-100 National / Panasonic
+JR-100 National / Panasonic
 
-        23/08/2010 Initial driver version
+2010-08-23 Initial driver version
 
-        TODO:
-        - beeper doesn't work correctly when a key is pressed (should have
-          more time but it's quickly shut off), presumably there are M6802
-          timing bugs that causes this quirk.
+CPU: User manual for JR100U states it is a MN1800 (==MC6802), but the photo
+shows it to be a Fujitsu MB8861H, which is a MC6800 with extra instructions.
+The manual also states the clock to be 890kHz but in fact it is 894kHz.
+MB14392 custom LSI generates the various clock signals for the computer.
+
+List of extra instructions:
+0x71 NIM And Immediate with memory    data & M -> M       Index, 8,3   71,data,index
+     V is reset; if result = 0, Z is set, N is reset; else Z is reset, N is set
+0x72 OIM Or Immediate with memory     data | M -> M       Index, 8,3   72,data,index
+     V is reset; if result = 0, Z is set, N is reset; else Z is reset, N is set
+0x75 XIM Xor Immediate with memory    data ^ M -> M       Index, 8,3   75,data,index
+     if result = 0, Z is set, N is reset; else Z is reset, N is set
+0x7B TMM Test under mask with memory  (data & M) ^ data   Index, 7,3   7B,data,index
+     flags not stated
+0xEC ADX Add Index Register           X + data -> X       Immed,4,2
+     "adds 1 byte to the index register"?  flags not stated
+0xFC ADX Add Index Register           X + (M) -> X        Extend,7,3
+     "adds 2 bytes to the index register"?  flags not stated. One page says result goes to M.
+
+There is also an MB8861 equivalent of the MC6802 which is called MB8871. Behaviour
+of undefined instructions is not the same as the Motorola parts. Variants:
+MB8861N : 1MHz
+MB8861E : 1.3MHz
+MB8861H : 2MHz
+
+Similar to MC6875, the MB8867 could be used as a clock oscillator and divide by 8
+circuit to drive the CPU directly.
+
+CC02 joystick input register (active high)
+bit 7,6: undefined
+bit 5: 0
+bit 4: button
+bit 3: down
+bit 2: up
+bit 1: left
+bit 0: right
+
+TODO:
+- Need software.
+- Paste drops many characters.
+- Cassette not working correctly. If the VIA divider is 32, then SAVE produces
+  a good 600 baud recording (verified on super80). But the divider must be 16
+  to LOAD the tape back in. It is suspected that the VIA has a timer bug.
+
 
 ****************************************************************************/
 
@@ -18,9 +58,9 @@
 #include "imagedev/cassette.h"
 #include "imagedev/snapquik.h"
 #include "machine/6522via.h"
-#include "sound/beep.h"
+#include "machine/timer.h"
 #include "sound/spkrdev.h"
-#include "sound/wave.h"
+#include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -29,228 +69,189 @@ class jr100_state : public driver_device
 {
 public:
 	jr100_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_ram(*this, "ram"),
-		m_pcg(*this, "pcg"),
-		m_vram(*this, "vram"),
-		m_via(*this, "via"),
-		m_cassette(*this, "cassette"),
-		m_beeper(*this, "beeper"),
-		m_speaker(*this, "speaker"),
-		m_region_maincpu(*this, "maincpu"),
-		m_line0(*this, "LINE0"),
-		m_line1(*this, "LINE1"),
-		m_line2(*this, "LINE2"),
-		m_line3(*this, "LINE3"),
-		m_line4(*this, "LINE4"),
-		m_line5(*this, "LINE5"),
-		m_line6(*this, "LINE6"),
-		m_line7(*this, "LINE7"),
-		m_line8(*this, "LINE8") ,
-		m_maincpu(*this, "maincpu") { }
+		: driver_device(mconfig, type, tag)
+		, m_ram(*this, "ram")
+		, m_pcg(*this, "pcg")
+		, m_vram(*this, "vram")
+		, m_rom(*this, "rom")
+		, m_via(*this, "via")
+		, m_cassette(*this, "cassette")
+		, m_speaker(*this, "speaker")
+		, m_region_maincpu(*this, "maincpu")
+		, m_io_keyboard(*this, "LINE%u", 0)
+		, m_maincpu(*this, "maincpu")
+	{ }
+
+	void jr100(machine_config &config);
+
+private:
+	uint8_t m_keyboard_line;
+	bool m_use_pcg;
+	bool m_pb7;
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+	uint32_t screen_update_jr100(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	TIMER_CALLBACK_MEMBER(sound_tick);
+	uint8_t pb_r();
+	void pa_w(uint8_t data);
+	void pb_w(uint8_t data);
+	DECLARE_WRITE_LINE_MEMBER(cb2_w);
+	uint32_t readByLittleEndian(uint8_t *buf,int pos);
+	DECLARE_QUICKLOAD_LOAD_MEMBER(quickload_cb);
+
+	void mem_map(address_map &map);
 
 	required_shared_ptr<uint8_t> m_ram;
 	required_shared_ptr<uint8_t> m_pcg;
 	required_shared_ptr<uint8_t> m_vram;
-	uint8_t m_keyboard_line;
-	bool m_use_pcg;
-	uint8_t m_speaker_data;
-	uint16_t m_t1latch;
-	uint8_t m_beep_en;
-	DECLARE_WRITE8_MEMBER(jr100_via_w);
-	virtual void machine_start() override;
-	virtual void machine_reset() override;
-	virtual void video_start() override;
-	uint32_t screen_update_jr100(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	TIMER_DEVICE_CALLBACK_MEMBER(sound_tick);
-	DECLARE_READ8_MEMBER(jr100_via_read_b);
-	DECLARE_WRITE8_MEMBER(jr100_via_write_a);
-	DECLARE_WRITE8_MEMBER(jr100_via_write_b);
-	DECLARE_WRITE_LINE_MEMBER(jr100_via_write_cb2);
-	uint32_t readByLittleEndian(uint8_t *buf,int pos);
-	DECLARE_QUICKLOAD_LOAD_MEMBER(jr100);
-
-
-protected:
+	required_shared_ptr<uint8_t> m_rom;
 	required_device<via6522_device> m_via;
 	required_device<cassette_image_device> m_cassette;
-	required_device<beep_device> m_beeper;
 	required_device<speaker_sound_device> m_speaker;
 	required_memory_region m_region_maincpu;
-	required_ioport m_line0;
-	required_ioport m_line1;
-	required_ioport m_line2;
-	required_ioport m_line3;
-	required_ioport m_line4;
-	required_ioport m_line5;
-	required_ioport m_line6;
-	required_ioport m_line7;
-	required_ioport m_line8;
-	required_device<cpu_device> m_maincpu;
+	required_ioport_array<9> m_io_keyboard;
+	required_device<m6800_cpu_device> m_maincpu;
+
+	emu_timer *m_sound_timer;
 };
 
 
-
-
-WRITE8_MEMBER(jr100_state::jr100_via_w)
+void jr100_state::mem_map(address_map &map)
 {
-	/* ACR: beeper masking */
-	if(offset == 0x0b)
-	{
-		//printf("BEEP %s\n",((data & 0xe0) == 0xe0) ? "ON" : "OFF");
-		m_beep_en = ((data & 0xe0) == 0xe0);
-
-		if(!m_beep_en)
-			m_beeper->set_state(0);
-	}
-
-	/* T1L-L */
-	if(offset == 0x04)
-	{
-		m_t1latch = (m_t1latch & 0xff00) | (data & 0xff);
-		//printf("BEEP T1CL %02x\n",data);
-	}
-
-	/* T1L-H */
-	if(offset == 0x05)
-	{
-		m_t1latch = (m_t1latch & 0xff) | ((data & 0xff) << 8);
-		//printf("BEEP T1CH %02x\n",data);
-
-		/* writing here actually enables the beeper, if above masking condition is satisfied */
-		if(m_beep_en)
-		{
-			m_beeper->set_state(1);
-			m_beeper->set_clock(894886.25 / (double)(m_t1latch) / 2.0);
-		}
-	}
-	m_via->write(space,offset,data);
+	map.unmap_value_high();
+	map(0x0000, 0x3fff).ram().share("ram");
+	//map(0x4000, 0x7fff).ram();   expansion ram
+	//map(0x8000, 0xbfff).rom();   expansion rom
+	map(0xc000, 0xc0ff).ram().share("pcg").region("maincpu", 0xc000);
+	map(0xc100, 0xc3ff).ram().share("vram");
+	map(0xc800, 0xc80f).m(m_via, FUNC(via6522_device::map));
+	//map(0xcc00, 0xcfff).;   expansion i/o
+	//map(0xd000, 0xd7ff).rom();   expansion rom for printer control
+	//map(0xd800, 0xdfff).rom();   expansion rom
+	map(0xe000, 0xffff).rom().share("rom");
 }
 
-static ADDRESS_MAP_START(jr100_mem, AS_PROGRAM, 8, jr100_state )
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x0000, 0x3fff) AM_RAM AM_SHARE("ram")
-	AM_RANGE(0xc000, 0xc0ff) AM_RAM AM_SHARE("pcg")
-	AM_RANGE(0xc100, 0xc3ff) AM_RAM AM_SHARE("vram")
-	AM_RANGE(0xc800, 0xc80f) AM_DEVREAD("via", via6522_device, read) AM_WRITE(jr100_via_w)
-	AM_RANGE(0xe000, 0xffff) AM_ROM
-ADDRESS_MAP_END
-
-/* Input ports */
+// Input ports - names in [ ] are screen actions; otherwise the text is literally printed onscreen
 INPUT_PORTS_START( jr100 )
 	PORT_START("LINE0")
 	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Ctrl") PORT_CODE(KEYCODE_LCONTROL) PORT_CODE(KEYCODE_RCONTROL)
-	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Shift") PORT_CODE(KEYCODE_LSHIFT) PORT_CODE(KEYCODE_RSHIFT)
-	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_Z) // Z
-	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_X) // X
-	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_C) // C
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Shift") PORT_CODE(KEYCODE_LSHIFT) PORT_CODE(KEYCODE_RSHIFT) PORT_CHAR(UCHAR_SHIFT_1)
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Z [Line Insert]") PORT_CODE(KEYCODE_Z) PORT_CHAR('Z')
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("X [Cancel]") PORT_CODE(KEYCODE_X) PORT_CHAR('X')
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("C [Break]") PORT_CODE(KEYCODE_C) PORT_CHAR('C')
 	PORT_BIT(0xE0, IP_ACTIVE_LOW, IPT_UNUSED)
 	PORT_START("LINE1")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_A) // A
-	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_S) // S
-	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_D) // D
-	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_F) // F
-	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_G) // G
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("A Auto") PORT_CODE(KEYCODE_A) PORT_CHAR('A')
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("S Stop") PORT_CODE(KEYCODE_S) PORT_CHAR('S')
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("D Dim") PORT_CODE(KEYCODE_D) PORT_CHAR('D')
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("F For") PORT_CODE(KEYCODE_F) PORT_CHAR('F')
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("G Goto") PORT_CODE(KEYCODE_G) PORT_CHAR('G')
 	PORT_BIT(0xE0, IP_ACTIVE_LOW, IPT_UNUSED)
 	PORT_START("LINE2")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_Q) // Q
-	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_W) // W
-	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_E) // E
-	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_R) // R
-	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_T) // T
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Q Gosub") PORT_CODE(KEYCODE_Q) PORT_CHAR('Q')
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("W Ret") PORT_CODE(KEYCODE_W) PORT_CHAR('W')
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("E End") PORT_CODE(KEYCODE_E) PORT_CHAR('E')
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("R Run") PORT_CODE(KEYCODE_R) PORT_CHAR('R')
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("T Then") PORT_CODE(KEYCODE_T) PORT_CHAR('T')
 	PORT_BIT(0xE0, IP_ACTIVE_LOW, IPT_UNUSED)
 	PORT_START("LINE3")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_1) // 1
-	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_2) // 2
-	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_3) // 3
-	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_4) // 4
-	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_5) // 5
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("1 ! [Home]") PORT_CODE(KEYCODE_1) PORT_CHAR('1') PORT_CHAR('!')
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("2 \" Verify") PORT_CODE(KEYCODE_2) PORT_CHAR('2') PORT_CHAR(34)
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("3 # Save") PORT_CODE(KEYCODE_3) PORT_CHAR('3') PORT_CHAR('#')
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("4 $ Load") PORT_CODE(KEYCODE_4) PORT_CHAR('4') PORT_CHAR('$')
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("5 % [Delete]") PORT_CODE(KEYCODE_5) PORT_CHAR('5') PORT_CHAR('%')
 	PORT_BIT(0xE0, IP_ACTIVE_LOW, IPT_UNUSED)
 	PORT_START("LINE4")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_6) // 6
-	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_7) // 7
-	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_8) // 8
-	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_9) // 9
-	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_0) // 0
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("6 & " UTF8_LEFT) PORT_CODE(KEYCODE_6) PORT_CHAR('6') PORT_CHAR('&')
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("7 ' " UTF8_DOWN) PORT_CODE(KEYCODE_7) PORT_CHAR('7') PORT_CHAR(39)
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("8 ( " UTF8_UP) PORT_CODE(KEYCODE_8) PORT_CHAR('8') PORT_CHAR('(')
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("9 ) " UTF8_RIGHT) PORT_CODE(KEYCODE_9) PORT_CHAR('9') PORT_CHAR(')')
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("0 ^ [Insert]") PORT_CODE(KEYCODE_0) PORT_CHAR('0') PORT_CHAR('^')
 	PORT_BIT(0xE0, IP_ACTIVE_LOW, IPT_UNUSED)
 	PORT_START("LINE5")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_Y) // Y
-	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_U) // U
-	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_I) // I
-	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_O) // O
-	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_P) // P
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Y Locate") PORT_CODE(KEYCODE_Y) PORT_CHAR('Y')
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("U @ If") PORT_CODE(KEYCODE_U) PORT_CHAR('U')
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("I \xc2\xa5 Input") PORT_CODE(KEYCODE_I) PORT_CHAR('I')
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("O [ Option") PORT_CODE(KEYCODE_O) PORT_CHAR('O')
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("P ] Print") PORT_CODE(KEYCODE_P) PORT_CHAR('P')
 	PORT_BIT(0xE0, IP_ACTIVE_LOW, IPT_UNUSED)
 	PORT_START("LINE6")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_H) // H
-	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_J) // J
-	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_K) // K
-	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_L) // L
-	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_COLON) // ;
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("H Poke") PORT_CODE(KEYCODE_H) PORT_CHAR('H')
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("J Rnd(") PORT_CODE(KEYCODE_J) PORT_CHAR('J')
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("K ? Read") PORT_CODE(KEYCODE_K) PORT_CHAR('K') PORT_CHAR('?')
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("L / List") PORT_CODE(KEYCODE_L) PORT_CHAR('L') PORT_CHAR('/')
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("; + Rem") PORT_CODE(KEYCODE_COLON) PORT_CHAR(';') PORT_CHAR('+')
 	PORT_BIT(0xE0, IP_ACTIVE_LOW, IPT_UNUSED)
 	PORT_START("LINE7")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_V) // V
-	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_B) // B
-	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_N) // N
-	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_M) // M
-	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_COMMA) // ,
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("V [Graphics]") PORT_CODE(KEYCODE_V) PORT_CHAR('V')
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("B [Hcopy]") PORT_CODE(KEYCODE_B) PORT_CHAR('B') // HCOPY doesn't seem to do anything
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("N Next") PORT_CODE(KEYCODE_N) PORT_CHAR('N')
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("M _ Cls") PORT_CODE(KEYCODE_M) PORT_CHAR('M') PORT_CHAR('_')
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME(", < Data") PORT_CODE(KEYCODE_COMMA) PORT_CHAR(',') PORT_CHAR('<')
 	PORT_BIT(0xE0, IP_ACTIVE_LOW, IPT_UNUSED)
 	PORT_START("LINE8")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_STOP) // .
-	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_SPACE) // space
-	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_QUOTE) // :
-	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_ENTER) // enter
-	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_MINUS) // -
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME(". > Peek(") PORT_CODE(KEYCODE_STOP) PORT_CHAR('.') PORT_CHAR('>')
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Space") PORT_CODE(KEYCODE_SPACE) PORT_CHAR(32)
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME(": * Chr$(") PORT_CODE(KEYCODE_QUOTE) PORT_CHAR(':') PORT_CHAR('*')
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Enter") PORT_CODE(KEYCODE_ENTER) PORT_CHAR(13)
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("- = [Del]") PORT_CODE(KEYCODE_MINUS) PORT_CHAR('-') PORT_CHAR('=')
 	PORT_BIT(0xE0, IP_ACTIVE_LOW, IPT_UNUSED)
 INPUT_PORTS_END
 
 void jr100_state::machine_start()
 {
+	if (!m_sound_timer)
+		m_sound_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(jr100_state::sound_tick), this));
 }
 
 void jr100_state::machine_reset()
 {
-}
-
-void jr100_state::video_start()
-{
+	attotime timer_period = attotime::from_hz(XTAL(14'318'181) / 16);
+	m_sound_timer->adjust(timer_period, 0, timer_period);
 }
 
 uint32_t jr100_state::screen_update_jr100(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	int x,y,xi,yi;
+	bool attr;
+	u8 y,ra,gfx,chr;
+	u16 x,sy=0,ma=0;
 
-	uint8_t *rom_pcg = m_region_maincpu->base() + 0xe000;
 	for (y = 0; y < 24; y++)
 	{
-		for (x = 0; x < 32; x++)
+		for (ra = 0; ra < 8; ra++)
 		{
-			uint8_t tile = m_vram[x + y*32];
-			uint8_t attr = tile >> 7;
-			// ATTR is inverted for normal char or use PCG in case of CMODE1
-			uint8_t *gfx_data = rom_pcg;
-			if (m_use_pcg && attr) {
-				gfx_data = m_pcg;
-				attr = 0; // clear attr so bellow code stay same
-			}
-			tile &= 0x7f;
-			for(yi=0;yi<8;yi++)
+			uint16_t *p = &bitmap.pix16(sy++);
+			for (x = ma; x < ma + 32; x++)
 			{
-				for(xi=0;xi<8;xi++)
-				{
-					uint8_t pen = (gfx_data[(tile*8)+yi]>>(7-xi) & 1);
-					bitmap.pix16(y*8+yi, x*8+xi) = attr ^ pen;
-				}
+				chr = m_vram[x];
+				attr = BIT(chr, 7);
+				chr &= 0x7f;
+				// ATTR is inverted for normal char or use PCG in case of CMODE1
+				if (m_use_pcg && attr && (chr < 32))
+					gfx = m_pcg[(chr<<3) | ra];
+				else
+					gfx = m_rom[(chr<<3) | ra] ^ (attr ? 0xff : 0);
+
+				*p++ = BIT(gfx, 7);
+				*p++ = BIT(gfx, 6);
+				*p++ = BIT(gfx, 5);
+				*p++ = BIT(gfx, 4);
+				*p++ = BIT(gfx, 3);
+				*p++ = BIT(gfx, 2);
+				*p++ = BIT(gfx, 1);
+				*p++ = BIT(gfx, 0);
 			}
 		}
+		ma += 32;
 	}
 
 	return 0;
 }
 
-static const gfx_layout tiles8x8_layout =
+static const gfx_layout tilesrom_layout =
 {
 	8,8,
-	RGN_FRAC(1,1),
+	128,
 	1,
 	{ 0 },
 	{ 0, 1, 2, 3, 4, 5, 6, 7, 8 },
@@ -258,54 +259,59 @@ static const gfx_layout tiles8x8_layout =
 	8*8
 };
 
-static GFXDECODE_START( jr100 )
-	GFXDECODE_ENTRY( "maincpu", 0xe000, tiles8x8_layout, 0, 1 )
+static const gfx_layout tilesram_layout =
+{
+	8,8,
+	32,
+	1,
+	{ 0 },
+	{ 0, 1, 2, 3, 4, 5, 6, 7, 8 },
+	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8 },
+	8*8
+};
+
+static GFXDECODE_START( gfx_jr100 )
+	GFXDECODE_ENTRY( "maincpu", 0xe000, tilesrom_layout, 0, 1 )   // inside rom
+	GFXDECODE_ENTRY( "maincpu", 0xc000, tilesram_layout, 0, 1 )   // user defined
 GFXDECODE_END
 
-READ8_MEMBER(jr100_state::jr100_via_read_b)
+uint8_t jr100_state::pb_r()
 {
-	uint8_t val = 0x1f;
-	switch ( m_keyboard_line )
-	{
-		case 0: val = m_line0->read(); break;
-		case 1: val = m_line1->read(); break;
-		case 2: val = m_line2->read(); break;
-		case 3: val = m_line3->read(); break;
-		case 4: val = m_line4->read(); break;
-		case 5: val = m_line5->read(); break;
-		case 6: val = m_line6->read(); break;
-		case 7: val = m_line7->read(); break;
-		case 8: val = m_line8->read(); break;
-	}
-	return val;
+	uint8_t data = 0x1f;
+	if (m_keyboard_line < 9)
+		data = m_io_keyboard[m_keyboard_line]->read() & 0xbf;
+	data |= (m_pb7 ? 0x40 : 0);
+	return data;
 }
 
-WRITE8_MEMBER(jr100_state::jr100_via_write_a)
+void jr100_state::pa_w(uint8_t data)
 {
 	m_keyboard_line = data & 0x0f;
 }
 
-WRITE8_MEMBER(jr100_state::jr100_via_write_b)
+void jr100_state::pb_w(uint8_t data)
 {
-	m_use_pcg = (data & 0x20) ? true : false;
-	m_speaker_data = data>>7;
+	m_use_pcg = BIT(data, 5);
+	m_pb7 = BIT(data, 7);
+	m_speaker->level_w(m_pb7);
+	m_via->write_pb6(m_pb7);
 }
 
-WRITE_LINE_MEMBER(jr100_state::jr100_via_write_cb2)
+WRITE_LINE_MEMBER(jr100_state::cb2_w)
 {
 	m_cassette->output(state ? -1.0 : +1.0);
 }
 
-TIMER_DEVICE_CALLBACK_MEMBER(jr100_state::sound_tick)
+TIMER_CALLBACK_MEMBER(jr100_state::sound_tick)
 {
-	m_speaker->level_w(m_speaker_data);
-	m_speaker_data = 0;
-
 	double level = (m_cassette->input());
-	if (level > 0.0) {
+	if (level > 0.0)
+	{
 		m_via->write_ca1(0);
 		m_via->write_cb1(0);
-	} else {
+	}
+	else
+	{
 		m_via->write_ca1(1);
 		m_via->write_cb1(1);
 	}
@@ -316,7 +322,7 @@ uint32_t jr100_state::readByLittleEndian(uint8_t *buf,int pos)
 	return buf[pos] + (buf[pos+1] << 8) + (buf[pos+2] << 16) + (buf[pos+3] << 24);
 }
 
-QUICKLOAD_LOAD_MEMBER( jr100_state,jr100)
+QUICKLOAD_LOAD_MEMBER(jr100_state::quickload_cb)
 {
 	int quick_length;
 	uint8_t buf[0x10000];
@@ -328,15 +334,15 @@ QUICKLOAD_LOAD_MEMBER( jr100_state,jr100)
 	if (read_ != quick_length)
 		return image_init_result::FAIL;
 
-	if (buf[0]!=0x50 || buf[1]!=0x52 || buf[2]!=0x4F || buf[3]!=0x47) {
+	if (buf[0]!=0x50 || buf[1]!=0x52 || buf[2]!=0x4F || buf[3]!=0x47)
 		// this is not PRG
 		return image_init_result::FAIL;
-	}
+
 	int pos = 4;
-	if (readByLittleEndian(buf,pos)!=1) {
+	if (readByLittleEndian(buf,pos)!=1)
 		// not version 1 of PRG file
 		return image_init_result::FAIL;
-	}
+
 	pos += 4;
 	uint32_t len =readByLittleEndian(buf,pos); pos+= 4;
 	pos += len; // skip name
@@ -347,7 +353,8 @@ QUICKLOAD_LOAD_MEMBER( jr100_state,jr100)
 	uint32_t end_address = start_address + code_length - 1;
 	// copy code
 	memcpy(m_ram + start_address,buf + pos,code_length);
-	if (flag == 0) {
+	if (flag == 0)
+	{
 		m_ram[end_address + 1] =  0xdf;
 		m_ram[end_address + 2] =  0xdf;
 		m_ram[end_address + 3] =  0xdf;
@@ -364,62 +371,56 @@ QUICKLOAD_LOAD_MEMBER( jr100_state,jr100)
 	return image_init_result::PASS;
 }
 
-static MACHINE_CONFIG_START( jr100, jr100_state )
-
+void jr100_state::jr100(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu",M6802, XTAL_14_31818MHz / 4) // clock devided internaly by 4
-	MCFG_CPU_PROGRAM_MAP(jr100_mem)
+	M6800(config, m_maincpu, XTAL(14'318'181) / 16);  //actually MB8861
+	m_maincpu->set_addrmap(AS_PROGRAM, &jr100_state::mem_map);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_SCREEN_SIZE(256, 192) /* border size not accurate */
-	MCFG_SCREEN_VISIBLE_AREA(0, 256 - 1, 0, 192 - 1)
-	MCFG_SCREEN_UPDATE_DRIVER(jr100_state, screen_update_jr100)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500)); /* not accurate */
+	screen.set_size(256, 192); /* border size not accurate */
+	screen.set_visarea(0, 256 - 1, 0, 192 - 1);
+	screen.set_screen_update(FUNC(jr100_state::screen_update_jr100));
+	screen.set_palette("palette");
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jr100)
-	MCFG_PALETTE_ADD_MONOCHROME("palette")
+	GFXDECODE(config, "gfxdecode", "palette", gfx_jr100);
+	PALETTE(config, "palette", palette_device::MONOCHROME);
 
-	MCFG_DEVICE_ADD("via", VIA6522, XTAL_14_31818MHz / 16)
-	MCFG_VIA6522_READPB_HANDLER(READ8(jr100_state,jr100_via_read_b))
-	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(jr100_state,jr100_via_write_a))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(jr100_state,jr100_via_write_b))
-	MCFG_VIA6522_CB2_HANDLER(WRITELINE(jr100_state, jr100_via_write_cb2))
+	VIA6522(config, m_via, XTAL(14'318'181) / 16);   // see note in TODO
+	m_via->readpb_handler().set(FUNC(jr100_state::pb_r));
+	m_via->writepa_handler().set(FUNC(jr100_state::pa_w));
+	m_via->writepb_handler().set(FUNC(jr100_state::pb_w));
+	m_via->cb2_handler().set(FUNC(jr100_state::cb2_w));
+	m_via->irq_handler().set_inputline(m_maincpu, M6800_IRQ_LINE);
 
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
+	SPEAKER(config, "mono").front_center();
+	SPEAKER_SOUND(config, m_speaker).add_route(ALL_OUTPUTS, "mono", 1.00);
 
-	MCFG_SOUND_ADD("beeper", BEEP, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.50)
-
-	MCFG_CASSETTE_ADD( "cassette" )
-	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
-
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("sound_tick", jr100_state, sound_tick, attotime::from_hz(XTAL_14_31818MHz / 16))
+	CASSETTE(config, m_cassette, 0);
+	m_cassette->set_default_state(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED);
+	m_cassette->add_route(ALL_OUTPUTS, "mono", 0.05);
 
 	/* quickload */
-	MCFG_QUICKLOAD_ADD("quickload", jr100_state, jr100, "prg", 2)
-MACHINE_CONFIG_END
+	QUICKLOAD(config, "quickload", "prg", attotime::from_seconds(2)).set_load_callback(FUNC(jr100_state::quickload_cb));
+}
 
 
 /* ROM definition */
 ROM_START( jr100 )
-	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
-	ROM_LOAD( "jr100.rom", 0xe000, 0x2000, CRC(951d08a1) SHA1(edae3daaa94924e444bbe485ac2bcd5cb5b22ca2))
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "jr100.ic5", 0xe000, 0x2000, CRC(951d08a1) SHA1(edae3daaa94924e444bbe485ac2bcd5cb5b22ca2))
 ROM_END
 
 ROM_START( jr100u )
-	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
-	ROM_LOAD( "jr100u.rom", 0xe000, 0x2000, CRC(f589dd8d) SHA1(78a51f2ae055bf4dc1b0887a6277f5dbbd8ba512))
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "jr100u.ic5", 0xe000, 0x2000, CRC(f589dd8d) SHA1(78a51f2ae055bf4dc1b0887a6277f5dbbd8ba512))
 ROM_END
 
 /* Driver */
 
-/*   YEAR  NAME    PARENT  COMPAT   MACHINE  INPUT  INIT        COMPANY   FULLNAME       FLAGS */
-COMP( 1981, jr100,  0,        0,    jr100,  jr100, driver_device,    0,       "National",   "JR-100",       0)
-COMP( 1981, jr100u, jr100,    0,    jr100,  jr100, driver_device,    0,       "Panasonic",   "JR-100U",     0)
+//    YEAR  NAME    PARENT  COMPAT  MACHINE  INPUT  CLASS        INIT        COMPANY      FULLNAME   FLAGS
+COMP( 1981, jr100,  0,      0,      jr100,   jr100, jr100_state, empty_init, "National",  "JR-100",  0 )
+COMP( 1981, jr100u, jr100,  0,      jr100,   jr100, jr100_state, empty_init, "Panasonic", "JR-100U", 0 )

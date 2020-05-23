@@ -16,45 +16,21 @@
 //**************************************************************************
 
 // device type definition
-const device_type NVRAM = device_creator<nvram_device>;
+DEFINE_DEVICE_TYPE(NVRAM, nvram_device, "nvram", "NVRAM")
 
 //-------------------------------------------------
 //  nvram_device - constructor
 //-------------------------------------------------
 
 nvram_device::nvram_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, NVRAM, "NVRAM", tag, owner, clock, "nvram", __FILE__),
+	: device_t(mconfig, NVRAM, tag, owner, clock),
 		device_nvram_interface(mconfig, *this),
 		m_region(*this, DEVICE_SELF),
 		m_default_value(DEFAULT_ALL_1),
+		m_custom_handler(*this),
 		m_base(nullptr),
 		m_length(0)
 {
-}
-
-
-//-------------------------------------------------
-//  static_set_interface - configuration helper
-//  to set the interface
-//-------------------------------------------------
-
-void nvram_device::static_set_default_value(device_t &device, default_value value)
-{
-	nvram_device &nvram = downcast<nvram_device &>(device);
-	nvram.m_default_value = value;
-}
-
-
-//-------------------------------------------------
-//  static_set_custom_handler - configuration
-//  helper to set a custom callback
-//-------------------------------------------------
-
-void nvram_device::static_set_custom_handler(device_t &device, nvram_init_delegate handler)
-{
-	nvram_device &nvram = downcast<nvram_device &>(device);
-	nvram.m_default_value = DEFAULT_CUSTOM;
-	nvram.m_custom_handler = handler;
 }
 
 
@@ -65,7 +41,7 @@ void nvram_device::static_set_custom_handler(device_t &device, nvram_init_delega
 void nvram_device::device_start()
 {
 	// bind our handler
-	m_custom_handler.bind_relative_to(*owner());
+	m_custom_handler.resolve();
 }
 
 
@@ -159,12 +135,12 @@ void nvram_device::determine_final_base()
 	{
 		memory_share *share = owner()->memshare(tag());
 		if (share == nullptr)
-			throw emu_fatalerror("NVRAM device '%s' has no corresponding AM_SHARE region", tag());
+			throw emu_fatalerror("NVRAM device '%s' has no corresponding share() region", tag());
 		m_base = share->ptr();
 		m_length = share->bytes();
 	}
 
 	// if we are region-backed for the default, find it now and make sure it's the right size
 	if (m_region.found() && m_region->bytes() != m_length)
-		throw emu_fatalerror("%s",string_format("NVRAM device '%s' has a default region, but it should be 0x%I64uX bytes", tag(), m_length).c_str());
+		throw emu_fatalerror("%s",string_format("NVRAM device '%s' has a default region, but it should be 0x%X bytes", tag(), m_length).c_str());
 }

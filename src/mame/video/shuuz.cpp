@@ -19,11 +19,11 @@
 
 TILE_GET_INFO_MEMBER(shuuz_state::get_playfield_tile_info)
 {
-	uint16_t data1 = tilemap.basemem_read(tile_index);
-	uint16_t data2 = tilemap.extmem_read(tile_index) >> 8;
+	uint16_t data1 = m_vad->playfield().basemem_read(tile_index);
+	uint16_t data2 = m_vad->playfield().extmem_read(tile_index) >> 8;
 	int code = data1 & 0x3fff;
 	int color = data2 & 0x0f;
-	SET_TILE_INFO_MEMBER(0, code, color, (data1 >> 15) & 1);
+	tileinfo.set(0, code, color, (data1 >> 15) & 1);
 }
 
 
@@ -86,11 +86,11 @@ uint32_t shuuz_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap,
 	// draw and merge the MO
 	bitmap_ind16 &mobitmap = m_vad->mob().bitmap();
 	for (const sparse_dirty_rect *rect = m_vad->mob().first_dirty_rect(cliprect); rect != nullptr; rect = rect->next())
-		for (int y = rect->min_y; y <= rect->max_y; y++)
+		for (int y = rect->top(); y <= rect->bottom(); y++)
 		{
 			uint16_t *mo = &mobitmap.pix16(y);
 			uint16_t *pf = &bitmap.pix16(y);
-			for (int x = rect->min_x; x <= rect->max_x; x++)
+			for (int x = rect->left(); x <= rect->right(); x++)
 				if (mo[x] != 0xffff)
 				{
 					/* verified from the GALs on the real PCB; equations follow

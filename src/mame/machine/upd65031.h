@@ -6,43 +6,15 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_UPD65031_H
+#define MAME_MACHINE_UPD65031_H
+
 #pragma once
-
-#ifndef __UPD65031__
-#define __UPD65031__
-
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_UPD65031_KB_CALLBACK(_read) \
-	devcb = &upd65031_device::set_kb_rd_callback(*device, DEVCB_##_read);
-
-#define MCFG_UPD65031_INT_CALLBACK(_write) \
-	devcb = &upd65031_device::set_int_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_UPD65031_NMI_CALLBACK(_write) \
-	devcb = &upd65031_device::set_nmi_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_UPD65031_SPKR_CALLBACK(_write) \
-	devcb = &upd65031_device::set_spkr_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_UPD65031_SCR_UPDATE_CB(_class, _method) \
-	upd65031_device::set_screen_update_callback(*device, upd65031_screen_update_delegate(&_class::_method, #_class "::" #_method, downcast<_class *>(owner)));
-
-#define MCFG_UPD65031_MEM_UPDATE_CB(_class, _method) \
-	upd65031_device::set_memory_update_callback(*device, upd65031_memory_update_delegate(&_class::_method, #_class "::" #_method, downcast<_class *>(owner)));
 
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
-
-typedef device_delegate<void (bitmap_ind16 &bitmap, uint16_t sbf, uint16_t hires0, uint16_t hires1, uint16_t lores0, uint16_t lores1, int flash)> upd65031_screen_update_delegate;
-typedef device_delegate<void (int bank, uint16_t page, int rams)> upd65031_memory_update_delegate;
 
 #define UPD65031_SCREEN_UPDATE(_name) void _name(bitmap_ind16 &bitmap, uint16_t sbf, uint16_t hires0, uint16_t hires1, uint16_t lores0, uint16_t lores1, int flash)
 #define UPD65031_MEMORY_UPDATE(_name) void _name(int bank, uint16_t page, int rams)
@@ -53,19 +25,22 @@ typedef device_delegate<void (int bank, uint16_t page, int rams)> upd65031_memor
 class upd65031_device : public device_t
 {
 public:
+	typedef device_delegate<void (bitmap_ind16 &bitmap, uint16_t sbf, uint16_t hires0, uint16_t hires1, uint16_t lores0, uint16_t lores1, int flash)> screen_update_delegate;
+	typedef device_delegate<void (int bank, uint16_t page, int rams)> memory_update_delegate;
+
 	// construction/destruction
 	upd65031_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_kb_rd_callback(device_t &device, _Object object) { return downcast<upd65031_device &>(device).m_read_kb.set_callback(object); }
-	template<class _Object> static devcb_base &set_int_wr_callback(device_t &device, _Object object) { return downcast<upd65031_device &>(device).m_write_int.set_callback(object); }
-	template<class _Object> static devcb_base &set_nmi_wr_callback(device_t &device, _Object object) { return downcast<upd65031_device &>(device).m_write_nmi.set_callback(object); }
-	template<class _Object> static devcb_base &set_spkr_wr_callback(device_t &device, _Object object) { return downcast<upd65031_device &>(device).m_write_spkr.set_callback(object); }
+	auto kb_rd_callback() { return m_read_kb.bind(); }
+	auto int_wr_callback() { return m_write_int.bind(); }
+	auto nmi_wr_callback() { return m_write_nmi.bind(); }
+	auto spkr_wr_callback() { return m_write_spkr.bind(); }
 
-	static void set_screen_update_callback(device_t &device, upd65031_screen_update_delegate callback) { downcast<upd65031_device &>(device).m_screen_update_cb = callback; }
-	static void set_memory_update_callback(device_t &device, upd65031_memory_update_delegate callback) { downcast<upd65031_device &>(device).m_out_mem_cb = callback; }
+	template <typename... T> void set_screen_update_callback(T &&... args) { m_screen_update_cb.set(std::forward<T>(args)...); }
+	template <typename... T> void set_memory_update_callback(T &&... args) { m_out_mem_cb.set(std::forward<T>(args)...); }
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER( flp_w );
 	DECLARE_WRITE_LINE_MEMBER( btl_w );
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -89,8 +64,8 @@ private:
 	devcb_write_line   m_write_nmi;
 	devcb_write_line   m_write_spkr;
 
-	upd65031_screen_update_delegate m_screen_update_cb;  // callback for update the LCD
-	upd65031_memory_update_delegate m_out_mem_cb;        // callback for update bankswitch
+	screen_update_delegate m_screen_update_cb;  // callback for update the LCD
+	memory_update_delegate m_out_mem_cb;        // callback for update bankswitch
 
 	int     m_mode;
 	uint16_t  m_lcd_regs[5];      // LCD registers
@@ -114,7 +89,7 @@ private:
 
 
 // device type definition
-extern const device_type UPD65031;
+DECLARE_DEVICE_TYPE(UPD65031, upd65031_device)
 
 
-#endif
+#endif // MAME_MACHINE_UPD65031_H

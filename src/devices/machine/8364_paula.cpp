@@ -9,20 +9,15 @@
 #include "emu.h"
 #include "8364_paula.h"
 
-
-//**************************************************************************
-//  CONSTANTS / MACROS
-//**************************************************************************
-
-#define VERBOSE 0
-#define LOG(x) do { if (VERBOSE) logerror x; } while (0)
+//#define VERBOSE 1
+#include "logmacro.h"
 
 
 //**************************************************************************
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type PAULA_8364 = device_creator<paula_8364_device>;
+DEFINE_DEVICE_TYPE(PAULA_8364, paula_8364_device, "paula_8364", "8364 Paula")
 
 
 //*************************************************************************
@@ -34,7 +29,7 @@ const device_type PAULA_8364 = device_creator<paula_8364_device>;
 //-------------------------------------------------
 
 paula_8364_device::paula_8364_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, PAULA_8364, "8364 Paula", tag, owner, clock, "paula_8364", __FILE__),
+	: device_t(mconfig, PAULA_8364, tag, owner, clock),
 	device_sound_interface(mconfig, *this),
 	m_mem_r(*this), m_int_w(*this),
 	m_dmacon(0), m_adkcon(0),
@@ -94,7 +89,7 @@ READ16_MEMBER( paula_8364_device::reg_r )
 	return 0xffff;
 }
 
-WRITE16_MEMBER( paula_8364_device::reg_w )
+void paula_8364_device::reg_w(offs_t offset, uint16_t data)
 {
 	if (offset >= 0xa0 && offset <= 0xdf)
 		m_stream->update();
@@ -160,7 +155,7 @@ void paula_8364_device::dma_reload(audio_channel *chan)
 	chan->curlength = chan->len;
 	chan->irq_timer->adjust(attotime::from_hz(15750), chan->index); // clock() / 227
 
-	LOG(("dma_reload(%d): offs=%05X len=%04X\n", chan->index, chan->curlocation, chan->curlength));
+	LOG("dma_reload(%d): offs=%05X len=%04X\n", chan->index, chan->curlocation, chan->curlength);
 }
 
 //-------------------------------------------------

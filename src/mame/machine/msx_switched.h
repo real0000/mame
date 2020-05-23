@@ -1,14 +1,16 @@
 // license:BSD-3-Clause
 // copyright-holders:Wilbert Pol
-#ifndef __MSX_SWITCHED_H
-#define __MSX_SWITCHED_H
+#ifndef MAME_MACHINE_MSX_SWITCHED_H
+#define MAME_MACHINE_MSX_SWITCHED_H
+
+#pragma once
 
 
 class msx_switched_interface
 {
 public:
-	virtual DECLARE_READ8_MEMBER(switched_read) = 0;
-	virtual DECLARE_WRITE8_MEMBER(switched_write) = 0;
+	virtual uint8_t switched_read(offs_t offset) = 0;
+	virtual void switched_write(offs_t offset, uint8_t data) = 0;
 };
 
-#endif
+#endif // MAME_MACHINE_MSX_SWITCHED_H

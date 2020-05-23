@@ -32,14 +32,14 @@
 
 ***************************************************************************/
 
-#ifndef MAME_DEVICES_VIDEO_POLY_H
-#define MAME_DEVICES_VIDEO_POLY_H
+#ifndef MAME_VIDEO_POLY_H
+#define MAME_VIDEO_POLY_H
 
 #pragma once
 
 #include "screen.h"
 
-#include <limits.h>
+#include <climits>
 #include <atomic>
 
 
@@ -50,56 +50,21 @@
 // keep statistics
 #define KEEP_POLY_STATISTICS            0
 
-// turn this on to log the reasons for any long waits
-#define LOG_WAITS                       0
-
-// number of profiling ticks before we consider a wait "long"
-#define LOG_WAIT_THRESHOLD              1000
-
-
-
-/***************************************************************************
-    CONSTANTS
-***************************************************************************/
-
-#define POLYFLAG_INCLUDE_BOTTOM_EDGE        0x01
-#define POLYFLAG_INCLUDE_RIGHT_EDGE         0x02
-#define POLYFLAG_NO_WORK_QUEUE              0x04
-
-#define SCANLINES_PER_BUCKET                8
-#define CACHE_LINE_SIZE                     64          // this is a general guess
-#define TOTAL_BUCKETS                       (512 / SCANLINES_PER_BUCKET)
-#define UNITS_PER_POLY                      (100 / SCANLINES_PER_BUCKET)
-
 
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-//-------------------------------------------------
-//  global helpers for float base types
-//-------------------------------------------------
-
-inline float poly_floor(float x) { return floorf(x); }
-inline float poly_abs(float x) { return fabsf(x); }
-inline float poly_recip(float x) { return 1.0f / x; }
-
-
-//-------------------------------------------------
-//  global helpers for double base types
-//-------------------------------------------------
-
-inline double poly_floor(double x) { return floor(x); }
-inline double poly_abs(double x) { return fabs(x); }
-inline double poly_recip(double x) { return 1.0 / x; }
-
-
 // poly_manager is a template class
 template<typename _BaseType, class _ObjectData, int _MaxParams, int _MaxPolys>
 class poly_manager
 {
 public:
+	static constexpr uint8_t FLAG_INCLUDE_BOTTOM_EDGE = 0x01;
+	static constexpr uint8_t FLAG_INCLUDE_RIGHT_EDGE  = 0x02;
+	static constexpr uint8_t FLAG_NO_WORK_QUEUE       = 0x04;
+
 	// each vertex has an X/Y coordinate and a set of parameters
 	struct vertex_t
 	{
@@ -159,6 +124,19 @@ public:
 	int zclip_if_less(int numverts, const vertex_t *v, vertex_t *outv, int paramcount, _BaseType clipval);
 
 private:
+	poly_manager(running_machine &machine, screen_device *screen, uint8_t flags);
+
+	// turn this on to log the reasons for any long waits
+	static constexpr bool POLY_LOG_WAITS = false;
+
+	// number of profiling ticks before we consider a wait "long"
+	static constexpr osd_ticks_t POLY_LOG_WAIT_THRESHOLD = 1000;
+
+	static constexpr int SCANLINES_PER_BUCKET = 32;
+	static constexpr int CACHE_LINE_SIZE      = 64;          // this is a general guess
+	static constexpr int TOTAL_BUCKETS        = (512 / SCANLINES_PER_BUCKET);
+	static constexpr int UNITS_PER_POLY       = (100 / SCANLINES_PER_BUCKET);
+
 	// polygon_info describes a single polygon, which includes the poly_params
 	struct polygon_info
 	{
@@ -179,6 +157,24 @@ private:
 	#endif
 		extent_t            extent[SCANLINES_PER_BUCKET]; // array of scanline extents
 	};
+
+	//-------------------------------------------------
+	//  global helpers for float base types
+	//-------------------------------------------------
+
+	static float poly_floor(float x) { return floorf(x); }
+	static float poly_abs(float x) { return fabsf(x); }
+	static float poly_recip(float x) { return 1.0f / x; }
+
+
+	//-------------------------------------------------
+	//  global helpers for double base types
+	//-------------------------------------------------
+
+	static double poly_floor(double x) { return floor(x); }
+	static double poly_abs(double x) { return fabs(x); }
+	static double poly_recip(double x) { return 1.0 / x; }
+
 
 	// class for managing an array of items
 	template<class _Type, int _Count>
@@ -269,7 +265,7 @@ private:
 	unit_array          m_unit;                     // array of work units
 
 	// misc data
-	uint8_t               m_flags;                    // flags
+	uint8_t const         m_flags;                    // flags
 
 	// buckets
 	uint16_t              m_unit_bucket[TOTAL_BUCKETS]; // buckets for tracking unit usage
@@ -292,43 +288,31 @@ private:
 
 template<typename _BaseType, class _ObjectData, int _MaxParams, int _MaxPolys>
 poly_manager<_BaseType, _ObjectData, _MaxParams, _MaxPolys>::poly_manager(running_machine &machine, uint8_t flags)
-	: m_machine(machine),
-		m_screen(nullptr),
-		m_queue(nullptr),
-		m_polygon(machine, *this),
-		m_object(machine, *this),
-		m_unit(machine, *this),
-		m_flags(flags),
-		m_triangles(0),
-		m_quads(0),
-		m_pixels(0)
+	: poly_manager(machine, nullptr, flags)
 {
-#if KEEP_POLY_STATISTICS
-	memset(m_conflicts, 0, sizeof(m_conflicts));
-	memset(m_resolved, 0, sizeof(m_resolved));
-#endif
-
-	// create the work queue
-	if (!(flags & POLYFLAG_NO_WORK_QUEUE))
-		m_queue = osd_work_queue_alloc(WORK_QUEUE_FLAG_MULTI | WORK_QUEUE_FLAG_HIGH_FREQ);
-
-	// request a pre-save callback for synchronization
-	machine.save().register_presave(save_prepost_delegate(FUNC(poly_manager::presave), this));
 }
 
 
 template<typename _BaseType, class _ObjectData, int _MaxParams, int _MaxPolys>
 poly_manager<_BaseType, _ObjectData, _MaxParams, _MaxPolys>::poly_manager(screen_device &screen, uint8_t flags)
-	: m_machine(screen.machine()),
-		m_screen(&screen),
-		m_queue(nullptr),
-		m_polygon(screen.machine(), *this),
-		m_object(screen.machine(), *this),
-		m_unit(screen.machine(), *this),
-		m_flags(flags),
-		m_triangles(0),
-		m_quads(0),
-		m_pixels(0)
+	: poly_manager(screen.machine(), &screen, flags)
+{
+}
+
+
+template<typename _BaseType, class _ObjectData, int _MaxParams, int _MaxPolys>
+poly_manager<_BaseType, _ObjectData, _MaxParams, _MaxPolys>::poly_manager(running_machine &machine, screen_device *screen, uint8_t flags)
+	: m_machine(machine)
+	, m_screen(screen)
+	, m_queue(nullptr)
+	, m_polygon(machine, *this)
+	, m_object(machine, *this)
+	, m_unit(machine, *this)
+	, m_flags(flags)
+	, m_tiles(0)
+	, m_triangles(0)
+	, m_quads(0)
+	, m_pixels(0)
 {
 #if KEEP_POLY_STATISTICS
 	memset(m_conflicts, 0, sizeof(m_conflicts));
@@ -336,11 +320,13 @@ poly_manager<_BaseType, _ObjectData, _MaxParams, _MaxPolys>::poly_manager(screen
 #endif
 
 	// create the work queue
-	if (!(flags & POLYFLAG_NO_WORK_QUEUE))
+	if (!(flags & FLAG_NO_WORK_QUEUE))
 		m_queue = osd_work_queue_alloc(WORK_QUEUE_FLAG_MULTI | WORK_QUEUE_FLAG_HIGH_FREQ);
 
+	memset(m_unit_bucket, 0xff, sizeof(m_unit_bucket));
+
 	// request a pre-save callback for synchronization
-	machine().save().register_presave(save_prepost_delegate(FUNC(poly_manager::presave), this));
+	machine.save().register_presave(save_prepost_delegate(FUNC(poly_manager::presave), this));
 }
 
 
@@ -454,7 +440,7 @@ void poly_manager<_BaseType, _ObjectData, _MaxParams, _MaxPolys>::wait(const cha
 	osd_ticks_t time;
 
 	// remember the start time if we're logging
-	if (LOG_WAITS)
+	if (POLY_LOG_WAITS)
 		time = get_profile_ticks();
 
 	// wait for all pending work items to complete
@@ -467,10 +453,10 @@ void poly_manager<_BaseType, _ObjectData, _MaxParams, _MaxPolys>::wait(const cha
 			work_item_callback(&m_unit[unitnum], 0);
 
 	// log any long waits
-	if (LOG_WAITS)
+	if (POLY_LOG_WAITS)
 	{
 		time = get_profile_ticks() - time;
-		if (time > LOG_WAIT_THRESHOLD)
+		if (time > POLY_LOG_WAIT_THRESHOLD)
 			machine().logerror("Poly:Waited %d cycles for %s\n", (int)time, debug_reason);
 	}
 
@@ -528,9 +514,9 @@ uint32_t poly_manager<_BaseType, _ObjectData, _MaxParams, _MaxPolys>::render_til
 
 	// clip coordinates
 	int32_t v1yclip = v1y;
-	int32_t v2yclip = v2y + ((m_flags & POLYFLAG_INCLUDE_BOTTOM_EDGE) ? 1 : 0);
-	v1yclip = std::max(v1yclip, cliprect.min_y);
-	v2yclip = std::min(v2yclip, cliprect.max_y + 1);
+	int32_t v2yclip = v2y + ((m_flags & FLAG_INCLUDE_BOTTOM_EDGE) ? 1 : 0);
+	v1yclip = std::max(v1yclip, cliprect.top());
+	v2yclip = std::min(v2yclip, cliprect.bottom() + 1);
 	if (v2yclip - v1yclip <= 0)
 		return 0;
 
@@ -570,14 +556,14 @@ uint32_t poly_manager<_BaseType, _ObjectData, _MaxParams, _MaxPolys>::render_til
 	}
 
 	// include the right edge if requested
-	if (m_flags & POLYFLAG_INCLUDE_RIGHT_EDGE)
+	if (m_flags & FLAG_INCLUDE_RIGHT_EDGE)
 		istopx++;
 
 	// apply left/right clipping
-	if (istartx < cliprect.min_x)
-		istartx = cliprect.min_x;
-	if (istopx > cliprect.max_x)
-		istopx = cliprect.max_x + 1;
+	if (istartx < cliprect.left())
+		istartx = cliprect.left();
+	if (istopx > cliprect.right())
+		istopx = cliprect.right() + 1;
 	if (istartx >= istopx)
 		return 0;
 
@@ -673,9 +659,9 @@ uint32_t poly_manager<_BaseType, _ObjectData, _MaxParams, _MaxPolys>::render_tri
 
 	// clip coordinates
 	int32_t v1yclip = v1y;
-	int32_t v3yclip = v3y + ((m_flags & POLYFLAG_INCLUDE_BOTTOM_EDGE) ? 1 : 0);
-	v1yclip = std::max(v1yclip, cliprect.min_y);
-	v3yclip = std::min(v3yclip, cliprect.max_y + 1);
+	int32_t v3yclip = v3y + ((m_flags & FLAG_INCLUDE_BOTTOM_EDGE) ? 1 : 0);
+	v1yclip = std::max(v1yclip, cliprect.top());
+	v3yclip = std::min(v3yclip, cliprect.bottom() + 1);
 	if (v3yclip - v1yclip <= 0)
 		return 0;
 
@@ -784,14 +770,14 @@ uint32_t poly_manager<_BaseType, _ObjectData, _MaxParams, _MaxPolys>::render_tri
 			}
 
 			// include the right edge if requested
-			if (m_flags & POLYFLAG_INCLUDE_RIGHT_EDGE)
+			if (m_flags & FLAG_INCLUDE_RIGHT_EDGE)
 				istopx++;
 
 			// apply left/right clipping
-			if (istartx < cliprect.min_x)
-				istartx = cliprect.min_x;
-			if (istopx > cliprect.max_x)
-				istopx = cliprect.max_x + 1;
+			if (istartx < cliprect.left())
+				istartx = cliprect.left();
+			if (istopx > cliprect.right())
+				istopx = cliprect.right() + 1;
 
 			// set the extent and update the total pixel count
 			if (istartx >= istopx)
@@ -864,8 +850,8 @@ template<typename _BaseType, class _ObjectData, int _MaxParams, int _MaxPolys>
 uint32_t poly_manager<_BaseType, _ObjectData, _MaxParams, _MaxPolys>::render_triangle_custom(const rectangle &cliprect, render_delegate callback, int startscanline, int numscanlines, const extent_t *extents)
 {
 	// clip coordinates
-	int32_t v1yclip = std::max(startscanline, cliprect.min_y);
-	int32_t v3yclip = std::min(startscanline + numscanlines, cliprect.max_y + 1);
+	int32_t v1yclip = std::max(startscanline, cliprect.top());
+	int32_t v3yclip = std::min(startscanline + numscanlines, cliprect.bottom() + 1);
 	if (v3yclip - v1yclip <= 0)
 		return 0;
 
@@ -899,14 +885,14 @@ uint32_t poly_manager<_BaseType, _ObjectData, _MaxParams, _MaxPolys>::render_tri
 			int32_t istartx = srcextent.startx, istopx = srcextent.stopx;
 
 			// apply left/right clipping
-			if (istartx < cliprect.min_x)
-				istartx = cliprect.min_x;
-			if (istartx > cliprect.max_x)
-				istartx = cliprect.max_x + 1;
-			if (istopx < cliprect.min_x)
-				istopx = cliprect.min_x;
-			if (istopx > cliprect.max_x)
-				istopx = cliprect.max_x + 1;
+			if (istartx < cliprect.left())
+				istartx = cliprect.left();
+			if (istartx > cliprect.right())
+				istartx = cliprect.right() + 1;
+			if (istopx < cliprect.left())
+				istopx = cliprect.left();
+			if (istopx > cliprect.right())
+				istopx = cliprect.right() + 1;
 
 			// set the extent and update the total pixel count
 			extent_t &extent = unit.extent[extnum];
@@ -971,9 +957,9 @@ uint32_t poly_manager<_BaseType, _ObjectData, _MaxParams, _MaxPolys>::render_pol
 
 	// clip coordinates
 	int32_t minyclip = miny;
-	int32_t maxyclip = maxy + ((m_flags & POLYFLAG_INCLUDE_BOTTOM_EDGE) ? 1 : 0);
-	minyclip = std::max(minyclip, cliprect.min_y);
-	maxyclip = std::min(maxyclip, cliprect.max_y + 1);
+	int32_t maxyclip = maxy + ((m_flags & FLAG_INCLUDE_BOTTOM_EDGE) ? 1 : 0);
+	minyclip = std::max(minyclip, cliprect.top());
+	maxyclip = std::min(maxyclip, cliprect.bottom() + 1);
 	if (maxyclip - minyclip <= 0)
 		return 0;
 
@@ -1104,18 +1090,18 @@ uint32_t poly_manager<_BaseType, _ObjectData, _MaxParams, _MaxPolys>::render_pol
 			}
 
 			// include the right edge if requested
-			if (m_flags & POLYFLAG_INCLUDE_RIGHT_EDGE)
+			if (m_flags & FLAG_INCLUDE_RIGHT_EDGE)
 				istopx++;
 
 			// apply left/right clipping
-			if (istartx < cliprect.min_x)
+			if (istartx < cliprect.left())
 			{
 				for (int paramnum = 0; paramnum < paramcount; paramnum++)
-					extent.param[paramnum].start += (cliprect.min_x - istartx) * extent.param[paramnum].dpdx;
-				istartx = cliprect.min_x;
+					extent.param[paramnum].start += (cliprect.left() - istartx) * extent.param[paramnum].dpdx;
+				istartx = cliprect.left();
 			}
-			if (istopx > cliprect.max_x)
-				istopx = cliprect.max_x + 1;
+			if (istopx > cliprect.right())
+				istopx = cliprect.right() + 1;
 
 			// set the extent and update the total pixel count
 			if (istartx >= istopx)

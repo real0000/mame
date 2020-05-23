@@ -8,10 +8,10 @@
 
 ***************************************************************************/
 
-#pragma once
+#ifndef MAME_CPU_ADSP2100_ADSP2100_H
+#define MAME_CPU_ADSP2100_ADSP2100_H
 
-#ifndef __ADSP2100_H__
-#define __ADSP2100_H__
+#pragma once
 
 
 //**************************************************************************
@@ -174,24 +174,6 @@ enum
 	ADSP2100_SR1_SEC
 };
 
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_ADSP21XX_SPORT_RX_CB(_devcb) \
-	devcb = &adsp21xx_device::set_sport_rx_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_ADSP21XX_SPORT_TX_CB(_devcb) \
-	devcb = &adsp21xx_device::set_sport_tx_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_ADSP21XX_TIMER_FIRED_CB(_devcb) \
-	devcb = &adsp21xx_device::set_timer_fired_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_ADSP21XX_DMOVLAY_CB(_devcb) \
-	devcb = &adsp21xx_device::set_dmovlay_callback(*device, DEVCB_##_devcb);
-
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
@@ -200,6 +182,20 @@ enum
 
 class adsp21xx_device : public cpu_device
 {
+public:
+	virtual ~adsp21xx_device();
+
+	// inline configuration helpers
+	auto sport_rx() { return m_sport_rx_cb.bind(); }
+	auto sport_tx() { return m_sport_tx_cb.bind(); }
+	auto timer_fired() { return m_timer_fired_cb.bind(); }
+	auto dmovlay() { return m_dmovlay_cb.bind(); }
+
+	// public interfaces
+	void load_boot_data(uint8_t *srcdata, uint32_t *dstdata);
+	// Returns base address for circular dag
+	uint32_t get_ibase(int index) { return m_base[index]; };
+
 protected:
 	enum
 	{
@@ -212,27 +208,15 @@ protected:
 	};
 
 	// construction/destruction
-	adsp21xx_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t chiptype, const char *shortname, const char *source);
-	virtual ~adsp21xx_device();
+	adsp21xx_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint32_t chiptype);
 
-public:
-	// inline configuration helpers
-	template<class _Object> static devcb_base &set_sport_rx_callback(device_t &device, _Object object) { return downcast<adsp21xx_device &>(device).m_sport_rx_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_sport_tx_callback(device_t &device, _Object object) { return downcast<adsp21xx_device &>(device).m_sport_tx_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_timer_fired_callback(device_t &device, _Object object) { return downcast<adsp21xx_device &>(device).m_timer_fired_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_dmovlay_callback(device_t &device, _Object object) { return downcast<adsp21xx_device &>(device).m_dmovlay_cb.set_callback(object); }
-
-	// public interfaces
-	void load_boot_data(uint8_t *srcdata, uint32_t *dstdata);
-
-protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override;
-	virtual uint32_t execute_max_cycles() const override;
+	virtual uint32_t execute_min_cycles() const noexcept override;
+	virtual uint32_t execute_max_cycles() const noexcept override;
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
@@ -241,9 +225,7 @@ protected:
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override;
-	virtual uint32_t disasm_max_opcode_bytes() const override;
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 	// helpers
 	void create_tables();
@@ -450,7 +432,7 @@ protected:
 	address_space *     m_program;
 	address_space *     m_data;
 	address_space *     m_io;
-	direct_read_data *  m_direct;
+	memory_access_cache<2, -2, ENDIANNESS_LITTLE> *m_cache;
 
 	// tables
 	uint8_t               m_condition_table[0x1000];
@@ -489,10 +471,10 @@ public:
 
 protected:
 	// device_execute_interface overrides
-	virtual uint32_t execute_input_lines() const override;
+	virtual uint32_t execute_input_lines() const noexcept override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	// interrupts
 	virtual bool generate_irq(int which, int indx) override;
@@ -509,13 +491,13 @@ public:
 	adsp2101_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 protected:
-	adsp2101_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t chiptype, const char *shortname, const char *source);
+	adsp2101_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint32_t chiptype);
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_input_lines() const override;
+	virtual uint32_t execute_input_lines() const noexcept override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	// interrupts
 	virtual bool generate_irq(int which, int indx) override;
@@ -533,10 +515,10 @@ public:
 
 protected:
 	// device_execute_interface overrides
-	virtual uint32_t execute_input_lines() const override;
+	virtual uint32_t execute_input_lines() const noexcept override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	// interrupts
 	virtual bool generate_irq(int which, int indx) override;
@@ -577,12 +559,12 @@ public:
 
 
 // device type definition
-extern const device_type ADSP2100;
-extern const device_type ADSP2101;
-extern const device_type ADSP2104;
-extern const device_type ADSP2105;
-extern const device_type ADSP2115;
-extern const device_type ADSP2181;
+DECLARE_DEVICE_TYPE(ADSP2100, adsp2100_device)
+DECLARE_DEVICE_TYPE(ADSP2101, adsp2101_device)
+DECLARE_DEVICE_TYPE(ADSP2104, adsp2104_device)
+DECLARE_DEVICE_TYPE(ADSP2105, adsp2105_device)
+DECLARE_DEVICE_TYPE(ADSP2115, adsp2115_device)
+DECLARE_DEVICE_TYPE(ADSP2181, adsp2181_device)
 
 
-#endif /* __ADSP2100_H__ */
+#endif // MAME_CPU_ADSP2100_ADSP2100_H

@@ -1,11 +1,12 @@
 // license:BSD-3-Clause
 // copyright-holders:Angelo Salese, R. Belmont, Anthony Kruize, Fabio Priuli, Ryan Holtz
-#ifndef _SNES_H_
-#define _SNES_H_
 
-#include "cpu/spc700/spc700.h"
+#ifndef MAME_INCLUDES_SNES_H
+#define MAME_INCLUDES_SNES_H
+
 #include "cpu/g65816/g65816.h"
-#include "audio/snes_snd.h"
+#include "machine/s_smp.h"
+#include "sound/s_dsp.h"
 #include "video/snes_ppu.h"
 #include "screen.h"
 
@@ -298,6 +299,29 @@ struct snes_cart_info
 class snes_state : public driver_device
 {
 public:
+	snes_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_s_dsp(*this, "s_dsp"),
+		m_ppu(*this, "ppu"),
+		m_screen(*this, "screen"),
+		m_wram(*this, "wram")
+	{ }
+
+	void init_snes();
+	void init_snes_hirom();
+	void init_snes_mess();
+	void init_snesst();
+
+	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+
+protected:
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
+
 	enum
 	{
 		TIMER_NMI_TICK,
@@ -309,14 +333,6 @@ public:
 		TIMER_HBLANK_TICK,
 		TIMER_SNES_LAST
 	};
-
-	snes_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu"),
-		m_soundcpu(*this, "soundcpu"),
-		m_spc700(*this, "spc700"),
-		m_ppu(*this, "ppu"),
-		m_screen(*this, "screen") { }
 
 	/* misc */
 	uint16_t                m_hblank_offset;
@@ -373,20 +389,14 @@ public:
 	snes_cart_info m_cart;   // used by NSS/SFCBox only! to be moved in a derived class!
 	void rom_map_setup(uint32_t size);
 
-	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-
 	/* devices */
 	required_device<_5a22_device> m_maincpu;
-	required_device<spc700_device> m_soundcpu;
-	required_device<snes_sound_device> m_spc700;
+	required_device<s_smp_device> m_soundcpu;
+	required_device<s_dsp_device> m_s_dsp;
 	required_device<snes_ppu_device> m_ppu;
 	required_device<screen_device> m_screen;
 
-
-	DECLARE_DRIVER_INIT(snes);
-	DECLARE_DRIVER_INIT(snes_hirom);
-	DECLARE_DRIVER_INIT(snes_mess);
-	DECLARE_DRIVER_INIT(snesst);
+	required_shared_ptr<u8> m_wram;
 
 	inline int dma_abus_valid(uint32_t address);
 	inline uint8_t abus_read(address_space &space, uint32_t abus);
@@ -406,7 +416,7 @@ public:
 	void snes_init_ram();
 
 	// input related
-	virtual DECLARE_WRITE8_MEMBER(io_read);
+	virtual void io_read();
 	virtual uint8_t oldjoy1_read(int latched);
 	virtual uint8_t oldjoy2_read(int latched);
 
@@ -418,7 +428,7 @@ public:
 	DECLARE_READ8_MEMBER(snes_r_bank2);
 	DECLARE_WRITE8_MEMBER(snes_w_bank1);
 	DECLARE_WRITE8_MEMBER(snes_w_bank2);
-	DECLARE_READ8_MEMBER(snes_open_bus_r);
+	uint8_t snes_open_bus_r();
 	TIMER_CALLBACK_MEMBER(snes_nmi_tick);
 	TIMER_CALLBACK_MEMBER(snes_hirq_tick_callback);
 	TIMER_CALLBACK_MEMBER(snes_reset_oam_address);
@@ -427,14 +437,9 @@ public:
 	TIMER_CALLBACK_MEMBER(snes_scanline_tick);
 	TIMER_CALLBACK_MEMBER(snes_hblank_tick);
 	DECLARE_WRITE_LINE_MEMBER(snes_extern_irq_w);
-	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(snes_cart);
-	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(sufami_cart);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(load_snes_cart);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(load_sufami_cart);
 	void snes_init_timers();
-	virtual void machine_start() override;
-	virtual void machine_reset() override;
-
-protected:
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 };
 
 /* Special chips, checked at init and used in memory handlers */
@@ -460,4 +465,4 @@ enum
 	HAS_UNK
 };
 
-#endif /* _SNES_H_ */
+#endif // MAME_INCLUDES_SNES_H

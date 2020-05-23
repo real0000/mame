@@ -31,30 +31,10 @@
 
 **********************************************************************/
 
+#ifndef MAME_BUS_BBC_TUBE_TUBE_H
+#define MAME_BUS_BBC_TUBE_TUBE_H
+
 #pragma once
-
-#ifndef __BBC_TUBE_SLOT__
-#define __BBC_TUBE_SLOT__
-
-
-
-//**************************************************************************
-//  CONSTANTS
-//**************************************************************************
-
-#define BBC_TUBE_SLOT_TAG      "tube"
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_BBC_TUBE_SLOT_ADD(_tag, _slot_intf, _def_slot) \
-	MCFG_DEVICE_ADD(_tag, BBC_TUBE_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
-
-#define MCFG_BBC_PASSTHRU_TUBE_SLOT_ADD() \
-	MCFG_BBC_TUBE_SLOT_ADD(BBC_TUBE_SLOT_TAG, 0, bbc_tube_devices, nullptr)
 
 
 
@@ -62,48 +42,75 @@
 //  TYPE DEFINITIONS
 //**************************************************************************
 
+
 // ======================> bbc_tube_slot_device
 
 class device_bbc_tube_interface;
 
-class bbc_tube_slot_device : public device_t,
-												public device_slot_interface
+class bbc_tube_slot_device : public device_t, public device_single_card_slot_interface<device_bbc_tube_interface>
 {
 public:
 	// construction/destruction
-	bbc_tube_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual ~bbc_tube_slot_device() {}
+	template <typename T>
+	bbc_tube_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, T &&slot_options, char const *default_option)
+		: bbc_tube_slot_device(mconfig, tag, owner)
+	{
+		option_reset();
+		slot_options(*this);
+		set_default_option(default_option);
+		set_fixed(false);
+		set_insert_rom(true);
+	}
 
+	bbc_tube_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, uint32_t clock = 0);
+
+	void set_insert_rom(bool insert_rom) { m_insert_rom = insert_rom; }
+	bool insert_rom() { return m_insert_rom; }
+
+	// callbacks
+	auto irq_handler() { return m_irq_handler.bind(); }
+
+	uint8_t host_r(offs_t offset);
+	void host_w(offs_t offset, uint8_t data);
+
+	DECLARE_WRITE_LINE_MEMBER( irq_w ) { m_irq_handler(state); }
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
-	virtual void device_reset() override;
-
 
 	device_bbc_tube_interface *m_card;
+
+private:
+	devcb_write_line m_irq_handler;
+
+	bool m_insert_rom;
 };
 
 
 // ======================> device_bbc_tube_interface
 
-class device_bbc_tube_interface : public device_slot_card_interface
+class device_bbc_tube_interface : public device_interface
 {
 public:
-	// construction/destruction
-	device_bbc_tube_interface(const machine_config &mconfig, device_t &device);
-	virtual ~device_bbc_tube_interface();
+	// reading and writing
+	virtual uint8_t host_r(offs_t offset) { return 0xfe; }
+	virtual void host_w(offs_t offset, uint8_t data) { }
 
 protected:
+	device_bbc_tube_interface(const machine_config &mconfig, device_t &device);
+
 	bbc_tube_slot_device *m_slot;
 };
 
 
 // device type definition
-extern const device_type BBC_TUBE_SLOT;
+DECLARE_DEVICE_TYPE(BBC_TUBE_SLOT, bbc_tube_slot_device)
 
-SLOT_INTERFACE_EXTERN( bbc_tube_ext_devices );
-SLOT_INTERFACE_EXTERN( bbc_tube_int_devices );
+void bbc_tube_devices(device_slot_interface &device);
+void bbc_extube_devices(device_slot_interface &device);
+void bbc_intube_devices(device_slot_interface &device);
+void electron_tube_devices(device_slot_interface &device);
 
 
-#endif
+#endif // MAME_BUS_BBC_TUBE_TUBE_H

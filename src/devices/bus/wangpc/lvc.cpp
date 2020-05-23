@@ -47,7 +47,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type WANGPC_LVC = device_creator<wangpc_lvc_device>;
+DEFINE_DEVICE_TYPE(WANGPC_LVC, wangpc_lvc_device, "wangpc_lvc", "Wang PC Low Resolution Video Card")
 
 
 //-------------------------------------------------
@@ -113,33 +113,24 @@ WRITE_LINE_MEMBER( wangpc_lvc_device::vsync_w )
 }
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( wangpc_lvc )
+//  machine_config( wangpc_lvc )
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( wangpc_lvc )
-	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
-	MCFG_SCREEN_UPDATE_DEVICE(MC6845_TAG, mc6845_device, screen_update)
-	MCFG_SCREEN_SIZE(80*8, 25*9)
-	MCFG_SCREEN_VISIBLE_AREA(0, 80*8-1, 0, 25*9-1)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
-	MCFG_SCREEN_REFRESH_RATE(60)
-
-	MCFG_MC6845_ADD(MC6845_TAG, MC6845_1, SCREEN_TAG, XTAL_14_31818MHz/16)
-	MCFG_MC6845_SHOW_BORDER_AREA(true)
-	MCFG_MC6845_CHAR_WIDTH(8)
-	MCFG_MC6845_UPDATE_ROW_CB(wangpc_lvc_device, crtc_update_row)
-	MCFG_MC6845_OUT_VSYNC_CB(WRITELINE(wangpc_lvc_device, vsync_w))
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor wangpc_lvc_device::device_mconfig_additions() const
+void wangpc_lvc_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( wangpc_lvc );
+	screen_device &screen(SCREEN(config, SCREEN_TAG, SCREEN_TYPE_RASTER));
+	screen.set_screen_update(MC6845_TAG, FUNC(mc6845_device::screen_update));
+	screen.set_size(80*8, 25*9);
+	screen.set_visarea(0, 80*8-1, 0, 25*9-1);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500));
+	screen.set_refresh_hz(60);
+
+	MC6845_1(config, m_crtc, XTAL(14'318'181)/16);
+	m_crtc->set_screen(SCREEN_TAG);
+	m_crtc->set_show_border_area(true);
+	m_crtc->set_char_width(8);
+	m_crtc->set_update_row_callback(FUNC(wangpc_lvc_device::crtc_update_row));
+	m_crtc->out_vsync_callback().set(FUNC(wangpc_lvc_device::vsync_w));
 }
 
 
@@ -170,7 +161,7 @@ inline void wangpc_lvc_device::set_irq(int state)
 //-------------------------------------------------
 
 wangpc_lvc_device::wangpc_lvc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, WANGPC_LVC, "Wang PC Low Resolution Video Card", tag, owner, clock, "wangpc_lvc", __FILE__),
+	device_t(mconfig, WANGPC_LVC, tag, owner, clock),
 	device_wangpcbus_card_interface(mconfig, *this),
 	m_crtc(*this, MC6845_TAG),
 	m_video_ram(*this, "video_ram"),
@@ -212,7 +203,7 @@ void wangpc_lvc_device::device_reset()
 //  wangpcbus_mrdc_r - memory read
 //-------------------------------------------------
 
-uint16_t wangpc_lvc_device::wangpcbus_mrdc_r(address_space &space, offs_t offset, uint16_t mem_mask)
+uint16_t wangpc_lvc_device::wangpcbus_mrdc_r(offs_t offset, uint16_t mem_mask)
 {
 	uint16_t data = 0xffff;
 
@@ -231,7 +222,7 @@ uint16_t wangpc_lvc_device::wangpcbus_mrdc_r(address_space &space, offs_t offset
 //  wangpcbus_amwc_w - memory write
 //-------------------------------------------------
 
-void wangpc_lvc_device::wangpcbus_amwc_w(address_space &space, offs_t offset, uint16_t mem_mask, uint16_t data)
+void wangpc_lvc_device::wangpcbus_amwc_w(offs_t offset, uint16_t mem_mask, uint16_t data)
 {
 	if (OPTION_VRAM && (offset >= 0xe0000/2) && (offset < 0xf0000/2))
 	{
@@ -246,7 +237,7 @@ void wangpc_lvc_device::wangpcbus_amwc_w(address_space &space, offs_t offset, ui
 //  wangpcbus_iorc_r - I/O read
 //-------------------------------------------------
 
-uint16_t wangpc_lvc_device::wangpcbus_iorc_r(address_space &space, offs_t offset, uint16_t mem_mask)
+uint16_t wangpc_lvc_device::wangpcbus_iorc_r(offs_t offset, uint16_t mem_mask)
 {
 	uint16_t data = 0xffff;
 
@@ -255,7 +246,7 @@ uint16_t wangpc_lvc_device::wangpcbus_iorc_r(address_space &space, offs_t offset
 		switch (offset & 0x7f)
 		{
 		case 0x02/2:
-			data = 0xff00 | m_crtc->register_r(space, 0);
+			data = 0xff00 | m_crtc->register_r();
 			break;
 
 		case 0x30/2:
@@ -279,7 +270,7 @@ uint16_t wangpc_lvc_device::wangpcbus_iorc_r(address_space &space, offs_t offset
 //  wangpcbus_aiowc_w - I/O write
 //-------------------------------------------------
 
-void wangpc_lvc_device::wangpcbus_aiowc_w(address_space &space, offs_t offset, uint16_t mem_mask, uint16_t data)
+void wangpc_lvc_device::wangpcbus_aiowc_w(offs_t offset, uint16_t mem_mask, uint16_t data)
 {
 	if (sad(offset))
 	{
@@ -288,14 +279,14 @@ void wangpc_lvc_device::wangpcbus_aiowc_w(address_space &space, offs_t offset, u
 		case 0x00/2:
 			if (ACCESSING_BITS_0_7)
 			{
-				m_crtc->address_w(space, 0, data & 0xff);
+				m_crtc->address_w(data & 0xff);
 			}
 			break;
 
 		case 0x02/2:
 			if (ACCESSING_BITS_0_7)
 			{
-				m_crtc->register_w(space, 0, data & 0xff);
+				m_crtc->register_w(data & 0xff);
 			}
 			break;
 
@@ -307,11 +298,11 @@ void wangpc_lvc_device::wangpcbus_aiowc_w(address_space &space, offs_t offset, u
 
 				if (OPTION_80_COL)
 				{
-					m_crtc->set_clock(XTAL_14_31818MHz / 8);
+					m_crtc->set_unscaled_clock(XTAL(14'318'181) / 8);
 				}
 				else
 				{
-					m_crtc->set_clock(XTAL_14_31818MHz / 16);
+					m_crtc->set_unscaled_clock(XTAL(14'318'181) / 16);
 				}
 			}
 			break;

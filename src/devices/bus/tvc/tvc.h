@@ -53,8 +53,10 @@
                    +----------+
 *********************************************************************/
 
-#ifndef __TVCEXP_H__
-#define __TVCEXP_H__
+#ifndef MAME_BUS_TVC_TVC_H
+#define MAME_BUS_TVC_TVC_H
+
+#pragma once
 
 
 /***************************************************************************
@@ -63,66 +65,68 @@
 
 // ======================> device_tvcexp_interface
 
-class device_tvcexp_interface : public device_slot_card_interface
+class device_tvcexp_interface : public device_interface
 {
 public:
 	// construction/destruction
-	device_tvcexp_interface(const machine_config &mconfig, device_t &device);
 	virtual ~device_tvcexp_interface();
 
 	// reading and writing
 	virtual uint8_t id_r() { return 0x00; }   // ID_A and ID_B lines
 	virtual void int_ack() { }
 	virtual uint8_t int_r() { return 1; }
-	virtual DECLARE_READ8_MEMBER(read) { return 0x00; }
-	virtual DECLARE_WRITE8_MEMBER(write) {}
-	virtual DECLARE_READ8_MEMBER(io_read) { return 0x00; }
-	virtual DECLARE_WRITE8_MEMBER(io_write) {}
+	virtual uint8_t read(offs_t offset) { return 0x00; }
+	virtual void write(offs_t offset, uint8_t data) { }
+	virtual uint8_t io_read(offs_t offset) { return 0x00; }
+	virtual void io_write(offs_t offset, uint8_t data) { }
+
+protected:
+	device_tvcexp_interface(const machine_config &mconfig, device_t &device);
 };
 
 // ======================> tvcexp_slot_device
 
-class tvcexp_slot_device : public device_t,
-							public device_slot_interface
+class tvcexp_slot_device : public device_t, public device_single_card_slot_interface<device_tvcexp_interface>
 {
 public:
 	// construction/destruction
-	tvcexp_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	template <typename T>
+	tvcexp_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, T &&opts, const char *dflt)
+		: tvcexp_slot_device(mconfig, tag, owner, 0)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
+
+	tvcexp_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 	virtual ~tvcexp_slot_device();
 
-	template<class _Object> static devcb_base &set_out_irq_callback(device_t &device, _Object object) { return downcast<tvcexp_slot_device &>(device).m_out_irq_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_nmi_callback(device_t &device, _Object object) { return downcast<tvcexp_slot_device &>(device).m_out_nmi_cb.set_callback(object); }
+	auto out_irq_callback() { return m_out_irq_cb.bind(); }
+	auto out_nmi_callback() { return m_out_nmi_cb.bind(); }
 
+	// reading and writing
+	uint8_t id_r();
+	void int_ack();
+	uint8_t int_r();
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
+	uint8_t io_read(offs_t offset);
+	void io_write(offs_t offset, uint8_t data);
+
+protected:
 	// device-level overrides
 	virtual void device_start() override;
 
-	// reading and writing
-	virtual uint8_t id_r();
-	virtual void int_ack();
-	virtual uint8_t int_r();
-	virtual DECLARE_READ8_MEMBER(read);
-	virtual DECLARE_WRITE8_MEMBER(write);
-	virtual DECLARE_READ8_MEMBER(io_read);
-	virtual DECLARE_WRITE8_MEMBER(io_write);
-
-	devcb_write_line                m_out_irq_cb;
-	devcb_write_line                m_out_nmi_cb;
+	devcb_write_line            m_out_irq_cb;
+	devcb_write_line            m_out_nmi_cb;
 
 	device_tvcexp_interface*    m_cart;
 };
 
 // device type definition
-extern const device_type TVCEXP_SLOT;
+DECLARE_DEVICE_TYPE(TVCEXP_SLOT, tvcexp_slot_device)
 
 
-/***************************************************************************
-    DEVICE CONFIGURATION MACROS
-***************************************************************************/
-
-#define MCFG_TVCEXP_SLOT_OUT_IRQ_CB(_devcb) \
-	devcb = &tvcexp_slot_device::set_out_irq_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_TVCEXP_SLOT_OUT_NMI_CB(_devcb) \
-	devcb = &tvcexp_slot_device::set_out_nmi_callback(*device, DEVCB_##_devcb);
-
-#endif /* __TVCEXP_H__ */
+#endif // MAME_BUS_TVC_TVC_H

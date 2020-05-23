@@ -23,7 +23,6 @@
 #include "emu.h"
 #include "rcm.h"
 
-#include "cpu/m6502/m6502.h"
 
 
 #ifdef NES_PCB_DEBUG
@@ -39,36 +38,36 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type NES_GS2015 = device_creator<nes_gs2015_device>;
-const device_type NES_GS2004 = device_creator<nes_gs2004_device>;
-const device_type NES_GS2013 = device_creator<nes_gs2013_device>;
-const device_type NES_TF9IN1 = device_creator<nes_tf9_device>;
-const device_type NES_3DBLOCK = device_creator<nes_3dblock_device>;
+DEFINE_DEVICE_TYPE(NES_GS2015,  nes_gs2015_device,  "nes_g2015",     "NES Cart RCM GS-2015 PCB")
+DEFINE_DEVICE_TYPE(NES_GS2004,  nes_gs2004_device,  "nes_g2004",     "NES Cart RCM GS-2004 PCB")
+DEFINE_DEVICE_TYPE(NES_GS2013,  nes_gs2013_device,  "nes_g2013",     "NES Cart RCM GS-2013 PCB")
+DEFINE_DEVICE_TYPE(NES_TF9IN1,  nes_tf9_device,     "nes_tetrisfam", "NES Cart RCM Tetris Family 9 in 1 PCB")
+DEFINE_DEVICE_TYPE(NES_3DBLOCK, nes_3dblock_device, "nes_3dblock",   "NES Cart RCM 3D Block PCB")
 
 
 nes_gs2015_device::nes_gs2015_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_GS2015, "NES Cart RCM GS-2015 PCB", tag, owner, clock, "nes_gs2015", __FILE__)
+	: nes_nrom_device(mconfig, NES_GS2015, tag, owner, clock)
 {
 }
 
 nes_gs2004_device::nes_gs2004_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_GS2004, "NES Cart RCM GS-2004 PCB", tag, owner, clock, "nes_gs2004", __FILE__)
+	: nes_nrom_device(mconfig, NES_GS2004, tag, owner, clock)
 {
 }
 
 nes_gs2013_device::nes_gs2013_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_GS2013, "NES Cart RCM GS-2013 PCB", tag, owner, clock, "nes_gs2013", __FILE__)
+	: nes_nrom_device(mconfig, NES_GS2013, tag, owner, clock)
 {
 }
 
 nes_tf9_device::nes_tf9_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_TF9IN1, "NES Cart RCM Tetris Family 9 in 1 PCB", tag, owner, clock, "nes_tetrisfam", __FILE__)
+	: nes_nrom_device(mconfig, NES_TF9IN1, tag, owner, clock)
 {
 }
 
 nes_3dblock_device::nes_3dblock_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_3DBLOCK, "NES Cart RCM 3D Block PCB", tag, owner, clock, "nes_3dblock", __FILE__), m_irq_count(0)
-				{
+	: nes_nrom_device(mconfig, NES_3DBLOCK, tag, owner, clock), m_irq_count(0)
+{
 }
 
 
@@ -162,7 +161,7 @@ void nes_3dblock_device::pcb_reset()
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_gs2015_device::write_h)
+void nes_gs2015_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("gs2015 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -170,7 +169,7 @@ WRITE8_MEMBER(nes_gs2015_device::write_h)
 	chr8(offset >> 1, m_chr_source);
 }
 
-READ8_MEMBER(nes_gs2015_device::read_m)
+uint8_t nes_gs2015_device::read_m(offs_t offset)
 {
 	LOG_MMC(("gs2015 read_m, offset: %04x\n", offset));
 	return 0;   // Videopoker Bonza needs this (sort of protection? or related to inputs?)
@@ -187,7 +186,7 @@ READ8_MEMBER(nes_gs2015_device::read_m)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_gs2004_device::write_h)
+void nes_gs2004_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("gs2004 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -205,7 +204,7 @@ WRITE8_MEMBER(nes_gs2004_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_gs2013_device::write_h)
+void nes_gs2013_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("gs2013 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -233,7 +232,7 @@ WRITE8_MEMBER(nes_gs2013_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_tf9_device::write_h)
+void nes_tf9_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("tetrisfam write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -276,11 +275,11 @@ void nes_3dblock_device::hblank_irq(int scanline, int vblank, int blanked)
 	{
 		m_irq_count--;
 		if (!m_irq_count)
-			m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+			hold_irq_line();
 	}
 }
 
-WRITE8_MEMBER(nes_3dblock_device::write_l)
+void nes_3dblock_device::write_l(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("3dblock write_l, offset: %04x, data: %02x\n", offset, data));
 	offset += 0x100;

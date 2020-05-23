@@ -8,18 +8,10 @@
 
 ***************************************************************************/
 
+#ifndef MAME_MACHINE_AT28C16_H
+#define MAME_MACHINE_AT28C16_H
+
 #pragma once
-
-#ifndef __AT28C16_H__
-#define __AT28C16_H__
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_AT28C16_ADD( _tag, _interface ) \
-	MCFG_DEVICE_ADD( _tag, AT28C16, 0 )
 
 
 //**************************************************************************
@@ -35,13 +27,10 @@ class at28c16_device :
 {
 public:
 	// construction/destruction
-	at28c16_device( const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock );
+	at28c16_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// I/O operations
-	DECLARE_WRITE8_MEMBER( write );
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE_LINE_MEMBER( set_a9_12v );
-	DECLARE_WRITE_LINE_MEMBER( set_oe_12v );
+	void write(offs_t offset, uint8_t data);
+	uint8_t read(offs_t offset);
 
 protected:
 	// device-level overrides
@@ -49,13 +38,14 @@ protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config( address_spacenum spacenum = AS_0 ) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_nvram_interface overrides
 	virtual void nvram_default() override;
-	virtual void nvram_read( emu_file &file ) override;
-	virtual void nvram_write( emu_file &file ) override;
+	virtual void nvram_read(emu_file &file) override;
+	virtual void nvram_write(emu_file &file) override;
 
+private:
 	// internal state
 	address_space_config m_space_config;
 	emu_timer *m_write_timer;
@@ -63,10 +53,16 @@ protected:
 	int m_oe_12v;
 	int m_last_write;
 	optional_region_ptr<uint8_t> m_default_data;
+
+	// I/O operations
+	DECLARE_WRITE_LINE_MEMBER( set_a9_12v );
+	DECLARE_WRITE_LINE_MEMBER( set_oe_12v );
+
+	void at28c16_map8(address_map &map);
 };
 
 
 // device type definition
-extern const device_type AT28C16;
+DECLARE_DEVICE_TYPE(AT28C16, at28c16_device)
 
-#endif
+#endif // MAME_MACHINE_AT28C16_H

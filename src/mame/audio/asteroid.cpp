@@ -7,8 +7,9 @@
  *****************************************************************************/
 
 #include "emu.h"
-#include "sound/discrete.h"
 #include "includes/asteroid.h"
+#include "machine/74259.h"
+#include "speaker.h"
 
 /************************************************************************/
 /* Asteroids Sound System Analog emulation by K.Wilkins Nov 2000        */
@@ -70,7 +71,7 @@ static const discrete_555_cc_desc asteroid_thump_555cc =
 #define ASTEROID_EXPLODE_SND        NODE_26
 #define ASTEROID_THRUST_SND         NODE_27
 
-DISCRETE_SOUND_START(asteroid)
+static DISCRETE_SOUND_START(asteroid_discrete)
 	/************************************************/
 	/* Asteroid Effects Relataive Gain Table        */
 	/*                                              */
@@ -216,7 +217,7 @@ DISCRETE_SOUND_START(asteroid)
 DISCRETE_SOUND_END
 
 
-DISCRETE_SOUND_START(astdelux)
+static DISCRETE_SOUND_START(astdelux_discrete)
 	/************************************************/
 	/* Asteroid delux sound hardware is mostly done */
 	/* in the Pokey chip except for the thrust and  */
@@ -282,7 +283,7 @@ DISCRETE_SOUND_END
 
 WRITE8_MEMBER(asteroid_state::asteroid_explode_w)
 {
-	m_discrete->write(space,ASTEROID_EXPLODE_DATA,(data&0x3c)>>2);                // Volume
+	m_discrete->write(ASTEROID_EXPLODE_DATA,(data&0x3c)>>2);                // Volume
 	/* We will modify the pitch data to send the divider value. */
 	switch ((data&0xc0))
 	{
@@ -299,27 +300,43 @@ WRITE8_MEMBER(asteroid_state::asteroid_explode_w)
 			data = 5;
 			break;
 	}
-	m_discrete->write(space, ASTEROID_EXPLODE_PITCH, data);
+	m_discrete->write(ASTEROID_EXPLODE_PITCH, data);
 }
 
 WRITE8_MEMBER(asteroid_state::asteroid_thump_w)
 {
-	m_discrete->write(space, ASTEROID_THUMP_EN,   data & 0x10);
-	m_discrete->write(space, ASTEROID_THUMP_DATA, data & 0x0f);
-}
-
-WRITE8_MEMBER(asteroid_state::asteroid_sounds_w)
-{
-	m_discrete->write(space, NODE_RELATIVE(ASTEROID_SAUCER_SND_EN, offset), data & 0x80);
-}
-
-WRITE8_MEMBER(asteroid_state::astdelux_sounds_w)
-{
-	/* Only ever activates the thrusters in Astdelux */
-	m_discrete->write(space, ASTEROID_THRUST_EN, data & 0x80);
+	m_discrete->write(ASTEROID_THUMP_EN,   data & 0x10);
+	m_discrete->write(ASTEROID_THUMP_DATA, data & 0x0f);
 }
 
 WRITE8_MEMBER(asteroid_state::asteroid_noise_reset_w)
 {
-	m_discrete->write(space, ASTEROID_NOISE_RESET, 0);
+	m_discrete->write(ASTEROID_NOISE_RESET, 0);
+}
+
+
+void asteroid_state::asteroid_sound(machine_config &config)
+{
+	SPEAKER(config, "mono").front_center();
+
+	DISCRETE(config, m_discrete, asteroid_discrete).add_route(ALL_OUTPUTS, "mono", 1.4);
+
+	ls259_device &audiolatch(LS259(config, "audiolatch")); // M10
+	audiolatch.q_out_cb<0>().set("discrete", FUNC(discrete_device::write_line<ASTEROID_SAUCER_SND_EN>));
+	audiolatch.q_out_cb<1>().set("discrete", FUNC(discrete_device::write_line<ASTEROID_SAUCER_FIRE_EN>));
+	audiolatch.q_out_cb<2>().set("discrete", FUNC(discrete_device::write_line<ASTEROID_SAUCER_SEL>));
+	audiolatch.q_out_cb<3>().set("discrete", FUNC(discrete_device::write_line<ASTEROID_THRUST_EN>));
+	audiolatch.q_out_cb<4>().set("discrete", FUNC(discrete_device::write_line<ASTEROID_SHIP_FIRE_EN>));
+	audiolatch.q_out_cb<5>().set("discrete", FUNC(discrete_device::write_line<ASTEROID_LIFE_EN>));
+}
+
+
+void asteroid_state::astdelux_sound(machine_config &config)
+{
+	SPEAKER(config, "mono").front_center();
+
+	DISCRETE(config, m_discrete, astdelux_discrete).add_route(ALL_OUTPUTS, "mono", 1.0);
+
+	ls259_device &audiolatch(LS259(config, "audiolatch")); // M10
+	audiolatch.q_out_cb<3>().set("discrete", FUNC(discrete_device::write_line<ASTEROID_THRUST_EN>));
 }

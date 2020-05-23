@@ -49,7 +49,7 @@
 
   1x Trimmer/pot @ r34
 
-  a shitload of jumpers...
+  a large amount of jumpers...
 
   There are 3 games P03, P07 and P14 (2 roms each), plus main code.
   Also 2 sound ROMs.
@@ -240,7 +240,9 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "cpu/h8/h83002.h"
+#include "cpu/h8500/h8520.h"
+#include "cpu/h8500/h8534.h"
+#include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -249,22 +251,26 @@ class bingoman_state : public driver_device
 {
 public:
 	bingoman_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu")
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
 	{ }
 
-	// devices
-	required_device<cpu_device> m_maincpu;
+	void bingoman(machine_config &config);
 
-	// screen updates
-	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	DECLARE_PALETTE_INIT(bingoman);
 protected:
 	// driver_device overrides
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
-
 	virtual void video_start() override;
+
+private:
+	// devices
+	required_device<h8520_device> m_maincpu;
+
+	// screen updates
+	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void bingoman_palette(palette_device &palette) const;
+	void bingoman_prg_map(address_map &map);
 };
 
 void bingoman_state::video_start()
@@ -276,13 +282,10 @@ uint32_t bingoman_state::screen_update( screen_device &screen, bitmap_ind16 &bit
 	return 0;
 }
 
-static ADDRESS_MAP_START( bingoman_prg_map, AS_PROGRAM, 16, bingoman_state )
-	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( bingoman_io_map, AS_IO, 8, bingoman_state )
-//  ADDRESS_MAP_GLOBAL_MASK(0xff)
-ADDRESS_MAP_END
+void bingoman_state::bingoman_prg_map(address_map &map)
+{
+	map(0x000000, 0x07ffff).rom();
+}
 
 static INPUT_PORTS_START( bingoman )
 	/* dummy active high structure */
@@ -353,7 +356,7 @@ static const gfx_layout charlayout =
 };
 #endif
 
-static GFXDECODE_START( bingoman )
+static GFXDECODE_START( gfx_bingoman )
 //  GFXDECODE_ENTRY( "gfx1", 0, charlayout,     0, 1 )
 GFXDECODE_END
 
@@ -367,34 +370,33 @@ void bingoman_state::machine_reset()
 }
 
 
-PALETTE_INIT_MEMBER(bingoman_state, bingoman)
+void bingoman_state::bingoman_palette(palette_device &palette) const
 {
 }
 
-static MACHINE_CONFIG_START( bingoman, bingoman_state )
-
+void bingoman_state::bingoman(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", H83002, XTAL_20MHz) /* TODO: correct CPU type */
-	MCFG_CPU_PROGRAM_MAP(bingoman_prg_map)
-	MCFG_CPU_IO_MAP(bingoman_io_map)
+	HD6435208(config, m_maincpu, 20_MHz_XTAL);
+	m_maincpu->set_addrmap(AS_PROGRAM, &bingoman_state::bingoman_prg_map);
+
+	HD6475348(config, "subcpu", 20_MHz_XTAL).set_disable();
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
-	MCFG_SCREEN_UPDATE_DRIVER(bingoman_state, screen_update)
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500));
+	screen.set_screen_update(FUNC(bingoman_state::screen_update));
+	screen.set_size(32*8, 32*8);
+	screen.set_visarea_full();
+	screen.set_palette("palette");
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bingoman)
-
-	MCFG_PALETTE_ADD("palette", 8)
-	MCFG_PALETTE_INIT_OWNER(bingoman_state, bingoman)
+	GFXDECODE(config, "gfxdecode", "palette", gfx_bingoman);
+	PALETTE(config, "palette", FUNC(bingoman_state::bingoman_palette), 8);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-MACHINE_CONFIG_END
+	SPEAKER(config, "mono").front_center();
+}
 
 
 /***************************************************************************
@@ -406,6 +408,9 @@ MACHINE_CONFIG_END
 ROM_START( bingoman )
 	ROM_REGION( 0x80000, "maincpu", ROMREGION_ERASE00 )
 	ROM_LOAD16_WORD_SWAP( "ps.020.u51",   0x000000, 0x080000, CRC(0f40b10d) SHA1(96a24547a612ba7c2b33c84a0f3afecc9a7cc076) ) // wrong ...
+
+	ROM_REGION( 0x8000, "subcpu", ROMREGION_ERASE00 )
+	ROM_LOAD( "hd6475348cp16.u33", 0x0000, 0x8000, NO_DUMP )
 
 	ROM_REGION( 0x300000, "tms", ROMREGION_ERASE00 )    // banked
 	ROM_LOAD( "p03_036.015.u01", 0x000000, 0x080000, CRC(b78b7fca) SHA1(8e4147bb8351db5b17e2bf39bb12ca31cf02f3a6) ) // Game 1 (Gold Jackpot)
@@ -436,6 +441,9 @@ ROM_START( bingomana )
 	ROM_REGION( 0x80000, "maincpu", ROMREGION_ERASE00 )
 	ROM_LOAD16_WORD_SWAP( "ps.020.u51",   0x000000, 0x080000, CRC(0f40b10d) SHA1(96a24547a612ba7c2b33c84a0f3afecc9a7cc076) ) // wrong ...
 
+	ROM_REGION( 0x8000, "subcpu", ROMREGION_ERASE00 )
+	ROM_LOAD( "hd6475348cp16.u33", 0x0000, 0x8000, NO_DUMP )
+
 	ROM_REGION( 0x300000, "tms", ROMREGION_ERASE00 )    // banked
 	ROM_LOAD( "a03_037.013.u01", 0x000000, 0x080000, CRC(9c3ed8e9) SHA1(263431ed6db314bee64709bae16fa8c6d5adbd41) ) // Game 1 (Gold Jackpot)
 	ROM_LOAD( "a03_tms.010.u02", 0x080000, 0x080000, CRC(f4142b1a) SHA1(1a14865bd567d5e7bf9e0e0765f6443c8165f46b) ) // Game 1 (Gold Jackpot)
@@ -464,6 +472,6 @@ ROM_END
 
 ***************************************************************************/
 
-/*    YEAR  NAME       PARENT    MACHINE    INPUT     STATE           INIT  ROT    COMPANY          FULLNAME                    FLAGS   */
-GAME( 1993, bingoman,  0,        bingoman,  bingoman, driver_device,  0,    ROT0, "HP Automaten",  "Bingo Mania (P03-P07-P14)", MACHINE_IS_SKELETON )
-GAME( 1993, bingomana, bingoman, bingoman,  bingoman, driver_device,  0,    ROT0, "HP Automaten",  "Bingo Mania (A03)",         MACHINE_IS_SKELETON )
+/*    YEAR  NAME       PARENT    MACHINE    INPUT     STATE           INIT        ROT    COMPANY          FULLNAME                    FLAGS   */
+GAME( 1993, bingoman,  0,        bingoman,  bingoman, bingoman_state, empty_init, ROT0, "HP Automaten",  "Bingo Mania (P03-P07-P14)", MACHINE_IS_SKELETON )
+GAME( 1993, bingomana, bingoman, bingoman,  bingoman, bingoman_state, empty_init, ROT0, "HP Automaten",  "Bingo Mania (A03)",         MACHINE_IS_SKELETON )

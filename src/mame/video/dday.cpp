@@ -37,7 +37,7 @@ void dday_state::start_countdown_timer()
 {
 	m_timer_value = 0;
 
-	machine().scheduler().timer_pulse(attotime::from_seconds(1), timer_expired_delegate(FUNC(dday_state::countdown_timer_callback),this));
+	m_countdown_timer->adjust(attotime::from_seconds(1), 0, attotime::from_seconds(1));
 }
 
 
@@ -47,28 +47,26 @@ void dday_state::start_countdown_timer()
 
 ***************************************************************************/
 
-PALETTE_INIT_MEMBER(dday_state, dday)
+void dday_state::dday_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
+	uint8_t const *const color_prom = memregion("proms")->base();
 
 	palette.set_shadow_factor(1.0 / 8);
 
-	/* create a lookup table for the palette */
-	for (i = 0; i < 0x100; i++)
+	// create a lookup table for the palette
+	for (int i = 0; i < 0x100; i++)
 	{
-		int r = pal4bit(color_prom[i + 0x000]);
-		int g = pal4bit(color_prom[i + 0x100]);
-		int b = pal4bit(color_prom[i + 0x200]);
+		int const r = pal4bit(color_prom[i + 0x000]);
+		int const g = pal4bit(color_prom[i + 0x100]);
+		int const b = pal4bit(color_prom[i + 0x200]);
 
 		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
-	for (i = 0; i < 0x100; i++)
+	for (int i = 0; i < 0x100; i++)
 		palette.set_pen_indirect(i, i);
 
-	/* HACK!!! This table is handgenerated, but it matches the screenshot.
-	   I have no clue how it really works */
+	// HACK!!! This table is handgenerated, but it matches the screenshot.  I have no clue how it really works
 	palette.set_pen_indirect(0*8+0+0, 0x00);
 	palette.set_pen_indirect(0*8+0+1, 0x01);
 	palette.set_pen_indirect(0*8+0+2, 0x15);
@@ -154,7 +152,7 @@ TILE_GET_INFO_MEMBER(dday_state::get_bg_tile_info)
 	int code;
 
 	code = m_bgvideoram[tile_index];
-	SET_TILE_INFO_MEMBER(0, code, code >> 5, 0);
+	tileinfo.set(0, code, code >> 5, 0);
 }
 
 TILE_GET_INFO_MEMBER(dday_state::get_fg_tile_info)
@@ -163,7 +161,7 @@ TILE_GET_INFO_MEMBER(dday_state::get_fg_tile_info)
 
 	flipx = m_colorram[tile_index & 0x03e0] & 0x01;
 	code = m_fgvideoram[flipx ? tile_index ^ 0x1f : tile_index];
-	SET_TILE_INFO_MEMBER(2, code, code >> 5, flipx ? TILE_FLIPX : 0);
+	tileinfo.set(2, code, code >> 5, flipx ? TILE_FLIPX : 0);
 }
 
 TILE_GET_INFO_MEMBER(dday_state::get_text_tile_info)
@@ -171,7 +169,7 @@ TILE_GET_INFO_MEMBER(dday_state::get_text_tile_info)
 	int code;
 
 	code = m_textvideoram[tile_index];
-	SET_TILE_INFO_MEMBER(1, code, code >> 5, 0);
+	tileinfo.set(1, code, code >> 5, 0);
 }
 
 TILE_GET_INFO_MEMBER(dday_state::get_sl_tile_info)
@@ -193,7 +191,7 @@ TILE_GET_INFO_MEMBER(dday_state::get_sl_tile_info)
 		/* no mirroring, draw dark spot */
 		code = 1;
 
-	SET_TILE_INFO_MEMBER(3, code & 0x3f, 0, flipx ? TILE_FLIPX : 0);
+	tileinfo.set(3, code & 0x3f, 0, flipx ? TILE_FLIPX : 0);
 }
 
 
@@ -205,16 +203,18 @@ TILE_GET_INFO_MEMBER(dday_state::get_sl_tile_info)
 
 void dday_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(dday_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(dday_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_text_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(dday_state::get_text_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_sl_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(dday_state::get_sl_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(dday_state::get_bg_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(dday_state::get_fg_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_text_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(dday_state::get_text_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_sl_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(dday_state::get_sl_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_screen->register_screen_bitmap(m_main_bitmap);
 
 	m_bg_tilemap->set_transmask(0, 0x00f0, 0xff0f); /* pens 0-3 have priority over the foreground layer */
 	m_fg_tilemap->set_transparent_pen(0);
 	m_text_tilemap->set_transparent_pen(0);
+
+	m_countdown_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(dday_state::countdown_timer_callback), this));
 
 	start_countdown_timer();
 }

@@ -63,6 +63,9 @@ public:
 		m_pia_u2(*this, "pia_u2"),
 		m_pia_u3(*this, "pia_u3") { }
 
+	void toratora(machine_config &config);
+
+private:
 	/* memory pointers */
 	required_shared_ptr<uint8_t> m_videoram;
 
@@ -81,18 +84,19 @@ public:
 	DECLARE_READ8_MEMBER(timer_r);
 	DECLARE_WRITE8_MEMBER(clear_timer_w);
 	DECLARE_WRITE_LINE_MEMBER(cb2_u2_w);
-	DECLARE_WRITE8_MEMBER(port_b_u1_w);
+	void port_b_u1_w(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER(main_cpu_irq);
-	DECLARE_WRITE8_MEMBER(sn1_port_a_u3_w);
-	DECLARE_WRITE8_MEMBER(sn1_port_b_u3_w);
+	void sn1_port_a_u3_w(uint8_t data);
+	void sn1_port_b_u3_w(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER(sn1_ca2_u3_w);
-	DECLARE_WRITE8_MEMBER(sn2_port_a_u2_w);
-	DECLARE_WRITE8_MEMBER(sn2_port_b_u2_w);
+	void sn2_port_a_u2_w(uint8_t data);
+	void sn2_port_b_u2_w(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER(sn2_ca2_u2_w);
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
 	uint32_t screen_update_toratora(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(toratora_timer);
+	void main_map(address_map &map);
 };
 
 
@@ -159,7 +163,7 @@ WRITE8_MEMBER(toratora_state::clear_tv_w)
  *
  *************************************/
 
-WRITE8_MEMBER(toratora_state::port_b_u1_w)
+void toratora_state::port_b_u1_w(uint8_t data)
 {
 	if (m_pia_u1->port_b_z_mask() & 0x20)
 		machine().bookkeeping().coin_counter_w(0, 1);
@@ -221,14 +225,14 @@ WRITE8_MEMBER(toratora_state::clear_timer_w)
  *************************************/
 
 
-WRITE8_MEMBER(toratora_state::sn1_port_a_u3_w)
+void toratora_state::sn1_port_a_u3_w(uint8_t data)
 {
 	m_sn1->vco_voltage_w(2.35 * (data & 0x7f) / 128.0);
 	m_sn1->enable_w((data >> 7) & 0x01);
 }
 
 
-WRITE8_MEMBER(toratora_state::sn1_port_b_u3_w)
+void toratora_state::sn1_port_b_u3_w(uint8_t data)
 {
 	static const double resistances[] =
 	{
@@ -256,7 +260,7 @@ WRITE8_MEMBER(toratora_state::sn1_port_b_u3_w)
 	 * However, shot audio is muted if V < 1.0, as mixer state
 	 * is set to SLF & VCO. Should SLF FF state be inverted?
 	 */
-	m_sn1->slf_cap_voltage_w((data >> 5) == 0x7 ? 2.5 : SN76477_EXTERNAL_VOLTAGE_DISCONNECT);
+	m_sn1->slf_cap_voltage_w((data >> 5) == 0x7 ? 2.5 : sn76477_device::EXTERNAL_VOLTAGE_DISCONNECT);
 }
 
 
@@ -265,14 +269,14 @@ WRITE_LINE_MEMBER(toratora_state::sn1_ca2_u3_w)
 	m_sn1->vco_w(state);
 }
 
-WRITE8_MEMBER(toratora_state::sn2_port_a_u2_w)
+void toratora_state::sn2_port_a_u2_w(uint8_t data)
 {
 	m_sn2->vco_voltage_w(2.35 * (data & 0x7f) / 128.0);
 	m_sn2->enable_w((data >> 7) & 0x01);
 }
 
 
-WRITE8_MEMBER(toratora_state::sn2_port_b_u2_w)
+void toratora_state::sn2_port_b_u2_w(uint8_t data)
 {
 	static const double resistances[] =
 	{
@@ -292,7 +296,7 @@ WRITE8_MEMBER(toratora_state::sn2_port_b_u2_w)
 	m_sn2->envelope_1_w   ((data >> 3) & 0x01);
 	m_sn2->envelope_2_w   ((data >> 4) & 0x01);
 	m_sn2->slf_res_w(resistances[(data >> 5)]);
-	m_sn2->slf_cap_voltage_w((data >> 5) == 0x7 ? 2.5 : SN76477_EXTERNAL_VOLTAGE_DISCONNECT);
+	m_sn2->slf_cap_voltage_w((data >> 5) == 0x7 ? 2.5 : sn76477_device::EXTERNAL_VOLTAGE_DISCONNECT);
 
 	/* Seems like the output should be muted in this case, but unsure of exact mechanism */
 	m_sn2->amplitude_res_w((data >> 5) == 0x0 ? RES_INF : RES_K(47));
@@ -314,21 +318,22 @@ WRITE_LINE_MEMBER(toratora_state::sn2_ca2_u2_w)
  *
  *************************************/
 
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, toratora_state )
-	AM_RANGE(0x0000, 0x0fff) AM_RAM
-	AM_RANGE(0x1000, 0x7fff) AM_ROM  /* not fully populated */
-	AM_RANGE(0x8000, 0x9fff) AM_RAM AM_SHARE("videoram")
-	AM_RANGE(0xa000, 0xf047) AM_NOP
-	AM_RANGE(0xf048, 0xf049) AM_NOP
-	AM_RANGE(0xf04a, 0xf04a) AM_WRITE(clear_tv_w)   /* the read is mark *LEDEN, but not used */
-	AM_RANGE(0xf04b, 0xf04b) AM_READWRITE(timer_r, clear_timer_w)
-	AM_RANGE(0xa04c, 0xf09f) AM_NOP
-	AM_RANGE(0xf0a0, 0xf0a3) AM_DEVREADWRITE("pia_u1", pia6821_device, read, write)
-	AM_RANGE(0xf0a4, 0xf0a7) AM_DEVREADWRITE("pia_u2", pia6821_device, read, write)
-	AM_RANGE(0xf0a8, 0xf0ab) AM_DEVREADWRITE("pia_u3", pia6821_device, read, write)
-	AM_RANGE(0xf0ac, 0xf7ff) AM_NOP
-	AM_RANGE(0xf800, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void toratora_state::main_map(address_map &map)
+{
+	map(0x0000, 0x0fff).ram();
+	map(0x1000, 0x7fff).rom();  /* not fully populated */
+	map(0x8000, 0x9fff).ram().share("videoram");
+	map(0xa000, 0xf047).noprw();
+	map(0xf048, 0xf049).noprw();
+	map(0xf04a, 0xf04a).w(FUNC(toratora_state::clear_tv_w));   /* the read is mark *LEDEN, but not used */
+	map(0xf04b, 0xf04b).rw(FUNC(toratora_state::timer_r), FUNC(toratora_state::clear_timer_w));
+	map(0xf04c, 0xf09f).noprw();
+	map(0xf0a0, 0xf0a3).rw(m_pia_u1, FUNC(pia6821_device::read), FUNC(pia6821_device::write));
+	map(0xf0a4, 0xf0a7).rw(m_pia_u2, FUNC(pia6821_device::read), FUNC(pia6821_device::write));
+	map(0xf0a8, 0xf0ab).rw(m_pia_u3, FUNC(pia6821_device::read), FUNC(pia6821_device::write));
+	map(0xf0ac, 0xf7ff).noprw();
+	map(0xf800, 0xffff).rom();
+}
 
 
 
@@ -350,22 +355,22 @@ static INPUT_PORTS_START( toratora )
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_UNUSED )
 
 	PORT_START("DSW")
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) )
-	PORT_DIPSETTING(    0x03, "3" )
-	PORT_DIPSETTING(    0x02, "2" )
-	PORT_DIPSETTING(    0x03, "1" )
-	PORT_DIPSETTING(    0x02, "0" )
-	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) )
-	PORT_DIPSETTING(    0x0c, "3" )
-	PORT_DIPSETTING(    0x08, "2" )
-	PORT_DIPSETTING(    0x04, "1" )
-	PORT_DIPSETTING(    0x02, "0" )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) )     PORT_DIPLOCATION("SW1:1,2")
+	PORT_DIPSETTING(    0x03, DEF_STR( 1C_5C ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( 1C_3C ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( 1C_1C ) )
+	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) )     PORT_DIPLOCATION("SW1:3,4")
+	PORT_DIPSETTING(    0x0c, DEF_STR( 1C_5C ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( 1C_3C ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( 1C_1C ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unused ) )     PORT_DIPLOCATION("SW1:5")
+	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Lives ) )
-	PORT_DIPSETTING(    0x20, "3" )
-	PORT_DIPSETTING(    0x00, "4" )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Lives ) )      PORT_DIPLOCATION("SW1:6")
+	PORT_DIPSETTING(    0x20, "4" )
+	PORT_DIPSETTING(    0x00, "3" )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_UNUSED )
 INPUT_PORTS_END
@@ -390,74 +395,73 @@ void toratora_state::machine_reset()
 	m_clear_tv = 0;
 }
 
-static MACHINE_CONFIG_START( toratora, toratora_state )
-
+void toratora_state::toratora(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6800, 5185000 / 8) /* 5.185 MHz XTAL divided by 8 (@ U94.12) */
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(toratora_state, toratora_timer, 250) /* timer counting at 250 Hz */
+	M6800(config, m_maincpu, 5185000 / 8); /* 5.185 MHz XTAL divided by 8 (@ U94.12) */
+	m_maincpu->set_addrmap(AS_PROGRAM, &toratora_state::main_map);
+	m_maincpu->set_periodic_int(FUNC(toratora_state::toratora_timer), attotime::from_hz(250)); /* timer counting at 250 Hz */
 
-	MCFG_DEVICE_ADD("pia_u1", PIA6821, 0)
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(toratora_state,port_b_u1_w))
-	MCFG_PIA_IRQA_HANDLER(WRITELINE(toratora_state,main_cpu_irq))
-	MCFG_PIA_IRQB_HANDLER(WRITELINE(toratora_state,main_cpu_irq))
+	PIA6821(config, m_pia_u1, 0);
+	m_pia_u1->writepb_handler().set(FUNC(toratora_state::port_b_u1_w));
+	m_pia_u1->irqa_handler().set(FUNC(toratora_state::main_cpu_irq));
+	m_pia_u1->irqb_handler().set(FUNC(toratora_state::main_cpu_irq));
 
-	MCFG_DEVICE_ADD("pia_u3", PIA6821, 0)
-	MCFG_PIA_WRITEPA_HANDLER(WRITE8(toratora_state, sn1_port_a_u3_w))
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(toratora_state, sn1_port_b_u3_w))
-	MCFG_PIA_CA2_HANDLER(WRITELINE(toratora_state, sn1_ca2_u3_w))
+	PIA6821(config, m_pia_u3, 0);
+	m_pia_u3->writepa_handler().set(FUNC(toratora_state::sn1_port_a_u3_w));
+	m_pia_u3->writepb_handler().set(FUNC(toratora_state::sn1_port_b_u3_w));
+	m_pia_u3->ca2_handler().set(FUNC(toratora_state::sn1_ca2_u3_w));
 
-	MCFG_DEVICE_ADD("pia_u2", PIA6821, 0)
-	MCFG_PIA_READPB_HANDLER(IOPORT("DSW"))
-	MCFG_PIA_WRITEPA_HANDLER(WRITE8(toratora_state,sn2_port_a_u2_w))
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(toratora_state,sn2_port_b_u2_w))
-	MCFG_PIA_CA2_HANDLER(WRITELINE(toratora_state,sn2_ca2_u2_w))
-	MCFG_PIA_CB2_HANDLER(WRITELINE(toratora_state,cb2_u2_w))
+	PIA6821(config, m_pia_u2, 0);
+	m_pia_u2->readpb_handler().set_ioport("DSW");
+	m_pia_u2->writepa_handler().set(FUNC(toratora_state::sn2_port_a_u2_w));
+	m_pia_u2->writepb_handler().set(FUNC(toratora_state::sn2_port_b_u2_w));
+	m_pia_u2->ca2_handler().set(FUNC(toratora_state::sn2_ca2_u2_w));
+	m_pia_u2->cb2_handler().set(FUNC(toratora_state::cb2_u2_w));
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_SIZE(256, 256)
-	MCFG_SCREEN_VISIBLE_AREA(0,256-1,8,248-1)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_UPDATE_DRIVER(toratora_state, screen_update_toratora)
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_size(256, 256);
+	screen.set_visarea(0,256-1,8,248-1);
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_screen_update(FUNC(toratora_state::screen_update_toratora));
 
 	/* audio hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("sn1", SN76477, 0)
-	MCFG_SN76477_NOISE_PARAMS(RES_K(47), RES_K(470), CAP_P(470)) // noise + filter
-	MCFG_SN76477_DECAY_RES(RES_M(2))                     // decay_res
-	MCFG_SN76477_ATTACK_PARAMS(CAP_U(0.2),  RES_K(3.3))  // attack_decay_cap + attack_res
-	MCFG_SN76477_AMP_RES(RES_K(47))                      // amplitude_res
-	MCFG_SN76477_FEEDBACK_RES(RES_K(50))                 // feedback_res
-	MCFG_SN76477_VCO_PARAMS(0, CAP_U(0.1), RES_K(51))    // VCO volt + cap + res
-	MCFG_SN76477_PITCH_VOLTAGE(5.0)                      // pitch_voltage
-	MCFG_SN76477_SLF_PARAMS(CAP_U(1.0), RES_K(10))       // slf caps + res
-	MCFG_SN76477_ONESHOT_PARAMS(CAP_U(0.1), RES_K(100))  // oneshot caps + res
-	MCFG_SN76477_VCO_MODE(0)                             // VCO mode
-	MCFG_SN76477_MIXER_PARAMS(0, 0, 0)                   // mixer A, B, C
-	MCFG_SN76477_ENVELOPE_PARAMS(0, 0)                   // envelope 1, 2
-	MCFG_SN76477_ENABLE(1)                               // enable
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	SN76477(config, m_sn1);
+	m_sn1->set_noise_params(RES_K(47), RES_K(470), CAP_P(470));
+	m_sn1->set_decay_res(RES_M(2));
+	m_sn1->set_attack_params(CAP_U(0.2),  RES_K(3.3));
+	m_sn1->set_amp_res(RES_K(47));
+	m_sn1->set_feedback_res(RES_K(50));
+	m_sn1->set_vco_params(0, CAP_U(0.1), RES_K(51));
+	m_sn1->set_pitch_voltage(5.0);
+	m_sn1->set_slf_params(CAP_U(1.0), RES_K(10));
+	m_sn1->set_oneshot_params(CAP_U(0.1), RES_K(100));
+	m_sn1->set_vco_mode(0);
+	m_sn1->set_mixer_params(0, 0, 0);
+	m_sn1->set_envelope_params(0, 0);
+	m_sn1->set_enable(1);
+	m_sn1->add_route(ALL_OUTPUTS, "mono", 0.50);
 
-	MCFG_SOUND_ADD("sn2", SN76477, 0)
-	MCFG_SN76477_NOISE_PARAMS(RES_K(47), RES_K(470), CAP_P(470)) // noise + filter
-	MCFG_SN76477_DECAY_RES(RES_M(2))                     // decay_res
-	MCFG_SN76477_ATTACK_PARAMS(CAP_U(0.2),  RES_K(3.3))  // attack_decay_cap + attack_res
-	MCFG_SN76477_AMP_RES(RES_K(47))                      // amplitude_res
-	MCFG_SN76477_FEEDBACK_RES(RES_K(50))                 // feedback_res
-	MCFG_SN76477_VCO_PARAMS(0, CAP_U(0.1), RES_K(51))    // VCO volt + cap + res
-	MCFG_SN76477_PITCH_VOLTAGE(5.0)                      // pitch_voltage
-	MCFG_SN76477_SLF_PARAMS(CAP_U(1.0), RES_K(10))       // slf caps + res
-	MCFG_SN76477_ONESHOT_PARAMS(CAP_U(0.1), RES_K(100))  // oneshot caps + res
-	MCFG_SN76477_VCO_MODE(0)                             // VCO mode
-	MCFG_SN76477_MIXER_PARAMS(0, 0, 0)                   // mixer A, B, C
-	MCFG_SN76477_ENVELOPE_PARAMS(0, 0)                   // envelope 1, 2
-	MCFG_SN76477_ENABLE(1)                               // enable
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-
-MACHINE_CONFIG_END
+	SN76477(config, m_sn2);
+	m_sn2->set_noise_params(RES_K(47), RES_K(470), CAP_P(470));
+	m_sn2->set_decay_res(RES_M(2));
+	m_sn2->set_attack_params(CAP_U(0.2),  RES_K(3.3));
+	m_sn2->set_amp_res(RES_K(47));
+	m_sn2->set_feedback_res(RES_K(50));
+	m_sn2->set_vco_params(0, CAP_U(0.1), RES_K(51));
+	m_sn2->set_pitch_voltage(5.0);
+	m_sn2->set_slf_params(CAP_U(1.0), RES_K(10));
+	m_sn2->set_oneshot_params(CAP_U(0.1), RES_K(100));
+	m_sn2->set_vco_mode(0);
+	m_sn2->set_mixer_params(0, 0, 0);
+	m_sn2->set_envelope_params(0, 0);
+	m_sn2->set_enable(1);
+	m_sn2->add_route(ALL_OUTPUTS, "mono", 0.50);
+}
 
 
 
@@ -522,5 +526,5 @@ ROM_END
  *
  *************************************/
 
-GAME( 1980, toratora, 0,        toratora, toratora, driver_device, 0, ROT90, "Game Plan", "Tora Tora (prototype?)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1980, toratorab,toratora, toratora, toratora, driver_device, 0, ROT90, "Game Plan", "Tora Tora (set 2)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1980, toratora, 0,        toratora, toratora, toratora_state, empty_init, ROT90, "Game Plan", "Tora Tora (prototype?)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1980, toratorab,toratora, toratora, toratora, toratora_state, empty_init, ROT90, "Game Plan", "Tora Tora (set 2)",      MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )

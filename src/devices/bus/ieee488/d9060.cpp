@@ -61,8 +61,8 @@ enum
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type D9060 = device_creator<d9060_t>;
-const device_type D9090 = device_creator<d9090_t>;
+DEFINE_DEVICE_TYPE(D9060, d9060_device, "d9060", "Commodore D9060")
+DEFINE_DEVICE_TYPE(D9090, d9090_device, "d9090", "Commodore D9090")
 
 
 //-------------------------------------------------
@@ -73,25 +73,25 @@ ROM_START( d9060 )
 	ROM_REGION( 0x4000, M6502_DOS_TAG, 0 )
 	ROM_DEFAULT_BIOS("rc")
 	ROM_SYSTEM_BIOS( 0, "ra", "Revision A" )
-	ROMX_LOAD( "300516-001.7c", 0x0000, 0x2000, NO_DUMP, ROM_BIOS(1) )
-	ROMX_LOAD( "300517-001.7d", 0x2000, 0x2000, CRC(566df630) SHA1(b1602dfff408b165ee52a6a4ca3e2ec27e689ba9), ROM_BIOS(1) )
+	ROMX_LOAD( "300516-001.7c", 0x0000, 0x2000, NO_DUMP, ROM_BIOS(0) )
+	ROMX_LOAD( "300517-001.7d", 0x2000, 0x2000, CRC(566df630) SHA1(b1602dfff408b165ee52a6a4ca3e2ec27e689ba9), ROM_BIOS(0) )
 	ROM_SYSTEM_BIOS( 1, "rb", "Revision B" )
-	ROMX_LOAD( "300516-002.7c", 0x0000, 0x2000, CRC(2d758a14) SHA1(c959cc9dde84fc3d64e95e58a0a096a26d8107fd), ROM_BIOS(2) )
-	ROMX_LOAD( "300517-002.7d", 0x2000, 0x2000, CRC(f0382bc3) SHA1(0b0a8dc520f5b41ffa832e4a636b3d226ccbb7f1), ROM_BIOS(2) )
+	ROMX_LOAD( "300516-002.7c", 0x0000, 0x2000, CRC(2d758a14) SHA1(c959cc9dde84fc3d64e95e58a0a096a26d8107fd), ROM_BIOS(1) )
+	ROMX_LOAD( "300517-002.7d", 0x2000, 0x2000, CRC(f0382bc3) SHA1(0b0a8dc520f5b41ffa832e4a636b3d226ccbb7f1), ROM_BIOS(1) )
 	ROM_SYSTEM_BIOS( 2, "rc", "Revision C" )
-	ROMX_LOAD( "300516-003.7c", 0x0000, 0x2000, CRC(d6a3e88f) SHA1(bb1ddb5da94a86266012eca54818aa21dc4cef6a), ROM_BIOS(3) )
-	ROMX_LOAD( "300517-003.7d", 0x2000, 0x2000, CRC(2a9ad4ad) SHA1(4c17d014de48c906871b9b6c7d037d8736b1fd52), ROM_BIOS(3) )
+	ROMX_LOAD( "300516-003.7c", 0x0000, 0x2000, CRC(d6a3e88f) SHA1(bb1ddb5da94a86266012eca54818aa21dc4cef6a), ROM_BIOS(2) )
+	ROMX_LOAD( "300517-003.7d", 0x2000, 0x2000, CRC(2a9ad4ad) SHA1(4c17d014de48c906871b9b6c7d037d8736b1fd52), ROM_BIOS(2) )
 
 	ROM_REGION( 0x800, M6502_HDC_TAG, 0 )
 	ROM_LOAD( "300515-001.4c", 0x000, 0x800, CRC(99e096f7) SHA1(a3d1deb27bf5918b62b89c27fa3e488eb8f717a4) ) // Revision A
 	ROM_LOAD( "300515-002.4c", 0x000, 0x800, CRC(49adf4fb) SHA1(59dafbd4855083074ba8dc96a04d4daa5b76e0d6) ) // Revision B
 
-	ROM_REGION( 0x5000, AM2910_TAG, 0 )
-	ROM_LOAD( "441.5b", 0x0000, 0x1000, NO_DUMP ) // 82S137
-	ROM_LOAD( "442.6b", 0x1000, 0x1000, NO_DUMP ) // 82S137
-	ROM_LOAD( "573.7b", 0x2000, 0x1000, NO_DUMP ) // 82S137
-	ROM_LOAD( "444.8b", 0x3000, 0x1000, NO_DUMP ) // 82S137
-	ROM_LOAD( "445.9b", 0x4000, 0x1000, NO_DUMP ) // 82S137
+	ROM_REGION( 0x1400, AM2910_TAG, 0 )
+	ROM_LOAD( "44_1.5b", 0x0000, 0x0400, CRC(67a49dd3) SHA1(be39f55bc0ff9a508ec55224c52549856ad3270a) ) // 82S137
+	ROM_LOAD( "44_2.6b", 0x0400, 0x0400, CRC(f6d1bdbc) SHA1(bca7a96a60144c36eff1124485ec26df7cfa8143) ) // 82S137
+	ROM_LOAD( "44_3.7b", 0x0800, 0x0400, CRC(68af3a1f) SHA1(d3823a0d23e828a2dff6d89211fbcd7034112298) ) // 82S137
+	ROM_LOAD( "44_4.8b", 0x0c00, 0x0400, CRC(a767b1dc) SHA1(fff11b662c74040981822ccdcc8cbd0e22b517a9) ) // 82S137
+	ROM_LOAD( "44_5.9b", 0x1000, 0x0400, CRC(85743073) SHA1(95a48835bc2bd1c79fb1a63778de3807fb731ac6) ) // 82S137
 ROM_END
 
 
@@ -99,50 +99,44 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *d9060_base_t::device_rom_region() const
+const tiny_rom_entry *d9060_device_base::device_rom_region() const
 {
 	return ROM_NAME( d9060 );
 }
 
 
-//-------------------------------------------------
-//  ADDRESS_MAP( d9060_main_mem )
-//-------------------------------------------------
-
-static ADDRESS_MAP_START( d9060_main_mem, AS_PROGRAM, 8, d9060_base_t )
-	AM_RANGE(0x0000, 0x007f) AM_MIRROR(0x0100) AM_DEVICE(M6532_0_TAG, mos6532_t, ram_map)
-	AM_RANGE(0x0080, 0x00ff) AM_MIRROR(0x0100) AM_DEVICE(M6532_1_TAG, mos6532_t, ram_map)
-	AM_RANGE(0x0200, 0x021f) AM_MIRROR(0x0d60) AM_DEVICE(M6532_0_TAG, mos6532_t, io_map)
-	AM_RANGE(0x0280, 0x029f) AM_MIRROR(0x0d60) AM_DEVICE(M6532_1_TAG, mos6532_t, io_map)
-	AM_RANGE(0x1000, 0x13ff) AM_MIRROR(0x0c00) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0x2000, 0x23ff) AM_MIRROR(0x0c00) AM_RAM AM_SHARE("share2")
-	AM_RANGE(0x3000, 0x33ff) AM_MIRROR(0x0c00) AM_RAM AM_SHARE("share3")
-	AM_RANGE(0x4000, 0x43ff) AM_MIRROR(0x0c00) AM_RAM AM_SHARE("share4")
-	AM_RANGE(0xc000, 0xffff) AM_ROM AM_REGION(M6502_DOS_TAG, 0)
-ADDRESS_MAP_END
+void d9060_device_base::main_mem(address_map &map)
+{
+	map(0x0000, 0x007f).mirror(0x0100).m(m_riot0, FUNC(mos6532_new_device::ram_map));
+	map(0x0080, 0x00ff).mirror(0x0100).m(m_riot1, FUNC(mos6532_new_device::ram_map));
+	map(0x0200, 0x021f).mirror(0x0d60).m(m_riot0, FUNC(mos6532_new_device::io_map));
+	map(0x0280, 0x029f).mirror(0x0d60).m(m_riot1, FUNC(mos6532_new_device::io_map));
+	map(0x1000, 0x13ff).mirror(0x0c00).ram().share("share1");
+	map(0x2000, 0x23ff).mirror(0x0c00).ram().share("share2");
+	map(0x3000, 0x33ff).mirror(0x0c00).ram().share("share3");
+	map(0x4000, 0x43ff).mirror(0x0c00).ram().share("share4");
+	map(0xc000, 0xffff).rom().region(M6502_DOS_TAG, 0);
+}
 
 
-//-------------------------------------------------
-//  ADDRESS_MAP( d9060_hdc_mem )
-//-------------------------------------------------
-
-static ADDRESS_MAP_START( d9060_hdc_mem, AS_PROGRAM, 8, d9060_base_t )
-	ADDRESS_MAP_GLOBAL_MASK(0x1fff)
-	AM_RANGE(0x0000, 0x007f) AM_MIRROR(0x300) AM_RAM
-	AM_RANGE(0x0080, 0x008f) AM_MIRROR(0x380) AM_DEVREADWRITE(M6522_TAG, via6522_device, read, write)
-	AM_RANGE(0x0400, 0x07ff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0x0800, 0x0bff) AM_RAM AM_SHARE("share2")
-	AM_RANGE(0x0c00, 0x0fff) AM_RAM AM_SHARE("share3")
-	AM_RANGE(0x1000, 0x13ff) AM_RAM AM_SHARE("share4")
-	AM_RANGE(0x1800, 0x1fff) AM_ROM AM_REGION(M6502_HDC_TAG, 0)
-ADDRESS_MAP_END
+void d9060_device_base::hdc_mem(address_map &map)
+{
+	map.global_mask(0x1fff);
+	map(0x0000, 0x007f).mirror(0x300).ram();
+	map(0x0080, 0x008f).mirror(0x370).m(m_via, FUNC(via6522_device::map));
+	map(0x0400, 0x07ff).ram().share("share1");
+	map(0x0800, 0x0bff).ram().share("share2");
+	map(0x0c00, 0x0fff).ram().share("share3");
+	map(0x1000, 0x13ff).ram().share("share4");
+	map(0x1800, 0x1fff).rom().region(M6502_HDC_TAG, 0);
+}
 
 
 //-------------------------------------------------
 //  riot6532 0
 //-------------------------------------------------
 
-READ8_MEMBER( d9060_base_t::dio_r )
+uint8_t d9060_device_base::dio_r()
 {
 	/*
 
@@ -163,7 +157,7 @@ READ8_MEMBER( d9060_base_t::dio_r )
 }
 
 
-WRITE8_MEMBER( d9060_base_t::dio_w )
+void d9060_device_base::dio_w(uint8_t data)
 {
 	/*
 
@@ -188,7 +182,7 @@ WRITE8_MEMBER( d9060_base_t::dio_w )
 //  riot6532 1
 //-------------------------------------------------
 
-READ8_MEMBER( d9060_base_t::riot1_pa_r )
+uint8_t d9060_device_base::riot1_pa_r()
 {
 	/*
 
@@ -219,7 +213,7 @@ READ8_MEMBER( d9060_base_t::riot1_pa_r )
 	return data;
 }
 
-WRITE8_MEMBER( d9060_base_t::riot1_pa_w )
+void d9060_device_base::riot1_pa_w(uint8_t data)
 {
 	/*
 
@@ -254,7 +248,7 @@ WRITE8_MEMBER( d9060_base_t::riot1_pa_w )
 	update_ieee_signals();
 }
 
-READ8_MEMBER( d9060_base_t::riot1_pb_r )
+uint8_t d9060_device_base::riot1_pb_r()
 {
 	/*
 
@@ -285,7 +279,7 @@ READ8_MEMBER( d9060_base_t::riot1_pb_r )
 	return data;
 }
 
-WRITE8_MEMBER( d9060_base_t::riot1_pb_w )
+void d9060_device_base::riot1_pb_w(uint8_t data)
 {
 	/*
 
@@ -303,17 +297,17 @@ WRITE8_MEMBER( d9060_base_t::riot1_pb_w )
 	*/
 
 	// ready led
-	machine().output().set_led_value(LED_READY, BIT(data, 4));
+	m_leds[LED_READY] = BIT(data, 4);
 
 	// power led
-	machine().output().set_led_value(LED_POWER, BIT(data, 5));
+	m_leds[LED_POWER] = BIT(data, 5);
 
 	// error led
-	machine().output().set_led_value(LED_ERROR, !BIT(data, 5));
+	m_leds[LED_ERROR] = !BIT(data, 5);
 }
 
 
-WRITE8_MEMBER( d9060_base_t::via_pb_w )
+void d9060_device_base::via_pb_w(uint8_t data)
 {
 	/*
 
@@ -334,12 +328,12 @@ WRITE8_MEMBER( d9060_base_t::via_pb_w )
 	m_sasibus->write_rst(BIT(data, 1));
 }
 
-WRITE_LINE_MEMBER( d9060_base_t::ack_w )
+WRITE_LINE_MEMBER( d9060_device_base::ack_w )
 {
 	m_sasibus->write_ack(!state);
 }
 
-WRITE_LINE_MEMBER( d9060_base_t::enable_w )
+WRITE_LINE_MEMBER( d9060_device_base::enable_w )
 {
 	m_enable = state;
 
@@ -353,7 +347,7 @@ WRITE_LINE_MEMBER( d9060_base_t::enable_w )
 	}
 }
 
-WRITE8_MEMBER( d9060_base_t::scsi_data_w )
+void d9060_device_base::scsi_data_w(uint8_t data)
 {
 	m_data = data;
 
@@ -365,65 +359,56 @@ WRITE8_MEMBER( d9060_base_t::scsi_data_w )
 
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( d9060 )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( d9060 )
+void d9060_device_base::device_add_mconfig(machine_config &config)
+{
 	// DOS
-	MCFG_CPU_ADD(M6502_DOS_TAG, M6502, XTAL_4MHz/4)
-	MCFG_CPU_PROGRAM_MAP(d9060_main_mem)
+	M6502(config, m_maincpu, XTAL(4'000'000)/4);
+	m_maincpu->set_addrmap(AS_PROGRAM, &d9060_device::main_mem);
 
-	MCFG_DEVICE_ADD(M6532_0_TAG, MOS6532n, XTAL_4MHz/4)
-	MCFG_MOS6530n_IN_PA_CB(READ8(d9060_base_t, dio_r))
-	MCFG_MOS6530n_OUT_PB_CB(WRITE8(d9060_base_t, dio_w))
+	MOS6532_NEW(config, m_riot0, XTAL(4'000'000)/4);
+	m_riot0->pa_rd_callback().set(FUNC(d9060_device_base::dio_r));
+	m_riot0->pb_wr_callback().set(FUNC(d9060_device_base::dio_w));
 
-	MCFG_DEVICE_ADD(M6532_1_TAG, MOS6532n, XTAL_4MHz/4)
-	MCFG_MOS6530n_IN_PA_CB(READ8(d9060_base_t, riot1_pa_r))
-	MCFG_MOS6530n_OUT_PA_CB(WRITE8(d9060_base_t, riot1_pa_w))
-	MCFG_MOS6530n_IN_PB_CB(READ8(d9060_base_t, riot1_pb_r))
-	MCFG_MOS6530n_OUT_PB_CB(WRITE8(d9060_base_t, riot1_pb_w))
-	MCFG_MOS6530n_IRQ_CB(INPUTLINE(M6502_DOS_TAG, INPUT_LINE_IRQ0))
+	MOS6532_NEW(config, m_riot1, XTAL(4'000'000)/4);
+	m_riot1->pa_rd_callback().set(FUNC(d9060_device_base::riot1_pa_r));
+	m_riot1->pa_wr_callback().set(FUNC(d9060_device_base::riot1_pa_w));
+	m_riot1->pb_rd_callback().set(FUNC(d9060_device_base::riot1_pb_r));
+	m_riot1->pb_wr_callback().set(FUNC(d9060_device_base::riot1_pb_w));
+	m_riot1->irq_wr_callback().set_inputline(m_maincpu, INPUT_LINE_IRQ0);
 
 	// controller
-	MCFG_CPU_ADD(M6502_HDC_TAG, M6502, XTAL_4MHz/4)
-	MCFG_CPU_PROGRAM_MAP(d9060_hdc_mem)
+	M6502(config, m_hdccpu, XTAL(4'000'000)/4);
+	m_hdccpu->set_addrmap(AS_PROGRAM, &d9060_device::hdc_mem);
 
-	MCFG_DEVICE_ADD(M6522_TAG, VIA6522, XTAL_4MHz/4)
-	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(d9060_base_t, scsi_data_w))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(d9060_base_t, via_pb_w))
-	MCFG_VIA6522_CA2_HANDLER(WRITELINE(d9060_base_t, ack_w))
-	MCFG_VIA6522_CB2_HANDLER(WRITELINE(d9060_base_t, enable_w))
-	MCFG_VIA6522_IRQ_HANDLER(INPUTLINE(M6502_HDC_TAG, M6502_IRQ_LINE))
+	VIA6522(config, m_via, XTAL(4'000'000)/4);
+	m_via->writepa_handler().set(FUNC(d9060_device_base::scsi_data_w));
+	m_via->writepb_handler().set(FUNC(d9060_device_base::via_pb_w));
+	m_via->ca2_handler().set(FUNC(d9060_device_base::ack_w));
+	m_via->cb2_handler().set(FUNC(d9060_device_base::enable_w));
+	m_via->irq_handler().set_inputline(m_hdccpu, M6502_IRQ_LINE);
 
-	MCFG_DEVICE_ADD(SASIBUS_TAG, SCSI_PORT, 0)
-	MCFG_SCSI_REQ_HANDLER(DEVWRITELINE(M6522_TAG, via6522_device, write_ca1))
-	MCFG_SCSI_CD_HANDLER(DEVWRITELINE(M6522_TAG, via6522_device, write_pb2))
-	MCFG_SCSI_BSY_HANDLER(DEVWRITELINE(M6522_TAG, via6522_device, write_pb3))
-	MCFG_SCSI_IO_HANDLER(DEVWRITELINE(M6522_TAG, via6522_device, write_pb6))
-	MCFG_SCSI_MSG_HANDLER(DEVWRITELINE(M6522_TAG, via6522_device, write_pb7))
-	MCFG_SCSI_DATA0_HANDLER(DEVWRITELINE(M6522_TAG, via6522_device, write_pa0))
-	MCFG_SCSI_DATA1_HANDLER(DEVWRITELINE(M6522_TAG, via6522_device, write_pa1))
-	MCFG_SCSI_DATA2_HANDLER(DEVWRITELINE(M6522_TAG, via6522_device, write_pa2))
-	MCFG_SCSI_DATA3_HANDLER(DEVWRITELINE(M6522_TAG, via6522_device, write_pa3))
-	MCFG_SCSI_DATA4_HANDLER(DEVWRITELINE(M6522_TAG, via6522_device, write_pa4))
-	MCFG_SCSI_DATA5_HANDLER(DEVWRITELINE(M6522_TAG, via6522_device, write_pa5))
-	MCFG_SCSI_DATA6_HANDLER(DEVWRITELINE(M6522_TAG, via6522_device, write_pa6))
-	MCFG_SCSI_DATA7_HANDLER(DEVWRITELINE(M6522_TAG, via6522_device, write_pa7))
+	SCSI_PORT(config, m_sasibus);
+	m_sasibus->req_handler().set(M6522_TAG, FUNC(via6522_device::write_ca1));
+	m_sasibus->cd_handler().set(M6522_TAG, FUNC(via6522_device::write_pb2));
+	m_sasibus->bsy_handler().set(M6522_TAG, FUNC(via6522_device::write_pb3));
+	m_sasibus->io_handler().set(M6522_TAG, FUNC(via6522_device::write_pb6));
+	m_sasibus->msg_handler().set(M6522_TAG, FUNC(via6522_device::write_pb7));
+	m_sasibus->data0_handler().set(M6522_TAG, FUNC(via6522_device::write_pa0));
+	m_sasibus->data1_handler().set(M6522_TAG, FUNC(via6522_device::write_pa1));
+	m_sasibus->data2_handler().set(M6522_TAG, FUNC(via6522_device::write_pa2));
+	m_sasibus->data3_handler().set(M6522_TAG, FUNC(via6522_device::write_pa3));
+	m_sasibus->data4_handler().set(M6522_TAG, FUNC(via6522_device::write_pa4));
+	m_sasibus->data5_handler().set(M6522_TAG, FUNC(via6522_device::write_pa5));
+	m_sasibus->data6_handler().set(M6522_TAG, FUNC(via6522_device::write_pa6));
+	m_sasibus->data7_handler().set(M6522_TAG, FUNC(via6522_device::write_pa7));
 
-	MCFG_SCSI_OUTPUT_LATCH_ADD("sasi_data_out", SASIBUS_TAG)
+	OUTPUT_LATCH(config, m_sasi_data_out);
+	m_sasibus->set_output_latch(*m_sasi_data_out);
 
-	MCFG_SCSIDEV_ADD(SASIBUS_TAG ":" SCSI_PORT_DEVICE1, "harddisk", D9060HD, SCSI_ID_0)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor d9060_base_t::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( d9060 );
+	m_sasibus->set_slot_device(1, "harddisk", D9060HD, DEVICE_INPUT_DEFAULTS_NAME(SCSI_ID_0));
 }
 
 
@@ -449,7 +434,7 @@ INPUT_PORTS_END
 //  input_ports - device-specific input ports
 //-------------------------------------------------
 
-ioport_constructor d9060_base_t::device_input_ports() const
+ioport_constructor d9060_device_base::device_input_ports() const
 {
 	return INPUT_PORTS_NAME( d9060 );
 }
@@ -464,7 +449,7 @@ ioport_constructor d9060_base_t::device_input_ports() const
 //  update_ieee_signals -
 //-------------------------------------------------
 
-inline void d9060_base_t::update_ieee_signals()
+inline void d9060_device_base::update_ieee_signals()
 {
 	int atn = m_bus->atn_r();
 	int nrfd = !(!(!(atn && m_atna) && m_rfdo) || !(atn || m_atna));
@@ -481,51 +466,60 @@ inline void d9060_base_t::update_ieee_signals()
 //**************************************************************************
 
 //-------------------------------------------------
-//  d9060_base_t - constructor
+//  d9060_device_base - constructor
 //-------------------------------------------------
 
-d9060_base_t::d9060_base_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-		device_ieee488_interface(mconfig, *this),
-		m_maincpu(*this, M6502_DOS_TAG),
-		m_hdccpu(*this, M6502_HDC_TAG),
-		m_riot0(*this, M6532_0_TAG),
-		m_riot1(*this, M6532_1_TAG),
-		m_via(*this, M6522_TAG),
-		m_sasibus(*this, SASIBUS_TAG),
-		m_sasi_data_out(*this, "sasi_data_out"),
-		m_address(*this, "ADDRESS"),
-		m_rfdo(1),
-		m_daco(1),
-		m_atna(1), m_ifc(0),
-		m_enable(0), m_data(0),
-		m_variant(variant)
+d9060_device_base::d9060_device_base(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint32_t variant)
+	: device_t(mconfig, type, tag, owner, clock)
+	, device_ieee488_interface(mconfig, *this)
+	, m_maincpu(*this, M6502_DOS_TAG)
+	, m_hdccpu(*this, M6502_HDC_TAG)
+	, m_riot0(*this, M6532_0_TAG)
+	, m_riot1(*this, M6532_1_TAG)
+	, m_via(*this, M6522_TAG)
+	, m_sasibus(*this, SASIBUS_TAG)
+	, m_sasi_data_out(*this, "sasi_data_out")
+	, m_address(*this, "ADDRESS")
+	, m_leds(*this, "led%u", 0U)
+	, m_rfdo(1)
+	, m_daco(1)
+	, m_atna(1)
+	, m_ifc(0)
+	, m_enable(0)
+	, m_data(0)
+	, m_variant(variant)
 {
 }
 
 
 //-------------------------------------------------
-//  d9060_t - constructor
+//  d9060_device - constructor
 //-------------------------------------------------
 
-d9060_t::d9060_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: d9060_base_t(mconfig, D9060, "D9060", tag, owner, clock, TYPE_9060, "d9060", __FILE__) { }
+d9060_device::d9060_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: d9060_device_base(mconfig, D9060, tag, owner, clock, TYPE_9060)
+{
+}
 
 
 //-------------------------------------------------
-//  d9090_t - constructor
+//  d9090_device - constructor
 //-------------------------------------------------
 
-d9090_t::d9090_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: d9060_base_t(mconfig, D9090, "D9090", tag, owner, clock, TYPE_9090, "d9090", __FILE__) { }
+d9090_device::d9090_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: d9060_device_base(mconfig, D9090, tag, owner, clock, TYPE_9090)
+{
+}
 
 
 //-------------------------------------------------
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void d9060_base_t::device_start()
+void d9060_device_base::device_start()
 {
+	m_leds.resolve();
+
 	// state saving
 	save_item(NAME(m_rfdo));
 	save_item(NAME(m_daco));
@@ -541,7 +535,7 @@ void d9060_base_t::device_start()
 //  device_reset - device-specific reset
 //-------------------------------------------------
 
-void d9060_base_t::device_reset()
+void d9060_device_base::device_reset()
 {
 	m_maincpu->set_input_line(M6502_SET_OVERFLOW, ASSERT_LINE);
 	m_maincpu->set_input_line(M6502_SET_OVERFLOW, CLEAR_LINE);
@@ -556,7 +550,7 @@ void d9060_base_t::device_reset()
 //  ieee488_atn - attention
 //-------------------------------------------------
 
-void d9060_base_t::ieee488_atn(int state)
+void d9060_device_base::ieee488_atn(int state)
 {
 	update_ieee_signals();
 
@@ -568,7 +562,7 @@ void d9060_base_t::ieee488_atn(int state)
 //  ieee488_ifc - interface clear
 //-------------------------------------------------
 
-void d9060_base_t::ieee488_ifc(int state)
+void d9060_device_base::ieee488_ifc(int state)
 {
 	if (!m_ifc && state)
 	{

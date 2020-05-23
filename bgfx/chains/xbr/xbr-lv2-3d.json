@@ -27,11 +27,12 @@
 */
 
 {
-	"name": "xBR-lv2-3d",
+	"name": "xBR-lv2 3D",
 	"author": "Hyllian",
 	"passes": [
 		{
 			"effect": "xbr/xbr-lv2-3d",
+			"applytint": true,
 			"name": "Main Pass",
 			"input": [
 				{ "sampler": "decal", "texture": "screen" }

@@ -300,7 +300,9 @@ const char_info charinfo[] =
 	{ UCHAR_MAMEKEY(BS_PAD),    "\010" },   // Backspace on the numeric keypad
 	{ UCHAR_MAMEKEY(TAB_PAD),   "\011" },   // Tab on the numeric keypad
 	{ UCHAR_MAMEKEY(00_PAD),    "00" },     // 00 on the numeric keypad
-	{ UCHAR_MAMEKEY(000_PAD),   "000" }     // 000 on the numeric keypad
+	{ UCHAR_MAMEKEY(000_PAD),   "000" },    // 000 on the numeric keypad
+	{ UCHAR_MAMEKEY(COMMA_PAD), "," },      // , on the numeric keypad
+	{ UCHAR_MAMEKEY(EQUALS_PAD), "=" }      // = on the numeric keypad
 };
 
 
@@ -348,9 +350,9 @@ natural_keyboard::natural_keyboard(running_machine &machine)
 void natural_keyboard::configure(ioport_queue_chars_delegate queue_chars, ioport_accept_char_delegate accept_char, ioport_charqueue_empty_delegate charqueue_empty)
 {
 	// set the callbacks
-	m_queue_chars = queue_chars;
-	m_accept_char = accept_char;
-	m_charqueue_empty = charqueue_empty;
+	m_queue_chars = std::move(queue_chars);
+	m_accept_char = std::move(accept_char);
+	m_charqueue_empty = std::move(charqueue_empty);
 }
 
 
@@ -365,9 +367,7 @@ void natural_keyboard::set_in_use(bool usage)
 	{
 		// update active usage
 		m_in_use = usage;
-		std::string error;
-		machine().options().set_value(OPTION_NATURAL_KEYBOARD, usage, OPTION_PRIORITY_CMDLINE, error);
-		assert(error.empty());
+		machine().options().set_value(OPTION_NATURAL_KEYBOARD, usage, OPTION_PRIORITY_CMDLINE);
 
 		// lock out (or unlock) all keyboard inputs
 		for (auto &port : machine().ioport().ports())
@@ -385,29 +385,32 @@ void natural_keyboard::set_in_use(bool usage)
 
 
 //-------------------------------------------------
-//  post - post a single character
+//  post_char - post a single character
 //-------------------------------------------------
 
-void natural_keyboard::post(char32_t ch)
+void natural_keyboard::post_char(char32_t ch, bool normalize_crlf)
 {
-	// ignore any \n that are preceded by \r
-	if (m_last_cr && ch == '\n')
+	if (normalize_crlf)
 	{
-		m_last_cr = false;
-		return;
-	}
+		// ignore any \n that are preceded by \r
+		if (m_last_cr && ch == '\n')
+		{
+			m_last_cr = false;
+			return;
+		}
 
-	// change all eolns to '\r'
-	if (ch == '\n')
-		ch = '\r';
-	else
-		m_last_cr = (ch == '\r');
+		// change all eolns to '\r'
+		if (ch == '\n')
+			ch = '\r';
+		else
+			m_last_cr = (ch == '\r');
+	}
 
 	// logging
 	if (LOG_NATURAL_KEYBOARD)
 	{
 		const keycode_map_entry *code = find_code(ch);
-		machine().logerror("natural_keyboard::post(): code=%i (%s) field.name='%s'\n", int(ch), unicode_to_string(ch).c_str(), (code != nullptr && code->field[0] != nullptr) ? code->field[0]->name() : "<null>");
+		machine().logerror("natural_keyboard::post_char(): code=%i (%s) field.name='%s'\n", int(ch), unicode_to_string(ch).c_str(), (code != nullptr && code->field[0] != nullptr) ? code->field[0]->name() : "<null>");
 	}
 
 	// can we post this key in the queue directly?
@@ -447,7 +450,7 @@ void natural_keyboard::post(const char32_t *text, size_t length, const attotime 
 	while (length > 0 && !full())
 	{
 		// fetch next character
-		post(*text++);
+		post_char(*text++, true);
 		length--;
 	}
 }
@@ -479,10 +482,17 @@ void natural_keyboard::post_utf8(const char *text, size_t length, const attotime
 		}
 
 		// append to the buffer
-		post(uc);
+		post_char(uc, true);
 		text += count;
 		length -= count;
 	}
+}
+
+
+void natural_keyboard::post_utf8(const std::string &text, const attotime &rate)
+{
+	if (!text.empty())
+		post_utf8(text.c_str(), text.size(), rate);
 }
 
 
@@ -558,9 +568,30 @@ void natural_keyboard::post_coded(const char *text, size_t length, const attotim
 
 		// if we got a code, post it
 		if (ch != 0)
-			post(ch);
+			post_char(ch);
 		curpos += increment;
 	}
+}
+
+
+void natural_keyboard::post_coded(const std::string &text, const attotime &rate)
+{
+	if (!text.empty())
+		post_coded(text.c_str(), text.size(), rate);
+}
+
+
+//-------------------------------------------------
+//  paste - does a paste from the keyboard
+//-------------------------------------------------
+
+void natural_keyboard::paste()
+{
+	// retrieve the clipboard text
+	std::string text = osd_get_clipboard_text();
+
+	// post the text
+	post_utf8(text);
 }
 
 
@@ -572,9 +603,9 @@ void natural_keyboard::post_coded(const char *text, size_t length, const attotim
 
 void natural_keyboard::build_codes(ioport_manager &manager)
 {
-	// find all shfit keys
+	// find all shift keys
 	unsigned mask = 0;
-	ioport_field *shift[SHIFT_COUNT];
+	std::array<ioport_field *, SHIFT_COUNT> shift;
 	std::fill(std::begin(shift), std::end(shift), nullptr);
 	for (auto const &port : manager.ports())
 	{
@@ -582,11 +613,14 @@ void natural_keyboard::build_codes(ioport_manager &manager)
 		{
 			if (field.type() == IPT_KEYBOARD)
 			{
-				char32_t const code = field.keyboard_code(0);
-				if ((code >= UCHAR_SHIFT_BEGIN) && (code <= UCHAR_SHIFT_END))
+				std::vector<char32_t> const codes = field.keyboard_codes(0);
+				for (char32_t code : codes)
 				{
-					mask |= 1U << (code - UCHAR_SHIFT_BEGIN);
-					shift[code - UCHAR_SHIFT_BEGIN] = &field;
+					if ((code >= UCHAR_SHIFT_BEGIN) && (code <= UCHAR_SHIFT_END))
+					{
+						mask |= 1U << (code - UCHAR_SHIFT_BEGIN);
+						shift[code - UCHAR_SHIFT_BEGIN] = &field;
+					}
 				}
 			}
 		}
@@ -604,29 +638,40 @@ void natural_keyboard::build_codes(ioport_manager &manager)
 				{
 					if (!(curshift & ~mask))
 					{
-						// fetch the code, ignoring 0 and shiters
-						char32_t const code = field.keyboard_code(curshift);
-						if (((code < UCHAR_SHIFT_BEGIN) || (code > UCHAR_SHIFT_END)) && (code != 0))
+						// fetch the code, ignoring 0 and shifters
+						std::vector<char32_t> const codes = field.keyboard_codes(curshift);
+						for (char32_t code : codes)
 						{
-							keycode_map_entry newcode;
-							newcode.ch = code;
-							std::fill(std::begin(newcode.field), std::end(newcode.field), nullptr);
-
-							unsigned fieldnum = 0;
-							for (unsigned i = 0, bits = curshift; (i < SHIFT_COUNT) && bits; ++i, bits >>= 1)
+							if (((code < UCHAR_SHIFT_BEGIN) || (code > UCHAR_SHIFT_END)) && (code != 0))
 							{
-								if (BIT(bits, 0))
-									newcode.field[fieldnum++] = shift[i];
-							}
+								keycode_map::iterator const found(m_keycode_map.find(code));
+								keycode_map_entry newcode;
+								std::fill(std::begin(newcode.field), std::end(newcode.field), nullptr);
+								newcode.shift = curshift;
+								newcode.condition = field.condition();
 
-							assert(fieldnum < ARRAY_LENGTH(newcode.field));
-							newcode.field[fieldnum] = &field;
-							m_keycode_map.push_back(std::move(newcode));
+								unsigned fieldnum = 0;
+								for (unsigned i = 0, bits = curshift; (i < SHIFT_COUNT) && bits; ++i, bits >>= 1)
+								{
+									if (BIT(bits, 0))
+										newcode.field[fieldnum++] = shift[i];
+								}
 
-							if (LOG_NATURAL_KEYBOARD)
-							{
-								machine().logerror("natural_keyboard: code=%u (%s) port=%p field.name='%s'\n",
+								newcode.field[fieldnum] = &field;
+								if (m_keycode_map.end() == found) 
+								{
+									keycode_map_list map_list;
+									map_list.emplace_back(newcode);
+									m_keycode_map.emplace(code, map_list);
+								}
+								else
+									found->second.emplace_back(newcode);
+
+								if (LOG_NATURAL_KEYBOARD)
+								{
+									machine().logerror("natural_keyboard: code=%u (%s) port=%p field.name='%s'\n",
 										code, unicode_to_string(code), (void *)&port, field.name());
+								}
 							}
 						}
 					}
@@ -753,8 +798,6 @@ void natural_keyboard::timer(void *ptr, int param)
 		{
 			do
 			{
-				assert(m_fieldnum < ARRAY_LENGTH(code->field));
-
 				ioport_field *const field = code->field[m_fieldnum];
 				if (field)
 				{
@@ -765,8 +808,8 @@ void natural_keyboard::timer(void *ptr, int param)
 						field->set_value(!field->digital_value());
 				}
 			}
-			while (code->field[m_fieldnum] && (++m_fieldnum < ARRAY_LENGTH(code->field)) && m_status_keydown);
-			advance = (m_fieldnum >= ARRAY_LENGTH(code->field)) || !code->field[m_fieldnum];
+			while (code->field[m_fieldnum] && (++m_fieldnum < code->field.size()) && m_status_keydown);
+			advance = (m_fieldnum >= code->field.size()) || !code->field[m_fieldnum];
 		}
 		else
 		{
@@ -796,35 +839,35 @@ void natural_keyboard::timer(void *ptr, int param)
 //  logging and debugging
 //-------------------------------------------------
 
-std::string natural_keyboard::unicode_to_string(char32_t ch)
+std::string natural_keyboard::unicode_to_string(char32_t ch) const
 {
 	std::string buffer;
 	switch (ch)
 	{
-		// check some magic values
-		case '\0':  buffer.assign("\\0");      break;
-		case '\r':  buffer.assign("\\r");      break;
-		case '\n':  buffer.assign("\\n");      break;
-		case '\t':  buffer.assign("\\t");      break;
+	// check some magic values
+	case '\0':  buffer.assign("\\0");      break;
+	case '\r':  buffer.assign("\\r");      break;
+	case '\n':  buffer.assign("\\n");      break;
+	case '\t':  buffer.assign("\\t");      break;
 
-		default:
-			// seven bit ASCII is easy
-			if (ch >= 32 && ch < 128)
-			{
-				char temp[2] = { char(ch), 0 };
-				buffer.assign(temp);
-			}
-			else if (ch >= UCHAR_MAMEKEY_BEGIN)
-			{
-				// try to obtain a codename with code_name(); this can result in an empty string
-				input_code code(DEVICE_CLASS_KEYBOARD, 0, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, input_item_id(ch - UCHAR_MAMEKEY_BEGIN));
-				buffer = machine().input().code_name(code);
-			}
+	default:
+		// seven bit ASCII is easy
+		if (ch >= 32 && ch < 128)
+		{
+			char temp[2] = { char(ch), 0 };
+			buffer.assign(temp);
+		}
+		else if (ch >= UCHAR_MAMEKEY_BEGIN)
+		{
+			// try to obtain a codename with code_name(); this can result in an empty string
+			input_code code(DEVICE_CLASS_KEYBOARD, 0, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, input_item_id(ch - UCHAR_MAMEKEY_BEGIN));
+			buffer = machine().input().code_name(code);
+		}
 
-			// did we fail to resolve? if so, we have a last resort
-			if (buffer.empty())
-				buffer = string_format("U+%04X", unsigned(ch));
-			break;
+		// did we fail to resolve? if so, we have a last resort
+		if (buffer.empty())
+			buffer = string_format("U+%04X", unsigned(ch));
+		break;
 	}
 	return buffer;
 }
@@ -836,12 +879,46 @@ std::string natural_keyboard::unicode_to_string(char32_t ch)
 
 const natural_keyboard::keycode_map_entry *natural_keyboard::find_code(char32_t ch) const
 {
-	for (auto & elem : m_keycode_map)
-	{
-		if (elem.ch == ch)
-			return &elem;
+	keycode_map::const_iterator const found(m_keycode_map.find(ch));
+	if (m_keycode_map.end() == found) return nullptr;
+	for(const keycode_map_entry &entry : found->second)
+	{	
+		if (entry.condition.eval())
+			return &entry;
 	}
 	return nullptr;
+}
+
+
+//-------------------------------------------------
+//  dump - dumps info to stream
+//-------------------------------------------------
+
+void natural_keyboard::dump(std::ostream &str) const
+{
+	constexpr size_t left_column_width = 24;
+
+	// loop through all codes
+	bool first(true);
+	for (auto &code : m_keycode_map)
+	{
+		// describe the character code
+		std::string const description(string_format("%08X (%s) ", code.first, unicode_to_string(code.first)));
+
+		// pad with spaces
+		util::stream_format(str, "%-*s", left_column_width, description);
+
+		for (auto &entry : code.second)
+		{
+			// identify the keys used
+			for (std::size_t field = 0; (entry.field.size() > field) && entry.field[field]; ++field)
+			    util::stream_format(str, "%s'%s'", first ? "" : ", ", entry.field[field]->name());
+
+			// carriage return
+			str << '\n';
+			first = false;
+		}
+	}
 }
 
 
@@ -849,28 +926,10 @@ const natural_keyboard::keycode_map_entry *natural_keyboard::find_code(char32_t 
 //  dump - dumps info to string
 //-------------------------------------------------
 
-std::string natural_keyboard::dump()
+std::string natural_keyboard::dump() const
 {
 	std::ostringstream buffer;
-	const size_t left_column_width = 24;
-
-	// loop through all codes
-	for (auto & code : m_keycode_map)
-	{
-		// describe the character code
-		std::string description = string_format("%08X (%s) ", code.ch, unicode_to_string(code.ch).c_str());
-
-		// pad with spaces
-		util::stream_format(buffer, "%-*s", left_column_width, description);
-
-		// identify the keys used
-		for (int field = 0; field < ARRAY_LENGTH(code.field) && code.field[field] != nullptr; field++)
-			util::stream_format(buffer, "%s'%s'", (field > 0) ? ", " : "", code.field[field]->name());
-
-		// carriage return
-		buffer << '\n';
-	}
-
+	dump(buffer);
 	return buffer.str();
 }
 

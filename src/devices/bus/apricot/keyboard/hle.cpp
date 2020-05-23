@@ -6,7 +6,6 @@
 
     TODO:
     - MicroScreen emulation
-    - Mouse emulation
     - LEDs
 
     Keyboard to System:
@@ -58,7 +57,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type APRICOT_KEYBOARD_HLE = device_creator<apricot_keyboard_hle_device>;
+DEFINE_DEVICE_TYPE(APRICOT_KEYBOARD_HLE, apricot_keyboard_hle_device, "apricotkb_hle", "Apricot Keyboard (HLE)")
 
 
 //-------------------------------------------------
@@ -188,6 +187,17 @@ static INPUT_PORTS_START( keyboard )
 
 	PORT_START("row_c")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD)  PORT_CODE(KEYCODE_ENTER_PAD)  PORT_CHAR(UCHAR_MAMEKEY(ENTER_PAD))
+
+	PORT_START("mouse_b")
+	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_BUTTON2) PORT_NAME("Mouse Right Button")
+	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_BUTTON1) PORT_NAME("Mouse Left Button")
+	PORT_BIT(0x0c, IP_ACTIVE_HIGH, IPT_UNUSED)
+
+	PORT_START("mouse_x")
+	PORT_BIT(0xff, 0x00, IPT_MOUSE_X) PORT_SENSITIVITY(75) PORT_KEYDELTA(5)
+
+	PORT_START("mouse_y")
+	PORT_BIT(0xff, 0x00, IPT_MOUSE_Y) PORT_SENSITIVITY(50) PORT_KEYDELTA(5)
 INPUT_PORTS_END
 
 ioport_constructor apricot_keyboard_hle_device::device_input_ports() const
@@ -195,13 +205,11 @@ ioport_constructor apricot_keyboard_hle_device::device_input_ports() const
 	return INPUT_PORTS_NAME( keyboard );
 }
 
-static MACHINE_CONFIG_FRAGMENT( keyboard_components )
-	MCFG_MSM5832_ADD("rtc", XTAL_32_768kHz)
-MACHINE_CONFIG_END
-
-machine_config_constructor apricot_keyboard_hle_device::device_mconfig_additions() const
+void apricot_keyboard_hle_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( keyboard_components );
+	MSM5832(config, m_rtc, 32.768_kHz_XTAL);
+
+	TIMER(config, "timer").configure_periodic(FUNC(apricot_keyboard_hle_device::mouse_callback), attotime::from_hz(60));
 }
 
 
@@ -214,12 +222,17 @@ machine_config_constructor apricot_keyboard_hle_device::device_mconfig_additions
 //-------------------------------------------------
 
 apricot_keyboard_hle_device::apricot_keyboard_hle_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, APRICOT_KEYBOARD_HLE, "Apricot Keyboard (HLE)", tag, owner, clock, "apricotkb_hle", __FILE__),
+	device_t(mconfig, APRICOT_KEYBOARD_HLE, tag, owner, clock),
 	device_apricot_keyboard_interface(mconfig, *this),
 	device_buffered_serial_interface(mconfig, *this),
 	device_matrix_keyboard_interface(mconfig, *this, "row_0", "row_1", "row_2", "row_3", "row_4", "row_5", "row_6", "row_7", "row_8", "row_9", "row_a", "row_b", "row_c"),
 	m_rtc(*this, "rtc"),
-	m_rtc_index(0)
+	m_mouse_b(*this, "mouse_b"),
+	m_mouse_x(*this, "mouse_x"),
+	m_mouse_y(*this, "mouse_y"),
+	m_rtc_index(0),
+	m_mouse_enabled(false),
+	m_mouse_last_b(0), m_mouse_last_x(0), m_mouse_last_y(0)
 {
 }
 
@@ -229,7 +242,12 @@ apricot_keyboard_hle_device::apricot_keyboard_hle_device(const machine_config &m
 
 void apricot_keyboard_hle_device::device_start()
 {
-	device_buffered_serial_interface::register_save_state(machine().save(), this);
+	// register for save states
+	save_item(NAME(m_rtc_index));
+	save_item(NAME(m_mouse_enabled));
+	save_item(NAME(m_mouse_last_b));
+	save_item(NAME(m_mouse_last_x));
+	save_item(NAME(m_mouse_last_y));
 }
 
 //-------------------------------------------------
@@ -272,7 +290,7 @@ void apricot_keyboard_hle_device::received_byte(uint8_t byte)
 		if (m_rtc_index >= 0)
 		{
 			m_rtc->address_w(m_rtc_index--);
-			m_rtc->data_w(machine().dummy_space(), 0, byte);
+			m_rtc->data_w(byte);
 			m_rtc->write_w(1);
 			m_rtc->write_w(0);
 		}
@@ -298,7 +316,7 @@ void apricot_keyboard_hle_device::received_byte(uint8_t byte)
 			for (int i = 12; i >= 0; i--)
 			{
 				m_rtc->address_w(i);
-				transmit_byte(0xf0 | m_rtc->data_r(machine().dummy_space(), 0));
+				transmit_byte(0xf0 | m_rtc->data_r());
 			}
 
 			break;
@@ -312,6 +330,16 @@ void apricot_keyboard_hle_device::received_byte(uint8_t byte)
 			// make rtc chip ready
 			m_rtc->cs_w(1);
 
+			break;
+
+		case CMD_ENABLE_MOUSE:
+			logerror("System enables mouse\n");
+			m_mouse_enabled = true;
+			break;
+
+		case CMD_DISABLE_MOUSE:
+			logerror("System disables mouse\n");
+			m_mouse_enabled = false;
 			break;
 
 		case CMD_KEYBOARD_RESET:
@@ -355,11 +383,42 @@ void apricot_keyboard_hle_device::out_w(int state)
 }
 
 //-------------------------------------------------
-//  device_timer - device-specific timer
+//  mouse_callback - check for new mouse events
 //-------------------------------------------------
 
-void apricot_keyboard_hle_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+TIMER_DEVICE_CALLBACK_MEMBER( apricot_keyboard_hle_device::mouse_callback )
 {
-	device_matrix_keyboard_interface::device_timer(timer, id, param, ptr);
-	device_buffered_serial_interface::device_timer(timer, id, param, ptr);
+	if (m_mouse_enabled)
+	{
+		// get mouse state
+		uint8_t buttons = m_mouse_b->read();
+		uint8_t x = m_mouse_x->read();
+		uint8_t y = m_mouse_y->read();
+
+		// anything changed since last time?
+		if (buttons != m_mouse_last_b || x != m_mouse_last_x || y != m_mouse_last_y)
+		{
+			// mouse header
+			transmit_byte(0xef);
+
+			// button state
+			transmit_byte(0x70 | buttons);
+
+			int8_t dx = x - m_mouse_last_x;
+			int8_t dy = y - m_mouse_last_y;
+
+			// y direction change
+			transmit_byte(0x70 | ((dy >> 4) & 0x0f));
+			transmit_byte(0x70 | ((dy >> 0) & 0x0f));
+
+			// x direction change
+			transmit_byte(0x70 | ((dx >> 4) & 0x0f));
+			transmit_byte(0x70 | ((dx >> 0) & 0x0f));
+
+			// save mouse state for next run
+			m_mouse_last_b = buttons;
+			m_mouse_last_x = x;
+			m_mouse_last_y = y;
+		}
+	}
 }

@@ -19,22 +19,17 @@ WRITE_LINE_MEMBER(spc1000_vdp_exp_device::vdp_interrupt)
 	// nothing here?
 }
 
-static MACHINE_CONFIG_FRAGMENT(scp1000_vdp)
-
-	MCFG_DEVICE_ADD("tms", TMS9928A, XTAL_10_738635MHz / 2) // TODO: which clock?
-	MCFG_TMS9928A_VRAM_SIZE(0x4000)
-	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(spc1000_vdp_exp_device, vdp_interrupt))
-	MCFG_TMS9928A_SCREEN_ADD_NTSC("tms_screen")
-	MCFG_SCREEN_UPDATE_DEVICE("tms", tms9928a_device, screen_update)
-MACHINE_CONFIG_END
-
 //-------------------------------------------------
-//  device_mconfig_additions
+//  device_add_mconfig
 //-------------------------------------------------
 
-machine_config_constructor spc1000_vdp_exp_device::device_mconfig_additions() const
+void spc1000_vdp_exp_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( scp1000_vdp );
+	TMS9928A(config, m_vdp, XTAL(10'738'635)); // TODO: which clock?
+	m_vdp->set_vram_size(0x4000);
+	m_vdp->int_callback().set(FUNC(spc1000_vdp_exp_device::vdp_interrupt));
+	m_vdp->set_screen("tms_screen");
+	SCREEN(config, "tms_screen", SCREEN_TYPE_RASTER);
 }
 
 
@@ -42,7 +37,7 @@ machine_config_constructor spc1000_vdp_exp_device::device_mconfig_additions() co
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type SPC1000_VDP_EXP = device_creator<spc1000_vdp_exp_device>;
+DEFINE_DEVICE_TYPE(SPC1000_VDP_EXP, spc1000_vdp_exp_device, "spc1000_vdp_exp", "SPC1000 VDP expansion")
 
 //**************************************************************************
 //  LIVE DEVICE
@@ -53,9 +48,9 @@ const device_type SPC1000_VDP_EXP = device_creator<spc1000_vdp_exp_device>;
 //-------------------------------------------------
 
 spc1000_vdp_exp_device::spc1000_vdp_exp_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-		: device_t(mconfig, SPC1000_VDP_EXP, "SPC1000 VDP expansion", tag, owner, clock, "spc1000_vdp_exp", __FILE__),
-			device_spc1000_card_interface(mconfig, *this),
-			m_vdp(*this, "tms")
+	: device_t(mconfig, SPC1000_VDP_EXP, tag, owner, clock)
+	, device_spc1000_card_interface(mconfig, *this)
+	, m_vdp(*this, "tms")
 {
 }
 
@@ -79,28 +74,28 @@ void spc1000_vdp_exp_device::device_reset()
 /*-------------------------------------------------
     read
 -------------------------------------------------*/
-READ8_MEMBER(spc1000_vdp_exp_device::read)
+uint8_t spc1000_vdp_exp_device::read(offs_t offset)
 {
 	if (!(offset & 0x800))
 		return 0xff;
 
 	if (offset & 1)
-		return m_vdp->register_read(space, offset);
+		return m_vdp->register_read();
 	else
-		return m_vdp->vram_read(space, offset);
+		return m_vdp->vram_read();
 }
 
 //-------------------------------------------------
 //  write
 //-------------------------------------------------
 
-WRITE8_MEMBER(spc1000_vdp_exp_device::write)
+void spc1000_vdp_exp_device::write(offs_t offset, uint8_t data)
 {
 	if (offset & 0x800)
 	{
 		if (offset & 1)
-			m_vdp->register_write(space, offset, data);
+			m_vdp->register_write(data);
 		else
-			m_vdp->vram_write(space, offset, data);
+			m_vdp->vram_write(data);
 	}
 }

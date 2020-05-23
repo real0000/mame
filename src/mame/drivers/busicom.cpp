@@ -11,7 +11,6 @@
 #include "emu.h"
 #include "includes/busicom.h"
 
-#include "cpu/i4004/i4004.h"
 #include "screen.h"
 
 
@@ -23,10 +22,10 @@ uint8_t busicom_state::get_bit_selected(uint32_t val,int num)
 	}
 	return 0;
 }
+
 READ8_MEMBER(busicom_state::keyboard_r)
 {
-	static const char *const keynames[] = { "LINE0", "LINE1", "LINE2", "LINE3", "LINE4", "LINE5", "LINE6", "LINE7", "LINE8" , "LINE9"};
-	return ioport(keynames[get_bit_selected(m_keyboard_shifter & 0x3ff,10)])->read();
+	return m_input_lines[get_bit_selected(m_keyboard_shifter & 0x3ff, 10)]->read();
 }
 
 READ8_MEMBER(busicom_state::printer_r)
@@ -40,6 +39,7 @@ READ8_MEMBER(busicom_state::printer_r)
 
 WRITE8_MEMBER(busicom_state::shifter_w)
 {
+	// FIXME: detect edges, maybe make 4003 shifter a device
 	if (BIT(data,0)) {
 		m_keyboard_shifter <<= 1;
 		m_keyboard_shifter |= BIT(data,1);
@@ -99,24 +99,37 @@ WRITE8_MEMBER(busicom_state::printer_ctrl_w)
 {
 }
 
-static ADDRESS_MAP_START(busicom_rom, AS_PROGRAM, 8, busicom_state )
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x0000, 0x04FF) AM_ROM
-ADDRESS_MAP_END
+void busicom_state::busicom_rom(address_map &map)
+{
+	map.unmap_value_high();
+	map(0x0000, 0x04FF).rom().region("maincpu", 0);
+}
 
-static ADDRESS_MAP_START(busicom_mem, AS_DATA, 8, busicom_state )
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x0000, 0x07F) AM_RAM
-ADDRESS_MAP_END
+void busicom_state::busicom_mem(address_map &map)
+{
+	map.unmap_value_high();
+	map(0x0000, 0x07F).ram();
+}
 
-static ADDRESS_MAP_START( busicom_io , AS_IO, 8, busicom_state )
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x00, 0x00) AM_WRITE(shifter_w) // ROM0 I/O
-	AM_RANGE(0x01, 0x01) AM_READWRITE(keyboard_r,printer_ctrl_w) // ROM1 I/O
-	AM_RANGE(0x02, 0x02) AM_READ(printer_r)  // ROM2 I/O
-	AM_RANGE(0x10, 0x10) AM_WRITE(printer_w) // RAM0 output
-	AM_RANGE(0x11, 0x11) AM_WRITE(status_w)  // RAM1 output
-ADDRESS_MAP_END
+void busicom_state::busicom_stat(address_map &map)
+{
+	map.unmap_value_high();
+	map(0x0000, 0x01F).ram();
+}
+
+void busicom_state::busicom_rp(address_map &map)
+{
+	map.unmap_value_high();
+	map(0x0000, 0x000f).mirror(0x0700).w(FUNC(busicom_state::shifter_w)); // ROM0 I/O
+	map(0x0010, 0x001f).mirror(0x0700).rw(FUNC(busicom_state::keyboard_r), FUNC(busicom_state::printer_ctrl_w)); // ROM1 I/O
+	map(0x0020, 0x002f).mirror(0x0700).r(FUNC(busicom_state::printer_r));  // ROM2 I/O
+}
+
+void busicom_state::busicom_mp(address_map &map)
+{
+	map(0x00, 0x00).w(FUNC(busicom_state::printer_w)); // RAM0 output
+	map(0x01, 0x01).w(FUNC(busicom_state::status_w));  // RAM1 output
+}
 
 /* Input ports */
 static INPUT_PORTS_START( busicom )
@@ -183,11 +196,10 @@ INPUT_PORTS_END
 
 TIMER_DEVICE_CALLBACK_MEMBER(busicom_state::timer_callback)
 {
-	m_timer ^=1;
-	if (m_timer==1) m_drum_index++;
-	if (m_drum_index==13) m_drum_index=0;
-	m_maincpu->set_test(m_timer);
-
+	m_timer ^= 1;
+	if (m_timer == 1) m_drum_index++;
+	if (m_drum_index == 13) m_drum_index = 0;
+	m_maincpu->set_input_line(I4004_TEST_LINE, m_timer);
 }
 
 void busicom_state::machine_start()
@@ -212,28 +224,29 @@ void busicom_state::machine_reset()
 
 //static const char layout_busicom [] = "busicom";
 
-static MACHINE_CONFIG_START( busicom, busicom_state )
+void busicom_state::busicom(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu",I4004, 750000)
-	MCFG_CPU_PROGRAM_MAP(busicom_rom)
-	MCFG_CPU_DATA_MAP(busicom_mem)
-	MCFG_CPU_IO_MAP(busicom_io)
-
+	I4004(config, m_maincpu, 750000);
+	m_maincpu->set_rom_map(&busicom_state::busicom_rom);
+	m_maincpu->set_ram_memory_map(&busicom_state::busicom_mem);
+	m_maincpu->set_rom_ports_map(&busicom_state::busicom_rp);
+	m_maincpu->set_ram_status_map(&busicom_state::busicom_stat);
+	m_maincpu->set_ram_ports_map(&busicom_state::busicom_mp);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_SCREEN_SIZE(40*17, 44*11)
-	MCFG_SCREEN_VISIBLE_AREA(0, 40*17-1, 0, 44*11-1)
-	MCFG_SCREEN_UPDATE_DRIVER(busicom_state, screen_update_busicom)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(50);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500)); /* not accurate */
+	screen.set_size(40*17, 44*11);
+	screen.set_visarea_full();
+	screen.set_screen_update(FUNC(busicom_state::screen_update_busicom));
+	screen.set_palette(m_palette);
 
-	MCFG_PALETTE_ADD("palette", 16)
-	MCFG_PALETTE_INIT_OWNER(busicom_state, busicom)
+	PALETTE(config, m_palette, FUNC(busicom_state::busicom_palette), 16);
 
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("busicom_timer", busicom_state, timer_callback, attotime::from_msec(28*2))
-MACHINE_CONFIG_END
+	TIMER(config, "busicom_timer").configure_periodic(FUNC(busicom_state::timer_callback), attotime::from_msec(28*2));
+}
 
 /* ROM definition */
 ROM_START( busicom )
@@ -247,5 +260,5 @@ ROM_END
 
 /* Driver */
 
-/*    YEAR  NAME    PARENT  COMPAT   MACHINE    INPUT    INIT    COMPANY   FULLNAME       FLAGS */
-COMP( 1974, busicom,  0,       0,   busicom,    busicom, driver_device,  0,  "Business Computer Corporation",   "Busicom 141-PF",       MACHINE_NOT_WORKING | MACHINE_NO_SOUND)
+//    YEAR  NAME     PARENT  COMPAT  MACHINE  INPUT    CLASS          INIT        COMPANY                          FULLNAME          FLAGS
+COMP( 1974, busicom, 0,      0,      busicom, busicom, busicom_state, empty_init, "Business Computer Corporation", "Busicom 141-PF", MACHINE_NOT_WORKING | MACHINE_NO_SOUND )

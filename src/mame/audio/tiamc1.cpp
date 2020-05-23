@@ -34,7 +34,7 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "includes/tiamc1.h"
+#include "audio/tiamc1.h"
 
 #define CLOCK_DIVIDER 16
 #define BUF_LEN 100000
@@ -46,7 +46,7 @@
 
 
 // device type definition
-const device_type TIAMC1 = device_creator<tiamc1_sound_device>;
+DEFINE_DEVICE_TYPE(TIAMC1, tiamc1_sound_device, "tiamc1_sound", "TIA-MC1 Custom Sound")
 
 
 //**************************************************************************
@@ -58,7 +58,7 @@ const device_type TIAMC1 = device_creator<tiamc1_sound_device>;
 //-------------------------------------------------
 
 tiamc1_sound_device::tiamc1_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, TIAMC1, "TIA-MC1 Audio Custom", tag, owner, clock, "tiamc1_sound", __FILE__),
+	: device_t(mconfig, TIAMC1, tag, owner, clock),
 		device_sound_interface(mconfig, *this),
 		m_channel(nullptr),
 		m_timer1_divider(0)
@@ -321,17 +321,17 @@ char tiamc1_sound_device::timer8253_get_output(struct timer8253struct *t, int ch
 
 
 
-WRITE8_MEMBER( tiamc1_sound_device::tiamc1_timer0_w )
+void tiamc1_sound_device::tiamc1_timer0_w(offs_t offset, uint8_t data)
 {
 	timer8253_wr(&m_timer0, offset, data);
 }
 
-WRITE8_MEMBER( tiamc1_sound_device::tiamc1_timer1_w )
+void tiamc1_sound_device::tiamc1_timer1_w(offs_t offset, uint8_t data)
 {
 	timer8253_wr(&m_timer1, offset, data);
 }
 
-WRITE8_MEMBER( tiamc1_sound_device::tiamc1_timer1_gate_w )
+void tiamc1_sound_device::tiamc1_timer1_gate_w(uint8_t data)
 {
 	timer8253_set_gate(&m_timer1, 0, (data & 1) ? 1 : 0);
 	timer8253_set_gate(&m_timer1, 1, (data & 2) ? 1 : 0);

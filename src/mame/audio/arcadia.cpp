@@ -42,15 +42,15 @@
 
 
 // device type definition
-const device_type ARCADIA_SOUND = device_creator<arcadia_sound_device>;
+DEFINE_DEVICE_TYPE(ARCADIA_SOUND, arcadia_sound_device, "arcadia_sound", "Arcadia Custom Sound")
 
 //-------------------------------------------------
 //  arcadia_sound_device - constructor
 //-------------------------------------------------
 
 arcadia_sound_device::arcadia_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, ARCADIA_SOUND, "Arcadia Audio Custom", tag, owner, clock, "arcadia_sound", __FILE__),
-		device_sound_interface(mconfig, *this)
+	: device_t(mconfig, ARCADIA_SOUND, tag, owner, clock)
+	, device_sound_interface(mconfig, *this)
 {
 }
 
@@ -141,7 +141,7 @@ void arcadia_sound_device::sound_stream_update(sound_stream &stream, stream_samp
 //  soundport_w
 //-------------------------------------------------
 
-WRITE8_MEMBER(arcadia_sound_device::write)
+void arcadia_sound_device::write(offs_t offset, uint8_t data)
 {
 	m_channel->update();
 	m_reg[offset] = data;

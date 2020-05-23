@@ -58,7 +58,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type HARDBOX = device_creator<hardbox_device>;
+DEFINE_DEVICE_TYPE(HARDBOX, hardbox_device, "hardbox", "SSE HardBox")
 
 
 //-------------------------------------------------
@@ -70,16 +70,16 @@ ROM_START( hardbox )
 	ROM_DEFAULT_BIOS("v2.4")
 
 	ROM_SYSTEM_BIOS( 0, "v2.3", "Version 2.3 (Corvus)" )
-	ROMX_LOAD( "295-2.3.ic3", 0x0000, 0x1000, CRC(a3eb5fc2) SHA1(39941b45b0696db928615c41c7eae18d951d9ada), ROM_BIOS(1) )
-	ROMX_LOAD( "296-2.3.ic4", 0x1000, 0x1000, CRC(fb55b058) SHA1(8f9ec313ec6beaf7b513edf39d9628e6abcc7bc3), ROM_BIOS(1) )
+	ROMX_LOAD( "295-2.3.ic3", 0x0000, 0x1000, CRC(a3eb5fc2) SHA1(39941b45b0696db928615c41c7eae18d951d9ada), ROM_BIOS(0) )
+	ROMX_LOAD( "296-2.3.ic4", 0x1000, 0x1000, CRC(fb55b058) SHA1(8f9ec313ec6beaf7b513edf39d9628e6abcc7bc3), ROM_BIOS(0) )
 
 	ROM_SYSTEM_BIOS( 1, "v2.4", "Version 2.4 (Corvus)" )
-	ROMX_LOAD( "289.ic3", 0x0000, 0x1000, CRC(c39e058f) SHA1(45b390d7125a40f84c7b411a479218baff079746), ROM_BIOS(2) )
-	ROMX_LOAD( "290.ic4", 0x1000, 0x1000, CRC(62f51405) SHA1(fdfa0d7b7e8d0182f2df0aa8163c790506104dcf), ROM_BIOS(2) )
+	ROMX_LOAD( "289.ic3", 0x0000, 0x1000, CRC(c39e058f) SHA1(45b390d7125a40f84c7b411a479218baff079746), ROM_BIOS(1) )
+	ROMX_LOAD( "290.ic4", 0x1000, 0x1000, CRC(62f51405) SHA1(fdfa0d7b7e8d0182f2df0aa8163c790506104dcf), ROM_BIOS(1) )
 
 	ROM_SYSTEM_BIOS( 2, "v3.1", "Version 3.1 (Sunol)" )
-	ROMX_LOAD( "295-3.1.ic3", 0x0000, 0x1000, CRC(654a5db1) SHA1(c40859526921e3d8bfd58fc28cc9cc64e59ec638), ROM_BIOS(3) )
-	ROMX_LOAD( "296-3.1.ic4", 0x1000, 0x1000, CRC(4c62ddc0) SHA1(151f99dc554d3762b805fc8383cf1b3e1455784f), ROM_BIOS(3) )
+	ROMX_LOAD( "295-3.1.ic3", 0x0000, 0x1000, CRC(654a5db1) SHA1(c40859526921e3d8bfd58fc28cc9cc64e59ec638), ROM_BIOS(2) )
+	ROMX_LOAD( "296-3.1.ic4", 0x1000, 0x1000, CRC(4c62ddc0) SHA1(151f99dc554d3762b805fc8383cf1b3e1455784f), ROM_BIOS(2) )
 
 	/* Note: Two sets of EPROMs were found marked only "295" and "296" but they have different contents.
 	         The version numbers listed are the ROM version reported by the HardBox diagnostics program.
@@ -105,39 +105,41 @@ const tiny_rom_entry *hardbox_device::device_rom_region() const
 //  ADDRESS_MAP( hardbox_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( hardbox_mem, AS_PROGRAM, 8, hardbox_device )
-	AM_RANGE(0x0000, 0x3fff) AM_RAM
-	AM_RANGE(0xe000, 0xffff) AM_ROM AM_REGION(Z80_TAG, 0)
-ADDRESS_MAP_END
+void hardbox_device::hardbox_mem(address_map &map)
+{
+	map(0x0000, 0x3fff).ram();
+	map(0xe000, 0xffff).rom().region(Z80_TAG, 0);
+}
 
 
 //-------------------------------------------------
 //  ADDRESS_MAP( hardbox_io )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( hardbox_io, AS_IO, 8, hardbox_device )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x10, 0x13) AM_DEVREADWRITE(I8255_0_TAG, i8255_device, read, write)
-	AM_RANGE(0x14, 0x17) AM_DEVREADWRITE(I8255_1_TAG, i8255_device, read, write)
-	AM_RANGE(0x18, 0x18) AM_DEVREADWRITE(CORVUS_HDC_TAG, corvus_hdc_t, read, write)
-ADDRESS_MAP_END
+void hardbox_device::hardbox_io(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x10, 0x13).rw(I8255_0_TAG, FUNC(i8255_device::read), FUNC(i8255_device::write));
+	map(0x14, 0x17).rw(I8255_1_TAG, FUNC(i8255_device::read), FUNC(i8255_device::write));
+	map(0x18, 0x18).rw(CORVUS_HDC_TAG, FUNC(corvus_hdc_device::read), FUNC(corvus_hdc_device::write));
+}
 
 
 //-------------------------------------------------
 //  I8255A 0 interface
 //-------------------------------------------------
 
-READ8_MEMBER( hardbox_device::ppi0_pa_r )
+uint8_t hardbox_device::ppi0_pa_r()
 {
 	return m_bus->dio_r() ^ 0xff;
 }
 
-WRITE8_MEMBER( hardbox_device::ppi0_pb_w )
+void hardbox_device::ppi0_pb_w(uint8_t data)
 {
 	m_bus->dio_w(this, data ^ 0xff);
 }
 
-READ8_MEMBER( hardbox_device::ppi0_pc_r )
+uint8_t hardbox_device::ppi0_pc_r()
 {
 	uint8_t data = ioport("SW1")->read();
 
@@ -152,7 +154,7 @@ READ8_MEMBER( hardbox_device::ppi0_pc_r )
 //  I8255A 1 interface
 //-------------------------------------------------
 
-READ8_MEMBER( hardbox_device::ppi1_pa_r )
+uint8_t hardbox_device::ppi1_pa_r()
 {
 	/*
 
@@ -183,7 +185,7 @@ READ8_MEMBER( hardbox_device::ppi1_pa_r )
 	return data;
 }
 
-WRITE8_MEMBER( hardbox_device::ppi1_pb_w )
+void hardbox_device::ppi1_pb_w(uint8_t data)
 {
 	/*
 
@@ -212,7 +214,7 @@ WRITE8_MEMBER( hardbox_device::ppi1_pb_w )
 	m_bus->ren_w(this, !BIT(data, 6));
 }
 
-READ8_MEMBER( hardbox_device::ppi1_pc_r )
+uint8_t hardbox_device::ppi1_pc_r()
 {
 	/*
 
@@ -229,16 +231,16 @@ READ8_MEMBER( hardbox_device::ppi1_pc_r )
 
 	*/
 
-	uint8_t status = m_hdc->status_r(space, 0);
+	uint8_t status = m_hdc->status_r();
 	uint8_t data = 0;
 
-	data |= (status & CONTROLLER_BUSY) ? 0 : 0x10;
-	data |= (status & CONTROLLER_DIRECTION) ? 0 : 0x20;
+	data |= (status & corvus_hdc_device::CONTROLLER_BUSY) ? 0 : 0x10;
+	data |= (status & corvus_hdc_device::CONTROLLER_DIRECTION) ? 0 : 0x20;
 
 	return data;
 }
 
-WRITE8_MEMBER( hardbox_device::ppi1_pc_w )
+void hardbox_device::ppi1_pc_w(uint8_t data)
 {
 	/*
 
@@ -255,53 +257,40 @@ WRITE8_MEMBER( hardbox_device::ppi1_pc_w )
 
 	*/
 
-	machine().output().set_led_value(LED_A, !BIT(data, 0));
-	machine().output().set_led_value(LED_B, !BIT(data, 1));
-	machine().output().set_led_value(LED_READY, !BIT(data, 2));
+	m_leds[LED_A] = BIT(~data, 0);
+	m_leds[LED_B] = BIT(~data, 1);
+	m_leds[LED_READY] = BIT(~data, 2);
 }
 
+
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( hardbox )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( hardbox )
+void hardbox_device::device_add_mconfig(machine_config &config)
+{
 	// basic machine hardware
-	MCFG_CPU_ADD(Z80_TAG, Z80, XTAL_8MHz/2)
-	MCFG_CPU_PROGRAM_MAP(hardbox_mem)
-	MCFG_CPU_IO_MAP(hardbox_io)
+	Z80(config, m_maincpu, XTAL(8'000'000)/2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &hardbox_device::hardbox_mem);
+	m_maincpu->set_addrmap(AS_IO, &hardbox_device::hardbox_io);
 
 	// devices
-	MCFG_DEVICE_ADD(I8255_0_TAG, I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(READ8(hardbox_device, ppi0_pa_r))
-	MCFG_I8255_OUT_PORTB_CB(WRITE8(hardbox_device, ppi0_pb_w))
-	MCFG_I8255_IN_PORTC_CB(READ8(hardbox_device, ppi0_pc_r))
+	i8255_device &ppi0(I8255A(config, I8255_0_TAG));
+	ppi0.in_pa_callback().set(FUNC(hardbox_device::ppi0_pa_r));
+	ppi0.out_pb_callback().set(FUNC(hardbox_device::ppi0_pb_w));
+	ppi0.in_pc_callback().set(FUNC(hardbox_device::ppi0_pc_r));
 
-	MCFG_DEVICE_ADD(I8255_1_TAG, I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(READ8(hardbox_device, ppi1_pa_r))
-	MCFG_I8255_OUT_PORTB_CB(WRITE8(hardbox_device, ppi1_pb_w))
-	MCFG_I8255_IN_PORTC_CB(READ8(hardbox_device, ppi1_pc_r))
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(hardbox_device, ppi1_pc_w))
+	i8255_device &ppi1(I8255A(config, I8255_1_TAG));
+	ppi1.in_pa_callback().set(FUNC(hardbox_device::ppi1_pa_r));
+	ppi1.out_pb_callback().set(FUNC(hardbox_device::ppi1_pb_w));
+	ppi1.in_pc_callback().set(FUNC(hardbox_device::ppi1_pc_r));
+	ppi1.out_pc_callback().set(FUNC(hardbox_device::ppi1_pc_w));
 
-	MCFG_DEVICE_ADD(CORVUS_HDC_TAG, CORVUS_HDC, 0)
-	MCFG_HARDDISK_ADD("harddisk1")
-	MCFG_HARDDISK_INTERFACE("corvus_hdd")
-	MCFG_HARDDISK_ADD("harddisk2")
-	MCFG_HARDDISK_INTERFACE("corvus_hdd")
-	MCFG_HARDDISK_ADD("harddisk3")
-	MCFG_HARDDISK_INTERFACE("corvus_hdd")
-	MCFG_HARDDISK_ADD("harddisk4")
-	MCFG_HARDDISK_INTERFACE("corvus_hdd")
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor hardbox_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( hardbox );
+	CORVUS_HDC(config, m_hdc, 0);
+	HARDDISK(config, "harddisk1", "corvus_hdd");
+	HARDDISK(config, "harddisk2", "corvus_hdd");
+	HARDDISK(config, "harddisk3", "corvus_hdd");
+	HARDDISK(config, "harddisk4", "corvus_hdd");
 }
 
 
@@ -348,10 +337,12 @@ ioport_constructor hardbox_device::device_input_ports() const
 //-------------------------------------------------
 
 hardbox_device::hardbox_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, HARDBOX, "HardBox", tag, owner, clock, "hardbox", __FILE__),
-		device_ieee488_interface(mconfig, *this),
-		m_maincpu(*this, Z80_TAG),
-		m_hdc(*this, CORVUS_HDC_TAG), m_ifc(0)
+	: device_t(mconfig, HARDBOX, tag, owner, clock)
+	, device_ieee488_interface(mconfig, *this)
+	, m_maincpu(*this, Z80_TAG)
+	, m_hdc(*this, CORVUS_HDC_TAG)
+	, m_leds(*this, "led%u", 0U)
+	, m_ifc(0)
 {
 }
 
@@ -362,6 +353,7 @@ hardbox_device::hardbox_device(const machine_config &mconfig, const char *tag, d
 
 void hardbox_device::device_start()
 {
+	m_leds.resolve();
 }
 
 

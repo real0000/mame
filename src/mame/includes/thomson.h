@@ -8,8 +8,10 @@
 
 **********************************************************************/
 
-#ifndef _THOMSON_H_
-#define _THOMSON_H_
+#ifndef MAME_INCLUDES_THOMSON_H
+#define MAME_INCLUDES_THOMSON_H
+
+#pragma once
 
 #include "cpu/m6809/m6809.h"
 #include "formats/thom_cas.h"
@@ -18,6 +20,7 @@
 #include "imagedev/floppy.h"
 #include "machine/6821pia.h"
 #include "machine/6850acia.h"
+#include "machine/input_merger.h"
 #include "machine/mc6843.h"
 #include "machine/mc6846.h"
 #include "machine/mc6846.h"
@@ -25,6 +28,7 @@
 #include "machine/mos6551.h"
 #include "machine/ram.h"
 #include "machine/thomflop.h"
+#include "machine/wd_fdc.h"
 #include "sound/dac.h"
 #include "sound/mea8000.h"
 
@@ -33,6 +37,7 @@
 #include "bus/generic/carts.h"
 #include "bus/rs232/rs232.h"
 
+#include "emupal.h"
 #include "screen.h"
 
 
@@ -112,8 +117,10 @@ public:
 		m_ram(*this, RAM_TAG),
 		m_mc6846(*this, "mc6846"),
 		m_mc6843(*this, "mc6843"),
-		m_acia6850(*this, "acia6850"),
+		m_wd2793_fdc(*this, "wd2793"),
 		m_screen(*this, "screen"),
+		m_mainirq(*this, "mainirq"),
+		m_mainfirq(*this, "mainfirq"),
 		m_io_game_port_directions(*this, "game_port_directions"),
 		m_io_game_port_buttons(*this, "game_port_buttons"),
 		m_io_mouse_x(*this, "mouse_x"),
@@ -138,10 +145,64 @@ public:
 		m_datahibank(*this, TO8_DATA_HI),
 		m_biosbank(*this, TO8_BIOS_BANK),
 		m_cartlobank(*this, MO6_CART_LO),
-		m_carthibank(*this, MO6_CART_HI)
+		m_carthibank(*this, MO6_CART_HI),
+		m_cart_rom(*this, "cartridge"),
+		m_to7qdd(*this, "to7qdd"),
+		m_thmfc(*this, "thmfc"),
+		m_floppy_led(*this, "floppy"),
+		m_floppy_image(*this, "floppy%u", 0U)
 	{
 	}
 
+	void to9(machine_config &config);
+	void to7_base(machine_config &config);
+	void to7(machine_config &config);
+	void mo5e(machine_config &config);
+	void to770a(machine_config &config);
+	void t9000(machine_config &config);
+	void to8(machine_config &config);
+	void pro128(machine_config &config);
+	void mo6(machine_config &config);
+	void mo5(machine_config &config);
+	void to9p(machine_config &config);
+	void mo5nr(machine_config &config);
+	void to770(machine_config &config);
+	void to8d(machine_config &config);
+
+	void to770_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void mo5_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void mo5alt_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void to9_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void bitmap4_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void bitmap4alt_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void bitmap4althalf_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void bitmap16_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void mode80_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void mode80_to9_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void page1_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void page2_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void overlay_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void overlayhalf_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void overlay3_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void bitmap16alt_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void to770_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void mo5_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void mo5alt_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void to9_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void bitmap4_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void bitmap4alt_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void bitmap4althalf_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void bitmap16_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void mode80_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void mode80_to9_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void page1_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void page2_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void overlay_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void overlayhalf_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void overlay3_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+	void bitmap16alt_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
+
+private:
 	DECLARE_FLOPPY_FORMATS(cd90_640_formats);
 
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( to7_cartridge );
@@ -150,25 +211,23 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( to7_set_cassette_motor );
 	DECLARE_WRITE_LINE_MEMBER( mo5_set_cassette_motor );
 	DECLARE_WRITE_LINE_MEMBER( thom_dev_irq_0 );
-	DECLARE_WRITE_LINE_MEMBER( thom_irq_1 );
-	DECLARE_WRITE_LINE_MEMBER( thom_firq_1 );
 	DECLARE_WRITE8_MEMBER( to7_cartridge_w );
 	DECLARE_READ8_MEMBER( to7_cartridge_r );
-	DECLARE_WRITE8_MEMBER( to7_timer_port_out );
-	DECLARE_READ8_MEMBER( to7_timer_port_in );
+	void to7_timer_port_out(uint8_t data);
+	uint8_t to7_timer_port_in();
 	DECLARE_WRITE_LINE_MEMBER( to7_set_cassette );
 	DECLARE_WRITE_LINE_MEMBER( to7_sys_cb2_out );
-	DECLARE_WRITE8_MEMBER( to7_sys_portb_out );
-	DECLARE_READ8_MEMBER( to7_sys_porta_in );
-	DECLARE_READ8_MEMBER( to7_sys_portb_in );
+	void to7_sys_portb_out(uint8_t data);
+	uint8_t to7_sys_porta_in();
+	uint8_t to7_sys_portb_in();
 	DECLARE_WRITE_LINE_MEMBER( to7_modem_cb );
 	DECLARE_WRITE_LINE_MEMBER( to7_modem_tx_w );
 	DECLARE_WRITE_LINE_MEMBER( write_acia_clock );
 	DECLARE_READ8_MEMBER( to7_modem_mea8000_r );
 	DECLARE_WRITE8_MEMBER( to7_modem_mea8000_w );
-	DECLARE_READ8_MEMBER( to7_game_porta_in );
-	DECLARE_READ8_MEMBER( to7_game_portb_in );
-	DECLARE_WRITE8_MEMBER( to7_game_portb_out );
+	uint8_t to7_game_porta_in();
+	uint8_t to7_game_portb_in();
+	void to7_game_portb_out(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER( to7_game_cb2_out );
 	TIMER_CALLBACK_MEMBER( to7_game_update_cb );
 	DECLARE_READ8_MEMBER( to7_midi_r );
@@ -176,11 +235,11 @@ public:
 	DECLARE_MACHINE_RESET( to7 );
 	DECLARE_MACHINE_START( to7 );
 	DECLARE_WRITE_LINE_MEMBER( to770_sys_cb2_out );
-	DECLARE_READ8_MEMBER( to770_sys_porta_in );
+	uint8_t to770_sys_porta_in();
 	void to7_update_cart_bank_postload();
 	void to770_update_ram_bank_postload();
-	DECLARE_WRITE8_MEMBER( to770_sys_portb_out );
-	DECLARE_WRITE8_MEMBER( to770_timer_port_out );
+	void to770_sys_portb_out(uint8_t data);
+	void to770_timer_port_out(uint8_t data);
 	DECLARE_READ8_MEMBER( to770_gatearray_r );
 	DECLARE_WRITE8_MEMBER( to770_gatearray_w );
 	DECLARE_MACHINE_RESET( to770 );
@@ -188,9 +247,9 @@ public:
 	void to7_lightpen_cb( int step );
 	void mo5_lightpen_cb( int step );
 	TIMER_CALLBACK_MEMBER( mo5_periodic_cb );
-	DECLARE_WRITE8_MEMBER( mo5_sys_porta_out );
-	DECLARE_READ8_MEMBER( mo5_sys_porta_in );
-	DECLARE_READ8_MEMBER( mo5_sys_portb_in );
+	void mo5_sys_porta_out(uint8_t data);
+	uint8_t mo5_sys_porta_in();
+	uint8_t mo5_sys_portb_in();
 	DECLARE_READ8_MEMBER( mo5_gatearray_r );
 	DECLARE_WRITE8_MEMBER( mo5_gatearray_w );
 	void mo5_update_cart_bank_postload();
@@ -212,10 +271,10 @@ public:
 	DECLARE_READ8_MEMBER( to9_kbd_r );
 	DECLARE_WRITE8_MEMBER( to9_kbd_w );
 	TIMER_CALLBACK_MEMBER( to9_kbd_timer_cb );
-	DECLARE_READ8_MEMBER( to9_sys_porta_in );
-	DECLARE_WRITE8_MEMBER( to9_sys_porta_out );
-	DECLARE_WRITE8_MEMBER( to9_sys_portb_out );
-	DECLARE_WRITE8_MEMBER( to9_timer_port_out );
+	uint8_t to9_sys_porta_in();
+	void to9_sys_porta_out(uint8_t data);
+	void to9_sys_portb_out(uint8_t data);
+	void to9_timer_port_out(uint8_t data);
 	DECLARE_MACHINE_RESET( to9 );
 	DECLARE_MACHINE_START( to9 );
 	TIMER_CALLBACK_MEMBER( to8_kbd_timer_cb );
@@ -230,16 +289,16 @@ public:
 	DECLARE_WRITE8_MEMBER( to8_gatearray_w );
 	DECLARE_READ8_MEMBER( to8_vreg_r );
 	DECLARE_WRITE8_MEMBER( to8_vreg_w );
-	DECLARE_READ8_MEMBER( to8_sys_porta_in );
-	DECLARE_WRITE8_MEMBER( to8_sys_portb_out );
-	DECLARE_READ8_MEMBER( to8_timer_port_in );
-	DECLARE_WRITE8_MEMBER( to8_timer_port_out );
+	uint8_t to8_sys_porta_in();
+	void to8_sys_portb_out(uint8_t data);
+	uint8_t to8_timer_port_in();
+	void to8_timer_port_out(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER( to8_timer_cp2_out );
 	void to8_lightpen_cb( int step );
 	DECLARE_MACHINE_RESET( to8 );
 	DECLARE_MACHINE_START( to8 );
-	DECLARE_READ8_MEMBER( to9p_timer_port_in );
-	DECLARE_WRITE8_MEMBER( to9p_timer_port_out );
+	uint8_t to9p_timer_port_in();
+	void to9p_timer_port_out(uint8_t data);
 	DECLARE_MACHINE_RESET( to9p );
 	DECLARE_MACHINE_START( to9p );
 	void mo6_update_ram_bank_postload();
@@ -248,12 +307,12 @@ public:
 	DECLARE_READ8_MEMBER( mo6_cartridge_r );
 	DECLARE_WRITE8_MEMBER( mo6_ext_w );
 	DECLARE_WRITE_LINE_MEMBER( mo6_centronics_busy );
-	DECLARE_WRITE8_MEMBER( mo6_game_porta_out );
+	void mo6_game_porta_out(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER( mo6_game_cb2_out );
 	TIMER_CALLBACK_MEMBER( mo6_game_update_cb );
-	DECLARE_READ8_MEMBER( mo6_sys_porta_in );
-	DECLARE_READ8_MEMBER( mo6_sys_portb_in );
-	DECLARE_WRITE8_MEMBER( mo6_sys_porta_out );
+	uint8_t mo6_sys_porta_in();
+	uint8_t mo6_sys_portb_in();
+	void mo6_sys_porta_out(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER( mo6_sys_cb2_out );
 	DECLARE_READ8_MEMBER( mo6_gatearray_r );
 	DECLARE_WRITE8_MEMBER( mo6_gatearray_w );
@@ -265,8 +324,8 @@ public:
 	DECLARE_WRITE8_MEMBER( mo5nr_net_w );
 	DECLARE_READ8_MEMBER( mo5nr_prn_r );
 	DECLARE_WRITE8_MEMBER( mo5nr_prn_w );
-	DECLARE_READ8_MEMBER( mo5nr_sys_portb_in );
-	DECLARE_WRITE8_MEMBER( mo5nr_sys_porta_out );
+	uint8_t mo5nr_sys_portb_in();
+	void mo5nr_sys_porta_out(uint8_t data);
 	DECLARE_MACHINE_RESET( mo5nr );
 	DECLARE_MACHINE_START( mo5nr );
 
@@ -283,65 +342,31 @@ public:
 	DECLARE_WRITE8_MEMBER( mo6_vcart_lo_w );
 	DECLARE_WRITE8_MEMBER( mo6_vcart_hi_w );
 	TIMER_CALLBACK_MEMBER( thom_set_init );
-	void to770_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void mo5_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void mo5alt_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void to9_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void bitmap4_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void bitmap4alt_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void bitmap4althalf_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void bitmap16_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void mode80_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void mode80_to9_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void page1_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void page2_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void overlay_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void overlayhalf_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void overlay3_scandraw_16( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void to770_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void mo5_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void mo5alt_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void to9_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void bitmap4_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void bitmap4alt_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void bitmap4althalf_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void bitmap16_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void mode80_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void mode80_to9_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void page1_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void page2_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void overlay_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void overlayhalf_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void overlay3_scandraw_8( uint8_t* vram, uint16_t* dst, uint16_t* pal, int org, int len );
-	void thom_vblank( screen_device &screen, bool state );
+
+	DECLARE_WRITE_LINE_MEMBER(thom_vblank);
 	DECLARE_VIDEO_START( thom );
 
-	DECLARE_READ8_MEMBER( to7_5p14_r );
-	DECLARE_WRITE8_MEMBER( to7_5p14_w );
-	DECLARE_READ8_MEMBER( to7_5p14sd_r );
-	DECLARE_WRITE8_MEMBER( to7_5p14sd_w );
-	DECLARE_READ8_MEMBER( to7_qdd_r );
-	DECLARE_WRITE8_MEMBER( to7_qdd_w );
-	TIMER_CALLBACK_MEMBER( thmfc_floppy_cmd_complete_cb );
-	DECLARE_READ8_MEMBER( thmfc_floppy_r );
-	DECLARE_WRITE8_MEMBER( thmfc_floppy_w );
+	uint8_t to7_5p14_r(offs_t offset);
+	void to7_5p14_w(offs_t offset, uint8_t data);
+	uint8_t to7_5p14sd_r(offs_t offset);
+	void to7_5p14sd_w(offs_t offset, uint8_t data);
 	TIMER_CALLBACK_MEMBER( ans4 );
 	TIMER_CALLBACK_MEMBER( ans3 );
 	TIMER_CALLBACK_MEMBER( ans2 );
 	TIMER_CALLBACK_MEMBER( ans );
-	DECLARE_READ8_MEMBER( to7_network_r );
-	DECLARE_WRITE8_MEMBER( to7_network_w );
-	DECLARE_READ8_MEMBER( to7_floppy_r );
-	DECLARE_WRITE8_MEMBER( to7_floppy_w );
-	DECLARE_READ8_MEMBER( to9_floppy_r );
-	DECLARE_WRITE8_MEMBER( to9_floppy_w );
+	uint8_t to7_network_r(offs_t offset);
+	void to7_network_w(offs_t offset, uint8_t data);
+	uint8_t to7_floppy_r(offs_t offset);
+	void to7_floppy_w(offs_t offset, uint8_t data);
+	uint8_t to9_floppy_r(offs_t offset);
+	void to9_floppy_w(offs_t offset, uint8_t data);
 	WRITE_LINE_MEMBER( fdc_index_0_w );
 	WRITE_LINE_MEMBER( fdc_index_1_w );
 	WRITE_LINE_MEMBER( fdc_index_2_w );
 	WRITE_LINE_MEMBER( fdc_index_3_w );
-	void thomson_index_callback(legacy_floppy_image_device *device, int state);
-	DECLARE_PALETTE_INIT(thom);
-	DECLARE_PALETTE_INIT(mo5);
+	void thomson_index_callback(int index, int state);
+	void thom_palette(palette_device &palette);
+	void mo5_palette(palette_device &palette);
 
 	optional_device<mc6854_device> m_mc6854;
 
@@ -350,9 +375,17 @@ public:
 	int m_centronics_busy;
 	int m_centronics_perror;
 
-	MC6854_OUT_FRAME_CB(to7_network_got_frame);
+	void to7_network_got_frame(uint8_t *data, int length);
 
-protected:
+	void mo5_map(address_map &map);
+	void mo5nr_map(address_map &map);
+	void mo6_map(address_map &map);
+	void to7_map(address_map &map);
+	void to770_map(address_map &map);
+	void to8_map(address_map &map);
+	void to9_map(address_map &map);
+	void to9p_map(address_map &map);
+
 	required_device<cpu_device> m_maincpu;
 	required_device<cassette_image_device> m_cassette;
 	required_device<dac_byte_interface> m_dac;
@@ -365,8 +398,10 @@ protected:
 	required_device<ram_device> m_ram;
 	optional_device<mc6846_device> m_mc6846;
 	optional_device<mc6843_device> m_mc6843;
-	optional_device<acia6850_device> m_acia6850;
+	required_device<wd2793_device> m_wd2793_fdc;
 	required_device<screen_device> m_screen;
+	required_device<input_merger_device> m_mainirq;
+	required_device<input_merger_device> m_mainfirq;
 	required_ioport m_io_game_port_directions;
 	required_ioport m_io_game_port_buttons;
 	required_ioport m_io_mouse_x;
@@ -392,6 +427,12 @@ protected:
 	optional_memory_bank m_biosbank;
 	optional_memory_bank m_cartlobank;
 	optional_memory_bank m_carthibank;
+	required_region_ptr<uint8_t> m_cart_rom;
+
+	required_device<cq90_028_device> m_to7qdd;
+	required_device<thmfc1_device> m_thmfc;
+	output_finder<> m_floppy_led;
+	required_device_array<legacy_floppy_image_device, 4> m_floppy_image;
 
 	/* bank logging and optimisations */
 	int m_old_cart_bank;
@@ -401,9 +442,6 @@ protected:
 	/* buffer storing demodulated bits, only for k7 and with speed hack */
 	uint32_t m_to7_k7_bitsize;
 	uint8_t* m_to7_k7_bits;
-	/* several devices on the same irqs */
-	uint8_t m_thom_irq;
-	uint8_t m_thom_firq;
 	/* ------------ cartridge ------------ */
 	uint8_t m_thom_cart_nb_banks; /* number of 16 KB banks (up to 4) */
 	uint8_t m_thom_cart_bank;     /* current bank */
@@ -508,17 +546,15 @@ protected:
 	emu_timer *m_thom_init_timer;
 	void (thomson_state::*m_thom_init_cb)( int init );
 
+	uint8_t m_to7_controller_type;
+	uint8_t m_to7_floppy_bank;
+	uint8_t m_to7_5p14_select;
+	uint8_t m_to7_5p14sd_select;
+
 	int to7_get_cassette();
 	int mo5_get_cassette();
 	void mo5_set_cassette( int data );
-	void thom_set_irq( int line, int state );
-	void thom_set_firq( int line, int state );
 	void thom_irq_reset();
-	void thom_irq_init();
-	void thom_irq_0( int state );
-	void thom_irq_3( int state );
-	void thom_firq_2( int state );
-	void thom_irq_4( int state );
 	void thom_set_caps_led( int led );
 	void to7_update_cart_bank();
 	void to7_set_init( int init );
@@ -579,45 +615,20 @@ protected:
 	unsigned to7_lightpen_gpl( int decx, int decy );
 	void thom_configure_palette( double gamma, const uint16_t* pal, palette_device& palette );
 
-	int thom_floppy_make_addr( chrn_id id, uint8_t* dst, int sector_size );
-	int thom_floppy_make_sector( legacy_floppy_image_device* img, chrn_id id, uint8_t* dst, int sector_size );
-	int thom_floppy_make_track( legacy_floppy_image_device* img, uint8_t* dst, int sector_size, int side );
-	int thom_qdd_make_addr( int sector, uint8_t* dst );
-	int thom_qdd_make_sector( legacy_floppy_image_device* img, int sector, uint8_t* dst );
-	int thom_qdd_make_disk ( legacy_floppy_image_device* img, uint8_t* dst );
 	void to7_5p14_reset();
 	void to7_5p14_init();
-	void to7_5p14_index_pulse_callback( device_t *controller,legacy_floppy_image_device *image, int state );
+	void to7_5p14_index_pulse_callback( int state );
 	void to7_5p14sd_reset();
 	void to7_5p14sd_init();
-	void to7_qdd_index_pulse_cb( device_t *controller,legacy_floppy_image_device *image, int state );
-	legacy_floppy_image_device * to7_qdd_image();
-	void to7_qdd_stat_update();
-	uint8_t to7_qdd_read_byte();
-	void to7_qdd_write_byte( uint8_t data );
-	void to7_qdd_reset();
-	void to7_qdd_init();
-	legacy_floppy_image_device * thmfc_floppy_image();
-	int thmfc_floppy_is_qdd( legacy_floppy_image_device *image );
-	void thmfc_floppy_index_pulse_cb( device_t *controller,legacy_floppy_image_device *image, int state );
-	int thmfc_floppy_find_sector( chrn_id* dst );
-	void thmfc_floppy_cmd_complete();
-	uint8_t thmfc_floppy_read_byte();
-	uint8_t thmfc_floppy_raw_read_byte();
-	void thmfc_floppy_qdd_write_byte( uint8_t data );
-	void thmfc_floppy_write_byte( uint8_t data );
-	void thmfc_floppy_format_byte( uint8_t data );
-	void thmfc_floppy_reset();
-	void thmfc_floppy_init();
 	void to7_network_init();
 	void to7_network_reset();
-	void to7_floppy_init( void* base );
+	void to7_floppy_init();
 	void to7_floppy_reset();
-	void to9_floppy_init(void* int_base, void* ext_base);
+	void to9_floppy_init(void* int_base);
 	void to9_floppy_reset();
 };
 
-/*----------- defined in video/thomson.c -----------*/
+/*----------- defined in video/thomson.cpp -----------*/
 
 /*
    TO7 video:
@@ -662,7 +673,8 @@ protected:
 #define THOM_VMODE_BITMAP4_ALT_HALF 12
 #define THOM_VMODE_MO5_ALT    13
 #define THOM_VMODE_OVERLAY_HALF     14
-#define THOM_VMODE_NB         15
+#define THOM_VMODE_BITMAP16_ALT 15
+#define THOM_VMODE_NB         16
 
 
 class to7_io_line_device : public device_t
@@ -671,21 +683,10 @@ public:
 	// construction/destruction
 	to7_io_line_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	/* read data register */
-	DECLARE_READ8_MEMBER(porta_in);
-
-	/* write data register */
-	DECLARE_WRITE8_MEMBER(porta_out);
-
-	DECLARE_WRITE_LINE_MEMBER(write_rxd);
-	DECLARE_WRITE_LINE_MEMBER(write_cts);
-	DECLARE_WRITE_LINE_MEMBER(write_dsr);
-	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
-
 protected:
 	// device-level overrides
 	virtual void device_start() override;
-	machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 private:
 	required_device<pia6821_device> m_pia_io;
@@ -695,11 +696,19 @@ private:
 	int m_rxd;
 	int m_cts;
 	int m_dsr;
+
+	/* read data register */
+	uint8_t porta_in();
+
+	/* write data register */
+	void porta_out(uint8_t data);
+
+	DECLARE_WRITE_LINE_MEMBER(write_rxd);
+	DECLARE_WRITE_LINE_MEMBER(write_cts);
+	DECLARE_WRITE_LINE_MEMBER(write_dsr);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
 };
 
-extern const device_type TO7_IO_LINE;
+DECLARE_DEVICE_TYPE(TO7_IO_LINE, to7_io_line_device)
 
-#define MCFG_TO7_IO_LINE_ADD(_tag)  \
-	MCFG_DEVICE_ADD((_tag), TO7_IO_LINE, 0)
-
-#endif /* _THOMSON_H_ */
+#endif // MAME_INCLUDES_THOMSON_H

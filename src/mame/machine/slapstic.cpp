@@ -135,9 +135,10 @@
         137412-109  Road Blasters (some versions)
         137412-110  Road Blasters
         137412-110  APB
-        137412-111  Pit Fighter
-        137412-112  Pit Fighter (Europe)
-        137412-113  Unknown (Europe)
+        137412-111  Pit Fighter (Aug 09, 1990 to Aug 22, 1990)
+        137412-112  Pit Fighter (Aug 22, 1990 to Oct 01, 1990)
+        137412-113  Pit Fighter (Oct 09, 1990 to Oct 12, 1990)
+        137412-114  Pit Fighter (Nov 01, 1990 and later)
         137412-115  Race Drivin' DSK board
         137412-116  Hydra
         137412-116  Tournament Cyberball 2072
@@ -182,20 +183,35 @@
 
 
 #include "emu.h"
-#include "includes/slapstic.h"
+#include "machine/slapstic.h"
+
+#include "cpu/m68000/m68000.h"
 
 
-const device_type SLAPSTIC = device_creator<atari_slapstic_device>;
+/*************************************
+ *
+ *  Debugging
+ *
+ *************************************/
 
-atari_slapstic_device::atari_slapstic_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, SLAPSTIC, "Atari Slapstic", tag, owner, clock, "slapstic", __FILE__),
+#define LOG_SLAPSTIC    (0)
+
+
+
+DEFINE_DEVICE_TYPE(SLAPSTIC, atari_slapstic_device, "slapstic", "Atari Slapstic")
+
+atari_slapstic_device::atari_slapstic_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)
+	: device_t(mconfig, SLAPSTIC, tag, owner, clock),
 	state(0),
 	current_bank(0),
 	access_68k(-1),
 	alt_bank(0),
 	bit_bank(0),
 	add_bank(0),
-	bit_xor(0)
+	bit_xor(0),
+	m_legacy_configured(false),
+	m_legacy_memptr(nullptr),
+	m_legacy_bank(0)
 {
 	slapstic.bankstart = 0;
 	slapstic.bank[0] = slapstic.bank[1] = slapstic.bank[2] = slapstic.bank[3] = 0;
@@ -240,6 +256,18 @@ void atari_slapstic_device::device_start()
 
 void atari_slapstic_device::device_reset()
 {
+	// reset the slapstic
+	if (m_legacy_configured)
+	{
+		slapstic_reset();
+		legacy_update_bank(slapstic_bank());
+	}
+}
+
+void atari_slapstic_device::device_post_load()
+{
+	if (m_legacy_configured)
+		legacy_update_bank(slapstic_bank());
 }
 
 /*************************************
@@ -498,7 +526,7 @@ static const struct slapstic_data slapstic110 =
  *
  *************************************/
 
-/* slapstic 137412-111: Pit Fighter (confirmed) */
+/* slapstic 137412-111: Pit Fighter (Aug 09, 1990 to Aug 22, 1990) (confirmed) */
 static const struct slapstic_data slapstic111 =
 {
 	/* basic banking */
@@ -524,7 +552,7 @@ static const struct slapstic_data slapstic111 =
 };
 
 
-/* slapstic 137412-112: Pit Fighter (Japan) (confirmed) */
+/* slapstic 137412-112: Pit Fighter (Aug 22, 1990 to Oct 01, 1990) (confirmed) */
 static const struct slapstic_data slapstic112 =
 {
 	/* basic banking */
@@ -550,7 +578,7 @@ static const struct slapstic_data slapstic112 =
 };
 
 
-/* slapstic 137412-113: Unknown (Europe) (confirmed) */
+/* slapstic 137412-113: Pit Fighter (Oct 09, 1990 to Oct 12, 1990) (confirmed) */
 static const struct slapstic_data slapstic113 =
 {
 	/* basic banking */
@@ -576,7 +604,7 @@ static const struct slapstic_data slapstic113 =
 };
 
 
-/* slapstic 137412-114: Pit Fighter (rev 9) (confirmed) */
+/* slapstic 137412-114: Pit Fighter (Nov 01, 1990 and later) (confirmed) */
 static const struct slapstic_data slapstic114 =
 {
 	/* basic banking */
@@ -753,13 +781,6 @@ void atari_slapstic_device::device_validity_check(validity_checker &valid) const
 
 void atari_slapstic_device::slapstic_init()
 {
-	if (access_68k == -1)
-	{
-		/* see if we're 68k or 6502/6809 based */
-		device_type cputype = machine().device(":maincpu")->type();
-		access_68k = (cputype == M68000 || cputype == M68010);
-	}
-
 	/* set up the parameters */
 	slapstic = *slapstic_table[m_chipnum - 101];
 
@@ -819,15 +840,15 @@ int atari_slapstic_device::alt2_kludge(address_space &space, offs_t offset)
 	if (access_68k)
 	{
 		/* first verify that the prefetched PC matches the first alternate */
-		if (MATCHES_MASK_VALUE(space.device().safe_pc() >> 1, slapstic.alt1))
+		if (MATCHES_MASK_VALUE(space.device().state().pc() >> 1, slapstic.alt1))
 		{
 			/* now look for a move.w (An),(An) or cmpm.w (An)+,(An)+ */
-			uint16_t opcode = space.direct().read_word(space.device().safe_pcbase() & 0xffffff);
+			u16 opcode = space.read_word(space.device().state().pcbase() & 0xffffff);
 			if ((opcode & 0xf1f8) == 0x3090 || (opcode & 0xf1f8) == 0xb148)
 			{
 				/* fetch the value of the register for the second operand, and see */
 				/* if it matches the third alternate */
-				uint32_t regval = space.device().state().state_int(M68K_A0 + ((opcode >> 9) & 7)) >> 1;
+				u32 regval = space.device().state().state_int(M68K_A0 + ((opcode >> 9) & 7)) >> 1;
 				if (MATCHES_MASK_VALUE(regval, slapstic.alt3))
 				{
 					alt_bank = (regval >> slapstic.altshift) & 3;
@@ -1064,7 +1085,7 @@ int atari_slapstic_device::slapstic_tweak(address_space &space, offs_t offset)
 
 	/* log this access */
 	if (LOG_SLAPSTIC)
-		slapstic_log(space.machine(), offset);
+		slapstic_log(machine(), offset);
 
 	/* return the active bank */
 	return current_bank;
@@ -1092,7 +1113,7 @@ void atari_slapstic_device::slapstic_log(running_machine &machine, offs_t offset
 			fprintf(slapsticlog, "------------------------------------\n");
 		last_time = time;
 
-		fprintf(slapsticlog, "%s: %04X B=%d ", machine.describe_context(), offset, current_bank);
+		fprintf(slapsticlog, "%s: %04X B=%d ", machine.describe_context().c_str(), offset, current_bank);
 		switch (state)
 		{
 			case DISABLED:
@@ -1131,4 +1152,86 @@ void atari_slapstic_device::slapstic_log(running_machine &machine, offs_t offset
 		}
 		fflush(slapsticlog);
 	}
+}
+
+
+//**************************************************************************
+//  LEGACY HANDLING
+//**************************************************************************
+
+void atari_slapstic_device::legacy_update_bank(int bank)
+{
+	// if the bank has changed, copy the memory; Pit Fighter needs this
+	if (bank != m_legacy_bank)
+	{
+		// bank 0 comes from the copy we made earlier
+		if (bank == 0)
+			memcpy(m_legacy_memptr, &m_legacy_bank0[0], 0x2000);
+		else
+			memcpy(m_legacy_memptr, &m_legacy_memptr[bank * 0x1000], 0x2000);
+
+		// remember the current bank
+		m_legacy_bank = bank;
+	}
+}
+
+
+//-------------------------------------------------
+//  legacy_configure: Installs memory handlers for the
+//  slapstic
+//-------------------------------------------------
+
+void atari_slapstic_device::legacy_configure(cpu_device &device, offs_t base, offs_t mirror, u8 *mem)
+{
+	// initialize the slapstic
+	m_legacy_configured = true;
+	slapstic_init();
+	save_item(NAME(m_legacy_bank));
+
+	// install the memory handlers
+	address_space &program = device.space(AS_PROGRAM);
+	program.install_readwrite_handler(base, base + 0x7fff, 0, mirror, 0, read16_delegate(*this, FUNC(atari_slapstic_device::slapstic_r)), write16_delegate(*this, FUNC(atari_slapstic_device::slapstic_w)));
+	m_legacy_memptr = (u16 *)mem;
+
+	// allocate memory for a copy of bank 0
+	m_legacy_bank0.resize(0x2000);
+	memcpy(&m_legacy_bank0[0], m_legacy_memptr, 0x2000);
+
+	// ensure we recopy memory for the bank
+	m_legacy_bank = 0xff;
+}
+
+
+//-------------------------------------------------
+//  slapstic_w: Assuming that the slapstic sits in
+//  ROM memory space, we just simply tweak the slapstic at this
+//  address and do nothing more.
+//-------------------------------------------------
+
+void atari_slapstic_device::slapstic_w(address_space &space, offs_t offset, u16 data, u16 mem_mask)
+{
+	assert(m_legacy_configured);
+
+	legacy_update_bank(slapstic_tweak(space, offset));
+}
+
+
+//-------------------------------------------------
+//  slapstic_r: Tweaks the slapstic at the appropriate
+//  address and then reads a word from the underlying memory.
+//-------------------------------------------------
+
+u16 atari_slapstic_device::slapstic_r(address_space &space, offs_t offset, u16 mem_mask)
+{
+	assert(m_legacy_configured);
+
+	// fetch the result from the current bank first
+	u16 result = m_legacy_memptr[offset & 0xfff];
+
+	if (!machine().side_effects_disabled())
+	{
+		// then determine the new one
+		legacy_update_bank(slapstic_tweak(space, offset));
+	}
+	return result;
 }

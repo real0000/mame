@@ -448,47 +448,39 @@ located at I/O port 0x3CE, and a data register located at I/O port 0x3CF.
 
 #include "screen.h"
 
+#define LOG_READ    (1U << 1)
+#define LOG_SETUP   (1U << 2)
+#define LOG_MODE    (1U << 3)
 
-#define VERBOSE_EGA     1
+//#define VERBOSE (LOG_GENERAL | LOG_SETUP | LOG_MODE)
+//#define LOG_OUTPUT_STREAM std::cout
+
+#include "logmacro.h"
+
+#define LOGR(...)     LOGMASKED(LOG_READ,  __VA_ARGS__)
+#define LOGSETUP(...) LOGMASKED(LOG_SETUP, __VA_ARGS__)
+#define LOGMODE(...)  LOGMASKED(LOG_MODE,  __VA_ARGS__)
+
+#ifdef _MSC_VER
+#define FUNCNAME __func__
+#else
+#define FUNCNAME __PRETTY_FUNCTION__
+#endif
 
 #define EGA_SCREEN_NAME "ega_screen"
 #define EGA_CRTC_NAME   "crtc_ega_ega"
 
-
 #define EGA_MODE_GRAPHICS 1
 #define EGA_MODE_TEXT     2
-
-
-/*
-    Prototypes
-*/
-
-MACHINE_CONFIG_FRAGMENT( pcvideo_ega )
-	MCFG_SCREEN_ADD(EGA_SCREEN_NAME, RASTER)
-	MCFG_SCREEN_RAW_PARAMS(16257000,912,0,640,262,0,200)
-	MCFG_SCREEN_UPDATE_DEVICE(EGA_CRTC_NAME, crtc_ega_device, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
-
-	MCFG_PALETTE_ADD( "palette", 64 )
-
-	MCFG_DEVICE_ADD(EGA_CRTC_NAME, CRTC_EGA, 16257000/8)
-	MCFG_CRTC_EGA_SET_SCREEN(EGA_SCREEN_NAME)
-	MCFG_CRTC_EGA_HPIXELS_PER_COLUMN(8)
-	MCFG_CRTC_EGA_ROW_UPDATE_CB(isa8_ega_device, ega_update_row)
-	MCFG_CRTC_EGA_RES_OUT_DE_CB(WRITELINE(isa8_ega_device, de_changed))
-	MCFG_CRTC_EGA_RES_OUT_HSYNC_CB(WRITELINE(isa8_ega_device, hsync_changed))
-	MCFG_CRTC_EGA_RES_OUT_VSYNC_CB(WRITELINE(isa8_ega_device, vsync_changed))
-	MCFG_CRTC_EGA_RES_OUT_VBLANK_CB(WRITELINE(isa8_ega_device, vblank_changed))
-MACHINE_CONFIG_END
 
 ROM_START( ega )
 	ROM_REGION(0x4000, "user1", 0)
 	ROM_DEFAULT_BIOS("ega")
 	ROM_SYSTEM_BIOS(0, "ega", "IBM EGA BIOS")
-	ROMX_LOAD("6277356.u44", 0x0000, 0x4000, CRC(dc146448) SHA1(dc0794499b3e499c5777b3aa39554bbf0f2cc19b), ROM_BIOS(1))
+	ROMX_LOAD("6277356.u44", 0x0000, 0x4000, CRC(dc146448) SHA1(dc0794499b3e499c5777b3aa39554bbf0f2cc19b), ROM_BIOS(0))
 	ROM_SYSTEM_BIOS(1, "iskr3104", "Iskra-3104 EGA BIOS")
-	ROMX_LOAD( "143-03.bin", 0x0001, 0x2000, CRC(d0706345) SHA1(e04bb40d944426a4ae2e3a614d3f4953d7132ede),ROM_SKIP(1)|ROM_BIOS(2))
-	ROMX_LOAD( "143-02.bin", 0x0000, 0x2000, CRC(c8c18ebb) SHA1(fd6dac76d43ab8b582e70f1d5cc931d679036fb9),ROM_SKIP(1)|ROM_BIOS(2))
+	ROMX_LOAD( "143-03.bin", 0x0001, 0x2000, CRC(d0706345) SHA1(e04bb40d944426a4ae2e3a614d3f4953d7132ede), ROM_SKIP(1) | ROM_BIOS(1))
+	ROMX_LOAD( "143-02.bin", 0x0000, 0x2000, CRC(c8c18ebb) SHA1(fd6dac76d43ab8b582e70f1d5cc931d679036fb9), ROM_SKIP(1) | ROM_BIOS(1))
 	ROM_REGION(0x4000, "user2", ROMREGION_ERASE00)
 ROM_END
 
@@ -538,17 +530,30 @@ INPUT_PORTS_END
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type ISA8_EGA = device_creator<isa8_ega_device>;
+DEFINE_DEVICE_TYPE(ISA8_EGA, isa8_ega_device, "ega", "IBM Enhanced Graphics Adapter")
 
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor isa8_ega_device::device_mconfig_additions() const
+void isa8_ega_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( pcvideo_ega );
+	screen_device &screen(SCREEN(config, EGA_SCREEN_NAME, SCREEN_TYPE_RASTER));
+	screen.set_raw(16.257_MHz_XTAL, 912, 0, 640, 262, 0, 200);
+	screen.set_screen_update(EGA_CRTC_NAME, FUNC(crtc_ega_device::screen_update));
+	screen.set_palette(m_palette);
+
+	PALETTE(config, m_palette).set_entries(64);
+
+	CRTC_EGA(config, m_crtc_ega, 16.257_MHz_XTAL/8);
+	m_crtc_ega->set_screen(EGA_SCREEN_NAME);
+	m_crtc_ega->config_set_hpixels_per_column(8);
+	m_crtc_ega->set_row_update_callback(FUNC(isa8_ega_device::ega_update_row));
+	m_crtc_ega->res_out_de_callback().set(FUNC(isa8_ega_device::de_changed));
+	m_crtc_ega->res_out_hsync_callback().set(FUNC(isa8_ega_device::hsync_changed));
+	m_crtc_ega->res_out_vsync_callback().set(FUNC(isa8_ega_device::vsync_changed));
+	m_crtc_ega->res_out_vblank_callback().set(FUNC(isa8_ega_device::vblank_changed));
 }
 
 //-------------------------------------------------
@@ -574,18 +579,16 @@ ioport_constructor isa8_ega_device::device_input_ports() const
 //-------------------------------------------------
 
 isa8_ega_device::isa8_ega_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-		device_t(mconfig, ISA8_EGA, "IBM Enhanced Graphics Adapter", tag, owner, clock, "ega", __FILE__),
-		device_isa8_card_interface(mconfig, *this), m_crtc_ega(nullptr), m_vram(nullptr), m_videoram(nullptr), m_charA(nullptr), m_charB(nullptr),
-		m_misc_output(0), m_feature_control(0), m_frame_cnt(0), m_hsync(0), m_vsync(0), m_vblank(0), m_display_enable(0), m_video_mode(0),
-		m_palette(*this, "palette")
+	isa8_ega_device(mconfig, ISA8_EGA, tag, owner, clock)
 {
 }
 
-isa8_ega_device::isa8_ega_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-		device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-		device_isa8_card_interface(mconfig, *this), m_crtc_ega(nullptr), m_vram(nullptr), m_videoram(nullptr), m_charA(nullptr), m_charB(nullptr),
-		m_misc_output(0), m_feature_control(0), m_frame_cnt(0), m_hsync(0), m_vsync(0), m_vblank(0), m_display_enable(0), m_video_mode(0),
-		m_palette(*this, "palette")
+isa8_ega_device::isa8_ega_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, type, tag, owner, clock),
+	device_isa8_card_interface(mconfig, *this),
+	m_crtc_ega(*this, EGA_CRTC_NAME), m_videoram(nullptr), m_charA(nullptr), m_charB(nullptr),
+	m_misc_output(0), m_feature_control(0), m_frame_cnt(0), m_hsync(0), m_vsync(0), m_vblank(0), m_display_enable(0), m_video_mode(0),
+	m_palette(*this, "palette")
 {
 }
 
@@ -625,24 +628,18 @@ void isa8_ega_device::device_start()
 		memcpy(memregion(subtag("user2").c_str())->base(), memregion(subtag("user1").c_str())->base(), 0x4000);
 
 	/* Install 256KB Video ram on our EGA card */
-	m_vram = machine().memory().region_alloc(subtag("vram").c_str(), 256 * 1024, 1, ENDIANNESS_LITTLE);
+	m_vram = make_unique_clear<uint8_t[]>(256 * 1024);
 
-	m_videoram = m_vram->base();
+	m_videoram = m_vram.get();
 	m_plane[0] = m_videoram + 0x00000;
-	memset(m_plane[0], 0, sizeof(uint8_t) * 0x10000);
 	m_plane[1] = m_videoram + 0x10000;
-	memset(m_plane[1], 0, sizeof(uint8_t) * 0x10000);
 	m_plane[2] = m_videoram + 0x20000;
-	memset(m_plane[2], 0, sizeof(uint8_t) * 0x10000);
 	m_plane[3] = m_videoram + 0x30000;
-	memset(m_plane[3], 0, sizeof(uint8_t) * 0x10000);
-
-	m_crtc_ega = subdevice<crtc_ega_device>(EGA_CRTC_NAME);
 
 	m_isa->install_rom(this, 0xc0000, 0xc3fff, "ega", "user2");
-	m_isa->install_device(0x3b0, 0x3bf, read8_delegate(FUNC(isa8_ega_device::pc_ega8_3b0_r), this), write8_delegate(FUNC(isa8_ega_device::pc_ega8_3b0_w), this));
-	m_isa->install_device(0x3c0, 0x3cf, read8_delegate(FUNC(isa8_ega_device::pc_ega8_3c0_r), this), write8_delegate(FUNC(isa8_ega_device::pc_ega8_3c0_w), this));
-	m_isa->install_device(0x3d0, 0x3df, read8_delegate(FUNC(isa8_ega_device::pc_ega8_3d0_r), this), write8_delegate(FUNC(isa8_ega_device::pc_ega8_3d0_w), this));
+	m_isa->install_device(0x3b0, 0x3bf, read8_delegate(*this, FUNC(isa8_ega_device::pc_ega8_3b0_r)), write8_delegate(*this, FUNC(isa8_ega_device::pc_ega8_3b0_w)));
+	m_isa->install_device(0x3c0, 0x3cf, read8_delegate(*this, FUNC(isa8_ega_device::pc_ega8_3c0_r)), write8_delegate(*this, FUNC(isa8_ega_device::pc_ega8_3c0_w)));
+	m_isa->install_device(0x3d0, 0x3df, read8_delegate(*this, FUNC(isa8_ega_device::pc_ega8_3d0_r)), write8_delegate(*this, FUNC(isa8_ega_device::pc_ega8_3d0_w)));
 }
 
 //-------------------------------------------------
@@ -696,7 +693,7 @@ void isa8_ega_device::install_banks()
 	case 0x00:      /* 0xA0000, 128KB */
 		if ( m_misc_output & 0x02 )
 		{
-			m_isa->install_memory(0xa0000, 0xbffff, read8_delegate(FUNC(isa8_ega_device::read), this), write8_delegate(FUNC(isa8_ega_device::write), this));
+			m_isa->install_memory(0xa0000, 0xbffff, read8_delegate(*this, FUNC(isa8_ega_device::read)), write8_delegate(*this, FUNC(isa8_ega_device::write)));
 		}
 		else
 		{
@@ -708,7 +705,7 @@ void isa8_ega_device::install_banks()
 	case 0x04:      /* 0xA0000, 64KB */
 		if ( m_misc_output & 0x02 )
 		{
-			m_isa->install_memory(0xa0000, 0xaffff, read8_delegate(FUNC(isa8_ega_device::read), this), write8_delegate(FUNC(isa8_ega_device::write), this));
+			m_isa->install_memory(0xa0000, 0xaffff, read8_delegate(*this, FUNC(isa8_ega_device::read)), write8_delegate(*this, FUNC(isa8_ega_device::write)));
 		}
 		else
 		{
@@ -721,7 +718,7 @@ void isa8_ega_device::install_banks()
 	case 0x08:      /* 0xB0000, 32KB */
 		if ( m_misc_output & 0x02 )
 		{
-			m_isa->install_memory(0xb0000, 0xb7fff, read8_delegate(FUNC(isa8_ega_device::read), this), write8_delegate(FUNC(isa8_ega_device::write), this));
+			m_isa->install_memory(0xb0000, 0xb7fff, read8_delegate(*this, FUNC(isa8_ega_device::read)), write8_delegate(*this, FUNC(isa8_ega_device::write)));
 		}
 		else
 		{
@@ -734,7 +731,7 @@ void isa8_ega_device::install_banks()
 	case 0x0c:      /* 0xB8000, 32KB */
 		if ( m_misc_output & 0x02 )
 		{
-			m_isa->install_memory(0xb8000, 0xbffff, read8_delegate(FUNC(isa8_ega_device::read), this), write8_delegate(FUNC(isa8_ega_device::write), this));
+			m_isa->install_memory(0xb8000, 0xbffff, read8_delegate(*this, FUNC(isa8_ega_device::read)), write8_delegate(*this, FUNC(isa8_ega_device::write)));
 		}
 		else
 		{
@@ -788,7 +785,7 @@ CRTC_EGA_ROW_UPDATE( isa8_ega_device::pc_ega_graphics )
 {
 	uint16_t  *p = &bitmap.pix16(y);
 
-//  logerror( "pc_ega_graphics: y = %d, x_count = %d, ma = %d, ra = %d\n", y, x_count, ma, ra );
+	LOG("%s: y = %d, x_count = %d, ma = %d, ra = %d\n", FUNCNAME, y, x_count, ma, ra );
 
 	if ( m_graphics_controller.data[5] & 0x10 )
 	{
@@ -850,7 +847,7 @@ CRTC_EGA_ROW_UPDATE( isa8_ega_device::pc_ega_text )
 	uint16_t  *p = &bitmap.pix16(y);
 	int i;
 
-//  logerror( "pc_ega_text: y = %d, x_count = %d, ma = %d, ra = %d\n", y, x_count, ma, ra );
+	LOG("%s: y = %d, x_count = %d, ma = %d, ra = %d\n", FUNCNAME, y, x_count, ma, ra );
 
 	for ( i = 0; i < x_count; i++ )
 	{
@@ -913,10 +910,7 @@ void isa8_ega_device::change_mode()
 			! ( m_sequencer.data[0x04] & 0x01 ) &&
 			( m_graphics_controller.data[0x06] & 0x01 ) )
 	{
-		if ( VERBOSE_EGA )
-		{
-			logerror("change_mode(): Switch to graphics mode\n");
-		}
+		LOGMODE("%s: Switch to graphics mode\n", FUNCNAME);
 
 		m_video_mode = EGA_MODE_GRAPHICS;
 	}
@@ -926,10 +920,7 @@ void isa8_ega_device::change_mode()
 			( m_sequencer.data[0x04] & 0x01 ) &&
 			! ( m_graphics_controller.data[0x06] & 0x01 ) )
 	{
-		if ( VERBOSE_EGA )
-		{
-			logerror("chnage_mode(): Switching to text mode\n");
-		}
+		LOGMODE("%s: Switching to text mode\n", FUNCNAME);
 
 		m_video_mode = EGA_MODE_TEXT;
 
@@ -947,7 +938,7 @@ void isa8_ega_device::change_mode()
 	}
 
 	/* Check for changes to the crtc input clock and number of pixels per clock */
-	clock = ( ( m_misc_output & 0x0c ) ? 16257000 : XTAL_14_31818MHz );
+	clock = ( ( m_misc_output & 0x0c ) ? 16257000 : 14318181 );
 	pixels = ( ( m_sequencer.data[0x01] & 0x01 ) ? 8 : 9 );
 
 	if ( m_sequencer.data[0x01] & 0x08 )
@@ -966,7 +957,7 @@ READ8_MEMBER( isa8_ega_device::read )
 {
 	uint8_t data = 0xFF;
 
-	if ( !machine().side_effect_disabled() && ! ( m_sequencer.data[4] & 0x04 ) )
+	if ( !machine().side_effects_disabled() && ! ( m_sequencer.data[4] & 0x04 ) )
 	{
 		/* Fill read latches */
 		m_read_latch[0] = m_plane[0][offset & 0xffff];
@@ -1181,7 +1172,7 @@ READ8_MEMBER( isa8_ega_device::pc_ega8_3X0_r )
 
 	/* CRT Controller - data register */
 	case 1: case 3: case 5: case 7:
-		data = m_crtc_ega->register_r( space, offset );
+		data = m_crtc_ega->register_r();
 		break;
 
 	/* Input Status Register 1 */
@@ -1207,21 +1198,18 @@ READ8_MEMBER( isa8_ega_device::pc_ega8_3X0_r )
 
 WRITE8_MEMBER( isa8_ega_device::pc_ega8_3X0_w )
 {
-	if ( VERBOSE_EGA )
-	{
-//      logerror("pc_ega_3X0_w: offset = %02x, data = %02x\n", offset, data );
-	}
+	LOGSETUP("%s: offset = %02x, data = %02x\n", FUNCNAME, offset, data );
 
 	switch ( offset )
 	{
 	/* CRT Controller - address register */
 	case 0: case 2: case 4: case 6:
-		m_crtc_ega->address_w( space, offset, data );
+		m_crtc_ega->address_w(data);
 		break;
 
 	/* CRT Controller - data register */
 	case 1: case 3: case 5: case 7:
-		m_crtc_ega->register_w( space, offset, data );
+		m_crtc_ega->register_w(data);
 		break;
 
 	/* Set Light Pen Flip Flop */
@@ -1275,10 +1263,7 @@ READ8_MEMBER(isa8_ega_device::pc_ega8_3c0_r )
 {
 	int data = 0xff;
 
-	if ( VERBOSE_EGA )
-	{
-//      logerror("pc_ega_3c0_r: offset = %02x\n", offset );
-	}
+	LOGR("%s: offset = %02x\n", FUNCNAME, offset );
 
 	switch ( offset )
 	{
@@ -1334,10 +1319,7 @@ WRITE8_MEMBER(isa8_ega_device::pc_ega8_3c0_w )
 		};
 	int index;
 
-	if ( VERBOSE_EGA )
-	{
-//      logerror("pc_ega_3c0_w: offset = %02x, data = %02x\n", offset, data );
-	}
+	LOGSETUP("%s: offset = %02x, data = %02x\n", FUNCNAME, offset, data );
 
 	switch ( offset )
 	{
@@ -1351,7 +1333,7 @@ WRITE8_MEMBER(isa8_ega_device::pc_ega8_3c0_w )
 		{
 			index = m_attribute.index & 0x1F;
 
-			logerror("AR%02X = 0x%02x\n", index, data );
+			LOGSETUP(" - AR%02X = 0x%02x\n", index, data );
 
 			/* Clear unused bits */
 			m_attribute.data[ index ] = data & ar_reg_mask[ index ];
@@ -1380,7 +1362,7 @@ WRITE8_MEMBER(isa8_ega_device::pc_ega8_3c0_w )
 	case 5:
 		index = m_sequencer.index & 0x07;
 
-		logerror("SR%02X = 0x%02x\n", index & 0x07, data );
+		LOGSETUP(" - SR%02X = 0x%02x\n", index & 0x07, data );
 
 		/* Clear unused bits */
 		m_sequencer.data[ index ] = data & sr_reg_mask[ index ];
@@ -1402,7 +1384,7 @@ WRITE8_MEMBER(isa8_ega_device::pc_ega8_3c0_w )
 	case 15:
 		index = m_graphics_controller.index & 0x0F;
 
-		logerror("GR%02X = 0x%02x\n", index, data );
+		LOGSETUP(" - GR%02X = 0x%02x\n", index, data );
 
 		/* Clear unused bits */
 		m_graphics_controller.data[ index ] = data & gr_reg_mask[ index ];

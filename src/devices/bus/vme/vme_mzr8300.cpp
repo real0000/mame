@@ -83,9 +83,10 @@
 
 #include "emu.h"
 #include "vme_mzr8300.h"
+
+#include "machine/am9513.h"
 #include "machine/z80sio.h"
 #include "bus/rs232/rs232.h"
-#include "machine/clock.h"
 
 #define LOG_GENERAL 0x01
 #define LOG_SETUP   0x02
@@ -113,55 +114,55 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type VME_MZR8300 = device_creator<vme_mzr8300_card_device>;
+DEFINE_DEVICE_TYPE(VME_MZR8300, vme_mzr8300_card_device, "mzr8300", "Mizar 8300 SIO serial board")
 
 /* These values are borrowed just to get the terminal going and should be replaced
  * once a proper serial board hardware (ie MZ 8300) is found and emulated. */
-#define BAUDGEN_CLOCK XTAL_19_6608MHz /* fake */
-#define SIO_CLOCK (BAUDGEN_CLOCK / 128) /* This will give prompt */
 
-MACHINE_CONFIG_FRAGMENT( mzr8300 )
-	MCFG_UPD7201_ADD("sio0", XTAL_4MHz, SIO_CLOCK, SIO_CLOCK, SIO_CLOCK, SIO_CLOCK )
-
-	MCFG_Z80SIO_OUT_TXDB_CB(DEVWRITELINE("rs232p1", rs232_port_device, write_txd))
-	MCFG_Z80SIO_OUT_DTRB_CB(DEVWRITELINE("rs232p1", rs232_port_device, write_dtr))
-	MCFG_Z80SIO_OUT_RTSB_CB(DEVWRITELINE("rs232p1", rs232_port_device, write_rts))
-
-	MCFG_RS232_PORT_ADD ("rs232p1", default_rs232_devices, "terminal")
-	MCFG_RS232_RXD_HANDLER (DEVWRITELINE ("sio0", upd7201N_device, rxb_w))
-	MCFG_RS232_CTS_HANDLER (DEVWRITELINE ("sio0", upd7201N_device, ctsb_w))
-
-	MCFG_Z80SIO_ADD("sio1", XTAL_4MHz, 0, 0, 0, 0 )
-MACHINE_CONFIG_END
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-
-machine_config_constructor vme_mzr8300_card_device::device_mconfig_additions() const
+void vme_mzr8300_card_device::device_add_mconfig(machine_config &config)
 {
-	LOG("%s %s\n", tag(), FUNCNAME);
-	return MACHINE_CONFIG_NAME( mzr8300 );
+	upd7201_device& sio0(UPD7201(config, "sio0", XTAL(4'000'000)));
+	sio0.out_txdb_callback().set("rs232p1", FUNC(rs232_port_device::write_txd));
+	sio0.out_dtrb_callback().set("rs232p1", FUNC(rs232_port_device::write_dtr));
+	sio0.out_rtsb_callback().set("rs232p1", FUNC(rs232_port_device::write_rts));
+
+	UPD7201(config, "sio1", XTAL(4'000'000));
+
+	rs232_port_device &rs232p1(RS232_PORT(config, "rs232p1", default_rs232_devices, "terminal"));
+	rs232p1.rxd_handler().set("sio0", FUNC(upd7201_device::rxb_w));
+	rs232p1.cts_handler().set("sio0", FUNC(upd7201_device::ctsb_w));
+
+	am9513_device &stc(AM9513(config, "stc", 4_MHz_XTAL));
+	stc.out1_cb().set("sio0", FUNC(upd7201_device::rxca_w));
+	stc.out1_cb().append("sio0", FUNC(upd7201_device::txca_w));
+	stc.out2_cb().set("sio0", FUNC(upd7201_device::rxcb_w));
+	stc.out2_cb().append("sio0", FUNC(upd7201_device::txcb_w));
+	stc.out3_cb().set("sio1", FUNC(upd7201_device::rxca_w));
+	stc.out3_cb().append("sio1", FUNC(upd7201_device::txca_w));
+	stc.out4_cb().set("sio1", FUNC(upd7201_device::rxcb_w));
+	stc.out4_cb().append("sio1", FUNC(upd7201_device::txcb_w));
 }
+
 
 //**************************************************************************
 //  LIVE DEVICE
 //**************************************************************************
 
-vme_mzr8300_card_device::vme_mzr8300_card_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-		device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-		device_vme_card_interface(mconfig, *this)
+vme_mzr8300_card_device::vme_mzr8300_card_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, type, tag, owner, clock),
+	device_vme_card_interface(mconfig, *this)
 {
 	LOG("%s %s\n", tag, FUNCNAME);
 }
 
 vme_mzr8300_card_device::vme_mzr8300_card_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, VME_MZR8300, "Mizar 8300 SIO serial board", tag, owner, clock, "mzr8300", __FILE__),
-	device_vme_card_interface(mconfig, *this)
+	vme_mzr8300_card_device(mconfig, VME_MZR8300, tag, owner, clock)
 {
-	LOG("%s %s\n", tag, FUNCNAME);
 }
 
 void vme_mzr8300_card_device::device_start()
@@ -174,17 +175,20 @@ void vme_mzr8300_card_device::device_start()
 	//  m_vme->static_set_custom_spaces(*this);
 
 	m_vme->install_device(vme_device::A16_SC, base + 0, base + 1, // Channel B - Data
-						  read8_delegate(FUNC(z80sio_device::db_r),  subdevice<z80sio_device>("sio0")),
-						  write8_delegate(FUNC(z80sio_device::db_w), subdevice<z80sio_device>("sio0")), 0x00ff);
+			read8smo_delegate(*subdevice<z80sio_device>("sio0"), FUNC(z80sio_device::db_r)),
+			write8smo_delegate(*subdevice<z80sio_device>("sio0"), FUNC(z80sio_device::db_w)), 0x00ff);
 	m_vme->install_device(vme_device::A16_SC, base + 2, base + 3, // Channel B - Control
-						  read8_delegate(FUNC(z80sio_device::cb_r),  subdevice<z80sio_device>("sio0")),
-						  write8_delegate(FUNC(z80sio_device::cb_w), subdevice<z80sio_device>("sio0")), 0x00ff);
+			read8smo_delegate(*subdevice<z80sio_device>("sio0"), FUNC(z80sio_device::cb_r)),
+			write8smo_delegate(*subdevice<z80sio_device>("sio0"), FUNC(z80sio_device::cb_w)), 0x00ff);
 	m_vme->install_device(vme_device::A16_SC, base + 4, base + 5, // Channel A - Data
-						  read8_delegate(FUNC(z80sio_device::da_r),  subdevice<z80sio_device>("sio0")),
-						  write8_delegate(FUNC(z80sio_device::da_w), subdevice<z80sio_device>("sio0")), 0x00ff);
+			read8smo_delegate(*subdevice<z80sio_device>("sio0"), FUNC(z80sio_device::da_r)),
+			write8smo_delegate(*subdevice<z80sio_device>("sio0"), FUNC(z80sio_device::da_w)), 0x00ff);
 	m_vme->install_device(vme_device::A16_SC, base + 6, base + 7, // Channel A - Control
-						  read8_delegate(FUNC(z80sio_device::ca_r),  subdevice<z80sio_device>("sio0")),
-						  write8_delegate(FUNC(z80sio_device::ca_w), subdevice<z80sio_device>("sio0")), 0x00ff);
+			read8smo_delegate(*subdevice<z80sio_device>("sio0"), FUNC(z80sio_device::ca_r)),
+			write8smo_delegate(*subdevice<z80sio_device>("sio0"), FUNC(z80sio_device::ca_w)), 0x00ff);
+	m_vme->install_device(vme_device::A16_SC, base + 0x10, base + 0x13, // Am9513
+			read8sm_delegate(*subdevice<am9513_device>("stc"), FUNC(am9513_device::read8)),
+			write8sm_delegate(*subdevice<am9513_device>("stc"), FUNC(am9513_device::write8)), 0x00ff);
 }
 
 void vme_mzr8300_card_device::device_reset()

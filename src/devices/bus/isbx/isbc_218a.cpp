@@ -22,7 +22,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type ISBC_218A = device_creator<isbc_218a_device>;
+DEFINE_DEVICE_TYPE(ISBC_218A, isbc_218a_device, "isbc_218a", "ISBX 218a for ISBC")
 
 
 //-------------------------------------------------
@@ -43,34 +43,24 @@ FLOPPY_FORMATS_MEMBER( isbc_218a_device::floppy_formats )
 	FLOPPY_PC_FORMAT
 FLOPPY_FORMATS_END
 
-static SLOT_INTERFACE_START( isbc_218a_floppies )
-	SLOT_INTERFACE( "8dd", FLOPPY_8_DSDD )
-	SLOT_INTERFACE( "525dd", FLOPPY_525_DD )
-SLOT_INTERFACE_END
-
-
-//-------------------------------------------------
-//  MACHINE_DRIVER( isbc_218a )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( isbc_218a )
-	MCFG_I8272A_ADD(I8272_TAG, true)
-	MCFG_UPD765_INTRQ_CALLBACK(WRITELINE(isbc_218a_device, fdc_irq))
-	MCFG_UPD765_DRQ_CALLBACK(WRITELINE(isbc_218a_device, fdc_drq))
-	MCFG_FLOPPY_DRIVE_ADD(I8272_TAG":0", isbc_218a_floppies, "525dd", isbc_218a_device::floppy_formats)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor isbc_218a_device::device_mconfig_additions() const
+static void isbc_218a_floppies(device_slot_interface &device)
 {
-	return MACHINE_CONFIG_NAME( isbc_218a );
+	device.option_add("8dd", FLOPPY_8_DSDD);
+	device.option_add("525dd", FLOPPY_525_DD);
 }
 
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void isbc_218a_device::device_add_mconfig(machine_config &config)
+{
+	I8272A(config, m_fdc, 8_MHz_XTAL, true);
+	m_fdc->intrq_wr_callback().set(FUNC(isbc_218a_device::fdc_irq));
+	m_fdc->drq_wr_callback().set(FUNC(isbc_218a_device::fdc_drq));
+	FLOPPY_CONNECTOR(config, m_floppy0, isbc_218a_floppies, "525dd", isbc_218a_device::floppy_formats);
+}
 
 
 //**************************************************************************
@@ -82,7 +72,7 @@ machine_config_constructor isbc_218a_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 isbc_218a_device::isbc_218a_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, ISBC_218A, "ISBX 218a for ISBC", tag, owner, clock, "isbc_218a", __FILE__),
+	device_t(mconfig, ISBC_218A, tag, owner, clock),
 	device_isbx_card_interface(mconfig, *this),
 	m_fdc(*this, I8272_TAG),
 	m_floppy0(*this, I8272_TAG":0"), m_reset(false), m_motor(false)
@@ -121,14 +111,14 @@ void isbc_218a_device::device_reset()
 //  mcs0_r - chip select 0 read
 //-------------------------------------------------
 
-uint8_t isbc_218a_device::mcs0_r(address_space &space, offs_t offset)
+uint8_t isbc_218a_device::mcs0_r(offs_t offset)
 {
 	uint8_t data = 0xff;
 
 	switch (BIT(offset, 0))
 	{
-	case 0: data = m_fdc->msr_r(space, 0); break;
-	case 1: data = m_fdc->fifo_r(space, 0); break;
+	case 0: data = m_fdc->msr_r(); break;
+	case 1: data = m_fdc->fifo_r(); break;
 	}
 
 	return data;
@@ -139,11 +129,11 @@ uint8_t isbc_218a_device::mcs0_r(address_space &space, offs_t offset)
 //  mcs0_w - chip select 0 write
 //-------------------------------------------------
 
-void isbc_218a_device::mcs0_w(address_space &space, offs_t offset, uint8_t data)
+void isbc_218a_device::mcs0_w(offs_t offset, uint8_t data)
 {
 	switch (BIT(offset, 0))
 	{
-	case 1: m_fdc->fifo_w(space, 0, data); break;
+	case 1: m_fdc->fifo_w(data); break;
 	}
 }
 
@@ -152,7 +142,7 @@ void isbc_218a_device::mcs0_w(address_space &space, offs_t offset, uint8_t data)
 //  mcs1_r - chip select 1 read
 //-------------------------------------------------
 
-uint8_t isbc_218a_device::mcs1_r(address_space &space, offs_t offset)
+uint8_t isbc_218a_device::mcs1_r(offs_t offset)
 {
 	uint8_t data = 0xff;
 
@@ -169,7 +159,7 @@ uint8_t isbc_218a_device::mcs1_r(address_space &space, offs_t offset)
 //  mcs1_w - chip select 1 write
 //-------------------------------------------------
 
-void isbc_218a_device::mcs1_w(address_space &space, offs_t offset, uint8_t data)
+void isbc_218a_device::mcs1_w(offs_t offset, uint8_t data)
 {
 	switch (offset)
 	{
@@ -192,7 +182,7 @@ void isbc_218a_device::mcs1_w(address_space &space, offs_t offset, uint8_t data)
 //  mdack_r - DMA acknowledge read
 //-------------------------------------------------
 
-uint8_t isbc_218a_device::mdack_r(address_space &space, offs_t offset)
+uint8_t isbc_218a_device::mdack_r(offs_t offset)
 {
 	return m_fdc->dma_r();
 }
@@ -202,7 +192,7 @@ uint8_t isbc_218a_device::mdack_r(address_space &space, offs_t offset)
 //  mdack_w - DMA acknowledge write
 //-------------------------------------------------
 
-void isbc_218a_device::mdack_w(address_space &space, offs_t offset, uint8_t data)
+void isbc_218a_device::mdack_w(offs_t offset, uint8_t data)
 {
 	m_fdc->dma_w(data);
 }

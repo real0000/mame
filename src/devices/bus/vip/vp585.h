@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_VIP_VP585_H
+#define MAME_BUS_VIP_VP585_H
 
-#ifndef __VP585__
-#define __VP585__
+#pragma once
 
 #include "exp.h"
 
@@ -36,7 +36,7 @@ protected:
 	virtual void device_start() override;
 
 	// device_vip_expansion_card_interface overrides
-	virtual void vip_io_w(address_space &space, offs_t offset, uint8_t data) override;
+	virtual void vip_io_w(offs_t offset, uint8_t data) override;
 	virtual int vip_ef3_r() override;
 	virtual int vip_ef4_r() override;
 
@@ -49,7 +49,6 @@ private:
 
 
 // device type definition
-extern const device_type VP585;
+DECLARE_DEVICE_TYPE(VP585, vp585_device)
 
-
-#endif
+#endif // MAME_BUS_VIP_VP585_H

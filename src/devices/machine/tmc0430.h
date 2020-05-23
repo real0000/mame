@@ -3,22 +3,20 @@
 /***************************************************************************
 
     GROM emulation
-    See grom.c for documentation,
+    See tmc0430.cpp for documentation,
 
     Michael Zapf
 
     February 2012: Rewritten as class
 
 ***************************************************************************/
-#ifndef __TMC0430__
-#define __TMC0430__
 
-extern const device_type TMC0430;
+#ifndef MAME_MACHINE_TMC0430_H
+#define MAME_MACHINE_TMC0430_H
 
-#ifndef READ8Z_MEMBER
-#define DECLARE_READ8Z_MEMBER(name)     void name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED uint8_t *value, ATTR_UNUSED uint8_t mem_mask = 0xff)
-#define READ8Z_MEMBER(name)             void name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED uint8_t *value, ATTR_UNUSED uint8_t mem_mask)
-#endif
+#pragma once
+
+DECLARE_DEVICE_TYPE(TMC0430, tmc0430_device)
 
 enum
 {
@@ -29,26 +27,30 @@ enum
 class tmc0430_device : public device_t
 {
 public:
+	tmc0430_device(const machine_config &mconfig, const char *tag, device_t *owner, const char *regionname, int offset, int ident) :
+		tmc0430_device(mconfig, tag, owner, 0)
+	{
+		set_region_and_ident(regionname, offset, ident);
+	}
+
 	tmc0430_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_ready_wr_callback(device_t &device, _Object object) { return downcast<tmc0430_device &>(device).m_gromready.set_callback(object); }
+	auto ready_cb() { return m_gromready.bind(); }
 
-	DECLARE_READ8Z_MEMBER(readz);
-	DECLARE_WRITE8_MEMBER(write);
+	void readz(uint8_t *value);
+	void write(uint8_t data);
+	void set_lines(line_state mline, line_state moline, line_state gsq);
 
 	DECLARE_WRITE_LINE_MEMBER(m_line);
 	DECLARE_WRITE_LINE_MEMBER(mo_line);
 	DECLARE_WRITE_LINE_MEMBER(gsq_line);
-
 	DECLARE_WRITE_LINE_MEMBER(gclock_in);
 
-	DECLARE_WRITE8_MEMBER( set_lines );
-
-	static void set_region_and_ident(device_t &device, const char *regionname, int offset, int ident)
+	void set_region_and_ident(const char *regionname, int offset, int ident)
 	{
-		downcast<tmc0430_device &>(device).m_regionname = regionname;
-		downcast<tmc0430_device &>(device).m_offset = offset;
-		downcast<tmc0430_device &>(device).m_ident = ident<<13;
+		m_regionname = regionname;
+		m_offset = offset;
+		m_ident = ident<<13;
 	}
 
 	int debug_get_address();
@@ -57,8 +59,8 @@ public:
 	bool idle() { return (m_phase == 0 && m_current_clock_level==CLEAR_LINE); }
 
 protected:
-	void device_start(void) override;
-	void device_reset(void) override;
+	void device_start() override;
+	void device_reset() override;
 
 private:
 	// Ready callback. This line is usually connected to the READY pin of the CPU.
@@ -106,9 +108,4 @@ private:
 	uint8_t *m_memptr;
 };
 
-#define MCFG_GROM_ADD(_tag, _ident, _region, _offset, _ready)    \
-	MCFG_DEVICE_ADD(_tag, TMC0430, 0)  \
-	tmc0430_device::set_region_and_ident(*device, _region, _offset, _ident); \
-	tmc0430_device::set_ready_wr_callback(*device, DEVCB_##_ready);
-
-#endif
+#endif // MAME_MACHINE_TMC0430_H

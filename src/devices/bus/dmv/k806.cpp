@@ -1,5 +1,6 @@
 // license:BSD-3-Clause
 // copyright-holders:Sandro Ronco
+// thanks-to:rfka01
 /***************************************************************************
 
     K806 Mouse module
@@ -18,19 +19,6 @@ ROM_START( dmv_k806 )
 	ROM_REGION( 0x0400, "mcu", 0 )
 	ROM_LOAD( "dmv_mouse_8741a.bin", 0x0000, 0x0400, CRC(2163737a) SHA1(b82c14dba6c25cb1f60cf623989ca8c0c1ee4cc3))
 ROM_END
-
-static ADDRESS_MAP_START( k806_io, AS_IO, 8, dmv_k806_device )
-	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_READ(port1_r)
-	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_WRITE(port2_w)
-	AM_RANGE(MCS48_PORT_T1, MCS48_PORT_T1) AM_READ(portt1_r)
-ADDRESS_MAP_END
-
-static MACHINE_CONFIG_FRAGMENT( dmv_k806 )
-	MCFG_CPU_ADD("mcu", I8741, XTAL_6MHz)
-	MCFG_CPU_IO_MAP(k806_io)
-
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("mouse_timer", dmv_k806_device, mouse_timer, attotime::from_hz(1000))
-MACHINE_CONFIG_END
 
 static INPUT_PORTS_START( dmv_k806 )
 	PORT_START("JUMPERS")
@@ -65,7 +53,7 @@ INPUT_PORTS_END
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type DMV_K806 = device_creator<dmv_k806_device>;
+DEFINE_DEVICE_TYPE(DMV_K806, dmv_k806_device, "dmv_k806", "K806 mouse")
 
 //**************************************************************************
 //  LIVE DEVICE
@@ -76,14 +64,14 @@ const device_type DMV_K806 = device_creator<dmv_k806_device>;
 //-------------------------------------------------
 
 dmv_k806_device::dmv_k806_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-		: device_t(mconfig, DMV_K806, "K806 mouse", tag, owner, clock, "dmv_k806", __FILE__),
-		device_dmvslot_interface( mconfig, *this ),
-		m_mcu(*this, "mcu"),
-		m_jumpers(*this, "JUMPERS"),
-		m_mouse_buttons(*this, "MOUSE"),
-		m_mouse_x(*this, "MOUSEX"),
-		m_mouse_y(*this, "MOUSEY"), m_bus(nullptr)
-	{
+	: device_t(mconfig, DMV_K806, tag, owner, clock)
+	, device_dmvslot_interface( mconfig, *this )
+	, m_mcu(*this, "mcu")
+	, m_jumpers(*this, "JUMPERS")
+	, m_mouse_buttons(*this, "MOUSE")
+	, m_mouse_x(*this, "MOUSEX")
+	, m_mouse_y(*this, "MOUSEY")
+{
 }
 
 //-------------------------------------------------
@@ -92,7 +80,16 @@ dmv_k806_device::dmv_k806_device(const machine_config &mconfig, const char *tag,
 
 void dmv_k806_device::device_start()
 {
-	m_bus = static_cast<dmvcart_slot_device*>(owner());
+	// register for state saving
+	save_item(NAME(m_mouse.phase));
+	save_item(NAME(m_mouse.x));
+	save_item(NAME(m_mouse.y));
+	save_item(NAME(m_mouse.prev_x));
+	save_item(NAME(m_mouse.prev_y));
+	save_item(NAME(m_mouse.xa));
+	save_item(NAME(m_mouse.xb));
+	save_item(NAME(m_mouse.ya));
+	save_item(NAME(m_mouse.yb));
 }
 
 //-------------------------------------------------
@@ -109,13 +106,17 @@ void dmv_k806_device::device_reset()
 }
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor dmv_k806_device::device_mconfig_additions() const
+void dmv_k806_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( dmv_k806 );
+	I8741A(config, m_mcu, XTAL(6'000'000));
+	m_mcu->p1_in_cb().set(FUNC(dmv_k806_device::port1_r));
+	m_mcu->p2_out_cb().set(FUNC(dmv_k806_device::port2_w));
+	m_mcu->t1_in_cb().set(FUNC(dmv_k806_device::portt1_r));
+
+	TIMER(config, "mouse_timer", 0).configure_periodic(FUNC(dmv_k806_device::mouse_timer), attotime::from_hz(1000));
 }
 
 //-------------------------------------------------
@@ -136,24 +137,24 @@ const tiny_rom_entry *dmv_k806_device::device_rom_region() const
 	return ROM_NAME( dmv_k806 );
 }
 
-void dmv_k806_device::io_read(address_space &space, int ifsel, offs_t offset, uint8_t &data)
+void dmv_k806_device::io_read(int ifsel, offs_t offset, uint8_t &data)
 {
 	uint8_t jumpers = m_jumpers->read();
 	if (BIT(jumpers, ifsel) && ((!BIT(offset, 3) && BIT(jumpers, 5)) || (BIT(offset, 3) && BIT(jumpers, 6))))
-		data = m_mcu->upi41_master_r(space, offset & 1);
+		data = m_mcu->upi41_master_r(offset & 1);
 }
 
-void dmv_k806_device::io_write(address_space &space, int ifsel, offs_t offset, uint8_t data)
+void dmv_k806_device::io_write(int ifsel, offs_t offset, uint8_t data)
 {
 	uint8_t jumpers = m_jumpers->read();
 	if (BIT(jumpers, ifsel) && ((!BIT(offset, 3) && BIT(jumpers, 5)) || (BIT(offset, 3) && BIT(jumpers, 6))))
 	{
-		m_mcu->upi41_master_w(space, offset & 1, data);
-		m_bus->m_out_int_cb(CLEAR_LINE);
+		m_mcu->upi41_master_w(offset & 1, data);
+		out_int(CLEAR_LINE);
 	}
 }
 
-READ8_MEMBER( dmv_k806_device::port1_r )
+uint8_t dmv_k806_device::port1_r()
 {
 	// ---- ---x   Left button
 	// ---- --x-   Middle button
@@ -174,14 +175,14 @@ READ8_MEMBER( dmv_k806_device::port1_r )
 	return data;
 }
 
-READ8_MEMBER( dmv_k806_device::portt1_r )
+READ_LINE_MEMBER( dmv_k806_device::portt1_r )
 {
 	return BIT(m_jumpers->read(), 7) ? 0 : 1;
 }
 
-WRITE8_MEMBER( dmv_k806_device::port2_w )
+void dmv_k806_device::port2_w(uint8_t data)
 {
-	m_bus->m_out_int_cb((data & 1) ? CLEAR_LINE : ASSERT_LINE);
+	out_int((data & 1) ? CLEAR_LINE : ASSERT_LINE);
 }
 
 /*-------------------------------------------------------------------

@@ -2,12 +2,12 @@
 // copyright-holders:Robbbert
 /*****************************************************************************
 
-Super80.c written by Robbbert, 2005-2010.
+Super80.cpp written by Robbbert, 2005-2010.
 
 2010-12-19: Added V3.7 bios freshly dumped today.
 2014-04-28: Added disk system and did cleanups
 
-See the MESS sysinfo and wiki for usage
+See the MAME sysinfo and wiki for usage
 documentation. Below for the most technical bits:
 
 = Architecture (super80):
@@ -71,8 +71,7 @@ documentation. Below for the most technical bits:
 
 = Cassette information:
 
-The standard cassette system uses sequences of 1200 Hz and 2400 Hz to represent a 0 or a 1 respectivly.
-This is identical to the Exidy Sorcerer and the Microbee. Data rates available are 300, 400, 600, and 1200 baud.
+The standard cassette system uses Kansas City format. Data rates available are 300, 400, 600, and 1200 baud.
 The user has to adjust some bytes in memory in order to select a different baud rate.
 
   BDF8  BDF9    Baud
@@ -109,13 +108,13 @@ then reset ready for the next wave state. The code for this is in the TIMER_CALL
 A kit was produced by ETI magazine, which plugged into the line from your cassette player earphone
 socket. The computer line was plugged into this box instead of the cassette player. The box was
 fitted with a speaker and a volume control. You could listen to the tones, to assist with head
-alignment, and with debugging. In MESS, a config switch has been provided so that you can turn
+alignment, and with debugging. In MAME, a config switch has been provided so that you can turn
 this sound on or off as needed.
 
 = About the 1 MHz / 2 MHz switching:
 
 The original hardware runs with a 2 MHz clock, but operates in an unusual way. There is no video
-processor chip, just a huge bunch of TTL chips. The system spends half the time running the CPU,
+processor chip, just a huge bunch of TTL. The system spends half the time running the CPU,
 and half the time displaying the picture. The timing will activate the BUSREQ line, and the CPU will
 finish its current instruction, activate the BUSACK line, and go to sleep. The video circuits will
 read the video RAM and show the picture. At the end, the BUSREQ line is released, and processing can
@@ -131,14 +130,11 @@ a loud hum. When loading, the synchronisation to the start bit could be missed, 
 Therefore the screen can be turned off via an output bit. This disables the BUSREQ control, which
 in turn prevents screen refresh, and gives the processor a full uninterrupted 2 MHz speed.
 
-MAME does not emulate BUSREQ or BUSACK. Further, a real system would display a blank screen by not
-updating the video. In MAME, the display continues to show. It just doesn't update.
-
 To obtain accurate timing, the video update routine will toggle the HALT line on alternate frames.
 Although physically incorrect, it is the only way to accurately emulate the speed change function.
 The video update routine emulates the blank screen by filling it with spaces.
 
-For the benefit of those who like to experiment, config switches have been provided in MESS to
+For the benefit of those who like to experiment, config switches have been provided in MAME to
 allow you to leave the screen on at all times, and to always run at 2 MHz if desired. These options
 cannot exist in real hardware.
 
@@ -154,15 +150,15 @@ speedwise and accuracy-wise.
 
 The modified rom had the autorun option built in. Autorun was never available for cassettes.
 
-In MESS, the same file format is used - I can transfer files between MESS and the 386 seamlessly.
-MESS has one difference - the program simply appears in memory without the processor being aware
+In MAME, the same file format is used - I can transfer files between MAME and the 386 seamlessly.
+MAME has one difference - the program simply appears in memory without the processor being aware
 of it. To accomplish autorun therefore requires that the processor pc register be set to the start
 address of the program. BASIC programs may need some preprocessing before they can be started. This
 is not necessary on a Super-80 or a Microbee, but is needed on any system running Microsoft BASIC,
 such as the Exidy Sorcerer or the VZ-200.
 
-In MESS, quickload is available for all Super80 variants (otherwise you would not have any games
-to play). MESS features a config switch so the user can turn autorun on or off as desired.
+In MAME, quickload is available for all Super80 variants (otherwise you would not have any games
+to play). MAME features a config switch so the user can turn autorun on or off as desired.
 
 
 = Start of Day circuit:
@@ -176,11 +172,6 @@ causes C000 to FFFF to appear at 0000 to 3FFF. This will be reset (back to norma
 are high, and /M1 is active. This particular combination occurs on all ROM variants, when reading the
 fifth byte in the ROM. In reality, the switchover can take place any time between the 4th byte until
 the computer has booted up. This is because the low RAM does not contain any system areas.
-
-Since MAME does not emulate /M1, a banking scheme has had to be used. Bank 0 is normal RAM. Bank 1
-points to the ROMs. When a machine reset occurs, bank 1 is switched in. A timer is triggered, and
-after 4 bytes are read, bank 0 is selected. The timer is as close as can be to real operation of the
-hardware.
 
 
 Super80 disk WD2793, Z80DMA:
@@ -211,7 +202,6 @@ Port(hex)  Role       Comment
 ToDo:
 - Fix Paste: Shift operates randomly (only super80m is suitable, the others drop characters because
        of the horrible inline editor they use)
-- Get disk system to work (no disk images available) only connected to super80r atm
 
 
 ***********************************************************************************************************/
@@ -226,7 +216,7 @@ ToDo:
 #include "super80.lh"
 
 
-#define MASTER_CLOCK    (XTAL_12MHz)
+#define MASTER_CLOCK    (12_MHz_XTAL)
 #define PIXEL_CLOCK (MASTER_CLOCK/2)
 #define HTOTAL      (384)
 #define HBEND       (0)
@@ -242,83 +232,75 @@ ToDo:
 
 /**************************** MEMORY AND I/O MAPPINGS *****************************************************************/
 
-/* A read_byte or write_byte to unmapped memory crashes MESS, and UNMAP doesnt fix it.
-    This makes the H and E monitor commands show FF */
-READ8_MEMBER( super80_state::super80_read_ff ) { return 0xff; }
+void super80_state::super80_map(address_map &map)
+{
+	map(0x0000, 0xbfff).ram().share("mainram");
+	map(0xc000, 0xefff).rom().region("maincpu", 0).nopw();
+	map(0xf000, 0xffff).lr8(NAME([] () { return 0xff; })).nopw();
+}
 
-static ADDRESS_MAP_START( super80_map, AS_PROGRAM, 8, super80_state )
-	AM_RANGE(0x0000, 0x3fff) AM_RAMBANK("boot") AM_REGION("maincpu", 0x0000)
-	AM_RANGE(0x4000, 0xbfff) AM_RAM AM_REGION("maincpu", 0x4000)
-	AM_RANGE(0xc000, 0xefff) AM_ROM
-	AM_RANGE(0xf000, 0xffff) AM_READ(super80_read_ff) AM_WRITENOP
-ADDRESS_MAP_END
+void super80_state::super80m_map(address_map &map)
+{
+	map(0x0000, 0xffff).ram().share("mainram");
+	map(0xc000, 0xefff).rom().region("maincpu", 0).nopw();
+}
 
-static ADDRESS_MAP_START( super80m_map, AS_PROGRAM, 8, super80_state )
-	AM_RANGE(0x0000, 0x3fff) AM_RAMBANK("boot") AM_REGION("maincpu", 0x0000)
-	AM_RANGE(0x4000, 0xbfff) AM_RAM AM_REGION("maincpu", 0x4000)
-	AM_RANGE(0xc000, 0xefff) AM_ROM
-	AM_RANGE(0xf000, 0xffff) AM_RAM AM_REGION("maincpu", 0xf000)
-ADDRESS_MAP_END
+void super80v_state::super80v_map(address_map &map)
+{
+	map(0x0000, 0xbfff).ram().share("mainram");
+	map(0xc000, 0xefff).rom().region("maincpu", 0).nopw();
+	map(0xf000, 0xf7ff).rw(FUNC(super80v_state::low_r),  FUNC(super80v_state::low_w));
+	map(0xf800, 0xffff).rw(FUNC(super80v_state::high_r), FUNC(super80v_state::high_w));
+}
 
-static ADDRESS_MAP_START( super80v_map, AS_PROGRAM, 8, super80_state)
-	AM_RANGE(0x0000, 0x3fff) AM_RAMBANK("boot")
-	AM_RANGE(0x4000, 0xbfff) AM_RAM
-	AM_RANGE(0xc000, 0xefff) AM_ROM
-	AM_RANGE(0xf000, 0xf7ff) AM_READWRITE(super80v_low_r, super80v_low_w)
-	AM_RANGE(0xf800, 0xffff) AM_READWRITE(super80v_high_r, super80v_high_w)
-ADDRESS_MAP_END
+void super80r_state::super80r_map(address_map &map)
+{
+	super80v_map(map);
+	map(0xf000, 0xf7ff).rw(FUNC(super80r_state::low_r),  FUNC(super80r_state::low_w));
+	map(0xf800, 0xffff).rw(FUNC(super80r_state::high_r), FUNC(super80r_state::high_w));
+}
 
-static ADDRESS_MAP_START( super80_io, AS_IO, 8, super80_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0xdc, 0xdc) AM_DEVREAD("cent_status_in", input_buffer_device, read)
-	AM_RANGE(0xdc, 0xdc) AM_WRITE(super80_dc_w)
-	AM_RANGE(0xe0, 0xe0) AM_MIRROR(0x14) AM_WRITE(super80_f0_w)
-	AM_RANGE(0xe1, 0xe1) AM_MIRROR(0x14) AM_WRITE(super80_f1_w)
-	AM_RANGE(0xe2, 0xe2) AM_MIRROR(0x14) AM_READ(super80_f2_r)
-	AM_RANGE(0xf8, 0xfb) AM_MIRROR(0x04) AM_DEVREADWRITE("z80pio", z80pio_device, read_alt, write_alt)
-ADDRESS_MAP_END
+void super80_state::super80_io(address_map &map)
+{
+	map.global_mask(0xff);
+	map.unmap_value_high();
+	map(0xdc, 0xdc).r("cent_status_in", FUNC(input_buffer_device::read));
+	map(0xdc, 0xdc).w(FUNC(super80_state::portdc_w));
+	map(0xe0, 0xe0).mirror(0x14).w(FUNC(super80_state::portf0_w));
+	map(0xe1, 0xe1).mirror(0x14).w(FUNC(super80_state::portf1_w));
+	map(0xe2, 0xe2).mirror(0x14).r(FUNC(super80_state::portf2_r));
+	map(0xf8, 0xfb).mirror(0x04).rw(m_pio, FUNC(z80pio_device::read_alt), FUNC(z80pio_device::write_alt));
+}
 
-static ADDRESS_MAP_START( super80e_io, AS_IO, 8, super80_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0xbc, 0xbc) AM_DEVREAD("cent_status_in", input_buffer_device, read)
-	AM_RANGE(0xbc, 0xbc) AM_WRITE(super80_dc_w)
-	AM_RANGE(0xe0, 0xe0) AM_MIRROR(0x14) AM_WRITE(super80_f0_w)
-	AM_RANGE(0xe1, 0xe1) AM_MIRROR(0x14) AM_WRITE(super80_f1_w)
-	AM_RANGE(0xe2, 0xe2) AM_MIRROR(0x14) AM_READ(super80_f2_r)
-	AM_RANGE(0xf8, 0xfb) AM_MIRROR(0x04) AM_DEVREADWRITE("z80pio", z80pio_device, read_alt, write_alt)
-ADDRESS_MAP_END
+void super80_state::super80e_io(address_map &map)
+{
+	map.global_mask(0xff);
+	map.unmap_value_high();
+	map(0xbc, 0xbc).r("cent_status_in", FUNC(input_buffer_device::read));
+	map(0xbc, 0xbc).w(FUNC(super80_state::portdc_w));
+	map(0xe0, 0xe0).mirror(0x14).w(FUNC(super80_state::portf0_w));
+	map(0xe1, 0xe1).mirror(0x14).w(FUNC(super80_state::portf1_w));
+	map(0xe2, 0xe2).mirror(0x14).r(FUNC(super80_state::portf2_r));
+	map(0xf8, 0xfb).mirror(0x04).rw(m_pio, FUNC(z80pio_device::read_alt), FUNC(z80pio_device::write_alt));
+}
 
-static ADDRESS_MAP_START( super80r_io, AS_IO, 8, super80_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x10, 0x10) AM_WRITE(super80v_10_w)
-	AM_RANGE(0x11, 0x11) AM_DEVREAD("crtc", mc6845_device, register_r)
-	AM_RANGE(0x11, 0x11) AM_WRITE(super80v_11_w)
-	AM_RANGE(0x30, 0x30) AM_DEVREADWRITE("dma", z80dma_device, read, write)
-	AM_RANGE(0x38, 0x3b) AM_DEVREADWRITE("fdc", wd2793_t, read, write)
-	AM_RANGE(0x3e, 0x3e) AM_READ(port3e_r)
-	AM_RANGE(0x3f, 0x3f) AM_WRITE(port3f_w)
-	AM_RANGE(0xdc, 0xdc) AM_DEVREAD("cent_status_in", input_buffer_device, read)
-	AM_RANGE(0xdc, 0xdc) AM_WRITE(super80_dc_w)
-	AM_RANGE(0xe0, 0xe0) AM_MIRROR(0x14) AM_WRITE(super80r_f0_w)
-	AM_RANGE(0xe2, 0xe2) AM_MIRROR(0x14) AM_READ(super80_f2_r)
-	AM_RANGE(0xf8, 0xfb) AM_MIRROR(0x04) AM_DEVREADWRITE("z80pio", z80pio_device, read_alt, write_alt)
-ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( super80v_io, AS_IO, 8, super80_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x10, 0x10) AM_WRITE(super80v_10_w)
-	AM_RANGE(0x11, 0x11) AM_DEVREAD("crtc", mc6845_device, register_r)
-	AM_RANGE(0x11, 0x11) AM_WRITE(super80v_11_w)
-	AM_RANGE(0xdc, 0xdc) AM_DEVREAD("cent_status_in", input_buffer_device, read)
-	AM_RANGE(0xdc, 0xdc) AM_WRITE(super80_dc_w)
-	AM_RANGE(0xe0, 0xe0) AM_MIRROR(0x14) AM_WRITE(super80_f0_w)
-	AM_RANGE(0xe2, 0xe2) AM_MIRROR(0x14) AM_READ(super80_f2_r)
-	AM_RANGE(0xf8, 0xfb) AM_MIRROR(0x04) AM_DEVREADWRITE("z80pio", z80pio_device, read_alt, write_alt)
-ADDRESS_MAP_END
+void super80v_state::super80v_io(address_map &map)
+{
+	map.global_mask(0xff);
+	map.unmap_value_high();
+	map(0x10, 0x10).rw(m_crtc, FUNC(mc6845_device::status_r), FUNC(mc6845_device::address_w));
+	map(0x11, 0x11).rw(m_crtc, FUNC(mc6845_device::register_r), FUNC(mc6845_device::register_w));
+	map(0x30, 0x30).rw(m_dma, FUNC(z80dma_device::read), FUNC(z80dma_device::write));
+	map(0x38, 0x3b).rw(m_fdc, FUNC(wd2793_device::read), FUNC(wd2793_device::write));
+	map(0x3e, 0x3e).r(FUNC(super80v_state::port3e_r));
+	map(0x3f, 0x3f).w(FUNC(super80v_state::port3f_w));
+	map(0xdc, 0xdc).r("cent_status_in", FUNC(input_buffer_device::read));
+	map(0xdc, 0xdc).w(FUNC(super80v_state::portdc_w));
+	map(0xe0, 0xe0).mirror(0x14).w(FUNC(super80v_state::portf0_w));
+	map(0xe2, 0xe2).mirror(0x14).r(FUNC(super80v_state::portf2_r));
+	map(0xf8, 0xfb).mirror(0x04).rw(m_pio, FUNC(z80pio_device::read_alt), FUNC(z80pio_device::write_alt));
+}
 
 /**************************** DIPSWITCHES, KEYBOARD, HARDWARE CONFIGURATION ****************************************/
 
@@ -599,7 +581,7 @@ static const gfx_layout super80e_charlayout =
 static const gfx_layout super80v_charlayout =
 {
 	8,16,                   /* 8 x 16 characters */
-	256,                    /* 256 characters */
+	128,                    /* 128 characters */
 	1,                  /* 1 bits per pixel */
 	{ 0 },                  /* no bitplanes */
 	/* x offsets */
@@ -609,26 +591,25 @@ static const gfx_layout super80v_charlayout =
 	8*16                    /* every char takes 16 bytes */
 };
 
-static GFXDECODE_START( super80 )
+static GFXDECODE_START( gfx_super80 )
 	GFXDECODE_ENTRY( "chargen", 0x0000, super80_charlayout, 16, 1 )
 GFXDECODE_END
 
-static GFXDECODE_START( super80d )
+static GFXDECODE_START( gfx_super80d )
 	GFXDECODE_ENTRY( "chargen", 0x0000, super80d_charlayout, 16, 1 )
 GFXDECODE_END
 
-static GFXDECODE_START( super80e )
+static GFXDECODE_START( gfx_super80e )
 	GFXDECODE_ENTRY( "chargen", 0x0000, super80e_charlayout, 16, 1 )
 GFXDECODE_END
 
-static GFXDECODE_START( super80m )
+static GFXDECODE_START( gfx_super80m )
 	GFXDECODE_ENTRY( "chargen", 0x0000, super80e_charlayout, 2, 6 )
 	GFXDECODE_ENTRY( "chargen", 0x1000, super80d_charlayout, 2, 6 )
 GFXDECODE_END
 
-/* This will show the 128 characters in the ROM + whatever happens to be in the PCG */
-static GFXDECODE_START( super80v )
-	GFXDECODE_ENTRY( "maincpu", 0xf000, super80v_charlayout, 2, 6 )
+static GFXDECODE_START( gfx_super80v )
+	GFXDECODE_ENTRY( "chargen", 0x0000, super80v_charlayout, 2, 6 )
 GFXDECODE_END
 
 
@@ -646,41 +627,42 @@ static const z80_daisy_config super80_daisy_chain[] =
 //  Z80DMA
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( super80_state::busreq_w )
+WRITE_LINE_MEMBER( super80v_state::busreq_w )
 {
 // since our Z80 has no support for BUSACK, we assume it is granted immediately
 	m_maincpu->set_input_line(Z80_INPUT_LINE_BUSRQ, state);
-	m_maincpu->set_input_line(INPUT_LINE_HALT, state); // do we need this?
+	m_maincpu->set_input_line(INPUT_LINE_HALT, state);
 	m_dma->bai_w(state); // tell dma that bus has been granted
 }
 
-READ8_MEMBER(super80_state::memory_read_byte)
+uint8_t super80v_state::memory_read_byte(offs_t offset)
 {
 	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
 	return prog_space.read_byte(offset);
 }
 
-WRITE8_MEMBER(super80_state::memory_write_byte)
+void super80v_state::memory_write_byte(offs_t offset, uint8_t data)
 {
 	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
 	prog_space.write_byte(offset, data);
 }
 
-READ8_MEMBER(super80_state::io_read_byte)
+uint8_t super80v_state::io_read_byte(offs_t offset)
 {
 	address_space& prog_space = m_maincpu->space(AS_IO);
 	return prog_space.read_byte(offset);
 }
 
-WRITE8_MEMBER(super80_state::io_write_byte)
+void super80v_state::io_write_byte(offs_t offset, uint8_t data)
 {
 	address_space& prog_space = m_maincpu->space(AS_IO);
 	prog_space.write_byte(offset, data);
 }
 
-static SLOT_INTERFACE_START( super80_floppies )
-	SLOT_INTERFACE( "525dd", FLOPPY_525_DD )
-SLOT_INTERFACE_END
+static void super80_floppies(device_slot_interface &device)
+{
+	device.option_add("s80flop", FLOPPY_525_QD);
+}
 
 
 static const char *const relay_sample_names[] =
@@ -692,259 +674,275 @@ static const char *const relay_sample_names[] =
 };
 
 
-static MACHINE_CONFIG_START( super80, super80_state )
+void super80_state::super80(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, MASTER_CLOCK/6)        /* 2 MHz */
-	MCFG_CPU_PROGRAM_MAP(super80_map)
-	MCFG_CPU_IO_MAP(super80_io)
-	MCFG_Z80_DAISY_CHAIN(super80_daisy_chain)
-	MCFG_MACHINE_RESET_OVERRIDE(super80_state, super80)
+	Z80(config, m_maincpu, MASTER_CLOCK/6);        /* 2 MHz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &super80_state::super80_map);
+	m_maincpu->set_addrmap(AS_IO, &super80_state::super80_io);
+	m_maincpu->set_daisy_config(super80_daisy_chain);
 
-	MCFG_DEVICE_ADD("z80pio", Z80PIO, MASTER_CLOCK/6)
-	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
-	MCFG_Z80PIO_OUT_PA_CB(WRITE8(super80_state, pio_port_a_w))
-	MCFG_Z80PIO_IN_PB_CB(READ8(super80_state,pio_port_b_r))
+	Z80PIO(config, m_pio, MASTER_CLOCK/6);
+	m_pio->out_int_callback().set_inputline(m_maincpu, INPUT_LINE_IRQ0);
+	m_pio->out_pa_callback().set([this](u8 data){ super80_state::pio_port_a_w(data); });
+	m_pio->in_pb_callback().set([this](){ return super80_state::pio_port_b_r(); });
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(48.8)
-	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
-	MCFG_SCREEN_UPDATE_DRIVER(super80_state, screen_update_super80)
-	MCFG_SCREEN_PALETTE("palette")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_refresh_hz(48.8);
+	m_screen->set_raw(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART);
+	m_screen->set_screen_update(FUNC(super80_state::screen_update_super80));
+	m_screen->set_palette(m_palette);
 
-	MCFG_PALETTE_ADD("palette", 32)
-	MCFG_PALETTE_INIT_OWNER(super80_state,super80m)
+	PALETTE(config, m_palette, FUNC(super80_state::super80m_palette), 32);
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_super80);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", super80)
-	MCFG_DEFAULT_LAYOUT( layout_super80 )
-	MCFG_VIDEO_START_OVERRIDE(super80_state,super80)
+	config.set_default_layout(layout_super80);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.05)
-	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_ADD("samples", SAMPLES, 0)
-	MCFG_SAMPLES_CHANNELS(1)
-	MCFG_SAMPLES_NAMES(relay_sample_names)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	SPEAKER(config, "mono").front_center();
+	SPEAKER_SOUND(config, m_speaker).add_route(ALL_OUTPUTS, "mono", 0.50);
+	SAMPLES(config, m_samples);
+	m_samples->set_channels(1);
+	m_samples->set_samples_names(relay_sample_names);
+	m_samples->add_route(ALL_OUTPUTS, "mono", 1.0);
 
 	/* printer */
-	MCFG_CENTRONICS_ADD("centronics", centronics_devices, "printer")
-	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit7))
+	CENTRONICS(config, m_centronics, centronics_devices, "printer");
+	m_centronics->busy_handler().set("cent_status_in", FUNC(input_buffer_device::write_bit7));
 
-	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+	output_latch_device &cent_data_out(OUTPUT_LATCH(config, "cent_data_out"));
+	m_centronics->set_output_latch(cent_data_out);
 
-	MCFG_DEVICE_ADD("cent_status_in", INPUT_BUFFER, 0)
+	INPUT_BUFFER(config, "cent_status_in", 0);
 
 	/* quickload */
-	MCFG_QUICKLOAD_ADD("quickload", super80_state, super80, "bin", 3)
+	QUICKLOAD(config, "quickload", "bin", attotime::from_seconds(3)).set_load_callback(FUNC(super80_state::quickload_cb));
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( "cassette" )
-	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
-	MCFG_CASSETTE_INTERFACE("super80_cass")
+	CASSETTE(config, m_cassette);
+	m_cassette->set_default_state(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED);
+	m_cassette->add_route(ALL_OUTPUTS, "mono", 0.05);
+	m_cassette->set_interface("super80_cass");
 
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("timer_p", super80_state, timer_p, attotime::from_hz(40000)) // cass read
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("timer_k", super80_state, timer_k, attotime::from_hz(300)) // keyb scan
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("timer_h", super80_state, timer_h, attotime::from_hz(100)) // half-speed
+	TIMER(config, "kansas_r").configure_periodic(FUNC(super80_state::kansas_r), attotime::from_hz(40000)); // cass read
+	TIMER(config, "timer_k").configure_periodic(FUNC(super80_state::timer_k), attotime::from_hz(300)); // keyb scan
+	TIMER(config, "timer_h").configure_periodic(FUNC(super80_state::timer_h), attotime::from_hz(100)); // half-speed
 
 	// software list
-	MCFG_SOFTWARE_LIST_ADD("cass_list", "super80_cass")
-MACHINE_CONFIG_END
+	SOFTWARE_LIST(config, "cass_list").set_original("super80_cass").set_filter("DEF");
+}
 
-static MACHINE_CONFIG_DERIVED( super80d, super80 )
-	MCFG_GFXDECODE_MODIFY("gfxdecode", super80d)
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(super80_state, screen_update_super80d)
-MACHINE_CONFIG_END
+void super80_state::super80d(machine_config &config)
+{
+	super80(config);
+	m_gfxdecode->set_info(gfx_super80d);
+	m_screen->set_screen_update(FUNC(super80_state::screen_update_super80d));
 
-static MACHINE_CONFIG_DERIVED( super80e, super80 )
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_IO_MAP(super80e_io)
-	MCFG_GFXDECODE_MODIFY("gfxdecode", super80e)
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(super80_state, screen_update_super80e)
-MACHINE_CONFIG_END
+	// software list
+	config.device_remove("cass_list");
+	SOFTWARE_LIST(config, "cass_list").set_original("super80_cass").set_filter("D");
+}
 
-static MACHINE_CONFIG_DERIVED( super80m, super80 )
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(super80m_map)
+void super80_state::super80e(machine_config &config)
+{
+	super80(config);
+	m_maincpu->set_addrmap(AS_IO, &super80_state::super80e_io);
+	m_gfxdecode->set_info(gfx_super80e);
+	m_screen->set_screen_update(FUNC(super80_state::screen_update_super80e));
 
-	MCFG_GFXDECODE_MODIFY("gfxdecode", super80m)
+	// software list
+	config.device_remove("cass_list");
+	SOFTWARE_LIST(config, "cass_list").set_original("super80_cass").set_filter("E");
+}
 
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(super80_state, screen_update_super80m)
-	MCFG_SCREEN_VBLANK_DRIVER(super80_state, screen_eof_super80m)
-MACHINE_CONFIG_END
+void super80_state::super80m(machine_config &config)
+{
+	super80(config);
+	m_maincpu->set_addrmap(AS_PROGRAM, &super80_state::super80m_map);
 
-static MACHINE_CONFIG_START( super80v, super80_state )
+	m_gfxdecode->set_info(gfx_super80m);
+
+	m_screen->set_screen_update(FUNC(super80_state::screen_update_super80m));
+	m_screen->screen_vblank().set([this](bool state) { super80_state::screen_vblank_super80m(state); });
+
+	// software list
+	config.device_remove("cass_list");
+	SOFTWARE_LIST(config, "cass_list").set_original("super80_cass").set_filter("M");
+}
+
+void super80v_state::super80v(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, MASTER_CLOCK/6)        /* 2 MHz */
-	MCFG_CPU_PROGRAM_MAP(super80v_map)
-	MCFG_CPU_IO_MAP(super80v_io)
-	MCFG_Z80_DAISY_CHAIN(super80_daisy_chain)
-	MCFG_MACHINE_RESET_OVERRIDE(super80_state, super80r)
+	Z80(config, m_maincpu, MASTER_CLOCK/6);        /* 2 MHz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &super80v_state::super80v_map);
+	m_maincpu->set_addrmap(AS_IO, &super80v_state::super80v_io);
+	m_maincpu->set_daisy_config(super80_daisy_chain);
 
-	MCFG_DEVICE_ADD("z80pio", Z80PIO, MASTER_CLOCK/6)
-	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
-	MCFG_Z80PIO_OUT_PA_CB(WRITE8(super80_state, pio_port_a_w))
-	MCFG_Z80PIO_IN_PB_CB(READ8(super80_state,pio_port_b_r))
+	Z80PIO(config, m_pio, MASTER_CLOCK/6);
+	m_pio->out_int_callback().set_inputline(m_maincpu, INPUT_LINE_IRQ0);
+	m_pio->out_pa_callback().set([this](u8 data){ super80v_state::pio_port_a_w(data); });
+	m_pio->in_pb_callback().set([this](){ return super80v_state::pio_port_b_r(); });
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_SIZE(SUPER80V_SCREEN_WIDTH, SUPER80V_SCREEN_HEIGHT)
-	MCFG_SCREEN_VISIBLE_AREA(0, SUPER80V_SCREEN_WIDTH-1, 0, SUPER80V_SCREEN_HEIGHT-1)
-	MCFG_SCREEN_UPDATE_DRIVER(super80_state, screen_update_super80v)
-	MCFG_SCREEN_VBLANK_DRIVER(super80_state, screen_eof_super80m)
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_refresh_hz(50);
+	m_screen->set_size(SUPER80V_SCREEN_WIDTH, SUPER80V_SCREEN_HEIGHT);
+	m_screen->set_visarea(0, SUPER80V_SCREEN_WIDTH-1, 0, SUPER80V_SCREEN_HEIGHT-1);
+	m_screen->set_screen_update(FUNC(super80v_state::screen_update_super80v));
+	m_screen->screen_vblank().set([this](bool state) { super80v_state::screen_vblank_super80m(state); });
 
-	MCFG_PALETTE_ADD("palette", 32)
-	MCFG_PALETTE_INIT_OWNER(super80_state,super80m)
+	PALETTE(config, m_palette, FUNC(super80v_state::super80m_palette), 32);
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_super80v);
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK / SUPER80V_DOTS)
-	MCFG_MC6845_SHOW_BORDER_AREA(false)
-	MCFG_MC6845_CHAR_WIDTH(SUPER80V_DOTS)
-	MCFG_MC6845_UPDATE_ROW_CB(super80_state, crtc_update_row)
+	MC6845(config, m_crtc, MASTER_CLOCK / SUPER80V_DOTS);
+	m_crtc->set_screen("screen");
+	m_crtc->set_show_border_area(false);
+	m_crtc->set_char_width(SUPER80V_DOTS);
+	m_crtc->set_update_row_callback(FUNC(super80v_state::crtc_update_row));
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", super80v)
-	MCFG_DEFAULT_LAYOUT( layout_super80 )
+	config.set_default_layout(layout_super80);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.05)
-	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_ADD("samples", SAMPLES, 0)
-	MCFG_SAMPLES_CHANNELS(1)
-	MCFG_SAMPLES_NAMES(relay_sample_names)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	SPEAKER(config, "mono").front_center();
+	SPEAKER_SOUND(config, m_speaker).add_route(ALL_OUTPUTS, "mono", 0.50);
+	SAMPLES(config, m_samples);
+	m_samples->set_channels(1);
+	m_samples->set_samples_names(relay_sample_names);
+	m_samples->add_route(ALL_OUTPUTS, "mono", 1.0);
 
 	/* printer */
-	MCFG_CENTRONICS_ADD("centronics", centronics_devices, "printer")
-	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit7))
+	CENTRONICS(config, m_centronics, centronics_devices, "printer");
+	m_centronics->busy_handler().set("cent_status_in", FUNC(input_buffer_device::write_bit7));
 
-	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+	output_latch_device &cent_data_out(OUTPUT_LATCH(config, "cent_data_out"));
+	m_centronics->set_output_latch(cent_data_out);
 
-	MCFG_DEVICE_ADD("cent_status_in", INPUT_BUFFER, 0)
+	INPUT_BUFFER(config, "cent_status_in", 0);
 
 	/* quickload */
-	MCFG_QUICKLOAD_ADD("quickload", super80_state, super80, "bin", 3)
+	QUICKLOAD(config, "quickload", "bin", attotime::from_seconds(3)).set_load_callback(FUNC(super80v_state::quickload_cb));
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( "cassette" )
-	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
+	CASSETTE(config, m_cassette);
+	m_cassette->set_default_state(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED);
+	m_cassette->add_route(ALL_OUTPUTS, "mono", 0.05);
+	m_cassette->set_interface("super80_cass");
 
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("timer_p", super80_state, timer_p, attotime::from_hz(40000)) // cass read
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("timer_k", super80_state, timer_k, attotime::from_hz(300)) // keyb scan
-MACHINE_CONFIG_END
+	TIMER(config, "kansas_r").configure_periodic(FUNC(super80v_state::kansas_r), attotime::from_hz(40000)); // cass read
+	TIMER(config, "timer_k").configure_periodic(FUNC(super80v_state::timer_k), attotime::from_hz(300)); // keyb scan
 
-static MACHINE_CONFIG_DERIVED( super80r, super80v )
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_IO_MAP(super80r_io)
-
-	MCFG_DEVICE_ADD("dma", Z80DMA, MASTER_CLOCK/6)
-	MCFG_Z80DMA_OUT_BUSREQ_CB(WRITELINE(super80_state, busreq_w))
-	MCFG_Z80DMA_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	Z80DMA(config, m_dma, MASTER_CLOCK/6);
+	m_dma->out_busreq_callback().set(FUNC(super80v_state::busreq_w));
+	m_dma->out_int_callback().set_inputline(m_maincpu, INPUT_LINE_IRQ0);
 	//ba0 - not connected
-	MCFG_Z80DMA_IN_MREQ_CB(READ8(super80_state, memory_read_byte))
-	MCFG_Z80DMA_OUT_MREQ_CB(WRITE8(super80_state, memory_write_byte))
-	MCFG_Z80DMA_IN_IORQ_CB(READ8(super80_state, io_read_byte))
-	MCFG_Z80DMA_OUT_IORQ_CB(WRITE8(super80_state, io_write_byte))
+	m_dma->in_mreq_callback().set(FUNC(super80v_state::memory_read_byte));
+	m_dma->out_mreq_callback().set(FUNC(super80v_state::memory_write_byte));
+	m_dma->in_iorq_callback().set(FUNC(super80v_state::io_read_byte));
+	m_dma->out_iorq_callback().set(FUNC(super80v_state::io_write_byte));
 
-	MCFG_WD2793_ADD("fdc", XTAL_2MHz)
-	MCFG_WD_FDC_DRQ_CALLBACK(DEVWRITELINE("dma", z80dma_device, rdy_w))
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", super80_floppies, "525dd", floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_SOUND(true)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", super80_floppies, "525dd", floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_SOUND(true)
-MACHINE_CONFIG_END
+	WD2793(config, m_fdc, 2_MHz_XTAL);
+	m_fdc->drq_wr_callback().set(m_dma, FUNC(z80dma_device::rdy_w));
+	FLOPPY_CONNECTOR(config, "fdc:0", super80_floppies, "s80flop", floppy_image_device::default_floppy_formats).enable_sound(true);
+	FLOPPY_CONNECTOR(config, "fdc:1", super80_floppies, "s80flop", floppy_image_device::default_floppy_formats).enable_sound(true);
+	FLOPPY_CONNECTOR(config, "fdc:2", super80_floppies, "s80flop", floppy_image_device::default_floppy_formats).enable_sound(true);
+	FLOPPY_CONNECTOR(config, "fdc:3", super80_floppies, "s80flop", floppy_image_device::default_floppy_formats).enable_sound(true);
+
+	// software list
+	SOFTWARE_LIST(config, "cass_list").set_original("super80_cass").set_filter("V");
+	SOFTWARE_LIST(config, "flop_list").set_original("super80_flop");
+}
+
+void super80r_state::super80r(machine_config &config)
+{
+	super80v(config);
+	m_maincpu->set_addrmap(AS_PROGRAM, &super80r_state::super80r_map);
+
+	// software list
+	config.device_remove("cass_list");
+	SOFTWARE_LIST(config, "cass_list").set_original("super80_cass").set_filter("R");
+}
 
 /**************************** ROMS *****************************************************************/
 
 ROM_START( super80 )
-	ROM_REGION(0x10000, "maincpu", 0)
-	ROM_LOAD("super80.u26",   0xc000, 0x1000, CRC(6a6a9664) SHA1(2c4fcd943aa9bf7419d58fbc0e28ffb89ef22e0b) )
-	ROM_LOAD("super80.u33",   0xd000, 0x1000, CRC(cf8020a8) SHA1(2179a61f80372cd49e122ad3364773451531ae85) )
-	ROM_LOAD("super80.u42",   0xe000, 0x1000, CRC(a1c6cb75) SHA1(d644ca3b399c1a8902f365c6095e0bbdcea6733b) )
-	ROM_FILL( 0xf000, 0x1000, 0xff) /* This makes the screen show the FF character when O F1 F0 entered */
+	ROM_REGION(0x3000, "maincpu", 0)
+	ROM_LOAD("super80.u26",   0x0000, 0x1000, CRC(6a6a9664) SHA1(2c4fcd943aa9bf7419d58fbc0e28ffb89ef22e0b) )
+	ROM_LOAD("super80.u33",   0x1000, 0x1000, CRC(cf8020a8) SHA1(2179a61f80372cd49e122ad3364773451531ae85) )
+	ROM_LOAD("super80.u42",   0x2000, 0x1000, CRC(a1c6cb75) SHA1(d644ca3b399c1a8902f365c6095e0bbdcea6733b) )
 
 	ROM_REGION(0x0400, "chargen", 0)    // 2513 prom
 	ROM_LOAD("super80.u27",   0x0000, 0x0400, CRC(d1e4b3c6) SHA1(3667b97c6136da4761937958f281609690af4081) )
 ROM_END
 
 ROM_START( super80d )
-	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_REGION(0x3000, "maincpu", 0)
 	ROM_SYSTEM_BIOS(0, "super80d", "V2.2")
-	ROMX_LOAD("super80d.u26", 0xc000, 0x1000, CRC(cebd2613) SHA1(87b94cc101a5948ce590211c68272e27f4cbe95a), ROM_BIOS(1))
+	ROMX_LOAD("super80d.u26", 0x0000, 0x1000, CRC(cebd2613) SHA1(87b94cc101a5948ce590211c68272e27f4cbe95a), ROM_BIOS(0))
 	ROM_SYSTEM_BIOS(1, "super80f", "MDS (original)")
-	ROMX_LOAD("super80f.u26", 0xc000, 0x1000, CRC(d39775f0) SHA1(b47298ee028924612e9728bb2debd0f47399add7), ROM_BIOS(2))
+	ROMX_LOAD("super80f.u26", 0x0000, 0x1000, CRC(d39775f0) SHA1(b47298ee028924612e9728bb2debd0f47399add7), ROM_BIOS(1))
 	ROM_SYSTEM_BIOS(2, "super80g", "MDS (upgraded)")
-	ROMX_LOAD("super80g.u26", 0xc000, 0x1000, CRC(7386f507) SHA1(69d7627033d62bd4e886ccc136e89f1524d38f47), ROM_BIOS(3))
-	ROM_LOAD("super80.u33",   0xd000, 0x1000, CRC(cf8020a8) SHA1(2179a61f80372cd49e122ad3364773451531ae85) )
-	ROM_LOAD("super80.u42",   0xe000, 0x1000, CRC(a1c6cb75) SHA1(d644ca3b399c1a8902f365c6095e0bbdcea6733b) )
-	ROM_FILL( 0xf000, 0x1000, 0xff)
+	ROMX_LOAD("super80g.u26", 0x0000, 0x1000, CRC(7386f507) SHA1(69d7627033d62bd4e886ccc136e89f1524d38f47), ROM_BIOS(2))
+	ROM_LOAD("super80.u33",   0x1000, 0x1000, CRC(cf8020a8) SHA1(2179a61f80372cd49e122ad3364773451531ae85) )
+	ROM_LOAD("super80.u42",   0x2000, 0x1000, CRC(a1c6cb75) SHA1(d644ca3b399c1a8902f365c6095e0bbdcea6733b) )
 
 	ROM_REGION(0x0800, "chargen", 0)    // 2716 eprom
 	ROM_LOAD("super80d.u27",  0x0000, 0x0800, CRC(cb4c81e2) SHA1(8096f21c914fa76df5d23f74b1f7f83bd8645783) )
 ROM_END
 
 ROM_START( super80e )
-	ROM_REGION(0x10000, "maincpu", 0)
-	ROM_LOAD("super80e.u26",  0xc000, 0x1000, CRC(bdc668f8) SHA1(3ae30b3cab599fca77d5e461f3ec1acf404caf07) )
-	ROM_LOAD("super80.u33",   0xd000, 0x1000, CRC(cf8020a8) SHA1(2179a61f80372cd49e122ad3364773451531ae85) )
-	ROM_LOAD("super80.u42",   0xe000, 0x1000, CRC(a1c6cb75) SHA1(d644ca3b399c1a8902f365c6095e0bbdcea6733b) )
-	ROM_FILL( 0xf000, 0x1000, 0xff)
+	ROM_REGION(0x3000, "maincpu", 0)
+	ROM_LOAD("super80e.u26",  0x0000, 0x1000, CRC(bdc668f8) SHA1(3ae30b3cab599fca77d5e461f3ec1acf404caf07) )
+	ROM_LOAD("super80.u33",   0x1000, 0x1000, CRC(cf8020a8) SHA1(2179a61f80372cd49e122ad3364773451531ae85) )
+	ROM_LOAD("super80.u42",   0x2000, 0x1000, CRC(a1c6cb75) SHA1(d644ca3b399c1a8902f365c6095e0bbdcea6733b) )
 
 	ROM_REGION(0x1000, "chargen", 0)    // 2732 eprom
 	ROM_LOAD("super80e.u27",  0x0000, 0x1000, CRC(ebe763a7) SHA1(ffaa6d6a2c5dacc5a6651514e6707175a32e83e8) )
 ROM_END
 
 ROM_START( super80m )
-	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_REGION(0x3000, "maincpu", 0)
 	ROM_SYSTEM_BIOS(0, "8r0", "8R0")
-	ROMX_LOAD("s80-8r0.u26",  0xc000, 0x1000, CRC(48d410d8) SHA1(750d984abc013a3344628300288f6d1ba140a95f), ROM_BIOS(1) )
-	ROMX_LOAD("s80-8r0.u33",  0xd000, 0x1000, CRC(9765793e) SHA1(4951b127888c1f3153004cc9fb386099b408f52c), ROM_BIOS(1) )
-	ROMX_LOAD("s80-8r0.u42",  0xe000, 0x1000, CRC(5f65d94b) SHA1(fe26b54dec14e1c4911d996c9ebd084a38dcb691), ROM_BIOS(1) )
+	ROMX_LOAD("s80-8r0.u26",  0x0000, 0x1000, CRC(48d410d8) SHA1(750d984abc013a3344628300288f6d1ba140a95f), ROM_BIOS(0) )
+	ROMX_LOAD("s80-8r0.u33",  0x1000, 0x1000, CRC(9765793e) SHA1(4951b127888c1f3153004cc9fb386099b408f52c), ROM_BIOS(0) )
+	ROMX_LOAD("s80-8r0.u42",  0x2000, 0x1000, CRC(5f65d94b) SHA1(fe26b54dec14e1c4911d996c9ebd084a38dcb691), ROM_BIOS(0) )
 #if 0
 	/* Temporary patch to fix crash when lprinting a tab */
-	ROM_FILL(0xcc44,1,0x46)
-	ROM_FILL(0xcc45,1,0xc5)
-	ROM_FILL(0xcc46,1,0x06)
-	ROM_FILL(0xcc47,1,0x20)
-	ROM_FILL(0xcc48,1,0xcd)
-	ROM_FILL(0xcc49,1,0xc7)
-	ROM_FILL(0xcc4a,1,0xcb)
-	ROM_FILL(0xcc4b,1,0xc1)
-	ROM_FILL(0xcc4c,1,0x10)
-	ROM_FILL(0xcc4d,1,0xf7)
-	ROM_FILL(0xcc4e,1,0x00)
-	ROM_FILL(0xcc4f,1,0x00)
+	ROM_FILL(0x0c44,1,0x46)
+	ROM_FILL(0x0c45,1,0xc5)
+	ROM_FILL(0x0c46,1,0x06)
+	ROM_FILL(0x0c47,1,0x20)
+	ROM_FILL(0x0c48,1,0xcd)
+	ROM_FILL(0x0c49,1,0xc7)
+	ROM_FILL(0x0c4a,1,0xcb)
+	ROM_FILL(0x0c4b,1,0xc1)
+	ROM_FILL(0x0c4c,1,0x10)
+	ROM_FILL(0x0c4d,1,0xf7)
+	ROM_FILL(0x0c4e,1,0x00)
+	ROM_FILL(0x0c4f,1,0x00)
 #endif
 	ROM_SYSTEM_BIOS(1, "v37", "V3.7")
-	ROMX_LOAD("s80-v37.u26",  0xc000, 0x1000, CRC(46043035) SHA1(1765105df4e4af83d56cafb88e158ed462d4709e), ROM_BIOS(2) )
-	ROMX_LOAD("s80-v37.u33",  0xd000, 0x1000, CRC(afb52b15) SHA1(0a2c25834074ce44bf12ac8532b4add492bcf950), ROM_BIOS(2) )
-	ROMX_LOAD("s80-v37.u42",  0xe000, 0x1000, CRC(7344b27a) SHA1(f43fc47ddb5c12bffffa63488301cd5eb386cc9a), ROM_BIOS(2) )
+	ROMX_LOAD("s80-v37.u26",  0x0000, 0x1000, CRC(46043035) SHA1(1765105df4e4af83d56cafb88e158ed462d4709e), ROM_BIOS(1) )
+	ROMX_LOAD("s80-v37.u33",  0x1000, 0x1000, CRC(afb52b15) SHA1(0a2c25834074ce44bf12ac8532b4add492bcf950), ROM_BIOS(1) )
+	ROMX_LOAD("s80-v37.u42",  0x2000, 0x1000, CRC(7344b27a) SHA1(f43fc47ddb5c12bffffa63488301cd5eb386cc9a), ROM_BIOS(1) )
 
 	ROM_SYSTEM_BIOS(2, "8r2", "8R2")
-	ROMX_LOAD("s80-8r2.u26",  0xc000, 0x1000, CRC(1e166c8c) SHA1(15647614be9300cdd2956da913e83234c36b36a9), ROM_BIOS(3) )
-	ROMX_LOAD("s80-8r0.u33",  0xd000, 0x1000, CRC(9765793e) SHA1(4951b127888c1f3153004cc9fb386099b408f52c), ROM_BIOS(3) )
-	ROMX_LOAD("s80-8r0.u42",  0xe000, 0x1000, CRC(5f65d94b) SHA1(fe26b54dec14e1c4911d996c9ebd084a38dcb691), ROM_BIOS(3) )
+	ROMX_LOAD("s80-8r2.u26",  0x0000, 0x1000, CRC(1e166c8c) SHA1(15647614be9300cdd2956da913e83234c36b36a9), ROM_BIOS(2) )
+	ROMX_LOAD("s80-8r0.u33",  0x1000, 0x1000, CRC(9765793e) SHA1(4951b127888c1f3153004cc9fb386099b408f52c), ROM_BIOS(2) )
+	ROMX_LOAD("s80-8r0.u42",  0x2000, 0x1000, CRC(5f65d94b) SHA1(fe26b54dec14e1c4911d996c9ebd084a38dcb691), ROM_BIOS(2) )
 
 	ROM_SYSTEM_BIOS(3, "8r3", "8R3")
-	ROMX_LOAD("s80-8r3.u26",  0xc000, 0x1000, CRC(ee7dd90b) SHA1(c53f8eef82e8f943642f6ddfc2cb1bfdc32d25ca), ROM_BIOS(4) )
-	ROMX_LOAD("s80-8r0.u33",  0xd000, 0x1000, CRC(9765793e) SHA1(4951b127888c1f3153004cc9fb386099b408f52c), ROM_BIOS(4) )
-	ROMX_LOAD("s80-8r0.u42",  0xe000, 0x1000, CRC(5f65d94b) SHA1(fe26b54dec14e1c4911d996c9ebd084a38dcb691), ROM_BIOS(4) )
+	ROMX_LOAD("s80-8r3.u26",  0x0000, 0x1000, CRC(ee7dd90b) SHA1(c53f8eef82e8f943642f6ddfc2cb1bfdc32d25ca), ROM_BIOS(3) )
+	ROMX_LOAD("s80-8r0.u33",  0x1000, 0x1000, CRC(9765793e) SHA1(4951b127888c1f3153004cc9fb386099b408f52c), ROM_BIOS(3) )
+	ROMX_LOAD("s80-8r0.u42",  0x2000, 0x1000, CRC(5f65d94b) SHA1(fe26b54dec14e1c4911d996c9ebd084a38dcb691), ROM_BIOS(3) )
 
 	ROM_SYSTEM_BIOS(4, "8r4", "8R4")
-	ROMX_LOAD("s80-8r4.u26",  0xc000, 0x1000, CRC(637d001d) SHA1(f26b5ecc33fd44b05b1f199d79e0f072ec8d0e23), ROM_BIOS(5) )
-	ROMX_LOAD("s80-8r0.u33",  0xd000, 0x1000, CRC(9765793e) SHA1(4951b127888c1f3153004cc9fb386099b408f52c), ROM_BIOS(5) )
-	ROMX_LOAD("s80-8r0.u42",  0xe000, 0x1000, CRC(5f65d94b) SHA1(fe26b54dec14e1c4911d996c9ebd084a38dcb691), ROM_BIOS(5) )
+	ROMX_LOAD("s80-8r4.u26",  0x0000, 0x1000, CRC(637d001d) SHA1(f26b5ecc33fd44b05b1f199d79e0f072ec8d0e23), ROM_BIOS(4) )
+	ROMX_LOAD("s80-8r0.u33",  0x1000, 0x1000, CRC(9765793e) SHA1(4951b127888c1f3153004cc9fb386099b408f52c), ROM_BIOS(4) )
+	ROMX_LOAD("s80-8r0.u42",  0x2000, 0x1000, CRC(5f65d94b) SHA1(fe26b54dec14e1c4911d996c9ebd084a38dcb691), ROM_BIOS(4) )
 
 	ROM_SYSTEM_BIOS(5, "8r5", "8R5")
-	ROMX_LOAD("s80-8r5.u26",  0xc000, 0x1000, CRC(294f217c) SHA1(f352d54e84e94bf299726dc3af4eb7b2d06d317c), ROM_BIOS(6) )
-	ROMX_LOAD("s80-8r0.u33",  0xd000, 0x1000, CRC(9765793e) SHA1(4951b127888c1f3153004cc9fb386099b408f52c), ROM_BIOS(6) )
-	ROMX_LOAD("s80-8r0.u42",  0xe000, 0x1000, CRC(5f65d94b) SHA1(fe26b54dec14e1c4911d996c9ebd084a38dcb691), ROM_BIOS(6) )
+	ROMX_LOAD("s80-8r5.u26",  0x0000, 0x1000, CRC(294f217c) SHA1(f352d54e84e94bf299726dc3af4eb7b2d06d317c), ROM_BIOS(5) )
+	ROMX_LOAD("s80-8r0.u33",  0x1000, 0x1000, CRC(9765793e) SHA1(4951b127888c1f3153004cc9fb386099b408f52c), ROM_BIOS(5) )
+	ROMX_LOAD("s80-8r0.u42",  0x2000, 0x1000, CRC(5f65d94b) SHA1(fe26b54dec14e1c4911d996c9ebd084a38dcb691), ROM_BIOS(5) )
 
 	ROM_REGION(0x1800, "chargen", 0)
 	ROM_LOAD("super80e.u27",  0x0000, 0x1000, CRC(ebe763a7) SHA1(ffaa6d6a2c5dacc5a6651514e6707175a32e83e8) )
@@ -952,35 +950,34 @@ ROM_START( super80m )
 ROM_END
 
 ROM_START( super80r )
-	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_REGION( 0x3000, "maincpu", 0 )
 	ROM_SYSTEM_BIOS(0, "super80r", "MCE (original)")
-	ROMX_LOAD("super80r.u26", 0xc000, 0x1000, CRC(01bb6406) SHA1(8e275ecf5141b93f86e45ff8a735b965ea3e8d44), ROM_BIOS(1))
+	ROMX_LOAD("super80r.u26", 0x0000, 0x1000, CRC(01bb6406) SHA1(8e275ecf5141b93f86e45ff8a735b965ea3e8d44), ROM_BIOS(0))
 	ROM_SYSTEM_BIOS(1, "super80s", "MCE (upgraded)")
-	ROMX_LOAD("super80s.u26", 0xc000, 0x1000, CRC(3e29d307) SHA1(b3f4667633e0a4eb8577e39b5bd22e1f0bfbc0a9), ROM_BIOS(2))
+	ROMX_LOAD("super80s.u26", 0x0000, 0x1000, CRC(3e29d307) SHA1(b3f4667633e0a4eb8577e39b5bd22e1f0bfbc0a9), ROM_BIOS(1))
 
-	ROM_LOAD("super80.u33",   0xd000, 0x1000, CRC(cf8020a8) SHA1(2179a61f80372cd49e122ad3364773451531ae85) )
-	ROM_LOAD("super80.u42",   0xe000, 0x1000, CRC(a1c6cb75) SHA1(d644ca3b399c1a8902f365c6095e0bbdcea6733b) )
-	ROM_LOAD("s80hmce.ic24",  0xf000, 0x0800, CRC(a6488a1e) SHA1(7ba613d70a37a6b738dcd80c2bb9988ff1f011ef) )
+	ROM_LOAD("super80.u33",   0x1000, 0x1000, CRC(cf8020a8) SHA1(2179a61f80372cd49e122ad3364773451531ae85) )
+	ROM_LOAD("super80.u42",   0x2000, 0x1000, CRC(a1c6cb75) SHA1(d644ca3b399c1a8902f365c6095e0bbdcea6733b) )
 
-	ROM_REGION( 0x1000, "videoram", ROMREGION_ERASEFF )
-	ROM_REGION( 0x1000, "colorram", ROMREGION_ERASEFF )
+	ROM_REGION(0x0800, "chargen", 0)    // 2716 eprom
+	ROM_LOAD("s80hmce.ic24",  0x0000, 0x0800, CRC(a6488a1e) SHA1(7ba613d70a37a6b738dcd80c2bb9988ff1f011ef) )
 ROM_END
 
 ROM_START( super80v )
-	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD("s80-v37v.u26",  0xc000, 0x1000, CRC(01e0c0dd) SHA1(ef66af9c44c651c65a21d5bda939ffa100078c08) )
-	ROM_LOAD("s80-v37v.u33",  0xd000, 0x1000, CRC(812ad777) SHA1(04f355bea3470a7d9ea23bb2811f6af7d81dc400) )
-	ROM_LOAD("s80-v37v.u42",  0xe000, 0x1000, CRC(e02e736e) SHA1(57b0264c805da99234ab5e8e028fca456851a4f9) )
-	ROM_LOAD("s80hmce.ic24",  0xf000, 0x0800, CRC(a6488a1e) SHA1(7ba613d70a37a6b738dcd80c2bb9988ff1f011ef) )
+	ROM_REGION( 0x3000, "maincpu", 0 )
+	ROM_LOAD("s80-v37v.u26",  0x0000, 0x1000, CRC(01e0c0dd) SHA1(ef66af9c44c651c65a21d5bda939ffa100078c08) )
+	ROM_LOAD("s80-v37v.u33",  0x1000, 0x1000, CRC(812ad777) SHA1(04f355bea3470a7d9ea23bb2811f6af7d81dc400) )
+	ROM_LOAD("s80-v37v.u42",  0x2000, 0x1000, CRC(e02e736e) SHA1(57b0264c805da99234ab5e8e028fca456851a4f9) )
 
-	ROM_REGION( 0x1000, "videoram", ROMREGION_ERASEFF )
-	ROM_REGION( 0x1000, "colorram", ROMREGION_ERASEFF )
+	ROM_REGION(0x0800, "chargen", 0)    // 2716 eprom
+	ROM_LOAD("s80hmce.ic24",  0x0000, 0x0800, CRC(a6488a1e) SHA1(7ba613d70a37a6b738dcd80c2bb9988ff1f011ef) )
 ROM_END
 
-/*    YEAR  NAME      PARENT COMPAT MACHINE   INPUT     CLASS           INIT      COMPANY       FULLNAME */
-COMP( 1981, super80,  0,       0,   super80,  super80,  super80_state,  super80, "Dick Smith Electronics", "Super-80 (V1.2)" , 0)
-COMP( 1981, super80d, super80, 0,   super80d, super80d, super80_state,  super80, "Dick Smith Electronics", "Super-80 (V2.2)" , 0)
-COMP( 1981, super80e, super80, 0,   super80e, super80d, super80_state,  super80, "Dick Smith Electronics", "Super-80 (El Graphix 4)" , MACHINE_UNOFFICIAL)
-COMP( 1981, super80m, super80, 0,   super80m, super80m, super80_state,  super80, "Dick Smith Electronics", "Super-80 (with colour)" , MACHINE_UNOFFICIAL)
-COMP( 1981, super80r, super80, 0,   super80r, super80r, super80_state,  super80, "Dick Smith Electronics", "Super-80 (with VDUEB)" , MACHINE_UNOFFICIAL)
-COMP( 1981, super80v, super80, 0,   super80v, super80v, super80_state,  super80, "Dick Smith Electronics", "Super-80 (with enhanced VDUEB)" , MACHINE_UNOFFICIAL)
+/*    YEAR  NAME      PARENT COMPAT MACHINE   INPUT     CLASS          INIT          COMPANY                   FULLNAME */
+COMP( 1981, super80,  0,       0,   super80,  super80,  super80_state,  empty_init, "Dick Smith Electronics", "Super-80 (V1.2)" , MACHINE_SUPPORTS_SAVE )
+COMP( 1981, super80d, super80, 0,   super80d, super80d, super80_state,  empty_init, "Dick Smith Electronics", "Super-80 (V2.2)" , MACHINE_SUPPORTS_SAVE )
+COMP( 1981, super80e, super80, 0,   super80e, super80d, super80_state,  empty_init, "Dick Smith Electronics", "Super-80 (El Graphix 4)" , MACHINE_UNOFFICIAL | MACHINE_SUPPORTS_SAVE )
+COMP( 1981, super80m, super80, 0,   super80m, super80m, super80_state,  empty_init, "Dick Smith Electronics", "Super-80 (with colour)" , MACHINE_UNOFFICIAL | MACHINE_SUPPORTS_SAVE )
+COMP( 1981, super80r, super80, 0,   super80r, super80r, super80r_state, empty_init, "Dick Smith Electronics", "Super-80 (with VDUEB)" , MACHINE_UNOFFICIAL | MACHINE_SUPPORTS_SAVE )
+COMP( 1981, super80v, super80, 0,   super80v, super80v, super80v_state, empty_init, "Dick Smith Electronics", "Super-80 (with enhanced VDUEB)" , MACHINE_UNOFFICIAL | MACHINE_SUPPORTS_SAVE )
+

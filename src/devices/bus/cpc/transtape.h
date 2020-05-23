@@ -7,8 +7,10 @@
  *
  */
 
-#ifndef TRANSTAPE_H_
-#define TRANSTAPE_H_
+#ifndef MAME_BUS_CPC_TRANSTAPE_H
+#define MAME_BUS_CPC_TRANSTAPE_H
+
+#pragma once
 
 #include "cpcexp.h"
 
@@ -38,7 +40,6 @@ protected:
 
 private:
 	cpc_expansion_slot_device *m_slot;
-	cpu_device* m_cpu;
 	address_space* m_space;
 	std::unique_ptr<uint8_t[]> m_ram;  // 8kB internal RAM
 	bool m_rom_active;
@@ -49,6 +50,6 @@ private:
 };
 
 // device type definition
-extern const device_type CPC_TRANSTAPE;
+DECLARE_DEVICE_TYPE(CPC_TRANSTAPE, cpc_transtape_device)
 
-#endif /* TRANSTAPE_H_ */
+#endif // MAME_BUS_CPC_TRANSTAPE_H

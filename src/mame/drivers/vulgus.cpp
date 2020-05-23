@@ -55,35 +55,37 @@ All Clocks and Vsync verified by Corrado Tomaselli (August 2012)
 
 INTERRUPT_GEN_MEMBER(vulgus_state::vblank_irq)
 {
-	device.execute().set_input_line_and_vector(0, HOLD_LINE, 0xd7); /* RST 10h - vblank */
+	device.execute().set_input_line_and_vector(0, HOLD_LINE, 0xd7); /* Z80 - RST 10h - vblank */
 }
 
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, vulgus_state )
-	AM_RANGE(0x0000, 0x9fff) AM_ROM
-	AM_RANGE(0xc000, 0xc000) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0xc001, 0xc001) AM_READ_PORT("P1")
-	AM_RANGE(0xc002, 0xc002) AM_READ_PORT("P2")
-	AM_RANGE(0xc003, 0xc003) AM_READ_PORT("DSW1")
-	AM_RANGE(0xc004, 0xc004) AM_READ_PORT("DSW2")
-	AM_RANGE(0xc800, 0xc800) AM_DEVWRITE("soundlatch", generic_latch_8_device, write)
-	AM_RANGE(0xc801, 0xc801) AM_WRITENOP // ?
-	AM_RANGE(0xc802, 0xc803) AM_RAM AM_SHARE("scroll_low")
-	AM_RANGE(0xc804, 0xc804) AM_WRITE(c804_w)
-	AM_RANGE(0xc805, 0xc805) AM_WRITE(palette_bank_w)
-	AM_RANGE(0xc902, 0xc903) AM_RAM AM_SHARE("scroll_high")
-	AM_RANGE(0xcc00, 0xcc7f) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0xd000, 0xd7ff) AM_RAM_WRITE(fgvideoram_w) AM_SHARE("fgvideoram")
-	AM_RANGE(0xd800, 0xdfff) AM_RAM_WRITE(bgvideoram_w) AM_SHARE("bgvideoram")
-	AM_RANGE(0xe000, 0xefff) AM_RAM
-ADDRESS_MAP_END
+void vulgus_state::main_map(address_map &map)
+{
+	map(0x0000, 0x9fff).rom();
+	map(0xc000, 0xc000).portr("SYSTEM");
+	map(0xc001, 0xc001).portr("P1");
+	map(0xc002, 0xc002).portr("P2");
+	map(0xc003, 0xc003).portr("DSW1");
+	map(0xc004, 0xc004).portr("DSW2");
+	map(0xc800, 0xc800).w("soundlatch", FUNC(generic_latch_8_device::write));
+	map(0xc801, 0xc801).nopw(); // ?
+	map(0xc802, 0xc803).ram().share("scroll_low");
+	map(0xc804, 0xc804).w(FUNC(vulgus_state::c804_w));
+	map(0xc805, 0xc805).w(FUNC(vulgus_state::palette_bank_w));
+	map(0xc902, 0xc903).ram().share("scroll_high");
+	map(0xcc00, 0xcc7f).ram().share("spriteram");
+	map(0xd000, 0xd7ff).ram().w(FUNC(vulgus_state::fgvideoram_w)).share("fgvideoram");
+	map(0xd800, 0xdfff).ram().w(FUNC(vulgus_state::bgvideoram_w)).share("bgvideoram");
+	map(0xe000, 0xefff).ram();
+}
 
-static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, vulgus_state )
-	AM_RANGE(0x0000, 0x1fff) AM_ROM
-	AM_RANGE(0x4000, 0x47ff) AM_RAM
-	AM_RANGE(0x6000, 0x6000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
-	AM_RANGE(0x8000, 0x8001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
-	AM_RANGE(0xc000, 0xc001) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
-ADDRESS_MAP_END
+void vulgus_state::sound_map(address_map &map)
+{
+	map(0x0000, 0x1fff).rom();
+	map(0x4000, 0x47ff).ram();
+	map(0x6000, 0x6000).r("soundlatch", FUNC(generic_latch_8_device::read));
+	map(0x8000, 0x8001).w("ay1", FUNC(ay8910_device::address_data_w));
+	map(0xc000, 0xc001).w("ay2", FUNC(ay8910_device::address_data_w));
+}
 
 
 static INPUT_PORTS_START( vulgus )
@@ -205,7 +207,7 @@ static const gfx_layout spritelayout =
 
 
 
-static GFXDECODE_START( vulgus )
+static GFXDECODE_START( gfx_vulgus )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout,           0, 64 )
 	GFXDECODE_ENTRY( "gfx2", 0, tilelayout,  64*4+16*16, 32*4 )
 	GFXDECODE_ENTRY( "gfx3", 0, spritelayout,      64*4, 16 )
@@ -214,43 +216,39 @@ GFXDECODE_END
 
 
 
-static MACHINE_CONFIG_START( vulgus, vulgus_state )
-
+void vulgus_state::vulgus(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, XTAL_12MHz/4)  /* 3 MHz */
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", vulgus_state, vblank_irq)
+	Z80(config, m_maincpu, XTAL(12'000'000)/4);  /* 3 MHz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &vulgus_state::main_map);
+	m_maincpu->set_vblank_int("screen", FUNC(vulgus_state::vblank_irq));
 
-	MCFG_CPU_ADD("audiocpu", Z80, XTAL_12MHz/4) /* 3 MHz */
-	MCFG_CPU_PROGRAM_MAP(sound_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(vulgus_state, irq0_line_hold, 8*60)
+	Z80(config, m_audiocpu, XTAL(12'000'000)/4); /* 3 MHz */
+	m_audiocpu->set_addrmap(AS_PROGRAM, &vulgus_state::sound_map);
+	m_audiocpu->set_periodic_int(FUNC(vulgus_state::irq0_line_hold), attotime::from_hz(8*60));
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(59.59)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(vulgus_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(59.59);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(32*8, 32*8);
+	screen.set_visarea(0*8, 32*8-1, 2*8, 30*8-1);
+	screen.set_screen_update(FUNC(vulgus_state::screen_update));
+	screen.set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", vulgus)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_vulgus);
 
-	MCFG_PALETTE_ADD("palette", 64*4+16*16+4*32*8)
-	MCFG_PALETTE_INDIRECT_ENTRIES(256)
-	MCFG_PALETTE_INIT_OWNER(vulgus_state, vulgus)
+	PALETTE(config, m_palette, FUNC(vulgus_state::vulgus_palette), 64*4+16*16+4*32*8, 256);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	GENERIC_LATCH_8(config, "soundlatch");
 
-	MCFG_SOUND_ADD("ay1", AY8910, XTAL_12MHz/8) /* 1.5 MHz */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	AY8910(config, "ay1", XTAL(12'000'000)/8).add_route(ALL_OUTPUTS, "mono", 0.25); /* 1.5 MHz */
 
-	MCFG_SOUND_ADD("ay2", AY8910, XTAL_12MHz/8) /* 1.5 MHz */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-MACHINE_CONFIG_END
+	AY8910(config, "ay2", XTAL(12'000'000)/8).add_route(ALL_OUTPUTS, "mono", 0.25); /* 1.5 MHz */
+}
 
 
 
@@ -377,8 +375,46 @@ ROM_START( vulgusj )
 	ROM_LOAD( "82s129.8n",    0x0700, 0x0100, CRC(4921635c) SHA1(aee37d6cdc36acf0f11ff5f93e7b16e4b12f6c39) )    /* video timing? (not used) */
 ROM_END
 
+ROM_START( mach9 )
+	ROM_REGION( 0x1c000, "maincpu", 0 )
+	ROM_LOAD( "02_4n.bin",   0x0000, 0x2000, CRC(b3310b0c) SHA1(f083d8633da69acaa03e7566f28e87ef0482927d) )
+	ROM_LOAD( "03_5n.bin",   0x2000, 0x2000, CRC(51acef76) SHA1(14dda82b90f9c3a309561a73c300cb54b5fca77d) )
+	ROM_LOAD( "04_6n.bin",   0x4000, 0x2000, CRC(489e7f60) SHA1(f3f685955fc42f238909dcdb5edc4c117e5543db) )
+	ROM_LOAD( "05_7n.bin",   0x6000, 0x2000, CRC(ef3e4278) SHA1(eb3433827a53b2e9c2b09add7376982e84b29558) )
+	ROM_LOAD( "06_8n.bin",   0x8000, 0x2000, CRC(6ca5ca41) SHA1(6f28d143e984d3d6af3114702ec27d6e878cc35f) )
 
+	ROM_REGION( 0x10000, "audiocpu", 0 )
+	ROM_LOAD( "07_11c.bin",  0x0000, 0x2000, CRC(3bd2acf4) SHA1(b58fb1ea7e30018102ee420d52a1597615412eb1) )
 
-GAME( 1984, vulgus,  0,      vulgus, vulgus, driver_device, 0, ROT270, "Capcom", "Vulgus (set 1)", MACHINE_SUPPORTS_SAVE )
-GAME( 1984, vulgusa, vulgus, vulgus, vulgus, driver_device, 0, ROT90,  "Capcom", "Vulgus (set 2)", MACHINE_SUPPORTS_SAVE )
-GAME( 1984, vulgusj, vulgus, vulgus, vulgus, driver_device, 0, ROT270, "Capcom", "Vulgus (Japan?)", MACHINE_SUPPORTS_SAVE )
+	ROM_REGION( 0x02000, "gfx1", 0 )
+	ROM_LOAD( "01_3d.bin",   0x00000, 0x2000, CRC(be556775) SHA1(16a4e746ea2462689b7a0e9f01c88d7edf06092d) )   /* characters */
+
+	ROM_REGION( 0x0c000, "gfx2", 0 )
+	ROM_LOAD( "08_2a.bin",   0x00000, 0x2000, CRC(e10aaca1) SHA1(f9f0d05475ae4c554552a71bc2f60e02b1442eb1) )   /* tiles */
+	ROM_LOAD( "09_3a.bin",   0x02000, 0x2000, CRC(9193f2f1) SHA1(de1ee725627baeabec6823f6ecc4e7f6df152ce3) )
+	ROM_LOAD( "10_4a.bin",   0x04000, 0x2000, CRC(206a13f1) SHA1(645666895127aededfa7872b20b7725948a9c462) )
+	ROM_LOAD( "11_5a.bin",   0x06000, 0x2000, CRC(d729b5b7) SHA1(e9af9bc7f627e313ec070dc9e41ce6f2cddc5b38) )
+	ROM_LOAD( "12_6a.bin",   0x08000, 0x2000, CRC(5a26b38f) SHA1(987a4844c4568a088932f43a3aff847e6d6b4860) )
+	ROM_LOAD( "13_7a.bin",   0x0a000, 0x2000, CRC(8033cd4f) SHA1(5eb2e5931e44ca6bf64117dd34e9b6072e6b0ffc) )
+
+	ROM_REGION( 0x08000, "gfx3", 0 )
+	ROM_LOAD( "14_2n.bin",   0x00000, 0x2000, CRC(6db1b10d) SHA1(85bf67ce4d60b260767ba5fe9b9777f857937fe3) )   /* sprites */
+	ROM_LOAD( "15_3n.bin",   0x02000, 0x2000, CRC(5d8c34ec) SHA1(7b7df89398bf83ace1a8c216ca8526beae90972d) )
+	ROM_LOAD( "16_4n.bin",   0x04000, 0x2000, CRC(0071a2e3) SHA1(3f7bb4658d2126576a0f8f46f2c947eec1cd231a) )
+	ROM_LOAD( "17_5n.bin",   0x06000, 0x2000, CRC(4023a1ec) SHA1(8b69b9cd6db37db94a00da8712413055a631186a) )
+
+	ROM_REGION( 0x0800, "proms", 0 )
+	ROM_LOAD( "82s129_8e.bin",    0x0000, 0x0100, CRC(06a83606) SHA1(218c1b404b4b5b06f06e04143872f6758f83f266) )    /* red component */
+	ROM_LOAD( "82s129_9e.bin",    0x0100, 0x0100, CRC(beacf13c) SHA1(d597097afc53fef752b2530d2de04e5aabb664b4) )    /* green component */
+	ROM_LOAD( "82s129_10e.bin",   0x0200, 0x0100, CRC(8404067c) SHA1(6e8826f56267007e2adf02dc03dd96bd40e64935) )    /* blue component, only PROM slightly different from original? */
+	ROM_LOAD( "82s129_1d.bin",    0x0300, 0x0100, CRC(7179080d) SHA1(6c1e8572a4c7b4825b89fc9549265be7c8f17788) )    /* char lookup table */
+	ROM_LOAD( "82s129_2j.bin",    0x0400, 0x0100, CRC(d0842029) SHA1(7d76e1ff75466e190bc2e07ff3ffb45034f838cd) )    /* sprite lookup table */
+	ROM_LOAD( "82s129_9c.bin",    0x0500, 0x0100, CRC(7a1f0bd6) SHA1(5a2110e97e82c087999ee4e5adf32d7fa06a3dfb) )    /* tile lookup table */
+	ROM_LOAD( "82s129_9k.bin",    0x0600, 0x0100, CRC(32b10521) SHA1(10b258e32813cfa3a853cbd146657b11c08cb770) )    /* interrupt timing? (not used) */
+	ROM_LOAD( "82s129_8n.bin",    0x0700, 0x0100, CRC(4921635c) SHA1(aee37d6cdc36acf0f11ff5f93e7b16e4b12f6c39) )    /* video timing? (not used) */
+ROM_END
+
+GAME( 1984, vulgus,  0,      vulgus, vulgus, vulgus_state, empty_init, ROT270, "Capcom", "Vulgus (set 1)", MACHINE_SUPPORTS_SAVE )
+GAME( 1984, vulgusa, vulgus, vulgus, vulgus, vulgus_state, empty_init, ROT90,  "Capcom", "Vulgus (set 2)", MACHINE_SUPPORTS_SAVE )
+GAME( 1984, vulgusj, vulgus, vulgus, vulgus, vulgus_state, empty_init, ROT270, "Capcom", "Vulgus (Japan?)", MACHINE_SUPPORTS_SAVE )
+GAME( 1984, mach9,   vulgus, vulgus, vulgus, vulgus_state, empty_init, ROT270,  "bootleg (ITISA)", "Mach-9 (bootleg of Vulgus)", MACHINE_SUPPORTS_SAVE )

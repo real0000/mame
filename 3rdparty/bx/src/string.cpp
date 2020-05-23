@@ -1,19 +1,21 @@
 /*
- * Copyright 2010-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2010-2019 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bx#license-bsd-2-clause
  */
 
+#include "bx_p.h"
 #include <bx/allocator.h>
+#include <bx/file.h>
 #include <bx/hash.h>
-#include <bx/readerwriter.h>
 #include <bx/string.h>
-
-#if !BX_CRT_NONE
-#	include <stdio.h> // vsnprintf, vsnwprintf
-#endif // !BX_CRT_NONE
 
 namespace bx
 {
+	inline bool isInRange(char _ch, char _from, char _to)
+	{
+		return unsigned(_ch - _from) <= unsigned(_to-_from);
+	}
+
 	bool isSpace(char _ch)
 	{
 		return ' '  == _ch
@@ -27,12 +29,12 @@ namespace bx
 
 	bool isUpper(char _ch)
 	{
-		return _ch >= 'A' && _ch <= 'Z';
+		return isInRange(_ch, 'A', 'Z');
 	}
 
 	bool isLower(char _ch)
 	{
-		return _ch >= 'a' && _ch <= 'z';
+		return isInRange(_ch, 'a', 'z');
 	}
 
 	bool isAlpha(char _ch)
@@ -42,17 +44,86 @@ namespace bx
 
 	bool isNumeric(char _ch)
 	{
-		return _ch >= '0' && _ch <= '9';
+		return isInRange(_ch, '0', '9');
 	}
 
 	bool isAlphaNum(char _ch)
 	{
-		return isAlpha(_ch) || isNumeric(_ch);
+		return false
+			|| isAlpha(_ch)
+			|| isNumeric(_ch)
+			;
+	}
+
+	bool isHexNum(char _ch)
+	{
+		return false
+			|| isInRange(toLower(_ch), 'a', 'f')
+			|| isNumeric(_ch)
+			;
 	}
 
 	bool isPrint(char _ch)
 	{
-		return isAlphaNum(_ch) || isSpace(_ch);
+		return isInRange(_ch, ' ', '~');
+	}
+
+	typedef bool (*CharTestFn)(char _ch);
+
+	template<CharTestFn fn>
+	inline bool isCharTest(const StringView& _str)
+	{
+		bool result = true;
+
+		for (const char* ptr = _str.getPtr(), *term = _str.getTerm()
+			; ptr != term && result
+			; ++ptr
+			)
+		{
+			result &= fn(*ptr);
+		}
+
+		return result;
+	}
+
+	bool isSpace(const StringView& _str)
+	{
+		return isCharTest<isSpace>(_str);
+	}
+
+	bool isUpper(const StringView& _str)
+	{
+		return isCharTest<isUpper>(_str);
+	}
+
+	bool isLower(const StringView& _str)
+	{
+		return isCharTest<isLower>(_str);
+	}
+
+	bool isAlpha(const StringView& _str)
+	{
+		return isCharTest<isAlpha>(_str);
+	}
+
+	bool isNumeric(const StringView& _str)
+	{
+		return isCharTest<isNumeric>(_str);
+	}
+
+	bool isAlphaNum(const StringView& _str)
+	{
+		return isCharTest<isAlphaNum>(_str);
+	}
+
+	bool isHexNum(const StringView& _str)
+	{
+		return isCharTest<isHexNum>(_str);
+	}
+
+	bool isPrint(const StringView& _str)
+	{
+		return isCharTest<isPrint>(_str);
 	}
 
 	char toLower(char _ch)
@@ -60,22 +131,54 @@ namespace bx
 		return _ch + (isUpper(_ch) ? 0x20 : 0);
 	}
 
+	void toLowerUnsafe(char* _inOutStr, int32_t _len)
+	{
+		for (int32_t ii = 0; ii < _len; ++ii)
+		{
+			*_inOutStr = toLower(*_inOutStr);
+		}
+	}
+
+	void toLower(char* _inOutStr, int32_t _max)
+	{
+		const int32_t len = strLen(_inOutStr, _max);
+		toLowerUnsafe(_inOutStr, len);
+	}
+
 	char toUpper(char _ch)
 	{
 		return _ch - (isLower(_ch) ? 0x20 : 0);
 	}
 
-	bool toBool(const char* _str)
+	void toUpperUnsafe(char* _inOutStr, int32_t _len)
 	{
-		char ch = toLower(_str[0]);
-		return ch == 't' ||  ch == '1';
+		for (int32_t ii = 0; ii < _len; ++ii)
+		{
+			*_inOutStr = toUpper(*_inOutStr);
+		}
 	}
 
-	int32_t strncmp(const char* _lhs, const char* _rhs, size_t _max)
+	void toUpper(char* _inOutStr, int32_t _max)
 	{
+		const int32_t len = strLen(_inOutStr, _max);
+		toUpperUnsafe(_inOutStr, len);
+	}
+
+	typedef char (*CharFn)(char _ch);
+
+	inline char toNoop(char _ch)
+	{
+		return _ch;
+	}
+
+	template<CharFn fn>
+	inline int32_t strCmp(const char* _lhs, int32_t _lhsMax, const char* _rhs, int32_t _rhsMax)
+	{
+		int32_t max = min(_lhsMax, _rhsMax);
+
 		for (
-			; 0 < _max && *_lhs == *_rhs
-			; ++_lhs, ++_rhs, --_max
+			; 0 < max && fn(*_lhs) == fn(*_rhs)
+			; ++_lhs, ++_rhs, --max
 			)
 		{
 			if (*_lhs == '\0'
@@ -85,62 +188,165 @@ namespace bx
 			}
 		}
 
-		return 0 == _max ? 0 : *_lhs - *_rhs;
+		if (0 == max)
+		{
+			return _lhsMax == _rhsMax ? 0 : _lhsMax > _rhsMax ? 1 : -1;
+		}
+
+		return fn(*_lhs) - fn(*_rhs);
 	}
 
-	int32_t strincmp(const char* _lhs, const char* _rhs, size_t _max)
+	int32_t strCmp(const StringView& _lhs, const StringView& _rhs, int32_t _max)
 	{
+		return strCmp<toNoop>(
+			  _lhs.getPtr()
+			, min(_lhs.getLength(), _max)
+			, _rhs.getPtr()
+			, min(_rhs.getLength(), _max)
+			);
+	}
+
+	int32_t strCmpI(const StringView& _lhs, const StringView& _rhs, int32_t _max)
+	{
+		return strCmp<toLower>(
+			  _lhs.getPtr()
+			, min(_lhs.getLength(), _max)
+			, _rhs.getPtr()
+			, min(_rhs.getLength(), _max)
+			);
+	}
+
+	inline int32_t strCmpV(const char* _lhs, int32_t _lhsMax, const char* _rhs, int32_t _rhsMax)
+	{
+		int32_t max  = min(_lhsMax, _rhsMax);
+		int32_t ii   = 0;
+		int32_t idx  = 0;
+		bool    zero = true;
+
 		for (
-			; 0 < _max && toLower(*_lhs) == toLower(*_rhs)
-			; ++_lhs, ++_rhs, --_max
+			; 0 < max && _lhs[ii] == _rhs[ii]
+			; ++ii, --max
 			)
 		{
-			if (*_lhs == '\0'
-			||  *_rhs == '\0')
+			const uint8_t ch = _lhs[ii];
+			if ('\0' == ch
+			||  '\0' == _rhs[ii])
 			{
 				break;
 			}
+
+			if (!isNumeric(ch) )
+			{
+				idx  = ii+1;
+				zero = true;
+			}
+			else if ('0' != ch)
+			{
+				zero = false;
+			}
 		}
 
-		return 0 == _max ? 0 : *_lhs - *_rhs;
+		if (0 == max)
+		{
+			return _lhsMax == _rhsMax ? 0 : _lhs[ii] - _rhs[ii];
+		}
+
+		if ('0' != _lhs[idx]
+		&&  '0' != _rhs[idx])
+		{
+			int32_t jj = 0;
+			for (jj = ii
+				; 0 < max && isNumeric(_lhs[jj])
+				; ++jj, --max
+				)
+			{
+				if (!isNumeric(_rhs[jj]) )
+				{
+					return 1;
+				}
+			}
+
+			if (isNumeric(_rhs[jj]))
+			{
+				return -1;
+			}
+		}
+		else if (zero
+			 &&  idx < ii
+			 && (isNumeric(_lhs[ii]) || isNumeric(_rhs[ii]) ) )
+		{
+			return (_lhs[ii] - '0') - (_rhs[ii] - '0');
+		}
+
+		return 0 == max && _lhsMax == _rhsMax ? 0 : _lhs[ii] - _rhs[ii];
 	}
 
-	size_t strnlen(const char* _str, size_t _max)
+	int32_t strCmpV(const StringView& _lhs, const StringView& _rhs, int32_t _max)
 	{
-		const char* ptr;
-		for (ptr = _str; 0 < _max && *ptr != '\0'; ++ptr, --_max) {};
-		return ptr - _str;
+		return strCmpV(
+			  _lhs.getPtr()
+			, min(_lhs.getLength(), _max)
+			, _rhs.getPtr()
+			, min(_rhs.getLength(), _max)
+			);
 	}
 
-	size_t strlncpy(char* _dst, size_t _dstSize, const char* _src, size_t _num)
+	int32_t strLen(const char* _str, int32_t _max)
+	{
+		if (NULL == _str)
+		{
+			return 0;
+		}
+
+		const char* ptr = _str;
+		for (; 0 < _max && *ptr != '\0'; ++ptr, --_max) {};
+		return int32_t(ptr - _str);
+	}
+
+	int32_t strLen(const StringView& _str, int32_t _max)
+	{
+		return strLen(_str.getPtr(), min(_str.getLength(), _max) );
+	}
+
+	inline int32_t strCopy(char* _dst, int32_t _dstSize, const char* _src, int32_t _num)
 	{
 		BX_CHECK(NULL != _dst, "_dst can't be NULL!");
 		BX_CHECK(NULL != _src, "_src can't be NULL!");
 		BX_CHECK(0 < _dstSize, "_dstSize can't be 0!");
 
-		const size_t len = strnlen(_src, _num);
-		const size_t max = _dstSize-1;
-		const size_t num = (len < max ? len : max);
-		memcpy(_dst, _src, num);
+		const int32_t len = strLen(_src, _num);
+		const int32_t max = _dstSize-1;
+		const int32_t num = (len < max ? len : max);
+		memCopy(_dst, _src, num);
 		_dst[num] = '\0';
 
 		return num;
 	}
 
-	size_t strlncat(char* _dst, size_t _dstSize, const char* _src, size_t _num)
+	int32_t strCopy(char* _dst, int32_t _dstSize, const StringView& _str, int32_t _num)
+	{
+		return strCopy(_dst, _dstSize, _str.getPtr(), min(_str.getLength(), _num) );
+	}
+
+	inline int32_t strCat(char* _dst, int32_t _dstSize, const char* _src, int32_t _num)
 	{
 		BX_CHECK(NULL != _dst, "_dst can't be NULL!");
 		BX_CHECK(NULL != _src, "_src can't be NULL!");
 		BX_CHECK(0 < _dstSize, "_dstSize can't be 0!");
 
-		const size_t max = _dstSize;
-		const size_t len = strnlen(_dst, max);
-		return strlncpy(&_dst[len], max-len, _src, _num);
+		const int32_t max = _dstSize;
+		const int32_t len = strLen(_dst, max);
+		return strCopy(&_dst[len], max-len, _src, _num);
 	}
 
-	const char* strnchr(const char* _str, char _ch, size_t _max)
+	int32_t strCat(char* _dst, int32_t _dstSize, const StringView& _str, int32_t _num)
 	{
-		for (size_t ii = 0, len = strnlen(_str, _max); ii < len; ++ii)
+		return strCat(_dst, _dstSize, _str.getPtr(), min(_str.getLength(), _num) );
+	}
+
+	inline const char* strFindUnsafe(const char* _str, int32_t _len, char _ch)
+	{
+		for (int32_t ii = 0; ii < _len; ++ii)
 		{
 			if (_str[ii] == _ch)
 			{
@@ -151,9 +357,25 @@ namespace bx
 		return NULL;
 	}
 
-	const char* strnrchr(const char* _str, char _ch, size_t _max)
+	inline const char* strFind(const char* _str, int32_t _max, char _ch)
 	{
-		for (size_t ii = strnlen(_str, _max); 0 < ii; --ii)
+		return strFindUnsafe(_str, strLen(_str, _max), _ch);
+	}
+
+	StringView strFind(const StringView& _str, char _ch)
+	{
+		const char* ptr = strFindUnsafe(_str.getPtr(), _str.getLength(), _ch);
+		if (NULL == ptr)
+		{
+			return StringView(_str.getTerm(), _str.getTerm() );
+		}
+
+		return StringView(ptr, ptr+1);
+	}
+
+	inline const char* strRFindUnsafe(const char* _str, int32_t _len, char _ch)
+	{
+		for (int32_t ii = _len-1; 0 <= ii; --ii)
 		{
 			if (_str[ii] == _ch)
 			{
@@ -164,17 +386,29 @@ namespace bx
 		return NULL;
 	}
 
-	const char* strnstr(const char* _str, const char* _find, size_t _max)
+	StringView strRFind(const StringView& _str, char _ch)
+	{
+		const char* ptr = strRFindUnsafe(_str.getPtr(), _str.getLength(), _ch);
+		if (NULL == ptr)
+		{
+			return StringView(_str.getTerm(), _str.getTerm() );
+		}
+
+		return StringView(ptr, ptr+1);
+	}
+
+	template<CharFn fn>
+	inline const char* strFind(const char* _str, int32_t _strMax, const char* _find, int32_t _findMax)
 	{
 		const char* ptr = _str;
 
-		size_t       stringLen = strnlen(_str, _max);
-		const size_t findLen   = strnlen(_find);
+		int32_t       stringLen = _strMax;
+		const int32_t findLen   = _findMax;
 
 		for (; stringLen >= findLen; ++ptr, --stringLen)
 		{
 			// Find start of the string.
-			while (*ptr != *_find)
+			while (fn(*ptr) != fn(*_find) )
 			{
 				++ptr;
 				--stringLen;
@@ -191,7 +425,7 @@ namespace bx
 			const char* search = _find;
 
 			// Start comparing.
-			while (*string++ == *search++)
+			while (fn(*string++) == fn(*search++) )
 			{
 				// If end of the 'search' string is reached, all characters match.
 				if ('\0' == *search)
@@ -204,132 +438,223 @@ namespace bx
 		return NULL;
 	}
 
-	const char* stristr(const char* _str, const char* _find, size_t _max)
+	StringView strFind(const StringView& _str, const StringView& _find, int32_t _num)
 	{
-		const char* ptr = _str;
+		int32_t len = min(_find.getLength(), _num);
 
-		size_t       stringLen = strnlen(_str, _max);
-		const size_t findLen   = strnlen(_find);
+		const char* ptr = strFind<toNoop>(
+			  _str.getPtr()
+			, _str.getLength()
+			, _find.getPtr()
+			, len
+			);
 
-		for (; stringLen >= findLen; ++ptr, --stringLen)
+		if (NULL == ptr)
 		{
-			// Find start of the string.
-			while (toLower(*ptr) != toLower(*_find) )
-			{
-				++ptr;
-				--stringLen;
+			return StringView(_str.getTerm(), _str.getTerm() );
+		}
 
-				// Search pattern lenght can't be longer than the string.
-				if (findLen > stringLen)
+		return StringView(ptr, len);
+	}
+
+	StringView strFindI(const StringView& _str, const StringView& _find, int32_t _num)
+	{
+		int32_t len = min(_find.getLength(), _num);
+
+		const char* ptr = strFind<toLower>(
+			  _str.getPtr()
+			, _str.getLength()
+			, _find.getPtr()
+			, len
+			);
+
+		if (NULL == ptr)
+		{
+			return StringView(_str.getTerm(), _str.getTerm() );
+		}
+
+		return StringView(ptr, len);
+	}
+
+	StringView strLTrim(const StringView& _str, const StringView& _chars)
+	{
+		const char* ptr   = _str.getPtr();
+		const char* chars = _chars.getPtr();
+		const uint32_t charsLen = _chars.getLength();
+
+		for (uint32_t ii = 0, len = _str.getLength(); ii < len; ++ii)
+		{
+			if (NULL == strFindUnsafe(chars, charsLen, ptr[ii]) )
+			{
+				return StringView(ptr + ii, len-ii);
+			}
+		}
+
+		return _str;
+	}
+
+	StringView strLTrimSpace(const StringView& _str)
+	{
+		for (const char* ptr = _str.getPtr(), *term = _str.getTerm(); ptr != term; ++ptr)
+		{
+			if (!isSpace(*ptr) )
+			{
+				return StringView(ptr, term);
+			}
+		}
+
+		return StringView(_str.getTerm(), _str.getTerm() );
+	}
+
+	StringView strLTrimNonSpace(const StringView& _str)
+	{
+		for (const char* ptr = _str.getPtr(), *term = _str.getTerm(); ptr != term; ++ptr)
+		{
+			if (isSpace(*ptr) )
+			{
+				return StringView(ptr, term);
+			}
+		}
+
+		return StringView(_str.getTerm(), _str.getTerm() );
+	}
+
+	StringView strRTrim(const StringView& _str, const StringView& _chars)
+	{
+		if (!_str.isEmpty() )
+		{
+			const char* ptr = _str.getPtr();
+			const char* chars = _chars.getPtr();
+			const uint32_t charsLen = _chars.getLength();
+
+			for (int32_t len = _str.getLength(), ii = len - 1; 0 <= ii; --ii)
+			{
+				if (NULL == strFindUnsafe(chars, charsLen, ptr[ii]))
 				{
-					return NULL;
+					return StringView(ptr, ii + 1);
 				}
 			}
-
-			// Set pointers.
-			const char* string = ptr;
-			const char* search = _find;
-
-			// Start comparing.
-			while (toLower(*string++) == toLower(*search++) )
-			{
-				// If end of the 'search' string is reached, all characters match.
-				if ('\0' == *search)
-				{
-					return ptr;
-				}
-			}
 		}
 
-		return NULL;
+		return _str;
 	}
 
-	const char* strnl(const char* _str)
+	StringView strTrim(const StringView& _str, const StringView& _chars)
 	{
-		for (; '\0' != *_str; _str += strnlen(_str, 1024) )
+		return strLTrim(strRTrim(_str, _chars), _chars);
+	}
+
+	constexpr uint32_t kFindStep = 1024;
+
+	StringView strFindNl(const StringView& _str)
+	{
+		StringView str(_str);
+
+		for (; str.getPtr() != _str.getTerm()
+			; str = StringView(min(str.getPtr() + kFindStep, _str.getTerm() ), min(str.getPtr() + kFindStep*2, _str.getTerm() ) )
+			)
 		{
-			const char* eol = strnstr(_str, "\r\n", 1024);
-			if (NULL != eol)
+			StringView eol = strFind(str, "\r\n");
+			if (!eol.isEmpty() )
 			{
-				return eol + 2;
+				return StringView(eol.getTerm(), _str.getTerm() );
 			}
 
-			eol = strnstr(_str, "\n", 1024);
-			if (NULL != eol)
+			eol = strFind(str, '\n');
+			if (!eol.isEmpty() )
 			{
-				return eol + 1;
+				return StringView(eol.getTerm(), _str.getTerm() );
 			}
 		}
 
-		return _str;
+		return StringView(_str.getTerm(), _str.getTerm() );
 	}
 
-	const char* streol(const char* _str)
+	StringView strFindEol(const StringView& _str)
 	{
-		for (; '\0' != *_str; _str += strnlen(_str, 1024) )
+		StringView str(_str);
+
+		for (; str.getPtr() != _str.getTerm()
+			 ; str = StringView(min(str.getPtr() + kFindStep, _str.getTerm() ), min(str.getPtr() + kFindStep*2, _str.getTerm() ) )
+			)
 		{
-			const char* eol = strnstr(_str, "\r\n", 1024);
-			if (NULL != eol)
+			StringView eol = strFind(str, "\r\n");
+			if (!eol.isEmpty() )
 			{
-				return eol;
+				return StringView(eol.getPtr(), _str.getTerm() );
 			}
 
-			eol = strnstr(_str, "\n", 1024);
-			if (NULL != eol)
+			eol = strFind(str, '\n');
+			if (!eol.isEmpty() )
 			{
-				return eol;
+				return StringView(eol.getPtr(), _str.getTerm() );
 			}
 		}
 
-		return _str;
+		return StringView(_str.getTerm(), _str.getTerm() );
 	}
 
-	const char* strws(const char* _str)
+	static const char* strSkipWord(const char* _str, int32_t _max)
 	{
-		for (; isSpace(*_str); ++_str) {};
-		return _str;
-	}
-
-	const char* strnws(const char* _str)
-	{
-		for (; !isSpace(*_str); ++_str) {};
-		return _str;
-	}
-
-	const char* strword(const char* _str)
-	{
-		for (char ch = *_str++; isAlphaNum(ch) || '_' == ch; ch = *_str++) {};
+		for (char ch = *_str++; 0 < _max && (isAlphaNum(ch) || '_' == ch); ch = *_str++, --_max) {};
 		return _str-1;
 	}
 
-	const char* strmb(const char* _str, char _open, char _close)
+	StringView strWord(const StringView& _str)
 	{
-		int count = 0;
-		for (char ch = *_str++; ch != '\0' && count >= 0; ch = *_str++)
+		const char* ptr  = _str.getPtr();
+		const char* term = strSkipWord(ptr, _str.getLength() );
+		return StringView(ptr, term);
+	}
+
+	StringView strFindBlock(const StringView& _str, char _open, char _close)
+	{
+		const char* curr  = _str.getPtr();
+		const char* term  = _str.getTerm();
+		const char* start = NULL;
+
+		int32_t count = 0;
+		for (char ch = *curr; curr != term && count >= 0; ch = *(++curr) )
 		{
 			if (ch == _open)
 			{
-				count++;
+				if (0 == count)
+				{
+					start = curr;
+				}
+
+				++count;
 			}
 			else if (ch == _close)
 			{
-				count--;
+				--count;
+
+				if (NULL == start)
+				{
+					break;
+				}
+
 				if (0 == count)
 				{
-					return _str-1;
+					return StringView(start, curr+1);
 				}
 			}
 		}
 
-		return NULL;
+		return StringView(term, term);
 	}
 
-	void eolLF(char* _out, size_t _size, const char* _str)
+	StringView normalizeEolLf(char* _out, int32_t _size, const StringView& _str)
 	{
+		const char* start = _out;
+		const char* end   = _out;
+
 		if (0 < _size)
 		{
-			char* end = _out + _size - 1;
-			for (char ch = *_str++; ch != '\0' && _out < end; ch = *_str++)
+			const char* curr = _str.getPtr();
+			const char* term = _str.getTerm();
+			end  = _out + _size;
+			for (char ch = *curr; curr != term && _out < end; ch = *(++curr) )
 			{
 				if ('\r' != ch)
 				{
@@ -337,26 +662,25 @@ namespace bx
 				}
 			}
 
-			*_out = '\0';
+			end = _out;
 		}
+
+		return StringView(start, end);
 	}
 
-	const char* findIdentifierMatch(const char* _str, const char* _word)
+	StringView findIdentifierMatch(const StringView& _str, const StringView& _word)
 	{
-		size_t len = strnlen(_word);
-		const char* ptr = strnstr(_str, _word);
-		for (; NULL != ptr; ptr = strnstr(ptr + len, _word) )
+		const int32_t len = _word.getLength();
+		StringView ptr = strFind(_str, _word);
+		for (; !ptr.isEmpty(); ptr = strFind(StringView(ptr.getPtr() + len, _str.getTerm() ), _word) )
 		{
-			if (ptr != _str)
+			char ch = *(ptr.getPtr() - 1);
+			if (isAlphaNum(ch) || '_' == ch)
 			{
-				char ch = *(ptr - 1);
-				if (isAlphaNum(ch) || '_' == ch)
-				{
-					continue;
-				}
+				continue;
 			}
 
-			char ch = ptr[len];
+			ch = *(ptr.getPtr() + len);
 			if (isAlphaNum(ch) || '_' == ch)
 			{
 				continue;
@@ -365,31 +689,448 @@ namespace bx
 			return ptr;
 		}
 
-		return ptr;
+		return StringView(_str.getTerm(), _str.getTerm() );
 	}
 
-	const char* findIdentifierMatch(const char* _str, const char* _words[])
+	StringView findIdentifierMatch(const StringView& _str, const char** _words, int32_t _num)
 	{
-		for (const char* word = *_words; NULL != word; ++_words, word = *_words)
+		int32_t ii = 0;
+		for (StringView word = *_words; ii < _num && !word.isEmpty(); ++ii, ++_words, word = *_words)
 		{
-			const char* match = findIdentifierMatch(_str, word);
-			if (NULL != match)
+			StringView match = findIdentifierMatch(_str, word);
+			if (!match.isEmpty() )
 			{
 				return match;
 			}
 		}
 
-		return NULL;
+		return StringView(_str.getTerm(), _str.getTerm() );
 	}
 
-	int32_t write(WriterI* _writer, const char* _format, va_list _argList, Error* _err);
+	namespace
+	{
+		struct Param
+		{
+			Param()
+				: width(0)
+				, base(10)
+				, prec(INT32_MAX)
+				, fill(' ')
+				, bits(0)
+				, left(false)
+				, upper(false)
+				, spec(false)
+				, sign(false)
+			{
+			}
 
-	int32_t vsnprintfRef(char* _out, size_t _max, const char* _format, va_list _argList)
+			int32_t width;
+			int32_t base;
+			int32_t prec;
+			char fill;
+			uint8_t bits;
+			bool left;
+			bool upper;
+			bool spec;
+			bool sign;
+		};
+
+		static int32_t write(WriterI* _writer, const char* _str, int32_t _len, const Param& _param, Error* _err)
+		{
+			int32_t size = 0;
+			int32_t len = (int32_t)strLen(_str, _len);
+			int32_t padding = _param.width > len ? _param.width - len : 0;
+			bool sign = _param.sign && len > 1 && _str[0] != '-';
+			padding = padding > 0 ? padding - sign : 0;
+
+			if (!_param.left)
+			{
+				size += writeRep(_writer, _param.fill, padding, _err);
+			}
+
+			if (NULL == _str)
+			{
+				size += write(_writer, "(null)", 6, _err);
+			}
+			else if (_param.upper)
+			{
+				for (int32_t ii = 0; ii < len; ++ii)
+				{
+					size += write(_writer, toUpper(_str[ii]), _err);
+				}
+			}
+			else if (sign)
+			{
+				size += write(_writer, '+', _err);
+				size += write(_writer, _str, len, _err);
+			}
+			else
+			{
+				size += write(_writer, _str, len, _err);
+			}
+
+			if (_param.left)
+			{
+				size += writeRep(_writer, _param.fill, padding, _err);
+			}
+
+			return size;
+		}
+
+		static int32_t write(WriterI* _writer, char _ch, const Param& _param, Error* _err)
+		{
+			return write(_writer, &_ch, 1, _param, _err);
+		}
+
+		static int32_t write(WriterI* _writer, const char* _str, const Param& _param, Error* _err)
+		{
+			return write(_writer, _str, _param.prec, _param, _err);
+		}
+
+		static int32_t write(WriterI* _writer, int32_t _i, const Param& _param, Error* _err)
+		{
+			char str[33];
+			int32_t len = toString(str, sizeof(str), _i, _param.base);
+
+			if (len == 0)
+			{
+				return 0;
+			}
+
+			return write(_writer, str, len, _param, _err);
+		}
+
+		static int32_t write(WriterI* _writer, int64_t _i, const Param& _param, Error* _err)
+		{
+			char str[33];
+			int32_t len = toString(str, sizeof(str), _i, _param.base);
+
+			if (len == 0)
+			{
+				return 0;
+			}
+
+			return write(_writer, str, len, _param, _err);
+		}
+
+		static int32_t write(WriterI* _writer, uint32_t _u, const Param& _param, Error* _err)
+		{
+			char str[33];
+			int32_t len = toString(str, sizeof(str), _u, _param.base);
+
+			if (len == 0)
+			{
+				return 0;
+			}
+
+			return write(_writer, str, len, _param, _err);
+		}
+
+		static int32_t write(WriterI* _writer, uint64_t _u, const Param& _param, Error* _err)
+		{
+			char str[33];
+			int32_t len = toString(str, sizeof(str), _u, _param.base);
+
+			if (len == 0)
+			{
+				return 0;
+			}
+
+			return write(_writer, str, len, _param, _err);
+		}
+
+		static int32_t write(WriterI* _writer, double _d, const Param& _param, Error* _err)
+		{
+			char str[1024];
+			int32_t len = toString(str, sizeof(str), _d);
+
+			if (len == 0)
+			{
+				return 0;
+			}
+
+			if (_param.upper)
+			{
+				toUpperUnsafe(str, len);
+			}
+
+			const char* dot = strFind(str, INT32_MAX, '.');
+			if (NULL != dot)
+			{
+				const int32_t prec = INT32_MAX == _param.prec ? 6 : _param.prec;
+				const int32_t precLen = int32_t(
+						dot
+						+ uint32_min(prec + _param.spec, 1)
+						+ prec
+						- str
+						);
+				if (precLen > len)
+				{
+					for (int32_t ii = len; ii < precLen; ++ii)
+					{
+						str[ii] = '0';
+					}
+					str[precLen] = '\0';
+				}
+				len = precLen;
+			}
+
+			return write(_writer, str, len, _param, _err);
+		}
+
+		static int32_t write(WriterI* _writer, const void* _ptr, const Param& _param, Error* _err)
+		{
+			char str[35] = "0x";
+			int32_t len = toString(str + 2, sizeof(str) - 2, uint32_t(uintptr_t(_ptr) ), 16);
+
+			if (len == 0)
+			{
+				return 0;
+			}
+
+			len += 2;
+			return write(_writer, str, len, _param, _err);
+		}
+	} // anonymous namespace
+
+	int32_t write(WriterI* _writer, const StringView& _format, va_list _argList, Error* _err)
+	{
+		MemoryReader reader(_format.getPtr(), _format.getLength() );
+
+		int32_t size = 0;
+
+		while (_err->isOk() )
+		{
+			char ch = '\0';
+
+			Error err;
+			read(&reader, ch, &err);
+
+			if (!_err->isOk()
+			||  !err.isOk() )
+			{
+				break;
+			}
+			else if ('%' == ch)
+			{
+				// %[flags][width][.precision][length sub-specifier]specifier
+				read(&reader, ch);
+
+				Param param;
+
+				// flags
+				while (' ' == ch
+				||     '-' == ch
+				||     '+' == ch
+				||     '0' == ch
+				||     '#' == ch)
+				{
+					switch (ch)
+					{
+						default:
+						case ' ': param.fill = ' ';  break;
+						case '-': param.left = true; break;
+						case '+': param.sign = true; break;
+						case '0': param.fill = '0';  break;
+						case '#': param.spec = true; break;
+					}
+
+					read(&reader, ch);
+				}
+
+				if (param.left)
+				{
+					param.fill = ' ';
+				}
+
+				// width
+				if ('*' == ch)
+				{
+					read(&reader, ch);
+					param.width = va_arg(_argList, int32_t);
+
+					if (0 > param.width)
+					{
+						param.left  = true;
+						param.width = -param.width;
+					}
+
+				}
+				else
+				{
+					while (isNumeric(ch) )
+					{
+						param.width = param.width * 10 + ch - '0';
+						read(&reader, ch);
+					}
+				}
+
+				// .precision
+				if ('.' == ch)
+				{
+					read(&reader, ch);
+
+					if ('*' == ch)
+					{
+						read(&reader, ch);
+						param.prec = va_arg(_argList, int32_t);
+					}
+					else
+					{
+						param.prec = 0;
+						while (isNumeric(ch) )
+						{
+							param.prec = param.prec * 10 + ch - '0';
+							read(&reader, ch);
+						}
+					}
+				}
+
+				// length sub-specifier
+				while ('h' == ch
+				||     'I' == ch
+				||     'l' == ch
+				||     'j' == ch
+				||     't' == ch
+				||     'z' == ch)
+				{
+					switch (ch)
+					{
+						default: break;
+
+						case 'j': param.bits = sizeof(intmax_t )*8; break;
+						case 't': param.bits = sizeof(size_t   )*8; break;
+						case 'z': param.bits = sizeof(ptrdiff_t)*8; break;
+
+						case 'h': case 'I': case 'l':
+							switch (ch)
+							{
+								case 'h': param.bits = sizeof(short int)*8; break;
+								case 'l': param.bits = sizeof(long int )*8; break;
+								default: break;
+							}
+
+							read(&reader, ch);
+							switch (ch)
+							{
+								case 'h': param.bits = sizeof(signed char  )*8; break;
+								case 'l': param.bits = sizeof(long long int)*8; break;
+								case '3':
+								case '6':
+									read(&reader, ch);
+									switch (ch)
+									{
+										case '2': param.bits = sizeof(int32_t)*8; break;
+										case '4': param.bits = sizeof(int64_t)*8; break;
+										default: break;
+									}
+									break;
+
+								default: seek(&reader, -1); break;
+							}
+							break;
+					}
+
+					read(&reader, ch);
+				}
+
+				// specifier
+				switch (toLower(ch) )
+				{
+					case 'c':
+						size += write(_writer, char(va_arg(_argList, int32_t) ), param, _err);
+						break;
+
+					case 's':
+						size += write(_writer, va_arg(_argList, const char*), param, _err);
+						break;
+
+					case 'o':
+						param.base = 8;
+						switch (param.bits)
+						{
+						default: size += write(_writer, va_arg(_argList, int32_t), param, _err); break;
+						case 64: size += write(_writer, va_arg(_argList, int64_t), param, _err); break;
+						}
+						break;
+
+					case 'i':
+					case 'd':
+						param.base = 10;
+						switch (param.bits)
+						{
+						default: size += write(_writer, va_arg(_argList, int32_t), param, _err); break;
+						case 64: size += write(_writer, va_arg(_argList, int64_t), param, _err); break;
+						};
+						break;
+
+					case 'e':
+					case 'f':
+					case 'g':
+						param.upper = isUpper(ch);
+						size += write(_writer, va_arg(_argList, double), param, _err);
+						break;
+
+					case 'p':
+						size += write(_writer, va_arg(_argList, void*), param, _err);
+						break;
+
+					case 'x':
+						param.base  = 16;
+						param.upper = isUpper(ch);
+						switch (param.bits)
+						{
+						default: size += write(_writer, va_arg(_argList, uint32_t), param, _err); break;
+						case 64: size += write(_writer, va_arg(_argList, uint64_t), param, _err); break;
+						}
+						break;
+
+					case 'u':
+						param.base = 10;
+						switch (param.bits)
+						{
+						default: size += write(_writer, va_arg(_argList, uint32_t), param, _err); break;
+						case 64: size += write(_writer, va_arg(_argList, uint64_t), param, _err); break;
+						}
+						break;
+
+					default:
+						size += write(_writer, ch, _err);
+						break;
+				}
+			}
+			else
+			{
+				size += write(_writer, ch, _err);
+			}
+		}
+
+		return size;
+	}
+
+	int32_t write(WriterI* _writer, Error* _err, const StringView* _format, ...)
+	{
+		va_list argList;
+		va_start(argList, _format);
+		int32_t total = write(_writer, *_format, argList, _err);
+		va_end(argList);
+		return total;
+	}
+
+	int32_t write(WriterI* _writer, Error* _err, const char* _format, ...)
+	{
+		va_list argList;
+		va_start(argList, _format);
+		int32_t total = write(_writer, _format, argList, _err);
+		va_end(argList);
+		return total;
+	}
+
+	int32_t vsnprintf(char* _out, int32_t _max, const char* _format, va_list _argList)
 	{
 		if (1 < _max)
 		{
-			StaticMemoryBlockWriter writer(_out, _max-1);
-			_out[_max-1] = '\0';
+			StaticMemoryBlockWriter writer(_out, uint32_t(_max) );
 
 			Error err;
 			va_list argListCopy;
@@ -399,7 +1140,12 @@ namespace bx
 
 			if (err.isOk() )
 			{
-				return size;
+				size += write(&writer, '\0', &err);
+				return size - 1 /* size without '\0' terminator */;
+			}
+			else
+			{
+				_out[_max-1] = '\0';
 			}
 		}
 
@@ -407,109 +1153,73 @@ namespace bx
 		SizerWriter sizer;
 		va_list argListCopy;
 		va_copy(argListCopy, _argList);
-		int32_t size = write(&sizer, _format, argListCopy, &err);
+		int32_t total = write(&sizer, _format, argListCopy, &err);
 		va_end(argListCopy);
 
-		return size - 1 /* size without '\0' terminator */;
+		return total;
 	}
 
-	int32_t vsnprintf(char* _out, size_t _max, const char* _format, va_list _argList)
-	{
-#if BX_CRT_NONE
-		return vsnprintfRef(_out, _max, _format, _argList);
-#elif BX_CRT_MSVC
-		int32_t len = -1;
-		if (NULL != _out)
-		{
-			va_list argListCopy;
-			va_copy(argListCopy, _argList);
-			len = ::vsnprintf_s(_out, _max, size_t(-1), _format, argListCopy);
-			va_end(argListCopy);
-		}
-		return -1 == len ? ::_vscprintf(_format, _argList) : len;
-#else
-		return ::vsnprintf(_out, _max, _format, _argList);
-#endif // BX_COMPILER_MSVC
-	}
-
-	int32_t snprintf(char* _out, size_t _max, const char* _format, ...)
+	int32_t snprintf(char* _out, int32_t _max, const char* _format, ...)
 	{
 		va_list argList;
 		va_start(argList, _format);
-		int32_t len = vsnprintf(_out, _max, _format, argList);
+		int32_t total = vsnprintf(_out, _max, _format, argList);
 		va_end(argList);
-		return len;
+
+		return total;
 	}
 
-	int32_t vsnwprintf(wchar_t* _out, size_t _max, const wchar_t* _format, va_list _argList)
+	int32_t vprintf(const char* _format, va_list _argList)
 	{
-#if BX_CRT_NONE
-		BX_UNUSED(_out, _max, _format, _argList);
-		return 0;
-#elif BX_CRT_MSVC
-		int32_t len = -1;
-		if (NULL != _out)
-		{
-			va_list argListCopy;
-			va_copy(argListCopy, _argList);
-			len = ::_vsnwprintf_s(_out, _max, size_t(-1), _format, argListCopy);
-			va_end(argListCopy);
-		}
-		return -1 == len ? ::_vscwprintf(_format, _argList) : len;
-#elif BX_CRT_MINGW
-		return ::vsnwprintf(_out, _max, _format, _argList);
-#else
-		return ::vswprintf(_out, _max, _format, _argList);
-#endif // BX_COMPILER_MSVC
+		Error err;
+		va_list argListCopy;
+		va_copy(argListCopy, _argList);
+		int32_t total = write(getStdOut(), _format, argListCopy, &err);
+		va_end(argListCopy);
+
+		return total;
 	}
 
-	int32_t swnprintf(wchar_t* _out, size_t _max, const wchar_t* _format, ...)
+	int32_t printf(const char* _format, ...)
 	{
 		va_list argList;
 		va_start(argList, _format);
-		int32_t len = vsnwprintf(_out, _max, _format, argList);
+		int32_t total = vprintf(_format, argList);
 		va_end(argList);
-		return len;
+
+		return total;
 	}
 
-	const char* baseName(const char* _filePath)
-	{
-		const char* bs       = strnrchr(_filePath, '\\');
-		const char* fs       = strnrchr(_filePath, '/');
-		const char* slash    = (bs > fs ? bs : fs);
-		const char* colon    = strnrchr(_filePath, ':');
-		const char* basename = slash > colon ? slash : colon;
-		if (NULL != basename)
-		{
-			return basename+1;
-		}
+	static const char s_units[] = { 'B', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y' };
 
-		return _filePath;
-	}
-
-	void prettify(char* _out, size_t _count, uint64_t _size)
+	template<uint32_t Kilo, char KiloCh0, char KiloCh1, CharFn fn>
+	inline int32_t prettify(char* _out, int32_t _count, uint64_t _value)
 	{
 		uint8_t idx = 0;
-		double size = double(_size);
-		while (_size != (_size&0x7ff)
-		&&     idx < 9)
+		double value = double(_value);
+		while (_value != (_value&0x7ff)
+		&&     idx < BX_COUNTOF(s_units) )
 		{
-			_size >>= 10;
-			size *= 1.0/1024.0;
+			_value /= Kilo;
+			value  *= 1.0/double(Kilo);
 			++idx;
 		}
 
-		snprintf(_out, _count, "%0.2f %c%c", size, "BkMGTPEZY"[idx], idx > 0 ? 'B' : '\0');
+		return snprintf(_out, _count, "%0.2f %c%c%c", value
+			, fn(s_units[idx])
+			, idx > 0 ? KiloCh0 : '\0'
+			, KiloCh1
+			);
 	}
 
-	size_t strlcpy(char* _dst, const char* _src, size_t _max)
+	int32_t prettify(char* _out, int32_t _count, uint64_t _value, Units::Enum _units)
 	{
-		return strlncpy(_dst, _max, _src);
-	}
+		if (Units::Kilo == _units)
+		{
+			return prettify<1000, 'B', '\0', toNoop>(_out, _count, _value);
+		}
 
-	size_t strlcat(char* _dst, const char* _src, size_t _max)
-	{
-		return strlncat(_dst, _max, _src);
+		return prettify<1024, 'i', 'B', toUpper>(_out, _count, _value);
 	}
 
 } // namespace bx

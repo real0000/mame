@@ -5,32 +5,18 @@
  *
  */
 
-#include "../solver/nld_solver.h"
-#include "../solver/nld_matrix_solver.h"
+#include "netlist/solver/nld_solver.h"
+#include "netlist/solver/nld_matrix_solver.h"
 #include "nlid_system.h"
 
 namespace netlist
 {
-	namespace devices
-	{
+namespace devices
+{
 	// ----------------------------------------------------------------------------------------
 	// netlistparams
 	// ----------------------------------------------------------------------------------------
 
-
-	// ----------------------------------------------------------------------------------------
-	// clock
-	// ----------------------------------------------------------------------------------------
-
-	NETLIB_UPDATE_PARAM(clock)
-	{
-		m_inc = netlist_time::from_double(1.0 / (m_freq() * 2.0));
-	}
-
-	NETLIB_UPDATE(clock)
-	{
-		m_Q.push(!m_feedback(), m_inc);
-	}
 
 	// ----------------------------------------------------------------------------------------
 	// extclock
@@ -39,118 +25,70 @@ namespace netlist
 	NETLIB_RESET(extclock)
 	{
 		m_cnt = 0;
-		m_off = netlist_time::from_double(m_offset());
+		m_off = netlist_time::from_fp<decltype(m_offset())>(m_offset());
+		m_feedback.set_delegate(NETLIB_DELEGATE(extclock, update));
+
+		//m_feedback.m_delegate .set(&NETLIB_NAME(extclock)::update, this);
 		//m_Q.initial(0);
+	}
+
+	NETLIB_HANDLER(extclock, clk2)
+	{
+		m_Q.push((m_cnt & 1) ^ 1, m_inc[m_cnt]);
+		if (++m_cnt >= m_size)
+			m_cnt = 0;
+	}
+
+	NETLIB_HANDLER(extclock, clk2_pow2)
+	{
+		m_Q.push((m_cnt & 1) ^ 1, m_inc[m_cnt]);
+		m_cnt = (++m_cnt) & (m_size-1);
 	}
 
 	NETLIB_UPDATE(extclock)
 	{
-		m_Q.push((m_cnt & 1) ^ 1, m_inc[m_cnt] + m_off);
-		m_cnt = (m_cnt + 1) % m_size;
+		m_Q.push((m_cnt & 1) ^ 1, m_inc[m_cnt] + m_off());
 		m_off = netlist_time::zero();
-	}
+		if (++m_cnt >= m_size)
+			m_cnt = 0;
 
-	// ----------------------------------------------------------------------------------------
-	// logic_input
-	// ----------------------------------------------------------------------------------------
+		// continue with optimized clock handlers ....
 
-	NETLIB_RESET(logic_input)
-	{
-		m_Q.initial(0);
-	}
-
-	NETLIB_UPDATE(logic_input)
-	{
-		m_Q.push(m_IN() & 1, netlist_time::from_nsec(1));
-	}
-
-	NETLIB_UPDATE_PARAM(logic_input)
-	{
-	}
-
-	// ----------------------------------------------------------------------------------------
-	// analog_input
-	// ----------------------------------------------------------------------------------------
-
-	NETLIB_RESET(analog_input)
-	{
-		m_Q.initial(0.0);
-	}
-
-	NETLIB_UPDATE(analog_input)
-	{
-		m_Q.push(m_IN());
-	}
-
-	NETLIB_UPDATE_PARAM(analog_input)
-	{
+		if ((m_size & (m_size-1)) == 0) // power of 2?
+			m_feedback.set_delegate(nldelegate(&NETLIB_NAME(extclock)::clk2_pow2, this));
+		else
+			m_feedback.set_delegate(nldelegate(&NETLIB_NAME(extclock)::clk2, this));
 	}
 
 
-	// -----------------------------------------------------------------------------
-	// nld_res_sw
-	// -----------------------------------------------------------------------------
+	NETLIB_DEVICE_IMPL(nc_pin,              "NC_PIN",                 "")
+	NETLIB_DEVICE_IMPL(frontier,            "FRONTIER_DEV",           "+I,+G,+Q")
+	NETLIB_DEVICE_IMPL(function,            "AFUNC",                  "N,FUNC")
+	NETLIB_DEVICE_IMPL(analog_input,        "ANALOG_INPUT",           "IN")
+	NETLIB_DEVICE_IMPL(clock,               "CLOCK",                  "FREQ")
+	NETLIB_DEVICE_IMPL(varclock,            "VARCLOCK",               "FUNC")
+	NETLIB_DEVICE_IMPL(extclock,            "EXTCLOCK",               "FREQ,PATTERN")
+	NETLIB_DEVICE_IMPL(sys_dsw1,            "SYS_DSW",                "+I,+1,+2")
+	NETLIB_DEVICE_IMPL(sys_dsw2,            "SYS_DSW2",               "")
+	NETLIB_DEVICE_IMPL(sys_compd,           "SYS_COMPD",              "")
 
-	NETLIB_RESET(res_sw)
-	{
-		m_last_state = 0;
-		m_R.set_R(m_ROFF());
-	}
+	using NETLIB_NAME(sys_noise_mt_u) =
+		NETLIB_NAME(sys_noise)<plib::mt19937_64, plib::uniform_distribution_t>;
+	NETLIB_DEVICE_IMPL(sys_noise_mt_u,      "SYS_NOISE_MT_U",         "SIGMA")
 
-	NETLIB_UPDATE(res_sw)
-	{
-		const netlist_sig_t state = m_I();
-		if (state != m_last_state)
-		{
-			m_last_state = state;
-			const nl_double R = state ? m_RON() : m_ROFF();
+	using NETLIB_NAME(sys_noise_mt_n) =
+		NETLIB_NAME(sys_noise)<plib::mt19937_64, plib::normal_distribution_t>;
+	NETLIB_DEVICE_IMPL(sys_noise_mt_n,      "SYS_NOISE_MT_N",         "SIGMA")
 
-			// We only need to update the net first if this is a time stepping net
-			if ((0)) // m_R->m_P.net().as_analog().solver()->is_timestep())
-			{
-				m_R.update_dev();
-				m_R.set_R(R);
-				m_R.m_P.schedule_solve_after(NLTIME_FROM_NS(1));
-			}
-			else
-			{
-				m_R.set_R(R);
-				m_R.m_P.schedule_solve_after(NLTIME_FROM_NS(1));
-				//m_R->update_dev();
-			}
-		}
-	}
+	NETLIB_DEVICE_IMPL(mainclock,           "MAINCLOCK",              "FREQ")
+	NETLIB_DEVICE_IMPL(gnd,                 "GNDA",                   "")
+	NETLIB_DEVICE_IMPL(netlistparams,       "PARAMETER",              "")
 
-	/* -----------------------------------------------------------------------------
-	 * nld_function
-	 * ----------------------------------------------------------------------------- */
+	using NETLIB_NAME(logic_input8) = NETLIB_NAME(logic_inputN)<8>;
+	NETLIB_DEVICE_IMPL(logic_input8,         "LOGIC_INPUT8",            "IN,MODEL")
 
-	NETLIB_RESET(function)
-	{
-		//m_Q.initial(0.0);
-	}
+	NETLIB_DEVICE_IMPL(logic_input,         "LOGIC_INPUT",            "IN,MODEL")
+	NETLIB_DEVICE_IMPL_ALIAS(logic_input_ttl, logic_input, "TTL_INPUT", "IN")
 
-	NETLIB_UPDATE(function)
-	{
-		for (std::size_t i=0; i < static_cast<unsigned>(m_N()); i++)
-		{
-			m_vals[i] = (*m_I[i])();
-		}
-		m_Q.push(m_precompiled.evaluate(m_vals));
-	}
-
-
-	NETLIB_DEVICE_IMPL(dummy_input)
-	NETLIB_DEVICE_IMPL(frontier)
-	NETLIB_DEVICE_IMPL(function)
-	NETLIB_DEVICE_IMPL(logic_input)
-	NETLIB_DEVICE_IMPL(analog_input)
-	NETLIB_DEVICE_IMPL(clock)
-	NETLIB_DEVICE_IMPL(extclock)
-	NETLIB_DEVICE_IMPL(res_sw)
-	NETLIB_DEVICE_IMPL(mainclock)
-	NETLIB_DEVICE_IMPL(gnd)
-	NETLIB_DEVICE_IMPL(netlistparams)
-
-	} //namespace devices
+} // namespace devices
 } // namespace netlist

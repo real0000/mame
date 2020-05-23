@@ -24,45 +24,44 @@
 
 ***************************************************************************/
 
-PALETTE_INIT_MEMBER(digdug_state,digdug)
+void digdug_state::digdug_palette(palette_device &palette) const
 {
 	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
 
-	for (i = 0;i < 32;i++)
+	for (int i = 0; i < 32; i++)
 	{
-		int bit0,bit1,bit2,r,g,b;
+		int bit0, bit1, bit2;
 
-		bit0 = (*color_prom >> 0) & 0x01;
-		bit1 = (*color_prom >> 1) & 0x01;
-		bit2 = (*color_prom >> 2) & 0x01;
-		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
-		bit0 = (*color_prom >> 3) & 0x01;
-		bit1 = (*color_prom >> 4) & 0x01;
-		bit2 = (*color_prom >> 5) & 0x01;
-		g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+		bit0 = BIT(*color_prom, 0);
+		bit1 = BIT(*color_prom, 1);
+		bit2 = BIT(*color_prom, 2);
+		int const r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+		bit0 = BIT(*color_prom, 3);
+		bit1 = BIT(*color_prom, 4);
+		bit2 = BIT(*color_prom, 5);
+		int const g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 		bit0 = 0;
-		bit1 = (*color_prom >> 6) & 0x01;
-		bit2 = (*color_prom >> 7) & 0x01;
-		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
-		palette.set_indirect_color(i,rgb_t(r,g,b));
+		bit1 = BIT(*color_prom, 6);
+		bit2 = BIT(*color_prom, 7);
+		int const b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 		color_prom++;
 	}
 
-	/* characters - direct mapping */
-	for (i = 0; i < 16; i++)
+	// characters - direct mapping
+	for (int i = 0; i < 16; i++)
 	{
-		palette.set_pen_indirect(i*2+0, 0);
-		palette.set_pen_indirect(i*2+1, i);
+		palette.set_pen_indirect((i << 1) | 0, 0);
+		palette.set_pen_indirect((i << 1) | 1, i);
 	}
 
-	/* sprites */
-	for (i = 0;i < 0x100;i++)
-		palette.set_pen_indirect(16*2+i, (*color_prom++ & 0x0f) + 0x10);
+	// sprites
+	for (int i = 0; i < 0x100; i++)
+		palette.set_pen_indirect(16*2 + i, (*color_prom++ & 0x0f) | 0x10);
 
-	/* bg_select */
-	for (i = 0;i < 0x100;i++)
-		palette.set_pen_indirect(16*2+256+i, *color_prom++ & 0x0f);
+	// bg_select
+	for (int i = 0; i < 0x100; i++)
+		palette.set_pen_indirect(16*2 + 256 + i, *color_prom++ & 0x0f);
 }
 
 
@@ -100,7 +99,7 @@ TILE_GET_INFO_MEMBER(digdug_state::bg_get_tile_info)
 	   tilemap RAM, therefore allowing to pick some bits of the color code from
 	   the top 4 bits of alpha code. This feature is not used by Dig Dug. */
 	int color = m_bg_disable ? 0xf : (code >> 4);
-	SET_TILE_INFO_MEMBER(2,
+	tileinfo.set(2,
 			code,
 			color | m_bg_color_bank,
 			0);
@@ -126,7 +125,7 @@ TILE_GET_INFO_MEMBER(digdug_state::tx_get_tile_info)
 	   timing signals, while x flip is done by selecting the 2nd character set.
 	   We reproduce this here, but since the tilemap system automatically flips
 	   characters when screen is flipped, we have to flip them back. */
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 			(code & 0x7f) | (flip_screen() ? 0x80 : 0),
 			color,
 			flip_screen() ? TILE_FLIPX : 0);
@@ -147,8 +146,8 @@ VIDEO_START_MEMBER(digdug_state,digdug)
 	m_bg_disable = 0;
 	m_bg_color_bank = 0;
 
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(digdug_state::bg_get_tile_info),this),tilemap_mapper_delegate(FUNC(digdug_state::tilemap_scan),this),8,8,36,28);
-	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(digdug_state::tx_get_tile_info),this),tilemap_mapper_delegate(FUNC(digdug_state::tilemap_scan),this),8,8,36,28);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(digdug_state::bg_get_tile_info)), tilemap_mapper_delegate(*this, FUNC(digdug_state::tilemap_scan)), 8, 8, 36, 28);
+	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(digdug_state::tx_get_tile_info)), tilemap_mapper_delegate(*this, FUNC(digdug_state::tilemap_scan)), 8, 8, 36, 28);
 
 	m_fg_tilemap->set_transparent_pen(0);
 
@@ -172,61 +171,35 @@ WRITE8_MEMBER( digdug_state::digdug_videoram_w )
 	m_fg_tilemap->mark_tile_dirty(offset & 0x3ff);
 }
 
-WRITE8_MEMBER( digdug_state::digdug_PORT_w )
+void digdug_state::bg_select_w(uint8_t data)
 {
-	switch (offset)
+	// select background picture
+	if (m_bg_select != (data & 0x03))
 	{
-		case 0: /* select background picture */
-		case 1:
-			{
-				int shift = offset;
-				int mask = 1 << shift;
-
-				if ((m_bg_select & mask) != ((data & 1) << shift))
-				{
-					m_bg_select = (m_bg_select & ~mask) | ((data & 1) << shift);
-					m_bg_tilemap->mark_all_dirty();
-				}
-			}
-			break;
-
-		case 2: /* select alpha layer color mode (see tx_get_tile_info) */
-			if (m_tx_color_mode != (data & 1))
-			{
-				m_tx_color_mode = data & 1;
-				m_fg_tilemap->mark_all_dirty();
-			}
-			break;
-
-		case 3: /* "disable" background (see bg_get_tile_info) */
-			if (m_bg_disable != (data & 1))
-			{
-				m_bg_disable = data & 1;
-				m_bg_tilemap->mark_all_dirty();
-			}
-			break;
-
-		case 4: /* background color bank */
-		case 5:
-			{
-				int shift = offset;
-				int mask = 1 << shift;
-
-				if ((m_bg_color_bank & mask) != ((data & 1) << shift))
-				{
-					m_bg_color_bank = (m_bg_color_bank & ~mask) | ((data & 1) << shift);
-					m_bg_tilemap->mark_all_dirty();
-				}
-			}
-			break;
-
-		case 6: /* n.c. */
-			break;
-
-		case 7: /* FLIP */
-			flip_screen_set(data & 1);
-			break;
+		m_bg_select = data & 0x03;
+		m_bg_tilemap->mark_all_dirty();
 	}
+
+	// background color bank
+	if (m_bg_color_bank != (data & 0x30))
+	{
+		m_bg_color_bank = data & 0x30;
+		m_bg_tilemap->mark_all_dirty();
+	}
+}
+
+WRITE_LINE_MEMBER(digdug_state::tx_color_mode_w)
+{
+	// select alpha layer color mode (see tx_get_tile_info)
+	m_tx_color_mode = state;
+	m_fg_tilemap->mark_all_dirty();
+}
+
+WRITE_LINE_MEMBER(digdug_state::bg_disable_w)
+{
+	// "disable" background (see bg_get_tile_info)
+	m_bg_disable = state;
+	m_bg_tilemap->mark_all_dirty();
 }
 
 

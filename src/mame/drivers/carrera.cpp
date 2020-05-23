@@ -3,7 +3,7 @@
 /*
 
 This is a simple 'Pairs' game called
-Carrera by BS Electronics
+Carrera or Bomberman by BS Electronics
 
 
 
@@ -37,7 +37,6 @@ Notes:
 
 Emulation Notes:
  Corrupt Tile on the first R in Carrera? (unlikely to be a bug, HW is very simple..)
- There is also a 'Bomberman' title in the GFX roms, unused from what I can see.
 
 TODO:
 - Are colors 100% correct? Needs a reference to be sure.
@@ -46,55 +45,65 @@ TODO:
 
 */
 
-#define MASTER_CLOCK    XTAL_22_1184MHz
-
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "sound/ay8910.h"
 #include "video/mc6845.h"
+#include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
+
+#define MASTER_CLOCK    XTAL(22'118'400)
 
 
 class carrera_state : public driver_device
 {
 public:
-	carrera_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	carrera_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_tileram(*this, "tileram"),
 		m_maincpu(*this, "maincpu"),
 		m_gfxdecode(*this, "gfxdecode"),
-		m_palette(*this, "palette")  { }
+		m_palette(*this, "palette")
+	{ }
+
+	void carrera(machine_config &config);
+
+private:
+	uint8_t unknown_r();
+	void palette(palette_device &palette) const;
+	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void prg_map(address_map &map);
+	void io_map(address_map &map);
 
 	required_shared_ptr<uint8_t> m_tileram;
-	DECLARE_READ8_MEMBER(unknown_r);
-	DECLARE_PALETTE_INIT(carrera);
-	uint32_t screen_update_carrera(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<palette_device> m_palette;
 };
 
 
-static ADDRESS_MAP_START( carrera_map, AS_PROGRAM, 8, carrera_state )
-	AM_RANGE(0x0000, 0x4fff) AM_ROM
-	AM_RANGE(0xe000, 0xe7ff) AM_RAM
-	AM_RANGE(0xe800, 0xe800) AM_DEVWRITE("crtc", mc6845_device, address_w)
-	AM_RANGE(0xe801, 0xe801) AM_DEVWRITE("crtc", mc6845_device, register_w)
-	AM_RANGE(0xf000, 0xffff) AM_RAM AM_SHARE("tileram")
-ADDRESS_MAP_END
+void carrera_state::prg_map(address_map &map)
+{
+	map(0x0000, 0x4fff).rom();
+	map(0xe000, 0xe7ff).ram();
+	map(0xe800, 0xe800).w("crtc", FUNC(mc6845_device::address_w));
+	map(0xe801, 0xe801).w("crtc", FUNC(mc6845_device::register_w));
+	map(0xf000, 0xffff).ram().share(m_tileram);
+}
 
-static ADDRESS_MAP_START( io_map, AS_IO, 8, carrera_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_READ_PORT("IN0")
-	AM_RANGE(0x01, 0x01) AM_READ_PORT("IN1")
-	AM_RANGE(0x02, 0x02) AM_READ_PORT("IN2")
-	AM_RANGE(0x03, 0x03) AM_READ_PORT("IN3")
-	AM_RANGE(0x04, 0x04) AM_READ_PORT("IN4")
-	AM_RANGE(0x05, 0x05) AM_READ_PORT("IN5")
-	AM_RANGE(0x06, 0x06) AM_WRITENOP // ?
-	AM_RANGE(0x08, 0x09) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
-ADDRESS_MAP_END
+void carrera_state::io_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).portr("IN0");
+	map(0x01, 0x01).portr("IN1");
+	map(0x02, 0x02).portr("IN2");
+	map(0x03, 0x03).portr("IN3");
+	map(0x04, 0x04).portr("IN4");
+	map(0x05, 0x05).portr("IN5");
+	map(0x06, 0x06).nopw(); // ?
+	map(0x08, 0x09).w("aysnd", FUNC(ay8910_device::address_data_w));
+}
 
 static INPUT_PORTS_START( carrera )
 	PORT_START("IN0")   /* Port 0 */
@@ -107,9 +116,7 @@ static INPUT_PORTS_START( carrera )
 	PORT_DIPNAME( 0x20, 0x20, "0" )
 	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_BIT( 0x40, IP_ACTIVE_LOW,  IPT_SERVICE1 ) PORT_NAME("Master Reset")
 	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )
 	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
@@ -254,18 +261,17 @@ static const gfx_layout tiles8x8_layout =
 	8*8
 };
 
-static GFXDECODE_START( carrera )
+static GFXDECODE_START( gfx_carrera )
 	GFXDECODE_ENTRY( "gfx1", 0, tiles8x8_layout, 0, 1 )
 GFXDECODE_END
 
-uint32_t carrera_state::screen_update_carrera(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t carrera_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	int x,y;
 	int count = 0;
 
-	for (y=0;y<32;y++)
+	for (int y = 0; y < 32; y++)
 	{
-		for (x=0;x<64;x++)
+		for (int x = 0; x < 64; x++)
 		{
 			int tile = m_tileram[count&0x7ff] | m_tileram[(count&0x7ff)+0x800]<<8;
 
@@ -276,71 +282,68 @@ uint32_t carrera_state::screen_update_carrera(screen_device &screen, bitmap_ind1
 	return 0;
 }
 
-READ8_MEMBER(carrera_state::unknown_r)
+uint8_t carrera_state::unknown_r()
 {
 	return machine().rand();
 }
 
-PALETTE_INIT_MEMBER(carrera_state, carrera)
+void carrera_state::palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	int br_bit0, br_bit1, bit0, bit1, r, g, b;
-	int i;
-
-	for (i = 0; i < 0x20; ++i)
+	uint8_t const *const color_prom = memregion("proms")->base();
+	for (int i = 0; i < 0x20; ++i)
 	{
-		br_bit0 = (color_prom[0] >> 6) & 0x01;
-		br_bit1 = (color_prom[0] >> 7) & 0x01;
+		int bit0, bit1;
+		int const br_bit0 = BIT(color_prom[i], 6);
+		int const br_bit1 = BIT(color_prom[i], 7);
 
-		bit0 = (color_prom[0] >> 0) & 0x01;
-		bit1 = (color_prom[0] >> 3) & 0x01;
-		b = 0x0e * br_bit0 + 0x1f * br_bit1 + 0x43 * bit0 + 0x8f * bit1;
-		bit0 = (color_prom[0] >> 1) & 0x01;
-		bit1 = (color_prom[0] >> 4) & 0x01;
-		g = 0x0e * br_bit0 + 0x1f * br_bit1 + 0x43 * bit0 + 0x8f * bit1;
-		bit0 = (color_prom[0] >> 2) & 0x01;
-		bit1 = (color_prom[0] >> 5) & 0x01;
-		r = 0x0e * br_bit0 + 0x1f * br_bit1 + 0x43 * bit0 + 0x8f * bit1;
+		bit0 = BIT(color_prom[i], 0);
+		bit1 = BIT(color_prom[i], 3);
+		int const b = 0x0e * br_bit0 + 0x1f * br_bit1 + 0x43 * bit0 + 0x8f * bit1;
+		bit0 = BIT(color_prom[i], 1);
+		bit1 = BIT(color_prom[i], 4);
+		int const g = 0x0e * br_bit0 + 0x1f * br_bit1 + 0x43 * bit0 + 0x8f * bit1;
+		bit0 = BIT(color_prom[i], 2);
+		bit1 = BIT(color_prom[i], 5);
+		int const r = 0x0e * br_bit0 + 0x1f * br_bit1 + 0x43 * bit0 + 0x8f * bit1;
 
 		palette.set_pen_color(i, rgb_t(r, g, b));
-		color_prom++;
 	}
 }
 
 
-static MACHINE_CONFIG_START( carrera, carrera_state )
+void carrera_state::carrera(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, MASTER_CLOCK / 6)
-	MCFG_CPU_PROGRAM_MAP(carrera_map)
-	MCFG_CPU_IO_MAP(io_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", carrera_state,  nmi_line_pulse)
+	Z80(config, m_maincpu, MASTER_CLOCK / 6);
+	m_maincpu->set_addrmap(AS_PROGRAM, &carrera_state::prg_map);
+	m_maincpu->set_addrmap(AS_IO, &carrera_state::io_map);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(512, 256)
-	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-1)
-	MCFG_SCREEN_UPDATE_DRIVER(carrera_state, screen_update_carrera)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(512, 256);
+	screen.set_visarea_full();
+	screen.set_screen_update(FUNC(carrera_state::screen_update));
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK / 16)
-	MCFG_MC6845_SHOW_BORDER_AREA(false)
-	MCFG_MC6845_CHAR_WIDTH(8)
+	mc6845_device &crtc(MC6845(config, "crtc", MASTER_CLOCK / 16));
+	crtc.set_screen("screen");
+	crtc.set_show_border_area(false);
+	crtc.set_char_width(8);
+	crtc.out_vsync_callback().set_inputline(m_maincpu, INPUT_LINE_NMI);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", carrera)
-	MCFG_PALETTE_ADD("palette", 32)
-	MCFG_PALETTE_INIT_OWNER(carrera_state, carrera)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_carrera);
+	PALETTE(config, m_palette, FUNC(carrera_state::palette), 32);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("aysnd", AY8910, MASTER_CLOCK/12)
+	ay8910_device &aysnd(AY8910(config, "aysnd", MASTER_CLOCK/12));
 	/* these are set as input, but I have no idea which input port it uses is for the AY */
-	MCFG_AY8910_PORT_A_READ_CB(READ8(carrera_state, unknown_r))
-	MCFG_AY8910_PORT_B_READ_CB(READ8(carrera_state, unknown_r))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-MACHINE_CONFIG_END
+	aysnd.port_a_read_callback().set(FUNC(carrera_state::unknown_r));
+	aysnd.port_b_read_callback().set(FUNC(carrera_state::unknown_r));
+	aysnd.add_route(ALL_OUTPUTS, "mono", 1.00);
+}
 
 
 ROM_START( carrera )
@@ -358,5 +361,20 @@ ROM_START( carrera )
 	ROM_LOAD( "82s123.ic39", 0x00, 0x20, CRC(af16359f) SHA1(1ff5c9d7807e52be09c0ded56fb68a47e41b3fcf) )
 ROM_END
 
+ROM_START( bsebman )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "ic22", 0x00000, 0x10000, CRC(294a205f) SHA1(b088617354b6a37520060f19f77d841ad8ee1538) )
 
-GAME( 19??, carrera, 0, carrera, carrera, driver_device,0, ROT0, "BS Electronics", "Carrera (Version 6.7)", 0 )
+	ROM_REGION( 0x50000, "gfx1", 0 )
+	ROM_LOAD( "ic1", 0x00000, 0x10000, CRC(bf4868e1) SHA1(ca91343dbdb9f43d9b981b9b3f958edb17bf188d) )
+	ROM_LOAD( "ic2", 0x10000, 0x10000, CRC(26e1c17e) SHA1(ea0669e87207104eeaa3eae6a6708dbdf94e3c3c) )
+	ROM_LOAD( "ic3", 0x20000, 0x10000, CRC(8401248d) SHA1(f8c8ed93d76709ead0b262ab3039df6febe3c005) )
+	ROM_LOAD( "ic4", 0x30000, 0x10000, CRC(6b569989) SHA1(e00263fae310094ad5119e3a9673fb342f643ddc) )
+	ROM_LOAD( "ic5", 0x40000, 0x10000, CRC(21635791) SHA1(514078694269582c33fb7dddd6171089f9e21ee2) )
+
+	ROM_REGION( 0x20, "proms", 0 )
+	ROM_LOAD( "am27s19.ic39", 0x00, 0x20, CRC(af16359f) SHA1(1ff5c9d7807e52be09c0ded56fb68a47e41b3fcf) )
+ROM_END
+
+GAME( 19??, carrera, 0,       carrera, carrera, carrera_state, empty_init, ROT0, "BS Electronics", "Carrera (Version 6.7)",   MACHINE_SUPPORTS_SAVE )
+GAME( 19??, bsebman, carrera, carrera, carrera, carrera_state, empty_init, ROT0, "BS Electronics", "Bomberman (Version 6.6)", MACHINE_SUPPORTS_SAVE )

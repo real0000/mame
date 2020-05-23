@@ -1,22 +1,19 @@
 // license:BSD-3-Clause
 // copyright-holders:Olivier Galibert,Andreas Naive
-#ifndef _AWBOARD_H_
-#define _AWBOARD_H_
+#ifndef MAME_MACHINE_AWBOARD_H
+#define MAME_MACHINE_AWBOARD_H
+
+#pragma once
 
 #include "naomig1.h"
 
-#define MCFG_AW_ROM_BOARD_ADD(_tag, _keyregion, _irq_cb)  \
-	MCFG_NAOMI_G1_ADD(_tag, AW_ROM_BOARD, _irq_cb)        \
-	aw_rom_board::static_set_keyregion(*device, "^" _keyregion);
 
 class aw_rom_board : public naomi_g1_device
 {
 public:
 	aw_rom_board(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	static void static_set_keyregion(device_t &device, const char *keyregion);
-
-	DECLARE_ADDRESS_MAP(submap, 16);
+	virtual void submap(address_map &map) override;
 
 	DECLARE_WRITE16_MEMBER(epr_offsetl_w);          // 5f7000
 	DECLARE_WRITE16_MEMBER(epr_offseth_w);          // 5f7004
@@ -38,8 +35,7 @@ private:
 	enum { EPR, MPR_RECORD, MPR_FILE };
 
 	required_memory_region m_region;
-	optional_memory_region m_keyregion;
-	uint32_t rombd_key;
+	uint8_t  rombd_key;
 	uint32_t mpr_offset, mpr_bank;
 	uint32_t epr_offset, mpr_file_offset;
 	uint16_t mpr_record_index, mpr_first_file_index;
@@ -56,13 +52,13 @@ private:
 
 	static const int permutation_table[4][16];
 	static const sbox_set sboxes_table[4];
-	static uint16_t decrypt(uint16_t cipherText, uint32_t address, const uint32_t key);
+	static const int xor_table[16];
+	static uint16_t decrypt(uint16_t cipherText, uint32_t address, const uint8_t key);
 	uint16_t decrypt16(uint32_t address) { return decrypt(m_region->as_u16(address), address, rombd_key); }
 
-	void set_key();
 	void recalc_dma_offset(int mode);
 };
 
-extern const device_type AW_ROM_BOARD;
+DECLARE_DEVICE_TYPE(AW_ROM_BOARD, aw_rom_board)
 
-#endif
+#endif // MAME_MACHINE_AWBOARD_H

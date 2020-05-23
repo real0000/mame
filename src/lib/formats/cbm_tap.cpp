@@ -60,11 +60,11 @@ pulse length is determined by the following formula:
   A data value of $00 represents an "overflow" condition, any pulse  length
 which is more that 255 * 8 in length.
 
-  The value of "clock cylces" from above  (985248)  is  based  on  the  PAL
+  The value of "clock cycles" from above  (985248)  is  based  on  the  PAL
 value.  Since  this  file  format  was  developed  in  Europe,   which   is
 predominantly PAL video, this is only logical.  The  NTSC  value  would  be
 1022730, which is very close to  the  PAL,  and  therefore  won't  cause  a
-compatability problem converting European and NTSC tapes. I would stick  to
+compatibility problem converting European and NTSC tapes. I would stick  to
 using the PAL value just in case.
 
 
@@ -94,7 +94,7 @@ Unfortunately, I have no such a .tap file to test, so my implementation
 below could be not working.  FP ]
 */
 
-#include <assert.h>
+#include <cassert>
 
 #include "cbm_tap.h"
 
@@ -173,9 +173,7 @@ static int cbm_tap_do_work( int16_t **buffer, int length, const uint8_t *data )
 	int i, j = 0;
 	int size = 0;
 
-	int version = data[0x0c];
-	int system = data[0x0d];
-	int video_standard = data[0x0e];
+	int version, system, video_standard;
 	int tap_frequency = 0;
 
 	int byte_samples = 0;
@@ -185,6 +183,14 @@ static int cbm_tap_do_work( int16_t **buffer, int length, const uint8_t *data )
 	  Further investigations are needed to find real pulse amplitude
 	  in Commodore tapes. Implementation here would follow */
 	/* int waveamp_high, waveamp_low; */
+
+	/* is the .tap file corrupted? */
+	if ((data == nullptr) || (length <= CBM_HEADER_SIZE))
+		return -1;
+
+	version = data[0x0c];
+	system = data[0x0d];
+	video_standard = data[0x0e];
 
 	/* Log .TAP info but only once */
 	if (!(buffer == nullptr))
@@ -202,10 +208,6 @@ static int cbm_tap_do_work( int16_t **buffer, int length, const uint8_t *data )
 		LOG_FORMATS("Unsupported .tap version: %d \n", version);
 		return -1;
 	}
-
-	/* is the .tap file corrupted? */
-	if ((data == nullptr) || (length <= CBM_HEADER_SIZE))
-		return -1;
 
 
 	/* read the frequency from the .tap header */

@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_IEEE488_C2040FDC_H
+#define MAME_BUS_IEEE488_C2040FDC_H
 
-#ifndef __C2040_FLOPPY__
-#define __C2040_FLOPPY__
+#pragma once
 
 #include "formats/c3040_dsk.h"
 #include "formats/c4040_dsk.h"
@@ -18,40 +18,24 @@
 #include "imagedev/floppy.h"
 
 
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_C2040_SYNC_CALLBACK(_write) \
-	devcb = &c2040_fdc_t::set_sync_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_C2040_READY_CALLBACK(_write) \
-	devcb = &c2040_fdc_t::set_ready_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_C2040_ERROR_CALLBACK(_write) \
-	devcb = &c2040_fdc_t::set_error_wr_callback(*device, DEVCB_##_write);
-
-
-
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-// ======================> c2040_fdc_t
+// ======================> c2040_fdc_device
 
-class c2040_fdc_t :  public device_t
+class c2040_fdc_device :  public device_t
 {
 public:
 	// construction/destruction
-	c2040_fdc_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	c2040_fdc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_sync_wr_callback(device_t &device, _Object object) { return downcast<c2040_fdc_t &>(device).m_write_sync.set_callback(object); }
-	template<class _Object> static devcb_base &set_ready_wr_callback(device_t &device, _Object object) { return downcast<c2040_fdc_t &>(device).m_write_ready.set_callback(object); }
-	template<class _Object> static devcb_base &set_error_wr_callback(device_t &device, _Object object) { return downcast<c2040_fdc_t &>(device).m_write_error.set_callback(object); }
+	auto sync_wr_callback() { return m_write_sync.bind(); }
+	auto ready_wr_callback() { return m_write_ready.bind(); }
+	auto error_wr_callback() { return m_write_error.bind(); }
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	uint8_t read();
+	void write(uint8_t data);
 
 	DECLARE_WRITE_LINE_MEMBER( ds0_w );
 	DECLARE_WRITE_LINE_MEMBER( ds1_w );
@@ -161,8 +145,6 @@ protected:
 
 
 // device type definition
-extern const device_type C2040_FDC;
+DECLARE_DEVICE_TYPE(C2040_FDC, c2040_fdc_device)
 
-
-
-#endif
+#endif // MAME_BUS_IEEE488_C2040FDC_H

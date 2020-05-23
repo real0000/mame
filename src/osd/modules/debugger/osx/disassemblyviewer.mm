@@ -17,6 +17,8 @@
 #include "debug/debugcon.h"
 #include "debug/debugcpu.h"
 
+#include "util/xmlfile.h"
+
 
 @implementation MAMEDisassemblyViewer
 
@@ -174,7 +176,7 @@
 	{
 		device_t &device = *[dasmView source]->device();
 		offs_t const address = [dasmView selectedAddress];
-		device_debug::breakpoint *bp = [[self class] findBreakpointAtAddress:address forDevice:device];
+		const device_debug::breakpoint *bp = device.debug()->breakpoint_find(address);
 
 		// if it doesn't exist, add a new one
 		if (bp == nullptr)
@@ -201,7 +203,7 @@
 	{
 		device_t &device = *[dasmView source]->device();
 		offs_t const address = [dasmView selectedAddress];
-		device_debug::breakpoint *bp = [[self class] findBreakpointAtAddress:address forDevice:device];
+		const device_debug::breakpoint *bp = device.debug()->breakpoint_find(address);
 		if (bp != nullptr)
 		{
 			device.debug()->breakpoint_enable(bp->index(), !bp->enabled());
@@ -227,16 +229,33 @@
 }
 
 
+- (void)saveConfigurationToNode:(util::xml::data_node *)node {
+	[super saveConfigurationToNode:node];
+	node->set_attribute_int("type", MAME_DEBUGGER_WINDOW_TYPE_DISASSEMBLY_VIEWER);
+	node->set_attribute_int("cpu", [dasmView selectedSubviewIndex]);
+	[dasmView saveConfigurationToNode:node];
+}
+
+
+- (void)restoreConfigurationFromNode:(util::xml::data_node const *)node {
+	[super restoreConfigurationFromNode:node];
+	int const region = node->get_attribute_int("cpu", [dasmView selectedSubviewIndex]);
+	[dasmView selectSubviewAtIndex:region];
+	[window setTitle:[NSString stringWithFormat:@"Disassembly: %@", [dasmView selectedSubviewName]]];
+	[subviewButton selectItemAtIndex:[subviewButton indexOfItemWithTag:[dasmView selectedSubviewIndex]]];
+	[dasmView restoreConfigurationFromNode:node];
+}
+
+
 - (BOOL)validateMenuItem:(NSMenuItem *)item {
 	SEL const action = [item action];
 	BOOL const inContextMenu = ([item menu] == [dasmView menu]);
 	BOOL const haveCursor = [dasmView cursorVisible];
 
-	device_debug::breakpoint *breakpoint = nullptr;
+	const device_debug::breakpoint *breakpoint = nullptr;
 	if (haveCursor)
 	{
-		breakpoint = [[self class] findBreakpointAtAddress:[dasmView selectedAddress]
-												 forDevice:*[dasmView source]->device()];
+		breakpoint = [dasmView source]->device()->debug()->breakpoint_find([dasmView selectedAddress]);
 	}
 
 	if (action == @selector(debugToggleBreakpoint:))

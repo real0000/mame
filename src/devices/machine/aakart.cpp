@@ -19,7 +19,7 @@ TODO:
 //**************************************************************************
 
 // device type definition
-const device_type AAKART = device_creator<aakart_device>;
+DEFINE_DEVICE_TYPE(AAKART, aakart_device, "aakart", "Acorn Archimedes KART")
 
 #define HRST 0xff
 #define RAK1 0xfe
@@ -40,9 +40,11 @@ const device_type AAKART = device_creator<aakart_device>;
 //-------------------------------------------------
 
 aakart_device::aakart_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, AAKART, "AAKART", tag, owner, clock, "aakart", __FILE__), m_rxtimer(nullptr), m_txtimer(nullptr), m_mousetimer(nullptr), m_keybtimer(nullptr),
+	: device_t(mconfig, AAKART, tag, owner, clock), m_rxtimer(nullptr),
+		m_txtimer(nullptr), m_mousetimer(nullptr), m_keybtimer(nullptr),
 		m_out_tx_cb(*this),
-		m_out_rx_cb(*this), m_tx_latch(0), m_rx(0), m_new_command(0), m_status(0), m_mouse_enable(0), m_keyb_enable(0)
+		m_out_rx_cb(*this),
+		m_tx_latch(0), m_rx(0), m_new_command(0), m_status(0), m_mouse_enable(0), m_keyb_enable(0)
 {
 }
 
@@ -170,14 +172,14 @@ void aakart_device::device_timer(emu_timer &timer, device_timer_id id, int param
 //**************************************************************************
 
 
-READ8_MEMBER( aakart_device::read )
+uint8_t aakart_device::read()
 {
 	m_out_tx_cb(CLEAR_LINE);
 	//machine().debug_break();
 	return m_rx;
 }
 
-WRITE8_MEMBER( aakart_device::write )
+void aakart_device::write(uint8_t data)
 {
 	// if(m_new_command) printf("skip cmd %02x\n",data);
 

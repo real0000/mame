@@ -1,51 +1,19 @@
 // license:BSD-3-Clause
 // copyright-holders:Joakim Larsson Edstrom
-#ifndef __FGA002_H__
-#define __FGA002_H__
+#ifndef MAME_MACHINE_FGA002_H
+#define MAME_MACHINE_FGA002_H
 
-#include "cpu/m68000/m68000.h" // The FGA002 is designed for the 68K interrupt PL0-PL2 signalling, however used on Sparc and x86 boards too
-
-#define MCFG_FGA002_ADD(_tag, _clock)   MCFG_DEVICE_ADD(_tag, FGA002, _clock)
-
-// LOCAL IRQ callbacks
-#define MCFG_FGA002_OUT_INT_CB(_devcb)                              \
-	devcb = &fga002_device::set_out_int_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_FGA002_OUT_LIACK4_CB(_devcb)                               \
-	devcb = &fga002_device::set_liack4_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_FGA002_OUT_LIACK5_CB(_devcb)                               \
-	devcb = &fga002_device::set_liack5_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_FGA002_OUT_LIACK6_CB(_devcb)                               \
-	devcb = &fga002_device::set_liack6_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_FGA002_OUT_LIACK7_CB(_devcb)                               \
-	devcb = &fga002_device::set_liack7_callback(*device, DEVCB_##_devcb);
-
-// type for array of mapping of FGA registers that assembles an IRQ source
-typedef struct {
-	int vector;
-	int status;
-	int control;
-} fga_irq_t;
-
-//**************************************************************************
-//  TYPE DEFINITIONS
-//**************************************************************************
-
-// ======================> fga002_device
+#include "cpu/m68000/m68000.h" // The FGA002 is designed for the 68K interrupt PL0-PL2 signalling, however used on SPARC and x86 boards too
 
 class fga002_device :  public device_t
 //      ,public device_z80daisy_interface
 {
 	public:
 	// construction/destruction
-	fga002_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source);
 	fga002_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_WRITE8_MEMBER (write);
-	DECLARE_READ8_MEMBER (read);
+	void write(offs_t offset, uint8_t data);
+	uint8_t read(offs_t offset);
 
 	void lirq_w(int status, int vector, int control, int state);
 	DECLARE_WRITE_LINE_MEMBER( lirq0_w );
@@ -57,20 +25,29 @@ class fga002_device :  public device_t
 	DECLARE_WRITE_LINE_MEMBER( lirq6_w );
 	DECLARE_WRITE_LINE_MEMBER( lirq7_w );
 
-	IRQ_CALLBACK_MEMBER(iack);
+	u16 iack();
 	int acknowledge();
 	int get_irq_level();
 
-	template<class _Object> static devcb_base &set_out_int_callback(device_t &device, _Object object) { return downcast<fga002_device &>(device).m_out_int_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_liack4_callback(device_t &device, _Object object) { return downcast<fga002_device &>(device).m_liack4_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_liack5_callback(device_t &device, _Object object) { return downcast<fga002_device &>(device).m_liack5_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_liack6_callback(device_t &device, _Object object) { return downcast<fga002_device &>(device).m_liack6_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_liack7_callback(device_t &device, _Object object) { return downcast<fga002_device &>(device).m_liack7_cb.set_callback(object); }
-
-	// interrupt sources in prio order if on same interrupt level. TODO: Add all sources
-	const static fga_irq_t m_irq_sources[];
+	auto out_int() { return m_out_int_cb.bind(); }
+	auto liack4() { return m_liack4_cb.bind(); }
+	auto liack5() { return m_liack5_cb.bind(); }
+	auto liack6() { return m_liack6_cb.bind(); }
+	auto liack7() { return m_liack7_cb.bind(); }
 
  protected:
+	// type for array of mapping of FGA registers that assembles an IRQ source
+	typedef struct {
+		int vector;
+		int status;
+		int control;
+	} fga_irq_t;
+
+	// interrupt sources in prio order if on same interrupt level. TODO: Add all sources
+	const static fga_irq_t s_irq_sources[];
+
+	fga002_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
@@ -80,7 +57,7 @@ class fga002_device :  public device_t
 	virtual int z80daisy_irq_ack() override;
 	virtual void z80daisy_irq_reti() override;
 #endif
-	virtual void device_timer (emu_timer &timer, device_timer_id id, int param, void *ptr) override;
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
 	devcb_write_line    m_out_int_cb;
 	devcb_read8         m_liack4_cb;
@@ -333,5 +310,6 @@ class fga002_device :  public device_t
 
 
 // device type definition
-extern const device_type FGA002;
-#endif // __FGA002_H__
+DECLARE_DEVICE_TYPE(FGA002, fga002_device)
+
+#endif // MAME_MACHINE_FGA002_H

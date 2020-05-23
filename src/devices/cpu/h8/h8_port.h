@@ -9,18 +9,21 @@
 
 ***************************************************************************/
 
-#ifndef __H8_PORT_H__
-#define __H8_PORT_H__
+#ifndef MAME_CPU_H8_H8_PORT_H
+#define MAME_CPU_H8_H8_PORT_H
+
+#pragma once
 
 #include "h8.h"
-
-#define MCFG_H8_PORT_ADD( _tag, address, ddr, mask )    \
-	MCFG_DEVICE_ADD( _tag, H8_PORT, 0 ) \
-	downcast<h8_port_device *>(device)->set_info(address, ddr, mask);
 
 class h8_port_device : public device_t {
 public:
 	h8_port_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	h8_port_device(const machine_config &mconfig, const char *tag, device_t *owner, int address, uint8_t default_ddr, uint8_t mask)
+		: h8_port_device(mconfig, tag, owner, 0)
+	{
+		set_info(address, default_ddr, mask);
+	}
 
 	void set_info(int address, uint8_t default_ddr, uint8_t mask);
 
@@ -48,6 +51,6 @@ protected:
 	void update_output();
 };
 
-extern const device_type H8_PORT;
+DECLARE_DEVICE_TYPE(H8_PORT, h8_port_device)
 
-#endif
+#endif // MAME_CPU_H8_H8_PORT_H

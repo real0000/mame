@@ -30,37 +30,37 @@
 
 ***************************************************************************/
 
-PALETTE_INIT_MEMBER(docastle_state, docastle)
+void docastle_state::docastle_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
+	uint8_t const *const color_prom = memregion("proms")->base();
 
-	for (i = 0; i < 256; i++)
+	for (int i = 0; i < 256; i++)
 	{
-		int bit0, bit1, bit2, r, g, b;
+		int bit0, bit1, bit2;
 
-		/* red component */
-		bit0 = (*color_prom >> 5) & 0x01;
-		bit1 = (*color_prom >> 6) & 0x01;
-		bit2 = (*color_prom >> 7) & 0x01;
-		r = 0x23 * bit0 + 0x4b * bit1 + 0x91 * bit2;
-		/* green component */
-		bit0 = (*color_prom >> 2) & 0x01;
-		bit1 = (*color_prom >> 3) & 0x01;
-		bit2 = (*color_prom >> 4) & 0x01;
-		g = 0x23 * bit0 + 0x4b * bit1 + 0x91 * bit2;
-		/* blue component */
+		// red component
+		bit0 = BIT(color_prom[i], 5);
+		bit1 = BIT(color_prom[i], 6);
+		bit2 = BIT(color_prom[i], 7);
+		int const r = 0x23 * bit0 + 0x4b * bit1 + 0x91 * bit2;
+
+		// green component
+		bit0 = BIT(color_prom[i], 2);
+		bit1 = BIT(color_prom[i], 3);
+		bit2 = BIT(color_prom[i], 4);
+		int const g = 0x23 * bit0 + 0x4b * bit1 + 0x91 * bit2;
+
+		// blue component
 		bit0 = 0;
-		bit1 = (*color_prom >> 0) & 0x01;
-		bit2 = (*color_prom >> 1) & 0x01;
-		b = 0x23 * bit0 + 0x4b * bit1 + 0x91 * bit2;
+		bit1 = BIT(color_prom[i], 0);
+		bit2 = BIT(color_prom[i], 1);
+		int const b = 0x23 * bit0 + 0x4b * bit1 + 0x91 * bit2;
 
 		/* because the graphics are decoded as 4bpp with the top bit used for transparency
 		   or priority, we create matching 3bpp sets of palette entries, which effectively
 		   ignores the value of the top bit */
-		palette.set_pen_color(((i & 0xf8) << 1) | 0x00 | (i & 0x07), rgb_t(r,g,b));
-		palette.set_pen_color(((i & 0xf8) << 1) | 0x08 | (i & 0x07), rgb_t(r,g,b));
-		color_prom++;
+		palette.set_pen_color(((i & 0xf8) << 1) | 0x00 | (i & 0x07), rgb_t(r, g, b));
+		palette.set_pen_color(((i & 0xf8) << 1) | 0x08 | (i & 0x07), rgb_t(r, g, b));
 	}
 }
 
@@ -78,10 +78,15 @@ WRITE8_MEMBER(docastle_state::docastle_colorram_w)
 
 READ8_MEMBER(docastle_state::inputs_flipscreen_r)
 {
+	// inputs pass through LS244 non-inverting buffer
+	uint8_t buf = (m_inp[1]->read_h() << 4) | m_inp[0]->read_h();
+
+	// LS273 latches address bits on rising edge of address decode
 	flip_screen_set(BIT(offset, 7));
-	m_inp1->write_s(space, 0, offset & 7);
-	m_inp2->write_s(space, 0, offset & 7);
-	return (m_inp2->read_h(space, 0) << 4) | m_inp1->read_h(space, 0);
+	m_inp[0]->write_s(offset & 7);
+	m_inp[1]->write_s(offset & 7);
+
+	return buf;
 }
 
 WRITE8_MEMBER(docastle_state::flipscreen_w)
@@ -94,12 +99,12 @@ TILE_GET_INFO_MEMBER(docastle_state::get_tile_info)
 	int code = m_videoram[tile_index] + 8 * (m_colorram[tile_index] & 0x20);
 	int color = m_colorram[tile_index] & 0x1f;
 
-	SET_TILE_INFO_MEMBER(0, code, color, 0);
+	tileinfo.set(0, code, color, 0);
 }
 
 void docastle_state::video_start_common( uint32_t tile_transmask )
 {
-	m_do_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(docastle_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_do_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(docastle_state::get_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_do_tilemap->set_scrolldy(-32, -32);
 	m_do_tilemap->set_transmask(0, tile_transmask, 0x0000);
 }
@@ -114,7 +119,7 @@ VIDEO_START_MEMBER(docastle_state,dorunrun)
 	video_start_common(0xff00);
 }
 
-void docastle_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void docastle_state::draw_sprites( screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect )
 {
 	int offs;
 
@@ -205,7 +210,7 @@ void docastle_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, 
 	}
 }
 
-uint32_t docastle_state::screen_update_docastle(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t docastle_state::screen_update_docastle(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	m_do_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
 	draw_sprites(screen, bitmap, cliprect);

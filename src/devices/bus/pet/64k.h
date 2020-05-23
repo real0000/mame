@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_PET_64K_H
+#define MAME_BUS_PET_64K_H
 
-#ifndef __PET_64K__
-#define __PET_64K__
+#pragma once
 
 #include "exp.h"
 
@@ -21,8 +21,7 @@
 
 // ======================> pet_64k_expansion_device
 
-class pet_64k_expansion_device : public device_t,
-									public device_pet_expansion_card_interface
+class pet_64k_expansion_device : public device_t, public device_pet_expansion_card_interface
 {
 public:
 	// construction/destruction
@@ -34,9 +33,9 @@ protected:
 	virtual void device_reset() override;
 
 	// device_pet_expansion_card_interface overrides
-	virtual int pet_norom_r(address_space &space, offs_t offset, int sel) override;
-	virtual uint8_t pet_bd_r(address_space &space, offs_t offset, uint8_t data, int &sel) override;
-	virtual void pet_bd_w(address_space &space, offs_t offset, uint8_t data, int &sel) override;
+	virtual int pet_norom_r(offs_t offset, int sel) override;
+	virtual uint8_t pet_bd_r(offs_t offset, uint8_t data, int &sel) override;
+	virtual void pet_bd_w(offs_t offset, uint8_t data, int &sel) override;
 
 private:
 	inline uint8_t read_ram(offs_t offset);
@@ -49,7 +48,6 @@ private:
 
 
 // device type definition
-extern const device_type PET_64K;
+DECLARE_DEVICE_TYPE(PET_64K, pet_64k_expansion_device)
 
-
-#endif
+#endif // MAME_BUS_PET_64K_H

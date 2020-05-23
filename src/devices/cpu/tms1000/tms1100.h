@@ -6,8 +6,10 @@
 
 */
 
-#ifndef _TMS1100_H_
-#define _TMS1100_H_
+#ifndef MAME_CPU_TMS1000_TMS1100_H
+#define MAME_CPU_TMS1000_TMS1100_H
+
+#pragma once
 
 #include "tms1000.h"
 
@@ -16,13 +18,17 @@ class tms1100_cpu_device : public tms1000_cpu_device
 {
 public:
 	tms1100_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock);
-	tms1100_cpu_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, u32 clock, u8 o_pins, u8 r_pins, u8 pc_bits, u8 byte_bits, u8 x_bits, int prgwidth, address_map_constructor program, int datawidth, address_map_constructor data, const char *shortname, const char *source);
 
 protected:
+	tms1100_cpu_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock, u8 o_pins, u8 r_pins, u8 pc_bits, u8 byte_bits, u8 x_bits, int prgwidth, address_map_constructor program, int datawidth, address_map_constructor data);
+
+	void program_11bit_8(address_map &map);
+	void data_128x4(address_map &map);
+
 	// overrides
 	virtual void device_reset() override;
 
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const u8 *oprom, const u8 *opram, u32 options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 	virtual void op_setr() override;
 	virtual void op_rstr() override;
@@ -47,10 +53,9 @@ public:
 };
 
 
-extern const device_type TMS1100;
-extern const device_type TMS1170;
-extern const device_type TMS1300;
-extern const device_type TMS1370;
+DECLARE_DEVICE_TYPE(TMS1100, tms1100_cpu_device)
+DECLARE_DEVICE_TYPE(TMS1170, tms1170_cpu_device)
+DECLARE_DEVICE_TYPE(TMS1300, tms1300_cpu_device)
+DECLARE_DEVICE_TYPE(TMS1370, tms1370_cpu_device)
 
-
-#endif /* _TMS1100_H_ */
+#endif // MAME_CPU_TMS1000_TMS1100_H

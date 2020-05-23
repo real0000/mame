@@ -2,6 +2,7 @@
 // copyright-holders:Carl
 
 // Analog Devices AD1848, main codec in Windows Sound System adapters
+// TODO: Emulate pin-compatible Crystal Semiconductor CS4231 and its extra Mode 2 features
 
 #include "emu.h"
 #include "sound/ad1848.h"
@@ -10,10 +11,10 @@
 #include "speaker.h"
 
 
-const device_type AD1848 = device_creator<ad1848_device>;
+DEFINE_DEVICE_TYPE(AD1848, ad1848_device, "ad1848", "AD1848 16-bit SoundPort Stereo Codec")
 
 ad1848_device::ad1848_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, AD1848, "Analog Devices AD1848", tag, owner, clock, "ad1848", __FILE__),
+	device_t(mconfig, AD1848, tag, owner, clock),
 	m_irq_cb(*this),
 	m_drq_cb(*this),
 	m_ldac(*this, "ldac"),
@@ -21,25 +22,35 @@ ad1848_device::ad1848_device(const machine_config &mconfig, const char *tag, dev
 {
 }
 
-static MACHINE_CONFIG_FRAGMENT( ad1848_config )
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
-	MCFG_SOUND_ADD("ldac", DAC_16BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.5) // unknown DAC
-	MCFG_SOUND_ADD("rdac", DAC_16BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.5) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "ldac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "ldac", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "rdac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "rdac", -1.0, DAC_VREF_NEG_INPUT)
-MACHINE_CONFIG_END
-
-machine_config_constructor ad1848_device::device_mconfig_additions() const
+void ad1848_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( ad1848_config );
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
+	DAC_16BIT_R2R(config, m_ldac, 0).add_route(ALL_OUTPUTS, "lspeaker", 0.5); // unknown DAC
+	DAC_16BIT_R2R(config, m_rdac, 0).add_route(ALL_OUTPUTS, "rspeaker", 0.5); // unknown DAC
+	voltage_regulator_device &vref(VOLTAGE_REGULATOR(config, "vref", 0));
+	vref.add_route(0, "ldac", 1.0, DAC_VREF_POS_INPUT);
+	vref.add_route(0, "ldac", -1.0, DAC_VREF_NEG_INPUT);
+	vref.add_route(0, "rdac", 1.0, DAC_VREF_POS_INPUT);
+	vref.add_route(0, "rdac", -1.0, DAC_VREF_NEG_INPUT);
 }
+
 
 void ad1848_device::device_start()
 {
 	m_timer = timer_alloc(0, nullptr);
 	m_irq_cb.resolve_safe();
 	m_drq_cb.resolve_safe();
+	save_item(NAME(m_regs.idx));
+	save_item(NAME(m_addr));
+	save_item(NAME(m_stat));
+	save_item(NAME(m_sam_cnt));
+	save_item(NAME(m_samples));
+	save_item(NAME(m_count));
+	save_item(NAME(m_play));
+	save_item(NAME(m_mce));
+	save_item(NAME(m_trd));
+	save_item(NAME(m_irq));
 }
 
 void ad1848_device::device_reset()
@@ -50,9 +61,10 @@ void ad1848_device::device_reset()
 	m_sam_cnt = 0;
 	m_samples = 0;
 	m_play = false;
+	m_irq = false;
 }
 
-READ8_MEMBER(ad1848_device::read)
+uint8_t ad1848_device::read(offs_t offset)
 {
 	switch(offset)
 	{
@@ -61,16 +73,16 @@ READ8_MEMBER(ad1848_device::read)
 		case 1:
 			return m_regs.idx[m_addr];
 		case 2:
-			return m_stat;
+			return m_stat | (m_irq ? 1 : 0);
 		case 3:
 			break; // capture
 	}
 	return 0;
 }
 
-WRITE8_MEMBER(ad1848_device::write)
+void ad1848_device::write(offs_t offset, uint8_t data)
 {
-	const int div_factor[] = {3072, 1536, 896, 768, 448, 384, 512, 2560};
+	static constexpr int div_factor[] = {3072, 1536, 896, 768, 448, 384, 512, 2560};
 	switch(offset)
 	{
 		case 0:
@@ -85,14 +97,15 @@ WRITE8_MEMBER(ad1848_device::write)
 			switch(m_addr)
 			{
 				case 8:
-					if(m_mce)
+					if(!m_mce)
 						return;
 					m_regs.dform &= 0x7f;
 					break;
 				case 9:
 				{
 					m_play = (data & 1) ? true : false;
-					attotime rate = m_play ? attotime::from_hz(((m_regs.dform & 1) ? XTAL_24_576MHz : XTAL_16_9344MHz)
+					// FIXME: provide external configuration for XTAL1 (24.576 MHz) and XTAL2 (16.9344 MHz) inputs
+					attotime rate = m_play ? attotime::from_hz(((m_regs.dform & 1) ? 16.9344_MHz_XTAL : 24.576_MHz_XTAL)
 							/ div_factor[(m_regs.dform >> 1) & 7]) : attotime::never;
 					m_timer->adjust(rate, 0 , rate);
 					m_drq_cb(m_play ? ASSERT_LINE : CLEAR_LINE);
@@ -105,6 +118,7 @@ WRITE8_MEMBER(ad1848_device::write)
 			break;
 		case 2:
 			m_irq_cb(CLEAR_LINE);
+			m_irq = false;
 			if(m_regs.iface & 1)
 				m_play = true;
 			break;
@@ -113,13 +127,13 @@ WRITE8_MEMBER(ad1848_device::write)
 	}
 }
 
-READ8_MEMBER(ad1848_device::dack_r)
+uint8_t ad1848_device::dack_r()
 {
 	m_drq_cb(CLEAR_LINE);
 	return 0; // not implemented
 }
 
-WRITE8_MEMBER(ad1848_device::dack_w)
+void ad1848_device::dack_w(uint8_t data)
 {
 	if(!m_play)
 		return;
@@ -183,6 +197,7 @@ void ad1848_device::device_timer(emu_timer &timer, device_timer_id id, int param
 			if(m_trd)
 				m_play = false;
 			m_irq_cb(ASSERT_LINE);
+			m_irq = true;
 		}
 		m_count = (m_regs.ubase << 8) | m_regs.lbase;
 	}

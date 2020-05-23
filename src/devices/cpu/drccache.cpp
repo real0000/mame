@@ -218,6 +218,7 @@ drccodeptr drc_cache::end_codegen()
 		assert(m_top - m_codegen < CODEGEN_MAX_BYTES);
 
 		// release our memory
+		oob->~oob_handler();
 		dealloc(oob, sizeof(*oob));
 	}
 
@@ -241,9 +242,10 @@ void drc_cache::request_oob_codegen(drc_oob_delegate callback, void *param1, voi
 	// pull an item from the free list
 	oob_handler *oob = (oob_handler *)alloc(sizeof(*oob));
 	assert(oob != nullptr);
+	new (oob) oob_handler();
 
 	// fill it in
-	oob->m_callback = callback;
+	oob->m_callback = std::move(callback);
 	oob->m_param1 = param1;
 	oob->m_param2 = param2;
 

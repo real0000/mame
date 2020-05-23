@@ -26,27 +26,19 @@
 
 #define LOG_GENERAL 0x01
 #define LOG_SETUP   0x02
-#define LOG_PRINTF  0x04
-#define LOG_READ    0x08
-#define LOG_BIT     0x10
-#define LOG_DR      0x20
-#define LOG_INT     0x40
+#define LOG_READ    0x04
+#define LOG_BIT     0x08
+#define LOG_DR      0x10
+#define LOG_INT     0x20
 
-#define VERBOSE 0 //(LOG_PRINTF | LOG_SETUP | LOG_GENERAL | LOG_INT | LOG_BIT | LOG_DR)
+#define VERBOSE 0 //(LOG_SETUP | LOG_GENERAL | LOG_INT | LOG_BIT | LOG_DR)
+#include "logmacro.h"
 
-#define LOGMASK(mask, ...)   do { if (VERBOSE & mask) logerror(__VA_ARGS__); } while (0)
-#define LOGLEVEL(mask, level, ...) do { if ((VERBOSE & mask) >= level) logerror(__VA_ARGS__); } while (0)
-
-#define LOG(...)      LOGMASK(LOG_GENERAL, __VA_ARGS__)
-#define LOGSETUP(...) LOGMASK(LOG_SETUP,   __VA_ARGS__)
-#define LOGR(...)     LOGMASK(LOG_READ,    __VA_ARGS__)
-#define LOGBIT(...)   LOGMASK(LOG_BIT,     __VA_ARGS__)
-#define LOGDR(...)    LOGMASK(LOG_DR,      __VA_ARGS__)
-#define LOGINT(...)   LOGMASK(LOG_INT,     __VA_ARGS__)
-
-#if VERBOSE & LOG_PRINTF
-#define logerror printf
-#endif
+#define LOGSETUP(...) LOGMASKED(LOG_SETUP, __VA_ARGS__)
+#define LOGR(...)     LOGMASKED(LOG_READ,  __VA_ARGS__)
+#define LOGBIT(...)   LOGMASKED(LOG_BIT,   __VA_ARGS__)
+#define LOGDR(...)    LOGMASKED(LOG_DR,    __VA_ARGS__)
+#define LOGINT(...)   LOGMASKED(LOG_INT,   __VA_ARGS__)
 
 #ifdef _MSC_VER
 #define FUNCNAME __func__
@@ -58,25 +50,25 @@
 //  DEVICE TYPE DEFINITIONS
 //**************************************************************************
 
-const device_type PIT68230 = device_creator<pit68230_device>;
+DEFINE_DEVICE_TYPE(PIT68230, pit68230_device, "pit68230", "MC68230 PI/T")
 
 //-------------------------------------------------
 //  pit68230_device - constructors
 //-------------------------------------------------
-pit68230_device::pit68230_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source)
-	: device_t (mconfig, type, name, tag, owner, clock, shortname, source)
+pit68230_device::pit68230_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint32_t variant)
+	: device_t(mconfig, type, tag, owner, clock)
 	, m_pa_out_cb(*this)
 	, m_pa_in_cb(*this)
 	, m_pb_out_cb(*this)
 	, m_pb_in_cb(*this)
 	, m_pc_out_cb(*this)
 	, m_pc_in_cb(*this)
-	, m_h1_out_cb (*this)
-	, m_h2_out_cb (*this)
-	, m_h3_out_cb (*this)
-	, m_h4_out_cb (*this)
-	, m_tirq_out_cb (*this)
-	, m_pirq_out_cb (*this)
+	, m_h1_out_cb(*this)
+	, m_h2_out_cb(*this)
+	, m_h3_out_cb(*this)
+	, m_h4_out_cb(*this)
+	, m_tirq_out_cb(*this)
+	, m_pirq_out_cb(*this)
 	, m_pgcr(0)
 	, m_psrr(0)
 	, m_paddr(0)
@@ -98,43 +90,12 @@ pit68230_device::pit68230_device(const machine_config &mconfig, device_type type
 	, m_cntr(0)
 	, m_tsr(0)
 {
+	// FIXME: is the unused variant parameter supposed to be useful for something?
 }
 
 
 pit68230_device::pit68230_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t (mconfig, PIT68230, "PIT68230", tag, owner, clock, "pit68230", __FILE__)
-	, m_pa_out_cb (*this)
-	, m_pa_in_cb(*this)
-	, m_pb_out_cb(*this)
-	, m_pb_in_cb(*this)
-	, m_pc_out_cb(*this)
-	, m_pc_in_cb(*this)
-	, m_h1_out_cb(*this)
-	, m_h2_out_cb(*this)
-	, m_h3_out_cb(*this)
-	, m_h4_out_cb(*this)
-	, m_tirq_out_cb (*this)
-	, m_pirq_out_cb (*this)
-	, m_pgcr(0)
-	, m_psrr(0)
-	, m_paddr(0)
-	, m_pbddr(0)
-	, m_pcddr(0)
-	, m_pivr(0)
-	, m_pacr(0)
-	, m_pbcr(0)
-	, m_padr(0)
-	, m_pbdr(0)
-	, m_pcdr(0)
-	, m_psr(0)
-	, m_tcr(0)
-	, m_tivr(0)
-	, m_cpr(0)
-	//  , m_cprh(0) // Collectivelly handled by m_cpr
-	//  , m_cprm(0) // Collectivelly handled by m_cpr
-	//  , m_cprl(0) // Collectivelly handled by m_cpr
-	, m_cntr(0)
-	, m_tsr(0)
+	: pit68230_device (mconfig, PIT68230, tag, owner, clock, 0)
 {
 }
 
@@ -480,7 +441,9 @@ void pit68230_device::wr_pitreg_pcddr(uint8_t data)
 
 void pit68230_device::wr_pitreg_pivr(uint8_t data)
 {
-	LOG("%s(%02x) \"%s\": Not implemented yet\n", FUNCNAME, data, tag());
+	LOG("%s(%02x) \"%s\": %s - %02x\n", FUNCNAME, data, tag(), FUNCNAME, data);
+	LOGSETUP("%s PIVR: %02x\n", tag(), data);
+	m_pivr = data & 0xfc; // lowest two bits are read as zero
 }
 
 void pit68230_device::wr_pitreg_pacr(uint8_t data)
@@ -668,13 +631,13 @@ TCR bit 0 - Timer Enable
 */
 void pit68230_device::wr_pitreg_tcr(uint8_t data)
 {
-	int tout  = 0;
-	int tiack = 0;
-	int irq   = 0;
+	//int tout  = 0;
+	//int tiack = 0;
+	//int irq   = 0;
 	int psc   = 0;
 	int clk   = 0;
 	int pen   = 0;
-	int sqr   = 0;
+	//int sqr   = 0;
 
 	LOG("%s(%02x) %s\n", FUNCNAME, data, tag());
 	m_tcr = data;
@@ -683,11 +646,11 @@ void pit68230_device::wr_pitreg_tcr(uint8_t data)
 	case REG_TCR_PC3_PC7:
 	case REG_TCR_PC3_PC7_DC:        LOG("- PC3 and PC7 used as I/O pins\n"); break;
 	case REG_TCR_TOUT_PC7_SQ:
-	case REG_TCR_TOUT_PC7_SQ_DC:    LOG("- PC3 used as SQuare wave TOUT and PC7 used as I/O pin - not implemented yet\n");        sqr = 1; break;
-	case REG_TCR_TOUT_TIACK:        LOG("- PC3 used as TOUT and PC7 used as TIACK - not implemented yet\n"); tout = 1; tiack = 1;          break;
-	case REG_TCR_TOUT_TIACK_INT:    LOG("- PC3 used as TOUT and PC7 used as TIACK, Interrupts enabled\n");   tout = 1; tiack = 1; irq = 1; break;
+	case REG_TCR_TOUT_PC7_SQ_DC:    LOG("- PC3 used as SQuare wave TOUT and PC7 used as I/O pin - not implemented yet\n");       /* sqr = 1; */ break;
+	case REG_TCR_TOUT_TIACK:        LOG("- PC3 used as TOUT and PC7 used as TIACK - not implemented yet\n"); /*tout = 1; tiack = 1;*/          break;
+	case REG_TCR_TOUT_TIACK_INT:    LOG("- PC3 used as TOUT and PC7 used as TIACK, Interrupts enabled\n");   /*tout = 1; tiack = 1; irq = 1;*/ break;
 	case REG_TCR_TOUT_PC7:          LOG("- PC3 used as TOUT and PC7 used as I/O pin - not implemented yet\n");                             break;
-	case REG_TCR_TOUT_PC7_INT:      LOG("- PC3 used as TOUT and PC7 used as I/O pin, Interrupts enabled\n"); tout = 1; irq = 1;            break;
+	case REG_TCR_TOUT_PC7_INT:      LOG("- PC3 used as TOUT and PC7 used as I/O pin, Interrupts enabled\n"); /*tout = 1; irq = 1; */           break;
 	}
 
 	switch (m_tcr & REG_TCR_CC_MASK)
@@ -718,7 +681,6 @@ void pit68230_device::wr_pitreg_tcr(uint8_t data)
 	else
 	{
 		pit_timer->adjust(attotime::never, TIMER_ID_PIT, attotime::never);
-		m_tcr = tout + tiack + irq + sqr; // remove this when the variables are used for the different modes!! Just here to to avoid warnings
 	}
 }
 
@@ -759,7 +721,7 @@ void pit68230_device::wr_pitreg_tsr(uint8_t data)
 	}
 }
 
-WRITE8_MEMBER (pit68230_device::write)
+void pit68230_device::write(offs_t offset, uint8_t data)
 {
 	LOG("\"%s\" %s: Register write '%02x' -> [%02x]\n", tag(), FUNCNAME, data, offset );
 	LOGSETUP(" * %s Reg %02x <- %02x  \n", tag(), offset, data);
@@ -796,7 +758,7 @@ WRITE8_MEMBER (pit68230_device::write)
 		if (ow_cnt > 1)
 		{
 			logerror ("\npit68230_device::write: previous identical operation performed %02x times\n", ow_cnt);
-			logerror ("pit68230_device::write: offset=%02x data=%02x %lld\n", offset, data, machine ().firstcpu->total_cycles ());
+			logerror ("pit68230_device::write: offset=%02x data=%02x %s\n", offset, data, machine().describe_context());
 		}
 		ow_cnt = 0;
 		ow_data = data;
@@ -1008,7 +970,7 @@ uint8_t pit68230_device::rr_pitreg_tsr()
 	return m_tsr;
 }
 
-READ8_MEMBER (pit68230_device::read){
+uint8_t pit68230_device::read(offs_t offset){
 	uint8_t data;
 
 	switch (offset) {
@@ -1046,7 +1008,7 @@ READ8_MEMBER (pit68230_device::read){
 		if (or_cnt > 1)
 		{
 			logerror ("\npit68230_device::read: previous identical operation performed %02x times\n", or_cnt);
-			logerror (" - pit68230_device::read: offset=%02x data=%02x %lld\n", offset, data, machine ().firstcpu->total_cycles ());
+			logerror (" - pit68230_device::read: offset=%02x data=%02x %s\n", offset, data, machine().describe_context());
 		}
 		or_cnt = 0;
 		or_data = data;

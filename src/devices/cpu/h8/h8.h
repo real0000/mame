@@ -9,8 +9,10 @@
 
 ***************************************************************************/
 
-#ifndef __H8_H__
-#define __H8_H__
+#ifndef MAME_CPU_H8_H8_H
+#define MAME_CPU_H8_H8_H
+
+#pragma once
 
 class h8_dma_device;
 class h8_dtc_device;
@@ -61,8 +63,6 @@ public:
 		STATE_DTC_WRITEBACK      = 0x10006
 	};
 
-	h8_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source, bool mode_a16, address_map_delegate map_delegate);
-
 	void internal_update();
 	void set_irq(int irq_vector, int irq_level, bool irq_nmi);
 	bool trigger_dma(int vector);
@@ -72,15 +72,6 @@ public:
 	bool access_is_dma() const { return inst_state == STATE_DMA || inst_state == STATE_DTC; }
 
 protected:
-	struct disasm_entry {
-		int slot;
-		uint32_t val, mask;
-		uint16_t val0, mask0;
-		const char *opcode;
-		int am1, am2;
-		offs_t flags;
-	};
-
 	enum {
 		F_I  = 0x80,
 		F_UI = 0x40,
@@ -96,76 +87,22 @@ protected:
 		EXR_I  = 0x07
 	};
 
-	enum {
-		DASM_none,     /* no additional arguments */
-
-		DASM_r8l,      /* 8-bits register in bits 0-3 */
-		DASM_r8h,      /* 8-bits register in bits 4-7 */
-		DASM_r8u,      /* 8-bits register in bits 8-15 */
-		DASM_r16l,     /* 16-bits register in bits 0-3 */
-		DASM_r16h,     /* 16-bits register in bits 4-7 */
-		DASM_r32l,     /* 32-bits register in bits 0-3 */
-		DASM_r32h,     /* 32-bits register in bits 4-7 */
-
-		DASM_r16ih,    /* indexed through 16-bits register in bits 4-6 */
-		DASM_r16ihh,   /* indexed through 16-bits register in bits 4-6 in 4-bytes instruction */
-		DASM_pr16h,    /* indexed through predecremented 16-bits register in bits 4-6 */
-		DASM_r16ph,    /* indexed through postincremented 16-bits register in bits 4-6 */
-		DASM_r16d16h,  /* indexed through 16-bits register in bits 4-6 with 16-bits displacement at end of instruction */
-
-		DASM_r32ih,    /* indexed through 32-bits register in bits 4-6 */
-		DASM_r32ihh,   /* indexed through 32-bits register in bits 4-6 in 4-bytes instruction */
-		DASM_pr32h,    /* indexed through predecremented 32-bits register in bits 4-6 */
-		DASM_r32pl,    /* indexed through postincremented 32-bits register in bits 0-2 */
-		DASM_r32ph,    /* indexed through postincremented 32-bits register in bits 4-6 */
-		DASM_r32d16h,  /* indexed through 32-bits register in bits 4-6 with 16-bits displacement at end of instruction */
-		DASM_r32d32hh, /* indexed through 32-bits register in bits 20-22 with 32-bits displacement at end of instruction */
-
-		DASM_psp,      /* indexed through predecremented stack pointer */
-		DASM_spp,      /* indexed through postincremented stack pointer */
-
-		DASM_r32n2l,   /* Block of 2 registers */
-		DASM_r32n3l,   /* Block of 3 registers */
-		DASM_r32n4l,   /* Block of 4 registers */
-
-		DASM_abs8,     /* 8-bit address present at +1 */
-		DASM_abs16,    /* 16-bit address present at end of instruction */
-		DASM_abs32,    /* 32-bit address present at end of instruction */
-		DASM_abs8i,    /* 8-bit indirect jump address present at +1 */
-		DASM_abs16e,   /* 16-bit jump address present at +2 */
-		DASM_abs24e,   /* 24-bit jump address present at +1 */
-
-		DASM_rel8,     /* 8-bit pc-relative jump address at +1, offset=2 */
-		DASM_rel16,    /* 16-bit pc-relative jump address at +2, offset=4 */
-
-		DASM_one,      /* immediate value 1 */
-		DASM_two,      /* immediate value 2 */
-		DASM_four,     /* immediate value 4 */
-
-		DASM_imm2,     /* 2-bit immediate in bits 4-5 (trapa) */
-		DASM_imm3,     /* 3-bit immediate in bits 4-6 (bit selection */
-		DASM_imm8,     /* 8-bit immediate at +1 */
-		DASM_imm16,    /* 16-bit immediate at +2 */
-		DASM_imm32,    /* 32-bit immediate at +2 */
-
-		DASM_ccr,      /* internal register ccr */
-		DASM_exr,      /* internal register exr */
-		DASM_macl,     /* internal register macl */
-		DASM_mach      /* internal register mach */
-	};
+	h8_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, address_map_constructor map_delegate);
 
 	// device-level overrides
+	virtual void device_config_complete() override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override;
-	virtual uint32_t execute_max_cycles() const override;
-	virtual uint32_t execute_input_lines() const override;
+	virtual uint32_t execute_min_cycles() const noexcept override;
+	virtual uint32_t execute_max_cycles() const noexcept override;
+	virtual uint32_t execute_input_lines() const noexcept override;
+	virtual bool execute_input_edge_triggered(int inputnum) const noexcept override;
 	virtual void execute_run() override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_import(const device_state_entry &entry) override;
@@ -173,13 +110,11 @@ protected:
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override;
-	virtual uint32_t disasm_max_opcode_bytes() const override;
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 	address_space_config program_config, io_config;
 	address_space *program, *io;
-	direct_read_data *direct;
+	memory_access_cache<1, 0, ENDIANNESS_BIG> *cache;
 	h8_dma_device *dma_device;
 	h8_dtc_device *dtc_device;
 	h8_dma_state *current_dma;
@@ -198,18 +133,13 @@ protected:
 	uint32_t  TMP1, TMP2;
 	uint32_t  TMPR;                   /* For debugger ER register import */
 
-	bool has_exr, has_trace, supports_advanced, mode_advanced, mac_saturating;
+	bool has_exr, has_trace, supports_advanced, mode_advanced, mode_a20, mac_saturating;
 
 	int inst_state, inst_substate, requested_state;
 	int icount, bcount, count_before_instruction_step;
 	int irq_vector, taken_irq_vector;
 	int irq_level, taken_irq_level;
 	bool irq_required, irq_nmi;
-
-	static const disasm_entry disasm_entries[];
-
-	offs_t disassemble_generic(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options, const disasm_entry *table);
-	void disassemble_am(std::ostream &stream, int am, offs_t pc, const uint8_t *oprom, uint32_t opcode, int slot, int offset);
 
 	virtual void do_exec_full();
 	virtual void do_exec_partial();
@@ -234,8 +164,8 @@ protected:
 	inline void prefetch() { prefetch_start(); prefetch_done(); }
 	inline void prefetch_noirq() { prefetch_start(); prefetch_done_noirq(); }
 	inline void prefetch_noirq_notrace() { prefetch_start(); prefetch_done_noirq_notrace(); }
-	void prefetch_start() { NPC = PC; PIR = fetch(); }
-	void prefetch_switch(uint32_t pc, uint16_t ir) { NPC = pc; PC = pc+2; PIR = ir; }
+	void prefetch_start() { NPC = PC & 0xffffff; PIR = fetch(); }
+	void prefetch_switch(uint32_t pc, uint16_t ir) { NPC = pc & 0xffffff; PC = pc+2; PIR = ir; }
 	void prefetch_done();
 	void prefetch_done_noirq();
 	void prefetch_done_noirq_notrace();
@@ -490,4 +420,4 @@ enum {
 	H8_EXR
 };
 
-#endif
+#endif // MAME_CPU_H8_H8_H

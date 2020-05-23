@@ -12,8 +12,9 @@
 *****************************************************************************/
 
 #include "emu.h"
-#include "debugger.h"
 #include "t11.h"
+#include "t11dasm.h"
+#include "debugger.h"
 
 
 /*************************************
@@ -35,35 +36,43 @@
 #define PSW     m_psw.b.l
 
 
-const device_type T11 = device_creator<t11_device>;
-const device_type K1801VM2 = device_creator<k1801vm2_device>;
+DEFINE_DEVICE_TYPE(T11,      t11_device,      "t11",      "DEC T11")
+DEFINE_DEVICE_TYPE(K1801VM2, k1801vm2_device, "k1801vm2", "K1801VM2")
 
 
 k1801vm2_device::k1801vm2_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: t11_device(mconfig, K1801VM2, "K1801VM2", tag, owner, clock, "k1801vm2", __FILE__)
+	: t11_device(mconfig, K1801VM2, tag, owner, clock)
 {
 }
 
-t11_device::t11_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-	: cpu_device(mconfig, type, name, tag, owner, clock, shortname, source)
+t11_device::t11_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: cpu_device(mconfig, type, tag, owner, clock)
 	, m_program_config("program", ENDIANNESS_LITTLE, 16, 16, 0)
 	, c_initial_mode(0)
+	, m_cp_state(0)
+	, m_vec_active(false)
+	, m_pf_active(false)
+	, m_hlt_active(false)
 	, m_out_reset_func(*this)
+	, m_in_iack_func(*this)
 {
 	m_program_config.m_is_octal = true;
-	memset(m_reg, 0x00, sizeof(m_reg));
-	memset(&m_psw, 0x00, sizeof(m_psw));
+	for (auto &reg : m_reg)
+		reg.d = 0;
+	m_psw.d = 0;
+	m_ppc.d = 0;
 }
 
 t11_device::t11_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, T11, "T11", tag, owner, clock, "t11", __FILE__)
-	, m_program_config("program", ENDIANNESS_LITTLE, 16, 16, 0)
-	, c_initial_mode(0)
-	, m_out_reset_func(*this)
+	: t11_device(mconfig, T11, tag, owner, clock)
 {
-	m_program_config.m_is_octal = true;
-	memset(m_reg, 0x00, sizeof(m_reg));
-	memset(&m_psw, 0x00, sizeof(m_psw));
+}
+
+device_memory_interface::space_config_vector t11_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
 }
 
 
@@ -76,7 +85,7 @@ t11_device::t11_device(const machine_config &mconfig, const char *tag, device_t 
 int t11_device::ROPCODE()
 {
 	PC &= 0xfffe;
-	int val = m_direct->read_word(PC);
+	int val = m_cache->read_word(PC);
 	PC += 2;
 	return val;
 }
@@ -175,56 +184,92 @@ struct irq_table_entry
 
 static const struct irq_table_entry irq_table[] =
 {
-	{ 0<<5, 0x00 },
-	{ 4<<5, 0x38 },
-	{ 4<<5, 0x34 },
-	{ 4<<5, 0x30 },
-	{ 5<<5, 0x5c },
-	{ 5<<5, 0x58 },
-	{ 5<<5, 0x54 },
-	{ 5<<5, 0x50 },
-	{ 6<<5, 0x4c },
-	{ 6<<5, 0x48 },
-	{ 6<<5, 0x44 },
-	{ 6<<5, 0x40 },
-	{ 7<<5, 0x6c },
-	{ 7<<5, 0x68 },
-	{ 7<<5, 0x64 },
-	{ 7<<5, 0x60 }
+	{ 0<<5, 0000 },
+	{ 4<<5, 0070 },
+	{ 4<<5, 0064 },
+	{ 4<<5, 0060 },
+	{ 5<<5, 0134 },
+	{ 5<<5, 0130 },
+	{ 5<<5, 0124 },
+	{ 5<<5, 0120 },
+	{ 6<<5, 0114 },
+	{ 6<<5, 0110 },
+	{ 6<<5, 0104 },
+	{ 6<<5, 0100 },
+	{ 7<<5, 0154 },
+	{ 7<<5, 0150 },
+	{ 7<<5, 0144 },
+	{ 7<<5, 0140 }
 };
 
 void t11_device::t11_check_irqs()
 {
-	const struct irq_table_entry *irq = &irq_table[m_irq_state & 15];
-	int priority = PSW & 0xe0;
-
-	/* compare the priority of the interrupt to the PSW */
-	if (irq->priority > priority)
+	// HLT is nonmaskable
+	if (m_ext_halt)
 	{
-		int vector = irq->vector;
-		int new_pc, new_psw;
+		m_ext_halt = false;
 
-		/* call the callback; if we don't get -1 back, use the return value as our vector */
-		int new_vector = standard_irq_callback(m_irq_state & 15);
-		if (new_vector != -1)
-			vector = new_vector;
-
-		/* fetch the new PC and PSW from that vector */
-		assert((vector & 3) == 0);
-		new_pc = RWORD(vector);
-		new_psw = RWORD(vector + 2);
-
-		/* push the old state, set the new one */
+		// push the old state, set the new one
 		PUSH(PSW);
 		PUSH(PC);
-		PCD = new_pc;
-		PSW = new_psw;
-		t11_check_irqs();
+		PCD = m_initial_pc + 4;
+		PSW = 0340;
 
-		/* count cycles and clear the WAIT flag */
+		// count cycles and clear the WAIT flag
 		m_icount -= 114;
 		m_wait_state = 0;
+
+		return;
 	}
+
+	// PF has next-highest priority
+	int priority = PSW & 0340;
+	if (m_power_fail && priority != 0340)
+	{
+		m_power_fail = false;
+		take_interrupt(T11_PWRFAIL);
+		return;
+	}
+
+	// compare the priority of the CP interrupt to the PSW
+	const struct irq_table_entry *irq = &irq_table[m_cp_state & 15];
+	if (irq->priority > priority)
+	{
+		// call the callback
+		standard_irq_callback(m_cp_state & 15);
+
+		// T11 encodes the interrupt level on DAL<12:8>
+		uint8_t iaddr = bitswap<4>(~m_cp_state & 15, 0, 1, 2, 3);
+		if (!m_vec_active)
+			iaddr |= 16;
+
+		// vector is input on DAL<7:2>
+		uint8_t vector = m_in_iack_func(iaddr);
+
+		// nonvectored or vectored interrupt depending on VEC
+		if (BIT(iaddr, 4))
+			take_interrupt(irq->vector);
+		else
+			take_interrupt(vector & ~3);
+	}
+}
+
+void t11_device::take_interrupt(uint8_t vector)
+{
+	// fetch the new PC and PSW from that vector
+	assert((vector & 3) == 0);
+	uint16_t new_pc = RWORD(vector);
+	uint16_t new_psw = RWORD(vector + 2);
+
+	// push the old state, set the new one
+	PUSH(PSW);
+	PUSH(PC);
+	PCD = new_pc;
+	PSW = new_psw;
+
+	// count cycles and clear the WAIT flag
+	m_icount -= 114;
+	m_wait_state = 0;
 }
 
 
@@ -259,8 +304,9 @@ void t11_device::device_start()
 
 	m_initial_pc = initial_pc[c_initial_mode >> 13];
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_cache = m_program->cache<1, 0, ENDIANNESS_LITTLE>();
 	m_out_reset_func.resolve_safe();
+	m_in_iack_func.resolve_safe(0377);
 
 	save_item(NAME(m_ppc.w.l));
 	save_item(NAME(m_reg[0].w.l));
@@ -274,24 +320,29 @@ void t11_device::device_start()
 	save_item(NAME(m_psw.w.l));
 	save_item(NAME(m_initial_pc));
 	save_item(NAME(m_wait_state));
-	save_item(NAME(m_irq_state));
+	save_item(NAME(m_cp_state));
+	save_item(NAME(m_vec_active));
+	save_item(NAME(m_pf_active));
+	save_item(NAME(m_hlt_active));
+	save_item(NAME(m_power_fail));
+	save_item(NAME(m_ext_halt));
 
 	// Register debugger state
-	state_add( T11_PC,  "PC",  m_reg[7].w.l).formatstr("%04X");
-	state_add( T11_SP,  "SP",  m_reg[6].w.l).formatstr("%04X");
-	state_add( T11_PSW, "PSW", m_psw.b.l).formatstr("%02X");
-	state_add( T11_R0,  "R0",  m_reg[0].w.l).formatstr("%04X");
-	state_add( T11_R1,  "R1",  m_reg[1].w.l).formatstr("%04X");
-	state_add( T11_R2,  "R2",  m_reg[2].w.l).formatstr("%04X");
-	state_add( T11_R3,  "R3",  m_reg[3].w.l).formatstr("%04X");
-	state_add( T11_R4,  "R4",  m_reg[4].w.l).formatstr("%04X");
-	state_add( T11_R5,  "R5",  m_reg[5].w.l).formatstr("%04X");
+	state_add( T11_PC,  "PC",  m_reg[7].w.l).formatstr("%06O");
+	state_add( T11_SP,  "SP",  m_reg[6].w.l).formatstr("%06O");
+	state_add( T11_PSW, "PSW", m_psw.b.l).formatstr("%03O");
+	state_add( T11_R0,  "R0",  m_reg[0].w.l).formatstr("%06O");
+	state_add( T11_R1,  "R1",  m_reg[1].w.l).formatstr("%06O");
+	state_add( T11_R2,  "R2",  m_reg[2].w.l).formatstr("%06O");
+	state_add( T11_R3,  "R3",  m_reg[3].w.l).formatstr("%06O");
+	state_add( T11_R4,  "R4",  m_reg[4].w.l).formatstr("%06O");
+	state_add( T11_R5,  "R5",  m_reg[5].w.l).formatstr("%06O");
 
 	state_add(STATE_GENPC, "GENPC", m_reg[7].w.l).noshow();
 	state_add(STATE_GENPCBASE, "CURPC", m_ppc.w.l).noshow();
 	state_add(STATE_GENFLAGS, "GENFLAGS", m_psw.b.l).formatstr("%8s").noshow();
 
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 }
 
 void t11_device::state_string_export(const device_state_entry &entry, std::string &str) const
@@ -342,27 +393,18 @@ void k1801vm2_device::state_string_export(const device_state_entry &entry, std::
 
 void t11_device::device_reset()
 {
-	/* initial SP is 376 octal, or 0xfe */
-	SP = 0x00fe;
+	// initial SP is 376 octal, or 0xfe
+	SP = 0376;
 
-	/* initial PC comes from the setup word */
+	// initial PC comes from the setup word
 	PC = m_initial_pc;
 
-	/* PSW starts off at highest priority */
-	PSW = 0xe0;
+	// PSW starts off at highest priority
+	PSW = 0340;
 
-	/* initialize the IRQ state */
-	m_irq_state = 0;
-
-	/* reset the remaining state */
-	REGD(0) = 0;
-	REGD(1) = 0;
-	REGD(2) = 0;
-	REGD(3) = 0;
-	REGD(4) = 0;
-	REGD(5) = 0;
-	m_ppc.d = 0;
 	m_wait_state = 0;
+	m_power_fail = false;
+	m_ext_halt = false;
 }
 
 void k1801vm2_device::device_reset()
@@ -382,11 +424,35 @@ void k1801vm2_device::device_reset()
 
 void t11_device::execute_set_input(int irqline, int state)
 {
-	/* set the appropriate bit */
-	if (state == CLEAR_LINE)
-		m_irq_state &= ~(1 << irqline);
-	else
-		m_irq_state |= 1 << irqline;
+	switch (irqline)
+	{
+	case CP0_LINE:
+	case CP1_LINE:
+	case CP2_LINE:
+	case CP3_LINE:
+		// set the appropriate bit
+		if (state == CLEAR_LINE)
+			m_cp_state &= ~(1 << irqline);
+		else
+			m_cp_state |= 1 << irqline;
+		break;
+
+	case VEC_LINE:
+		m_vec_active = (state != CLEAR_LINE);
+		break;
+
+	case PF_LINE:
+		if (state != CLEAR_LINE && !m_pf_active)
+			m_power_fail = true;
+		m_pf_active = (state != CLEAR_LINE);
+		break;
+
+	case HLT_LINE:
+		if (state != CLEAR_LINE && !m_hlt_active)
+			m_ext_halt = true;
+		m_hlt_active = (state != CLEAR_LINE);
+		break;
+	}
 }
 
 
@@ -407,23 +473,20 @@ void t11_device::execute_run()
 		return;
 	}
 
-	do
+	while (m_icount > 0)
 	{
 		uint16_t op;
 
 		m_ppc = m_reg[7];   /* copy PC to previous PC */
 
-		debugger_instruction_hook(this, PCD);
+		debugger_instruction_hook(PCD);
 
 		op = ROPCODE();
 		(this->*s_opcode_table[op >> 3])(op);
-
-	} while (m_icount > 0);
+	}
 }
 
-
-offs_t t11_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> t11_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( t11 );
-	return CPU_DISASSEMBLE_NAME(t11)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<t11_disassembler>();
 }

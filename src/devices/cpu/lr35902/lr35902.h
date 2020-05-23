@@ -1,26 +1,9 @@
 // license:BSD-3-Clause
 // copyright-holders:Wilbert Pol
+#ifndef MAME_CPU_LR35902_LR35902_H
+#define MAME_CPU_LR35902_LR35902_H
+
 #pragma once
-
-#ifndef __LR35902_H__
-#define __LR35902_H__
-
-
-#define MCFG_LR35902_TIMER_CB(_devcb) \
-	devcb = &lr35902_cpu_device::set_timer_cb(*device, DEVCB_##_devcb);
-
-// The first release of this CPU has a bug where the programcounter
-// is not incremented properly after an interrupt after the halt opcode.
-// This was fixed in a newer revision.
-#define MCFG_LR35902_HALT_BUG \
-	lr35902_cpu_device::set_halt_bug(*device);
-
-// The GameBoy has a bug where OAM data gets corrupted if you inc/dec
-// a 16-bit register in the $fe** region.
-// note: oldval is in hiword, newval is in loword
-#define MCFG_LR35902_INCDEC16_CB(_devcb) \
-	devcb = &lr35902_cpu_device::set_incdec16_cb(*device, DEVCB_##_devcb);
-
 
 enum
 {
@@ -33,16 +16,24 @@ enum
 };
 
 
-class lr35902_cpu_device :  public cpu_device
+class lr35902_cpu_device : public cpu_device
 {
 public:
 	// construction/destruction
 	lr35902_cpu_device(const machine_config &mconfig, const char *_tag, device_t *_owner, uint32_t _clock);
 
-	// static configuration helpers
-	template<class _Object> static devcb_base &set_timer_cb(device_t &device, _Object object) { return downcast<lr35902_cpu_device &>(device).m_timer_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_incdec16_cb(device_t &device, _Object object) { return downcast<lr35902_cpu_device &>(device).m_incdec16_func.set_callback(object); }
-	static void set_halt_bug(device_t &device) { downcast<lr35902_cpu_device &>(device).m_has_halt_bug = true; }
+	// configuration helpers
+	auto timer_cb() { return m_timer_func.bind(); }
+
+	// The GameBoy has a bug where OAM data gets corrupted if you inc/dec
+	// a 16-bit register in the $fe** region.
+	// note: oldval is in hiword, newval is in loword
+	auto incdec16_cb() { return m_incdec16_func.bind(); }
+
+	// The first release of this CPU has a bug where the programcounter
+	// is not incremented properly after an interrupt after the halt opcode.
+	// This was fixed in a newer revision.
+	void set_halt_bug(bool has_halt_bug) { m_has_halt_bug = has_halt_bug; }
 
 	uint8_t get_speed();
 	void set_speed(uint8_t speed_request);
@@ -77,21 +68,19 @@ protected:
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 1; }
-	virtual uint32_t execute_max_cycles() const override { return 16; }
-	virtual uint32_t execute_input_lines() const override { return 5; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 16; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 5; }
 	virtual void execute_run() override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : nullptr; }
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 1; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 4; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 	inline void cycles_passed(uint8_t cycles);
 	inline uint8_t mem_read_byte(uint16_t addr);
@@ -119,7 +108,6 @@ protected:
 	uint8_t m_IF;
 	int m_irq_state;
 	bool m_handle_ei_delay;
-	lr35902_cpu_device *m_device;
 	address_space *m_program;
 	int m_icount;
 
@@ -140,6 +128,6 @@ protected:
 	devcb_write32 m_incdec16_func;
 };
 
-extern const device_type LR35902;
+DECLARE_DEVICE_TYPE(LR35902, lr35902_cpu_device)
 
-#endif /* __LR35902_H__ */
+#endif // MAME_CPU_LR35902_LR35902_H

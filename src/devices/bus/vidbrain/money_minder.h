@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_VIDBRAIN_MONEY_MINDER_H
+#define MAME_BUS_VIDBRAIN_MONEY_MINDER_H
 
-#ifndef __VIDEOBRAIN_MONEY_MINDER_CARTRIDGE__
-#define __VIDEOBRAIN_MONEY_MINDER_CARTRIDGE__
+#pragma once
 
 #include "exp.h"
 
@@ -33,13 +33,12 @@ protected:
 	virtual void device_start() override;
 
 	// device_videobrain_expansion_card_interface overrides
-	virtual uint8_t videobrain_bo_r(address_space &space, offs_t offset, int cs1, int cs2) override;
-	virtual void videobrain_bo_w(address_space &space, offs_t offset, uint8_t data, int cs1, int cs2) override;
+	virtual uint8_t videobrain_bo_r(offs_t offset, int cs1, int cs2) override;
+	virtual void videobrain_bo_w(offs_t offset, uint8_t data, int cs1, int cs2) override;
 };
 
 
 // device type definition
-extern const device_type VB_MONEY_MINDER;
+DECLARE_DEVICE_TYPE(VB_MONEY_MINDER, videobrain_money_minder_cartridge_device)
 
-
-#endif
+#endif // MAME_BUS_VIDBRAIN_MONEY_MINDER_H

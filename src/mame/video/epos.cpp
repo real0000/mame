@@ -24,39 +24,40 @@
 
 ***************************************************************************/
 
-void epos_state::get_pens( pen_t *pens )
+void epos_state::epos_palette(palette_device &palette) const
 {
-	offs_t i;
-	const uint8_t *prom = memregion("proms")->base();
-	int len = memregion("proms")->bytes();
+	uint8_t const *const color_prom = memregion("proms")->base();
+	int const len = memregion("proms")->bytes();
 
-	for (i = 0; i < len; i++)
-	{
-		int bit0, bit1, bit2, r, g, b;
-
-		uint8_t data = prom[i];
-
-		bit0 = (data >> 7) & 0x01;
-		bit1 = (data >> 6) & 0x01;
-		bit2 = (data >> 5) & 0x01;
-		r = 0x92 * bit0 + 0x4a * bit1 + 0x23 * bit2;
-
-		bit0 = (data >> 4) & 0x01;
-		bit1 = (data >> 3) & 0x01;
-		bit2 = (data >> 2) & 0x01;
-		g = 0x92 * bit0 + 0x4a * bit1 + 0x23 * bit2;
-
-		bit0 = (data >> 1) & 0x01;
-		bit1 = (data >> 0) & 0x01;
-		b = 0xad * bit0 + 0x52 * bit1;
-
-		pens[i] = rgb_t(r, g, b);
-	}
+	for (offs_t i = 0; i < len; i++)
+		set_pal_color(palette, i, color_prom[i]);
 }
 
-WRITE8_MEMBER(epos_state::flip_screen_w)
+void epos_state::set_pal_color(palette_device &palette, uint8_t offset, uint8_t data)
 {
-	flip_screen_set(BIT(data, 7));
+	int bit0, bit1, bit2;
+
+	bit0 = BIT(data, 7);
+	bit1 = BIT(data, 6);
+	bit2 = BIT(data, 5);
+	int const r = 0x92 * bit0 + 0x4a * bit1 + 0x23 * bit2;
+
+	bit0 = BIT(data, 4);
+	bit1 = BIT(data, 3);
+	bit2 = BIT(data, 2);
+	int const g = 0x92 * bit0 + 0x4a * bit1 + 0x23 * bit2;
+
+	bit0 = BIT(data, 1);
+	bit1 = BIT(data, 0);
+	int const b = 0xad * bit0 + 0x52 * bit1;
+
+	palette.set_pen_color(offset, rgb_t(r, g, b));
+}
+
+// later (tristar 9000) games uses a dynamic palette instead of prom
+WRITE8_MEMBER(epos_state::dealer_pal_w)
+{
+	set_pal_color(*m_palette, offset, data);
 }
 
 WRITE8_MEMBER(epos_state::port_1_w)
@@ -68,37 +69,34 @@ WRITE8_MEMBER(epos_state::port_1_w)
 	   D4-D7 - unused
 	 */
 
-	output().set_led_value(0, (data >> 0) & 0x01);
-	output().set_led_value(1, (data >> 1) & 0x01);
+	m_leds[0] = BIT(data, 0);
+	m_leds[1] = BIT(data, 1);
 
 	machine().bookkeeping().coin_counter_w(0, (data >> 2) & 0x01);
 
-	m_palette = (data >> 3) & 0x01;
+	m_palette_bank = (data >> 3) & 0x01;
 }
 
 
 uint32_t epos_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	pen_t pens[0x20];
-	offs_t offs;
-
-	get_pens(pens);
-
-	for (offs = 0; offs < m_videoram.bytes(); offs++)
+	for (offs_t offs = 0; offs < m_videoram.bytes(); offs++)
 	{
-		uint8_t data = m_videoram[offs];
+		uint8_t const data = m_videoram[offs];
 
 		int x = (offs % 136) * 2;
 		int y = (offs / 136);
 
 		if (flip_screen())
 		{
-			x = 270 - x; // wrong
-			y = 240 - y; // wrong
+			bitmap.pix32(240 - y, 270 - x + 1) = m_palette->pen((m_palette_bank << 4) | (data & 0x0f));
+			bitmap.pix32(240 - y, 270 - x + 0) = m_palette->pen((m_palette_bank << 4) | (data >> 4));
 		}
-
-		bitmap.pix32(y, x + 0) = pens[(m_palette << 4) | (data & 0x0f)];
-		bitmap.pix32(y, x + 1) = pens[(m_palette << 4) | (data >> 4)];
+		else
+		{
+			bitmap.pix32(y, x + 0) = m_palette->pen((m_palette_bank << 4) | (data & 0x0f));
+			bitmap.pix32(y, x + 1) = m_palette->pen((m_palette_bank << 4) | (data >> 4));
+		}
 	}
 
 	return 0;

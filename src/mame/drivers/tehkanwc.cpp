@@ -102,10 +102,14 @@ TO DO :
 
 void tehkanwc_state::machine_start()
 {
+	m_reset_timer = timer_alloc(TIMER_RESET);
+
 	save_item(NAME(m_track0));
 	save_item(NAME(m_track1));
 	save_item(NAME(m_msm_data_offs));
 	save_item(NAME(m_toggle));
+
+	m_digits.resolve();
 }
 
 WRITE8_MEMBER(tehkanwc_state::sub_cpu_halt_w)
@@ -153,8 +157,8 @@ WRITE8_MEMBER(tehkanwc_state::track_1_reset_w)
 
 WRITE8_MEMBER(tehkanwc_state::sound_command_w)
 {
-	m_soundlatch->write(space, offset, data);
-	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_soundlatch->write(data);
+	m_audiocpu->pulse_input_line(INPUT_LINE_NMI, attotime::zero);
 }
 
 void tehkanwc_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
@@ -162,47 +166,47 @@ void tehkanwc_state::device_timer(emu_timer &timer, device_timer_id id, int para
 	switch (id)
 	{
 	case TIMER_RESET:
-		m_audiocpu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+		m_audiocpu->pulse_input_line(INPUT_LINE_RESET, attotime::zero);
 		break;
 	default:
-		assert_always(false, "Unknown id in tehkanwc_state::device_timer");
+		throw emu_fatalerror("Unknown id in tehkanwc_state::device_timer");
 	}
 }
 
 WRITE8_MEMBER(tehkanwc_state::sound_answer_w)
 {
-	m_soundlatch2->write(space, 0, data);
+	m_soundlatch2->write(data);
 
 	/* in Gridiron, the sound CPU goes in a tight loop after the self test, */
 	/* probably waiting to be reset by a watchdog */
-	if (space.device().safe_pc() == 0x08bc) timer_set(attotime::from_seconds(1), TIMER_RESET);
+	if (m_audiocpu->pc() == 0x08bc) m_reset_timer->adjust(attotime::from_seconds(1));
 }
 
 
 /* Emulate MSM sound samples with counters */
 
 
-READ8_MEMBER(tehkanwc_state::portA_r)
+uint8_t tehkanwc_state::portA_r()
 {
 	return m_msm_data_offs & 0xff;
 }
 
-READ8_MEMBER(tehkanwc_state::portB_r)
+uint8_t tehkanwc_state::portB_r()
 {
 	return (m_msm_data_offs >> 8) & 0xff;
 }
 
-WRITE8_MEMBER(tehkanwc_state::portA_w)
+void tehkanwc_state::portA_w(uint8_t data)
 {
 	m_msm_data_offs = (m_msm_data_offs & 0xff00) | data;
 }
 
-WRITE8_MEMBER(tehkanwc_state::portB_w)
+void tehkanwc_state::portB_w(uint8_t data)
 {
 	m_msm_data_offs = (m_msm_data_offs & 0x00ff) | (data << 8);
 }
 
-WRITE8_MEMBER(tehkanwc_state::msm_reset_w)
+void tehkanwc_state::msm_reset_w(uint8_t data)
 {
 	m_msm->reset_w(data ? 0 : 1);
 }
@@ -227,69 +231,73 @@ WRITE_LINE_MEMBER(tehkanwc_state::adpcm_int)
 
 
 
-static ADDRESS_MAP_START( main_mem, AS_PROGRAM, 8, tehkanwc_state )
-	AM_RANGE(0x0000, 0xbfff) AM_ROM
-	AM_RANGE(0xc000, 0xc7ff) AM_RAM
-	AM_RANGE(0xc800, 0xcfff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0xd000, 0xd3ff) AM_RAM_WRITE(videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0xd400, 0xd7ff) AM_RAM_WRITE(colorram_w) AM_SHARE("colorram")
-	AM_RANGE(0xd800, 0xddff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0xde00, 0xdfff) AM_RAM AM_SHARE("share5") /* unused part of the palette RAM, I think? Gridiron uses it */
-	AM_RANGE(0xe000, 0xe7ff) AM_RAM_WRITE(videoram2_w) AM_SHARE("videoram2")
-	AM_RANGE(0xe800, 0xebff) AM_RAM AM_SHARE("spriteram") /* sprites */
-	AM_RANGE(0xec00, 0xec01) AM_RAM_WRITE(scroll_x_w)
-	AM_RANGE(0xec02, 0xec02) AM_RAM_WRITE(scroll_y_w)
-	AM_RANGE(0xf800, 0xf801) AM_READWRITE(track_0_r, track_0_reset_w) /* track 0 x/y */
-	AM_RANGE(0xf802, 0xf802) AM_READ_PORT("SYSTEM") AM_WRITE(gridiron_led0_w)
-	AM_RANGE(0xf803, 0xf803) AM_READ_PORT("P1BUT")
-	AM_RANGE(0xf806, 0xf806) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0xf810, 0xf811) AM_READWRITE(track_1_r, track_1_reset_w) /* track 1 x/y */
-	AM_RANGE(0xf812, 0xf812) AM_WRITE(gridiron_led1_w)
-	AM_RANGE(0xf813, 0xf813) AM_READ_PORT("P2BUT")
-	AM_RANGE(0xf820, 0xf820) AM_DEVREAD("soundlatch2", generic_latch_8_device, read) AM_WRITE(sound_command_w)  /* answer from the sound CPU */
-	AM_RANGE(0xf840, 0xf840) AM_READ_PORT("DSW1") AM_WRITE(sub_cpu_halt_w)
-	AM_RANGE(0xf850, 0xf850) AM_READ_PORT("DSW2") AM_WRITENOP           /* ?? writes 0x00 or 0xff */
-	AM_RANGE(0xf860, 0xf860) AM_DEVREAD("watchdog", watchdog_timer_device, reset_r) AM_WRITE(flipscreen_x_w)
-	AM_RANGE(0xf870, 0xf870) AM_READ_PORT("DSW3") AM_WRITE(flipscreen_y_w)
-ADDRESS_MAP_END
+void tehkanwc_state::main_mem(address_map &map)
+{
+	map(0x0000, 0xbfff).rom();
+	map(0xc000, 0xc7ff).ram();
+	map(0xc800, 0xcfff).ram().share("share1");
+	map(0xd000, 0xd3ff).ram().w(FUNC(tehkanwc_state::videoram_w)).share("videoram");
+	map(0xd400, 0xd7ff).ram().w(FUNC(tehkanwc_state::colorram_w)).share("colorram");
+	map(0xd800, 0xddff).ram().w(m_palette, FUNC(palette_device::write8)).share("palette");
+	map(0xde00, 0xdfff).ram().share("share5"); /* unused part of the palette RAM, I think? Gridiron uses it */
+	map(0xe000, 0xe7ff).ram().w(FUNC(tehkanwc_state::videoram2_w)).share("videoram2");
+	map(0xe800, 0xebff).ram().share("spriteram"); /* sprites */
+	map(0xec00, 0xec01).ram().w(FUNC(tehkanwc_state::scroll_x_w));
+	map(0xec02, 0xec02).ram().w(FUNC(tehkanwc_state::scroll_y_w));
+	map(0xf800, 0xf801).rw(FUNC(tehkanwc_state::track_0_r), FUNC(tehkanwc_state::track_0_reset_w)); /* track 0 x/y */
+	map(0xf802, 0xf802).portr("SYSTEM").w(FUNC(tehkanwc_state::gridiron_led0_w));
+	map(0xf803, 0xf803).portr("P1BUT");
+	map(0xf806, 0xf806).portr("SYSTEM");
+	map(0xf810, 0xf811).rw(FUNC(tehkanwc_state::track_1_r), FUNC(tehkanwc_state::track_1_reset_w)); /* track 1 x/y */
+	map(0xf812, 0xf812).w(FUNC(tehkanwc_state::gridiron_led1_w));
+	map(0xf813, 0xf813).portr("P2BUT");
+	map(0xf820, 0xf820).r(m_soundlatch2, FUNC(generic_latch_8_device::read)).w(FUNC(tehkanwc_state::sound_command_w));  /* answer from the sound CPU */
+	map(0xf840, 0xf840).portr("DSW2").w(FUNC(tehkanwc_state::sub_cpu_halt_w));
+	map(0xf850, 0xf850).portr("DSW3").nopw();           /* ?? writes 0x00 or 0xff */
+	map(0xf860, 0xf860).r("watchdog", FUNC(watchdog_timer_device::reset_r)).w(FUNC(tehkanwc_state::flipscreen_x_w));
+	map(0xf870, 0xf870).portr("DSW1").w(FUNC(tehkanwc_state::flipscreen_y_w));
+}
 
-static ADDRESS_MAP_START( sub_mem, AS_PROGRAM, 8, tehkanwc_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0xc7ff) AM_RAM
-	AM_RANGE(0xc800, 0xcfff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0xd000, 0xd3ff) AM_RAM_WRITE(videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0xd400, 0xd7ff) AM_RAM_WRITE(colorram_w) AM_SHARE("colorram")
-	AM_RANGE(0xd800, 0xddff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0xde00, 0xdfff) AM_RAM AM_SHARE("share5") /* unused part of the palette RAM, I think? Gridiron uses it */
-	AM_RANGE(0xe000, 0xe7ff) AM_RAM_WRITE(videoram2_w) AM_SHARE("videoram2")
-	AM_RANGE(0xe800, 0xebff) AM_RAM AM_SHARE("spriteram") /* sprites */
-	AM_RANGE(0xec00, 0xec01) AM_RAM_WRITE(scroll_x_w)
-	AM_RANGE(0xec02, 0xec02) AM_RAM_WRITE(scroll_y_w)
-	AM_RANGE(0xf860, 0xf860) AM_DEVREAD("watchdog", watchdog_timer_device, reset_r)
-ADDRESS_MAP_END
+void tehkanwc_state::sub_mem(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0xc7ff).ram();
+	map(0xc800, 0xcfff).ram().share("share1");
+	map(0xd000, 0xd3ff).ram().w(FUNC(tehkanwc_state::videoram_w)).share("videoram");
+	map(0xd400, 0xd7ff).ram().w(FUNC(tehkanwc_state::colorram_w)).share("colorram");
+	map(0xd800, 0xddff).ram().w(m_palette, FUNC(palette_device::write8)).share("palette");
+	map(0xde00, 0xdfff).ram().share("share5"); /* unused part of the palette RAM, I think? Gridiron uses it */
+	map(0xe000, 0xe7ff).ram().w(FUNC(tehkanwc_state::videoram2_w)).share("videoram2");
+	map(0xe800, 0xebff).ram().share("spriteram"); /* sprites */
+	map(0xec00, 0xec01).ram().w(FUNC(tehkanwc_state::scroll_x_w));
+	map(0xec02, 0xec02).ram().w(FUNC(tehkanwc_state::scroll_y_w));
+	map(0xf860, 0xf860).r("watchdog", FUNC(watchdog_timer_device::reset_r));
+}
 
-static ADDRESS_MAP_START( sound_mem, AS_PROGRAM, 8, tehkanwc_state )
-	AM_RANGE(0x0000, 0x3fff) AM_ROM
-	AM_RANGE(0x4000, 0x47ff) AM_RAM
-	AM_RANGE(0x8001, 0x8001) AM_WRITE(msm_reset_w)/* MSM51xx reset */
-	AM_RANGE(0x8002, 0x8002) AM_WRITENOP    /* ?? written in the IRQ handler */
-	AM_RANGE(0x8003, 0x8003) AM_WRITENOP    /* ?? written in the NMI handler */
-	AM_RANGE(0xc000, 0xc000) AM_DEVREAD("soundlatch", generic_latch_8_device, read) AM_WRITE(sound_answer_w)
-ADDRESS_MAP_END
+void tehkanwc_state::sound_mem(address_map &map)
+{
+	map(0x0000, 0x3fff).rom();
+	map(0x4000, 0x47ff).ram();
+	map(0x8001, 0x8001).w(FUNC(tehkanwc_state::msm_reset_w));/* MSM51xx reset */
+	map(0x8002, 0x8002).nopw();    /* ?? written in the IRQ handler */
+	map(0x8003, 0x8003).nopw();    /* ?? written in the NMI handler */
+	map(0xc000, 0xc000).r(m_soundlatch, FUNC(generic_latch_8_device::read)).w(FUNC(tehkanwc_state::sound_answer_w));
+}
 
-static ADDRESS_MAP_START( sound_port, AS_IO, 8, tehkanwc_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_DEVREAD("ay1", ay8910_device, data_r)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ay1", ay8910_device, data_address_w)
-	AM_RANGE(0x02, 0x02) AM_DEVREAD("ay2", ay8910_device, data_r)
-	AM_RANGE(0x02, 0x03) AM_DEVWRITE("ay2", ay8910_device, data_address_w)
-ADDRESS_MAP_END
+void tehkanwc_state::sound_port(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).r("ay1", FUNC(ay8910_device::data_r));
+	map(0x00, 0x01).w("ay1", FUNC(ay8910_device::data_address_w));
+	map(0x02, 0x02).r("ay2", FUNC(ay8910_device::data_r));
+	map(0x02, 0x03).w("ay2", FUNC(ay8910_device::data_address_w));
+}
 
 
 
 static INPUT_PORTS_START( tehkanwc )
-	PORT_START("DSW1")  /* DSW1 - Active LOW */
-	PORT_DIPNAME( 0x07, 0x07, DEF_STR( Coin_A ) )
+	PORT_START("DSW2")  /* DSW2 - Active LOW */
+	PORT_DIPNAME( 0x07, 0x07, DEF_STR( Coin_A ) ) PORT_DIPLOCATION("SW2:1,2,3")
 	PORT_DIPSETTING (   0x01, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING (   0x07, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING (   0x00, DEF_STR( 2C_3C ) )
@@ -298,7 +306,7 @@ static INPUT_PORTS_START( tehkanwc )
 	PORT_DIPSETTING (   0x04, DEF_STR( 1C_4C ) )
 	PORT_DIPSETTING (   0x03, DEF_STR( 1C_5C ) )
 	PORT_DIPSETTING (   0x02, DEF_STR( 1C_6C ) )
-	PORT_DIPNAME( 0x38, 0x38, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0x38, 0x38, DEF_STR( Coin_B ) ) PORT_DIPLOCATION("SW2:4,5,6")
 	PORT_DIPSETTING (   0x08, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING (   0x38, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING (   0x00, DEF_STR( 2C_3C ) )
@@ -307,19 +315,19 @@ static INPUT_PORTS_START( tehkanwc )
 	PORT_DIPSETTING (   0x20, DEF_STR( 1C_4C ) )
 	PORT_DIPSETTING (   0x18, DEF_STR( 1C_5C ) )
 	PORT_DIPSETTING (   0x10, DEF_STR( 1C_6C ) )
-	PORT_DIPNAME( 0xc0, 0xc0, "Start Credits (P1&P2)/Extra" )
+	PORT_DIPNAME( 0xc0, 0xc0, "Start Credits (P1&P2)/Extra" ) PORT_DIPLOCATION("SW2:7,8")
 	PORT_DIPSETTING (   0x80, "1&1/200%" )
 	PORT_DIPSETTING (   0xc0, "1&2/100%" )
 	PORT_DIPSETTING (   0x40, "2&2/100%" )
 	PORT_DIPSETTING (   0x00, "2&3/67%" )
 
-	PORT_START("DSW2")  /* DSW2 - Active LOW */
-	PORT_DIPNAME( 0x03, 0x03, "1P Game Time" )
+	PORT_START("DSW3")  /* DSW3 - Active LOW */
+	PORT_DIPNAME( 0x03, 0x03, "1P Game Time" ) PORT_DIPLOCATION("SW3:1,2")
 	PORT_DIPSETTING (   0x00, "2:30" )
 	PORT_DIPSETTING (   0x01, "2:00" )
 	PORT_DIPSETTING (   0x03, "1:30" )
 	PORT_DIPSETTING (   0x02, "1:00" )
-	PORT_DIPNAME( 0x7c, 0x7c, "2P Game Time" )
+	PORT_DIPNAME( 0x7c, 0x7c, "2P Game Time" ) PORT_DIPLOCATION("SW3:3,4,5,6,7")
 	PORT_DIPSETTING (   0x00, "5:00/3:00 Extra" )
 	PORT_DIPSETTING (   0x60, "5:00/2:45 Extra" )
 	PORT_DIPSETTING (   0x20, "5:00/2:35 Extra" )
@@ -352,20 +360,20 @@ static INPUT_PORTS_START( tehkanwc )
 	PORT_DIPSETTING (   0x78, "1:00/0:45 Extra" )
 	PORT_DIPSETTING (   0x38, "1:00/0:35 Extra" )
 	PORT_DIPSETTING (   0x58, "1:00/0:30 Extra" )
-	PORT_DIPNAME( 0x80, 0x80, "Game Type" )
+	PORT_DIPNAME( 0x80, 0x80, "Game Type" ) PORT_DIPLOCATION("SW3:8")
 	PORT_DIPSETTING (   0x80, "Timer In" )
 	PORT_DIPSETTING (   0x00, "Credit In" )
 
-	PORT_START("DSW3")  /* DSW3 - Active LOW */
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Difficulty ) )
+	PORT_START("DSW1")  /* DSW1 - Active LOW */
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Difficulty ) ) PORT_DIPLOCATION("SW1:1,2")
 	PORT_DIPSETTING (   0x02, DEF_STR( Easy ) )
 	PORT_DIPSETTING (   0x03, DEF_STR( Normal ) )
 	PORT_DIPSETTING (   0x01, DEF_STR( Hard ) )
 	PORT_DIPSETTING (   0x00, DEF_STR( Very_Hard ) )
-	PORT_DIPNAME( 0x04, 0x04, "Timer Speed" )
+	PORT_DIPNAME( 0x04, 0x04, "Timer Speed" ) PORT_DIPLOCATION("SW1:3")
 	PORT_DIPSETTING (   0x04, "60/60" )
 	PORT_DIPSETTING (   0x00, "55/60" )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Demo_Sounds ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Demo_Sounds ) ) PORT_DIPLOCATION("SW1:4")
 	PORT_DIPSETTING (   0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING (   0x08, DEF_STR( On ) )
 
@@ -392,6 +400,7 @@ static INPUT_PORTS_START( tehkanwc )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_START1 )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_START2 )
+	PORT_BIT( 0xf0, IP_ACTIVE_HIGH, IPT_UNKNOWN )
 
 	PORT_START("FAKE")  /* fake port to emulate trackballs with keyboard */
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(1)
@@ -404,41 +413,68 @@ static INPUT_PORTS_START( tehkanwc )
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(2)
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( tehkanwcd )
+	PORT_INCLUDE( tehkanwc )
+
+	PORT_MODIFY("DSW1")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED ) // DSW1 doesn't exist on this PCB?
+
+	PORT_MODIFY("P1BUT") /* IN0 - BUTTON */
+	/* DSW4 in test mode */
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Difficulty ) ) PORT_DIPLOCATION("SW4:1,2")
+	PORT_DIPSETTING (   0x02, DEF_STR( Easy ) )
+	PORT_DIPSETTING (   0x03, DEF_STR( Normal ) )
+	PORT_DIPSETTING (   0x01, DEF_STR( Hard ) )
+	PORT_DIPSETTING (   0x00, DEF_STR( Very_Hard ) )
+	PORT_DIPNAME( 0x04, 0x04, "Timer Speed" ) PORT_DIPLOCATION("SW4:3")
+	PORT_DIPSETTING (   0x04, "60/60" )
+	PORT_DIPSETTING (   0x00, "55/60" )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Demo_Sounds ) ) PORT_DIPLOCATION("SW4:4")
+	PORT_DIPSETTING (   0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING (   0x08, DEF_STR( On ) )
+
+	PORT_MODIFY("P2BUT") /* IN1 - BUTTON */
+	/* DSW5 in test mode */
+	PORT_DIPUNUSED_DIPLOC( 0x01, 0x01, "SW5:1" )
+	PORT_DIPUNUSED_DIPLOC( 0x02, 0x02, "SW5:2" )
+	PORT_DIPUNUSED_DIPLOC( 0x04, 0x04, "SW5:3" )
+	PORT_DIPUNUSED_DIPLOC( 0x08, 0x08, "SW5:4" )
+INPUT_PORTS_END
 
 static INPUT_PORTS_START( gridiron )
-	PORT_START("DSW1")  /* DSW1 - Active LOW */
-	PORT_DIPNAME( 0x03, 0x03, "Start Credits (P1&P2)/Extra" )
+	PORT_START("DSW2")  /* DSW2 - Active LOW */
+	PORT_DIPNAME( 0x03, 0x03, "Start Credits (P1&P2)/Extra" ) PORT_DIPLOCATION("SW2:1,2")
 	PORT_DIPSETTING (   0x01, "1&1/200%" )
 	PORT_DIPSETTING (   0x03, "1&2/100%" )
-//  PORT_DIPSETTING (   0x00, "2&1/200%" )              // Is this setting possible ?
+	PORT_DIPSETTING (   0x00, "2&1/200% (duplicate)" )
 	PORT_DIPSETTING (   0x02, "2&2/100%" )
 	/* This Dip Switch only has an effect in a 2 players game.
 	   If offense player selects his formation before defense player,
 	   defense formation time will be set to 3, 5 or 7 seconds.
 	   Check code at 0x3ed9 and table at 0x3f89. */
-	PORT_DIPNAME( 0x0c, 0x0c, "Formation Time (Defense)" )
+	PORT_DIPNAME( 0x0c, 0x0c, "Formation Time (Defense)" ) PORT_DIPLOCATION("SW2:3,4")
 	PORT_DIPSETTING (   0x0c, "Same as Offense" )
 	PORT_DIPSETTING (   0x00, "7" )
 	PORT_DIPSETTING (   0x08, "5" )
 	PORT_DIPSETTING (   0x04, "3" )
-	PORT_DIPNAME( 0x30, 0x30, "Timer Speed" )
+	PORT_DIPNAME( 0x30, 0x30, "Timer Speed" ) PORT_DIPLOCATION("SW2:5,6")
 	PORT_DIPSETTING (   0x30, "60/60" )
 	PORT_DIPSETTING (   0x00, "57/60" )
 	PORT_DIPSETTING (   0x10, "54/60" )
 	PORT_DIPSETTING (   0x20, "50/60" )
-	PORT_DIPNAME( 0xc0, 0xc0, "Formation Time (Offense)" )
+	PORT_DIPNAME( 0xc0, 0xc0, "Formation Time (Offense)" ) PORT_DIPLOCATION("SW2:7,8")
 	PORT_DIPSETTING (   0x00, "25" )
 	PORT_DIPSETTING (   0x40, "20" )
 	PORT_DIPSETTING (   0xc0, "15" )
 	PORT_DIPSETTING (   0x80, "10" )
 
-	PORT_START("DSW2")  /* DSW2 - Active LOW */
-	PORT_DIPNAME( 0x03, 0x03, "1P Game Time" )
+	PORT_START("DSW3")  /* DSW3 - Active LOW */
+	PORT_DIPNAME( 0x03, 0x03, "1P Game Time" ) PORT_DIPLOCATION("SW3:1,2")
 	PORT_DIPSETTING (   0x00, "2:30" )
 	PORT_DIPSETTING (   0x01, "2:00" )
 	PORT_DIPSETTING (   0x03, "1:30" )
 	PORT_DIPSETTING (   0x02, "1:00" )
-	PORT_DIPNAME( 0x7c, 0x7c, "2P Game Time" )
+	PORT_DIPNAME( 0x7c, 0x7c, "2P Game Time" ) PORT_DIPLOCATION("SW3:3,4,5,6,7")
 	PORT_DIPSETTING (   0x60, "5:00/3:00 Extra" )
 	PORT_DIPSETTING (   0x00, "5:00/2:45 Extra" )
 	PORT_DIPSETTING (   0x20, "5:00/2:35 Extra" )
@@ -471,11 +507,11 @@ static INPUT_PORTS_START( gridiron )
 	PORT_DIPSETTING (   0x18, "1:00/0:45 Extra" )
 	PORT_DIPSETTING (   0x38, "1:00/0:35 Extra" )
 	PORT_DIPSETTING (   0x58, "1:00/0:30 Extra" )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Demo_Sounds ) )      // Check code at 0x14b4
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Demo_Sounds ) ) PORT_DIPLOCATION("SW3:8")      // Check code at 0x14b4
 	PORT_DIPSETTING (   0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING (   0x80, DEF_STR( On ) )
 
-	PORT_START("DSW3")  /* no DSW3 */
+	PORT_START("DSW1")  /* no DSW1 */
 	PORT_BIT( 0x0f, IP_ACTIVE_HIGH, IPT_UNUSED )
 
 	PORT_START("P1X")   /* IN0 - X AXIS */
@@ -508,46 +544,48 @@ INPUT_PORTS_END
 
 
 static INPUT_PORTS_START( teedoff )
-	PORT_START("DSW1")  /* DSW1 - Active LOW */
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) )
+	PORT_START("DSW2")  /* DSW2 - Active LOW */
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) ) PORT_DIPLOCATION("SW2:1,2")
 	PORT_DIPSETTING (   0x02, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING (   0x03, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING (   0x01, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING (   0x00, DEF_STR( 1C_3C ) )
-	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Coin_B ) ) PORT_DIPLOCATION("SW2:3,4")
 	PORT_DIPSETTING (   0x08, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING (   0x0c, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING (   0x04, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING (   0x00, DEF_STR( 1C_3C ) )
-	PORT_DIPNAME( 0x30, 0x30, "Balls" )
+	PORT_DIPNAME( 0x30, 0x30, "Balls" ) PORT_DIPLOCATION("SW2:5,6")
 	PORT_DIPSETTING (   0x30, "5" )
 	PORT_DIPSETTING (   0x20, "6" )
 	PORT_DIPSETTING (   0x10, "7" )
 	PORT_DIPSETTING (   0x00, "8" )
-	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) )          // Check code at 0x0c5c
+	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) ) PORT_DIPLOCATION("SW2:7")         // Check code at 0x0c5c
 	PORT_DIPSETTING (   0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING (   0x40, DEF_STR( Cocktail ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Demo_Sounds ) )      // Check code at 0x5dd0
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Demo_Sounds ) ) PORT_DIPLOCATION("SW2:8")     // Check code at 0x5dd0
 	PORT_DIPSETTING (   0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING (   0x80, DEF_STR( On ) )
 
-	PORT_START("DSW2")  /* DSW2 - Active LOW */
-	PORT_BIT( 0x07, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_DIPNAME( 0x18, 0x18, "Penalty (Over Par)" )        // Check table at 0x2d67
+	PORT_START("DSW3")  /* DSW3 - Active LOW */
+	PORT_DIPUNUSED_DIPLOC( 0x01, 0x01, "SW3:1" )
+	PORT_DIPUNUSED_DIPLOC( 0x02, 0x02, "SW3:2" )
+	PORT_DIPUNUSED_DIPLOC( 0x04, 0x04, "SW3:3" )
+	PORT_DIPNAME( 0x18, 0x18, "Penalty (Over Par)" ) PORT_DIPLOCATION("SW3:4,5")        // Check table at 0x2d67
 	PORT_DIPSETTING (   0x10, "1/1/2/3/4" )             // +1 / +2 / +3 / +4 / +5 or +6
 	PORT_DIPSETTING (   0x18, "1/2/3/3/4" )
 	PORT_DIPSETTING (   0x08, "1/2/3/4/4" )
 	PORT_DIPSETTING (   0x00, "2/3/3/4/4" )
-	PORT_DIPNAME( 0x20, 0x20, "Bonus Balls (Multiple coins)" )
+	PORT_DIPNAME( 0x20, 0x20, "Bonus Balls (Multiple coins)" ) PORT_DIPLOCATION("SW3:6")
 	PORT_DIPSETTING (   0x20, DEF_STR( None ) )
 	PORT_DIPSETTING (   0x00, "+1" )
-	PORT_DIPNAME( 0xc0, 0xc0, "Difficulty?" )               // Check table at 0x5df9
+	PORT_DIPNAME( 0xc0, 0xc0, "Difficulty?" )  PORT_DIPLOCATION("SW3:7,8")               // Check table at 0x5df9
 	PORT_DIPSETTING (   0x80, DEF_STR( Easy ) )
 	PORT_DIPSETTING (   0xc0, DEF_STR( Normal ) )
 	PORT_DIPSETTING (   0x40, DEF_STR( Hard ) )
 	PORT_DIPSETTING (   0x00, DEF_STR( Hardest ) )
 
-	PORT_START("DSW3")  /* no DSW3 */
+	PORT_START("DSW1")  /* no DSW1 */
 	PORT_BIT( 0x0f, IP_ACTIVE_HIGH, IPT_UNUSED )
 
 	PORT_START("P1X")   /* IN0 - X AXIS */
@@ -620,71 +658,82 @@ static const gfx_layout tilelayout =
 	64*8    /* every char takes 64 consecutive bytes */
 };
 
-static GFXDECODE_START( tehkanwc )
+static GFXDECODE_START( gfx_tehkanwc )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout,     0, 16 ) /* Colors 0 - 255 */
 	GFXDECODE_ENTRY( "gfx2", 0, spritelayout, 256,  8 ) /* Colors 256 - 383 */
 	GFXDECODE_ENTRY( "gfx3", 0, tilelayout,   512, 16 ) /* Colors 512 - 767 */
 GFXDECODE_END
 
 
-static MACHINE_CONFIG_START( tehkanwc, tehkanwc_state )
-
+void tehkanwc_state::tehkanwc(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, 18432000/4)    /* 18.432000 / 4 */
-	MCFG_CPU_PROGRAM_MAP(main_mem)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", tehkanwc_state,  irq0_line_hold)
+	Z80(config, m_maincpu, 18432000/4);     /* 18.432000 / 4 */
+	m_maincpu->set_addrmap(AS_PROGRAM, &tehkanwc_state::main_mem);
+	m_maincpu->set_vblank_int("screen", FUNC(tehkanwc_state::irq0_line_hold));
 
-	MCFG_CPU_ADD("sub", Z80, 18432000/4)
-	MCFG_CPU_PROGRAM_MAP(sub_mem)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", tehkanwc_state,  irq0_line_hold)
+	Z80(config, m_subcpu, 18432000/4);
+	m_subcpu->set_addrmap(AS_PROGRAM, &tehkanwc_state::sub_mem);
+	m_subcpu->set_vblank_int("screen", FUNC(tehkanwc_state::irq0_line_hold));
 
-	MCFG_CPU_ADD("audiocpu", Z80, 18432000/4)
-	MCFG_CPU_PROGRAM_MAP(sound_mem)
-	MCFG_CPU_IO_MAP(sound_port)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", tehkanwc_state,  irq0_line_hold)
+	Z80(config, m_audiocpu, 18432000/4);
+	m_audiocpu->set_addrmap(AS_PROGRAM, &tehkanwc_state::sound_mem);
+	m_audiocpu->set_addrmap(AS_IO, &tehkanwc_state::sound_port);
+	m_audiocpu->set_vblank_int("screen", FUNC(tehkanwc_state::irq0_line_hold));
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(600))   /* 10 CPU slices per frame - seems enough to keep the CPUs in sync */
+	config.set_maximum_quantum(attotime::from_hz(600));  /* 10 CPU slices per frame - seems enough to keep the CPUs in sync */
 
-	MCFG_WATCHDOG_ADD("watchdog")
+	WATCHDOG_TIMER(config, "watchdog");
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(tehkanwc_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500)); /* not accurate */
+	screen.set_size(32*8, 32*8);
+	screen.set_visarea(0*8, 32*8-1, 2*8, 30*8-1);
+	screen.set_screen_update(FUNC(tehkanwc_state::screen_update));
+	screen.set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tehkanwc)
-	MCFG_PALETTE_ADD("palette", 768)
-	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
-	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_tehkanwc);
+	PALETTE(config, m_palette).set_format(palette_device::xBGR_444, 768).set_endianness(ENDIANNESS_BIG);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch2")
+	GENERIC_LATCH_8(config, m_soundlatch);
+	GENERIC_LATCH_8(config, m_soundlatch2);
 
-	MCFG_SOUND_ADD("ay1", AY8910, 18432000/12)
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(tehkanwc_state, portA_w))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(tehkanwc_state, portB_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	ym2149_device &ay1(YM2149(config, "ay1", 18432000/12));
+	ay1.port_a_write_callback().set(FUNC(tehkanwc_state::portA_w));
+	ay1.port_b_write_callback().set(FUNC(tehkanwc_state::portB_w));
+	ay1.add_route(ALL_OUTPUTS, "mono", 0.25);
 
-	MCFG_SOUND_ADD("ay2", AY8910, 18432000/12)
-	MCFG_AY8910_PORT_A_READ_CB(READ8(tehkanwc_state, portA_r))
-	MCFG_AY8910_PORT_B_READ_CB(READ8(tehkanwc_state, portB_r))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	ym2149_device &ay2(YM2149(config, "ay2", 18432000/12));
+	ay2.port_a_read_callback().set(FUNC(tehkanwc_state::portA_r));
+	ay2.port_b_read_callback().set(FUNC(tehkanwc_state::portB_r));
+	ay2.add_route(ALL_OUTPUTS, "mono", 0.25);
 
-	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(tehkanwc_state, adpcm_int)) /* interrupt function */
-	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8KHz               */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.45)
-MACHINE_CONFIG_END
+	MSM5205(config, m_msm, 384000);
+	m_msm->vck_legacy_callback().set(FUNC(tehkanwc_state::adpcm_int));  /* interrupt function */
+	m_msm->set_prescaler_selector(msm5205_device::S48_4B);  /* 8KHz */
+	m_msm->add_route(ALL_OUTPUTS, "mono", 0.45);
+}
 
+void tehkanwc_state::tehkanwcb(machine_config &config)
+{
+	tehkanwc(config);
+	ay8910_device &ay1(AY8910(config.replace(), "ay1", 18432000/12));
+	ay1.port_a_write_callback().set(FUNC(tehkanwc_state::portA_w));
+	ay1.port_b_write_callback().set(FUNC(tehkanwc_state::portB_w));
+	ay1.add_route(ALL_OUTPUTS, "mono", 0.25);
 
-DRIVER_INIT_MEMBER(tehkanwc_state,teedoff)
+	ay8910_device &ay2(AY8910(config.replace(), "ay2", 18432000/12));
+	ay2.port_a_read_callback().set(FUNC(tehkanwc_state::portA_r));
+	ay2.port_b_read_callback().set(FUNC(tehkanwc_state::portB_r));
+	ay2.add_route(ALL_OUTPUTS, "mono", 0.25);
+}
+
+void tehkanwc_state::init_teedoff()
 {
 	/* Patch to avoid the game jumping in shared memory */
 
@@ -840,6 +889,60 @@ ROM_START( tehkanwcc )
 	ROM_LOAD( "e5.bin",    0x0000, 0x4000, CRC(444b5544) SHA1(0786d6d9ada7fe49c8ab9751b049095474d2e598) )
 ROM_END
 
+ROM_START( tehkanwcd ) // from a 2-PCB set labeled "A-32302 Tehkan" and "B-32302 Tehkan"
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "1.bin",    0x0000, 0x4000, CRC(2218d00f) SHA1(9f417246f685a15cec8d737a02840df099b60d77) )
+	ROM_LOAD( "2.bin",    0x4000, 0x4000, CRC(dbb39858) SHA1(8d60be2245004e0669ee7c639a8e9904cea6f0e2) )
+	ROM_LOAD( "3.bin",    0x8000, 0x4000, CRC(9c69c64a) SHA1(dc4e61fa626461474705de388c31ce253d0cfe94) )
+
+	ROM_REGION( 0x10000, "sub", 0 )
+	ROM_LOAD( "4.bin",    0x0000, 0x8000, CRC(19533319) SHA1(e91c830db55abf7d77c8fd63e32b22f8d5a03372) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )
+	ROM_LOAD( "twc-6.bin",    0x0000, 0x4000, CRC(e3112be2) SHA1(7859e51b4312dc5df01c88e1d97cf608abc7ca72) )
+
+	ROM_REGION( 0x04000, "gfx1", 0 )
+	ROM_LOAD( "twc-12.bin",   0x00000, 0x4000, CRC(a9e274f8) SHA1(02b46e1b149a856f0be74a23faaeb792935b66c7) )   /* fg tiles */
+
+	ROM_REGION( 0x10000, "gfx2", 0 )
+	ROM_LOAD( "twc-8.bin",    0x00000, 0x8000, CRC(055a5264) SHA1(fe294ba57c2c858952e2fab0be1b8859730846cb) )   /* sprites */
+	ROM_LOAD( "twc-7.bin",    0x08000, 0x8000, CRC(59faebe7) SHA1(85dad90928369601e039467d575750539410fcf6) )
+
+	ROM_REGION( 0x10000, "gfx3", 0 )
+	ROM_LOAD( "twc-11.bin",   0x00000, 0x8000, CRC(669389fc) SHA1(a93e8455060ce5242cb65f78e47b4840aa13ab13) )   /* bg tiles */
+	ROM_LOAD( "twc-9.bin",    0x08000, 0x8000, CRC(347ef108) SHA1(bb9c2f51d65f28655404e10c3be44d7ade98711b) )
+
+	ROM_REGION( 0x8000, "adpcm", 0 )    /* ADPCM samples */
+	ROM_LOAD( "twc-5.bin",    0x0000, 0x4000, CRC(444b5544) SHA1(0786d6d9ada7fe49c8ab9751b049095474d2e598) )
+ROM_END
+
+/* Just a year hack to put "1986" plus some other small changes, but this set has been found on different bootleg TWC PCBs. */
+ROM_START( tehkanwch )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "worldcup_3.bin",   0x0000, 0x4000, CRC(dd3f789b) SHA1(8e616a64d96f62797485c78e9c3f36fa90486e3f) ) // 27128
+	ROM_LOAD( "worldcup_2.bin",   0x4000, 0x4000, CRC(7017a221) SHA1(4b4700af0a6ff64f976db369ba4b9d97cee1fd5f) ) // 27128
+	ROM_LOAD( "worldcup_1.bin",   0x8000, 0x4000, CRC(8b662902) SHA1(13bcd4bf23e34dd7193545561e05bb2cb2c95f9b) ) // 27128
+
+	ROM_REGION( 0x10000, "sub", 0 )
+	ROM_LOAD( "worldcup_6.bin",   0x0000, 0x8000, CRC(70a9f883) SHA1(ace04359265271eb37512a89eb0217eb013aecb7) ) // 24256
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )
+	ROM_LOAD( "worldcup_5.bin",   0x0000, 0x4000, CRC(e3112be2) SHA1(7859e51b4312dc5df01c88e1d97cf608abc7ca72) ) // 27128
+
+	ROM_REGION( 0x04000, "gfx1", 0 ) /* fg tiles */
+	ROM_LOAD( "worldcup_9.bin",  0x00000, 0x4000, CRC(a9e274f8) SHA1(02b46e1b149a856f0be74a23faaeb792935b66c7) ) // 27128
+
+	ROM_REGION( 0x10000, "gfx2", 0 ) /* sprites */
+	ROM_LOAD( "worldcup_7.bin",  0x00000, 0x8000, CRC(055a5264) SHA1(fe294ba57c2c858952e2fab0be1b8859730846cb) ) // 24256
+	ROM_LOAD( "worldcup_8.bin",  0x08000, 0x8000, CRC(59faebe7) SHA1(85dad90928369601e039467d575750539410fcf6) ) // 24256
+
+	ROM_REGION( 0x10000, "gfx3", 0 ) /* bg tiles */
+	ROM_LOAD( "worldcup_10.bin", 0x00000, 0x8000, CRC(669389fc) SHA1(a93e8455060ce5242cb65f78e47b4840aa13ab13) ) // 24256
+	ROM_LOAD( "worldcup_11.bin", 0x08000, 0x8000, CRC(4ea7586f) SHA1(fd852c1d5ff09270e398137a7687f68d7256c8a6) ) // 24256
+
+	ROM_REGION( 0x8000, "adpcm", 0 ) /* ADPCM samples */
+	ROM_LOAD( "worldcup_4.bin",  0x0000,  0x4000, CRC(444b5544) SHA1(0786d6d9ada7fe49c8ab9751b049095474d2e598) ) // 27128
+ROM_END
 
 ROM_START( gridiron )
 	ROM_REGION( 0x10000, "maincpu", 0 )
@@ -899,9 +1002,15 @@ ROM_START( teedoff )
 ROM_END
 
 
+/* There are some dumps out there that only have the year hacked to 1986 and a little bunch of bytes
+   from the graphics zone. I think that not worth to support these hacks...
+*/
 
-GAME( 1985, tehkanwc,  0,        tehkanwc, tehkanwc, driver_device, 0,        ROT0,  "Tehkan", "Tehkan World Cup (set 1)", MACHINE_SUPPORTS_SAVE )
-GAME( 1985, tehkanwcb, tehkanwc, tehkanwc, tehkanwc, driver_device, 0,        ROT0,  "Tehkan", "Tehkan World Cup (set 2, bootleg?)", MACHINE_SUPPORTS_SAVE )
-GAME( 1985, tehkanwcc, tehkanwc, tehkanwc, tehkanwc, driver_device, 0,        ROT0,  "bootleg", "Tehkan World Cup (set 3, bootleg)", MACHINE_NOT_WORKING | MACHINE_SUPPORTS_SAVE ) // aka 'World Cup 85', different inputs?
-GAMEL(1985, gridiron,  0,        tehkanwc, gridiron, driver_device, 0,        ROT0,  "Tehkan", "Gridiron Fight", MACHINE_SUPPORTS_SAVE, layout_gridiron )
-GAME( 1986, teedoff,   0,        tehkanwc, teedoff, tehkanwc_state,  teedoff,  ROT90, "Tecmo", "Tee'd Off (Japan)", MACHINE_SUPPORTS_SAVE )
+
+GAME( 1985, tehkanwc,  0,        tehkanwc, tehkanwc, tehkanwc_state, empty_init,   ROT0,  "Tehkan",  "Tehkan World Cup (set 1)",           MACHINE_SUPPORTS_SAVE )
+GAME( 1985, tehkanwcb, tehkanwc, tehkanwcb,tehkanwc, tehkanwc_state, empty_init,   ROT0,  "Tehkan",  "Tehkan World Cup (set 2, bootleg?)", MACHINE_SUPPORTS_SAVE )
+GAME( 1985, tehkanwcc, tehkanwc, tehkanwcb,tehkanwc, tehkanwc_state, empty_init,   ROT0,  "bootleg", "Tehkan World Cup (set 3, bootleg)",  MACHINE_NOT_WORKING | MACHINE_SUPPORTS_SAVE ) // aka 'World Cup 85', different inputs?
+GAME( 1985, tehkanwcd, tehkanwc, tehkanwc, tehkanwcd,tehkanwc_state, empty_init,   ROT0,  "Tehkan",  "Tehkan World Cup (set 4, earlier)",  MACHINE_SUPPORTS_SAVE )
+GAME( 1986, tehkanwch, tehkanwc, tehkanwc, tehkanwcd,tehkanwc_state, empty_init,   ROT0,  "hack",    "Tehkan World Cup (1986 year hack)",  MACHINE_SUPPORTS_SAVE )
+GAMEL(1985, gridiron,  0,        tehkanwc, gridiron, tehkanwc_state, empty_init,   ROT0,  "Tehkan",  "Gridiron Fight",                     MACHINE_SUPPORTS_SAVE, layout_gridiron )
+GAME( 1986, teedoff,   0,        tehkanwc, teedoff,  tehkanwc_state, init_teedoff, ROT90, "Tecmo",   "Tee'd Off (Japan)",                  MACHINE_SUPPORTS_SAVE )

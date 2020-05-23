@@ -5,13 +5,14 @@
     Luxor ABC 1600 Mover emulation
 
 **********************************************************************/
+#ifndef MAME_VIDEO_ABC1600_H
+#define MAME_VIDEO_ABC1600_H
 
 #pragma once
 
-#ifndef __ABC1600_MOVER__
-#define __ABC1600_MOVER__
 
 #include "video/mc6845.h"
+#include "emupal.h"
 
 
 
@@ -20,12 +21,6 @@
 ///*************************************************************************
 
 #define ABC1600_MOVER_TAG "mover"
-
-
-#define MCFG_ABC1600_MOVER_ADD() \
-	MCFG_DEVICE_ADD(ABC1600_MOVER_TAG, ABC1600_MOVER, 0)
-
-
 
 ///*************************************************************************
 //  TYPE DEFINITIONS
@@ -40,28 +35,22 @@ public:
 	// construction/destruction
 	abc1600_mover_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// optional information overrides
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void vram_map(address_map &map);
+	virtual void crtc_map(address_map &map);
+	virtual void iowr0_map(address_map &map);
+	virtual void iowr1_map(address_map &map);
+	virtual void iowr2_map(address_map &map);
 
-	virtual DECLARE_ADDRESS_MAP(vram_map, 8);
-	virtual DECLARE_ADDRESS_MAP(crtc_map, 8);
-	virtual DECLARE_ADDRESS_MAP(iowr0_map, 8);
-	virtual DECLARE_ADDRESS_MAP(iowr1_map, 8);
-	virtual DECLARE_ADDRESS_MAP(iowr2_map, 8);
-
-	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-
-	MC6845_UPDATE_ROW(crtc_update_row);
-	MC6845_ON_UPDATE_ADDR_CHANGED(crtc_update);
-
+	void mover_map(address_map &map);
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 private:
 	inline uint16_t get_drmsk();
@@ -80,29 +69,34 @@ private:
 	inline void load_xy_reg();
 	void mover();
 
-	DECLARE_READ8_MEMBER( video_ram_r );
-	DECLARE_WRITE8_MEMBER( video_ram_w );
+	uint8_t video_ram_r(offs_t offset);
+	void video_ram_w(offs_t offset, uint8_t data);
 
-	DECLARE_READ8_MEMBER( iord0_r );
-	DECLARE_WRITE8_MEMBER( ldsx_hb_w );
-	DECLARE_WRITE8_MEMBER( ldsx_lb_w );
-	DECLARE_WRITE8_MEMBER( ldsy_hb_w );
-	DECLARE_WRITE8_MEMBER( ldsy_lb_w );
-	DECLARE_WRITE8_MEMBER( ldtx_hb_w );
-	DECLARE_WRITE8_MEMBER( ldtx_lb_w );
-	DECLARE_WRITE8_MEMBER( ldty_hb_w );
-	DECLARE_WRITE8_MEMBER( ldty_lb_w );
-	DECLARE_WRITE8_MEMBER( ldfx_hb_w );
-	DECLARE_WRITE8_MEMBER( ldfx_lb_w );
-	DECLARE_WRITE8_MEMBER( ldfy_hb_w );
-	DECLARE_WRITE8_MEMBER( ldfy_lb_w );
-	DECLARE_WRITE8_MEMBER( wrml_w );
-	DECLARE_WRITE8_MEMBER( wrdl_w );
-	DECLARE_WRITE8_MEMBER( wrmask_strobe_hb_w );
-	DECLARE_WRITE8_MEMBER( wrmask_strobe_lb_w );
-	DECLARE_WRITE8_MEMBER( enable_clocks_w );
-	DECLARE_WRITE8_MEMBER( flag_strobe_w );
-	DECLARE_WRITE8_MEMBER( endisp_w );
+	uint8_t iord0_r();
+	void ldsx_hb_w(uint8_t data);
+	void ldsx_lb_w(uint8_t data);
+	void ldsy_hb_w(uint8_t data);
+	void ldsy_lb_w(uint8_t data);
+	void ldtx_hb_w(uint8_t data);
+	void ldtx_lb_w(uint8_t data);
+	void ldty_hb_w(uint8_t data);
+	void ldty_lb_w(uint8_t data);
+	void ldfx_hb_w(uint8_t data);
+	void ldfx_lb_w(uint8_t data);
+	void ldfy_hb_w(uint8_t data);
+	void ldfy_lb_w(uint8_t data);
+	void wrml_w(offs_t offset, uint8_t data);
+	void wrdl_w(offs_t offset, uint8_t data);
+	void wrmask_strobe_hb_w(uint8_t data);
+	void wrmask_strobe_lb_w(uint8_t data);
+	void enable_clocks_w(uint8_t data);
+	void flag_strobe_w(uint8_t data);
+	void endisp_w(uint8_t data);
+
+	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+
+	MC6845_UPDATE_ROW(crtc_update_row);
+	MC6845_ON_UPDATE_ADDR_CHANGED(crtc_update);
 
 	inline uint16_t read_videoram(offs_t offset);
 	inline void write_videoram(offs_t offset, uint16_t data, uint16_t mask);
@@ -145,8 +139,8 @@ private:
 
 
 // device type definition
-extern const device_type ABC1600_MOVER;
+DECLARE_DEVICE_TYPE(ABC1600_MOVER, abc1600_mover_device)
 
 
 
-#endif
+#endif // MAME_VIDEO_ABC1600_H

@@ -24,30 +24,32 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type COMPIS_HRG = device_creator<compis_hrg_t>;
-const device_type COMPIS_UHRG = device_creator<compis_uhrg_t>;
+DEFINE_DEVICE_TYPE(COMPIS_HRG,  compis_hrg_device,  "compis_hrg",  "Compis HRG")
+DEFINE_DEVICE_TYPE(COMPIS_UHRG, compis_uhrg_device, "compis_uhrg", "Compis UHRG")
 
 
 //-------------------------------------------------
 //  ADDRESS_MAP( upd7220_map )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( hrg_map, AS_0, 16, compis_hrg_t )
-	ADDRESS_MAP_GLOBAL_MASK(0x7fff)
-	AM_RANGE(0x00000, 0x7fff) AM_RAM AM_SHARE("video_ram")
-ADDRESS_MAP_END
+void compis_hrg_device::hrg_map(address_map &map)
+{
+	map.global_mask(0x7fff);
+	map(0x00000, 0x7fff).ram().share("video_ram");
+}
 
-static ADDRESS_MAP_START( uhrg_map, AS_0, 16, compis_uhrg_t )
-	ADDRESS_MAP_GLOBAL_MASK(0x1ffff)
-	AM_RANGE(0x00000, 0x1ffff) AM_RAM AM_SHARE("video_ram")
-ADDRESS_MAP_END
+void compis_uhrg_device::uhrg_map(address_map &map)
+{
+	map.global_mask(0x1ffff);
+	map(0x00000, 0x1ffff).ram().share("video_ram");
+}
 
 
 //-------------------------------------------------
 //  UPD7220_DISPLAY_PIXELS_MEMBER( display_pixels )
 //-------------------------------------------------
 
-UPD7220_DISPLAY_PIXELS_MEMBER( compis_hrg_t::display_pixels )
+UPD7220_DISPLAY_PIXELS_MEMBER( compis_hrg_device::display_pixels )
 {
 	uint16_t i,gfx = m_video_ram[(address & 0x7fff) >> 1];
 	const pen_t *pen = m_palette->pens();
@@ -61,7 +63,7 @@ UPD7220_DISPLAY_PIXELS_MEMBER( compis_hrg_t::display_pixels )
 //  UPD7220_DISPLAY_PIXELS_MEMBER( display_pixels )
 //-------------------------------------------------
 
-UPD7220_DISPLAY_PIXELS_MEMBER( compis_uhrg_t::display_pixels )
+UPD7220_DISPLAY_PIXELS_MEMBER( compis_uhrg_device::display_pixels )
 {
 	uint16_t i,gfx = m_video_ram[(address & 0x1ffff) >> 1];
 	const pen_t *pen = m_palette->pens();
@@ -72,70 +74,45 @@ UPD7220_DISPLAY_PIXELS_MEMBER( compis_uhrg_t::display_pixels )
 
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( hrg )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( hrg )
-	MCFG_SCREEN_ADD_MONOCHROME(SCREEN_TAG, RASTER, rgb_t::green())
-	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) // not accurate
-	MCFG_SCREEN_SIZE(640, 400)
-	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 400-1)
-	MCFG_SCREEN_UPDATE_DEVICE(UPD7220_TAG, upd7220_device, screen_update)
-
-	MCFG_DEVICE_ADD(UPD7220_TAG, UPD7220, 2252500) // unknown clock
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, hrg_map)
-	MCFG_UPD7220_DISPLAY_PIXELS_CALLBACK_OWNER(compis_hrg_t, display_pixels)
-	MCFG_VIDEO_SET_SCREEN(SCREEN_TAG)
-
-	MCFG_PALETTE_ADD_MONOCHROME("palette")
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor compis_hrg_t::device_mconfig_additions() const
+void compis_hrg_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( hrg );
+	screen_device &screen(SCREEN(config, SCREEN_TAG, SCREEN_TYPE_RASTER, rgb_t::green()));
+	screen.set_video_attributes(VIDEO_UPDATE_BEFORE_VBLANK);
+	screen.set_refresh_hz(50);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500)); // not accurate
+	screen.set_size(640, 400);
+	screen.set_visarea(0, 640-1, 0, 400-1);
+	screen.set_screen_update(UPD7220_TAG, FUNC(upd7220_device::screen_update));
+
+	UPD7220(config, m_crtc, 2252500); // unknown clock
+	m_crtc->set_addrmap(0, &compis_hrg_device::hrg_map);
+	m_crtc->set_display_pixels(FUNC(compis_hrg_device::display_pixels));
+	m_crtc->set_screen(SCREEN_TAG);
+
+	PALETTE(config, m_palette, palette_device::MONOCHROME);
 }
 
 
-//-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( uhrg )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( uhrg )
-	MCFG_SCREEN_ADD_MONOCHROME(SCREEN_TAG, RASTER, rgb_t::green())
-	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) // not accurate
-	MCFG_SCREEN_SIZE(1280, 800)
-	MCFG_SCREEN_VISIBLE_AREA(0, 1280-1, 0, 800-1)
-	MCFG_SCREEN_UPDATE_DEVICE(UPD7220_TAG, upd7220_device, screen_update)
-
-	MCFG_DEVICE_ADD(UPD7220_TAG, UPD7220, 2252500*2) // unknown clock
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, uhrg_map)
-	MCFG_UPD7220_DISPLAY_PIXELS_CALLBACK_OWNER(compis_uhrg_t, display_pixels)
-	MCFG_VIDEO_SET_SCREEN(SCREEN_TAG)
-
-	MCFG_PALETTE_ADD_MONOCHROME("palette")
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor compis_uhrg_t::device_mconfig_additions() const
+void compis_uhrg_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( uhrg );
-}
+	screen_device &screen(SCREEN(config, SCREEN_TAG, SCREEN_TYPE_RASTER, rgb_t::green()));
+	screen.set_video_attributes(VIDEO_UPDATE_BEFORE_VBLANK);
+	screen.set_refresh_hz(50);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500)); // not accurate
+	screen.set_size(1280, 800);
+	screen.set_visarea(0, 1280-1, 0, 800-1);
+	screen.set_screen_update(UPD7220_TAG, FUNC(upd7220_device::screen_update));
 
+	UPD7220(config, m_crtc, 2252500*2); // unknown clock
+	m_crtc->set_addrmap(0, &compis_uhrg_device::uhrg_map);
+	m_crtc->set_display_pixels(FUNC(compis_uhrg_device::display_pixels));
+	m_crtc->set_screen(SCREEN_TAG);
+
+	PALETTE(config, m_palette, palette_device::MONOCHROME);
+}
 
 
 //**************************************************************************
@@ -143,11 +120,11 @@ machine_config_constructor compis_uhrg_t::device_mconfig_additions() const
 //**************************************************************************
 
 //-------------------------------------------------
-//  compis_hrg_t - constructor
+//  compis_hrg_device - constructor
 //-------------------------------------------------
 
-compis_hrg_t::compis_hrg_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+compis_hrg_device::compis_hrg_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, type, tag, owner, clock),
 	device_compis_graphics_card_interface(mconfig, *this),
 	m_crtc(*this, UPD7220_TAG),
 	m_palette(*this, "palette"),
@@ -155,13 +132,13 @@ compis_hrg_t::compis_hrg_t(const machine_config &mconfig, device_type type, cons
 {
 }
 
-compis_hrg_t::compis_hrg_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	compis_hrg_t(mconfig, COMPIS_HRG, "Compis HRG", tag, owner, clock, "compis_hrg", __FILE__)
+compis_hrg_device::compis_hrg_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	compis_hrg_device(mconfig, COMPIS_HRG, tag, owner, clock)
 {
 }
 
-compis_uhrg_t::compis_uhrg_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	compis_hrg_t(mconfig, COMPIS_UHRG, "Compis UHRG", tag, owner, clock, "compis_uhrg", __FILE__)
+compis_uhrg_device::compis_uhrg_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	compis_hrg_device(mconfig, COMPIS_UHRG, tag, owner, clock)
 {
 }
 
@@ -170,7 +147,7 @@ compis_uhrg_t::compis_uhrg_t(const machine_config &mconfig, const char *tag, dev
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void compis_hrg_t::device_start()
+void compis_hrg_device::device_start()
 {
 }
 
@@ -179,7 +156,7 @@ void compis_hrg_t::device_start()
 //  device_reset - device-specific reset
 //-------------------------------------------------
 
-void compis_hrg_t::device_reset()
+void compis_hrg_device::device_reset()
 {
 }
 
@@ -188,12 +165,12 @@ void compis_hrg_t::device_reset()
 //  pcs6_6_r -
 //-------------------------------------------------
 
-uint8_t compis_hrg_t::pcs6_6_r(address_space &space, offs_t offset)
+uint8_t compis_hrg_device::pcs6_6_r(offs_t offset)
 {
 	uint8_t data = 0xff;
 
 	if (offset < 2)
-		data = m_crtc->read(space, offset & 0x01);
+		data = m_crtc->read(offset & 0x01);
 	else
 		// monochrome only, hblank? vblank?
 		if(offset == 2)
@@ -225,10 +202,10 @@ uint8_t compis_hrg_t::pcs6_6_r(address_space &space, offs_t offset)
 //  pcs6_6_w -
 //-------------------------------------------------
 
-void compis_hrg_t::pcs6_6_w(address_space &space, offs_t offset, uint8_t data)
+void compis_hrg_device::pcs6_6_w(offs_t offset, uint8_t data)
 {
 	//logerror("%s PCS 6:6 write %04x : %02x\n", machine().describe_context(), offset, data);
 
 	// 0x336 is likely the color plane register
-	if (offset < 2) m_crtc->write(space, offset & 0x01, data);
+	if (offset < 2) m_crtc->write(offset & 0x01, data);
 }

@@ -15,25 +15,23 @@
 //  sns_rom_device - constructor
 //-------------------------------------------------
 
-const device_type SNS_HIROM = device_creator<sns_rom21_device>;
-const device_type SNS_HIROM_SRTC = device_creator<sns_rom21_srtc_device>;
+DEFINE_DEVICE_TYPE(SNS_HIROM,      sns_rom21_device,      "sns_rom21",     "SNES Cart (HiROM)")
+DEFINE_DEVICE_TYPE(SNS_HIROM_SRTC, sns_rom21_srtc_device, "sns_rom21_rtc", "SNES Cart (HiROM) + S-RTC")
 
 
-sns_rom21_device::sns_rom21_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-						device_sns_cart_interface( mconfig, *this )
+sns_rom21_device::sns_rom21_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock), device_sns_cart_interface( mconfig, *this )
 {
 }
 
 sns_rom21_device::sns_rom21_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, SNS_HIROM, "SNES Cart (HiROM)", tag, owner, clock, "sns_rom21", __FILE__),
-						device_sns_cart_interface( mconfig, *this )
+	: sns_rom21_device(mconfig, SNS_HIROM, tag, owner, clock)
 {
 }
 
 sns_rom21_srtc_device::sns_rom21_srtc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: sns_rom21_device(mconfig, SNS_HIROM_SRTC, "SNES Cart (HiROM) + S-RTC", tag, owner, clock, "sns_rom21_srtc", __FILE__), m_mode(0), m_index(0)
-				{
+	: sns_rom21_device(mconfig, SNS_HIROM_SRTC, tag, owner, clock), m_mode(0), m_index(0)
+{
 }
 
 
@@ -68,14 +66,14 @@ void sns_rom21_srtc_device::device_reset()
 
 // low and hi reads are not the same! (different ROM banks are accessed)
 
-READ8_MEMBER(sns_rom21_device::read_l)
+uint8_t sns_rom21_device::read_l(offs_t offset)
 {
 	// here ROM banks from 128 to 255, mirrored twice
 	int bank = (offset & 0x3fffff) / 0x8000;
 	return m_rom[rom_bank_map[bank + 0x80] * 0x8000 + (offset & 0x7fff)];
 }
 
-READ8_MEMBER(sns_rom21_device::read_h)
+uint8_t sns_rom21_device::read_h(offs_t offset)
 {
 	// here ROM banks from 0 to 127, mirrored twice
 	int bank = (offset & 0x3fffff) / 0x8000;
@@ -175,7 +173,7 @@ uint8_t sns_rom21_srtc_device::srtc_weekday( uint32_t year, uint32_t month, uint
 
 // this gets called only for accesses at 0x2800,
 // because for 0x2801 open bus gets returned...
-READ8_MEMBER(sns_rom21_srtc_device::chip_read)
+uint8_t sns_rom21_srtc_device::chip_read(offs_t offset)
 {
 	if (m_mode != RTCM_Read)
 		return 0x00;
@@ -196,7 +194,7 @@ READ8_MEMBER(sns_rom21_srtc_device::chip_read)
 }
 
 // this gets called only for accesses at 0x2801
-WRITE8_MEMBER(sns_rom21_srtc_device::chip_write)
+void sns_rom21_srtc_device::chip_write(offs_t offset, uint8_t data)
 {
 	data &= 0x0f;   // Only the low four bits are used
 

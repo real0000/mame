@@ -85,7 +85,7 @@ XR22-050-3B Pinout
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type ABC800_KEYBOARD = device_creator<abc800_keyboard_device>;
+DEFINE_DEVICE_TYPE(ABC800_KEYBOARD, abc800_keyboard_device, "abc800kb", "ABC-800 Keyboard")
 
 
 //-------------------------------------------------
@@ -109,34 +109,16 @@ const tiny_rom_entry *abc800_keyboard_device::device_rom_region() const
 
 
 //-------------------------------------------------
-//  ADDRESS_MAP( abc800_keyboard_io )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( abc800_keyboard_io, AS_IO, 8, abc800_keyboard_device )
-	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_READWRITE(kb_p1_r, kb_p1_w)
-	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_WRITE(kb_p2_w)
-	AM_RANGE(MCS48_PORT_T1, MCS48_PORT_T1) AM_READ(kb_t1_r)
-ADDRESS_MAP_END
-
-
-//-------------------------------------------------
-//  MACHINE_DRIVER( abc800_keyboard )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( abc800_keyboard )
-	MCFG_CPU_ADD(I8048_TAG, I8048, XTAL_5_9904MHz)
-	MCFG_CPU_IO_MAP(abc800_keyboard_io)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor abc800_keyboard_device::device_mconfig_additions() const
+void abc800_keyboard_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( abc800_keyboard );
+	I8048(config, m_maincpu, XTAL(5'990'400));
+	m_maincpu->p1_in_cb().set(FUNC(abc800_keyboard_device::kb_p1_r));
+	m_maincpu->p1_out_cb().set(FUNC(abc800_keyboard_device::kb_p1_w));
+	m_maincpu->p2_out_cb().set(FUNC(abc800_keyboard_device::kb_p2_w));
+	m_maincpu->t1_in_cb().set(FUNC(abc800_keyboard_device::kb_t1_r));
 }
 
 
@@ -333,7 +315,8 @@ inline void abc800_keyboard_device::key_down(int state)
 //  abc800_keyboard_device - constructor
 //-------------------------------------------------
 
-abc800_keyboard_device::abc800_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) : device_t(mconfig, ABC800_KEYBOARD, "ABC-800 Keyboard", tag, owner, clock, "abc800kb", __FILE__),
+abc800_keyboard_device::abc800_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, ABC800_KEYBOARD, tag, owner, clock),
 	abc_keyboard_interface(mconfig, *this),
 	m_maincpu(*this, I8048_TAG),
 	m_x(*this, "X%u", 0),
@@ -355,7 +338,7 @@ void abc800_keyboard_device::device_start()
 {
 	// allocate timers
 	m_serial_timer = timer_alloc();
-	m_serial_timer->adjust(attotime::from_hz(XTAL_5_9904MHz/(3*5)/20), 0, attotime::from_hz(XTAL_5_9904MHz/(3*5)/20)); // ???
+	m_serial_timer->adjust(attotime::from_hz(XTAL(5'990'400)/(3*5)/20), 0, attotime::from_hz(XTAL(5'990'400)/(3*5)/20)); // ???
 
 	// state saving
 	save_item(NAME(m_row));
@@ -399,7 +382,7 @@ void abc800_keyboard_device::txd_w(int state)
 //  kb_p1_r - keyboard column data read
 //-------------------------------------------------
 
-READ8_MEMBER( abc800_keyboard_device::kb_p1_r )
+uint8_t abc800_keyboard_device::kb_p1_r()
 {
 	uint8_t data = 0xff;
 
@@ -419,7 +402,7 @@ READ8_MEMBER( abc800_keyboard_device::kb_p1_r )
 //  kb_p1_w - keyboard row write
 //-------------------------------------------------
 
-WRITE8_MEMBER( abc800_keyboard_device::kb_p1_w )
+void abc800_keyboard_device::kb_p1_w(uint8_t data)
 {
 	/*
 
@@ -448,7 +431,7 @@ WRITE8_MEMBER( abc800_keyboard_device::kb_p1_w )
 //  kb_p2_w - keyboard control write
 //-------------------------------------------------
 
-WRITE8_MEMBER( abc800_keyboard_device::kb_p2_w )
+void abc800_keyboard_device::kb_p2_w(uint8_t data)
 {
 	/*
 
@@ -480,7 +463,7 @@ WRITE8_MEMBER( abc800_keyboard_device::kb_p2_w )
 //  kb_t1_r - keyboard T1 timer read
 //-------------------------------------------------
 
-READ8_MEMBER( abc800_keyboard_device::kb_t1_r )
+READ_LINE_MEMBER( abc800_keyboard_device::kb_t1_r )
 {
 	return m_clk;
 }

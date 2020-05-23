@@ -1,23 +1,26 @@
 // license:BSD-3-Clause
 // copyright-holders:Fabio Priuli,Acho A. Tang, R. Belmont
-#pragma once
-#ifndef __K007420_H__
-#define __K007420_H__
+#ifndef MAME_VIDEO_K007420_H
+#define MAME_VIDEO_K007420_H
 
-typedef device_delegate<void (int *code, int *color)> k007420_delegate;
+#pragma once
+
+#include "emupal.h"
+
 
 class k007420_device : public device_t
 {
 public:
+	using sprite_delegate = device_delegate<void (int *code, int *color)>;
+
 	k007420_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~k007420_device() {}
 
-	static void static_set_palette_tag(device_t &device, const char *tag);
-	static void static_set_bank_limit(device_t &device, int limit) { downcast<k007420_device &>(device).m_banklimit = limit; }
-	static void static_set_callback(device_t &device, k007420_delegate callback) { downcast<k007420_device &>(device).m_callback = callback; }
+	template <typename T> void set_palette_tag(T &&tag) { m_palette.set_tag(std::forward<T>(tag)); }
+	void set_bank_limit(int limit) { m_banklimit = limit; }
+	template <typename... T> void set_sprite_callback(T &&... args) { m_callback.set(std::forward<T>(args)...); }
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 	void sprites_draw(bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx);
 
 protected:
@@ -32,25 +35,13 @@ private:
 	uint8_t        m_regs[8];   // current code uses the 7342 regs!! (only [2])
 	required_device<palette_device> m_palette;
 	int                m_banklimit;
-	k007420_delegate m_callback;
+	sprite_delegate m_callback;
 };
 
-extern const device_type K007420;
-
-#define MCFG_K007420_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, K007420, 0)
-
-#define MCFG_K007420_PALETTE(_palette_tag) \
-	k007420_device::static_set_palette_tag(*device, "^" _palette_tag);
-
-#define MCFG_K007420_BANK_LIMIT(_limit) \
-	k007420_device::static_set_bank_limit(*device, _limit);
-
-#define MCFG_K007420_CALLBACK_OWNER(_class, _method) \
-	k007420_device::static_set_callback(*device, k007420_delegate(&_class::_method, #_class "::" #_method, downcast<_class *>(owner)));
+DECLARE_DEVICE_TYPE(K007420, k007420_device)
 
 // function definition for a callback
 #define K007420_CALLBACK_MEMBER(_name)     void _name(int *code, int *color)
 
 
-#endif
+#endif // MAME_VIDEO_K007420_H

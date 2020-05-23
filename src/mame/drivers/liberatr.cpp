@@ -138,6 +138,7 @@
 
 #include "emu.h"
 #include "includes/liberatr.h"
+#include "machine/rescap.h"
 #include "speaker.h"
 
 #define MASTER_CLOCK 20000000 /* 20Mhz Main Clock Xtal */
@@ -157,7 +158,8 @@ void liberatr_state::machine_start()
 void liberatr_state::machine_reset()
 {
 	// reset the control latch on the EAROM
-	m_earom->set_control(0, 1, 1, 0, 0);
+	m_earom->set_control(0, 1, 1, 0);
+	m_earom->set_clk(0);
 }
 
 
@@ -168,15 +170,21 @@ void liberatr_state::machine_reset()
  *
  *************************************/
 
-WRITE8_MEMBER( liberatr_state::led_w )
+WRITE8_MEMBER(liberatr_state::output_latch_w)
 {
-	output().set_led_value(offset, ~data & 0x10);
+	m_outlatch->write_bit(offset, BIT(data, 4));
 }
 
 
-WRITE8_MEMBER( liberatr_state::coin_counter_w )
+WRITE_LINE_MEMBER(liberatr_state::coin_counter_left_w)
 {
-	machine().bookkeeping().coin_counter_w(offset ^ 0x01, data & 0x10);
+	machine().bookkeeping().coin_counter_w(0, state);
+}
+
+
+WRITE_LINE_MEMBER(liberatr_state::coin_counter_right_w)
+{
+	machine().bookkeeping().coin_counter_w(1, state);
 }
 
 
@@ -187,17 +195,17 @@ WRITE8_MEMBER( liberatr_state::coin_counter_w )
  *
  *************************************/
 
-WRITE8_MEMBER( liberatr_state::trackball_reset_w )
+WRITE_LINE_MEMBER(liberatr_state::trackball_reset_w)
 {
 	/* on the rising edge of /ctrld, the /ld signal on the LS191 is released and the value of the switches */
 	/* input becomes the starting point for the trackball counters */
-	if (((data ^ m_ctrld) & 0x10) && (data & 0x10))
+	if (!m_ctrld && state)
 	{
 		uint8_t trackball = ioport("FAKE")->read();
 		uint8_t switches = ioport("IN0")->read();
 		m_trackball_offset = ((trackball & 0xf0) - (switches & 0xf0)) | ((trackball - switches) & 0x0f);
 	}
-	m_ctrld = data & 0x10;
+	m_ctrld = state;
 }
 
 
@@ -254,7 +262,8 @@ WRITE8_MEMBER( liberatr_state::earom_control_w )
 		m_earom->set_data(m_earom_data);
 
 	// set the control lines; /CS2 is always held low
-	m_earom->set_control(data & 8, 1, ~data & 4, data & 2, data & 1);
+	m_earom->set_control(data & 8, 1, ~data & 4, data & 2);
+	m_earom->set_clk(data & 1);
 }
 
 
@@ -265,30 +274,28 @@ WRITE8_MEMBER( liberatr_state::earom_control_w )
  *
  *************************************/
 
-static ADDRESS_MAP_START( liberatr_map, AS_PROGRAM, 8, liberatr_state )
-	AM_RANGE(0x0000, 0x0000) AM_RAM AM_SHARE("xcoord")
-	AM_RANGE(0x0001, 0x0001) AM_RAM AM_SHARE("ycoord")
-	AM_RANGE(0x0002, 0x0002) AM_READWRITE(bitmap_xy_r, bitmap_xy_w)
-	AM_RANGE(0x0000, 0x3fff) AM_RAM_WRITE(bitmap_w) AM_SHARE("bitmapram")   /* overlapping for my convenience */
-	AM_RANGE(0x4000, 0x403f) AM_READ(earom_r)
-	AM_RANGE(0x5000, 0x5000) AM_READ(port0_r)
-	AM_RANGE(0x5001, 0x5001) AM_READ_PORT("IN1")
-	AM_RANGE(0x6000, 0x600f) AM_WRITEONLY AM_SHARE("base_ram")
-	AM_RANGE(0x6200, 0x621f) AM_WRITEONLY AM_SHARE("colorram")
-	AM_RANGE(0x6400, 0x6400) AM_WRITENOP
-	AM_RANGE(0x6600, 0x6600) AM_WRITE(earom_control_w)
-	AM_RANGE(0x6800, 0x6800) AM_WRITEONLY AM_SHARE("planet_frame")
-	AM_RANGE(0x6a00, 0x6a00) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)
-	AM_RANGE(0x6c00, 0x6c01) AM_WRITE(led_w)
-	AM_RANGE(0x6c04, 0x6c04) AM_WRITE(trackball_reset_w)
-	AM_RANGE(0x6c05, 0x6c06) AM_WRITE(coin_counter_w)
-	AM_RANGE(0x6c07, 0x6c07) AM_WRITEONLY AM_SHARE("planet_select")
-	AM_RANGE(0x6e00, 0x6e3f) AM_WRITE(earom_w)
-	AM_RANGE(0x7000, 0x701f) AM_DEVREADWRITE("pokey2", pokey_device, read, write)
-	AM_RANGE(0x7800, 0x781f) AM_DEVREADWRITE("pokey1", pokey_device, read, write)
-	AM_RANGE(0x8000, 0xefff) AM_ROM
-	AM_RANGE(0xfffa, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void liberatr_state::liberatr_map(address_map &map)
+{
+	map(0x0000, 0x0000).ram().share("xcoord");
+	map(0x0001, 0x0001).ram().share("ycoord");
+	map(0x0002, 0x0002).rw(FUNC(liberatr_state::bitmap_xy_r), FUNC(liberatr_state::bitmap_xy_w));
+	map(0x0003, 0x3fff).ram().w(FUNC(liberatr_state::bitmap_w)).share("bitmapram");
+	map(0x4000, 0x403f).r(FUNC(liberatr_state::earom_r));
+	map(0x5000, 0x5000).r(FUNC(liberatr_state::port0_r));
+	map(0x5001, 0x5001).portr("IN1");
+	map(0x6000, 0x600f).nopr().writeonly().share("base_ram");
+	map(0x6200, 0x621f).nopr().writeonly().share("colorram");
+	map(0x6400, 0x6400).nopw();
+	map(0x6600, 0x6600).w(FUNC(liberatr_state::earom_control_w));
+	map(0x6800, 0x6800).writeonly().share("planet_frame");
+	map(0x6a00, 0x6a00).w("watchdog", FUNC(watchdog_timer_device::reset_w));
+	map(0x6c00, 0x6c07).w(FUNC(liberatr_state::output_latch_w));
+	map(0x6e00, 0x6e3f).nopr().w(FUNC(liberatr_state::earom_w));
+	map(0x7000, 0x701f).rw("pokey2", FUNC(pokey_device::read), FUNC(pokey_device::write));
+	map(0x7800, 0x781f).rw("pokey1", FUNC(pokey_device::read), FUNC(pokey_device::write));
+	map(0x8000, 0xefff).rom();
+	map(0xfffa, 0xffff).rom();
+}
 
 
 
@@ -298,31 +305,30 @@ ADDRESS_MAP_END
  *
  *************************************/
 
-static ADDRESS_MAP_START( liberat2_map, AS_PROGRAM, 8, liberatr_state )
-	AM_RANGE(0x0000, 0x0000) AM_RAM AM_SHARE("xcoord")
-	AM_RANGE(0x0001, 0x0001) AM_RAM AM_SHARE("ycoord")
-	AM_RANGE(0x0002, 0x0002) AM_READWRITE(bitmap_xy_r, bitmap_xy_w)
-	AM_RANGE(0x0000, 0x3fff) AM_RAM_WRITE(bitmap_w) AM_SHARE("bitmapram")   /* overlapping for my convenience */
-	AM_RANGE(0x4000, 0x4000) AM_READ(port0_r)
-	AM_RANGE(0x4001, 0x4001) AM_READ_PORT("IN1")
-	AM_RANGE(0x4000, 0x400f) AM_WRITEONLY AM_SHARE("base_ram")
-	AM_RANGE(0x4200, 0x421f) AM_WRITEONLY AM_SHARE("colorram")
-	AM_RANGE(0x4400, 0x4400) AM_WRITENOP
-	AM_RANGE(0x4600, 0x4600) AM_WRITE(earom_control_w)
-	AM_RANGE(0x4800, 0x483f) AM_READ(earom_r)
-	AM_RANGE(0x4800, 0x4800) AM_WRITEONLY AM_SHARE("planet_frame")
-	AM_RANGE(0x4a00, 0x4a00) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)
-	AM_RANGE(0x4c00, 0x4c01) AM_WRITE(led_w)
-	AM_RANGE(0x4c04, 0x4c04) AM_WRITE(trackball_reset_w)
-	AM_RANGE(0x4c05, 0x4c06) AM_WRITE(coin_counter_w)
-	AM_RANGE(0x4c07, 0x4c07) AM_WRITEONLY AM_SHARE("planet_select")
-	AM_RANGE(0x4e00, 0x4e3f) AM_WRITE(earom_w)
-	AM_RANGE(0x5000, 0x501f) AM_DEVREADWRITE("pokey2", pokey_device, read, write)
-	AM_RANGE(0x5800, 0x581f) AM_DEVREADWRITE("pokey1", pokey_device, read, write)
-	//AM_RANGE(0x6000, 0x601f) AM_WRITE(pokey1_w) /* bug ??? */
-	AM_RANGE(0x6000, 0xbfff) AM_ROM
-	AM_RANGE(0xfffa, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void liberatr_state::liberat2_map(address_map &map)
+{
+	map(0x0000, 0x0000).ram().share("xcoord");
+	map(0x0001, 0x0001).ram().share("ycoord");
+	map(0x0002, 0x0002).rw(FUNC(liberatr_state::bitmap_xy_r), FUNC(liberatr_state::bitmap_xy_w));
+	map(0x0003, 0x3fff).ram().w(FUNC(liberatr_state::bitmap_w)).share("bitmapram");
+	map(0x4000, 0x4000).r(FUNC(liberatr_state::port0_r));
+	map(0x4001, 0x4001).portr("IN1");
+	map(0x4002, 0x400f).nopr();
+	map(0x4000, 0x400f).writeonly().share("base_ram");
+	map(0x4200, 0x421f).nopr().writeonly().share("colorram");
+	map(0x4400, 0x4400).nopw();
+	map(0x4600, 0x4600).w(FUNC(liberatr_state::earom_control_w));
+	map(0x4800, 0x483f).r(FUNC(liberatr_state::earom_r));
+	map(0x4800, 0x4800).writeonly().share("planet_frame");
+	map(0x4a00, 0x4a00).w("watchdog", FUNC(watchdog_timer_device::reset_w));
+	map(0x4c00, 0x4c07).w(FUNC(liberatr_state::output_latch_w));
+	map(0x4e00, 0x4e3f).nopr().w(FUNC(liberatr_state::earom_w));
+	map(0x5000, 0x501f).rw("pokey2", FUNC(pokey_device::read), FUNC(pokey_device::write));
+	map(0x5800, 0x581f).rw("pokey1", FUNC(pokey_device::read), FUNC(pokey_device::write));
+	//map(0x6000, 0x601f).w(FUNC(liberatr_state::pokey1_w)); /* bug ??? */
+	map(0x6000, 0xbfff).rom();
+	map(0xfffa, 0xffff).rom();
+}
 
 
 
@@ -415,46 +421,56 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static MACHINE_CONFIG_START( liberatr, liberatr_state )
-
+void liberatr_state::liberatr(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6502, MASTER_CLOCK/16) /* 1.25Mhz divided from 20Mhz master clock */
-	MCFG_CPU_PROGRAM_MAP(liberatr_map)
-	MCFG_DEVICE_PERIODIC_INT_DRIVER(driver_device,irq0_line_hold,4*60)
+	m6502_device &maincpu(M6502(config, "maincpu", MASTER_CLOCK/16)); /* 1.25Mhz divided from 20Mhz master clock */
+	maincpu.set_addrmap(AS_PROGRAM, &liberatr_state::liberatr_map);
+	maincpu.set_periodic_int(FUNC(driver_device::irq0_line_hold), attotime::from_hz(4*60));
 
-	MCFG_ER2055_ADD("earom")
+	ER2055(config, m_earom);
 
-	MCFG_WATCHDOG_ADD("watchdog")
+	LS259(config, m_outlatch);
+	m_outlatch->q_out_cb<0>().set_output("led0").invert(); // START LED1
+	m_outlatch->q_out_cb<1>().set_output("led1").invert(); // START LED2
+	m_outlatch->q_out_cb<2>().set_nop(); // TBSWP
+	m_outlatch->q_out_cb<3>().set_nop(); // SPARE
+	m_outlatch->q_out_cb<4>().set(FUNC(liberatr_state::trackball_reset_w)); // CTRLD
+	m_outlatch->q_out_cb<5>().set(FUNC(liberatr_state::coin_counter_right_w));
+	m_outlatch->q_out_cb<6>().set(FUNC(liberatr_state::coin_counter_left_w));
+	m_outlatch->q_out_cb<7>().set([this] (int state) { m_planet_select = state; });
+
+	WATCHDOG_TIMER(config, "watchdog");
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
-	MCFG_SCREEN_UPDATE_DRIVER(liberatr_state, screen_update)
-	MCFG_SCREEN_SIZE(256,256)
-	MCFG_SCREEN_VISIBLE_AREA(8, 247, 13, 244)
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_refresh_hz(60);
+	m_screen->set_vblank_time(ATTOSECONDS_IN_USEC(2500)); /* not accurate */
+	m_screen->set_screen_update(FUNC(liberatr_state::screen_update));
+	m_screen->set_size(256,256);
+	m_screen->set_visarea(8, 247, 13, 244);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("pokey1", POKEY, MASTER_CLOCK/16) /* 1.25Mhz from Phi2 signal from 6502 */
-	MCFG_POKEY_ALLPOT_R_CB(IOPORT("DSW2"))
-	MCFG_POKEY_OUTPUT_OPAMP_LOW_PASS(RES_K(4.7), CAP_U(0.01), 5.0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	pokey_device &pokey1(POKEY(config, "pokey1", MASTER_CLOCK/16)); /* 1.25Mhz from Phi2 signal from 6502 */
+	pokey1.allpot_r().set_ioport("DSW2");
+	pokey1.set_output_opamp_low_pass(RES_K(4.7), CAP_U(0.01), 5.0);
+	pokey1.add_route(ALL_OUTPUTS, "mono", 0.50);
 
-	MCFG_SOUND_ADD("pokey2", POKEY, MASTER_CLOCK/16) /* 1.25Mhz from Phi2 signal from 6502 */
-	MCFG_POKEY_OUTPUT_OPAMP_LOW_PASS(RES_K(4.7), CAP_U(0.01), 5.0)
-	MCFG_POKEY_ALLPOT_R_CB(IOPORT("DSW1"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-MACHINE_CONFIG_END
+	pokey_device &pokey2(POKEY(config, "pokey2", MASTER_CLOCK/16)); /* 1.25Mhz from Phi2 signal from 6502 */
+	pokey2.set_output_opamp_low_pass(RES_K(4.7), CAP_U(0.01), 5.0);
+	pokey2.allpot_r().set_ioport("DSW1");
+	pokey2.add_route(ALL_OUTPUTS, "mono", 0.50);
+}
 
-
-static MACHINE_CONFIG_DERIVED( liberat2, liberatr )
+void liberatr_state::liberat2(machine_config &config)
+{
+	liberatr(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(liberat2_map)
-MACHINE_CONFIG_END
+	subdevice<m6502_device>("maincpu")->set_addrmap(AS_PROGRAM, &liberatr_state::liberat2_map);
+}
 
 
 
@@ -532,5 +548,5 @@ ROM_END
  *
  *************************************/
 
-GAME( 1982, liberatr, 0,        liberatr, liberatr, driver_device, 0, ROT0, "Atari", "Liberator (set 1)", MACHINE_NO_COCKTAIL | MACHINE_SUPPORTS_SAVE )
-GAME( 1982, liberatr2,liberatr, liberat2, liberatr, driver_device, 0, ROT0, "Atari", "Liberator (set 2)", MACHINE_NO_COCKTAIL | MACHINE_SUPPORTS_SAVE )
+GAME( 1982, liberatr, 0,        liberatr, liberatr, liberatr_state, empty_init, ROT0, "Atari", "Liberator (set 1)", MACHINE_NO_COCKTAIL | MACHINE_SUPPORTS_SAVE )
+GAME( 1982, liberatr2,liberatr, liberat2, liberatr, liberatr_state, empty_init, ROT0, "Atari", "Liberator (set 2)", MACHINE_NO_COCKTAIL | MACHINE_SUPPORTS_SAVE )

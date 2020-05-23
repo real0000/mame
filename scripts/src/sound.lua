@@ -382,6 +382,20 @@ end
 
 
 ---------------------------------------------------
+-- Hudsonsoft HuC6230 SoundBox
+--@src/devices/sound/huc6230.h,SOUNDS["HUC6230"] = true
+---------------------------------------------------
+
+if (SOUNDS["HUC6230"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/huc6230.cpp",
+		MAME_DIR .. "src/devices/sound/huc6230.h",
+	}
+end
+
+
+
+---------------------------------------------------
 -- Hudsonsoft C6280 sound chip
 --@src/devices/sound/c6280.h,SOUNDS["C6280"] = true
 ---------------------------------------------------
@@ -576,6 +590,7 @@ end
 ---------------------------------------------------
 -- Namco custom sound chips
 --@src/devices/sound/namco.h,SOUNDS["NAMCO"] = true
+--@src/devices/sound/namco_163.h,SOUNDS["NAMCO_163"] = true
 --@src/devices/sound/n63701x.h,SOUNDS["NAMCO_63701X"] = true
 --@src/devices/sound/c140.h,SOUNDS["C140"] = true
 --@src/devices/sound/c352.h,SOUNDS["C352"] = true
@@ -585,6 +600,13 @@ if (SOUNDS["NAMCO"]~=null or SOUNDS["NAMCO_15XX"]~=null or SOUNDS["NAMCO_CUS30"]
 	files {
 		MAME_DIR .. "src/devices/sound/namco.cpp",
 		MAME_DIR .. "src/devices/sound/namco.h",
+	}
+end
+
+if (SOUNDS["NAMCO_163"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/namco_163.cpp",
+		MAME_DIR .. "src/devices/sound/namco_163.h",
 	}
 end
 
@@ -755,6 +777,8 @@ if (SOUNDS["QSOUND"]~=null) then
 	files {
 		MAME_DIR .. "src/devices/sound/qsound.cpp",
 		MAME_DIR .. "src/devices/sound/qsound.h",
+		MAME_DIR .. "src/devices/sound/qsoundhle.cpp",
+		MAME_DIR .. "src/devices/sound/qsoundhle.h",
 	}
 end
 
@@ -1412,7 +1436,7 @@ end
 
 ---------------------------------------------------
 -- MM5837 Noise Generator
---@src/devices/sound/mm5837.h,MACHINES["MM5837"] = true
+--@src/devices/sound/mm5837.h,SOUNDS["MM5837"] = true
 ---------------------------------------------------
 
 if (SOUNDS["MM5837"]~=null) then
@@ -1424,12 +1448,144 @@ end
 
 ---------------------------------------------------
 -- Intelligent Designs DAVE
---@src/devices/sound/dave.h,MACHINES["DAVE"] = true
+--@src/devices/sound/dave.h,SOUNDS["DAVE"] = true
 ---------------------------------------------------
 
 if (SOUNDS["DAVE"]~=null) then
 	files {
 		MAME_DIR .. "src/devices/sound/dave.cpp",
 		MAME_DIR .. "src/devices/sound/dave.h",
+	}
+end
+
+---------------------------------------------------
+-- Toshiba TA7630
+--@src/devices/sound/ta7630.h,SOUNDS["TA7630"] = true
+---------------------------------------------------
+
+if (SOUNDS["TA7630"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/ta7630.cpp",
+		MAME_DIR .. "src/devices/sound/ta7630.h",
+	}
+end
+
+---------------------------------------------------
+-- Sanyo LC7535
+--@src/devices/sound/lc7535.h,SOUNDS["LC7535"] = true
+---------------------------------------------------
+
+if (SOUNDS["LC7535"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/lc7535.cpp",
+		MAME_DIR .. "src/devices/sound/lc7535.h",
+	}
+end
+
+---------------------------------------------------
+-- NEC uPD934G
+--@src/devices/sound/upd934g.h,SOUNDS["UPD934G"] = true
+---------------------------------------------------
+
+if (SOUNDS["UPD934G"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/upd934g.cpp",
+		MAME_DIR .. "src/devices/sound/upd934g.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/sound/iopspu.h,SOUNDS["IOPSPU"] = true
+---------------------------------------------------
+
+if (SOUNDS["IOPSPU"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/iopspu.cpp",
+		MAME_DIR .. "src/devices/sound/iopspu.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/sound/swp00.h,SOUNDS["SWP00"] = true
+---------------------------------------------------
+
+if (SOUNDS["SWP00"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/swp00.cpp",
+		MAME_DIR .. "src/devices/sound/swp00.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/sound/swp20.h,SOUNDS["SWP20"] = true
+---------------------------------------------------
+
+if (SOUNDS["SWP20"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/swp20.cpp",
+		MAME_DIR .. "src/devices/sound/swp20.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/sound/swp30.h,SOUNDS["SWP30"] = true
+---------------------------------------------------
+
+if (SOUNDS["SWP30"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/swp30.cpp",
+		MAME_DIR .. "src/devices/sound/swp30.h",
+	}
+end
+
+---------------------------------------------------
+-- Roland sample players
+--@src/devices/sound/rolandpcm.h,SOUNDS["ROLANDPCM"] = true
+---------------------------------------------------
+
+if (SOUNDS["ROLANDPCM"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/rolandpcm.cpp",
+		MAME_DIR .. "src/devices/sound/rolandpcm.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/sound/vgm_visualizer.h,SOUNDS["VGMVIZ"] = true
+---------------------------------------------------
+
+if (SOUNDS["VGMVIZ"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/vgm_visualizer.cpp",
+		MAME_DIR .. "src/devices/sound/vgm_visualizer.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/sound/s_dsp.h,SOUNDS["S_DSP"] = true
+---------------------------------------------------
+
+if (SOUNDS["S_DSP"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/s_dsp.cpp",
+		MAME_DIR .. "src/devices/sound/s_dsp.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/sound/ks0164.h,SOUNDS["KS0164"] = true
+---------------------------------------------------
+
+if (SOUNDS["KS0164"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/ks0164.cpp",
+		MAME_DIR .. "src/devices/sound/ks0164.h",
 	}
 end

@@ -1,95 +1,45 @@
 // license:BSD-3-Clause
-// copyright-holders:hap
+// copyright-holders:hap,AJR
 /**********************************************************************
+
+    Dual port RAM with Mailbox emulation
 
     Fujitsu MB8421/22/31/32-90/-90L/-90LL/-12/-12L/-12LL
     CMOS 16K-bit (2KB) dual-port SRAM
 
-    MB84x2 lacks interrupt pins, it's basically as simple as AM_RAM AM_SHARE("x")
-    MB843x is same as MB842x, except that it supports slave mode. It makes
-    sure there are no clashes, with the _BUSY pin.
+    MB84x2 lacks interrupt pins, it's basically as simple as ram().share("x")
+    MB843x is same as MB842x, except that it supports slave mode for 16-bit or
+    32-bit expansion. It makes sure there are no clashes with the _BUSY pin.
+
+    IDT71321 is function compatible, but not pin compatible with MB8421
+    IDT7130 is 1KB variation of IDT71321
+    CY7C131 is similar as IDT7130
 
 **********************************************************************/
 
 #include "emu.h"
 #include "machine/mb8421.h"
 
+template class dual_port_mailbox_ram_base<u8, 10, 8>;
+template class dual_port_mailbox_ram_base<u8, 11, 8>;
+template class dual_port_mailbox_ram_base<u16, 11, 16>;
 
-const device_type MB8421 = device_creator<mb8421_device>;
+template <typename Type, unsigned AddrBits, unsigned DataBits>
+constexpr Type dual_port_mailbox_ram_base<Type, AddrBits, DataBits>::DATA_MASK;
+template <typename Type, unsigned AddrBits, unsigned DataBits>
+constexpr size_t dual_port_mailbox_ram_base<Type, AddrBits, DataBits>::RAM_SIZE;
+template <typename Type, unsigned AddrBits, unsigned DataBits>
+constexpr offs_t dual_port_mailbox_ram_base<Type, AddrBits, DataBits>::ADDR_MASK;
+template <typename Type, unsigned AddrBits, unsigned DataBits>
+constexpr offs_t dual_port_mailbox_ram_base<Type, AddrBits, DataBits>::INT_ADDR_LEFT;
+template <typename Type, unsigned AddrBits, unsigned DataBits>
+constexpr offs_t dual_port_mailbox_ram_base<Type, AddrBits, DataBits>::INT_ADDR_RIGHT;
 
-//-------------------------------------------------
-//  mb8421_device - constructor
-//-------------------------------------------------
-
-mb8421_device::mb8421_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, MB8421, "MB8421 DPSRAM", tag, owner, clock, "mb8421", __FILE__),
-		m_intl_handler(*this),
-		m_intr_handler(*this)
-{
-}
-
-//-------------------------------------------------
-//  device_start - device-specific startup
-//-------------------------------------------------
-
-void mb8421_device::device_start()
-{
-	memset(m_ram, 0, 0x800);
-
-	// resolve callbacks
-	m_intl_handler.resolve_safe();
-	m_intr_handler.resolve_safe();
-
-	// state save
-	save_item(NAME(m_ram));
-}
-
-//-------------------------------------------------
-//  device_reset - device-specific reset
-//-------------------------------------------------
-
-void mb8421_device::device_reset()
-{
-	m_intl_handler(0);
-	m_intr_handler(0);
-}
-
-
-
-WRITE8_MEMBER(mb8421_device::left_w)
-{
-	offset &= 0x7ff;
-	m_ram[offset] = data;
-
-	if (offset == 0x7ff)
-		m_intr_handler(1);
-}
-
-READ8_MEMBER(mb8421_device::left_r)
-{
-	offset &= 0x7ff;
-
-	if (offset == 0x7fe && !machine().side_effect_disabled())
-		m_intl_handler(0);
-
-	return m_ram[offset];
-}
-
-WRITE8_MEMBER(mb8421_device::right_w)
-{
-	offset &= 0x7ff;
-	m_ram[offset] = data;
-
-	if (offset == 0x7fe)
-		m_intl_handler(1);
-}
-
-READ8_MEMBER(mb8421_device::right_r)
-{
-	offset &= 0x7ff;
-
-	if (offset == 0x7ff && !machine().side_effect_disabled())
-		m_intr_handler(0);
-
-	return m_ram[offset];
-}
+// 1Kx8
+DEFINE_DEVICE_TYPE(CY7C131,             cy7c131_device,          "cy7c131",          "Cypress CY7C131 8-bit Dual-Port SRAM with Interrupts")
+DEFINE_DEVICE_TYPE(IDT7130,             idt7130_device,          "idt7130",          "IDT 7130 8-bit Dual-Port SRAM with Interrupts")
+// 2Kx8
+DEFINE_DEVICE_TYPE(IDT71321,            idt71321_device,         "idt71321",         "IDT 71321 8-bit Dual-Port SRAM with Interrupts")
+DEFINE_DEVICE_TYPE(MB8421,              mb8421_device,           "mb8421",           "Fujitsu MB8421 8-bit Dual-Port SRAM with Interrupts")
+// 2Kx16
+DEFINE_DEVICE_TYPE(MB8421_MB8431_16BIT, mb8421_mb8431_16_device, "mb8421_mb8431_16", "Fujitsu MB8421/MB8431 16-bit Dual-Port SRAM with Interrupts")

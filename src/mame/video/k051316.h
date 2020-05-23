@@ -1,35 +1,22 @@
 // license:BSD-3-Clause
 // copyright-holders:Fabio Priuli,Acho A. Tang, R. Belmont
-#pragma once
-#ifndef __K051316_H__
-#define __K051316_H__
+#ifndef MAME_VIDEO_K051316_H
+#define MAME_VIDEO_K051316_H
 
-typedef device_delegate<void (int *code, int *color, int *flags)> k051316_cb_delegate;
+#pragma once
+
+#include "tilemap.h"
+
+
 #define K051316_CB_MEMBER(_name)   void _name(int *code, int *color, int *flags)
 
 
-#define MCFG_K051316_CB(_class, _method) \
-	k051316_device::set_k051316_callback(*device, k051316_cb_delegate(&_class::_method, #_class "::" #_method, downcast<_class *>(owner)));
-
-#define MCFG_K051316_OFFSETS(_xoffs, _yoffs) \
-	k051316_device::set_offsets(*device, _xoffs, _yoffs);
-
-#define MCFG_K051316_BPP(_bpp) \
-	k051316_device::set_bpp(*device, _bpp);
-
-#define MCFG_K051316_LAYER_MASK(_mask) \
-	k051316_device::set_layermask(*device, _mask);
-
-#define MCFG_K051316_WRAP(_wrap) \
-	k051316_device::set_wrap(*device, _wrap);
-
-
-class k051316_device : public device_t,
-						public device_gfx_interface
+class k051316_device : public device_t, public device_gfx_interface
 {
 public:
+	using zoom_delegate = device_delegate<void (int *code, int *color, int *flags)>;
+
 	k051316_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~k051316_device() {}
 
 	static const gfx_layout charlayout4;
 	static const gfx_layout charlayout7;
@@ -39,16 +26,15 @@ public:
 	DECLARE_GFXDECODE_MEMBER(gfxinfo8);
 	DECLARE_GFXDECODE_MEMBER(gfxinfo4_ram);
 
-	// static configuration
-	static void set_k051316_callback(device_t &device, k051316_cb_delegate callback) { downcast<k051316_device &>(device).m_k051316_cb = callback; }
-	static void set_wrap(device_t &device, int wrap) { downcast<k051316_device &>(device).m_wrap = wrap; }
-	static void set_bpp(device_t &device, int bpp);
-	static void set_layermask(device_t &device, int mask) { downcast<k051316_device &>(device).m_layermask = mask; }
-	static void set_offsets(device_t &device, int x_offset, int y_offset)
+	// configuration
+	template <typename... T> void set_zoom_callback(T &&... args) { m_k051316_cb.set(std::forward<T>(args)...); }
+	void set_wrap(int wrap) { m_wrap = wrap; }
+	void set_bpp(int bpp);
+	void set_layermask(int mask) { m_layermask = mask; }
+	void set_offsets(int x_offset, int y_offset)
 	{
-		k051316_device &dev = downcast<k051316_device &>(device);
-		dev.m_dx = x_offset;
-		dev.m_dy = y_offset;
+		m_dx = x_offset;
+		m_dy = y_offset;
 	}
 
 	/*
@@ -63,10 +49,10 @@ public:
 	  structure (e.g. TILE_FLIPX)
 	*/
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
-	DECLARE_READ8_MEMBER( rom_r );
-	DECLARE_WRITE8_MEMBER( ctrl_w );
+	u8 read(offs_t offset);
+	void write(offs_t offset, u8 data);
+	u8 rom_r(offs_t offset);
+	void ctrl_w(offs_t offset, u8 data);
 	void zoom_draw(screen_device &screen, bitmap_ind16 &bitmap,const rectangle &cliprect,int flags,uint32_t priority);
 	void wraparound_enable(int status);
 
@@ -90,11 +76,11 @@ private:
 	int m_wrap;
 	int m_pixels_per_byte;
 	int m_layermask;
-	k051316_cb_delegate m_k051316_cb;
+	zoom_delegate m_k051316_cb;
 
 	TILE_GET_INFO_MEMBER(get_tile_info);
 };
 
-extern const device_type K051316;
+DECLARE_DEVICE_TYPE(K051316, k051316_device)
 
-#endif
+#endif // MAME_VIDEO_K051316_H

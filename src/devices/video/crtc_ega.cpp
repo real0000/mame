@@ -13,16 +13,17 @@
 
 #include "screen.h"
 
+#define VERBOSE 1
+#include "logmacro.h"
 
-#define LOG     (1)
 
-
-const device_type CRTC_EGA = device_creator<crtc_ega_device>;
+DEFINE_DEVICE_TYPE(CRTC_EGA, crtc_ega_device, "crtc_ega", "IBM EGA CRT Controller")
 
 
 crtc_ega_device::crtc_ega_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, CRTC_EGA, "crtc_EGA", tag, owner, clock, "crtc_ega", __FILE__), device_video_interface(mconfig, *this, false)
+	: device_t(mconfig, CRTC_EGA, tag, owner, clock), device_video_interface(mconfig, *this, false)
 	, m_res_out_de_cb(*this), m_res_out_hsync_cb(*this), m_res_out_vsync_cb(*this), m_res_out_vblank_cb(*this)
+	, m_begin_update_cb(*this), m_row_update_cb(*this), m_end_update_cb(*this)
 	, m_horiz_char_total(0), m_horiz_disp(0), m_horiz_blank_start(0), m_horiz_blank_end(0)
 	, m_ena_vert_access(0), m_de_skew(0)
 	, m_horiz_retr_start(0), m_horiz_retr_end(0), m_horiz_retr_skew(0)
@@ -51,13 +52,13 @@ void crtc_ega_device::device_post_load()
 }
 
 
-WRITE8_MEMBER( crtc_ega_device::address_w )
+void crtc_ega_device::address_w(uint8_t data)
 {
 	m_register_address_latch = data & 0x1f;
 }
 
 
-READ8_MEMBER( crtc_ega_device::register_r )
+uint8_t crtc_ega_device::register_r()
 {
 	uint8_t ret = 0;
 
@@ -78,9 +79,9 @@ READ8_MEMBER( crtc_ega_device::register_r )
 }
 
 
-WRITE8_MEMBER( crtc_ega_device::register_w )
+void crtc_ega_device::register_w(uint8_t data)
 {
-	if (LOG)  logerror("%s CRTC_EGA: reg 0x%02x = 0x%02x\n", machine().describe_context(), m_register_address_latch, data);
+	LOG("%s CRTC_EGA: reg 0x%02x = 0x%02x\n", machine().describe_context(), m_register_address_latch, data);
 
 	switch (m_register_address_latch)
 	{
@@ -198,18 +199,18 @@ void crtc_ega_device::recompute_parameters(bool postload)
 
 			rectangle visarea(0, max_visible_x, 0, max_visible_y);
 
-			if (LOG) logerror("CRTC_EGA config screen: HTOTAL: 0x%x  VTOTAL: 0x%x  MAX_X: 0x%x  MAX_Y: 0x%x  HSYNC: 0x%x-0x%x  VSYNC: 0x%x-0x%x  Freq: %ffps\n",
+			LOG("CRTC_EGA config screen: HTOTAL: 0x%x  VTOTAL: 0x%x  MAX_X: 0x%x  MAX_Y: 0x%x  HSYNC: 0x%x-0x%x  VSYNC: 0x%x-0x%x  Freq: %ffps\n",
 								horiz_pix_total, vert_pix_total, max_visible_x, max_visible_y, hsync_on_pos, hsync_off_pos - 1, vsync_on_pos, vsync_off_pos - 1, 1 / ATTOSECONDS_TO_DOUBLE(refresh));
 
-			if ( m_screen != nullptr )
-				m_screen->configure(horiz_pix_total, vert_pix_total, visarea, refresh);
+			if (has_screen())
+				screen().configure(horiz_pix_total, vert_pix_total, visarea, refresh);
 
 			m_has_valid_parameters = true;
 		}
 		else
 		{
 			m_has_valid_parameters = false;
-			if (LOG) logerror("CRTC_EGA bad config screen: HTOTAL: 0x%x  VTOTAL: 0x%x  MAX_X: 0x%x  MAX_Y: 0x%x  HSYNC: 0x%x-0x%x  VSYNC: 0x%x-0x%x\n",
+			LOG("CRTC_EGA bad config screen: HTOTAL: 0x%x  VTOTAL: 0x%x  MAX_X: 0x%x  MAX_Y: 0x%x  HSYNC: 0x%x-0x%x  VSYNC: 0x%x-0x%x\n",
 								horiz_pix_total, vert_pix_total, max_visible_x, max_visible_y, hsync_on_pos, hsync_off_pos - 1, vsync_on_pos, vsync_off_pos - 1);
 
 		}
@@ -355,8 +356,8 @@ void crtc_ega_device::handle_line_timer()
 		/* also update the cursor state now */
 		update_cursor_state();
 
-		if (m_screen != nullptr)
-			m_screen->reset_origin();
+		if (has_screen())
+			screen().reset_origin();
 	}
 
 	if ( m_line_enable_ff )
@@ -599,9 +600,9 @@ void crtc_ega_device::device_start()
 	m_res_out_vblank_cb.resolve();
 
 	/* bind delegates */
-	m_begin_update_cb.bind_relative_to(*owner());
-	m_row_update_cb.bind_relative_to(*owner());
-	m_end_update_cb.bind_relative_to(*owner());
+	m_begin_update_cb.resolve();
+	m_row_update_cb.resolve();
+	m_end_update_cb.resolve();
 
 	/* create the timers */
 	m_line_timer = timer_alloc(TIMER_LINE);

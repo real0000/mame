@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:Barry Rodewald
 /*
- * magicsound.c
+ * magicsound.cpp
  *
  *  Magic Sound Board for the Aleste 520EX
  *
@@ -13,74 +13,71 @@
 #include "speaker.h"
 
 
-SLOT_INTERFACE_EXTERN(cpc_exp_cards);
-
 //**************************************************************************
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type AL_MAGICSOUND = device_creator<al_magicsound_device>;
+DEFINE_DEVICE_TYPE(AL_MAGICSOUND, al_magicsound_device, "al_magicsound", "Aleste Magic Sound Board")
 
 
-static MACHINE_CONFIG_FRAGMENT( al_magicsound )
-	MCFG_DEVICE_ADD( "dmac", AM9517A, XTAL_4MHz )  // CLK from expansion port
+void al_magicsound_device::device_add_mconfig(machine_config &config)
+{
+	AM9517A(config, m_dmac, DERIVED_CLOCK(1, 1));  // CLK from expansion port
 	// According to the schematics, the TC pin (EOP on western chips) is connected to NMI on the expansion port.
 	// NMIs seem to occur too quickly when this is active, so either EOP is not triggered at the correct time, or
 	// the K1810WT37 is different to the i8237/AM9517A
-	//MCFG_I8237_OUT_EOP_CB(DEVWRITELINE("^", cpc_expansion_slot_device, nmi_w)) // MCFG_DEVCB_INVERT
-	MCFG_I8237_OUT_HREQ_CB(DEVWRITELINE("dmac", am9517a_device, hack_w))
-	MCFG_I8237_IN_MEMR_CB(READ8(al_magicsound_device,dma_read_byte))
-	MCFG_I8237_OUT_IOW_0_CB(WRITE8(al_magicsound_device,dma_write_byte))
-	MCFG_I8237_OUT_IOW_1_CB(WRITE8(al_magicsound_device,dma_write_byte))
-	MCFG_I8237_OUT_IOW_2_CB(WRITE8(al_magicsound_device,dma_write_byte))
-	MCFG_I8237_OUT_IOW_3_CB(WRITE8(al_magicsound_device,dma_write_byte))
-	MCFG_I8237_OUT_DACK_0_CB(WRITELINE(al_magicsound_device, dack0_w))
-	MCFG_I8237_OUT_DACK_1_CB(WRITELINE(al_magicsound_device, dack1_w))
-	MCFG_I8237_OUT_DACK_2_CB(WRITELINE(al_magicsound_device, dack2_w))
-	MCFG_I8237_OUT_DACK_3_CB(WRITELINE(al_magicsound_device, dack3_w))
+	//m_dmac->out_eop_callback().set(DEVICE_SELF_OWNER, FUNC(cpc_expansion_slot_device::nmi_w))/*.invert()*/;
+	m_dmac->out_hreq_callback().set(m_dmac, FUNC(am9517a_device::hack_w));
+	m_dmac->in_memr_callback().set(FUNC(al_magicsound_device::dma_read_byte));
+	m_dmac->out_iow_callback<0>().set(FUNC(al_magicsound_device::dma_write_byte));
+	m_dmac->out_iow_callback<1>().set(FUNC(al_magicsound_device::dma_write_byte));
+	m_dmac->out_iow_callback<2>().set(FUNC(al_magicsound_device::dma_write_byte));
+	m_dmac->out_iow_callback<3>().set(FUNC(al_magicsound_device::dma_write_byte));
+	m_dmac->out_dack_callback<0>().set(FUNC(al_magicsound_device::dack0_w));
+	m_dmac->out_dack_callback<1>().set(FUNC(al_magicsound_device::dack1_w));
+	m_dmac->out_dack_callback<2>().set(FUNC(al_magicsound_device::dack2_w));
+	m_dmac->out_dack_callback<3>().set(FUNC(al_magicsound_device::dack3_w));
 
 	// Timing does not seem to be correct.
 	// According to the schematics, the clock is from the clock pin on the expansion port (4MHz), and
 	// passes through an inverter to each CLK pin on both timers.  This seems to be too fast.
 	// Timer outputs to SAM0/1/2/3 are sample clocks for each sound channel, D/A0 is the low bit of the channel select.
-	MCFG_DEVICE_ADD("timer1", PIT8254, 0)
-	MCFG_PIT8253_CLK0(XTAL_4MHz)
-	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(al_magicsound_device,sam0_w))
-	MCFG_PIT8253_CLK1(XTAL_4MHz)
-	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(al_magicsound_device,sam1_w))
-	MCFG_PIT8253_CLK2(XTAL_4MHz)
-	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(al_magicsound_device,sam2_w))
+	PIT8254(config, m_timer1, 0);
+	m_timer1->set_clk<0>(4000000);
+	m_timer1->out_handler<0>().set(FUNC(al_magicsound_device::sam0_w));
+	m_timer1->set_clk<1>(4000000);
+	m_timer1->out_handler<1>().set(FUNC(al_magicsound_device::sam1_w));
+	m_timer1->set_clk<2>(4000000);
+	m_timer1->out_handler<2>().set(FUNC(al_magicsound_device::sam2_w));
 
-	MCFG_DEVICE_ADD("timer2", PIT8254, 0)
-	MCFG_PIT8253_CLK0(XTAL_4MHz)
-	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(al_magicsound_device,sam3_w))
-	MCFG_PIT8253_CLK1(XTAL_4MHz)
-	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(al_magicsound_device,da0_w))
-	MCFG_PIT8253_CLK2(XTAL_4MHz)
+	PIT8254(config, m_timer2, 0);
+	m_timer2->set_clk<0>(4000000);
+	m_timer2->out_handler<0>().set(FUNC(al_magicsound_device::sam3_w));
+	m_timer2->set_clk<1>(4000000);
+	m_timer2->out_handler<1>().set(FUNC(al_magicsound_device::da0_w));
+	m_timer2->set_clk<2>(4000000);
 
-	MCFG_SPEAKER_STANDARD_MONO("speaker")
-	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	SPEAKER(config, "speaker").front_center();
+	DAC_8BIT_R2R(config, m_dac, 0).add_route(ALL_OUTPUTS, "speaker", 0.5); // unknown DAC
+	voltage_regulator_device &vref(VOLTAGE_REGULATOR(config, "vref"));
+	vref.add_route(0, "dac", 1.0, DAC_VREF_POS_INPUT);
+	vref.add_route(0, "dac", -1.0, DAC_VREF_NEG_INPUT);
 	// no pass-through(?)
-MACHINE_CONFIG_END
-
-machine_config_constructor al_magicsound_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( al_magicsound );
 }
+
 
 //**************************************************************************
 //  LIVE DEVICE
 //**************************************************************************
 
 al_magicsound_device::al_magicsound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, AL_MAGICSOUND, "Magic Sound Board", tag, owner, clock, "al_magicsound", __FILE__),
+	device_t(mconfig, AL_MAGICSOUND, tag, owner, clock),
 	device_cpc_expansion_card_interface(mconfig, *this), m_slot(nullptr),
 	m_dac(*this,"dac"),
 	m_dmac(*this,"dmac"),
 	m_timer1(*this,"timer1"),
-	m_timer2(*this,"timer2"), m_current_channel(0), m_ramptr(nullptr), m_current_output(0)
+	m_timer2(*this,"timer2"),
+	m_current_channel(0), m_ramptr(nullptr), m_current_output(0)
 {
 }
 
@@ -90,21 +87,16 @@ al_magicsound_device::al_magicsound_device(const machine_config &mconfig, const 
 
 void al_magicsound_device::device_start()
 {
-	device_t* cpu = machine().device("maincpu");
-	address_space& space = cpu->memory().space(AS_IO);
 	m_slot = dynamic_cast<cpc_expansion_slot_device *>(owner());
-
-	space.install_readwrite_handler(0xf8d0,0xf8df,read8_delegate(FUNC(al_magicsound_device::dmac_r),this),write8_delegate(FUNC(al_magicsound_device::dmac_w),this));
-	space.install_write_handler(0xf9d0,0xf9df,write8_delegate(FUNC(al_magicsound_device::timer_w),this));
-	space.install_write_handler(0xfad0,0xfadf,write8_delegate(FUNC(al_magicsound_device::volume_w),this));
-	space.install_write_handler(0xfbd0,0xfbdf,write8_delegate(FUNC(al_magicsound_device::mapper_w),this));
+	address_space &space = m_slot->cpu().space(AS_IO);
+	space.install_readwrite_handler(0xf8d0,0xf8df, read8_delegate(*this, FUNC(al_magicsound_device::dmac_r)), write8_delegate(*this, FUNC(al_magicsound_device::dmac_w)));
+	space.install_write_handler(0xf9d0,0xf9df, write8_delegate(*this, FUNC(al_magicsound_device::timer_w)));
+	space.install_write_handler(0xfad0,0xfadf, write8_delegate(*this, FUNC(al_magicsound_device::volume_w)));
+	space.install_write_handler(0xfbd0,0xfbdf, write8_delegate(*this, FUNC(al_magicsound_device::mapper_w)));
 
 	m_ramptr = machine().device<ram_device>(":" RAM_TAG);
 
-	for(int x=0;x<4;x++)
-	{
-		save_item(NAME(m_output[x]),x);
-	}
+	save_item(NAME(m_output));
 }
 
 //-------------------------------------------------
@@ -120,21 +112,21 @@ void al_magicsound_device::device_reset()
 
 READ8_MEMBER(al_magicsound_device::dmac_r)
 {
-	return m_dmac->read(space,offset);
+	return m_dmac->read(offset);
 }
 
 WRITE8_MEMBER(al_magicsound_device::dmac_w)
 {
-	m_dmac->write(space,offset,data);
+	m_dmac->write(offset,data);
 }
 
 WRITE8_MEMBER(al_magicsound_device::timer_w)
 {
 	// can both PITs be selected at the same time?
 	if(offset & 0x08)
-		m_timer1->write(space,offset & 0x03,data);
+		m_timer1->write(offset & 0x03,data);
 	if(offset & 0x04)
-		m_timer2->write(space,offset & 0x03,data);
+		m_timer2->write(offset & 0x03,data);
 }
 
 WRITE8_MEMBER(al_magicsound_device::volume_w)
@@ -167,7 +159,7 @@ WRITE_LINE_MEMBER(al_magicsound_device::sam1_w) { m_current_channel = 1; if(m_da
 WRITE_LINE_MEMBER(al_magicsound_device::sam2_w) { m_current_channel = 2; if(m_dack[2] && state) m_dmac->dreq2_w(1); }
 WRITE_LINE_MEMBER(al_magicsound_device::sam3_w) { m_current_channel = 3; if(m_dack[3] && state) m_dmac->dreq3_w(1); }
 
-READ8_MEMBER(al_magicsound_device::dma_read_byte)
+uint8_t al_magicsound_device::dma_read_byte(offs_t offset)
 {
 	uint8_t ret = 0xff;
 	uint8_t page = (offset & 0xc000) >> 14;
@@ -177,7 +169,7 @@ READ8_MEMBER(al_magicsound_device::dma_read_byte)
 	return ret;
 }
 
-WRITE8_MEMBER(al_magicsound_device::dma_write_byte)
+void al_magicsound_device::dma_write_byte(uint8_t data)
 {
 	m_output[m_current_channel] = data;
 }

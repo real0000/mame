@@ -15,44 +15,42 @@ TODO:
 
 
 #define VERBOSE 0
-#define LOG(x) do { if (VERBOSE) logerror x; } while (0)
+#include "logmacro.h"
 
 
-const device_type MSX_CART_MOONSOUND = device_creator<msx_cart_moonsound>;
+DEFINE_DEVICE_TYPE(MSX_CART_MOONSOUND, msx_cart_moonsound_device, "msx_moonsound", "MSX Cartridge - MoonSound")
 
 
-msx_cart_moonsound::msx_cart_moonsound(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, MSX_CART_MOONSOUND, "MSX Cartridge - MoonSound", tag, owner, clock, "msx_moonsound", __FILE__)
+msx_cart_moonsound_device::msx_cart_moonsound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, MSX_CART_MOONSOUND, tag, owner, clock)
 	, msx_cart_interface(mconfig, *this)
 	, m_ymf278b(*this, "ymf278b")
 {
 }
 
 
-static ADDRESS_MAP_START( ymf278b_map, AS_0, 8, msx_cart_moonsound )
-	AM_RANGE(0x000000, 0x1fffff) AM_ROM
-	AM_RANGE(0x200000, 0x3fffff) AM_RAM  // 2MB sram for testing
-ADDRESS_MAP_END
-
-
-static MACHINE_CONFIG_FRAGMENT( moonsound )
-	// The moonsound cartridge has a separate stereo output.
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
-	MCFG_SOUND_ADD("ymf278b", YMF278B, YMF278B_STD_CLOCK)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, ymf278b_map)
-	MCFG_YMF278B_IRQ_HANDLER(WRITELINE(msx_cart_moonsound,irq_w))
-	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
-	MCFG_SOUND_ROUTE(2, "lspeaker", 0.40)
-	MCFG_SOUND_ROUTE(3, "rspeaker", 0.40)
-	MCFG_SOUND_ROUTE(4, "lspeaker", 0.40)
-	MCFG_SOUND_ROUTE(5, "rspeaker", 0.40)
-MACHINE_CONFIG_END
-
-
-machine_config_constructor msx_cart_moonsound::device_mconfig_additions() const
+void msx_cart_moonsound_device::ymf278b_map(address_map &map)
 {
-	return MACHINE_CONFIG_NAME( moonsound );
+	map(0x000000, 0x1fffff).rom();
+	map(0x200000, 0x3fffff).ram();  // 2MB sram for testing
+}
+
+
+void msx_cart_moonsound_device::device_add_mconfig(machine_config &config)
+{
+	// The moonsound cartridge has a separate stereo output.
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
+
+	YMF278B(config, m_ymf278b, 33.8688_MHz_XTAL);
+	m_ymf278b->set_addrmap(0, &msx_cart_moonsound_device::ymf278b_map);
+	m_ymf278b->irq_handler().set(FUNC(msx_cart_moonsound_device::irq_w));
+	m_ymf278b->add_route(0, "lspeaker", 0.50);
+	m_ymf278b->add_route(1, "rspeaker", 0.50);
+	m_ymf278b->add_route(2, "lspeaker", 0.40);
+	m_ymf278b->add_route(3, "rspeaker", 0.40);
+	m_ymf278b->add_route(4, "lspeaker", 0.50);
+	m_ymf278b->add_route(5, "rspeaker", 0.50);
 }
 
 
@@ -62,67 +60,64 @@ ROM_START( msx_cart_moonsound )
 ROM_END
 
 
-const tiny_rom_entry *msx_cart_moonsound::device_rom_region() const
+const tiny_rom_entry *msx_cart_moonsound_device::device_rom_region() const
 {
 	return ROM_NAME( msx_cart_moonsound );
 }
 
 
-void msx_cart_moonsound::device_start()
+void msx_cart_moonsound_device::device_start()
 {
-	m_out_irq_cb.resolve_safe();
-
 	// Install IO read/write handlers
-	address_space &space = machine().device<cpu_device>("maincpu")->space(AS_IO);
-	space.install_readwrite_handler(0x7e, 0x7f, read8_delegate(FUNC(msx_cart_moonsound::read_ymf278b_pcm), this), write8_delegate(FUNC(msx_cart_moonsound::write_ymf278b_pcm), this));
-	space.install_readwrite_handler(0xc4, 0xc7, read8_delegate(FUNC(msx_cart_moonsound::read_ymf278b_fm), this), write8_delegate(FUNC(msx_cart_moonsound::write_ymf278b_fm), this));
-	space.install_read_handler(0xc0, 0xc0, read8_delegate(FUNC(msx_cart_moonsound::read_c0), this));
+	io_space().install_readwrite_handler(0x7e, 0x7f, read8sm_delegate(*this, FUNC(msx_cart_moonsound_device::read_ymf278b_pcm)), write8sm_delegate(*this, FUNC(msx_cart_moonsound_device::write_ymf278b_pcm)));
+	io_space().install_readwrite_handler(0xc4, 0xc7, read8sm_delegate(*this, FUNC(msx_cart_moonsound_device::read_ymf278b_fm)), write8sm_delegate(*this, FUNC(msx_cart_moonsound_device::write_ymf278b_fm)));
+	io_space().install_read_handler(0xc0, 0xc0, read8smo_delegate(*this, FUNC(msx_cart_moonsound_device::read_c0)));
 }
 
 
-void msx_cart_moonsound::device_reset()
+void msx_cart_moonsound_device::device_reset()
 {
 }
 
 
-WRITE_LINE_MEMBER(msx_cart_moonsound::irq_w)
+WRITE_LINE_MEMBER(msx_cart_moonsound_device::irq_w)
 {
-	LOG(("moonsound: irq state %d\n", state));
-	m_out_irq_cb(state);
+	LOG("moonsound: irq state %d\n", state);
+	irq_out(state);
 }
 
 
-WRITE8_MEMBER(msx_cart_moonsound::write_ymf278b_fm)
+void msx_cart_moonsound_device::write_ymf278b_fm(offs_t offset, uint8_t data)
 {
-	LOG(("moonsound: write 0x%02x, data 0x%02x\n", 0xc4 + offset, data));
-	m_ymf278b->write(space, offset, data);
+	LOG("moonsound: write 0x%02x, data 0x%02x\n", 0xc4 + offset, data);
+	m_ymf278b->write(offset, data);
 }
 
 
-READ8_MEMBER(msx_cart_moonsound::read_ymf278b_fm)
+uint8_t msx_cart_moonsound_device::read_ymf278b_fm(offs_t offset)
 {
-	LOG(("moonsound: read 0x%02x\n", 0xc4 + offset));
-	return m_ymf278b->read(space, offset);
+	LOG("moonsound: read 0x%02x\n", 0xc4 + offset);
+	return m_ymf278b->read(offset);
 }
 
 
-WRITE8_MEMBER(msx_cart_moonsound::write_ymf278b_pcm)
+void msx_cart_moonsound_device::write_ymf278b_pcm(offs_t offset, uint8_t data)
 {
-	LOG(("moonsound: write 0x%02x, data 0x%02x\n", 0x7e + offset, data));
-	m_ymf278b->write(space, 4 + offset, data);
+	LOG("moonsound: write 0x%02x, data 0x%02x\n", 0x7e + offset, data);
+	m_ymf278b->write(4 + offset, data);
 }
 
 
-READ8_MEMBER(msx_cart_moonsound::read_ymf278b_pcm)
+uint8_t msx_cart_moonsound_device::read_ymf278b_pcm(offs_t offset)
 {
-	LOG(("moonsound: read 0x%02x\n", 0x7e + offset));
-	return m_ymf278b->read(space, 4 + offset);
+	LOG("moonsound: read 0x%02x\n", 0x7e + offset);
+	return m_ymf278b->read(4 + offset);
 }
 
 
 // For detecting presence of moonsound cartridge
-READ8_MEMBER(msx_cart_moonsound::read_c0)
+uint8_t msx_cart_moonsound_device::read_c0()
 {
-	LOG(("moonsound: read 0xc0\n"));
+	LOG("moonsound: read 0xc0\n");
 	return 0x00;
 }

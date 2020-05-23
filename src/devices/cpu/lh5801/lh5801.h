@@ -7,10 +7,10 @@
  *
  *
  *****************************************************************************/
-#pragma once
+#ifndef MAME_CPU_LH5801_LH5801_H
+#define MAME_CPU_LH5801_LH5801_H
 
-#ifndef __LH5801_H__
-#define __LH5801_H__
+#pragma once
 
 /*
 lh5801
@@ -60,18 +60,14 @@ enum
 };
 
 
-#define MCFG_LH5801_IN(_devcb) \
-	devcb = &lh5801_cpu_device::set_in_func(*device, DEVCB_##_devcb);
-
-
 class lh5801_cpu_device :  public cpu_device
 {
 public:
 	// construction/destruction
 	lh5801_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// static configuration helpers
-	template<class _Object> static devcb_base &set_in_func(device_t &device, _Object object) { return downcast<lh5801_cpu_device &>(device).m_in_func.set_callback(object); }
+	// configuration helpers
+	auto in_func() { return m_in_func.bind(); }
 
 protected:
 	// device-level overrides
@@ -79,23 +75,23 @@ protected:
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 2; }
-	virtual uint32_t execute_max_cycles() const override { return 19; }
-	virtual uint32_t execute_input_lines() const override { return 2; }
-	virtual uint32_t execute_default_irq_vector() const override { return 0; }
+	virtual uint64_t execute_clocks_to_cycles(uint64_t clocks) const noexcept override { return (clocks + 2 - 1) / 2; }
+	virtual uint64_t execute_cycles_to_clocks(uint64_t cycles) const noexcept override { return (cycles * 2); }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 2; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 19; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 2; }
+	virtual bool execute_input_edge_triggered(int inputnum) const noexcept override { return inputnum == LH5801_LINE_MI || inputnum == INPUT_LINE_NMI; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : ( (spacenum == AS_IO) ? &m_io_config : nullptr ); }
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 1; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 5; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 private:
 	address_space_config m_program_config;
@@ -105,7 +101,7 @@ private:
 
 	address_space *m_program;         //ME0
 	address_space *m_io;              //ME1
-	direct_read_data *m_direct;
+	memory_access_cache<0, 0, ENDIANNESS_LITTLE> *m_cache;
 
 	PAIR m_s;
 	PAIR m_p;
@@ -164,11 +160,11 @@ private:
 	void lh5801_push(uint8_t data);
 	void lh5801_push_word(uint16_t data);
 	void lh5801_jmp(uint16_t adr);
-	void lh5801_branch_plus(int doit);
-	void lh5801_branch_minus(int doit);
+	void lh5801_branch_plus(int taken);
+	void lh5801_branch_minus(int taken);
 	void lh5801_lop();
 	void lh5801_sjp();
-	void lh5801_vector(int doit, int nr);
+	void lh5801_vector(int taken, int nr);
 	void lh5801_aex();
 	void lh5801_drl(address_space &space, int adr);
 	void lh5801_drr(address_space &space, int adr);
@@ -178,11 +174,10 @@ private:
 	void lh5801_shr();
 	void lh5801_am(int value);
 	void lh5801_ita();
-
 };
 
 
-extern const device_type LH5801;
+DECLARE_DEVICE_TYPE(LH5801, lh5801_cpu_device)
 
 
-#endif /* __LH5801_H__ */
+#endif // MAME_CPU_LH5801_LH5801_H

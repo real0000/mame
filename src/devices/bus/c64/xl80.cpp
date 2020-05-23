@@ -57,7 +57,7 @@ Notes:
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type C64_XL80 = device_creator<c64_xl80_device>;
+DEFINE_DEVICE_TYPE(C64_XL80, c64_xl80_device, "c64_xl80", "C64 XL 80 cartridge")
 
 
 //-------------------------------------------------
@@ -114,40 +114,31 @@ MC6845_UPDATE_ROW( c64_xl80_device::crtc_update_row )
 //  GFXDECODE( c64_xl80 )
 //-------------------------------------------------
 
-static GFXDECODE_START( c64_xl80 )
+static GFXDECODE_START( gfx_c64_xl80 )
 	GFXDECODE_ENTRY(HD46505SP_TAG, 0x0000, gfx_8x8x1, 0, 1)
 GFXDECODE_END
 
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( c64_xl80 )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( c64_xl80 )
-	MCFG_SCREEN_ADD_MONOCHROME(MC6845_SCREEN_TAG, RASTER, rgb_t::white())
-	MCFG_SCREEN_UPDATE_DEVICE(HD46505SP_TAG, h46505_device, screen_update)
-	MCFG_SCREEN_SIZE(80*8, 24*8)
-	MCFG_SCREEN_VISIBLE_AREA(0, 80*8-1, 0, 24*8-1)
-	MCFG_SCREEN_REFRESH_RATE(50)
-
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", c64_xl80)
-	MCFG_PALETTE_ADD_MONOCHROME("palette")
-
-	MCFG_MC6845_ADD(HD46505SP_TAG, H46505, MC6845_SCREEN_TAG, XTAL_14_31818MHz / 8)
-	MCFG_MC6845_SHOW_BORDER_AREA(true)
-	MCFG_MC6845_CHAR_WIDTH(8)
-	MCFG_MC6845_UPDATE_ROW_CB(c64_xl80_device, crtc_update_row)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor c64_xl80_device::device_mconfig_additions() const
+void c64_xl80_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( c64_xl80 );
+	screen_device &screen(SCREEN(config, MC6845_SCREEN_TAG, SCREEN_TYPE_RASTER, rgb_t::white()));
+	screen.set_screen_update(HD46505SP_TAG, FUNC(hd6845s_device::screen_update));
+	screen.set_size(80*8, 24*8);
+	screen.set_visarea(0, 80*8-1, 0, 24*8-1);
+	screen.set_refresh_hz(50);
+
+	GFXDECODE(config, "gfxdecode", m_palette, gfx_c64_xl80);
+	PALETTE(config, m_palette, palette_device::MONOCHROME);
+
+	HD6845S(config, m_crtc, XTAL(14'318'181) / 8);
+	m_crtc->set_screen(MC6845_SCREEN_TAG);
+	m_crtc->set_show_border_area(true);
+	m_crtc->set_char_width(8);
+	m_crtc->set_update_row_callback(FUNC(c64_xl80_device::crtc_update_row));
 }
 
 
@@ -161,7 +152,7 @@ machine_config_constructor c64_xl80_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 c64_xl80_device::c64_xl80_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, C64_XL80, "XL 80", tag, owner, clock, "c64_xl80", __FILE__),
+	device_t(mconfig, C64_XL80, tag, owner, clock),
 	device_c64_expansion_card_interface(mconfig, *this),
 	m_crtc(*this, HD46505SP_TAG),
 	m_palette(*this, "palette"),
@@ -195,13 +186,13 @@ void c64_xl80_device::device_reset()
 //  c64_cd_r - cartridge data read
 //-------------------------------------------------
 
-uint8_t c64_xl80_device::c64_cd_r(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
+uint8_t c64_xl80_device::c64_cd_r(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
 {
 	if (!io2 && BIT(offset, 2))
 	{
 		if (offset & 0x01)
 		{
-			data = m_crtc->register_r(space, 0);
+			data = m_crtc->register_r();
 		}
 	}
 	else if (offset >= 0x8000 && offset < 0x9000)
@@ -221,7 +212,7 @@ uint8_t c64_xl80_device::c64_cd_r(address_space &space, offs_t offset, uint8_t d
 //  c64_cd_w - cartridge data write
 //-------------------------------------------------
 
-void c64_xl80_device::c64_cd_w(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
+void c64_xl80_device::c64_cd_w(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
 {
 	if (offset >= 0x9800 && offset < 0xa000)
 	{
@@ -231,11 +222,11 @@ void c64_xl80_device::c64_cd_w(address_space &space, offs_t offset, uint8_t data
 	{
 		if (offset & 0x01)
 		{
-			m_crtc->register_w(space, 0, data);
+			m_crtc->register_w(data);
 		}
 		else
 		{
-			m_crtc->address_w(space, 0, data);
+			m_crtc->address_w(data);
 		}
 	}
 }

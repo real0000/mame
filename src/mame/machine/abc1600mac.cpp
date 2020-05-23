@@ -18,6 +18,7 @@
 #define LOG 0
 #define LOG_MAC 0
 #define LOG_DMA 0
+#define LOG_IO 0
 
 
 #define A0          BIT(offset, 0)
@@ -54,26 +55,23 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type ABC1600_MAC = device_creator<abc1600_mac_device>;
+DEFINE_DEVICE_TYPE(ABC1600_MAC, abc1600_mac_device, "abc1600mac", "ABC 1600 MAC")
 
 
-DEVICE_ADDRESS_MAP_START( map, 8, abc1600_mac_device )
-	AM_RANGE(0x00000, 0xfffff) AM_READWRITE(read, write)
-ADDRESS_MAP_END
-
-
-static ADDRESS_MAP_START( program_map, AS_PROGRAM, 8, abc1600_mac_device )
-ADDRESS_MAP_END
-
-
-static MACHINE_CONFIG_FRAGMENT( abc1600_mac )
-	MCFG_WATCHDOG_ADD("watchdog")
-	MCFG_WATCHDOG_TIME_INIT(attotime::from_msec(1600)) // XTAL_64MHz/8/10/20000/8/8
-MACHINE_CONFIG_END
-
-machine_config_constructor abc1600_mac_device::device_mconfig_additions() const
+void abc1600_mac_device::map(address_map &map)
 {
-	return MACHINE_CONFIG_NAME( abc1600_mac );
+	map(0x00000, 0xfffff).rw(FUNC(abc1600_mac_device::read), FUNC(abc1600_mac_device::write));
+}
+
+
+void abc1600_mac_device::program_map(address_map &map)
+{
+}
+
+
+void abc1600_mac_device::device_add_mconfig(machine_config &config)
+{
+	WATCHDOG_TIMER(config, m_watchdog).set_time(attotime::from_msec(1600)); // XTAL(64'000'000)/8/10/20000/8/8
 }
 
 
@@ -110,13 +108,14 @@ const tiny_rom_entry *abc1600_mac_device::device_rom_region() const
 //-------------------------------------------------
 
 abc1600_mac_device::abc1600_mac_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, ABC1600_MAC, "ABC 1600 MAC", tag, owner, clock, "abc1600mac", __FILE__),
+	device_t(mconfig, ABC1600_MAC, tag, owner, clock),
 	device_memory_interface(mconfig, *this),
-	m_space_config("program", ENDIANNESS_LITTLE, 8, 22, 0, *ADDRESS_MAP_NAME(program_map)),
+	m_space_config("program", ENDIANNESS_LITTLE, 8, 22, 0, address_map_constructor(FUNC(abc1600_mac_device::program_map), this)),
 	m_rom(*this, "boot"),
 	m_segment_ram(*this, "segment_ram"),
 	m_page_ram(*this, "page_ram"),
 	m_watchdog(*this, "watchdog"),
+	m_cpu(*this, finder_base::DUMMY_TAG),
 	m_task(0)
 {
 }
@@ -128,10 +127,6 @@ abc1600_mac_device::abc1600_mac_device(const machine_config &mconfig, const char
 
 void abc1600_mac_device::device_start()
 {
-	// get the CPU device
-	m_cpu = machine().device<m68000_base_device>(m_cpu_tag);
-	assert(m_cpu != nullptr);
-
 	// allocate memory
 	m_segment_ram.allocate(0x400);
 	m_page_ram.allocate(0x400);
@@ -164,9 +159,11 @@ void abc1600_mac_device::device_reset()
 //  any address spaces owned by this device
 //-------------------------------------------------
 
-const address_space_config *abc1600_mac_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector abc1600_mac_device::memory_space_config() const
 {
-	return (spacenum == AS_PROGRAM) ? &m_space_config : nullptr;
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_space_config)
+	};
 }
 
 
@@ -249,8 +246,11 @@ uint8_t abc1600_mac_device::read_user_memory(offs_t offset)
 {
 	int nonx = 0, wp = 0;
 	offs_t virtual_offset = translate_address(offset, &nonx, &wp);
+	uint8_t data = space().read_byte(virtual_offset);
 
-	return space().read_byte(virtual_offset);
+	if (LOG_IO && virtual_offset >= 0x1fe000) logerror("%s user read %06x:%02x\n", machine().describe_context(), virtual_offset, data);
+
+	return data;
 }
 
 
@@ -264,6 +264,8 @@ void abc1600_mac_device::write_user_memory(offs_t offset, uint8_t data)
 	offs_t virtual_offset = translate_address(offset, &nonx, &wp);
 
 	//if (nonx || !wp) return;
+
+	if (LOG_IO && virtual_offset >= 0x1fe000) logerror("%s user write %06x:%02x\n", machine().describe_context(), virtual_offset, data);
 
 	space().write_byte(virtual_offset, data);
 }

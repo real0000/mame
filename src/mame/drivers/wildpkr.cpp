@@ -158,35 +158,78 @@
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
+#include "machine/clock.h"
+#include "machine/ds2401.h"
+#include "machine/mc68681.h"
+#include "machine/nvram.h"
 #include "sound/ay8910.h"
-//#include "video/hd63484.h"
+#include "sound/dac.h"
+#include "sound/volt_reg.h"
+#include "video/hd63484.h"
 #include "video/ramdac.h"
+#include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
 
 
-#define MAIN_CLOCK  XTAL_12MHz
+#define MAIN_CLOCK  XTAL(12'000'000)
 #define AY_CLOCK    MAIN_CLOCK / 8
-#define SEC_CLOCK   XTAL_3.6864MHz
-#define AUX1_CLOCK  XTAL_26MHz
-#define AUX2_CLOCK  XTAL_24MHz
+#define SEC_CLOCK   XTAL(3'686'400)
+#define AUX1_CLOCK  XTAL(26'000'000)
+#define AUX2_CLOCK  XTAL(24'000'000)
 
 
 class wildpkr_state : public driver_device
 {
 public:
-	wildpkr_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu")
+	wildpkr_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_duart(*this, "duart"),
+		m_id(*this, "id"),
+		m_dac(*this, "dac"),
+		m_dac_clock(*this, "dacclock"),
+		m_nvram(*this, "nvram")
 	{ }
 
-	required_device<cpu_device> m_maincpu;
+	void wildpkr(machine_config &config);
+	void tabpkr(machine_config &config);
 
-	DECLARE_DRIVER_INIT(wildpkr);
+	void init_wildpkr();
+
+protected:
 	virtual void machine_start() override;
 	virtual void video_start() override;
-	DECLARE_PALETTE_INIT(wildpkr);
-	uint32_t screen_update_wildpkr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+private:
+	required_device<cpu_device> m_maincpu;
+	required_device<mc68681_device> m_duart;
+	optional_device<ds2401_device> m_id;
+	optional_device<dac_byte_interface> m_dac;
+	optional_device<clock_device> m_dac_clock;
+
+	optional_shared_ptr<u16> m_nvram;
+
+	u16 m_clock_rate;
+
+	void wildpkr_palette(palette_device &palette) const;
+	DECLARE_READ8_MEMBER(unknown_read8);
+	DECLARE_WRITE8_MEMBER(unknown_write8);
+	DECLARE_WRITE16_MEMBER(nvram_w);
+	DECLARE_READ16_MEMBER(id_serial_r);
+	DECLARE_WRITE16_MEMBER(id_serial_w);
+	DECLARE_WRITE16_MEMBER(out0_w);
+	DECLARE_WRITE16_MEMBER(out1_w);
+	DECLARE_WRITE8_MEMBER(dac_w);
+	DECLARE_WRITE16_MEMBER(clock_start_w);
+	DECLARE_WRITE16_MEMBER(clock_rate_w);
+	DECLARE_WRITE16_MEMBER(unknown_trigger_w);
+	u16 tabpkr_irq_ack(offs_t offset);
+	void cpu_space_map(address_map &map);
+	void hd63484_map(address_map &map);
+	void ramdac_map(address_map &map);
+	void tabpkr_map(address_map &map);
+	void wildpkr_map(address_map &map);
 };
 
 
@@ -198,12 +241,7 @@ void wildpkr_state::video_start()
 {
 }
 
-uint32_t wildpkr_state::screen_update_wildpkr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
-{
-	return 0;
-}
-
-PALETTE_INIT_MEMBER(wildpkr_state, wildpkr)
+void wildpkr_state::wildpkr_palette(palette_device &palette) const
 {
 }
 
@@ -217,31 +255,106 @@ PALETTE_INIT_MEMBER(wildpkr_state, wildpkr)
 *      Misc Handlers     *
 *************************/
 
+READ8_MEMBER(wildpkr_state::unknown_read8)
+{
+	return 0xff;
+}
+
+WRITE8_MEMBER(wildpkr_state::unknown_write8)
+{
+}
+
+WRITE16_MEMBER(wildpkr_state::nvram_w)
+{
+	m_nvram[offset] = data | 0xff00;
+}
+
+READ16_MEMBER(wildpkr_state::id_serial_r)
+{
+	return m_id->read();
+}
+
+WRITE16_MEMBER(wildpkr_state::id_serial_w)
+{
+	m_id->write(data & 1);
+}
+
+WRITE16_MEMBER(wildpkr_state::out0_w)
+{
+}
+
+WRITE16_MEMBER(wildpkr_state::out1_w)
+{
+}
+
+WRITE8_MEMBER(wildpkr_state::dac_w)
+{
+	m_dac->write(data);
+}
+
+WRITE16_MEMBER(wildpkr_state::clock_start_w)
+{
+	if (data != 0 && m_clock_rate != 0)
+		m_dac_clock->set_clock_scale(1.0 / m_clock_rate);
+	else
+		m_dac_clock->set_clock_scale(0.0);
+}
+
+WRITE16_MEMBER(wildpkr_state::clock_rate_w)
+{
+	m_clock_rate = data;
+}
+
+WRITE16_MEMBER(wildpkr_state::unknown_trigger_w)
+{
+}
 
 /*************************
 *      Memory Map        *
 *************************/
 
-static ADDRESS_MAP_START( wildpkr_map, AS_PROGRAM, 16, wildpkr_state )
-	AM_RANGE(0x000000, 0x0fffff) AM_ROM
-	AM_RANGE(0x100000, 0x103fff) AM_RAM
-//  AM_RANGE(0x800000, 0x800003) ACRTC?
-	AM_RANGE(0x800180, 0x800181) AM_DEVWRITE8("aysnd", ay8930_device, address_w, 0xff00)
-	AM_RANGE(0x800180, 0x800181) AM_DEVREADWRITE8("aysnd", ay8930_device, data_r, data_w, 0x00ff)
-	AM_RANGE(0x800200, 0x800201) AM_DEVWRITE8("ramdac", ramdac_device, index_w, 0xff00)
-	AM_RANGE(0x800202, 0x800203) AM_DEVWRITE8("ramdac", ramdac_device, pal_w, 0xff00)
-	AM_RANGE(0x800204, 0x800205) AM_DEVWRITE8("ramdac", ramdac_device, mask_w, 0xff00)
-ADDRESS_MAP_END
+void wildpkr_state::wildpkr_map(address_map &map)
+{
+	map(0x000000, 0x0fffff).rom();
+	map(0x100000, 0x113fff).ram();
+	map(0x800000, 0x800003).rw("acrtc", FUNC(hd63484_device::read16), FUNC(hd63484_device::write16));
+	map(0x800080, 0x80009f).rw(m_duart, FUNC(mc68681_device::read), FUNC(mc68681_device::write)).umask16(0x00ff);
+	map(0x800180, 0x800180).r(FUNC(wildpkr_state::unknown_read8));
+	map(0x800181, 0x800181).w(FUNC(wildpkr_state::unknown_write8));
+	map(0x800200, 0x800200).w("ramdac", FUNC(ramdac_device::index_w));
+	map(0x800202, 0x800202).w("ramdac", FUNC(ramdac_device::pal_w));
+	map(0x800204, 0x800204).w("ramdac", FUNC(ramdac_device::mask_w));
+	map(0x800280, 0x800280).w("aysnd", FUNC(ay8930_device::data_w));
+	map(0x800282, 0x800282).w("aysnd", FUNC(ay8930_device::address_w));
+	map(0x800285, 0x800285).r("aysnd", FUNC(ay8930_device::data_r)); // (odd!)
+	map(0x800286, 0x800289).nopw();
+}
 
-static ADDRESS_MAP_START( tabpkr_map, AS_PROGRAM, 16, wildpkr_state )
-	AM_RANGE(0x000000, 0x2fffff) AM_ROM
-	AM_RANGE(0x300000, 0x303fff) AM_RAM
-	AM_RANGE(0x400000, 0x4007ff) AM_RAM // dallas timekeeper?
+void wildpkr_state::tabpkr_map(address_map &map)
+{
+	map(0x000000, 0x2fffff).rom();
+	map(0x300000, 0x303fff).ram();
+	map(0x400000, 0x400fff).ram().w(FUNC(wildpkr_state::nvram_w)).share("nvram");
+	map(0x500000, 0x500003).rw("acrtc", FUNC(hd63484_device::read16), FUNC(hd63484_device::write16));
+	map(0x500021, 0x500021).rw("ramdac", FUNC(ramdac_device::index_r), FUNC(ramdac_device::index_w));
+	map(0x500023, 0x500023).rw("ramdac", FUNC(ramdac_device::pal_r), FUNC(ramdac_device::pal_w));
+	map(0x500025, 0x500025).rw("ramdac", FUNC(ramdac_device::mask_r), FUNC(ramdac_device::mask_w));
+	map(0x500040, 0x50005f).rw(m_duart, FUNC(mc68681_device::read), FUNC(mc68681_device::write)).umask16(0x00ff);
+	map(0x500060, 0x500061).rw(FUNC(wildpkr_state::id_serial_r), FUNC(wildpkr_state::id_serial_w));
+	map(0x600000, 0x600001).portr("IN0").w(FUNC(wildpkr_state::out0_w));
+	map(0x600002, 0x600003).portr("IN1").w(FUNC(wildpkr_state::out1_w));
+	map(0x600004, 0x600005).portr("IN2");
+	map(0x600004, 0x600004).w(FUNC(wildpkr_state::dac_w));
+	map(0x700000, 0x700001).w(FUNC(wildpkr_state::clock_start_w));
+	map(0x700002, 0x700003).w(FUNC(wildpkr_state::clock_rate_w));
+	map(0x700004, 0x700007).w(FUNC(wildpkr_state::unknown_trigger_w));
+	map(0x70000a, 0x70000b).nopw(); // only writes 0 at POST
+}
 
-//  AM_RANGE(0x800200, 0x800201) AM_DEVWRITE8("ramdac", ramdac_device, index_w, 0xff00)
-//  AM_RANGE(0x800202, 0x800203) AM_DEVWRITE8("ramdac", ramdac_device, pal_w, 0xff00)
-//  AM_RANGE(0x800204, 0x800205) AM_DEVWRITE8("ramdac", ramdac_device, mask_w, 0xff00)
-ADDRESS_MAP_END
+void wildpkr_state::hd63484_map(address_map &map)
+{
+	map(0x00000, 0x3ffff).ram();
+}
 
 /* Unknown R/W:
 
@@ -254,6 +367,62 @@ ADDRESS_MAP_END
 *************************/
 
 static INPUT_PORTS_START( wildpkr )
+INPUT_PORTS_END
+
+static INPUT_PORTS_START( tabpkr )
+	PORT_START("IN0")
+	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0040, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0080, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0100, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0200, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0400, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0800, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x1000, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x2000, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x8000, IP_ACTIVE_LOW, IPT_UNKNOWN)
+
+	PORT_START("IN1")
+	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0040, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0080, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0100, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0200, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0400, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0800, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x1000, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x2000, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x8000, IP_ACTIVE_LOW, IPT_UNKNOWN)
+
+	PORT_START("IN2")
+	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0040, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0080, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0100, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0200, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0400, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0800, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x1000, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x2000, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x8000, IP_ACTIVE_LOW, IPT_UNKNOWN)
 INPUT_PORTS_END
 
 
@@ -271,70 +440,107 @@ void wildpkr_state::machine_start()
   80000-bffff = unused
   c0000-fffff = unused
 */
-
+	m_clock_rate = 0;
 }
 
 
-static ADDRESS_MAP_START( ramdac_map, AS_0, 8, wildpkr_state )
-	AM_RANGE(0x000, 0x3ff) AM_DEVREADWRITE("ramdac",ramdac_device,ramdac_pal_r,ramdac_rgb666_w)
-ADDRESS_MAP_END
+void wildpkr_state::ramdac_map(address_map &map)
+{
+	map(0x000, 0x3ff).rw("ramdac", FUNC(ramdac_device::ramdac_pal_r), FUNC(ramdac_device::ramdac_rgb666_w));
+}
 
+
+void wildpkr_state::cpu_space_map(address_map &map)
+{
+	map(0xfffff2, 0xffffff).r(FUNC(wildpkr_state::tabpkr_irq_ack));
+}
+
+u16 wildpkr_state::tabpkr_irq_ack(offs_t offset)
+{
+	m_maincpu->set_input_line(offset+1, CLEAR_LINE);
+
+	if (offset+1 == 2)
+		return m_duart->get_irq_vector();
+	else
+		return m68000_device::autovector(offset+1);
+}
 
 
 /*************************
 *    Machine Drivers     *
 *************************/
 
-static MACHINE_CONFIG_START( wildpkr, wildpkr_state )
-
+void wildpkr_state::wildpkr(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, MAIN_CLOCK)
-	MCFG_CPU_PROGRAM_MAP(wildpkr_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", wildpkr_state, irq2_line_hold) // guess
+	M68000(config, m_maincpu, MAIN_CLOCK);
+	m_maincpu->set_addrmap(AS_PROGRAM, &wildpkr_state::wildpkr_map);
+	//m_maincpu->set_vblank_int("screen", FUNC(wildpkr_state::irq2_line_hold)); // guess
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(512, 512)
-	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 512-1)
-	MCFG_SCREEN_UPDATE_DRIVER(wildpkr_state, screen_update_wildpkr)
-	MCFG_SCREEN_PALETTE("palette")
+	MC68681(config, m_duart, SEC_CLOCK);
 
-//  MCFG_DEVICE_ADD("hd63484", HD63484, 0)
-	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500));
+	screen.set_size(384, 280);
+	screen.set_visarea(0, 384-1, 0, 280-1);
+	screen.set_screen_update("acrtc", FUNC(hd63484_device::update_screen));
+	screen.set_palette("palette");
 
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(wildpkr_state, wildpkr)
+	HD63484(config, "acrtc", 0).set_addrmap(0, &wildpkr_state::hd63484_map);
+
+	ramdac_device &ramdac(RAMDAC(config, "ramdac", 0, "palette"));
+	ramdac.set_addrmap(0, &wildpkr_state::ramdac_map);
+
+	PALETTE(config, "palette", FUNC(wildpkr_state::wildpkr_palette), 256);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("aysnd", AY8930, AY_CLOCK)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-MACHINE_CONFIG_END
+	SPEAKER(config, "mono").front_center();
+	AY8930(config, "aysnd", AY_CLOCK).add_route(ALL_OUTPUTS, "mono", 0.50);
+}
 
 
-static MACHINE_CONFIG_START( tabpkr, wildpkr_state )
-
+void wildpkr_state::tabpkr(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, XTAL_24MHz / 2)
-	MCFG_CPU_PROGRAM_MAP(tabpkr_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", wildpkr_state, irq2_line_hold) // 2 / 5 are valid
+	M68000(config, m_maincpu, XTAL(24'000'000) / 2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &wildpkr_state::tabpkr_map);
+	m_maincpu->set_periodic_int(FUNC(wildpkr_state::irq3_line_assert), attotime::from_hz(60*256));
+	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &wildpkr_state::cpu_space_map);
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(512, 512)
-	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 512-1)
-	MCFG_SCREEN_UPDATE_DRIVER(wildpkr_state, screen_update_wildpkr)
-	MCFG_SCREEN_PALETTE("palette")
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1); // DS1220Y
 
-//  MCFG_DEVICE_ADD("hd63484", HD63484, 0)
-	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette")
+	MC68681(config, m_duart, 3686400);
+	m_duart->irq_cb().set_inputline(m_maincpu, M68K_IRQ_2, ASSERT_LINE);
 
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(wildpkr_state, wildpkr)
+	DS2401(config, m_id, 0);
 
-MACHINE_CONFIG_END
+	CLOCK(config, m_dac_clock, 1500000); // base rate derived from program code
+	m_dac_clock->signal_handler().set_inputline(m_maincpu, M68K_IRQ_5, ASSERT_LINE);
+
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500));
+	screen.set_size(384, 280);
+	screen.set_visarea(0, 384-1, 0, 280-1);
+	screen.set_screen_update("acrtc", FUNC(hd63484_device::update_screen));
+	screen.set_palette("palette");
+	screen.screen_vblank().set_inputline(m_maincpu, M68K_IRQ_4, ASSERT_LINE);
+
+	HD63484(config, "acrtc", 0).set_addrmap(0, &wildpkr_state::hd63484_map);
+
+	ramdac_device &ramdac(RAMDAC(config, "ramdac", 0, "palette"));
+	ramdac.set_addrmap(0, &wildpkr_state::ramdac_map);
+
+	PALETTE(config, "palette", FUNC(wildpkr_state::wildpkr_palette), 256);
+
+	/* sound hardware */
+	SPEAKER(config, "mono").front_center();
+	AD557(config, m_dac, 0).add_route(ALL_OUTPUTS, "mono", 0.50);
+	voltage_regulator_device &vref(VOLTAGE_REGULATOR(config, "vref"));
+	vref.add_route(0, "dac", 1.0, DAC_VREF_POS_INPUT);
+	vref.add_route(0, "dac", -1.0, DAC_VREF_NEG_INPUT);
+}
 
 
 /*************************
@@ -376,6 +582,18 @@ ROM_START( tabpkr ) // Royal Poker V 1.85 Oct 29 1996 12:20:07
 	// are these missing, or just unpopulated but checked anyway?
 	/* reads 0x100000 - 0x1fffff ? - 2x sockets for same type of roms as above */
 	/* reads 0x200000 - 0x2fffff ? - 1x socket for larger ROM? */
+
+	ROM_REGION(8, "id", 0)
+	ROM_LOAD("ds2401.bin", 0, 8, NO_DUMP)
+	// Dummy data to appease POST
+	ROM_FILL(0, 1, 0x66)
+	ROM_FILL(1, 1, 0xfa)
+	ROM_FILL(2, 1, 0xce)
+	ROM_FILL(3, 1, 0xde)
+	ROM_FILL(4, 1, 0xad)
+	ROM_FILL(5, 1, 0xbe)
+	ROM_FILL(6, 1, 0xef)
+	ROM_FILL(7, 1, 0x01)
 ROM_END
 
 
@@ -384,7 +602,7 @@ ROM_END
 *      Driver Init       *
 *************************/
 
-DRIVER_INIT_MEMBER(wildpkr_state,wildpkr)
+void wildpkr_state::init_wildpkr()
 {
 }
 
@@ -393,6 +611,6 @@ DRIVER_INIT_MEMBER(wildpkr_state,wildpkr)
 *      Game Drivers      *
 *************************/
 
-/*    YEAR  NAME       PARENT    MACHINE   INPUT     INIT      ROT    COMPANY        FULLNAME                   FLAGS */
-GAME( 199?, wildpkr,   0,        wildpkr,  wildpkr, wildpkr_state,  wildpkr,  ROT0, "TAB Austria", "Wild Poker (ver. D 1.01)", MACHINE_NO_SOUND | MACHINE_NOT_WORKING | MACHINE_UNEMULATED_PROTECTION )
-GAME( 1996, tabpkr,    0,        tabpkr,   wildpkr, wildpkr_state,  wildpkr,  ROT0, "TAB Austria", "Royal Poker V 1.85", MACHINE_NO_SOUND | MACHINE_NOT_WORKING | MACHINE_UNEMULATED_PROTECTION )
+//    YEAR  NAME       PARENT    MACHINE   INPUT    STATE           INIT           ROT   COMPANY        FULLNAME                    FLAGS
+GAME( 199?, wildpkr,   0,        wildpkr,  wildpkr, wildpkr_state,  init_wildpkr,  ROT0, "TAB Austria", "Wild Poker (ver. D 1.01)", MACHINE_NO_SOUND | MACHINE_NOT_WORKING | MACHINE_UNEMULATED_PROTECTION )
+GAME( 1996, tabpkr,    0,        tabpkr,   tabpkr,  wildpkr_state,  init_wildpkr,  ROT0, "TAB Austria", "Royal Poker V 1.85",       MACHINE_NO_SOUND | MACHINE_NOT_WORKING | MACHINE_UNEMULATED_PROTECTION )

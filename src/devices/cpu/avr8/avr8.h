@@ -5,13 +5,13 @@
 
     - Notes -
       Cycle counts are generally considered to be 100% accurate per-instruction, does not support mid-instruction
-      interrupts although no software has been countered yet that requires it. Evidence of cycle accuracy is given
+      interrupts although no software has been encountered yet that requires it. Evidence of cycle accuracy is given
       in the form of the demoscene 'wild' demo, Craft, by [lft], which uses an ATmega88 to write video out a 6-bit
       RGB DAC pixel-by-pixel, synchronously with the frame timing. Intentionally modifying the timing of any of
       the existing opcodes has been shown to wildly corrupt the video output in Craft, so one can assume that the
       existing timing is 100% correct.
 
-      Unimplemented opcodes: ELPM, SPM, SPM Z+, EIJMP, SLEEP, BREAK, WDR, EICALL, JMP, CALL
+      Unimplemented opcodes: SPM, SPM Z+, SLEEP, BREAK, WDR, EICALL, JMP, CALL
 
     - Changelist -
       23 Dec. 2012 [Sandro Ronco]
@@ -37,34 +37,10 @@
 
 */
 
+#ifndef MAME_CPU_AVR8_AVR8_H
+#define MAME_CPU_AVR8_AVR8_H
+
 #pragma once
-
-#ifndef __AVR8_H__
-#define __AVR8_H__
-
-
-//**************************************************************************
-//  FUSE BITS CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_CPU_AVR8_LFUSE(byte) \
-	((avr8_device*) device)->set_low_fuses(byte);
-
-#define MCFG_CPU_AVR8_HFUSE(byte) \
-	((avr8_device*) device)->set_high_fuses(byte);
-
-#define MCFG_CPU_AVR8_EFUSE(byte) \
-	((avr8_device*) device)->set_extended_fuses(byte);
-
-#define MCFG_CPU_AVR8_LOCK(byte) \
-	((avr8_device*) device)->set_lock_bits(byte);
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_CPU_AVR8_EEPROM(_tag) \
-	avr8_device::set_eeprom_tag(*device, "^" _tag);
 
 
 //**************************************************************************
@@ -80,7 +56,7 @@ class avr8_device : public cpu_device
 {
 public:
 	// inline configuration helpers
-	static void set_eeprom_tag(device_t &device, const char *tag) { downcast<avr8_device &>(device).m_eeprom.set_tag(tag); }
+	void set_eeprom_tag(const char *tag) { m_eeprom.set_tag(tag); }
 
 	// fuse configs
 	void set_low_fuses(uint8_t byte);
@@ -90,45 +66,43 @@ public:
 
 	// public interfaces
 	virtual void update_interrupt(int source);
-	uint64_t get_elapsed_cycles()
-	{
-		return m_elapsed_cycles;
-	}
 
 	// register handling
-	DECLARE_WRITE8_MEMBER( regs_w );
-	DECLARE_READ8_MEMBER( regs_r );
+	void regs_w(offs_t offset, uint8_t data);
+	uint8_t regs_r(offs_t offset);
 	uint32_t m_shifted_pc;
 
 protected:
-	enum
-	{
-		CPU_TYPE_ATMEGA88,
-		CPU_TYPE_ATMEGA644,
-		CPU_TYPE_ATMEGA1280,
-		CPU_TYPE_ATMEGA2560
-	};
+	avr8_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock, const device_type type, uint32_t address_mask, address_map_constructor internal_map, int32_t num_timers);
 
-	avr8_device(const machine_config &mconfig, const char *name, const char *tag, device_t *owner, uint32_t clock, const device_type type, uint32_t address_mask, address_map_constructor internal_map, uint8_t cpu_type, const char *shortname, const char *source);
+	typedef void (avr8_device::*op_func) (uint16_t op);
+
+	op_func m_op_funcs[0x10000];
+	int m_op_cycles[0x10000];
+	int m_opcycles;
+	std::unique_ptr<uint8_t[]> m_add_flag_cache;
+	std::unique_ptr<uint8_t[]> m_adc_flag_cache;
+	std::unique_ptr<uint8_t[]> m_sub_flag_cache;
+	std::unique_ptr<uint8_t[]> m_sbc_flag_cache;
+	std::unique_ptr<uint8_t[]> m_bool_flag_cache;
+	std::unique_ptr<uint8_t[]> m_shift_flag_cache;
 
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override;
-	virtual uint32_t execute_max_cycles() const override;
-	virtual uint32_t execute_input_lines() const override;
+	virtual uint32_t execute_min_cycles() const noexcept override;
+	virtual uint32_t execute_max_cycles() const noexcept override;
+	virtual uint32_t execute_input_lines() const noexcept override;
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override;
-	virtual uint32_t disasm_max_opcode_bytes() const override;
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 	// device_state_interface overrides
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
@@ -141,7 +115,6 @@ protected:
 
 	// bootloader
 	uint16_t m_boot_size;
-	uint8_t m_cpu_type;
 
 	// Fuses
 	uint8_t m_lfuses;
@@ -154,10 +127,15 @@ protected:
 	uint8_t m_r[0x200];
 
 	// internal timers
+	int32_t m_num_timers;
 	int32_t m_timer_top[6];
 	uint8_t m_timer_increment[6];
 	uint16_t m_timer_prescale[6];
 	uint16_t m_timer_prescale_count[6];
+	int32_t m_wgm1;
+	int32_t m_timer1_compare_mode[2];
+	uint16_t m_ocr1[3];
+	uint16_t m_timer1_count;
 	bool m_ocr2_not_reached_yet;
 
 	// SPI
@@ -165,7 +143,6 @@ protected:
 	uint8_t m_spi_prescale;
 	uint8_t m_spi_prescale_count;
 	int8_t m_spi_prescale_countdown;
-	static const uint8_t spi_clock_divisor[8];
 	void enable_spi();
 	void disable_spi();
 	void spi_update_masterslave_select();
@@ -181,7 +158,6 @@ protected:
 
 	// other internal states
 	int m_icount;
-	uint64_t m_elapsed_cycles;
 
 	// memory access
 	inline void push(uint8_t val);
@@ -195,7 +171,7 @@ protected:
 	void set_irq_line(uint16_t vector, int state);
 
 	// timers
-	void timer_tick(int cycles);
+	void timer_tick();
 	void update_timer_clock_source(uint8_t timer, uint8_t selection);
 	void update_timer_waveform_gen_mode(uint8_t timer, uint8_t mode);
 
@@ -207,7 +183,7 @@ protected:
 	void timer0_force_output_compare(int reg);
 
 	// timer 1
-	void timer1_tick();
+	inline void timer1_tick();
 	void changed_tccr1a(uint8_t data);
 	void changed_tccr1b(uint8_t data);
 	void update_timer1_input_noise_canceler();
@@ -244,6 +220,108 @@ protected:
 //  void update_ocr5(uint8_t newval, uint8_t reg);
 //  void timer5_force_output_compare(int reg);
 
+	// ops
+	void populate_ops();
+	void populate_add_flag_cache();
+	void populate_adc_flag_cache();
+	void populate_sub_flag_cache();
+	void populate_sbc_flag_cache();
+	void populate_bool_flag_cache();
+	void populate_shift_flag_cache();
+	void op_nop(uint16_t op);
+	void op_movw(uint16_t op);
+	void op_muls(uint16_t op);
+	void op_mulsu(uint16_t op);
+	void op_fmul(uint16_t op);
+	void op_fmuls(uint16_t op);
+	void op_fmulsu(uint16_t op);
+	void op_cpc(uint16_t op);
+	void op_sbc(uint16_t op);
+	void op_add(uint16_t op);
+	void op_cpse(uint16_t op);
+	void op_cp(uint16_t op);
+	void op_sub(uint16_t op);
+	void op_adc(uint16_t op);
+	void op_and(uint16_t op);
+	void op_eor(uint16_t op);
+	void op_or(uint16_t op);
+	void op_mov(uint16_t op);
+	void op_cpi(uint16_t op);
+	void op_sbci(uint16_t op);
+	void op_subi(uint16_t op);
+	void op_ori(uint16_t op);
+	void op_andi(uint16_t op);
+	void op_lddz(uint16_t op);
+	void op_lddy(uint16_t op);
+	void op_stdz(uint16_t op);
+	void op_stdy(uint16_t op);
+	void op_lds(uint16_t op);
+	void op_ldzi(uint16_t op);
+	void op_ldzd(uint16_t op);
+	void op_lpmz(uint16_t op);
+	void op_lpmzi(uint16_t op);
+	void op_elpmz(uint16_t op);
+	void op_elpmzi(uint16_t op);
+	void op_ldyi(uint16_t op);
+	void op_ldyd(uint16_t op);
+	void op_ldx(uint16_t op);
+	void op_ldxi(uint16_t op);
+	void op_ldxd(uint16_t op);
+	void op_pop(uint16_t op);
+	void op_sts(uint16_t op);
+	void op_stzi(uint16_t op);
+	void op_stzd(uint16_t op);
+	void op_styi(uint16_t op);
+	void op_styd(uint16_t op);
+	void op_stx(uint16_t op);
+	void op_stxi(uint16_t op);
+	void op_stxd(uint16_t op);
+	void op_push(uint16_t op);
+	void op_com(uint16_t op);
+	void op_neg(uint16_t op);
+	void op_swap(uint16_t op);
+	void op_inc(uint16_t op);
+	void op_asr(uint16_t op);
+	void op_lsr(uint16_t op);
+	void op_ror(uint16_t op);
+	void op_setf(uint16_t op);
+	void op_clrf(uint16_t op);
+	void op_ijmp(uint16_t op);
+	void op_eijmp(uint16_t op);
+	void op_dec(uint16_t op);
+	void op_jmp(uint16_t op);
+	void op_call(uint16_t op);
+	void op_ret(uint16_t op);
+	void op_reti(uint16_t op);
+	void op_sleep(uint16_t op);
+	void op_break(uint16_t op);
+	void op_wdr(uint16_t op);
+	void op_lpm(uint16_t op);
+	void op_elpm(uint16_t op);
+	void op_spm(uint16_t op);
+	void op_spmzi(uint16_t op);
+	void op_icall(uint16_t op);
+	void op_eicall(uint16_t op);
+	void op_adiw(uint16_t op);
+	void op_sbiw(uint16_t op);
+	void op_cbi(uint16_t op);
+	void op_sbic(uint16_t op);
+	void op_sbi(uint16_t op);
+	void op_sbis(uint16_t op);
+	void op_mul(uint16_t op);
+	void op_out(uint16_t op);
+	void op_in(uint16_t op);
+	void op_rjmp(uint16_t op);
+	void op_rcall(uint16_t op);
+	void op_ldi(uint16_t op);
+	void op_brset(uint16_t op);
+	void op_brclr(uint16_t op);
+	void op_bst(uint16_t op);
+	void op_bld(uint16_t op);
+	void op_sbrs(uint16_t op);
+	void op_sbrc(uint16_t op);
+	void op_unimpl(uint16_t op);
+
 	// address spaces
 	address_space *m_program;
 	address_space *m_data;
@@ -251,10 +329,12 @@ protected:
 };
 
 // device type definition
-extern const device_type ATMEGA88;
-extern const device_type ATMEGA644;
-extern const device_type ATMEGA1280;
-extern const device_type ATMEGA2560;
+DECLARE_DEVICE_TYPE(ATMEGA88,   atmega88_device)
+DECLARE_DEVICE_TYPE(ATMEGA328,  atmega328_device)
+DECLARE_DEVICE_TYPE(ATMEGA644,  atmega644_device)
+DECLARE_DEVICE_TYPE(ATMEGA1280, atmega1280_device)
+DECLARE_DEVICE_TYPE(ATMEGA2560, atmega2560_device)
+DECLARE_DEVICE_TYPE(ATTINY15,   attiny15_device)
 
 // ======================> atmega88_device
 
@@ -263,6 +343,19 @@ class atmega88_device : public avr8_device
 public:
 	// construction/destruction
 	atmega88_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	void atmega88_internal_map(address_map &map);
+};
+
+// ======================> atmega328_device
+
+class atmega328_device : public avr8_device
+{
+public:
+	// construction/destruction
+	atmega328_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+	virtual void update_interrupt(int source) override;
+	void atmega328_internal_map(address_map &map);
 };
 
 // ======================> atmega644_device
@@ -274,6 +367,7 @@ public:
 	atmega644_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	virtual void update_interrupt(int source) override;
+	void atmega644_internal_map(address_map &map);
 };
 
 // ======================> atmega1280_device
@@ -285,6 +379,7 @@ public:
 	atmega1280_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	virtual void update_interrupt(int source) override;
+	void atmega1280_internal_map(address_map &map);
 };
 
 // ======================> atmega2560_device
@@ -296,6 +391,17 @@ public:
 	atmega2560_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	virtual void update_interrupt(int source) override;
+	void atmega2560_internal_map(address_map &map);
+};
+
+// ======================> atmega88_device
+
+class attiny15_device : public avr8_device
+{
+public:
+	// construction/destruction
+	attiny15_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	void attiny15_internal_map(address_map &map);
 };
 
 /***************************************************************************
@@ -851,6 +957,4 @@ enum
 #define AVR8_SPCR_CPHA_MASK     0x04
 #define AVR8_SPCR_SPR_MASK      0x03
 
-CPU_DISASSEMBLE( avr8 );
-
-#endif /* __AVR8_H__ */
+#endif /* MAME_CPU_AVR8_AVR8_H */

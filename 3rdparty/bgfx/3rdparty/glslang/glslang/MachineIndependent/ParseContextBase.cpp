@@ -67,6 +67,8 @@ void TParseContextBase::outputMessage(const TSourceLoc& loc, const char* szReaso
     }
 }
 
+#if !defined(GLSLANG_WEB) || defined(GLSLANG_WEB_DEVEL)
+
 void C_DECL TParseContextBase::error(const TSourceLoc& loc, const char* szReason, const char* szToken,
                                      const char* szExtraInfoFormat, ...)
 {
@@ -113,6 +115,8 @@ void C_DECL TParseContextBase::ppWarn(const TSourceLoc& loc, const char* szReaso
     va_end(args);
 }
 
+#endif
+
 //
 // Both test and if necessary, spit out an error, to see if the node is really
 // an l-value that can be operated on this way.
@@ -149,10 +153,18 @@ bool TParseContextBase::lValueErrorCheck(const TSourceLoc& loc, const char* op, 
     case EvqConst:          message = "can't modify a const";        break;
     case EvqConstReadOnly:  message = "can't modify a const";        break;
     case EvqUniform:        message = "can't modify a uniform";      break;
+#ifndef GLSLANG_WEB
     case EvqBuffer:
-        if (node->getQualifier().readonly)
+        if (node->getQualifier().isReadOnly())
             message = "can't modify a readonly buffer";
+        if (node->getQualifier().isShaderRecordNV())
+            message = "can't modify a shaderrecordnv qualified buffer";
         break;
+    case EvqHitAttrNV:
+        if (language != EShLangIntersectNV)
+            message = "cannot modify hitAttributeNV in this stage";
+        break;
+#endif
 
     default:
         //
@@ -162,12 +174,17 @@ bool TParseContextBase::lValueErrorCheck(const TSourceLoc& loc, const char* op, 
         case EbtSampler:
             message = "can't modify a sampler";
             break;
-        case EbtAtomicUint:
-            message = "can't modify an atomic_uint";
-            break;
         case EbtVoid:
             message = "can't modify void";
             break;
+#ifndef GLSLANG_WEB
+        case EbtAtomicUint:
+            message = "can't modify an atomic_uint";
+            break;
+        case EbtAccStructNV:
+            message = "can't modify accelerationStructureNV";
+            break;
+#endif
         default:
             break;
         }
@@ -219,27 +236,51 @@ void TParseContextBase::rValueErrorCheck(const TSourceLoc& loc, const char* op, 
     }
 
     TIntermSymbol* symNode = node->getAsSymbolNode();
-    if (symNode && symNode->getQualifier().writeonly)
+    if (symNode && symNode->getQualifier().isWriteOnly())
         error(loc, "can't read from writeonly object: ", op, symNode->getName().c_str());
-}
-
-// Add a linkage symbol node for 'symbol', which
-// must have its type fully edited, as this will snapshot the type.
-// It is okay if symbol becomes invalid before finish().
-void TParseContextBase::trackLinkage(TSymbol& symbol)
-{
-    if (!parsingBuiltins)
-        intermediate.addSymbolLinkageNode(linkage, symbol);
 }
 
 // Add 'symbol' to the list of deferred linkage symbols, which
 // are later processed in finish(), at which point the symbol
 // must still be valid.
-// It is okay if the symbol's type will be subsequently edited.
-void TParseContextBase::trackLinkageDeferred(TSymbol& symbol)
+// It is okay if the symbol's type will be subsequently edited;
+// the modifications will be tracked.
+// Order is preserved, to avoid creating novel forward references.
+void TParseContextBase::trackLinkage(TSymbol& symbol)
 {
     if (!parsingBuiltins)
         linkageSymbols.push_back(&symbol);
+}
+
+// Ensure index is in bounds, correct if necessary.
+// Give an error if not.
+void TParseContextBase::checkIndex(const TSourceLoc& loc, const TType& type, int& index)
+{
+    const auto sizeIsSpecializationExpression = [&type]() {
+        return type.containsSpecializationSize() &&
+               type.getArraySizes()->getOuterNode() != nullptr &&
+               type.getArraySizes()->getOuterNode()->getAsSymbolNode() == nullptr; };
+
+    if (index < 0) {
+        error(loc, "", "[", "index out of range '%d'", index);
+        index = 0;
+    } else if (type.isArray()) {
+        if (type.isSizedArray() && !sizeIsSpecializationExpression() &&
+            index >= type.getOuterArraySize()) {
+            error(loc, "", "[", "array index out of range '%d'", index);
+            index = type.getOuterArraySize() - 1;
+        }
+    } else if (type.isVector()) {
+        if (index >= type.getVectorSize()) {
+            error(loc, "", "[", "vector index out of range '%d'", index);
+            index = type.getVectorSize() - 1;
+        }
+    } else if (type.isMatrix()) {
+        if (index >= type.getMatrixCols()) {
+            error(loc, "", "[", "matrix index out of range '%d'", index);
+            index = type.getMatrixCols() - 1;
+        }
+    }
 }
 
 // Make a shared symbol have a non-shared version that can be edited by the current
@@ -253,7 +294,7 @@ void TParseContextBase::makeEditable(TSymbol*& symbol)
 
     // Save it (deferred, so it can be edited first) in the AST for linker use.
     if (symbol)
-        trackLinkageDeferred(*symbol);
+        trackLinkage(*symbol);
 }
 
 // Return a writable version of the variable 'name'.
@@ -535,70 +576,63 @@ void TParseContextBase::parseSwizzleSelector(const TSourceLoc& loc, const TStrin
         selector.push_back(0);
 }
 
+#ifdef ENABLE_HLSL
 //
 // Make the passed-in variable information become a member of the
 // global uniform block.  If this doesn't exist yet, make it.
 //
-void TParseContextBase::growGlobalUniformBlock(TSourceLoc& loc, TType& memberType, TString& memberName)
+void TParseContextBase::growGlobalUniformBlock(const TSourceLoc& loc, TType& memberType, const TString& memberName, TTypeList* typeList)
 {
-    // make the global block, if not yet made
+    // Make the global block, if not yet made.
     if (globalUniformBlock == nullptr) {
-        TString& blockName = *NewPoolTString(getGlobalUniformBlockName());
         TQualifier blockQualifier;
         blockQualifier.clear();
         blockQualifier.storage = EvqUniform;
-        TType blockType(new TTypeList, blockName, blockQualifier);
-        TString* instanceName = NewPoolTString("");
-        globalUniformBlock = new TVariable(instanceName, blockType, true);
+        TType blockType(new TTypeList, *NewPoolTString(getGlobalUniformBlockName()), blockQualifier);
+        setUniformBlockDefaults(blockType);
+        globalUniformBlock = new TVariable(NewPoolTString(""), blockType, true);
         firstNewMember = 0;
     }
 
-    // add the requested member as a member to the block
+    // Update with binding and set
+    globalUniformBlock->getWritableType().getQualifier().layoutBinding = globalUniformBinding;
+    globalUniformBlock->getWritableType().getQualifier().layoutSet = globalUniformSet;
+
+    // Add the requested member as a member to the global block.
     TType* type = new TType;
     type->shallowCopy(memberType);
     type->setFieldName(memberName);
+    if (typeList)
+        type->setStruct(typeList);
     TTypeLoc typeLoc = {type, loc};
     globalUniformBlock->getType().getWritableStruct()->push_back(typeLoc);
-}
 
-//
-// Insert into the symbol table the global uniform block created in
-// growGlobalUniformBlock(). The variables added as members won't be
-// found unless this is done.
-//
-bool TParseContextBase::insertGlobalUniformBlock()
-{
-    if (globalUniformBlock == nullptr)
-        return true;
-
-    int numMembers = (int)globalUniformBlock->getType().getStruct()->size();
-    bool inserted = false;
+    // Insert into the symbol table.
     if (firstNewMember == 0) {
         // This is the first request; we need a normal symbol table insert
-        inserted = symbolTable.insert(*globalUniformBlock);
-        if (inserted)
-            trackLinkageDeferred(*globalUniformBlock);
-    } else if (firstNewMember <= numMembers) {
+        if (symbolTable.insert(*globalUniformBlock))
+            trackLinkage(*globalUniformBlock);
+        else
+            error(loc, "failed to insert the global constant buffer", "uniform", "");
+    } else {
         // This is a follow-on request; we need to amend the first insert
-        inserted = symbolTable.amend(*globalUniformBlock, firstNewMember);
+        symbolTable.amend(*globalUniformBlock, firstNewMember);
     }
 
-    if (inserted) {
-        finalizeGlobalUniformBlockLayout(*globalUniformBlock);
-        firstNewMember = numMembers;
-    }
-
-    return inserted;
+    ++firstNewMember;
 }
+#endif
 
 void TParseContextBase::finish()
 {
-    if (!parsingBuiltins) {
-        // Transfer the linkage symbols to AST nodes
-        for (auto i = linkageSymbols.begin(); i != linkageSymbols.end(); ++i)
-            intermediate.addSymbolLinkageNode(linkage, **i);
-        intermediate.addSymbolLinkageNodes(linkage, getLanguage(), symbolTable);
-    }
+    if (parsingBuiltins)
+        return;
+
+    // Transfer the linkage symbols to AST nodes, preserving order.
+    TIntermAggregate* linkage = new TIntermAggregate;
+    for (auto i = linkageSymbols.begin(); i != linkageSymbols.end(); ++i)
+        intermediate.addSymbolLinkageNode(linkage, **i);
+    intermediate.addSymbolLinkageNodes(linkage, getLanguage(), symbolTable);
 }
 
 } // end namespace glslang

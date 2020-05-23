@@ -7,10 +7,10 @@
 
 ***************************************************************************/
 
-#pragma once
+#ifndef MAME_CPU_Z80_TMPZ84C011_H
+#define MAME_CPU_Z80_TMPZ84C011_H
 
-#ifndef __TMPZ84C011__
-#define __TMPZ84C011__
+#pragma once
 
 #include "z80.h"
 #include "machine/z80ctc.h"
@@ -23,50 +23,6 @@
 // For daisy chain configuration, insert this:
 #define TMPZ84C011_DAISY_INTERNAL { "tmpz84c011_ctc" }
 
-// CTC callbacks
-#define MCFG_TMPZ84C011_ZC0_CB(_devcb) \
-	devcb = &tmpz84c011_device::set_zc0_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_TMPZ84C011_ZC1_CB(_devcb) \
-	devcb = &tmpz84c011_device::set_zc1_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_TMPZ84C011_ZC2_CB(_devcb) \
-	devcb = &tmpz84c011_device::set_zc2_callback(*device, DEVCB_##_devcb);
-
-
-// I/O callbacks
-#define MCFG_TMPZ84C011_PORTA_READ_CB(_devcb) \
-	devcb = &tmpz84c011_device::set_inportsa_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_TMPZ84C011_PORTB_READ_CB(_devcb) \
-	devcb = &tmpz84c011_device::set_inportsb_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_TMPZ84C011_PORTC_READ_CB(_devcb) \
-	devcb = &tmpz84c011_device::set_inportsc_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_TMPZ84C011_PORTD_READ_CB(_devcb) \
-	devcb = &tmpz84c011_device::set_inportsd_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_TMPZ84C011_PORTE_READ_CB(_devcb) \
-	devcb = &tmpz84c011_device::set_inportse_cb(*device, DEVCB_##_devcb);
-
-
-#define MCFG_TMPZ84C011_PORTA_WRITE_CB(_devcb) \
-	devcb = &tmpz84c011_device::set_outportsa_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_TMPZ84C011_PORTB_WRITE_CB(_devcb) \
-	devcb = &tmpz84c011_device::set_outportsb_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_TMPZ84C011_PORTC_WRITE_CB(_devcb) \
-	devcb = &tmpz84c011_device::set_outportsc_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_TMPZ84C011_PORTD_WRITE_CB(_devcb) \
-	devcb = &tmpz84c011_device::set_outportsd_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_TMPZ84C011_PORTE_WRITE_CB(_devcb) \
-	devcb = &tmpz84c011_device::set_outportse_cb(*device, DEVCB_##_devcb);
-
-
 /***************************************************************************
     TYPE DEFINITIONS
 ***************************************************************************/
@@ -76,22 +32,22 @@ class tmpz84c011_device : public z80_device
 public:
 	tmpz84c011_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t);
 
-	// static configuration helpers
-	template<class _Object> static devcb_base &set_zc0_callback(device_t &device, _Object object) { return downcast<tmpz84c011_device &>(device).m_zc0_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_zc1_callback(device_t &device, _Object object) { return downcast<tmpz84c011_device &>(device).m_zc1_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_zc2_callback(device_t &device, _Object object) { return downcast<tmpz84c011_device &>(device).m_zc2_cb.set_callback(object); }
+	// configuration helpers
+	auto zc0_callback() { return m_zc0_cb.bind(); }
+	auto zc1_callback() { return m_zc1_cb.bind(); }
+	auto zc2_callback() { return m_zc2_cb.bind(); }
 
-	template<class _Object> static devcb_base & set_outportsa_cb(device_t &device, _Object object) { return downcast<tmpz84c011_device &>(device).m_outportsa.set_callback(object); }
-	template<class _Object> static devcb_base & set_outportsb_cb(device_t &device, _Object object) { return downcast<tmpz84c011_device &>(device).m_outportsb.set_callback(object); }
-	template<class _Object> static devcb_base & set_outportsc_cb(device_t &device, _Object object) { return downcast<tmpz84c011_device &>(device).m_outportsc.set_callback(object); }
-	template<class _Object> static devcb_base & set_outportsd_cb(device_t &device, _Object object) { return downcast<tmpz84c011_device &>(device).m_outportsd.set_callback(object); }
-	template<class _Object> static devcb_base & set_outportse_cb(device_t &device, _Object object) { return downcast<tmpz84c011_device &>(device).m_outportse.set_callback(object); }
+	auto out_pa_callback() { return m_outportsa.bind(); }
+	auto out_pb_callback() { return m_outportsb.bind(); }
+	auto out_pc_callback() { return m_outportsc.bind(); }
+	auto out_pd_callback() { return m_outportsd.bind(); }
+	auto out_pe_callback() { return m_outportse.bind(); }
 
-	template<class _Object> static devcb_base & set_inportsa_cb(device_t &device, _Object object) { return downcast<tmpz84c011_device &>(device).m_inportsa.set_callback(object); }
-	template<class _Object> static devcb_base & set_inportsb_cb(device_t &device, _Object object) { return downcast<tmpz84c011_device &>(device).m_inportsb.set_callback(object); }
-	template<class _Object> static devcb_base & set_inportsc_cb(device_t &device, _Object object) { return downcast<tmpz84c011_device &>(device).m_inportsc.set_callback(object); }
-	template<class _Object> static devcb_base & set_inportsd_cb(device_t &device, _Object object) { return downcast<tmpz84c011_device &>(device).m_inportsd.set_callback(object); }
-	template<class _Object> static devcb_base & set_inportse_cb(device_t &device, _Object object) { return downcast<tmpz84c011_device &>(device).m_inportse.set_callback(object); }
+	auto in_pa_callback() { return m_inportsa.bind(); }
+	auto in_pb_callback() { return m_inportsb.bind(); }
+	auto in_pc_callback() { return m_inportsc.bind(); }
+	auto in_pd_callback() { return m_inportsd.bind(); }
+	auto in_pe_callback() { return m_inportse.bind(); }
 
 	// CTC public interface
 	DECLARE_WRITE_LINE_MEMBER( trg0 ) { m_ctc->trg0(state); }
@@ -101,48 +57,38 @@ public:
 
 	/////////////////////////////////////////////////////////
 
-	DECLARE_READ8_MEMBER( tmpz84c011_pa_r ) { return (m_inportsa() & ~m_pio_dir[0]) | (m_pio_latch[0] & m_pio_dir[0]); }
-	DECLARE_READ8_MEMBER( tmpz84c011_pb_r ) { return (m_inportsb() & ~m_pio_dir[1]) | (m_pio_latch[1] & m_pio_dir[1]); }
-	DECLARE_READ8_MEMBER( tmpz84c011_pc_r ) { return (m_inportsc() & ~m_pio_dir[2]) | (m_pio_latch[2] & m_pio_dir[2]); }
-	DECLARE_READ8_MEMBER( tmpz84c011_pd_r ) { return (m_inportsd() & ~m_pio_dir[3]) | (m_pio_latch[3] & m_pio_dir[3]); }
-	DECLARE_READ8_MEMBER( tmpz84c011_pe_r ) { return (m_inportse() & ~m_pio_dir[4]) | (m_pio_latch[4] & m_pio_dir[4]); }
-	DECLARE_WRITE8_MEMBER( tmpz84c011_pa_w ) { m_pio_latch[0] = data; m_outportsa(data & m_pio_dir[0]); }
-	DECLARE_WRITE8_MEMBER( tmpz84c011_pb_w ) { m_pio_latch[1] = data; m_outportsb(data & m_pio_dir[1]); }
-	DECLARE_WRITE8_MEMBER( tmpz84c011_pc_w ) { m_pio_latch[2] = data; m_outportsc(data & m_pio_dir[2]); }
-	DECLARE_WRITE8_MEMBER( tmpz84c011_pd_w ) { m_pio_latch[3] = data; m_outportsd(data & m_pio_dir[3]); }
-	DECLARE_WRITE8_MEMBER( tmpz84c011_pe_w ) { m_pio_latch[4] = data; m_outportse(data & m_pio_dir[4]); }
+	uint8_t tmpz84c011_pa_r() { return (m_inportsa() & ~m_pio_dir[0]) | (m_pio_latch[0] & m_pio_dir[0]); }
+	uint8_t tmpz84c011_pb_r() { return (m_inportsb() & ~m_pio_dir[1]) | (m_pio_latch[1] & m_pio_dir[1]); }
+	uint8_t tmpz84c011_pc_r() { return (m_inportsc() & ~m_pio_dir[2]) | (m_pio_latch[2] & m_pio_dir[2]); }
+	uint8_t tmpz84c011_pd_r() { return (m_inportsd() & ~m_pio_dir[3]) | (m_pio_latch[3] & m_pio_dir[3]); }
+	uint8_t tmpz84c011_pe_r() { return (m_inportse() & ~m_pio_dir[4]) | (m_pio_latch[4] & m_pio_dir[4]); }
+	void tmpz84c011_pa_w(uint8_t data) { m_pio_latch[0] = data; m_outportsa(data & m_pio_dir[0]); }
+	void tmpz84c011_pb_w(uint8_t data) { m_pio_latch[1] = data; m_outportsb(data & m_pio_dir[1]); }
+	void tmpz84c011_pc_w(uint8_t data) { m_pio_latch[2] = data; m_outportsc(data & m_pio_dir[2]); }
+	void tmpz84c011_pd_w(uint8_t data) { m_pio_latch[3] = data; m_outportsd(data & m_pio_dir[3]); }
+	void tmpz84c011_pe_w(uint8_t data) { m_pio_latch[4] = data; m_outportse(data & m_pio_dir[4]); }
 
-	DECLARE_READ8_MEMBER( tmpz84c011_dir_pa_r ) { return m_pio_dir[0]; }
-	DECLARE_READ8_MEMBER( tmpz84c011_dir_pb_r ) { return m_pio_dir[1]; }
-	DECLARE_READ8_MEMBER( tmpz84c011_dir_pc_r ) { return m_pio_dir[2]; }
-	DECLARE_READ8_MEMBER( tmpz84c011_dir_pd_r ) { return m_pio_dir[3]; }
-	DECLARE_READ8_MEMBER( tmpz84c011_dir_pe_r ) { return m_pio_dir[4]; }
-	DECLARE_WRITE8_MEMBER( tmpz84c011_dir_pa_w ) { m_pio_dir[0] = data; }
-	DECLARE_WRITE8_MEMBER( tmpz84c011_dir_pb_w ) { m_pio_dir[1] = data; }
-	DECLARE_WRITE8_MEMBER( tmpz84c011_dir_pc_w ) { m_pio_dir[2] = data; }
-	DECLARE_WRITE8_MEMBER( tmpz84c011_dir_pd_w ) { m_pio_dir[3] = data; }
-	DECLARE_WRITE8_MEMBER( tmpz84c011_dir_pe_w ) { m_pio_dir[4] = data; }
+	uint8_t tmpz84c011_dir_pa_r() { return m_pio_dir[0]; }
+	uint8_t tmpz84c011_dir_pb_r() { return m_pio_dir[1]; }
+	uint8_t tmpz84c011_dir_pc_r() { return m_pio_dir[2]; }
+	uint8_t tmpz84c011_dir_pd_r() { return m_pio_dir[3]; }
+	uint8_t tmpz84c011_dir_pe_r() { return m_pio_dir[4]; }
+	void tmpz84c011_dir_pa_w(uint8_t data) { m_pio_dir[0] = data; }
+	void tmpz84c011_dir_pb_w(uint8_t data) { m_pio_dir[1] = data; }
+	void tmpz84c011_dir_pc_w(uint8_t data) { m_pio_dir[2] = data; }
+	void tmpz84c011_dir_pd_w(uint8_t data) { m_pio_dir[3] = data; }
+	void tmpz84c011_dir_pe_w(uint8_t data) { m_pio_dir[4] = data; }
 
-	DECLARE_WRITE_LINE_MEMBER( zc0_cb_trampoline_w ) { m_zc0_cb(state); }
-	DECLARE_WRITE_LINE_MEMBER( zc1_cb_trampoline_w ) { m_zc1_cb(state); }
-	DECLARE_WRITE_LINE_MEMBER( zc2_cb_trampoline_w ) { m_zc2_cb(state); }
-
+	void tmpz84c011_internal_io_map(address_map &map);
 protected:
 	// device-level overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	const address_space_config m_io_space_config;
 
-	const address_space_config *memory_space_config(address_spacenum spacenum) const override
-	{
-		switch (spacenum)
-		{
-			case AS_IO: return &m_io_space_config;
-			default: return z80_device::memory_space_config(spacenum);
-		}
-	}
+	virtual space_config_vector memory_space_config() const override;
 
 private:
 	// devices/pointers
@@ -168,11 +114,15 @@ private:
 	devcb_write_line m_zc0_cb;
 	devcb_write_line m_zc1_cb;
 	devcb_write_line m_zc2_cb;
+
+	DECLARE_WRITE_LINE_MEMBER( zc0_cb_trampoline_w ) { m_zc0_cb(state); }
+	DECLARE_WRITE_LINE_MEMBER( zc1_cb_trampoline_w ) { m_zc1_cb(state); }
+	DECLARE_WRITE_LINE_MEMBER( zc2_cb_trampoline_w ) { m_zc2_cb(state); }
 };
 
 
 // device type definition
-extern const device_type TMPZ84C011;
+DECLARE_DEVICE_TYPE(TMPZ84C011, tmpz84c011_device)
 
 
-#endif /// __TMPZ84C011__
+#endif // MAME_CPU_Z80_TMPZ84C011_H

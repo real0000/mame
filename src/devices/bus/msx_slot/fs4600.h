@@ -1,33 +1,33 @@
 // license:BSD-3-Clause
 // copyright-holders:Wilbert Pol
-#ifndef __MSX_SLOT_FS4600_H
-#define __MSX_SLOT_FS4600_H
+#ifndef MAME_BUS_MSX_SLOT_FS4600_H
+#define MAME_BUS_MSX_SLOT_FS4600_H
+
+#pragma once
 
 #include "slot.h"
 #include "machine/nvram.h"
 
 
-extern const device_type MSX_SLOT_FS4600;
+DECLARE_DEVICE_TYPE(MSX_SLOT_FS4600, msx_slot_fs4600_device)
 
 
-#define MCFG_MSX_SLOT_FS4600_ADD(_tag, _startpage, _numpages, _region, _offset) \
-	MCFG_MSX_INTERNAL_SLOT_ADD(_tag, MSX_SLOT_FS4600, _startpage, _numpages) \
-	msx_slot_fs4600_device::set_rom_start(*device, "^" _region, _offset);
-
-class msx_slot_fs4600_device : public device_t,
-							public msx_internal_slot_interface
+class msx_slot_fs4600_device : public device_t, public msx_internal_slot_interface
 {
 public:
 	msx_slot_fs4600_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// static configuration helpers
-	static void set_rom_start(device_t &device, const char *region, uint32_t offset);
+	// configuration helpers
+	void set_rom_start(const char *region, uint32_t offset) { m_rom_region.set_tag(region); m_region_offset = offset; }
 
+	virtual uint8_t read(offs_t offset) override;
+	virtual void write(offs_t offset, uint8_t data) override;
+
+protected:
 	virtual void device_start() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_post_load() override;
 
-	virtual DECLARE_READ8_MEMBER(read) override;
-	virtual DECLARE_WRITE8_MEMBER(write) override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	void restore_banks();
 
@@ -44,4 +44,4 @@ private:
 };
 
 
-#endif
+#endif // MAME_BUS_MSX_SLOT_FS4600_H

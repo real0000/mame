@@ -14,14 +14,16 @@
     singular 32-bit Unicode chars.
 
 ***************************************************************************/
+#ifndef MAME_LIB_UTIL_UNICODE_H
+#define MAME_LIB_UTIL_UNICODE_H
 
 #pragma once
 
-#ifndef UNICODE_H
-#define UNICODE_H
-
-#include <stdlib.h>
 #include "osdcore.h"
+
+#include <string>
+
+#include <cstdlib>
 
 
 
@@ -60,12 +62,14 @@
 #define o_UMLAUT                "\xc3\xb6"          /* small o with an umlaut */
 #define u_UMLAUT                "\xc3\xbc"          /* small u with an umlaut */
 #define e_ACUTE                 "\xc3\xa9"          /* small e with an acute */
+#define n_TILDE                 "\xc3\xb1"          /* small n with a tilde */
 
 #define A_RING                  "\xc3\x85"          /* capital A with a ring */
 #define A_UMLAUT                "\xc3\x84"          /* capital A with an umlaut */
 #define O_UMLAUT                "\xc3\x96"          /* capital O with an umlaut */
 #define U_UMLAUT                "\xc3\x9c"          /* capital U with an umlaut */
 #define E_ACUTE                 "\xc3\x89"          /* capital E with an acute */
+#define N_TILDE                 "\xc3\x91"          /* capital N with a tilde */
 
 #define UTF8_LEFT               "\xe2\x86\x90"      /* cursor left */
 #define UTF8_RIGHT              "\xe2\x86\x92"      /* cursor right */
@@ -93,6 +97,7 @@ bool uchar_is_digit(char32_t uchar);
 int uchar_from_utf8(char32_t *uchar, const char *utf8char, size_t count);
 int uchar_from_utf16(char32_t *uchar, const char16_t *utf16char, size_t count);
 int uchar_from_utf16f(char32_t *uchar, const char16_t *utf16char, size_t count);
+std::u32string ustr_from_utf8(const std::string &utf8str);
 
 // converting 32-bit Unicode chars to strings
 int utf8_from_uchar(char *utf8string, size_t count, char32_t uchar);
@@ -105,9 +110,13 @@ std::wstring wstring_from_utf8(const std::string &utf8string);
 std::string utf8_from_wstring(const std::wstring &string);
 
 // unicode normalization
-std::string normalize_unicode(const std::string &s, unicode_normalization_form normalization_form);
-std::string normalize_unicode(const char *s, unicode_normalization_form normalization_form);
-std::string normalize_unicode(const char *s, size_t length, unicode_normalization_form normalization_form);
+std::string normalize_unicode(const std::string &s, unicode_normalization_form normalization_form, bool fold_case = false);
+std::string normalize_unicode(const char *s, unicode_normalization_form normalization_form, bool fold_case = false);
+std::string normalize_unicode(const char *s, size_t length, unicode_normalization_form normalization_form, bool fold_case = false);
+
+// upper and lower case
+char32_t uchar_toupper(char32_t ch);
+char32_t uchar_tolower(char32_t ch);
 
 // misc UTF-8 helpers
 const char *utf8_previous_char(const char *utf8string);
@@ -131,4 +140,4 @@ bool utf8_is_valid_string(const char *utf8string);
 #define utf16le_from_uchar  utf16f_from_uchar
 #endif
 
-#endif /* UNICODE_H */
+#endif // MAME_LIB_UTIL_UNICODE_H

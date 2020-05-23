@@ -192,36 +192,34 @@
 //  vc4000_rom_device - constructor
 //-------------------------------------------------
 
-const device_type VC4000_ROM_STD = device_creator<vc4000_rom_device>;
-const device_type VC4000_ROM_ROM4K = device_creator<vc4000_rom4k_device>;
-const device_type VC4000_ROM_RAM1K = device_creator<vc4000_ram1k_device>;
-const device_type VC4000_ROM_CHESS2 = device_creator<vc4000_chess2_device>;
+DEFINE_DEVICE_TYPE(VC4000_ROM_STD,    vc4000_rom_device,    "vc4000_rom",    "VC 4000 Standard Carts")
+DEFINE_DEVICE_TYPE(VC4000_ROM_ROM4K,  vc4000_rom4k_device,  "vc4000_rom4k",  "VC 4000 Carts w/4K ROM")
+DEFINE_DEVICE_TYPE(VC4000_ROM_RAM1K,  vc4000_ram1k_device,  "vc4000_ram1k",  "VC 4000 Carts w/1K RAM")
+DEFINE_DEVICE_TYPE(VC4000_ROM_CHESS2, vc4000_chess2_device, "vc4000_chess2", "VC 4000 Chess II Cart")
 
 
-vc4000_rom_device::vc4000_rom_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-						device_vc4000_cart_interface( mconfig, *this )
+vc4000_rom_device::vc4000_rom_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock), device_vc4000_cart_interface(mconfig, *this)
 {
 }
 
 vc4000_rom_device::vc4000_rom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, VC4000_ROM_STD, "VC 4000 Standard Carts", tag, owner, clock, "vc4000_rom", __FILE__),
-						device_vc4000_cart_interface( mconfig, *this )
+	: vc4000_rom_device(mconfig, VC4000_ROM_STD, tag, owner, clock)
 {
 }
 
 vc4000_rom4k_device::vc4000_rom4k_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: vc4000_rom_device(mconfig, VC4000_ROM_ROM4K, "VC 4000 Carts w/4K ROM", tag, owner, clock, "vc4000_rom4k", __FILE__)
+	: vc4000_rom_device(mconfig, VC4000_ROM_ROM4K, tag, owner, clock)
 {
 }
 
 vc4000_ram1k_device::vc4000_ram1k_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: vc4000_rom_device(mconfig, VC4000_ROM_RAM1K, "VC 4000 Carts w/1K RAM", tag, owner, clock, "vc4000_ram1k", __FILE__)
+	: vc4000_rom_device(mconfig, VC4000_ROM_RAM1K, tag, owner, clock)
 {
 }
 
 vc4000_chess2_device::vc4000_chess2_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: vc4000_rom_device(mconfig, VC4000_ROM_CHESS2, "VC 4000 Chess II Cart", tag, owner, clock, "vc4000_chess2", __FILE__)
+	: vc4000_rom_device(mconfig, VC4000_ROM_CHESS2, tag, owner, clock)
 {
 }
 
@@ -230,7 +228,7 @@ vc4000_chess2_device::vc4000_chess2_device(const machine_config &mconfig, const 
  mapper specific handlers
  -------------------------------------------------*/
 
-READ8_MEMBER(vc4000_rom_device::read_rom)
+uint8_t vc4000_rom_device::read_rom(offs_t offset)
 {
 	if (offset < m_rom_size)
 		return m_rom[offset];
@@ -239,18 +237,18 @@ READ8_MEMBER(vc4000_rom_device::read_rom)
 }
 
 
-READ8_MEMBER(vc4000_ram1k_device::read_ram)
+uint8_t vc4000_ram1k_device::read_ram(offs_t offset)
 {
 	return m_ram[offset & (m_ram.size() - 1)];
 }
 
-WRITE8_MEMBER(vc4000_ram1k_device::write_ram)
+void vc4000_ram1k_device::write_ram(offs_t offset, uint8_t data)
 {
 	m_ram[offset & (m_ram.size() - 1)] = data;
 }
 
 
-READ8_MEMBER(vc4000_chess2_device::extra_rom)
+uint8_t vc4000_chess2_device::extra_rom(offs_t offset)
 {
 	if (offset < (m_rom_size - 0x2000))
 		return m_rom[offset + 0x2000];
@@ -258,12 +256,12 @@ READ8_MEMBER(vc4000_chess2_device::extra_rom)
 		return 0xff;
 }
 
-READ8_MEMBER(vc4000_chess2_device::read_ram)
+uint8_t vc4000_chess2_device::read_ram(offs_t offset)
 {
 	return m_ram[offset & (m_ram.size() - 1)];
 }
 
-WRITE8_MEMBER(vc4000_chess2_device::write_ram)
+void vc4000_chess2_device::write_ram(offs_t offset, uint8_t data)
 {
 	m_ram[offset & (m_ram.size() - 1)] = data;
 }

@@ -10,7 +10,7 @@
 
 #include "emu.h"
 #include "emuopts.h"
-#include <ctype.h>
+#include <cctype>
 
 
 //**************************************************************************
@@ -21,8 +21,8 @@
 //  cpu_device - constructor
 //-------------------------------------------------
 
-cpu_device::cpu_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, u32 clock, const char *shortname, const char *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+cpu_device::cpu_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock)
+	: device_t(mconfig, type, tag, owner, clock),
 		device_execute_interface(mconfig, *this),
 		device_memory_interface(mconfig, *this),
 		device_state_interface(mconfig, *this),
@@ -38,17 +38,6 @@ cpu_device::cpu_device(const machine_config &mconfig, device_type type, const ch
 
 cpu_device::~cpu_device()
 {
-}
-
-
-//-------------------------------------------------
-//  static_set_force_no_drc - configuration helper
-//  to disable DRC
-//-------------------------------------------------
-
-void cpu_device::static_set_force_no_drc(device_t &device, bool value)
-{
-	downcast<cpu_device &>(device).m_force_no_drc = value;
 }
 
 

@@ -13,26 +13,25 @@
 #include "includes/jackal.h"
 
 
-PALETTE_INIT_MEMBER(jackal_state, jackal)
+void jackal_state::jackal_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
+	uint8_t const *const color_prom = memregion("proms")->base();
 
-	for (i = 0; i < 0x100; i++)
+	for (int i = 0; i < 0x100; i++)
 	{
-		uint16_t ctabentry = i | 0x100;
+		uint16_t const ctabentry = i | 0x100;
 		palette.set_pen_indirect(i, ctabentry);
 	}
 
-	for (i = 0x100; i < 0x200; i++)
+	for (int i = 0x100; i < 0x200; i++)
 	{
-		uint16_t ctabentry = color_prom[i - 0x100] & 0x0f;
+		uint16_t const ctabentry = color_prom[i - 0x100] & 0x0f;
 		palette.set_pen_indirect(i, ctabentry);
 	}
 
-	for (i = 0x200; i < 0x300; i++)
+	for (int i = 0x200; i < 0x300; i++)
 	{
-		uint16_t ctabentry = (color_prom[i - 0x100] & 0x0f) | 0x10;
+		uint16_t const ctabentry = (color_prom[i - 0x100] & 0x0f) | 0x10;
 		palette.set_pen_indirect(i, ctabentry);
 	}
 }
@@ -52,12 +51,12 @@ TILE_GET_INFO_MEMBER(jackal_state::get_bg_tile_info)
 	int color = 0;//attr & 0x0f;
 	int flags = ((attr & 0x10) ? TILE_FLIPX : 0) | ((attr & 0x20) ? TILE_FLIPY : 0);
 
-	SET_TILE_INFO_MEMBER(0, code, color, flags);
+	tileinfo.set(0, code, color, flags);
 }
 
 void jackal_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(jackal_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(jackal_state::get_bg_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 void jackal_state::draw_background( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect )

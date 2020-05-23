@@ -13,15 +13,15 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type NEOGEO_CART_SLOT = device_creator<neogeo_cart_slot_device>;
+DEFINE_DEVICE_TYPE(NEOGEO_CART_SLOT, neogeo_cart_slot_device, "neogeo_cart_slot", "Neo Geo Cartridge Slot")
 
 
 //-------------------------------------------------
 //  device_neogeo_cart_interface - constructor
 //-------------------------------------------------
 
-device_neogeo_cart_interface::device_neogeo_cart_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig, device),
+device_neogeo_cart_interface::device_neogeo_cart_interface(const machine_config &mconfig, device_t &device) :
+	device_interface(device, "neogeocart"),
 	m_region_rom(*this, "^maincpu"),
 	m_region_fixed(*this, "^fixed"),
 	m_region_audio(*this, "^audiocpu"),
@@ -98,10 +98,10 @@ void device_neogeo_cart_interface::optimize_sprites(uint8_t* region_sprites, uin
 //  neogeo_cart_slot_device - constructor
 //-------------------------------------------------
 neogeo_cart_slot_device::neogeo_cart_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint16_t clock) :
-						device_t(mconfig, NEOGEO_CART_SLOT, "Neo Geo Cartridge Slot", tag, owner, clock, "neogeo_cart_slot", __FILE__),
-						device_image_interface(mconfig, *this),
-						device_slot_interface(mconfig, *this),
-						m_cart(nullptr)
+	device_t(mconfig, NEOGEO_CART_SLOT, tag, owner, clock),
+	device_image_interface(mconfig, *this),
+	device_single_card_slot_interface<device_neogeo_cart_interface>(mconfig, *this),
+	m_cart(nullptr)
 {
 }
 
@@ -158,6 +158,7 @@ static const neogeo_slot slot_list[] =
 	{ NEOGEO_GAROU, "sma_garou" },
 	{ NEOGEO_GAROUH, "sma_garouh" },
 	{ NEOGEO_MSLUG3, "sma_mslug3" },
+	{ NEOGEO_MSLUG3A, "sma_mslug3a" },
 	{ NEOGEO_KOF2K, "sma_kof2k" },
 	{ NEOGEO_MSLUG4, "pcm2_mslug4" },
 	{ NEOGEO_MSLUG4P, "pcm2_ms4p" },
@@ -195,6 +196,7 @@ static const neogeo_slot slot_list[] =
 	{ NEOGEO_SAMSHO5B, "boot_samsho5b" },
 	{ NEOGEO_MSLUG3B6, "boot_mslug3b6" },
 	{ NEOGEO_MSLUG5P, "boot_ms5plus" },
+	{ NEOGEO_MSLUG5B, "boot_mslug5b" },
 	{ NEOGEO_KOG, "boot_kog" },
 	{ NEOGEO_SBP, "boot_sbp" },
 	{ NEOGEO_KOF10TH, "boot_kf10th" },
@@ -323,7 +325,7 @@ void neogeo_cart_slot_device::call_unload()
  get default card software
  -------------------------------------------------*/
 
-std::string neogeo_cart_slot_device::get_default_card_software()
+std::string neogeo_cart_slot_device::get_default_card_software(get_default_card_software_hook &hook) const
 {
 	return software_get_default_slot("rom");
 }

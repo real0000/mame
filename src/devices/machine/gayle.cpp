@@ -23,7 +23,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type GAYLE = device_creator<gayle_device>;
+DEFINE_DEVICE_TYPE(GAYLE, gayle_device, "gayle", "Amiga GAYLE")
 
 
 //**************************************************************************
@@ -35,7 +35,7 @@ const device_type GAYLE = device_creator<gayle_device>;
 //-------------------------------------------------
 
 gayle_device::gayle_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, GAYLE, "GAYLE", tag, owner, clock, "gayle", __FILE__),
+	device_t(mconfig, GAYLE, tag, owner, clock),
 	m_int2_w(*this),
 	m_cs0_read(*this),
 	m_cs0_write(*this),
@@ -44,16 +44,6 @@ gayle_device::gayle_device(const machine_config &mconfig, const char *tag, devic
 	m_gayle_id(0xff),
 	m_gayle_id_count(0)
 {
-}
-
-//-------------------------------------------------
-//  set_id - set gayle id
-//-------------------------------------------------
-
-void gayle_device::set_id(device_t &device, uint8_t id)
-{
-	gayle_device &gayle = downcast<gayle_device &>(device);
-	gayle.m_gayle_id = id;
 }
 
 //-------------------------------------------------
@@ -68,6 +58,9 @@ void gayle_device::device_start()
 	m_cs0_write.resolve_safe();
 	m_cs1_read.resolve_safe(0xffff);
 	m_cs1_write.resolve_safe();
+
+	save_item(NAME(m_gayle_id_count));
+	save_item(NAME(m_gayle_reg));
 }
 
 //-------------------------------------------------
@@ -110,9 +103,9 @@ READ16_MEMBER( gayle_device::gayle_r )
 		if (!BIT(offset, 14))
 		{
 			if (BIT(offset, 13))
-				data = m_cs0_read(space, (offset >> 2) & 0x07, mem_mask);
+				data = m_cs0_read((offset >> 2) & 0x07, mem_mask);
 			else
-				data = m_cs1_read(space, (offset >> 2) & 0x07, mem_mask);
+				data = m_cs1_read((offset >> 2) & 0x07, mem_mask);
 		}
 	}
 
@@ -160,9 +153,9 @@ WRITE16_MEMBER( gayle_device::gayle_w )
 		if (!BIT(offset, 14))
 		{
 			if (BIT(offset, 13))
-				m_cs0_write(space, (offset >> 2) & 0x07, data, mem_mask);
+				m_cs0_write((offset >> 2) & 0x07, data, mem_mask);
 			else
-				m_cs1_write(space, (offset >> 2) & 0x07, data, mem_mask);
+				m_cs1_write((offset >> 2) & 0x07, data, mem_mask);
 		}
 	}
 }

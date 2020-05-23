@@ -198,196 +198,185 @@ static const res_net_info radarscp_grid_net_info =
 	}
 };
 
-PALETTE_INIT_MEMBER(dkong_state,dkong2b)
+void dkong_state::dkong2b_palette(palette_device &palette)
 {
 	const uint8_t *color_prom = memregion("proms")->base();
-	std::vector<rgb_t> rgb;
-	int i;
 
+	std::vector<rgb_t> rgb;
 	compute_res_net_all(rgb, color_prom, dkong_decode_info, dkong_net_info);
 	palette.set_pen_colors(0, rgb);
 
-	/* Now treat tri-state black background generation */
-
-	for (i=0;i<256;i++)
-		if ( (i & 0x03) == 0x00 )  /*  NOR => CS=1 => Tristate => real black */
+	// Now treat tri-state black background generation
+	for (int i = 0; i < 256; i++)
+		if ((i & 0x03) == 0x00)  // NOR => CS=1 => Tristate => real black
 		{
-			int r,g,b;
-			r = compute_res_net( 1, 0, dkong_net_bck_info );
-			g = compute_res_net( 1, 1, dkong_net_bck_info );
-			b = compute_res_net( 1, 2, dkong_net_bck_info );
-			palette.set_pen_color(i,r,g,b);
+			int const r = compute_res_net(1, 0, dkong_net_bck_info);
+			int const g = compute_res_net(1, 1, dkong_net_bck_info);
+			int const b = compute_res_net(1, 2, dkong_net_bck_info);
+			palette.set_pen_color(i, r, g, b);
 		}
 
 	palette.palette()->normalize_range(0, 255);
 
 	color_prom += 512;
-	/* color_prom now points to the beginning of the character color codes */
-	m_color_codes = color_prom; /* we'll need it later */
+	// color_prom now points to the beginning of the character color codes
+	m_color_codes = color_prom; // we'll need it later
 }
 
 #ifdef UNUSED_FUNCTION
-PALETTE_INIT_MEMBER(dkong_state,dkong4b)
+void dkong_state::dkong4b_palette(palette_device &palette)
 {
 	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
-	int r,g,b;
 
-	for (i = 0;i < 256;i++)
+	for (int i = 0; i < 256; i++)
 	{
-		/* red component */
-		r = compute_res_net( (color_prom[256]>>1) & 0x07, 0, radarscp_net_info );
-		/* green component */
-		g = compute_res_net( ((color_prom[256]<<2) & 0x04) | ((color_prom[0]>>2) & 0x03), 1, radarscp_net_info );
-		/* blue component */
-		b = compute_res_net( (color_prom[0]>>0) & 0x03, 2, radarscp_net_info );
+		// red component
+		int const r = compute_res_net((color_prom[256] >> 1) & 0x07, 0, radarscp_net_info);
+		// green component
+		int const g = compute_res_net(((color_prom[256] << 2) & 0x04) | ((color_prom[0] >> 2) & 0x03), 1, radarscp_net_info);
+		// blue component
+		int const b = compute_res_net((color_prom[0] >> 0) & 0x03, 2, radarscp_net_info);
 
-		palette.set_pen_color(i,r,g,b);
+		palette.set_pen_color(i, r, g, b);
 		color_prom++;
 	}
 
-	/* Now treat tri-state black background generation */
+	// Now treat tri-state black background generation
 
-	for (i=0;i<256;i++)
-		if ( (i & 0x03) == 0x00 )  /*  NOR => CS=1 => Tristate => real black */
+	for (int i = 0; i < 256; i++)
+		if ((i & 0x03) == 0x00)  // NOR => CS=1 => Tristate => real black
 		{
-			r = compute_res_net( 1, 0, radarscp_net_bck_info );
-			g = compute_res_net( 1, 1, radarscp_net_bck_info );
-			b = compute_res_net( 1, 2, radarscp_net_bck_info );
-			palette.set_pen_color(i,r,g,b);
+			int const r = compute_res_net(1, 0, radarscp_net_bck_info);
+			int const g = compute_res_net(1, 1, radarscp_net_bck_info);
+			int const b = compute_res_net(1, 2, radarscp_net_bck_info);
+			palette.set_pen_color(i, r, g, b);
 		}
 
 	palette.palette()->normalize_range(0, 255);
 
 	color_prom += 256;
-	/* color_prom now points to the beginning of the character color codes */
-	m_color_codes = color_prom; /* we'll need it later */
+	// color_prom now points to the beginning of the character color codes
+	m_color_codes = color_prom; // we'll need it later
 }
 #endif
 
-PALETTE_INIT_MEMBER(dkong_state,radarscp)
+void dkong_state::radarscp_palette(palette_device &palette)
 {
 	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
-	int r,g,b;
 
-	for (i = 0;i < 256;i++)
+	for (int i = 0; i < 256; i++)
 	{
-		/* red component */
-		r = compute_res_net( (color_prom[256]>>1) & 0x07, 0, radarscp_net_info );
-		/* green component */
-		g = compute_res_net( ((color_prom[256]<<2) & 0x04) | ((color_prom[0]>>2) & 0x03), 1, radarscp_net_info );
-		/* blue component */
-		b = compute_res_net( (color_prom[0]>>0) & 0x03, 2, radarscp_net_info );
+		// red component
+		int const r = compute_res_net((color_prom[256] >> 1) & 0x07, 0, radarscp_net_info);
+		// green component
+		int const g = compute_res_net(((color_prom[256] << 2) & 0x04) | ((color_prom[0] >> 2) & 0x03), 1, radarscp_net_info);
+		// blue component
+		int const b = compute_res_net((color_prom[0] >> 0) & 0x03, 2, radarscp_net_info);
 
-		palette.set_pen_color(i,r,g,b);
+		palette.set_pen_color(i, r, g, b);
 		color_prom++;
 	}
 
-	/* Now treat tri-state black background generation */
-
-	for (i=0;i<256;i++)
-		if ( (m_vidhw != DKONG_RADARSCP_CONVERSION) && ( (i & 0x03) == 0x00 ))  /*  NOR => CS=1 => Tristate => real black */
+	// Now treat tri-state black background generation
+	for (int i = 0; i < 256; i++)
+		if ((m_vidhw != DKONG_RADARSCP_CONVERSION) && ((i & 0x03) == 0x00)) // NOR => CS=1 => Tristate => real black
 		{
-			r = compute_res_net( 1, 0, radarscp_net_bck_info );
-			g = compute_res_net( 1, 1, radarscp_net_bck_info );
-			b = compute_res_net( 1, 2, radarscp_net_bck_info );
+			int const r = compute_res_net(1, 0, radarscp_net_bck_info);
+			int const g = compute_res_net(1, 1, radarscp_net_bck_info);
+			int const b = compute_res_net(1, 2, radarscp_net_bck_info);
 			palette.set_pen_color(i,r,g,b);
 		}
 
-	/* Star color */
-	r = compute_res_net( 1, 0, radarscp_stars_net_info );
-	g = compute_res_net( 0, 1, radarscp_stars_net_info );
-	b = compute_res_net( 0, 2, radarscp_stars_net_info );
-	palette.set_pen_color(RADARSCP_STAR_COL,r,g,b);
+	// Star color
+	palette.set_pen_color(RADARSCP_STAR_COL,
+			compute_res_net(1, 0, radarscp_stars_net_info),
+			compute_res_net(0, 1, radarscp_stars_net_info),
+			compute_res_net(0, 2, radarscp_stars_net_info));
 
-	/* Oscillating background */
-	for (i = 0;i < 256;i++)
+	// Oscillating background
+	for (int i = 0; i < 256; i++)
 	{
-		r = compute_res_net( 0, 0, radarscp_blue_net_info );
-		g = compute_res_net( 0, 1, radarscp_blue_net_info );
-		b = compute_res_net( i, 2, radarscp_blue_net_info );
+		int const r = compute_res_net(0, 0, radarscp_blue_net_info);
+		int const g = compute_res_net(0, 1, radarscp_blue_net_info);
+		int const b = compute_res_net(i, 2, radarscp_blue_net_info);
 
-		palette.set_pen_color(RADARSCP_BCK_COL_OFFSET + i,r,g,b);
+		palette.set_pen_color(RADARSCP_BCK_COL_OFFSET + i, r, g, b);
 	}
 
-	/* Grid */
-	for (i = 0;i < 8;i++)
+	// Grid
+	for (int i = 0; i < 8; i++)
 	{
-		r = compute_res_net( i & 1, 0, radarscp_grid_net_info );
-		g = compute_res_net( (i>>1) & 1, 1, radarscp_grid_net_info );
-		b = compute_res_net( (i>>2) & 1, 2, radarscp_grid_net_info );
+		int const r = compute_res_net(BIT(i, 0), 0, radarscp_grid_net_info);
+		int const g = compute_res_net(BIT(i, 1), 1, radarscp_grid_net_info);
+		int const b = compute_res_net(BIT(i, 2), 2, radarscp_grid_net_info);
 
-		palette.set_pen_color(RADARSCP_GRID_COL_OFFSET + i,r,g,b);
+		palette.set_pen_color(RADARSCP_GRID_COL_OFFSET + i, r, g, b);
 	}
 
-	palette.palette()->normalize_range(0, RADARSCP_GRID_COL_OFFSET+7);
+	palette.palette()->normalize_range(0, RADARSCP_GRID_COL_OFFSET + 7);
 
 	color_prom += 256;
-	/* color_prom now points to the beginning of the character color codes */
-	m_color_codes = color_prom; /* we'll need it later */
+	// color_prom now points to the beginning of the character color codes
+	m_color_codes = color_prom; // we'll need it later
 }
 
-PALETTE_INIT_MEMBER(dkong_state,radarscp1)
+void dkong_state::radarscp1_palette(palette_device &palette)
 {
 	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
-	int r,g,b;
 
-	for (i = 0;i < 256;i++)
+	for (int i = 0; i < 256; i++)
 	{
-		/* red component */
-		r = compute_res_net( color_prom[512], 0, radarscp1_net_info );
-		/* green component */
-		g = compute_res_net( color_prom[256], 1, radarscp1_net_info );
-		/* blue component */
-		b = compute_res_net( color_prom[0], 2, radarscp1_net_info );
+		// red component
+		int const r = compute_res_net(color_prom[512], 0, radarscp1_net_info);
+		// green component
+		int const g = compute_res_net(color_prom[256], 1, radarscp1_net_info);
+		// blue component
+		int const b = compute_res_net(color_prom[0], 2, radarscp1_net_info);
 
-		palette.set_pen_color(i,r,g,b);
+		palette.set_pen_color(i, r, g, b);
 		color_prom++;
 	}
 
-	/* Now treat tri-state black background generation */
-
-	for (i=0;i<256;i++)
-		if ( (i & 0x03) == 0x00 )  /*  NOR => CS=1 => Tristate => real black */
+	// Now treat tri-state black background generation
+	for (int i = 0; i < 256; i++)
+		if ((i & 0x03) == 0x00)  // NOR => CS=1 => Tristate => real black
 		{
-			r = compute_res_net( 0, 0, radarscp1_net_info );
-			g = compute_res_net( 0, 1, radarscp1_net_info );
-			b = compute_res_net( 0, 2, radarscp1_net_info );
-			palette.set_pen_color(i,r,g,b);
+			int const r = compute_res_net(0, 0, radarscp1_net_info);
+			int const g = compute_res_net(0, 1, radarscp1_net_info);
+			int const b = compute_res_net(0, 2, radarscp1_net_info);
+			palette.set_pen_color(i, r, g, b);
 		}
 
-	/* Star color */
-	r = compute_res_net( 1, 0, radarscp_stars_net_info );
-	g = compute_res_net( 0, 1, radarscp_stars_net_info );
-	b = compute_res_net( 0, 2, radarscp_stars_net_info );
-	palette.set_pen_color(RADARSCP_STAR_COL,r,g,b);
+	// Star color
+	palette.set_pen_color(RADARSCP_STAR_COL,
+			compute_res_net(1, 0, radarscp_stars_net_info),
+			compute_res_net(0, 1, radarscp_stars_net_info),
+			compute_res_net(0, 2, radarscp_stars_net_info));
 
 	/* Oscillating background */
-	for (i = 0;i < 256;i++)
+	for (int i = 0; i < 256; i++)
 	{
-		r = compute_res_net( 0, 0, radarscp_blue_net_info );
-		g = compute_res_net( 0, 1, radarscp_blue_net_info );
-		b = compute_res_net( i, 2, radarscp_blue_net_info );
+		int const r = compute_res_net(0, 0, radarscp_blue_net_info);
+		int const g = compute_res_net(0, 1, radarscp_blue_net_info);
+		int const b = compute_res_net(i, 2, radarscp_blue_net_info);
 
-		palette.set_pen_color(RADARSCP_BCK_COL_OFFSET + i,r,g,b);
+		palette.set_pen_color(RADARSCP_BCK_COL_OFFSET + i, r, g, b);
 	}
 
-	/* Grid */
-	for (i = 0;i < 8;i++)
+	// Grid
+	for (int i = 0; i < 8; i++)
 	{
-		r = compute_res_net( i & 1, 0, radarscp_grid_net_info );
-		g = compute_res_net( (i>>1) & 1, 1, radarscp_grid_net_info );
-		b = compute_res_net( (i>>2) & 1, 2, radarscp_grid_net_info );
+		int const r = compute_res_net(BIT(i, 0), 0, radarscp_grid_net_info);
+		int const g = compute_res_net(BIT(i, 1), 1, radarscp_grid_net_info);
+		int const b = compute_res_net(BIT(i, 2), 2, radarscp_grid_net_info);
 
-		palette.set_pen_color(RADARSCP_GRID_COL_OFFSET + i,r,g,b);
+		palette.set_pen_color(RADARSCP_GRID_COL_OFFSET + i, r, g, b);
 	}
-	palette.palette()->normalize_range(0, RADARSCP_GRID_COL_OFFSET+7);
+	palette.palette()->normalize_range(0, RADARSCP_GRID_COL_OFFSET + 7);
 
 	color_prom += 512;
-	/* color_prom now points to the beginning of the character color codes */
-	m_color_codes = color_prom; /* we'll need it later */
+	// color_prom now points to the beginning of the character color codes
+	m_color_codes = color_prom; // we'll need it later
 }
 
 
@@ -427,18 +416,18 @@ PALETTE_INIT_MEMBER(dkong_state,radarscp1)
 
 ***************************************************************************/
 
-PALETTE_INIT_MEMBER(dkong_state,dkong3)
+void dkong_state::dkong3_palette(palette_device &palette)
 {
 	const uint8_t *color_prom = memregion("proms")->base();
-	std::vector<rgb_t> rgb;
 
+	std::vector<rgb_t> rgb;
 	compute_res_net_all(rgb, color_prom, dkong3_decode_info, dkong3_net_info);
 	palette.set_pen_colors(0, rgb);
 	palette.palette()->normalize_range(0, 255);
 
 	color_prom += 1024;
-	/* color_prom now points to the beginning of the character color codes */
-	m_color_codes = color_prom; /* we'll need it later */
+	// color_prom now points to the beginning of the character color codes
+	m_color_codes = color_prom; // we'll need it later
 }
 
 TILE_GET_INFO_MEMBER(dkong_state::dkong_bg_tile_info)
@@ -446,7 +435,7 @@ TILE_GET_INFO_MEMBER(dkong_state::dkong_bg_tile_info)
 	int code = m_video_ram[tile_index] + 256 * m_gfx_bank;
 	int color = (m_color_codes[tile_index % 32 + 32 * (tile_index / 32 / 4)] & 0x0f) + 0x10 * m_palette_bank;
 
-	SET_TILE_INFO_MEMBER(0, code, color, 0);
+	tileinfo.set(0, code, color, 0);
 }
 
 TILE_GET_INFO_MEMBER(dkong_state::radarscp1_bg_tile_info)
@@ -455,7 +444,7 @@ TILE_GET_INFO_MEMBER(dkong_state::radarscp1_bg_tile_info)
 	int color = (m_color_codes[tile_index % 32] & 0x0f);
 	color = color | (m_palette_bank<<4);
 
-	SET_TILE_INFO_MEMBER(0, code, color, 0);
+	tileinfo.set(0, code, color, 0);
 }
 
 /***************************************************************************
@@ -522,7 +511,7 @@ WRITE8_MEMBER(dkong_state::radarscp_grid_color_w)
 
 WRITE8_MEMBER(dkong_state::dkong_flipscreen_w)
 {
-	m_flip = ~data & 0x01;
+	m_flip = data & 0x01;
 }
 
 WRITE8_MEMBER(dkong_state::dkong_spritebank_w)
@@ -678,7 +667,7 @@ inline double dkong_state::CD4049(double x)
 #define RC32    ((18e3 + 68e3) * 33e-6)
 #define RC4     (90e3 * 0.47e-6)
 #define dt      (1./60./(double) VTOTAL)
-#define period2 (((int64_t)(PIXEL_CLOCK) * ( 33L * 68L )) / (int32_t)10000000L / 3)  /*  period/2 in pixel ... */
+#define period2 (((int64_t)(PIXEL_CLOCK.value()) * ( 33L * 68L )) / (int32_t)10000000L / 3)  /*  period/2 in pixel ... */
 
 void dkong_state::radarscp_step(int line_cnt)
 {
@@ -708,8 +697,7 @@ void dkong_state::radarscp_step(int line_cnt)
 	 */
 
 	/* Now mix with SND02 (sound 2) line - on 74ls259, bit2 */
-	address_space &space = machine().dummy_space();
-	m_rflip_sig = m_dev_6h->bit2_r(space, 0) & m_lfsr_5I;
+	m_rflip_sig = m_dev_6h->bit2_r() & m_lfsr_5I;
 
 	/* blue background generation */
 
@@ -774,7 +762,7 @@ void dkong_state::radarscp_step(int line_cnt)
 	 *
 	 * Mixed with ANS line (bit 5) from Port B of 8039
 	 */
-	if (m_grid_on && m_dev_vp2->bit5_r(space, 0))
+	if (m_grid_on && m_dev_vp2->bit5_r())
 	{
 		diff = (0.0 - m_cv3);
 		diff = diff - diff*exp(0.0 - (1.0/RC32 * dt) );
@@ -899,10 +887,10 @@ void dkong_state::check_palette()
 			switch (newset)
 			{
 				case DKONG_RADARSCP_CONVERSION:
-					PALETTE_INIT_NAME(radarscp)(*m_palette);
+					radarscp_palette(*m_palette);
 					break;
 				case DKONG_BOARD:
-					PALETTE_INIT_NAME(dkong2b)(*m_palette);
+					dkong2b_palette(*m_palette);
 					break;
 			}
 		}
@@ -965,10 +953,10 @@ VIDEO_START_MEMBER(dkong_state,dkong)
 			/* fall through */
 		case HARDWARE_TKG04:
 		case HARDWARE_TKG02:
-			m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(dkong_state::dkong_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 32);
+			m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(dkong_state::dkong_bg_tile_info)), TILEMAP_SCAN_ROWS,  8, 8, 32, 32);
 			break;
 		case HARDWARE_TRS01:
-			m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(dkong_state::radarscp1_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 32);
+			m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(dkong_state::radarscp1_bg_tile_info)), TILEMAP_SCAN_ROWS,  8, 8, 32, 32);
 
 			m_screen->register_screen_bitmap(m_bg_bits);
 			m_gfx4 = memregion("gfx4")->base();
@@ -1009,6 +997,7 @@ uint32_t dkong_state::screen_update_pestplce(screen_device &screen, bitmap_ind16
 {
 	int offs;
 
+	machine().tilemap().set_flip_all(m_flip ? TILEMAP_FLIPX | TILEMAP_FLIPY : 0);
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	/* Draw the sprites. */
@@ -1016,7 +1005,14 @@ uint32_t dkong_state::screen_update_pestplce(screen_device &screen, bitmap_ind16
 	{
 		if (m_sprite_ram[offs])
 		{
-			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
+			if (m_flip)
+				m_gfxdecode->gfx(1)->transpen(bitmap, cliprect,
+					m_sprite_ram[offs + 2],
+					(m_sprite_ram[offs + 1] & 0x0f) + 16 * m_palette_bank,
+					~m_sprite_ram[offs + 1] & 0x80,~m_sprite_ram[offs + 1] & 0x40,
+					240 - m_sprite_ram[offs + 3] + 8,m_sprite_ram[offs] - 8, 0);
+			else
+				m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 					m_sprite_ram[offs + 2],
 					(m_sprite_ram[offs + 1] & 0x0f) + 16 * m_palette_bank,
 					m_sprite_ram[offs + 1] & 0x80,m_sprite_ram[offs + 1] & 0x40,
@@ -1028,6 +1024,7 @@ uint32_t dkong_state::screen_update_pestplce(screen_device &screen, bitmap_ind16
 
 uint32_t dkong_state::screen_update_spclforc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
+	machine().tilemap().set_flip_all(m_flip ? TILEMAP_FLIPX | TILEMAP_FLIPY : 0);
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	/* it uses sprite_ram[offs + 2] & 0x10 for sprite bank */

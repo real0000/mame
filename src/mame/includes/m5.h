@@ -4,8 +4,10 @@
 #define MAME_INCLUDES_M5_H
 
 #include "imagedev/cassette.h"
+#include "imagedev/floppy.h"
 #include "imagedev/snapquik.h"
 
+#include "cpu/z80/z80.h"
 #include "machine/i8255.h"
 #include "machine/ram.h"
 #include "machine/upd765.h"
@@ -51,7 +53,17 @@ public:
 		, m_DIPS(*this, "DIPS")
 	{ }
 
-	required_device<cpu_device> m_maincpu;
+	void m5(machine_config &config);
+	void pal(machine_config &config);
+	void ntsc(machine_config &config);
+
+	void init_pal();
+	void init_ntsc();
+
+	DECLARE_WRITE_LINE_MEMBER(sordm5_video_interrupt_callback);
+
+protected:
+	required_device<z80_device> m_maincpu;
 	required_device<z80ctc_device> m_ctc;
 	//I've changed following devices to optional since we have to remove them in BRNO mod (I don't know better solution)
 	optional_device<cpu_device> m_fd5cpu;
@@ -65,17 +77,19 @@ public:
 	required_device<ram_device> m_ram;
 	required_ioport m_reset;
 	optional_ioport m_DIPS;
-
-	virtual void machine_start() override;
-	virtual void machine_reset() override;
+	m5_cart_slot_device *m_cart_ram, *m_cart;
 
 	DECLARE_READ8_MEMBER( sts_r );
 	DECLARE_WRITE8_MEMBER( com_w );
-	DECLARE_READ8_MEMBER( ppi_pa_r );
-	DECLARE_WRITE8_MEMBER( ppi_pa_w );
-	DECLARE_WRITE8_MEMBER( ppi_pb_w );
-	DECLARE_READ8_MEMBER( ppi_pc_r );
-	DECLARE_WRITE8_MEMBER( ppi_pc_w );
+
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+private:
+	uint8_t ppi_pa_r();
+	void ppi_pa_w(uint8_t data);
+	void ppi_pb_w(uint8_t data);
+	uint8_t ppi_pc_r();
+	void ppi_pc_w(uint8_t data);
 
 	DECLARE_READ8_MEMBER( fd5_data_r );
 	DECLARE_WRITE8_MEMBER( fd5_data_w );
@@ -86,25 +100,27 @@ public:
 
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
 
-	// video state
-//  const TMS9928a_interface *m_vdp_intf;
-
-	int m_centronics_busy;
 	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
-
-	DECLARE_DRIVER_INIT(pal);
-	DECLARE_DRIVER_INIT(ntsc);
-	DECLARE_WRITE_LINE_MEMBER(sordm5_video_interrupt_callback);
 
 	// memory
 	DECLARE_READ8_MEMBER( mem64KBI_r );
 	DECLARE_WRITE8_MEMBER( mem64KBI_w );
 	DECLARE_WRITE8_MEMBER( mem64KBF_w );
 	DECLARE_WRITE8_MEMBER( mem64KRX_w );
+
+	void fd5_io(address_map &map);
+	void fd5_mem(address_map &map);
+	void m5_io(address_map &map);
+	void m5_mem(address_map &map);
+
+	// video state
+//  const TMS9928a_interface *m_vdp_intf;
+
+	int m_centronics_busy;
+
 	uint8_t m_ram_mode;
 	uint8_t m_ram_type;
 	memory_region *m_cart_rom;
-	m5_cart_slot_device *m_cart_ram, *m_cart;
 
 	// floppy state for fd5
 	uint8_t m_fd5_data;
@@ -112,7 +128,6 @@ public:
 	int m_intra;
 	int m_ibfa;
 	int m_obfa;
-
 };
 
 
@@ -120,52 +135,53 @@ class brno_state : public m5_state
 {
 public:
 	brno_state(const machine_config &mconfig, device_type type, const char *tag)
-		: m5_state(mconfig, type, tag),
-
-		m_fdc(*this, WD2797_TAG),
-		m_floppy0(*this, WD2797_TAG":0"),
-		m_floppy1(*this, WD2797_TAG":1")
-		//  m_ramdisk(*this, RAMDISK)
+		: m5_state(mconfig, type, tag)
+		, m_fdc(*this, WD2797_TAG)
+		, m_floppy0(*this, WD2797_TAG":0")
+		, m_floppy1(*this, WD2797_TAG":1")
+		//,  m_ramdisk(*this, RAMDISK)
 	{ }
 
+	void brno(machine_config &config);
 
-	required_device<wd2797_t> m_fdc;
-	required_device<floppy_connector> m_floppy0;
-	optional_device<floppy_connector> m_floppy1;
-	floppy_image_device *m_floppy;
+	void init_brno();
 
+private:
+	DECLARE_READ8_MEMBER(mmu_r);
+	DECLARE_WRITE8_MEMBER(mmu_w);
+	DECLARE_READ8_MEMBER(ramsel_r);
+	DECLARE_WRITE8_MEMBER(ramsel_w);
+	DECLARE_READ8_MEMBER(romsel_r);
+	DECLARE_WRITE8_MEMBER(romsel_w);
 
-
-	DECLARE_READ8_MEMBER( mmu_r );
-	DECLARE_WRITE8_MEMBER( mmu_w );
-	DECLARE_READ8_MEMBER( ramsel_r );
-	DECLARE_WRITE8_MEMBER(ramsel_w );
-	DECLARE_READ8_MEMBER( romsel_r );
-	DECLARE_WRITE8_MEMBER(romsel_w );
-
-	DECLARE_READ8_MEMBER( fd_r );
-	DECLARE_WRITE8_MEMBER( fd_w );
-	DECLARE_FLOPPY_FORMATS( floppy_formats );
+	DECLARE_READ8_MEMBER(fd_r);
+	DECLARE_WRITE8_MEMBER(fd_w);
+	DECLARE_FLOPPY_FORMATS(floppy_formats);
 
 
-//  DECLARE_WRITE_LINE_MEMBER( wd2797_intrq_w );
-//  DECLARE_WRITE_LINE_MEMBER( wd2797_drq_w );
-//  DECLARE_WRITE_LINE_MEMBER( wd2797_index_callback);
+	//  DECLARE_WRITE_LINE_MEMBER( wd2797_intrq_w );
+	//  DECLARE_WRITE_LINE_MEMBER( wd2797_drq_w );
+	//  DECLARE_WRITE_LINE_MEMBER( wd2797_index_callback);
 
-	//required_device<ram_device> m_ramdisk;
-	DECLARE_DRIVER_INIT(brno);
-	DECLARE_SNAPSHOT_LOAD_MEMBER( brno );
-//  DECLARE_DEVICE_IMAGE_LOAD_MEMBER(m5_cart);
+		//required_device<ram_device> m_ramdisk;
+	DECLARE_SNAPSHOT_LOAD_MEMBER(brno);
+	//  DECLARE_DEVICE_IMAGE_LOAD_MEMBER(m5_cart);
 
+	void brno_io(address_map &map);
+	void m5_mem_brno(address_map &map);
 
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
+
+	required_device<wd2797_device> m_fdc;
+	required_device<floppy_connector> m_floppy0;
+	optional_device<floppy_connector> m_floppy1;
+	floppy_image_device *m_floppy;
 
 	uint8_t m_rambank; // bank #
 	uint8_t m_ramcpu; //where Ramdisk bank is mapped
 	bool m_romen;
 	bool m_ramen;
-
 
 	uint8_t m_rammap[16]; // memory map
 };

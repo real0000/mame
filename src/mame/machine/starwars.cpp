@@ -11,13 +11,7 @@
 
 #include "emu.h"
 #include "includes/starwars.h"
-#include "machine/x2212.h"
 
-
-/* Control select values for ADC_R */
-#define kPitch      0
-#define kYaw        1
-#define kThrust     2
 
 /* Constants for matrix processor operations */
 #define NOP         0x00
@@ -42,7 +36,6 @@ TIMER_CALLBACK_MEMBER(starwars_state::math_run_clear)
 	m_math_run = 0;
 }
 
-
 /*************************************
  *
  *  X2212 nvram store
@@ -51,53 +44,30 @@ TIMER_CALLBACK_MEMBER(starwars_state::math_run_clear)
 
 WRITE8_MEMBER(starwars_state::starwars_nstore_w)
 {
-	machine().device<x2212_device>("x2212")->store(0);
-	machine().device<x2212_device>("x2212")->store(1);
-	machine().device<x2212_device>("x2212")->store(0);
+	m_novram->store(0);
+	m_novram->store(1);
+	m_novram->store(0);
+}
+
+WRITE_LINE_MEMBER(starwars_state::recall_w)
+{
+	m_novram->recall(!state);
 }
 
 /*************************************
  *
- *  Output latch
+ *  Coin counters and LEDs
  *
  *************************************/
 
-WRITE8_MEMBER(starwars_state::starwars_out_w)
+WRITE_LINE_MEMBER(starwars_state::coin1_counter_w)
 {
-	switch (offset & 7)
-	{
-		case 0:     /* Coin counter 1 */
-			machine().bookkeeping().coin_counter_w(0, data);
-			break;
+	machine().bookkeeping().coin_counter_w(0, state);
+}
 
-		case 1:     /* Coin counter 2 */
-			machine().bookkeeping().coin_counter_w(1, data);
-			break;
-
-		case 2:     /* LED 3 */
-			output().set_led_value(2, ~data & 0x80);
-			break;
-
-		case 3:     /* LED 2 */
-			output().set_led_value(1, ~data & 0x80);
-			break;
-
-		case 4:     /* bank switch */
-			membank("bank1")->set_entry((data >> 7) & 1);
-			if (m_is_esb)
-				membank("bank2")->set_entry((data >> 7) & 1);
-			break;
-		case 5:     /* reset PRNG */
-			break;
-
-		case 6:     /* LED 1 */
-			output().set_led_value(0, ~data & 0x80);
-			break;
-
-		case 7:     /* NVRAM array recall */
-			machine().device<x2212_device>("x2212")->recall(~data & 0x80);
-			break;
-	}
+WRITE_LINE_MEMBER(starwars_state::coin2_counter_w)
+{
+	machine().bookkeeping().coin_counter_w(1, state);
 }
 
 
@@ -108,39 +78,10 @@ WRITE8_MEMBER(starwars_state::starwars_out_w)
  *
  *************************************/
 
-CUSTOM_INPUT_MEMBER(starwars_state::matrix_flag_r)
+READ_LINE_MEMBER(starwars_state::matrix_flag_r)
 {
 	/* set the matrix processor flag */
 	return m_math_run ? 1 : 0;
-}
-
-
-
-/*************************************
- *
- *  ADC input and control
- *
- *************************************/
-
-READ8_MEMBER(starwars_state::starwars_adc_r)
-{
-	/* pitch */
-	if (m_control_num == kPitch)
-		return ioport("STICKY")->read();
-
-	/* yaw */
-	else if (m_control_num == kYaw)
-		return ioport("STICKX")->read();
-
-	/* default to unused thrust */
-	else
-		return 0;
-}
-
-
-WRITE8_MEMBER(starwars_state::starwars_adc_select_w)
-{
-	m_control_num = offset;
 }
 
 
@@ -208,8 +149,6 @@ void starwars_state::run_mproc()
 	int MA;
 	int IP15_8, IP7, IP6_0; /* Instruction PROM values */
 	int mptime;
-
-	logerror("Running Matrix Processor...\n");
 
 	mptime = 0;
 	m_math_run = 1;
@@ -379,6 +318,10 @@ READ8_MEMBER(starwars_state::starwars_prng_r)
 
 	/* Use MAME's PRNG for now */
 	return machine().rand();
+}
+
+WRITE_LINE_MEMBER(starwars_state::prng_reset_w)
+{
 }
 
 

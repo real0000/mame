@@ -1,10 +1,34 @@
 Common Issues and Questions (FAQ)
 =================================
 
-
-
 **Disclaimer: The following information is not legal advice and was not written by a lawyer.**
 
+
+1. :ref:`rapid-coins`
+2. :ref:`broken-package`
+3. :ref:`faster-if-X`
+4. :ref:`NeoGeo-broken`
+5. :ref:`Sega-SGMDC`
+6. :ref:`Missing-ROMs`
+7. :ref:`ROM-Verify`
+8. :ref:`Parent-Sets`
+9. :ref:`Legal-ROMs`
+10. :ref:`ROMs-Grey`
+11. :ref:`Abandonware`
+12. :ref:`Old-Sets`
+13. :ref:`eBay-cabs`
+14. :ref:`ROM-DVDs`
+15. :ref:`DMCA-exemption`
+16. :ref:`24-hours`
+17. :ref:`commercial-use`
+18. :ref:`Ultracade`
+19. :ref:`Blackscreen-DirectX`
+20. :ref:`ControllerIssues`
+21. :ref:`ExternalOPL`
+22. :ref:`Autofire`
+
+
+.. _rapid-coins:
 
 Why does my game show an error screen if I insert coins rapidly?
 ----------------------------------------------------------------
@@ -14,13 +38,19 @@ This is not a bug in MAME. On original arcade hardware, you simply could not ins
 In either case, the game would display an error for the operator to look into the situation to prevent cheating them out of their hard-earned cash. Keep a slow, coin-insert-ish pace and you'll not trigger this.
 
 
-Why is my non-official MAME package (e.g. EmuCR build) broken?
---------------------------------------------------------------
+.. _broken-package:
+
+Why is my non-official MAME package (e.g. EmuCR build) broken? Why is my official update broken?
+------------------------------------------------------------------------------------------------
 
 In many cases, updates to various subsystems such as HLSL, BGFX, or Lua plugins come as updates to the external shader files as well as to the core MAME code. Unfortunately, builds that come from third parties may come as just a main MAME executable or with outdated external files, which can break the coupling between these external files and MAME core code. Despite repeated attempts at contacting some of these third parties to warn them, they persist in distributing broken MAME updates.
 
 As we have no control over how third parties distribute these, all we really can do is disclaim the use of sites like EmuCR and say that we cannot provide support for packages we didn't build. Compile your own MAME or use one of the official packages provided by us.
 
+You may also run into this problem if you have not replaced the contents of the HLSL and BGFX folders with the latest files when updating your MAME install with a new official build.
+
+
+.. _faster-if-X:
 
 Why does MAME support console games and dumb terminals? Wouldn't it be faster if MAME had just the arcade games? Wouldn't it take less RAM? Wouldn't MAME be faster if you just X?
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -34,6 +64,8 @@ No part of MAME is a second-class citizen to any other part. Video poker machine
 There's still room for improvements in MAME's speed, but chances are that if you're not already a skilled programmer any ideas you have will have already been covered. Don't let that discourage you-- MAME is open source, and improvements are always welcome.
 
 
+.. _NeoGeo-broken:
+
 Why do my Neo Geo ROMs no longer work? How do I get the Humble Bundle Neo Geo sets working?
 -------------------------------------------------------------------------------------------
 
@@ -44,11 +76,15 @@ This also affects the Humble Bundle set: the games themselves are correct and up
 We suggest you contact the provider of your sets (Humble Bundle and DotEmu) and ask them to update their content to the newest revision. If enough people ask nicely, maybe they'll update the package.
 
 
+.. _Sega-SGMDC:
+
 How can I use the Sega Genesis & Mega Drive Classics collection from Steam with MAME?
 -------------------------------------------------------------------------------------
 
 As of the April 2016 update to the program, the ROM images included in the set are now 100% compatible with MAME and other Genesis/Mega Drive emulators. The ROMs are contained in the **steamapps\\Sega Classics\\uncompressed ROMs** folder as a series of *.68K* and *.SGD* images that can be loaded directly into MAME. PDF manuals for the games can be found in **steamapps\\Sega Classics\\manuals** as well.
 
+
+.. _Missing-ROMs:
 
 Why does MAME report "missing files" even if I have the ROMs?
 -------------------------------------------------------------
@@ -61,6 +97,8 @@ There can be several reasons for this:
 * Older versions of MAME needed decryption tables in order for MAME to emulate Capcom Play System 2 (a.k.a. CPS2) games. These are created by team CPS2Shock.
 * Some games in MAME are considered "Clones" of another game. This is often the case when the game in question is simply an alternate version of the same game. Common alternate versions of games include versions with text in other languages, versions with different copyright dates, later versions or updates, bootlegs, etc. "Cloned" games often overlap some of the ROM code as the original or "parent" version of the game. To see if you have any "clones" type "**MAME -listclones**". To run a "cloned game" you simply need to place its parent ROM file in your ROMs folder (leave it zipped).
 
+
+.. _ROM-Verify:
 
 How can I be sure I have the right ROMs?
 ----------------------------------------
@@ -76,6 +114,8 @@ If you have several games and you wish to verify that they are compatible with t
 ...checks the validity of ALL the ROMs in your ROMS directory, and writes the results to a textfile called *verify.txt*.
 
 
+.. _Parent-Sets:
+
 Why is it that some games have the US version as the main set, some have Japanese, and some are the World?
 -----------------------------------------------------------------------------------------------------------
 
@@ -87,6 +127,8 @@ Another exception comes for games where it was licensed to a third party for exp
 
 Lastly, a developer adding a new set can choose to use whatever naming and parent scheme they wish and are not restricted to the above rules. Most follow these guidelines, however.
 
+
+.. _Legal-ROMs:
 
 How do I legally obtain ROMs or disk images to run on MAME?
 -----------------------------------------------------------
@@ -100,11 +142,15 @@ You have several options:
 Beyond these options, you are on your own.
 
 
+.. _ROMs-Grey:
+
 Isn't copying ROMs a legal gray area?
 -------------------------------------
 
 No, it's not. You are not permitted to make copies of software without the copyright owner's permission. This is a black & white issue.
 
+
+.. _Abandonware:
 
 Can't game ROMs be considered abandonware?
 ------------------------------------------
@@ -112,17 +158,23 @@ Can't game ROMs be considered abandonware?
 No. Even the companies that went under had their assets purchased by somebody, and that person is the copyright owner.
 
 
+.. _Old-Sets:
+
 I had ROMs that worked with an old version of MAME and now they don't. What happened?
 -------------------------------------------------------------------------------------
 
 As time passes, MAME is perfecting the emulation of older games, even when the results aren't immediately obvious to the user. Often times the better emulation requires more data from the original game to operate. Sometimes the data was overlooked, sometimes it simply wasn't feasible to get at it (for instance, chip "decapping" is a technique that only became affordable very recently for people not working in high-end laboratories). In other cases it's much simpler: more sets of a game were dumped and it was decided to change which sets were which version.
 
 
+.. _eBay-cabs:
+
 What about those arcade cabinets on eBay that come with all the ROMs?
 ---------------------------------------------------------------------
 
 If the seller does not have a proper license to include the ROMs with his system, he is not allowed to legally include any ROMs with his system. If he has purchased a license to the ROMs in your name from a distributor or vendor with legitimate licenses, then he is okay to include them with the cabinet. After signing an agreement, cabinet owners that include legitimate licensed ROMs may be permitted to include a version of MAME that runs those ROMs and nothing more.
 
+
+.. _ROM-DVDs:
 
 What about those guys who burn DVDs of ROMs for the price of the media?
 -----------------------------------------------------------------------
@@ -132,11 +184,15 @@ What they are doing is just as illegal as selling the ROMs outright. As long as 
 Even worse, a lot of these folks like to claim that they are helping the project. In fact, they only create more problems for the MAME team. We are not associated with these people in any way regardless of how "official" they may attempt to appear. You are only helping criminals make a profit through selling software they have no right to sell. **Anybody using the MAME name and/or logo to sell such products is also in violation of the MAME trademark.**
 
 
+.. _DMCA-exemption:
+
 But isn't there a special DMCA exemption that makes ROM copying legal?
 ----------------------------------------------------------------------
 
 No, you have misread the exemptions. The exemption allows people to reverse engineer the copy protection or encryption in computer programs that are obsolete. The exemption simply means that figuring out how these obsolete programs worked is not illegal according to the DMCA. It does not have any effect on the legality of violating the copyright on computer programs, which is what you are doing if you make copies of ROMs.
 
+
+.. _24-hours:
 
 But isn't it OK to download and "try" ROMs for 24 hours?
 --------------------------------------------------------
@@ -144,17 +200,23 @@ But isn't it OK to download and "try" ROMs for 24 hours?
 This is an urban legend that was made up by people who put ROMs up for download on their sites, in order to justify the fact that they were breaking the law. There is nothing like this in any copyright law.
 
 
+.. _commercial-use:
+
 If I buy a cabinet with legitimate ROMs, can I set it up in a public place to make money?
 -----------------------------------------------------------------------------------------
 
 Probably not. ROMs are typically only licensed for personal, non-commercial purposes.
 
 
+.. _Ultracade:
+
 But I've seen Ultracade and Global VR Classics cabinets out in public places? Why can they do it?
 -------------------------------------------------------------------------------------------------
 
 Ultracade had two separate products. The Ultracade product is a commercial machine with commercial licenses to the games. These machines were designed to be put on location and make money, like traditional arcade machines. Their other product is the Arcade Legends series. These are home machines with non- commercial licenses for the games, and can only be legally operated in a private environment. Since their buyout by Global VR they only offer the Global VR Classics cabinet, which is equivalent to the earlier Ultracade product.
 
+
+.. _Blackscreen-DirectX:
 
 HELP! I'm getting a black screen or an error message in regards to DirectX on Windows!
 --------------------------------------------------------------------------------------
@@ -164,6 +226,8 @@ You probably have missing or damaged DirectX runtimes. You can download the late
 Additional troubleshooting information can be found on Microsoft's website at https://support.microsoft.com/en-us/kb/179113
 
 
+.. _ControllerIssues:
+
 I have a controller that doesn't want to work with the standard Microsoft Windows version of MAME, what can I do?
 -----------------------------------------------------------------------------------------------------------------
 
@@ -172,3 +236,43 @@ By default, MAME on Microsoft Windows tries to do raw reads of the joystick(s), 
 One thing you can try is setting the keyboardprovider, mouseprovider, or joystickprovider setting (depending on which kind of device your input device acts as) from rawinput to one of the other options such as dinput or win32. See :ref:`osd-commandline-options` for details on supported providers.
 
 
+.. _ExternalOPL:
+
+What happened to the MAME support for external OPL2-carrying soundcards?
+------------------------------------------------------------------------
+
+MAME added support in version 0.23 for the use of a soundcard's onboard OPL2 (Yamaha YM3812 chip) instead of emulating the OPL2. This feature was never supported on the official Windows version of MAME and was dropped entirely as of MAME 0.60, because the OPL2 emulation in MAME had become advanced enough to be a better solution in almost all cases as of that time; now it's superior to using a sound card's YM3812 in all cases, especially as modern cards lack a YM3812.
+
+Unofficial builds of MAME may have supported it for varying amounts of time as well.
+
+
+.. _Autofire:
+
+What happened to the MAME support for autofire?
+-----------------------------------------------
+
+A Lua plugin with providing enhanced autofire support was added in MAME 0.210; the old built-in autofire functionality was removed in MAME 0.216. This new plugin has more functionality than the previous built-in autofire in older MAME revisions; for instance, you can specify an alternate button for the autofire.
+
+You can enable and configure the new autofire system with the following steps:
+
+* Start MAME with no system selected.
+* Choose *Plugins* at the bottom (just above Exit)
+* Turn Autofire on.
+
+The setting will be automatically saved for future use.
+
+Once you're inside a system of your choice, bring up the MAME menu (typically the **tab** key) and go into *plugin options*. From there, depending on whether you have an existing autofire button set up or not, it will either show the existing entry/entries or it will ask you to select the input for the autofire.
+
+Typically you'll be choosing *P1 Button 1* for systems like Galaga, Alcon, or the like. The *Hotkey* is the button you press for the autofire effect. This can be any keyboard key or joystick button that you wish. As of 0.216, mouse buttons are not yet supported.
+
+*On frames* and *Off frames* are how long to leave the button pressed and unpressed in number of frames. Some systems do not read the inputs fast enough for 1 and 1 to be usable. You may need to try 2 and 2 (e.g. Alcon) or other combinations. Try fine-tuning these to your taste.
+
+The autofire configuration for that system will be saved in a ``systemname.cfg`` (e.g. ``alcon.cfg``) file inside the Autofire folder for future use. Each system will have its own configuration.
+
+Note that if you set the autofire button to an input button that's also defined in MAME's inputs for the running system, you may get unexpected results-- Using Gradius as an example:
+
+ If you set button 1 on your controller to fire, then set autofire to button 1 as well, holding the button down to shoot will not trigger the autofire because the button never gets released from you holding the non-autofire button 1. This will also happen if you set a different button as autofire (say, button 3 in this case), and hold button 1 down while holding button 3 down.
+
+ If you set button 3 on your controller to autofire and set button 3 to be powerup as well, you will trigger the powerup action every time you grab a powerup because the powerup button is also being held down along with the autofire button.
+
+ It is suggested you choose a button for autofire that is not in use for anything else in the current system.

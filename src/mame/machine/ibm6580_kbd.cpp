@@ -3,24 +3,24 @@
 #include "emu.h"
 #include "ibm6580_kbd.h"
 
-#define VERBOSE_DBG 0       /* general debug messages */
 
-#define DBG_LOG(N,M,A) \
-	do { \
-	if(VERBOSE_DBG>=N) \
-		{ \
-			if( M ) \
-				logerror("%11.6f at %s: %-10s",machine().time().as_double(),machine().describe_context(),(char*)M ); \
-			logerror A; \
-		} \
-	} while (0)
+//#define LOG_GENERAL (1U <<  0) //defined in logmacro.h already
+#define LOG_DEBUG     (1U <<  1)
+#define LOG_KEYBOARD  (1U <<  2)
+
+//#define VERBOSE (LOG_GENERAL | LOG_DEBUG)
+//#define LOG_OUTPUT_FUNC printf
+#include "logmacro.h"
+
+#define LOGDBG(...) LOGMASKED(LOG_DEBUG, __VA_ARGS__)
+#define LOGKBD(...) LOGMASKED(LOG_KEYBOARD, __VA_ARGS__)
 
 
-const device_type DW_KEYBOARD = device_creator<dw_keyboard_device>;
+DEFINE_DEVICE_TYPE(DW_KEYBOARD, dw_keyboard_device, "dw_kbd", "IBM Displaywriter Keyboard")
 
 ROM_START( dw_keyboard )
 	ROM_REGION(0x800, "mcu", 0)
-	ROM_LOAD("4333923_KB_8048.BIN", 0x0000, 0x400, CRC(7850e3a0) SHA1(3183d93e34707f4b24f4f71db658c3cf317a631a))
+	ROM_LOAD("4333923_kb_8048.bin", 0x0000, 0x400, CRC(7850e3a0) SHA1(3183d93e34707f4b24f4f71db658c3cf317a631a))
 ROM_END
 
 
@@ -29,23 +29,18 @@ const tiny_rom_entry *dw_keyboard_device::device_rom_region() const
 	return ROM_NAME( dw_keyboard );
 }
 
-static ADDRESS_MAP_START( dw_keyboard_io, AS_IO, 8, dw_keyboard_device )
-	AM_RANGE(MCS48_PORT_BUS, MCS48_PORT_BUS) AM_READWRITE(bus_r, bus_w)
-	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_WRITE(p1_w)
-	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_READWRITE(p2_r, p2_w)
-	AM_RANGE(MCS48_PORT_T0, MCS48_PORT_T0) AM_READ(t0_r)
-	AM_RANGE(MCS48_PORT_T1, MCS48_PORT_T1) AM_READ(t1_r)
-ADDRESS_MAP_END
-
-static MACHINE_CONFIG_FRAGMENT( dw_keyboard )
-	MCFG_CPU_ADD("mcu", I8049, XTAL_6MHz)   // XXX RC oscillator
-	MCFG_CPU_IO_MAP(dw_keyboard_io)
-MACHINE_CONFIG_END
-
-machine_config_constructor dw_keyboard_device::device_mconfig_additions() const
+void dw_keyboard_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( dw_keyboard );
+	I8049(config, m_mcu, XTAL(6'000'000));   // XXX RC oscillator
+	m_mcu->bus_in_cb().set(FUNC(dw_keyboard_device::bus_r));
+	m_mcu->bus_out_cb().set(FUNC(dw_keyboard_device::bus_w));
+	m_mcu->p1_out_cb().set(FUNC(dw_keyboard_device::p1_w));
+	m_mcu->p2_in_cb().set(FUNC(dw_keyboard_device::p2_r));
+	m_mcu->p2_out_cb().set(FUNC(dw_keyboard_device::p2_w));
+	m_mcu->t0_in_cb().set(FUNC(dw_keyboard_device::t0_r));
+	m_mcu->t1_in_cb().set(FUNC(dw_keyboard_device::t1_r));
 }
+
 
 INPUT_PORTS_START( dw_keyboard )
 	/*
@@ -185,7 +180,7 @@ ioport_constructor dw_keyboard_device::device_input_ports() const
 }
 
 dw_keyboard_device::dw_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, DW_KEYBOARD, "IBM Displaywriter Keyboard", tag, owner, clock, "dw_kbd", __FILE__)
+	: device_t(mconfig, DW_KEYBOARD, tag, owner, clock)
 	, m_kbd(*this, "COL.%u", 0)
 	, m_out_data(*this)
 	, m_out_clock(*this)
@@ -211,14 +206,14 @@ void dw_keyboard_device::device_timer(emu_timer &timer, device_timer_id id, int 
 	m_mcu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
-WRITE8_MEMBER( dw_keyboard_device::p1_w )
+void dw_keyboard_device::p1_w(uint8_t data)
 {
 	m_drive = data;
 
-	DBG_LOG(2,"p1",( "<- %02x = drive %04x\n", data, m_drive));
+	LOGDBG("p1 <- %02x = drive %04x\n", data, m_drive);
 }
 
-WRITE8_MEMBER( dw_keyboard_device::p2_w )
+void dw_keyboard_device::p2_w(uint8_t data)
 {
 	if (BIT(m_p2 ^ data, 3) && BIT(data, 3)) {
 		m_sense = data & 7;
@@ -227,33 +222,33 @@ WRITE8_MEMBER( dw_keyboard_device::p2_w )
 	m_p2 = data;
 	m_drive = ((data & 0xf0) << 4);
 
-	DBG_LOG(2,"p2",( "<- %02x = drive %04x sense row %d\n", data, m_drive, data & 7));
+	LOGDBG("p2 <- %02x = drive %04x sense row %d\n", data, m_drive, data & 7);
 }
 
-READ8_MEMBER( dw_keyboard_device::p2_r )
+uint8_t dw_keyboard_device::p2_r()
 {
 	uint8_t data = m_p2;
 
-	DBG_LOG(2,"p2",( "== %02x\n", data));
+	LOGDBG("p2 == %02x\n", data);
 
 	return data;
 }
 
-READ8_MEMBER( dw_keyboard_device::t0_r )
+READ_LINE_MEMBER( dw_keyboard_device::t0_r )
 {
-	DBG_LOG(3,"t0",( "== %d\n", m_ack));
+	LOGKBD("t0 == %d\n", m_ack);
 
 	return m_ack;
 }
 
-READ8_MEMBER( dw_keyboard_device::t1_r )
+READ_LINE_MEMBER( dw_keyboard_device::t1_r )
 {
-	DBG_LOG(2,"t1",( "== %d\n", m_keylatch));
+	LOGDBG("t1 == %d\n", m_keylatch);
 
 	return m_keylatch;
 }
 
-WRITE8_MEMBER( dw_keyboard_device::bus_w )
+void dw_keyboard_device::bus_w(uint8_t data)
 {
 	int i, sense = 0;
 
@@ -271,8 +266,8 @@ WRITE8_MEMBER( dw_keyboard_device::bus_w )
 	*/
 
 	if ((data & 0x72) != 0x72)
-	DBG_LOG(1,"bus",( "<- %02x = send %d strobe %d clock %d | dip clk %d dip load %d\n",
-		data, BIT(data, 0), BIT(data, 1), BIT(data, 4), BIT(data, 5), BIT(data, 6)));
+	LOG("bus <- %02x = send %d strobe %d clock %d | dip clk %d dip load %d\n",
+		data, BIT(data, 0), BIT(data, 1), BIT(data, 4), BIT(data, 5), BIT(data, 6));
 
 	m_bus = data;
 
@@ -289,12 +284,12 @@ WRITE8_MEMBER( dw_keyboard_device::bus_w )
 		}
 		m_keylatch = BIT(sense, m_sense);
 		if (m_keylatch)
-		DBG_LOG(1,"bus",("key %02x pressed (drive %04x sense %x)\n", (i << 3) | m_sense, m_drive, m_sense));
+		LOG("bus key %02x pressed (drive %04x sense %x)\n", (i << 3) | m_sense, m_drive, m_sense);
 	}
 
 	if (!BIT(data, 6)) {
 		m_dip = ~ioport("DIP")->read();
-		DBG_LOG(1,"bus",("loaded DIP switch setting 0x%02x\n", m_dip));
+		LOG("bus loaded DIP switch setting 0x%02x\n", m_dip);
 		m_mcu->set_input_line(MCS48_INPUT_IRQ, m_dip & 1 ? ASSERT_LINE : CLEAR_LINE);
 	}
 
@@ -304,7 +299,7 @@ WRITE8_MEMBER( dw_keyboard_device::bus_w )
 	}
 }
 
-READ8_MEMBER( dw_keyboard_device::bus_r )
+uint8_t dw_keyboard_device::bus_r()
 {
 	return m_bus;
 }

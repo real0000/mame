@@ -8,7 +8,6 @@
 
 #include "emu.h"
 #include "includes/samcoupe.h"
-#include "screen.h"
 
 
 /***************************************************************************
@@ -19,7 +18,7 @@
 #define BORDER_COLOR(x) ((x & 0x20) >> 2 | (x & 0x07))
 
 /* foreground and background color from attribute byte in mode 1 and 2 */
-#define ATTR_BG(x)      ((x >> 3) & 0x07)
+#define ATTR_BG(x)      ((x >> 3) & 0x0f)
 #define ATTR_FG(x)      (((x >> 3) & 0x08) | (x & 0x07))
 
 
@@ -29,7 +28,7 @@
 
 void samcoupe_state::video_start()
 {
-	machine().first_screen()->register_screen_bitmap(m_bitmap);
+	m_screen->register_screen_bitmap(m_bitmap);
 }
 
 uint32_t samcoupe_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -124,8 +123,8 @@ void samcoupe_state::draw_mode1_line(int y, int hpos)
 
 TIMER_CALLBACK_MEMBER(samcoupe_state::sam_video_update_callback)
 {
-	int vpos = machine().first_screen()->vpos();
-	int hpos = machine().first_screen()->hpos();
+	int vpos = m_screen->vpos();
+	int hpos = m_screen->hpos();
 
 	int next_vpos = vpos;
 	int next_hpos = hpos + SAM_BLOCK*2;
@@ -168,5 +167,5 @@ TIMER_CALLBACK_MEMBER(samcoupe_state::sam_video_update_callback)
 		samcoupe_irq(SAM_LINE_INT);
 
 	/* schedule next update */
-	m_video_update_timer->adjust(machine().first_screen()->time_until_pos(next_vpos, next_hpos));
+	m_video_update_timer->adjust(m_screen->time_until_pos(next_vpos, next_hpos));
 }

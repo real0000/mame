@@ -1,22 +1,19 @@
 // license:BSD-3-Clause
 // copyright-holders:S. Smith,David Haywood,Fabio Priuli
 
+#ifndef MAME_BUS_NEOGEO_PROT_PVC_H
+#define MAME_BUS_NEOGEO_PROT_PVC_H
+
 #pragma once
 
-#ifndef __PVC_PROT__
-#define __PVC_PROT__
-
-extern const device_type PVC_PROT;
-
-#define MCFG_PVC_PROT_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, PVC_PROT, 0)
+DECLARE_DEVICE_TYPE(NG_PVC_PROT, pvc_prot_device)
 
 
 class pvc_prot_device :  public device_t
 {
 public:
 	// construction/destruction
-	pvc_prot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	pvc_prot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
 	void pvc_write_unpack_color();
 	void pvc_write_pack_color();
@@ -38,4 +35,4 @@ protected:
 	virtual void device_reset() override;
 };
 
-#endif
+#endif // MAME_BUS_NEOGEO_PROT_PVC_H

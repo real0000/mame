@@ -15,7 +15,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type C64_WESTERMANN = device_creator<c64_westermann_cartridge_device>;
+DEFINE_DEVICE_TYPE(C64_WESTERMANN, c64_westermann_cartridge_device, "c64_westermann", "C64 Westermann cartridge")
 
 
 
@@ -28,7 +28,7 @@ const device_type C64_WESTERMANN = device_creator<c64_westermann_cartridge_devic
 //-------------------------------------------------
 
 c64_westermann_cartridge_device::c64_westermann_cartridge_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, C64_WESTERMANN, "C64 Westermann cartridge", tag, owner, clock, "c64_westermann", __FILE__),
+	device_t(mconfig, C64_WESTERMANN, tag, owner, clock),
 	device_c64_expansion_card_interface(mconfig, *this)
 {
 }
@@ -57,7 +57,7 @@ void c64_westermann_cartridge_device::device_reset()
 //  c64_cd_r - cartridge data read
 //-------------------------------------------------
 
-uint8_t c64_westermann_cartridge_device::c64_cd_r(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
+uint8_t c64_westermann_cartridge_device::c64_cd_r(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
 {
 	if (!roml)
 	{

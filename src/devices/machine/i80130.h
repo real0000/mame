@@ -6,45 +6,13 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_MACHINE_I80130_H
+#define MAME_MACHINE_I80130_H
 
-#ifndef __I80130__
-#define __I80130__
+#pragma once
 
 #include "machine/pic8259.h"
 #include "machine/pit8253.h"
-
-
-
-///*************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-///*************************************************************************
-
-#define MCFG_I80130_IRQ_CALLBACK(_write) \
-	devcb = &i80130_device::set_irq_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_I80130_ACK_CALLBACK(_write) \
-	devcb = &i80130_device::set_ack_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_I80130_LIR_CALLBACK(_write) \
-	devcb = &i80130_device::set_lir_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_I80130_SYSTICK_CALLBACK(_write) \
-	devcb = &i80130_device::set_systick_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_I80130_DELAY_CALLBACK(_write) \
-	devcb = &i80130_device::set_delay_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_I80130_BAUD_CALLBACK(_write) \
-	devcb = &i80130_device::set_baud_wr_callback(*device, DEVCB_##_write);
-
-
-
-///*************************************************************************
-//  TYPE DEFINITIONS
-///*************************************************************************
-
-// ======================> i80130_device
 
 class i80130_device :  public device_t
 {
@@ -52,19 +20,15 @@ public:
 	// construction/destruction
 	i80130_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_irq_wr_callback(device_t &device, _Object object) { return downcast<i80130_device &>(device).m_write_irq.set_callback(object); }
-	template<class _Object> static devcb_base &set_ack_wr_callback(device_t &device, _Object object) { return downcast<i80130_device &>(device).m_write_ack.set_callback(object); }
-	template<class _Object> static devcb_base &set_lir_wr_callback(device_t &device, _Object object) { return downcast<i80130_device &>(device).m_write_lir.set_callback(object); }
-	template<class _Object> static devcb_base &set_systick_wr_callback(device_t &device, _Object object) { return downcast<i80130_device &>(device).m_write_systick.set_callback(object); }
-	template<class _Object> static devcb_base &set_delay_wr_callback(device_t &device, _Object object) { return downcast<i80130_device &>(device).m_write_delay.set_callback(object); }
-	template<class _Object> static devcb_base &set_baud_wr_callback(device_t &device, _Object object) { return downcast<i80130_device &>(device).m_write_baud.set_callback(object); }
+	auto irq() { return m_write_irq.bind(); }
+	auto ack() { return m_write_ack.bind(); }
+	auto lir() { return m_write_lir.bind(); }
+	auto systick() { return m_write_systick.bind(); }
+	auto delay() { return m_write_delay.bind(); }
+	auto baud() { return m_write_baud.bind(); }
 
-	virtual DECLARE_ADDRESS_MAP(rom_map, 16);
-	virtual DECLARE_ADDRESS_MAP(io_map, 16);
-
-	// optional information overrides
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void rom_map(address_map &map);
+	virtual void io_map(address_map &map);
 
 	uint8_t inta_r() { return m_pic->acknowledge(); }
 
@@ -77,19 +41,15 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( ir6_w ) { m_pic->ir6_w(state); }
 	DECLARE_WRITE_LINE_MEMBER( ir7_w ) { m_pic->ir7_w(state); }
 
-	DECLARE_WRITE_LINE_MEMBER( irq_w ) { m_write_irq(state); }
-	DECLARE_WRITE_LINE_MEMBER( systick_w ) { m_write_systick(state); }
-	DECLARE_WRITE_LINE_MEMBER( delay_w ) { m_write_delay(state); }
-	DECLARE_WRITE_LINE_MEMBER( baud_w ) { m_write_baud(state); }
-
-	DECLARE_READ16_MEMBER( io_r );
-	DECLARE_WRITE16_MEMBER( io_w );
-
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+	// optional information overrides
+//  virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
+private:
 	required_device<pic8259_device> m_pic;
 	required_device<pit8254_device> m_pit;
 
@@ -99,12 +59,18 @@ protected:
 	devcb_write_line m_write_systick;
 	devcb_write_line m_write_delay;
 	devcb_write_line m_write_baud;
+
+	DECLARE_WRITE_LINE_MEMBER( irq_w ) { m_write_irq(state); }
+	DECLARE_WRITE_LINE_MEMBER( systick_w ) { m_write_systick(state); }
+	DECLARE_WRITE_LINE_MEMBER( delay_w ) { m_write_delay(state); }
+	DECLARE_WRITE_LINE_MEMBER( baud_w ) { m_write_baud(state); }
+
+	DECLARE_READ16_MEMBER( io_r );
+	DECLARE_WRITE16_MEMBER( io_w );
 };
 
 
 // device type definition
-extern const device_type I80130;
+DECLARE_DEVICE_TYPE(I80130, i80130_device)
 
-
-
-#endif
+#endif // MAME_MACHINE_I80130_H

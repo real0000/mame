@@ -14,24 +14,11 @@
 
 
 //**************************************************************************
-//  DEBUGGING
-//**************************************************************************
-
-#define VERBOSE         (0)
-
-#define VPRINTF(x)      do { if (VERBOSE) osd_printf_debug x; } while (0)
-
-
-
-//**************************************************************************
 //  GLOBAL VARIABLES
 //**************************************************************************
 
 // device type definition
-const device_type SPEAKER = device_creator<speaker_device>;
-
-template class device_finder<speaker_device, false>;
-template class device_finder<speaker_device, true>;
+DEFINE_DEVICE_TYPE(SPEAKER, speaker_device, "speaker", "Speaker")
 
 
 
@@ -44,16 +31,15 @@ template class device_finder<speaker_device, true>;
 //-------------------------------------------------
 
 speaker_device::speaker_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)
-	: device_t(mconfig, SPEAKER, "Speaker", tag, owner, clock, "speaker", __FILE__),
-		device_mixer_interface(mconfig, *this),
-		m_x(0.0),
-		m_y(0.0),
-		m_z(0.0)
+	: device_t(mconfig, SPEAKER, tag, owner, clock)
+	, device_mixer_interface(mconfig, *this)
+	, m_x(0.0)
+	, m_y(0.0)
+	, m_z(0.0)
 #ifdef MAME_DEBUG
-	,
-		m_max_sample(0),
-		m_clipped_samples(0),
-		m_total_samples(0)
+	, m_max_sample(0)
+	, m_clipped_samples(0)
+	, m_total_samples(0)
 #endif
 {
 }
@@ -70,20 +56,6 @@ speaker_device::~speaker_device()
 	if (m_max_sample > 0)
 		osd_printf_debug("Speaker \"%s\" - max = %d (gain *= %f) - %d%% samples clipped\n", tag(), m_max_sample, 32767.0 / (m_max_sample ? m_max_sample : 1), (int)((double)m_clipped_samples * 100.0 / m_total_samples));
 #endif
-}
-
-
-//-------------------------------------------------
-//  static_set_position - configuration helper to
-//  set the speaker position
-//-------------------------------------------------
-
-void speaker_device::static_set_position(device_t &device, double x, double y, double z)
-{
-	speaker_device &speaker = downcast<speaker_device &>(device);
-	speaker.m_x = x;
-	speaker.m_y = y;
-	speaker.m_z = z;
 }
 
 
@@ -107,8 +79,8 @@ void speaker_device::mix(s32 *leftmix, s32 *rightmix, int &samples_this_update, 
 		samples_this_update = numsamples;
 
 		// reset the mixing streams
-		memset(leftmix, 0, samples_this_update * sizeof(*leftmix));
-		memset(rightmix, 0, samples_this_update * sizeof(*rightmix));
+		std::fill_n(leftmix, samples_this_update, 0);
+		std::fill_n(rightmix, samples_this_update, 0);
 	}
 	assert(samples_this_update == numsamples);
 

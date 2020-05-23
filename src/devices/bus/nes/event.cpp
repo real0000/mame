@@ -16,8 +16,6 @@
 #include "emu.h"
 #include "event.h"
 
-#include "cpu/m6502/m6502.h"
-
 
 #ifdef NES_PCB_DEBUG
 #define VERBOSE 1
@@ -32,18 +30,18 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type NES_EVENT = device_creator<nes_event_device>;
+DEFINE_DEVICE_TYPE(NES_EVENT, nes_event_device, "nes_event", "NES Cart Event PCB")
 
 
 nes_event_device::nes_event_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_sxrom_device(mconfig, NES_EVENT, "NES Cart Event PCB", tag, owner, clock, "nes_event", __FILE__),
-						m_dsw(*this, "DIPSW"),
-	m_nwc_init(0),
-	event_timer(nullptr),
-	m_timer_count(0),
-	m_timer_on(0),
-	m_timer_enabled(0)
-				{
+	: nes_sxrom_device(mconfig, NES_EVENT, tag, owner, clock)
+	, m_dsw(*this, "DIPSW")
+	, m_nwc_init(0)
+	, event_timer(nullptr)
+	, m_timer_count(0)
+	, m_timer_on(0)
+	, m_timer_enabled(0)
+{
 }
 
 
@@ -52,7 +50,7 @@ void nes_event_device::device_start()
 	common_start();
 	event_timer = timer_alloc(TIMER_EVENT);
 	event_timer->adjust(attotime::never);
-	timer_freq = machine().device<cpu_device>("maincpu")->cycles_to_attotime(1);
+	timer_freq = clocks_to_attotime(1);
 
 	save_item(NAME(m_latch));
 	save_item(NAME(m_count));
@@ -154,7 +152,7 @@ void nes_event_device::set_prg()
 	if (m_reg[1] & 0x10)
 	{
 		m_timer_enabled = 1;
-		m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+		set_irq_line(CLEAR_LINE);
 	}
 	else
 	{
@@ -237,7 +235,7 @@ void nes_event_device::device_timer(emu_timer &timer, device_timer_id id, int pa
 		m_timer_count--;
 		if (!m_timer_count)
 		{
-			m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+			hold_irq_line();
 			event_timer->reset();
 		}
 	}

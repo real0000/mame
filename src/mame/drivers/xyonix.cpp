@@ -23,12 +23,70 @@ TODO:
 ******************************************************************************/
 
 #include "emu.h"
-#include "includes/xyonix.h"
+
 #include "cpu/z80/z80.h"
+#include "video/mc6845.h"
 #include "sound/sn76496.h"
 #include "screen.h"
 #include "speaker.h"
+#include "emupal.h"
+#include "tilemap.h"
 
+
+class xyonix_state : public driver_device
+{
+public:
+	xyonix_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_crtc(*this, "crtc"),
+		m_palette(*this, "palette"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_gfx(*this, "gfx1"),
+		m_vidram(*this, "vidram")
+	{ }
+
+	void xyonix(machine_config &config);
+
+protected:
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+	virtual void video_start() override;
+
+private:
+	required_device<cpu_device> m_maincpu;
+	required_device<mc6845_device> m_crtc;
+	required_device<palette_device> m_palette;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_memory_region m_gfx;
+
+	required_shared_ptr<uint8_t> m_vidram;
+
+	tilemap_t *m_tilemap;
+
+	int m_e0_data;
+	int m_credits;
+	int m_coins;
+	int m_prev_coin;
+	bool m_nmi_mask;
+
+	DECLARE_WRITE_LINE_MEMBER(nmiclk_w);
+	DECLARE_WRITE8_MEMBER(irqack_w);
+	DECLARE_WRITE8_MEMBER(nmiack_w);
+	DECLARE_READ8_MEMBER(io_r);
+	DECLARE_WRITE8_MEMBER(io_w);
+	DECLARE_WRITE8_MEMBER(vidram_w);
+
+	TILE_GET_INFO_MEMBER(get_tile_info);
+	void xyonix_palette(palette_device &palette) const;
+	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+	void handle_coins(int coin);
+	void main_map(address_map &map);
+	void port_map(address_map &map);
+
+//  MC6845_UPDATE_ROW(crtc_update_row);
+};
 
 void xyonix_state::machine_start()
 {
@@ -36,12 +94,116 @@ void xyonix_state::machine_start()
 	save_item(NAME(m_credits));
 	save_item(NAME(m_coins));
 	save_item(NAME(m_prev_coin));
+	save_item(NAME(m_nmi_mask));
+}
+
+void xyonix_state::machine_reset()
+{
+	m_nmi_mask = false;
 }
 
 WRITE8_MEMBER(xyonix_state::irqack_w)
 {
 	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
+
+WRITE_LINE_MEMBER(xyonix_state::nmiclk_w)
+{
+	if (state && m_nmi_mask)
+		m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+}
+
+WRITE8_MEMBER(xyonix_state::nmiack_w)
+{
+	m_nmi_mask = BIT(data, 0);
+	if (!m_nmi_mask)
+		m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+}
+
+void xyonix_state::xyonix_palette(palette_device &palette) const
+{
+	const uint8_t *color_prom = memregion("proms")->base();
+
+	for (int i = 0; i < palette.entries(); i++)
+	{
+		int bit0, bit1, bit2;
+
+		// red component
+		bit0 = BIT(color_prom[i], 0);
+		bit1 = BIT(color_prom[i], 1);
+		bit2 = BIT(color_prom[i], 2);
+		int const r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+
+		// green component
+		bit0 = BIT(color_prom[i], 5);
+		bit1 = BIT(color_prom[i], 6);
+		bit2 = BIT(color_prom[i], 7);
+		int const g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+
+		// blue component
+		bit0 = BIT(color_prom[i], 3);
+		bit1 = BIT(color_prom[i], 4);
+		int const b = 0x4f * bit0 + 0xa8 * bit1;
+
+		palette.set_pen_color(i,rgb_t(r,g,b));
+	}
+}
+
+
+TILE_GET_INFO_MEMBER(xyonix_state::get_tile_info)
+{
+	int tileno;
+	int attr = m_vidram[tile_index+0x1000+1];
+
+	tileno = (m_vidram[tile_index+1] << 0) | ((attr & 0x0f) << 8);
+
+	tileinfo.set(0,tileno,attr >> 4,0);
+}
+
+WRITE8_MEMBER(xyonix_state::vidram_w)
+{
+	m_vidram[offset] = data;
+	m_tilemap->mark_tile_dirty((offset-1)&0x0fff);
+}
+
+void xyonix_state::video_start()
+{
+	m_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(xyonix_state::get_tile_info)), TILEMAP_SCAN_ROWS, 4, 8, 80, 32);
+}
+
+uint32_t xyonix_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+{
+	m_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	return 0;
+}
+
+#if 0
+
+// commented out because the tilemap renderer is much simpler
+
+MC6845_UPDATE_ROW( xyonix_state::crtc_update_row )
+{
+	const pen_t *pen = m_palette->pens();
+
+	for (int i = 0; i < x_count; i++)
+	{
+		uint8_t code = m_vidram[(0x0000 | (ma + i)) + 1];
+		uint8_t attr = m_vidram[(0x1000 | (ma + i)) + 1];
+
+		// tile offset into the gfx rom
+		uint16_t tile = ((((attr & 0x0f) << 8) | code) << 3) | ra;
+
+		// tile data (4 pixels with 4 bit color code)
+		uint16_t data = m_gfx->base()[0x8000 | tile] << 8 | m_gfx->base()[tile];
+
+		// draw 4 pixels
+		bitmap.pix32(y, i * 4 + 0) = pen[(attr & 0xf0) | bitswap<4>(data, 4, 0, 12, 8)];
+		bitmap.pix32(y, i * 4 + 1) = pen[(attr & 0xf0) | bitswap<4>(data, 5, 1, 13, 9)];
+		bitmap.pix32(y, i * 4 + 2) = pen[(attr & 0xf0) | bitswap<4>(data, 6, 2, 14, 10)];
+		bitmap.pix32(y, i * 4 + 3) = pen[(attr & 0xf0) | bitswap<4>(data, 7, 3, 15, 11)];
+	}
+}
+#endif
 
 
 /* Inputs ********************************************************************/
@@ -86,7 +248,7 @@ void xyonix_state::handle_coins(int coin)
 
 READ8_MEMBER(xyonix_state::io_r)
 {
-	int regPC = space.device().safe_pc();
+	int regPC = m_maincpu->pc();
 
 	if (regPC == 0x27ba)
 		return 0x88;
@@ -137,27 +299,30 @@ READ8_MEMBER(xyonix_state::io_r)
 
 WRITE8_MEMBER(xyonix_state::io_w)
 {
-	//logerror ("xyonix_port_e0_w %02x - PC = %04x\n", data, space.device().safe_pc());
+	//logerror ("xyonix_port_e0_w %02x - PC = %04x\n", data, m_maincpu->pc());
 	m_e0_data = data;
 }
 
 /* Mem / Port Maps ***********************************************************/
 
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, xyonix_state )
-	AM_RANGE(0x0000, 0xbfff) AM_ROM
-	AM_RANGE(0xc000, 0xdfff) AM_RAM
-	AM_RANGE(0xe000, 0xffff) AM_RAM_WRITE(vidram_w) AM_SHARE("vidram")
-ADDRESS_MAP_END
+void xyonix_state::main_map(address_map &map)
+{
+	map(0x0000, 0xbfff).rom();
+	map(0xc000, 0xdfff).ram();
+	map(0xe000, 0xffff).ram().w(FUNC(xyonix_state::vidram_w)).share("vidram");
+}
 
-static ADDRESS_MAP_START( port_map, AS_IO, 8, xyonix_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x20, 0x20) AM_READNOP AM_DEVWRITE("sn1", sn76496_device, write)   /* SN76496 ready signal */
-	AM_RANGE(0x21, 0x21) AM_READNOP AM_DEVWRITE("sn2", sn76496_device, write)
-	AM_RANGE(0x40, 0x40) AM_WRITENOP        /* NMI ack? */
-	AM_RANGE(0x50, 0x50) AM_WRITE(irqack_w)
-	AM_RANGE(0x60, 0x61) AM_WRITENOP        /* mc6845 */
-	AM_RANGE(0xe0, 0xe0) AM_READWRITE(io_r, io_w)
-ADDRESS_MAP_END
+void xyonix_state::port_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x20, 0x20).nopr().w("sn1", FUNC(sn76496_device::write));   /* SN76496 ready signal */
+	map(0x21, 0x21).nopr().w("sn2", FUNC(sn76496_device::write));
+	map(0x40, 0x40).w(FUNC(xyonix_state::nmiack_w));
+	map(0x50, 0x50).w(FUNC(xyonix_state::irqack_w));
+	map(0x60, 0x60).w(m_crtc, FUNC(mc6845_device::address_w));
+	map(0x61, 0x61).rw(m_crtc, FUNC(mc6845_device::register_r), FUNC(mc6845_device::register_w));
+	map(0xe0, 0xe0).rw(FUNC(xyonix_state::io_r), FUNC(xyonix_state::io_w));
+}
 
 /* Inputs Ports **************************************************************/
 
@@ -217,44 +382,45 @@ static const gfx_layout charlayout =
 	4*16
 };
 
-static GFXDECODE_START( xyonix )
+static GFXDECODE_START( gfx_xyonix )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout, 0, 16 )
 GFXDECODE_END
 
 
 /* MACHINE driver *************************************************************/
 
-static MACHINE_CONFIG_START( xyonix, xyonix_state )
-
+void xyonix_state::xyonix(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80,16000000 / 4)        /* 4 MHz ? */
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_CPU_IO_MAP(port_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", xyonix_state,  nmi_line_pulse)
-	MCFG_CPU_PERIODIC_INT_DRIVER(xyonix_state, irq0_line_assert, 4*60)  /* ?? controls music tempo */
+	Z80(config, m_maincpu, 16000000 / 4);        /* 4 MHz ? */
+	m_maincpu->set_addrmap(AS_PROGRAM, &xyonix_state::main_map);
+	m_maincpu->set_addrmap(AS_IO, &xyonix_state::port_map);
+	m_maincpu->set_periodic_int(FUNC(xyonix_state::irq0_line_assert), attotime::from_hz(4*60));  /* ?? controls music tempo */
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(80*4, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0, 80*4-1, 0, 28*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(xyonix_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_raw(16_MHz_XTAL / 2, 508, 0, 320, 256, 0, 224); // 8 MHz?
+	screen.set_screen_update(FUNC(xyonix_state::screen_update));
+//  screen.set_screen_update(m_crtc, FUNC(mc6845_device::screen_update));
+	screen.set_palette("palette");
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", xyonix)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(xyonix_state, xyonix)
+	GFXDECODE(config, m_gfxdecode, "palette", gfx_xyonix);
+
+	PALETTE(config, "palette", FUNC(xyonix_state::xyonix_palette), 256);
+
+	MC6845(config, m_crtc, 16_MHz_XTAL / 8); // 2 MHz?
+	m_crtc->set_screen("screen");
+	m_crtc->set_show_border_area(false);
+	m_crtc->set_char_width(4);
+//  m_crtc->set_update_row_callback(FUNC(xyonix_state::crtc_update_row));
+	m_crtc->out_vsync_callback().set(FUNC(xyonix_state::nmiclk_w));
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("sn1", SN76496, 16000000/4)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-
-	MCFG_SOUND_ADD("sn2", SN76496, 16000000/4)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	SN76496(config, "sn1", 16000000/4).add_route(ALL_OUTPUTS, "mono", 1.0);
+	SN76496(config, "sn2", 16000000/4).add_route(ALL_OUTPUTS, "mono", 1.0);
+}
 
 /* ROM Loading ***************************************************************/
 
@@ -275,4 +441,4 @@ ROM_END
 
 /* GAME drivers **************************************************************/
 
-GAME( 1989, xyonix, 0, xyonix, xyonix, driver_device, 0, ROT0, "Philko", "Xyonix", MACHINE_SUPPORTS_SAVE )
+GAME( 1989, xyonix, 0, xyonix, xyonix, xyonix_state, empty_init, ROT0, "Philko", "Xyonix", MACHINE_SUPPORTS_SAVE )

@@ -94,7 +94,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type LUXOR_55_21056 = device_creator<luxor_55_21056_device>;
+DEFINE_DEVICE_TYPE(LUXOR_55_21056, luxor_55_21056_device, "lux21056", "Luxor 55 21056")
 
 
 //-------------------------------------------------
@@ -105,17 +105,17 @@ ROM_START( luxor_55_21056 )
 	ROM_REGION( 0x2000, Z80_TAG, 0 )
 	// ABC 850
 	ROM_SYSTEM_BIOS( 0, "ro202", "Rodime RO202 (CHS: 321,4,32,256)" )
-	ROMX_LOAD( "rodi202.bin", 0x0000, 0x0800, CRC(337b4dcf) SHA1(791ebeb4521ddc11fb9742114018e161e1849bdf), ROM_BIOS(1) ) // Rodime RO202 (http://stason.org/TULARC/pc/hard-drives-hdd/rodime/RO202-11MB-5-25-FH-MFM-ST506.html)
+	ROMX_LOAD( "rodi202.bin", 0x0000, 0x0800, CRC(337b4dcf) SHA1(791ebeb4521ddc11fb9742114018e161e1849bdf), ROM_BIOS(0) ) // Rodime RO202 (http://stason.org/TULARC/pc/hard-drives-hdd/rodime/RO202-11MB-5-25-FH-MFM-ST506.html)
 	ROM_SYSTEM_BIOS( 1, "basf6186", "BASF 6186 (CHS: 440,4,32,256)" )
-	ROMX_LOAD( "basf6186.bin", 0x0000, 0x0800, NO_DUMP, ROM_BIOS(2) ) // BASF 6186 (http://stason.org/TULARC/pc/hard-drives-hdd/basf-magnetics/6186-14MB-5-25-FH-MFM-ST412.html)
+	ROMX_LOAD( "basf6186.bin", 0x0000, 0x0800, NO_DUMP, ROM_BIOS(1) ) // BASF 6186 (http://stason.org/TULARC/pc/hard-drives-hdd/basf-magnetics/6186-14MB-5-25-FH-MFM-ST412.html)
 	// ABC 852
 	ROM_SYSTEM_BIOS( 2, "basf6185", "BASF 6185 (CHS: 440,6,32,256)" )
-	ROMX_LOAD( "basf6185.bin", 0x0000, 0x0800, CRC(06f8fe2e) SHA1(e81f2a47c854e0dbb096bee3428d79e63591059d), ROM_BIOS(3) ) // BASF 6185 (http://stason.org/TULARC/pc/hard-drives-hdd/basf-magnetics/6185-22MB-5-25-FH-MFM-ST412.html)
+	ROMX_LOAD( "basf6185.bin", 0x0000, 0x0800, CRC(06f8fe2e) SHA1(e81f2a47c854e0dbb096bee3428d79e63591059d), ROM_BIOS(2) ) // BASF 6185 (http://stason.org/TULARC/pc/hard-drives-hdd/basf-magnetics/6185-22MB-5-25-FH-MFM-ST412.html)
 	ROM_SYSTEM_BIOS( 3, "nec5126", "NEC 5126 (CHS: 615,4,32,256)" )
-	ROMX_LOAD( "nec5126.bin", 0x0000, 0x1000, CRC(17c247e7) SHA1(7339738b87751655cb4d6414422593272fe72f5d), ROM_BIOS(4) ) // NEC 5126 (http://stason.org/TULARC/pc/hard-drives-hdd/nec/D5126-20MB-5-25-HH-MFM-ST506.html)
+	ROMX_LOAD( "nec5126.bin", 0x0000, 0x1000, CRC(17c247e7) SHA1(7339738b87751655cb4d6414422593272fe72f5d), ROM_BIOS(3) ) // NEC 5126 (http://stason.org/TULARC/pc/hard-drives-hdd/nec/D5126-20MB-5-25-HH-MFM-ST506.html)
 	// ABC 856
 	ROM_SYSTEM_BIOS( 4, "micr1325", "Micropolis 1325 (CHS: 1024,8,32,256)" )
-	ROMX_LOAD( "micr1325.bin", 0x0000, 0x0800, CRC(084af409) SHA1(342b8e214a8c4c2b014604e53c45ef1bd1c69ea3), ROM_BIOS(5) ) // Micropolis 1325 (http://stason.org/TULARC/pc/hard-drives-hdd/micropolis/1325-69MB-5-25-FH-MFM-ST506.html)
+	ROMX_LOAD( "micr1325.bin", 0x0000, 0x0800, CRC(084af409) SHA1(342b8e214a8c4c2b014604e53c45ef1bd1c69ea3), ROM_BIOS(4) ) // Micropolis 1325 (http://stason.org/TULARC/pc/hard-drives-hdd/micropolis/1325-69MB-5-25-FH-MFM-ST506.html)
 ROM_END
 
 
@@ -133,31 +133,33 @@ const tiny_rom_entry *luxor_55_21056_device::device_rom_region() const
 //  ADDRESS_MAP( luxor_55_21056_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( luxor_55_21056_mem, AS_PROGRAM, 8, luxor_55_21056_device )
-	ADDRESS_MAP_UNMAP_HIGH
-	ADDRESS_MAP_GLOBAL_MASK(0x3fff)
-	AM_RANGE(0x0000, 0x0fff) AM_MIRROR(0x1000) AM_ROM AM_REGION(Z80_TAG, 0)
-	AM_RANGE(0x2000, 0x27ff) AM_MIRROR(0x1800) AM_RAM
-ADDRESS_MAP_END
+void luxor_55_21056_device::luxor_55_21056_mem(address_map &map)
+{
+	map.unmap_value_high();
+	map.global_mask(0x3fff);
+	map(0x0000, 0x0fff).mirror(0x1000).rom().region(Z80_TAG, 0);
+	map(0x2000, 0x27ff).mirror(0x1800).ram();
+}
 
 
 //-------------------------------------------------
 //  ADDRESS_MAP( luxor_55_21056_io )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( luxor_55_21056_io, AS_IO, 8, luxor_55_21056_device )
-	ADDRESS_MAP_UNMAP_HIGH
-	ADDRESS_MAP_GLOBAL_MASK(0xf8)
-	AM_RANGE(0x00, 0x00) AM_MIRROR(0xf0) AM_DEVREADWRITE(Z80DMA_TAG, z80dma_device, read, write)
-	AM_RANGE(0x08, 0x08) AM_READ(sasi_status_r)
-	AM_RANGE(0x18, 0x18) AM_WRITE(stat_w)
-	AM_RANGE(0x28, 0x28) AM_READ(out_r)
-	AM_RANGE(0x38, 0x38) AM_WRITE(inp_w)
-	AM_RANGE(0x48, 0x48) AM_READWRITE(sasi_data_r, sasi_data_w)
-	AM_RANGE(0x58, 0x58) AM_READWRITE(rdy_reset_r, rdy_reset_w)
-	AM_RANGE(0x68, 0x68) AM_READWRITE(sasi_sel_r, sasi_sel_w)
-	AM_RANGE(0x78, 0x78) AM_READWRITE(sasi_rst_r, sasi_rst_w)
-ADDRESS_MAP_END
+void luxor_55_21056_device::luxor_55_21056_io(address_map &map)
+{
+	map.unmap_value_high();
+	map.global_mask(0xf8);
+	map(0x00, 0x00).mirror(0xf0).rw(Z80DMA_TAG, FUNC(z80dma_device::read), FUNC(z80dma_device::write));
+	map(0x08, 0x08).r(FUNC(luxor_55_21056_device::sasi_status_r));
+	map(0x18, 0x18).w(FUNC(luxor_55_21056_device::stat_w));
+	map(0x28, 0x28).r(FUNC(luxor_55_21056_device::out_r));
+	map(0x38, 0x38).w(FUNC(luxor_55_21056_device::inp_w));
+	map(0x48, 0x48).rw(FUNC(luxor_55_21056_device::sasi_data_r), FUNC(luxor_55_21056_device::sasi_data_w));
+	map(0x58, 0x58).rw(FUNC(luxor_55_21056_device::rdy_reset_r), FUNC(luxor_55_21056_device::rdy_reset_w));
+	map(0x68, 0x68).rw(FUNC(luxor_55_21056_device::sasi_sel_r), FUNC(luxor_55_21056_device::sasi_sel_w));
+	map(0x78, 0x78).rw(FUNC(luxor_55_21056_device::sasi_rst_r), FUNC(luxor_55_21056_device::sasi_rst_w));
+}
 
 
 //-------------------------------------------------
@@ -175,22 +177,22 @@ static const z80_daisy_config daisy_chain[] =
 //  Z80DMA
 //-------------------------------------------------
 
-READ8_MEMBER( luxor_55_21056_device::memory_read_byte )
+uint8_t luxor_55_21056_device::memory_read_byte(offs_t offset)
 {
 	return m_maincpu->space(AS_PROGRAM).read_byte(offset);
 }
 
-WRITE8_MEMBER( luxor_55_21056_device::memory_write_byte )
+void luxor_55_21056_device::memory_write_byte(offs_t offset, uint8_t data)
 {
 	return m_maincpu->space(AS_PROGRAM).write_byte(offset, data);
 }
 
-READ8_MEMBER( luxor_55_21056_device::io_read_byte )
+uint8_t luxor_55_21056_device::io_read_byte(offs_t offset)
 {
 	return m_maincpu->space(AS_IO).read_byte(offset);
 }
 
-WRITE8_MEMBER( luxor_55_21056_device::io_write_byte )
+void luxor_55_21056_device::io_write_byte(offs_t offset, uint8_t data)
 {
 	return m_maincpu->space(AS_IO).write_byte(offset, data);
 }
@@ -202,7 +204,7 @@ WRITE_LINE_MEMBER( luxor_55_21056_device::write_sasi_bsy )
 
 	if (m_sasi_bsy)
 	{
-		m_sasibus->write_sel(!m_sasi_bsy);
+		m_sasibus->write_sel(0);
 	}
 }
 
@@ -226,7 +228,8 @@ WRITE_LINE_MEMBER( luxor_55_21056_device::write_sasi_req )
 
 	if (m_sasi_req)
 	{
-		m_sasibus->write_ack(!m_sasi_req);
+		m_req = 0;
+		m_sasibus->write_ack(!m_req);
 	}
 }
 
@@ -240,46 +243,39 @@ WRITE_LINE_MEMBER( luxor_55_21056_device::write_sasi_msg )
 	m_sasi_msg = state;
 }
 
-//-------------------------------------------------
-//  MACHINE_DRIVER( luxor_55_21056 )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( luxor_55_21056 )
-	MCFG_CPU_ADD(Z80_TAG, Z80, XTAL_8MHz/2)
-	MCFG_CPU_PROGRAM_MAP(luxor_55_21056_mem)
-	MCFG_CPU_IO_MAP(luxor_55_21056_io)
-	MCFG_Z80_DAISY_CHAIN(daisy_chain)
-
-	MCFG_DEVICE_ADD(Z80DMA_TAG, Z80DMA, XTAL_8MHz/2)
-	MCFG_Z80DMA_OUT_BUSREQ_CB(INPUTLINE(Z80_TAG, INPUT_LINE_HALT))
-	MCFG_Z80DMA_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
-	MCFG_Z80DMA_IN_MREQ_CB(READ8(luxor_55_21056_device, memory_read_byte))
-	MCFG_Z80DMA_OUT_MREQ_CB(WRITE8(luxor_55_21056_device, memory_write_byte))
-	MCFG_Z80DMA_IN_IORQ_CB(READ8(luxor_55_21056_device, io_read_byte))
-	MCFG_Z80DMA_OUT_IORQ_CB(WRITE8(luxor_55_21056_device, io_write_byte))
-
-	MCFG_DEVICE_ADD(SASIBUS_TAG, SCSI_PORT, 0)
-	MCFG_SCSI_DATA_INPUT_BUFFER("sasi_data_in")
-	MCFG_SCSI_REQ_HANDLER(WRITELINE(luxor_55_21056_device, write_sasi_req))
-	MCFG_SCSI_IO_HANDLER(WRITELINE(luxor_55_21056_device, write_sasi_io))
-	MCFG_SCSI_CD_HANDLER(WRITELINE(luxor_55_21056_device, write_sasi_cd))
-	MCFG_SCSI_MSG_HANDLER(WRITELINE(luxor_55_21056_device, write_sasi_msg))
-	MCFG_SCSI_BSY_HANDLER(WRITELINE(luxor_55_21056_device, write_sasi_bsy))
-	MCFG_SCSIDEV_ADD(SASIBUS_TAG ":" SCSI_PORT_DEVICE1, "harddisk", S1410, SCSI_ID_0)
-
-	MCFG_SCSI_OUTPUT_LATCH_ADD("sasi_data_out", SASIBUS_TAG)
-	MCFG_DEVICE_ADD("sasi_data_in", INPUT_BUFFER, 0)
-MACHINE_CONFIG_END
-
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor luxor_55_21056_device::device_mconfig_additions() const
+void luxor_55_21056_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( luxor_55_21056 );
+	Z80(config, m_maincpu, XTAL(8'000'000)/2);
+	m_maincpu->set_memory_map(&luxor_55_21056_device::luxor_55_21056_mem);
+	m_maincpu->set_io_map(&luxor_55_21056_device::luxor_55_21056_io);
+	m_maincpu->set_daisy_config(daisy_chain);
+
+	Z80DMA(config, m_dma, XTAL(8'000'000)/2);
+	m_dma->out_busreq_callback().set_inputline(m_maincpu, INPUT_LINE_HALT);
+	m_dma->out_int_callback().set_inputline(m_maincpu, INPUT_LINE_IRQ0);
+	m_dma->in_mreq_callback().set(FUNC(luxor_55_21056_device::memory_read_byte));
+	m_dma->out_mreq_callback().set(FUNC(luxor_55_21056_device::memory_write_byte));
+	m_dma->in_iorq_callback().set(FUNC(luxor_55_21056_device::io_read_byte));
+	m_dma->out_iorq_callback().set(FUNC(luxor_55_21056_device::io_write_byte));
+
+	SCSI_PORT(config, m_sasibus);
+	m_sasibus->set_data_input_buffer(m_sasi_data_in);
+	m_sasibus->req_handler().set(FUNC(luxor_55_21056_device::write_sasi_req));
+	m_sasibus->io_handler().set(FUNC(luxor_55_21056_device::write_sasi_io));
+	m_sasibus->cd_handler().set(FUNC(luxor_55_21056_device::write_sasi_cd));
+	m_sasibus->msg_handler().set(FUNC(luxor_55_21056_device::write_sasi_msg));
+	m_sasibus->bsy_handler().set(FUNC(luxor_55_21056_device::write_sasi_bsy));
+	m_sasibus->set_slot_device(1, "harddisk", S1410, DEVICE_INPUT_DEFAULTS_NAME(SCSI_ID_0));
+
+	OUTPUT_LATCH(config, m_sasi_data_out);
+	m_sasibus->set_output_latch(*m_sasi_data_out);
+
+	INPUT_BUFFER(config, m_sasi_data_in);
 }
 
 
@@ -339,7 +335,7 @@ ioport_constructor luxor_55_21056_device::device_input_ports() const
 //-------------------------------------------------
 
 luxor_55_21056_device::luxor_55_21056_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, LUXOR_55_21056, "Luxor 55 21056", tag, owner, clock, "lux21056", __FILE__),
+	: device_t(mconfig, LUXOR_55_21056, tag, owner, clock),
 		device_abcbus_card_interface(mconfig, *this),
 		m_maincpu(*this, Z80_TAG),
 		m_dma(*this, Z80DMA_TAG),
@@ -495,7 +491,7 @@ void luxor_55_21056_device::abcbus_c3(uint8_t data)
 //  sasi_status_r -
 //-------------------------------------------------
 
-READ8_MEMBER( luxor_55_21056_device::sasi_status_r )
+uint8_t luxor_55_21056_device::sasi_status_r()
 {
 	/*
 
@@ -516,8 +512,8 @@ READ8_MEMBER( luxor_55_21056_device::sasi_status_r )
 
 	data |= m_rdy ^ STAT_DIR;
 
-	data |= !m_sasi_req << 1;
-	data |= !m_sasi_io << 2;
+	data |= (m_req || m_sasi_req) << 1;
+	data |= m_sasi_io << 2;
 	data |= !m_sasi_cd << 3;
 	data |= !m_sasi_msg << 4;
 	data |= !m_sasi_bsy << 5;
@@ -530,7 +526,7 @@ READ8_MEMBER( luxor_55_21056_device::sasi_status_r )
 //  stat_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( luxor_55_21056_device::stat_w )
+void luxor_55_21056_device::stat_w(uint8_t data)
 {
 	m_stat = data;
 
@@ -542,7 +538,7 @@ WRITE8_MEMBER( luxor_55_21056_device::stat_w )
 //  out_r -
 //-------------------------------------------------
 
-READ8_MEMBER( luxor_55_21056_device::out_r )
+uint8_t luxor_55_21056_device::out_r()
 {
 	uint8_t data = m_out;
 
@@ -556,7 +552,7 @@ READ8_MEMBER( luxor_55_21056_device::out_r )
 //  inp_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( luxor_55_21056_device::inp_w )
+void luxor_55_21056_device::inp_w(uint8_t data)
 {
 	m_inp = data;
 
@@ -568,11 +564,12 @@ WRITE8_MEMBER( luxor_55_21056_device::inp_w )
 //  sasi_data_r -
 //-------------------------------------------------
 
-READ8_MEMBER( luxor_55_21056_device::sasi_data_r )
+uint8_t luxor_55_21056_device::sasi_data_r()
 {
 	uint8_t data = m_sasi_data_in->read();
 
-	m_sasibus->write_ack(!m_sasi_req);
+	m_req = !m_sasi_req;
+	m_sasibus->write_ack(!m_req);
 
 	return data;
 }
@@ -582,7 +579,7 @@ READ8_MEMBER( luxor_55_21056_device::sasi_data_r )
 //  sasi_data_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( luxor_55_21056_device::sasi_data_w )
+void luxor_55_21056_device::sasi_data_w(uint8_t data)
 {
 	m_sasi_data = data;
 
@@ -591,7 +588,8 @@ WRITE8_MEMBER( luxor_55_21056_device::sasi_data_w )
 		m_sasi_data_out->write(m_sasi_data);
 	}
 
-	m_sasibus->write_ack(!m_sasi_req);
+	m_req = !m_sasi_req;
+	m_sasibus->write_ack(!m_req);
 }
 
 
@@ -599,9 +597,10 @@ WRITE8_MEMBER( luxor_55_21056_device::sasi_data_w )
 //  rdy_reset_r -
 //-------------------------------------------------
 
-READ8_MEMBER( luxor_55_21056_device::rdy_reset_r )
+uint8_t luxor_55_21056_device::rdy_reset_r()
 {
-	rdy_reset_w(space, offset, 0xff);
+	if (!machine().side_effects_disabled())
+		rdy_reset_w(0xff);
 
 	return 0xff;
 }
@@ -611,7 +610,7 @@ READ8_MEMBER( luxor_55_21056_device::rdy_reset_r )
 //  rdy_reset_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( luxor_55_21056_device::rdy_reset_w )
+void luxor_55_21056_device::rdy_reset_w(uint8_t data)
 {
 	set_rdy(0);
 }
@@ -621,9 +620,10 @@ WRITE8_MEMBER( luxor_55_21056_device::rdy_reset_w )
 //  sasi_sel_r -
 //-------------------------------------------------
 
-READ8_MEMBER( luxor_55_21056_device::sasi_sel_r )
+uint8_t luxor_55_21056_device::sasi_sel_r()
 {
-	sasi_sel_w(space, offset, 0xff);
+	if (!machine().side_effects_disabled())
+		sasi_sel_w(0xff);
 
 	return 0xff;
 }
@@ -633,7 +633,7 @@ READ8_MEMBER( luxor_55_21056_device::sasi_sel_r )
 //  sasi_sel_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( luxor_55_21056_device::sasi_sel_w )
+void luxor_55_21056_device::sasi_sel_w(uint8_t data)
 {
 	m_sasibus->write_sel(!m_sasi_bsy);
 }
@@ -643,9 +643,10 @@ WRITE8_MEMBER( luxor_55_21056_device::sasi_sel_w )
 //  sasi_rst_r -
 //-------------------------------------------------
 
-READ8_MEMBER( luxor_55_21056_device::sasi_rst_r )
+uint8_t luxor_55_21056_device::sasi_rst_r()
 {
-	sasi_rst_w(space, offset, 0xff);
+	if (!machine().side_effects_disabled())
+		sasi_rst_w(0xff);
 
 	return 0xff;
 }
@@ -655,7 +656,7 @@ READ8_MEMBER( luxor_55_21056_device::sasi_rst_r )
 //  sasi_rst_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( luxor_55_21056_device::sasi_rst_w )
+void luxor_55_21056_device::sasi_rst_w(uint8_t data)
 {
 	m_sasibus->write_rst(1);
 	m_sasibus->write_rst(0);

@@ -40,12 +40,9 @@
 #include "emu.h"
 #include "machine/ra17xx.h"
 
-#define VERBOSE 1
-#if VERBOSE
-#define LOG(x) logerror x
-#else
-#define LOG(x)
-#endif
+//#define VERBOSE 1
+#include "logmacro.h"
+
 
 /*************************************
  *
@@ -53,14 +50,14 @@
  *
  *************************************/
 
-const device_type RA17XX = device_creator<ra17xx_device>;
+DEFINE_DEVICE_TYPE(RA17XX, ra17xx_device, "ra17xx", "Rockwell A17xx")
 
 ra17xx_device::ra17xx_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, RA17XX, "Rockwell A17XX", tag, owner, clock, "ra17xx", __FILE__),
-		m_enable(false),
-		m_iord(*this),
-		m_iowr(*this),
-		m_cpu(*this, finder_base::DUMMY_TAG)
+	: device_t(mconfig, RA17XX, tag, owner, clock)
+	, m_enable(false)
+	, m_iord(*this)
+	, m_iowr(*this)
+	, m_cpu(*this, finder_base::DUMMY_TAG)
 {
 }
 
@@ -96,7 +93,7 @@ void ra17xx_device::device_reset()
  *
  *************************************/
 
-WRITE8_MEMBER( ra17xx_device::io_w )
+void ra17xx_device::io_w(address_space &space, offs_t offset, uint8_t data)
 {
 	assert(offset < 16);
 
@@ -141,7 +138,7 @@ WRITE8_MEMBER( ra17xx_device::io_w )
 }
 
 
-READ8_MEMBER( ra17xx_device::io_r )
+uint8_t ra17xx_device::io_r(offs_t offset)
 {
 	assert(offset < 16);
 	return (m_bl >= 16 || (m_iord(m_bl) & 1)) ? 0x0f : 0x07;

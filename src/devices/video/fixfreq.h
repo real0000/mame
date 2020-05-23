@@ -11,127 +11,87 @@
 
 ***************************************************************************/
 
-#ifndef MAME_DEVICES_VIDEO_FIXFREQ_H
-#define MAME_DEVICES_VIDEO_FIXFREQ_H
+#ifndef MAME_VIDEO_FIXFREQ_H
+#define MAME_VIDEO_FIXFREQ_H
 
 #include "machine/netlist.h"
 #include "screen.h"
 
-
-#define FIXFREQ_INTERFACE(name) \
-	const fixedfreq_interface (name) =
-
-#define MCFG_FIXFREQ_ADD(_tag, _screen_tag) \
-	MCFG_SCREEN_ADD(_screen_tag, RASTER) \
-	MCFG_SCREEN_RAW_PARAMS(13500000, 858, 0, 858, 525, 0, 525) \
-	MCFG_SCREEN_UPDATE_DEVICE(_tag, fixedfreq_device, screen_update) \
-	MCFG_DEVICE_ADD(_tag, FIXFREQ, 0) \
-	MCFG_VIDEO_SET_SCREEN(_screen_tag)
-
-#define MCFG_FIXFREQ_MONITOR_CLOCK(_clock) \
-	fixedfreq_device::set_minitor_clock(*device, _clock);
-
-#define MCFG_FIXFREQ_HORZ_PARAMS(_visible, _frontporch, _sync, _backporch) \
-	fixedfreq_device::set_horz_params(*device, _visible, _frontporch, _sync, _backporch);
-
-#define MCFG_FIXFREQ_VERT_PARAMS(_visible, _frontporch, _sync, _backporch) \
-	fixedfreq_device::set_vert_params(*device, _visible, _frontporch, _sync, _backporch);
-
-#define MCFG_FIXFREQ_FIELDCOUNT(_count) \
-	fixedfreq_device::set_fieldcount(*device, _count);
-
-#define MCFG_FIXFREQ_SYNC_THRESHOLD(_threshold) \
-	fixedfreq_device::set_threshold(*device, _threshold);
-
-#define MCFG_FIXFREQ_GAIN(_gain) \
-	fixedfreq_device::set_gain(*device, _gain);
-
-// pre-defined configurations
-
-//ModeLine "720x480@30i" 13.5 720 736 799 858 480 486 492 525 interlace -hsync -vsync
-#define MCFG_FIXFREQ_MODE_NTSC720 \
-	MCFG_FIXFREQ_MONITOR_CLOCK(13500000) \
-	MCFG_FIXFREQ_HORZ_PARAMS(720, 736, 799, 858) \
-	MCFG_FIXFREQ_VERT_PARAMS(480, 486, 492, 525) \
-	MCFG_FIXFREQ_FIELDCOUNT(2) \
-	MCFG_FIXFREQ_SYNC_THRESHOLD(0.3)
-
-//ModeLine "704x480@30i" 13.5 704 728 791 858 480 486 492 525
-#define MCFG_FIXFREQ_MODE_NTSC704 \
-	MCFG_FIXFREQ_MONITOR_CLOCK(13500000) \
-	MCFG_FIXFREQ_HORZ_PARAMS(704, 728, 791, 858) \
-	MCFG_FIXFREQ_VERT_PARAMS(480, 486, 492, 525) \
-	MCFG_FIXFREQ_FIELDCOUNT(2) \
-	MCFG_FIXFREQ_SYNC_THRESHOLD(0.3)
-
-
-// ======================> vga_device
-
-class fixedfreq_device :  public device_t,
-							public device_video_interface
+struct fixedfreq_monitor_desc
 {
-public:
-	// construction/destruction
-	fixedfreq_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	fixedfreq_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
+	fixedfreq_monitor_desc()
+	// default to NTSC "704x480@30i"
+	: m_monitor_clock(13500000),
+	m_fieldcount(2),
+	m_sync_threshold(0.3),
+	m_gain(1.0 / 3.7),
+	m_hscale(1),
+	m_vsync_threshold(0.600), // trigger at 91% of vsync length 1-exp(-0.6)
+	m_hvisible(704),
+	m_hfrontporch(728),
+	m_hsync(791),
+	m_hbackporch(858),
+	m_vvisible(480),
+	m_vfrontporch(486),
+	m_vsync(492),
+	m_vbackporch(525)
+	{}
 
-	// inline configuration helpers
-	static void set_minitor_clock(device_t &device, uint32_t clock) { downcast<fixedfreq_device &>(device).m_monitor_clock = clock; }
-	static void set_fieldcount(device_t &device, int count) { downcast<fixedfreq_device &>(device).m_fieldcount = count; }
-	static void set_threshold(device_t &device, double threshold) { downcast<fixedfreq_device &>(device).m_sync_threshold = threshold; }
-	static void set_gain(device_t &device, double gain) { downcast<fixedfreq_device &>(device).m_gain = gain; }
-	static void set_horz_params(device_t &device, int visible, int frontporch, int sync, int backporch)
+	uint32_t monitor_clock() const noexcept { return m_monitor_clock; }
+	double clock_period() const noexcept { return 1.0 / (double) m_monitor_clock; };
+
+	int minh() const noexcept { return (m_hbackporch - m_hsync) * m_hscale; }
+	int maxh() const noexcept { return (m_hbackporch - m_hsync + m_hvisible) * m_hscale - 1; }
+	int minv() const noexcept { return m_vbackporch - m_vsync; }
+	int maxv() const noexcept { return m_vbackporch - m_vsync + m_vvisible - 1; }
+
+	int htotal_scaled() const noexcept { return m_hbackporch * m_hscale; }
+
+	int vbackporch_width() const noexcept { return m_vbackporch - m_vsync; }
+	int vsync_width() const noexcept { return m_vsync - m_vfrontporch; }
+	int vfrontporch_width() const noexcept { return m_vfrontporch - m_vvisible; }
+	int vvisible_width() const noexcept { return m_vvisible; }
+	int vtotal() const noexcept { return m_vbackporch; }
+
+	int hbackporch_width() const noexcept { return m_hbackporch - m_hsync; }
+	int hsync_width() const noexcept { return m_hsync - m_hfrontporch; }
+	int hfrontporch_width() const noexcept { return m_hfrontporch - m_hvisible; }
+	int hvisible_width() const noexcept { return m_hvisible; }
+	int htotal() const noexcept { return m_hbackporch; }
+
+	void set_h_rel(int vw, int fpw, int sw, int bpw)
 	{
-		fixedfreq_device &dev = downcast<fixedfreq_device &>(device);
-		dev.m_hvisible = visible;
-		dev.m_hfrontporch = frontporch;
-		dev.m_hsync = sync;
-		dev.m_hbackporch = backporch;
+		m_hvisible = vw;
+		m_hfrontporch = m_hvisible + fpw;
+		m_hsync = m_hfrontporch + sw;
+		m_hbackporch = m_hsync + bpw;
 	}
-	static void set_vert_params(device_t &device, int visible, int frontporch, int sync, int backporch)
+
+	void set_v_rel(int vw, int fpw, int sw, int bpw)
 	{
-		fixedfreq_device &dev = downcast<fixedfreq_device &>(device);
-		dev.m_vvisible = visible;
-		dev.m_vfrontporch = frontporch;
-		dev.m_vsync = sync;
-		dev.m_vbackporch = backporch;
+		m_vvisible = vw;
+		m_vfrontporch = m_vvisible + fpw;
+		m_vsync = m_vfrontporch + sw;
+		m_vbackporch = m_vsync + bpw;
 	}
 
-	virtual uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	double vsync_filter_timeconst() const noexcept
+	{
+		return (double) (m_monitor_clock) / ((double) m_hbackporch * vsync_width());
+	}
 
-	NETDEV_ANALOG_CALLBACK_MEMBER(update_vid);
+	double hsync_filter_timeconst() const noexcept
+	{
+		return (double) m_monitor_clock /  (double) hsync_width();
+	}
 
-protected:
-	// device-level overrides
-	virtual void device_start() override;
-	virtual void device_reset() override;
-	virtual void device_post_load() override;
-	//virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
-
-	void recompute_parameters(bool postload);
-	void update_screen_parameters(const attotime &refresh);
-
-private:
-
-	int sync_separator(const attotime &time, double newval);
-
-	int m_htotal;
-	int m_vtotal;
-
-	double m_vid;
-	int m_last_x;
-	int m_last_y;
-	attotime m_last_time;
-	attotime m_line_time;
-	attotime m_last_hsync_time;
-	attotime m_last_vsync_time;
-	attotime m_refresh;
-	attotime  m_clock_period;
-	std::unique_ptr<bitmap_rgb32> m_bitmap[2];
-	int m_cur_bm;
-
-	/* adjustable by drivers */
 	uint32_t m_monitor_clock;
+	int m_fieldcount;
+	double m_sync_threshold;
+	double m_gain;
+	int m_hscale;
+	double m_vsync_threshold;
+private:
 	int m_hvisible;
 	int m_hfrontporch;
 	int m_hsync;
@@ -140,22 +100,227 @@ private:
 	int m_vfrontporch;
 	int m_vsync;
 	int m_vbackporch;
-	int m_fieldcount;
-	double m_sync_threshold;
-	double m_gain;
+};
+
+struct fixedfreq_monitor_intf
+{
+	virtual ~fixedfreq_monitor_intf() = default;
+	virtual void vsync_end_cb(double refresh_time) = 0;
+};
+
+struct fixedfreq_monitor_line
+{
+	float y;
+	float x;
+	float xr;
+	uint32_t col;
+};
+
+struct fixedfreq_monitor_state
+{
+	using time_type = double;
+
+	fixedfreq_monitor_state(fixedfreq_monitor_desc &desc, fixedfreq_monitor_intf &intf)
+	: m_desc(desc),
+	m_intf(intf),
+	m_last_sync(0),
+	m_col(0),
+	m_last_x(0),
+	m_last_y(0),
+	m_last_sync_time(time_type(0)),
+	m_line_time(time_type(0)),
+	m_last_hsync_time(time_type(0)),
+	m_last_vsync_time(time_type(0)),
+	m_vsync_filter(0),
+	m_sig_vsync(0),
+	m_sig_composite(0),
+	m_sig_field(0)
+	{}
+
+	/***
+	 * \brief To be called after monitor parameters are set
+	 */
+	void start()
+	{
+		// FIXME: once moved to netlist this may no longer be necessary.
+		//        Only copies constructor init
+
+		m_last_sync = 0.0;
+		m_col = rgb_t(0,0,0);
+		m_last_x = 0;
+		m_last_y = 0;
+		m_last_sync_time = time_type(0);
+		m_line_time = time_type(0);
+		m_last_hsync_time = time_type(0);
+		m_last_vsync_time = time_type(0);
+
+		/* sync separator */
+		m_vsync_filter = 0.0;
+
+		m_sig_vsync = 0;
+		m_sig_composite = 0;
+		m_sig_field = 0;
+
+		// htotal = m_desc.m_hbackporch;
+		// vtotal = m_desc.m_vbackporch;
+
+		/* sync separator */
+
+		//m_vsync_threshold = (exp(- 3.0/(3.0+3.0))) - exp(-1.0);
+		//printf("trigger %f with len %f\n", m_vsync_threshold, 1e6 / m_vsync_filter_timeconst);
+		// Minimum frame period to be passed to video system ?
+
+		m_fragments.clear();
+
+		m_intf.vsync_end_cb(m_desc.clock_period() * m_desc.vtotal() * m_desc.htotal());
+	}
+
+	void reset()
+	{
+		m_last_sync = 0;
+		m_col = 0;
+		m_last_x = 0;
+		m_last_y = 0;
+		//m_last_sync_time = time_type(0);
+		//m_line_time = time_type(0);
+		//m_last_hsync_time = time_type(0);
+		//m_last_vsync_time = time_type(0);
+		//m_clock_period = time_type(0);
+		m_vsync_filter = 0;
+		//m_vsync_threshold = 0;
+		//m_vsync_filter_timeconst = 0;
+		m_sig_vsync = 0;
+		m_sig_composite = 0;
+		m_sig_field = 0;
+		m_fragments.clear();
+	}
+
+	void update_sync_channel(const time_type &time, const double newval);
+	void update_bm(const time_type &time);
+	void update_composite_monochrome(const time_type &time, const double newval);
+	void update_red(const time_type &time, const double data);
+	void update_green(const time_type &time, const double data);
+	void update_blue(const time_type &time, const double data);
+	void update_sync(const time_type &time, const double data);
+
+	const fixedfreq_monitor_desc &m_desc;
+	fixedfreq_monitor_intf &m_intf;
+
+	double m_last_sync;
+	uint32_t m_col;
+	float m_last_x;
+	int m_last_y;
+	time_type m_last_sync_time;
+	time_type m_line_time;
+	time_type m_last_hsync_time;
+	time_type m_last_vsync_time;
 
 	/* sync separator */
-	double m_vint;
-	double m_int_trig;
-	double m_mult;
+	double m_vsync_filter;
 
 	int m_sig_vsync;
 	int m_sig_composite;
 	int m_sig_field;
+	std::vector<fixedfreq_monitor_line> m_fragments;
+};
+
+// ======================> fixedfreq_device
+
+class fixedfreq_device : public device_t, public device_video_interface,
+						 public fixedfreq_monitor_intf
+{
+public:
+
+	using time_type = fixedfreq_monitor_state::time_type;
+
+	// construction/destruction
+	fixedfreq_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
+
+	// inline configuration helpers
+	fixedfreq_device &set_monitor_clock(uint32_t clock) { m_monitor.m_monitor_clock = clock; return *this;}
+	fixedfreq_device &set_fieldcount(int count) { m_monitor.m_fieldcount = count; return *this; }
+	fixedfreq_device &set_threshold(double threshold) { m_monitor.m_sync_threshold = threshold; return *this; }
+	fixedfreq_device &set_gain(double gain) { m_monitor.m_gain = gain; return *this; }
+	fixedfreq_device &set_horz_params(int visible, int frontporch, int sync, int backporch)
+	{
+		m_monitor.set_h_rel(
+			visible,
+			frontporch - visible,
+			sync - frontporch,
+			backporch - sync);
+		return *this;
+	}
+	fixedfreq_device &set_vert_params(int visible, int frontporch, int sync, int backporch)
+	{
+		m_monitor.set_v_rel(
+			visible,
+			frontporch - visible,
+			sync - frontporch,
+			backporch - sync);
+		return *this;
+	}
+	fixedfreq_device &set_horz_scale(int hscale) { m_monitor.m_hscale = hscale;  return *this;}
+
+	// pre-defined configurations
+	fixedfreq_device &set_mode_ntsc720() //ModeLine "720x480@30i" 13.5 720 736 799 858 480 486 492 525 interlace -hsync -vsync
+	{
+		set_monitor_clock(13500000);
+		set_horz_params(720, 736, 799, 858);
+		set_vert_params(480, 486, 492, 525);
+		set_fieldcount(2);
+		set_threshold(0.3);
+		return *this;
+	}
+	fixedfreq_device &set_mode_ntsc704() //ModeLine "704x480@30i" 13.5 704 728 791 858 480 486 492 525
+	{
+		set_monitor_clock(13500000);
+		set_horz_params(704, 728, 791, 858);
+		set_vert_params(480, 486, 492, 525);
+		set_fieldcount(2);
+		set_threshold(0.3);
+		return *this;
+	}
+
+	virtual uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+
+	NETDEV_ANALOG_CALLBACK_MEMBER(update_composite_monochrome);
+	NETDEV_ANALOG_CALLBACK_MEMBER(update_red);
+	NETDEV_ANALOG_CALLBACK_MEMBER(update_green);
+	NETDEV_ANALOG_CALLBACK_MEMBER(update_blue);
+	NETDEV_ANALOG_CALLBACK_MEMBER(update_sync);
+
+	INPUT_CHANGED_MEMBER(port_changed);
+
+	unsigned monitor_val(unsigned param) const;
+
+protected:
+
+	fixedfreq_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
+	// device-level overrides
+	virtual void device_config_complete() override;
+	virtual void device_start() override;
+	virtual void device_reset() override;
+	virtual void device_post_load() override;
+	//virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+
+	virtual ioport_constructor device_input_ports() const override;
+
+	void vsync_end_cb(double refresh_time) override;
+
+private:
+	required_ioport m_enable;
+	required_ioport m_vector;
+	float m_scanline_height;
+
+	/* adjustable by drivers */
+	fixedfreq_monitor_desc m_monitor;
+	fixedfreq_monitor_state m_state;
+
 };
 
 
 // device type definition
-extern const device_type FIXFREQ;
+DECLARE_DEVICE_TYPE(FIXFREQ, fixedfreq_device)
 
-#endif // MAME_DEVICES_VIDEO_FIXFREQ_H
+#endif // MAME_VIDEO_FIXFREQ_H

@@ -12,51 +12,12 @@
 
 ***************************************************************************/
 
+#ifndef MAME_SOUND_OKIM9810_H
+#define MAME_SOUND_OKIM9810_H
+
 #pragma once
 
-#ifndef __OKIM9810_H__
-#define __OKIM9810_H__
-
 #include "okiadpcm.h"
-
-
-//**************************************************************************
-//  CONSTANTS
-//**************************************************************************
-
-enum
-{
-	OKIM9810_ADPCM_PLAYBACK = 0,
-	OKIM9810_ADPCM2_PLAYBACK = 1,
-	OKIM9810_STRAIGHT8_PLAYBACK = 2,
-	OKIM9810_NONLINEAR8_PLAYBACK = 3
-};
-
-enum
-{
-	OKIM9810_SECONDARY_FILTER = 0,
-	OKIM9810_PRIMARY_FILTER = 1,
-	OKIM9810_NO_FILTER = 2,
-	OKIM9810_NO_FILTER2 = 3
-};
-
-enum
-{
-	OKIM9810_OUTPUT_TO_DIRECT_DAC = 0,
-	OKIM9810_OUTPUT_TO_VOLTAGE_FOLLOWER = 1
-};
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_OKIM9810_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, OKIM9810, _clock)
-
-#define MCFG_OKIM9810_REPLACE(_tag, _clock) \
-	MCFG_DEVICE_REPLACE(_tag, OKIM9810, _clock)
-
 
 
 //**************************************************************************
@@ -75,14 +36,49 @@ public:
 	okim9810_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	uint8_t read_status();
-	void write_TMP_register(uint8_t command);
+	void write_tmp_register(uint8_t command);
 	void write_command(uint8_t command);
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
-	DECLARE_WRITE8_MEMBER( write_TMP_register );
+	uint8_t read();
+	void write(uint8_t data);
+	void tmp_register_w(uint8_t data);
+
+	// serial read/write handlers
+	void serial_w(int state);
+	void si_w(int state);
+	void sd_w(int state);
+	void ud_w(int state);
+	void cmd_w(int state);
+	int so_r();
+	int sr0_r();
+	int sr1_r();
+	int sr2_r();
+	int sr3_r();
 
 protected:
+	enum
+	{
+		ADPCM_PLAYBACK = 0,
+		ADPCM2_PLAYBACK = 1,
+		NONLINEAR8_PLAYBACK = 2,
+		STRAIGHT8_PLAYBACK = 3,
+		EIGHTBIT_PLAYBACK = 2
+	};
+
+	enum
+	{
+		SECONDARY_FILTER = 0,
+		PRIMARY_FILTER = 1,
+		NO_FILTER = 2,
+		NO_FILTER2 = 3
+	};
+
+	enum
+	{
+		OUTPUT_TO_DIRECT_DAC = 0,
+		OUTPUT_TO_VOLTAGE_FOLLOWER = 1
+	};
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
@@ -104,7 +100,6 @@ protected:
 							stream_sample_t **buffers,
 							int samples,
 							const uint8_t global_volume,
-							const uint32_t clock,
 							const uint8_t filter_type);
 
 		// computes volume scale from 3 volume numbers
@@ -146,16 +141,28 @@ protected:
 	uint8_t m_filter_type;        // interpolation filter type set with the OPT command
 	uint8_t m_output_level;       // flag stating if a voltage follower is connected
 
-	static const int OKIM9810_VOICES = 8;
+	int       m_dadr;
+	offs_t    m_dadr_start_offset;
+	offs_t    m_dadr_end_offset;
+	uint8_t   m_dadr_flags;
+
+	int       m_serial;
+	int       m_serial_read_latch;
+	int       m_serial_write_latch;
+	int       m_serial_bits;
+	int       m_ud;
+	int       m_si;
+	int       m_sd;
+	int       m_cmd;
+
+	static constexpr int OKIM9810_VOICES = 8;
 	okim_voice m_voice[OKIM9810_VOICES];
 
-	static const uint32_t s_sampling_freq_table[16];
+	static const uint32_t s_sampling_freq_div_table[16];
 };
 
 
 // device type definition
-extern const device_type OKIM9810;
+DECLARE_DEVICE_TYPE(OKIM9810, okim9810_device)
 
-
-
-#endif // __OKIM9810_H__
+#endif // MAME_SOUND_OKIM9810_H

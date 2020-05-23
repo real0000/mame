@@ -43,11 +43,11 @@ TILE_GET_INFO_MEMBER(nemesis_state::get_bg_tile_info)
 
 	if (code & 0xf800)
 	{
-		SET_TILE_INFO_MEMBER(0, code & 0x7ff, color & 0x7f, flags );
+		tileinfo.set(0, code & 0x7ff, color & 0x7f, flags );
 	}
 	else
 	{
-		SET_TILE_INFO_MEMBER(0, 0, 0x00, 0 );
+		tileinfo.set(0, 0, 0x00, 0 );
 		tileinfo.pen_data = m_blank_tile;
 	}
 
@@ -78,11 +78,11 @@ TILE_GET_INFO_MEMBER(nemesis_state::get_fg_tile_info)
 
 	if (code & 0xf800)
 	{
-		SET_TILE_INFO_MEMBER(0, code & 0x7ff, color & 0x7f, flags );
+		tileinfo.set(0, code & 0x7ff, color & 0x7f, flags );
 	}
 	else
 	{
-		SET_TILE_INFO_MEMBER(0, 0, 0x00, 0 );
+		tileinfo.set(0, 0, 0x00, 0 );
 		tileinfo.pen_data = m_blank_tile;
 	}
 
@@ -95,38 +95,26 @@ TILE_GET_INFO_MEMBER(nemesis_state::get_fg_tile_info)
 }
 
 
-WRITE16_MEMBER(nemesis_state::nemesis_gfx_flipx_word_w)
+WRITE_LINE_MEMBER(nemesis_state::gfx_flipx_w)
 {
-	if (ACCESSING_BITS_0_7)
-	{
-		m_flipscreen = data & 0x01;
+	m_flipscreen = state;
 
-		if (data & 0x01)
-			m_tilemap_flip |= TILEMAP_FLIPX;
-		else
-			m_tilemap_flip &= ~TILEMAP_FLIPX;
+	if (state)
+		m_tilemap_flip |= TILEMAP_FLIPX;
+	else
+		m_tilemap_flip &= ~TILEMAP_FLIPX;
 
-		machine().tilemap().set_flip_all(m_tilemap_flip);
-	}
-
-	if (ACCESSING_BITS_8_15)
-	{
-		if (data & 0x0100)
-			m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
-	}
+	machine().tilemap().set_flip_all(m_tilemap_flip);
 }
 
-WRITE16_MEMBER(nemesis_state::nemesis_gfx_flipy_word_w)
+WRITE_LINE_MEMBER(nemesis_state::gfx_flipy_w)
 {
-	if (ACCESSING_BITS_0_7)
-	{
-		if (data & 0x01)
-			m_tilemap_flip |= TILEMAP_FLIPY;
-		else
-			m_tilemap_flip &= ~TILEMAP_FLIPY;
+	if (state)
+		m_tilemap_flip |= TILEMAP_FLIPY;
+	else
+		m_tilemap_flip &= ~TILEMAP_FLIPY;
 
-		machine().tilemap().set_flip_all(m_tilemap_flip);
-	}
+	machine().tilemap().set_flip_all(m_tilemap_flip);
 }
 
 
@@ -265,8 +253,8 @@ void nemesis_state::video_start()
 
 	m_spriteram_words = m_spriteram.bytes() / 2;
 
-	m_background = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(nemesis_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 32);
-	m_foreground = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(nemesis_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 32);
+	m_background = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(nemesis_state::get_bg_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_foreground = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(nemesis_state::get_fg_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_background->set_transparent_pen(0);
 	m_foreground->set_transparent_pen(0);

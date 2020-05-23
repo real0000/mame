@@ -16,7 +16,7 @@
 //**************************************************************************
 
 // device type definition
-const device_type ABC_KEYBOARD_PORT = device_creator<abc_keyboard_port_device>;
+DEFINE_DEVICE_TYPE(ABC_KEYBOARD_PORT, abc_keyboard_port_device, "abc_keyboard_port", "Luxor ABC keyboard port")
 
 
 
@@ -29,7 +29,7 @@ const device_type ABC_KEYBOARD_PORT = device_creator<abc_keyboard_port_device>;
 //-------------------------------------------------
 
 abc_keyboard_interface::abc_keyboard_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig,device)
+	: device_interface(device, "abckb")
 {
 	m_slot = dynamic_cast<abc_keyboard_port_device *>(device.owner());
 }
@@ -44,8 +44,8 @@ abc_keyboard_interface::abc_keyboard_interface(const machine_config &mconfig, de
 //-------------------------------------------------
 
 abc_keyboard_port_device::abc_keyboard_port_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, ABC_KEYBOARD_PORT, "Luxor ABC keyboard port", tag, owner, clock, "abc_keyboard_port", __FILE__),
-	device_slot_interface(mconfig, *this),
+	device_t(mconfig, ABC_KEYBOARD_PORT, tag, owner, clock),
+	device_single_card_slot_interface<abc_keyboard_interface>(mconfig, *this),
 	m_out_rx_handler(*this),
 	m_out_trxc_handler(*this),
 	m_out_keydown_handler(*this), m_card(nullptr)
@@ -59,23 +59,12 @@ abc_keyboard_port_device::abc_keyboard_port_device(const machine_config &mconfig
 
 void abc_keyboard_port_device::device_start()
 {
-	m_card = dynamic_cast<abc_keyboard_interface *>(get_card_device());
+	m_card = get_card_device();
 
 	// resolve callbacks
 	m_out_rx_handler.resolve_safe();
 	m_out_trxc_handler.resolve_safe();
 	m_out_keydown_handler.resolve_safe();
-}
-
-
-//-------------------------------------------------
-//  device_reset - device-specific reset
-//-------------------------------------------------
-
-void abc_keyboard_port_device::device_reset()
-{
-	if (m_card != nullptr)
-		get_card_device()->reset();
 }
 
 
@@ -95,7 +84,7 @@ WRITE_LINE_MEMBER( abc_keyboard_port_device::write_rx )
 
 WRITE_LINE_MEMBER( abc_keyboard_port_device::txd_w )
 {
-	if (m_card != nullptr)
+	if (m_card)
 		m_card->txd_w(state);
 }
 
@@ -129,9 +118,10 @@ WRITE_LINE_MEMBER( abc_keyboard_port_device::keydown_w )
 #include "abc77.h"
 #include "abc99.h"
 
-SLOT_INTERFACE_START( abc_keyboard_devices )
-	SLOT_INTERFACE("abc800", ABC800_KEYBOARD)
-	SLOT_INTERFACE("abc55", ABC55)
-	SLOT_INTERFACE("abc77", ABC77)
-	SLOT_INTERFACE("abc99", ABC99)
-SLOT_INTERFACE_END
+void abc_keyboard_devices(device_slot_interface &device)
+{
+	device.option_add("abc800", ABC800_KEYBOARD);
+	device.option_add("abc55", ABC55);
+	device.option_add("abc77", ABC77);
+	device.option_add("abc99", ABC99);
+}

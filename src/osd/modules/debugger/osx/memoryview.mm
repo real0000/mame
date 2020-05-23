@@ -12,6 +12,8 @@
 #include "debug/debugcpu.h"
 #include "debug/debugvw.h"
 
+#include "util/xmlfile.h"
+
 
 @implementation MAMEMemoryView
 
@@ -66,7 +68,7 @@
 - (NSSize)maximumFrameSize {
 	debug_view_xy           max(0, 0);
 	debug_view_source const *source = view->source();
-	for (debug_view_source const *source = view->first_source(); source != nullptr; source = source->next())
+	for (auto &source : view->source_list())
 	{
 		view->set_source(*source);
 		debug_view_xy const current = view->total_size();
@@ -99,18 +101,23 @@
 - (int)selectedSubviewIndex {
 	debug_view_source const *source = view->source();
 	if (source != nullptr)
-		return view->source_list().indexof(*source);
+		return view->source_index(*source);
 	else
 		return -1;
 }
 
 
 - (void)selectSubviewAtIndex:(int)index {
-	int const   selected = view->source_list().indexof(*view->source());
-	if (selected != index) {
-		view->set_source(*view->source_list().find(index));
-		if ([[self window] firstResponder] != self)
-			view->set_cursor_visible(false);
+	int const   selected = [self selectedSubviewIndex];
+	if (selected != index)
+	{
+		const debug_view_source *source = view->source(index);
+		if (source != nullptr)
+		{
+			view->set_source(*source);
+			if ([[self window] firstResponder] != self)
+				view->set_cursor_visible(false);
+		}
 	}
 }
 
@@ -136,23 +143,21 @@
 
 - (BOOL)selectSubviewForSpace:(address_space *)space {
 	if (space == nullptr) return NO;
-	debug_view_memory_source const *source = downcast<debug_view_memory_source const *>(view->first_source());
-	while ((source != nullptr) && (source->space() != space))
-		source = downcast<debug_view_memory_source *>(source->next());
-	if (source != nullptr)
+	for (auto &ptr : view->source_list())
 	{
-		if (view->source() != source)
+		debug_view_memory_source const *const source = downcast<debug_view_memory_source const *>(ptr.get());
+		if (source->space() == space)
 		{
-			view->set_source(*source);
-			if ([[self window] firstResponder] != self)
-				view->set_cursor_visible(false);
+			if (view->source() != source)
+			{
+				view->set_source(*source);
+				if ([[self window] firstResponder] != self)
+					view->set_cursor_visible(false);
+			}
+			return YES;
 		}
-		return YES;
 	}
-	else
-	{
-		return NO;
-	}
+	return NO;
 }
 
 
@@ -194,6 +199,26 @@
 - (IBAction)changeBytesPerLine:(id)sender {
 	debug_view_memory *const memView = downcast<debug_view_memory *>(view);
 	memView->set_chunks_per_row(memView->chunks_per_row() + [sender tag]);
+}
+
+
+- (void)saveConfigurationToNode:(util::xml::data_node *)node {
+	[super saveConfigurationToNode:node];
+	debug_view_memory *const memView = downcast<debug_view_memory *>(view);
+	node->set_attribute_int("reverse", memView->reverse() ? 1 : 0);
+	node->set_attribute_int("addressmode", memView->physical() ? 1 : 0);
+	node->set_attribute_int("dataformat", memView->get_data_format());
+	node->set_attribute_int("rowchunks", memView->chunks_per_row());
+}
+
+
+- (void)restoreConfigurationFromNode:(util::xml::data_node const *)node {
+	[super restoreConfigurationFromNode:node];
+	debug_view_memory *const memView = downcast<debug_view_memory *>(view);
+	memView->set_reverse(0 != node->get_attribute_int("reverse", memView->reverse() ? 1 : 0));
+	memView->set_physical(0 != node->get_attribute_int("addressmode", memView->physical() ? 1 : 0));
+	memView->set_data_format(node->get_attribute_int("dataformat", memView->get_data_format()));
+	memView->set_chunks_per_row(node->get_attribute_int("rowchunks", memView->chunks_per_row()));
 }
 
 
@@ -276,12 +301,12 @@
 
 
 - (void)insertSubviewItemsInMenu:(NSMenu *)menu atIndex:(NSInteger)index {
-	for (const debug_view_source *source = view->source_list().first(); source != nullptr; source = source->next())
+	for (auto &source : view->source_list())
 	{
 		[[menu insertItemWithTitle:[NSString stringWithUTF8String:source->name()]
 							action:NULL
 					 keyEquivalent:@""
-						   atIndex:index++] setTag:view->source_list().indexof(*source)];
+						   atIndex:index++] setTag:view->source_index(*source)];
 	}
 	if (index < [menu numberOfItems])
 		[menu insertItem:[NSMenuItem separatorItem] atIndex:index++];

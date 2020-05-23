@@ -28,43 +28,11 @@
 *
 **********************************************************************/
 
+#ifndef MAME_MACHINE_68153BIM_H
+#define MAME_MACHINE_68153BIM_H
+
 #pragma once
 
-#ifndef MC68153BIM_H
-#define MC68153BIM_H
-
-
-//**************************************************************************
-//  DEVICE CONFIGURATION MACROS
-//**************************************************************************
-
-/* Variant ADD macros - use the right one to enable the right feature set! */
-#define MCFG_MC68153_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, MC68153, _clock)
-
-#define MCFG_EI68C153_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, EI68C153, _clock)
-
-#define MCFG_BIM68153_OUT_INT_CB(_devcb) \
-	devcb = &bim68153_device::set_out_int_callback(*device, DEVCB_##_devcb);
-
-// These callback sets INTAL0 and INTAL1 but is probably not needed as the
-// shorthand OUT_IACK0..OUT_IACK3 below embedd the channel information
-#define MCFG_BIM68153_OUT_INTAL0_CB(_devcb) \
-	devcb = &bim68153_device::set_out_intal0_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_BIM68153_OUT_INTAL1_CB(_devcb) \
-	devcb = &bim68153_device::set_out_intal1_callback(*device, DEVCB_##_devcb);
-
-// LOCAL IACK callbacks emulating the INTAL0 and INTAL1 outputs for INTAE requesting a vector from a sub device
-#define MCFG_BIM68153_OUT_IACK0_CB(_devcb)                              \
-	devcb = &bim68153_device::set_out_iack0_callback(*device, DEVCB_##_devcb);
-#define MCFG_BIM68153_OUT_IACK1_CB(_devcb)                              \
-	devcb = &bim68153_device::set_out_iack1_callback(*device, DEVCB_##_devcb);
-#define MCFG_BIM68153_OUT_IACK2_CB(_devcb)                              \
-	devcb = &bim68153_device::set_out_iack2_callback(*device, DEVCB_##_devcb);
-#define MCFG_BIM68153_OUT_IACK3_CB(_devcb)                              \
-	devcb = &bim68153_device::set_out_iack3_callback(*device, DEVCB_##_devcb);
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -128,30 +96,34 @@ protected:
 };
 
 
-class bim68153_device :  public device_t
+class bim68153_device : public device_t
 {
 	friend class bim68153_channel;
 
 public:
 	// construction/destruction
-	bim68153_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source);
 	bim68153_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	IRQ_CALLBACK_MEMBER(iack);
+	u16 iack(int irqline);
 	int acknowledge();
 	int get_irq_level();
 
-	template<class _Object> static devcb_base &set_out_int_callback(device_t &device, _Object object) { return downcast<bim68153_device &>(device).m_out_int_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_intal0_callback(device_t &device, _Object object) { return downcast<bim68153_device &>(device).m_out_intal0_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_intal1_callback(device_t &device, _Object object) { return downcast<bim68153_device &>(device).m_out_intal1_cb.set_callback(object); }
+	auto out_int_callback() { return m_out_int_cb.bind(); }
 
-	template<class _Object> static devcb_base &set_out_iack0_callback(device_t &device, _Object object) { return downcast<bim68153_device &>(device).m_chn[CHN_0]->m_out_iack_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_iack1_callback(device_t &device, _Object object) { return downcast<bim68153_device &>(device).m_chn[CHN_1]->m_out_iack_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_iack2_callback(device_t &device, _Object object) { return downcast<bim68153_device &>(device).m_chn[CHN_2]->m_out_iack_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_iack4_callback(device_t &device, _Object object) { return downcast<bim68153_device &>(device).m_chn[CHN_3]->m_out_iack_cb.set_callback(object); }
+	// These callback set INTAL0 and INTAL1 but are probably not needed as the
+	// shorthand OUT_IACK0..OUT_IACK3 below embed the channel information
+	auto out_intal0_callback() { return m_out_intal0_cb.bind(); }
+	auto out_intal1_callback() { return m_out_intal1_cb.bind(); }
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	// LOCAL IACK callbacks emulating the INTAL0 and INTAL1 outputs for INTAE requesting a vector from a sub device
+	template <unsigned Bit> auto out_iack_callback() { return m_chn[Bit]->m_out_iack_cb.bind(); }
+	auto out_iack0_callback() { return m_chn[CHN_0]->m_out_iack_cb.bind(); }
+	auto out_iack1_callback() { return m_chn[CHN_1]->m_out_iack_cb.bind(); }
+	auto out_iack2_callback() { return m_chn[CHN_2]->m_out_iack_cb.bind(); }
+	auto out_iack3_callback() { return m_chn[CHN_3]->m_out_iack_cb.bind(); }
+
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 
 
 	DECLARE_WRITE_LINE_MEMBER( iackin_w ) { m_iackin = state; }
@@ -161,10 +133,12 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( int3_w ) { m_chn[CHN_3]->int_w(state); }
 
 protected:
+	bim68153_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint32_t variant);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	void trigger_interrupt(int ch);
 	int get_channel_index(bim68153_channel *ch);
@@ -217,8 +191,8 @@ public :
 };
 
 // device type definition
-extern const device_type MC68153;
-extern const device_type EI68C153;
-extern const device_type MC68153_CHANNEL;
+DECLARE_DEVICE_TYPE(MC68153,         bim68153_device)
+DECLARE_DEVICE_TYPE(EI68C153,        ei68c153_device)
+DECLARE_DEVICE_TYPE(MC68153_CHANNEL, bim68153_channel)
 
-#endif /* MC68153BIM_H */
+#endif // MAME_MACHINE_68153BIM_H

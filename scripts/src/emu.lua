@@ -30,10 +30,13 @@ includedirs {
 }
 
 includedirs {
+	ext_includedir("asio"),
 	ext_includedir("expat"),
 	ext_includedir("zlib"),
 	ext_includedir("flac"),
 	ext_includedir("jpeg"),
+	ext_includedir("rapidjson"),
+	ext_includedir("pugixml"),
 	ext_includedir("openvr"),
 	ext_includedir("glm"),
 	ext_includedir("physx"),
@@ -43,6 +46,7 @@ includedirs {
 
 files {
 	MAME_DIR .. "src/emu/emu.h",
+	MAME_DIR .. "src/emu/emufwd.h",
 	MAME_DIR .. "src/emu/main.h",
 	MAME_DIR .. "src/emu/main.cpp",
 	MAME_DIR .. "src/emu/gamedrv.h",
@@ -85,8 +89,8 @@ files {
 	MAME_DIR .. "src/emu/dinetwork.h",
 	MAME_DIR .. "src/emu/dinvram.cpp",
 	MAME_DIR .. "src/emu/dinvram.h",
-	MAME_DIR .. "src/emu/dioutput.cpp",
-	MAME_DIR .. "src/emu/dioutput.h",
+	MAME_DIR .. "src/emu/dipalette.cpp",
+	MAME_DIR .. "src/emu/dipalette.h",
 	MAME_DIR .. "src/emu/dipty.cpp",
 	MAME_DIR .. "src/emu/dipty.h",
 	MAME_DIR .. "src/emu/dirom.cpp",
@@ -107,7 +111,7 @@ files {
 	MAME_DIR .. "src/emu/divtlb.h",
 	MAME_DIR .. "src/emu/drawgfx.cpp",
 	MAME_DIR .. "src/emu/drawgfx.h",
-	MAME_DIR .. "src/emu/drawgfxm.h",
+	MAME_DIR .. "src/emu/drawgfxt.ipp",
 	MAME_DIR .. "src/emu/driver.cpp",
 	MAME_DIR .. "src/emu/driver.h",
 	MAME_DIR .. "src/emu/drivenum.cpp",
@@ -118,12 +122,41 @@ files {
 	MAME_DIR .. "src/emu/emucore.h",
 	MAME_DIR .. "src/emu/emumem.cpp",
 	MAME_DIR .. "src/emu/emumem.h",
+	MAME_DIR .. "src/emu/emumem_mud.cpp",
+	MAME_DIR .. "src/emu/emumem_mud.h",
+	MAME_DIR .. "src/emu/emumem_hea.h",
+	MAME_DIR .. "src/emu/emumem_hem.cpp",
+	MAME_DIR .. "src/emu/emumem_hem.h",
+	MAME_DIR .. "src/emu/emumem_hedp.cpp",
+	MAME_DIR .. "src/emu/emumem_hedp.h",
+	MAME_DIR .. "src/emu/emumem_heun.cpp",
+	MAME_DIR .. "src/emu/emumem_heun.h",
+	MAME_DIR .. "src/emu/emumem_heu.cpp",
+	MAME_DIR .. "src/emu/emumem_heu.h",
+	MAME_DIR .. "src/emu/emumem_hedr.ipp",
+	MAME_DIR .. "src/emu/emumem_hedr.h",
+	MAME_DIR .. "src/emu/emumem_hedr0.cpp",
+	MAME_DIR .. "src/emu/emumem_hedr1.cpp",
+	MAME_DIR .. "src/emu/emumem_hedr2.cpp",
+	MAME_DIR .. "src/emu/emumem_hedr3.cpp",
+	MAME_DIR .. "src/emu/emumem_hedw.ipp",
+	MAME_DIR .. "src/emu/emumem_hedw.h",
+	MAME_DIR .. "src/emu/emumem_hedw0.cpp",
+	MAME_DIR .. "src/emu/emumem_hedw1.cpp",
+	MAME_DIR .. "src/emu/emumem_hedw2.cpp",
+	MAME_DIR .. "src/emu/emumem_hedw3.cpp",
+	MAME_DIR .. "src/emu/emumem_hep.cpp",
+	MAME_DIR .. "src/emu/emumem_hep.h",
+	MAME_DIR .. "src/emu/emumem_het.cpp",
+	MAME_DIR .. "src/emu/emumem_het.h",
 	MAME_DIR .. "src/emu/emuopts.cpp",
 	MAME_DIR .. "src/emu/emuopts.h",
 	MAME_DIR .. "src/emu/emupal.cpp",
 	MAME_DIR .. "src/emu/emupal.h",
 	MAME_DIR .. "src/emu/fileio.cpp",
 	MAME_DIR .. "src/emu/fileio.h",
+	MAME_DIR .. "src/emu/http.h",
+	MAME_DIR .. "src/emu/http.cpp",
 	MAME_DIR .. "src/emu/image.cpp",
 	MAME_DIR .. "src/emu/image.h",
 	MAME_DIR .. "src/emu/input.cpp",
@@ -132,7 +165,7 @@ files {
 	MAME_DIR .. "src/emu/inputdev.h",
 	MAME_DIR .. "src/emu/ioport.cpp",
 	MAME_DIR .. "src/emu/ioport.h",
-	MAME_DIR .. "src/emu/inpttype.h",
+	MAME_DIR .. "src/emu/inpttype.ipp",
 	MAME_DIR .. "src/emu/logmacro.h",
 	MAME_DIR .. "src/emu/machine.cpp",
 	MAME_DIR .. "src/emu/machine.h",
@@ -150,6 +183,8 @@ files {
 	MAME_DIR .. "src/emu/profiler.h",
 	MAME_DIR .. "src/emu/output.cpp",
 	MAME_DIR .. "src/emu/output.h",
+	MAME_DIR .. "src/emu/recording.cpp",
+	MAME_DIR .. "src/emu/recording.h",
 	MAME_DIR .. "src/emu/render.cpp",
 	MAME_DIR .. "src/emu/render.h",
 	MAME_DIR .. "src/emu/rendfont.cpp",
@@ -178,14 +213,14 @@ files {
 	MAME_DIR .. "src/emu/speaker.h",
 	MAME_DIR .. "src/emu/tilemap.cpp",
 	MAME_DIR .. "src/emu/tilemap.h",
-	MAME_DIR .. "src/emu/timer.cpp",
-	MAME_DIR .. "src/emu/timer.h",
 	MAME_DIR .. "src/emu/uiinput.cpp",
 	MAME_DIR .. "src/emu/uiinput.h",
 	MAME_DIR .. "src/emu/validity.cpp",
 	MAME_DIR .. "src/emu/validity.h",
 	MAME_DIR .. "src/emu/video.cpp",
 	MAME_DIR .. "src/emu/video.h",
+	MAME_DIR .. "src/emu/xtal.cpp",
+	MAME_DIR .. "src/emu/xtal.h",
 	MAME_DIR .. "src/emu/vr.cpp",
 	MAME_DIR .. "src/emu/vr.h",
 	MAME_DIR .. "src/emu/vr_interface.cpp",
@@ -193,6 +228,8 @@ files {
 	MAME_DIR .. "src/emu/rendersw.hxx",
 	MAME_DIR .. "src/emu/ui/uimain.h",
 	MAME_DIR .. "src/emu/ui/cmddata.h",   -- TODO: remove
+	MAME_DIR .. "src/emu/debug/debugbuf.cpp",
+	MAME_DIR .. "src/emu/debug/debugbuf.h",
 	MAME_DIR .. "src/emu/debug/debugcmd.cpp",
 	MAME_DIR .. "src/emu/debug/debugcmd.h",
 	MAME_DIR .. "src/emu/debug/debugcon.cpp",
@@ -239,6 +276,12 @@ files {
 	MAME_DIR .. "src/emu/vrdevice/pnchmn_event.def",
 }
 
+pchsource(MAME_DIR .. "src/emu/main.cpp")
+-- 3 files do not inlcude emu.h
+nopch(MAME_DIR .. "src/emu/emualloc.cpp")
+nopch(MAME_DIR .. "src/emu/attotime.cpp")
+nopch(MAME_DIR .. "src/emu/debug/textbuf.cpp")
+
 dependency {
 	--------------------------------------------------
 	-- additional dependencies
@@ -251,38 +294,24 @@ dependency {
 	{ MAME_DIR .. "src/emu/rendlay.cpp", GEN_DIR .. "emu/layout/dualhovu.lh" },
 	{ MAME_DIR .. "src/emu/rendlay.cpp", GEN_DIR .. "emu/layout/dualhsxs.lh" },
 	{ MAME_DIR .. "src/emu/rendlay.cpp", GEN_DIR .. "emu/layout/dualhuov.lh" },
-	{ MAME_DIR .. "src/emu/rendlay.cpp", GEN_DIR .. "emu/layout/horizont.lh" },
 	{ MAME_DIR .. "src/emu/rendlay.cpp", GEN_DIR .. "emu/layout/triphsxs.lh" },
 	{ MAME_DIR .. "src/emu/rendlay.cpp", GEN_DIR .. "emu/layout/quadhsxs.lh" },
-	{ MAME_DIR .. "src/emu/rendlay.cpp", GEN_DIR .. "emu/layout/vertical.lh" },
-	{ MAME_DIR .. "src/emu/rendlay.cpp", GEN_DIR .. "emu/layout/lcd.lh" },
-	{ MAME_DIR .. "src/emu/rendlay.cpp", GEN_DIR .. "emu/layout/lcd_rot.lh" },
-	{ MAME_DIR .. "src/emu/rendlay.cpp", GEN_DIR .. "emu/layout/svg.lh" },
 	{ MAME_DIR .. "src/emu/rendlay.cpp", GEN_DIR .. "emu/layout/noscreens.lh" },
-
-	{ MAME_DIR .. "src/emu/video.cpp",   GEN_DIR .. "emu/layout/snap.lh" },
-
 }
 
 custombuildtask {
-	{ MAME_DIR .. "scripts/font/NotoSans-Bold.bdc", GEN_DIR .. "emu/uismall.fh",     {  MAME_DIR .. "scripts/build/file2str.py" }, {"@echo Converting NotoSans-Bold.bdc...", PYTHON .. " $(1) $(<) $(@) font_uismall uint8_t" }},
+	{ MAME_DIR .. "scripts/font/NotoSans-Bold.bdc", GEN_DIR .. "emu/uismall.fh", { MAME_DIR .. "scripts/build/file2str.py" }, { "@echo Converting NotoSans-Bold.bdc...", PYTHON .. " $(1) $(<) $(@) font_uismall uint8_t" } },
 }
 
 custombuildtask {
-	{ MAME_DIR .. "src/frontend/mame/ui/uicmd14.png"        , GEN_DIR .. "emu/ui/uicmd14.fh",  {  MAME_DIR.. "scripts/build/png2bdc.py",  MAME_DIR .. "scripts/build/file2str.py" }, {"@echo Converting uicmd14.png...", PYTHON .. " $(1) $(<) temp_cmd.bdc", PYTHON .. " $(2) temp_cmd.bdc $(@) font_uicmd14 uint8_t" }},
+	{ MAME_DIR .. "src/frontend/mame/ui/uicmd14.png", GEN_DIR .. "emu/ui/uicmd14.fh", { MAME_DIR.. "scripts/build/png2bdc.py",  MAME_DIR .. "scripts/build/file2str.py" }, { "@echo Converting uicmd14.png...", PYTHON .. " $(1) $(<) temp_cmd.bdc", PYTHON .. " $(2) temp_cmd.bdc $(@) font_uicmd14 uint8_t" } },
 
 	layoutbuildtask("emu/layout", "dualhovu"),
 	layoutbuildtask("emu/layout", "dualhsxs"),
 	layoutbuildtask("emu/layout", "dualhuov"),
-	layoutbuildtask("emu/layout", "horizont"),
 	layoutbuildtask("emu/layout", "triphsxs"),
 	layoutbuildtask("emu/layout", "quadhsxs"),
-	layoutbuildtask("emu/layout", "vertical"),
-	layoutbuildtask("emu/layout", "lcd"),
-	layoutbuildtask("emu/layout", "lcd_rot"),
-	layoutbuildtask("emu/layout", "svg"),
 	layoutbuildtask("emu/layout", "noscreens"),
-	layoutbuildtask("emu/layout", "snap"),
 }
 
 project ("precompile")
@@ -300,6 +329,9 @@ includedirs {
 files {
 	MAME_DIR .. "src/emu/drivers/empty.cpp",
 }
+
+pchsource(MAME_DIR .. "src/emu/drivers/empty.cpp")
+
 dependency {
 	{ "$(OBJDIR)/src/emu/drivers/empty.o", "$(GCH)", true  },
 }

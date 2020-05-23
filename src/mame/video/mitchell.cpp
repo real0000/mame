@@ -20,7 +20,7 @@ TILE_GET_INFO_MEMBER(mitchell_state::get_tile_info)
 {
 	uint8_t attr = m_colorram[tile_index];
 	int code = m_videoram[2 * tile_index] + (m_videoram[2 * tile_index + 1] << 8);
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 			code,
 			attr & 0x7f,
 			(attr & 0x80) ? TILE_FLIPX : 0);
@@ -36,7 +36,7 @@ TILE_GET_INFO_MEMBER(mitchell_state::get_tile_info)
 
 VIDEO_START_MEMBER(mitchell_state,pang)
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(mitchell_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(mitchell_state::get_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 	m_bg_tilemap->set_transparent_pen(15);
 
 	/* OBJ RAM */
@@ -133,7 +133,7 @@ READ8_MEMBER(mitchell_state::pang_colorram_r)
 
 WRITE8_MEMBER(mitchell_state::pang_gfxctrl_w)
 {
-logerror("PC %04x: pang_gfxctrl_w %02x\n",space.device().safe_pc(),data);
+logerror("PC %04x: pang_gfxctrl_w %02x\n",m_maincpu->pc(),data);
 {
 #if 0
 	char baf[40];
@@ -145,7 +145,7 @@ logerror("PC %04x: pang_gfxctrl_w %02x\n",space.device().safe_pc(),data);
 	/* bit 0 is unknown (used, maybe back color enable?) */
 
 	/* bit 1 is coin counter */
-	space.machine().bookkeeping().coin_counter_w(0, data & 2);
+	machine().bookkeeping().coin_counter_w(0, data & 2);
 
 	/* bit 2 is flip screen */
 	if (m_flipscreen != (data & 0x04))
@@ -171,7 +171,7 @@ logerror("PC %04x: pang_gfxctrl_w %02x\n",space.device().safe_pc(),data);
 
 WRITE8_MEMBER(mitchell_state::pangbl_gfxctrl_w)
 {
-logerror("PC %04x: pang_gfxctrl_w %02x\n",space.device().safe_pc(),data);
+logerror("PC %04x: pang_gfxctrl_w %02x\n",m_maincpu->pc(),data);
 {
 #if 0
 	char baf[40];
@@ -207,7 +207,7 @@ logerror("PC %04x: pang_gfxctrl_w %02x\n",space.device().safe_pc(),data);
 
 WRITE8_MEMBER(mitchell_state::mstworld_gfxctrl_w)
 {
-logerror("PC %04x: pang_gfxctrl_w %02x\n",space.device().safe_pc(),data);
+logerror("PC %04x: pang_gfxctrl_w %02x\n",m_maincpu->pc(),data);
 {
 	char baf[40];
 	sprintf(baf,"%02x",data);
@@ -241,7 +241,7 @@ logerror("PC %04x: pang_gfxctrl_w %02x\n",space.device().safe_pc(),data);
 
 WRITE8_MEMBER(mitchell_state::pang_paletteram_w)
 {
-	m_palette->write(space, offset + (m_paletteram_bank ? 0x800 : 0x000), data);
+	m_palette->write8(offset + (m_paletteram_bank ? 0x800 : 0x000), data);
 }
 
 READ8_MEMBER(mitchell_state::pang_paletteram_r)

@@ -30,25 +30,23 @@
 #define MACHINE_IS_SPRINT2   (m_game == 2)
 #define MACHINE_IS_DOMINOS   (m_game == 3)
 
-DRIVER_INIT_MEMBER(sprint2_state,sprint1)
+void sprint2_state::init_sprint1()
 {
 	m_game = 1;
 }
-DRIVER_INIT_MEMBER(sprint2_state,sprint2)
+void sprint2_state::init_sprint2()
 {
 	m_game = 2;
 }
-DRIVER_INIT_MEMBER(sprint2_state,dominos)
+void sprint2_state::init_dominos()
 {
 	m_game = 3;
 }
 
-DRIVER_INIT_MEMBER(sprint2_state,dominos4)
+void sprint2_state::init_dominos4()
 {
 	m_game = 3;
 	m_maincpu->space(AS_PROGRAM).install_read_port(0x0880, 0x0880, "SELFTTEST");
-	m_maincpu->space(AS_PROGRAM).install_write_handler(0x0c50, 0x0c5f, write8_delegate(FUNC(sprint2_state::dominos4_lamp3_w),this));
-	m_maincpu->space(AS_PROGRAM).install_write_handler(0x0c60, 0x0c6f, write8_delegate(FUNC(sprint2_state::dominos4_lamp4_w),this));
 }
 
 int sprint2_state::service_mode()
@@ -72,7 +70,7 @@ int sprint2_state::service_mode()
 }
 
 
-INTERRUPT_GEN_MEMBER(sprint2_state::sprint2)
+INTERRUPT_GEN_MEMBER(sprint2_state::sprint2_irq)
 {
 	/* handle steering wheels */
 
@@ -107,17 +105,16 @@ INTERRUPT_GEN_MEMBER(sprint2_state::sprint2)
 		}
 	}
 
-	address_space &space = m_maincpu->space(AS_PROGRAM);
-	m_discrete->write(space, SPRINT2_MOTORSND1_DATA, m_video_ram[0x394] & 15); // also DOMINOS_FREQ_DATA
-	m_discrete->write(space, SPRINT2_MOTORSND2_DATA, m_video_ram[0x395] & 15);
-	m_discrete->write(space, SPRINT2_CRASHSND_DATA, m_video_ram[0x396] & 15);  // also DOMINOS_AMP_DATA
+	m_discrete->write(SPRINT2_MOTORSND1_DATA, m_video_ram[0x394] & 15); // also DOMINOS_FREQ_DATA
+	m_discrete->write(SPRINT2_MOTORSND2_DATA, m_video_ram[0x395] & 15);
+	m_discrete->write(SPRINT2_CRASHSND_DATA, m_video_ram[0x396] & 15);  // also DOMINOS_AMP_DATA
 
 	/* interrupts and watchdog are disabled during service mode */
 
 	m_watchdog->watchdog_enable(!service_mode());
 
 	if (!service_mode())
-		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		device.execute().pulse_input_line(INPUT_LINE_NMI, attotime::zero);
 }
 
 
@@ -170,7 +167,7 @@ READ8_MEMBER(sprint2_state::sprint2_sync_r)
 {
 	uint8_t val = 0;
 
-	if (m_attract != 0)
+	if (m_outlatch->q0_r() != 0)
 		val |= 0x10;
 
 	if (m_screen->vpos() == 261)
@@ -212,79 +209,42 @@ WRITE8_MEMBER(sprint2_state::sprint2_wram_w)
 }
 
 
-WRITE8_MEMBER(sprint2_state::sprint2_attract_w)
+WRITE8_MEMBER(sprint2_state::output_latch_w)
 {
-	m_attract = offset & 1;
-
-	// also DOMINOS_ATTRACT_EN
-	m_discrete->write(space, SPRINT2_ATTRACT_EN, m_attract);
+	m_outlatch->write_bit(offset >> 4, offset & 1);
 }
 
 
 WRITE8_MEMBER(sprint2_state::sprint2_noise_reset_w)
 {
-	m_discrete->write(space, SPRINT2_NOISE_RESET, 0);
+	m_discrete->write(SPRINT2_NOISE_RESET, 0);
 }
 
 
-WRITE8_MEMBER(sprint2_state::sprint2_skid1_w)
+void sprint2_state::sprint2_map(address_map &map)
 {
-	// also DOMINOS_TUMBLE_EN
-	m_discrete->write(space, SPRINT2_SKIDSND1_EN, offset & 1);
+	map.global_mask(0x3fff);
+	map(0x0000, 0x03ff).rw(FUNC(sprint2_state::sprint2_wram_r), FUNC(sprint2_state::sprint2_wram_w));
+	map(0x0400, 0x07ff).ram().w(FUNC(sprint2_state::sprint2_video_ram_w)).share("video_ram");
+	map(0x0818, 0x081f).r(FUNC(sprint2_state::sprint2_input_A_r));
+	map(0x0828, 0x082f).r(FUNC(sprint2_state::sprint2_input_B_r));
+	map(0x0830, 0x0837).r(FUNC(sprint2_state::sprint2_dip_r));
+	map(0x0840, 0x087f).portr("COIN");
+	map(0x0880, 0x08bf).r(FUNC(sprint2_state::sprint2_steering1_r));
+	map(0x08c0, 0x08ff).r(FUNC(sprint2_state::sprint2_steering2_r));
+	map(0x0c00, 0x0fff).r(FUNC(sprint2_state::sprint2_sync_r));
+	map(0x0c00, 0x0c7f).w(FUNC(sprint2_state::output_latch_w));
+	map(0x0c80, 0x0cff).w(m_watchdog, FUNC(watchdog_timer_device::reset_w));
+	map(0x0d00, 0x0d7f).w(FUNC(sprint2_state::sprint2_collision_reset1_w));
+	map(0x0d80, 0x0dff).w(FUNC(sprint2_state::sprint2_collision_reset2_w));
+	map(0x0e00, 0x0e7f).w(FUNC(sprint2_state::sprint2_steering_reset1_w));
+	map(0x0e80, 0x0eff).w(FUNC(sprint2_state::sprint2_steering_reset2_w));
+	map(0x0f00, 0x0f7f).w(FUNC(sprint2_state::sprint2_noise_reset_w));
+	map(0x1000, 0x13ff).r(FUNC(sprint2_state::sprint2_collision1_r));
+	map(0x1400, 0x17ff).r(FUNC(sprint2_state::sprint2_collision2_r));
+	map(0x1800, 0x1800).nopr();  /* debugger ROM location? */
+	map(0x2000, 0x3fff).rom();
 }
-
-WRITE8_MEMBER(sprint2_state::sprint2_skid2_w)
-{
-	m_discrete->write(space, SPRINT2_SKIDSND2_EN, offset & 1);
-}
-
-
-WRITE8_MEMBER(sprint2_state::sprint2_lamp1_w)
-{
-	output().set_led_value(0, offset & 1);
-}
-WRITE8_MEMBER(sprint2_state::sprint2_lamp2_w)
-{
-	output().set_led_value(1, offset & 1);
-}
-
-WRITE8_MEMBER(sprint2_state::dominos4_lamp3_w)
-{
-	output().set_led_value(2, offset & 1);
-}
-WRITE8_MEMBER(sprint2_state::dominos4_lamp4_w)
-{
-	output().set_led_value(3, offset & 1);
-}
-
-static ADDRESS_MAP_START( sprint2_map, AS_PROGRAM, 8, sprint2_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x3fff)
-	AM_RANGE(0x0000, 0x03ff) AM_READWRITE(sprint2_wram_r,sprint2_wram_w)
-	AM_RANGE(0x0400, 0x07ff) AM_RAM_WRITE(sprint2_video_ram_w) AM_SHARE("video_ram")
-	AM_RANGE(0x0818, 0x081f) AM_READ(sprint2_input_A_r)
-	AM_RANGE(0x0828, 0x082f) AM_READ(sprint2_input_B_r)
-	AM_RANGE(0x0830, 0x0837) AM_READ(sprint2_dip_r)
-	AM_RANGE(0x0840, 0x087f) AM_READ_PORT("COIN")
-	AM_RANGE(0x0880, 0x08bf) AM_READ(sprint2_steering1_r)
-	AM_RANGE(0x08c0, 0x08ff) AM_READ(sprint2_steering2_r)
-	AM_RANGE(0x0c00, 0x0fff) AM_READ(sprint2_sync_r)
-	AM_RANGE(0x0c00, 0x0c0f) AM_WRITE(sprint2_attract_w)
-	AM_RANGE(0x0c10, 0x0c1f) AM_WRITE(sprint2_skid1_w)
-	AM_RANGE(0x0c20, 0x0c2f) AM_WRITE(sprint2_skid2_w)
-	AM_RANGE(0x0c30, 0x0c3f) AM_WRITE(sprint2_lamp1_w)
-	AM_RANGE(0x0c40, 0x0c4f) AM_WRITE(sprint2_lamp2_w)
-	AM_RANGE(0x0c60, 0x0c6f) AM_WRITENOP /* SPARE */
-	AM_RANGE(0x0c80, 0x0cff) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)
-	AM_RANGE(0x0d00, 0x0d7f) AM_WRITE(sprint2_collision_reset1_w)
-	AM_RANGE(0x0d80, 0x0dff) AM_WRITE(sprint2_collision_reset2_w)
-	AM_RANGE(0x0e00, 0x0e7f) AM_WRITE(sprint2_steering_reset1_w)
-	AM_RANGE(0x0e80, 0x0eff) AM_WRITE(sprint2_steering_reset2_w)
-	AM_RANGE(0x0f00, 0x0f7f) AM_WRITE(sprint2_noise_reset_w)
-	AM_RANGE(0x1000, 0x13ff) AM_READ(sprint2_collision1_r)
-	AM_RANGE(0x1400, 0x17ff) AM_READ(sprint2_collision2_r)
-	AM_RANGE(0x1800, 0x1800) AM_READNOP  /* debugger ROM location? */
-	AM_RANGE(0x2000, 0x3fff) AM_ROM
-ADDRESS_MAP_END
 
 
 static INPUT_PORTS_START( sprint2 )
@@ -523,74 +483,84 @@ static const gfx_layout car_layout =
 };
 
 
-static GFXDECODE_START( sprint2 )
+static GFXDECODE_START( gfx_sprint2 )
 	GFXDECODE_ENTRY( "gfx1", 0, tile_layout, 0, 2 )
 	GFXDECODE_ENTRY( "gfx2", 0, car_layout, 4, 4 )
 GFXDECODE_END
 
 
-static MACHINE_CONFIG_START( sprint2, sprint2_state )
-
+void sprint2_state::sprint2(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6502, XTAL_12_096MHz / 16)
-	MCFG_CPU_PROGRAM_MAP(sprint2_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", sprint2_state,  sprint2)
+	M6502(config, m_maincpu, 12.096_MHz_XTAL / 16);
+	m_maincpu->set_addrmap(AS_PROGRAM, &sprint2_state::sprint2_map);
+	m_maincpu->set_vblank_int("screen", FUNC(sprint2_state::sprint2_irq));
 
-	MCFG_WATCHDOG_ADD("watchdog")
-	MCFG_WATCHDOG_VBLANK_INIT("screen", 8)
+	WATCHDOG_TIMER(config, m_watchdog).set_vblank_count(m_screen, 8);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_SIZE(512, 262)
-	MCFG_SCREEN_VISIBLE_AREA(0, 511, 0, 223)
-	MCFG_SCREEN_UPDATE_DRIVER(sprint2_state, screen_update_sprint2)
-	MCFG_SCREEN_VBLANK_DRIVER(sprint2_state, screen_eof_sprint2)
-	MCFG_SCREEN_PALETTE("palette")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_raw(12.096_MHz_XTAL, 768, 0, 512, 262, 0, 224);
+	m_screen->set_screen_update(FUNC(sprint2_state::screen_update_sprint2));
+	m_screen->screen_vblank().set(FUNC(sprint2_state::screen_vblank_sprint2));
+	m_screen->set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sprint2)
-	MCFG_PALETTE_ADD("palette", 12)
-	MCFG_PALETTE_INDIRECT_ENTRIES(4)
-	MCFG_PALETTE_INIT_OWNER(sprint2_state, sprint2)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_sprint2);
+	PALETTE(config, m_palette, FUNC(sprint2_state::sprint2_palette), 12, 4);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
 
-	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_DISCRETE_INTF(sprint2)
-	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
-MACHINE_CONFIG_END
+	F9334(config, m_outlatch); // at H8
+	m_outlatch->q_out_cb<0>().set("discrete", FUNC(discrete_device::write_line<SPRINT2_ATTRACT_EN>)); // also DOMINOS_ATTRACT_EN
+	m_outlatch->q_out_cb<1>().set("discrete", FUNC(discrete_device::write_line<SPRINT2_SKIDSND1_EN>)); // also DOMINOS_TUMBLE_EN
+	m_outlatch->q_out_cb<2>().set("discrete", FUNC(discrete_device::write_line<SPRINT2_SKIDSND2_EN>));
+	m_outlatch->q_out_cb<3>().set_output("led0"); // START LAMP1
+	m_outlatch->q_out_cb<4>().set_output("led1"); // START LAMP2
+	//m_outlatch->q_out_cb<6>().set(FUNC(sprint2_state::sprint2_spare_w));
 
-
-static MACHINE_CONFIG_DERIVED( sprint1, sprint2 )
-
-	/* sound hardware */
-	MCFG_DEVICE_REMOVE("lspeaker")
-	MCFG_DEVICE_REMOVE("rspeaker")
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-
-	MCFG_DEVICE_REMOVE("discrete")
-
-	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_DISCRETE_INTF(sprint1)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	DISCRETE(config, m_discrete, sprint2_discrete);
+	m_discrete->add_route(0, "lspeaker", 1.0);
+	m_discrete->add_route(1, "rspeaker", 1.0);
+}
 
 
-static MACHINE_CONFIG_DERIVED( dominos, sprint2 )
+void sprint2_state::sprint1(machine_config &config)
+{
+	sprint2(config);
 
 	/* sound hardware */
-	MCFG_DEVICE_REMOVE("lspeaker")
-	MCFG_DEVICE_REMOVE("rspeaker")
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	config.device_remove("lspeaker");
+	config.device_remove("rspeaker");
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_DEVICE_REMOVE("discrete")
+	config.device_remove("discrete");
 
-	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_DISCRETE_INTF(dominos)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	DISCRETE(config, m_discrete, sprint1_discrete).add_route(ALL_OUTPUTS, "mono", 1.0);
+}
+
+
+void sprint2_state::dominos(machine_config &config)
+{
+	sprint2(config);
+
+	/* sound hardware */
+	config.device_remove("lspeaker");
+	config.device_remove("rspeaker");
+	SPEAKER(config, "mono").front_center();
+
+	config.device_remove("discrete");
+
+	DISCRETE(config, m_discrete, dominos_discrete).add_route(ALL_OUTPUTS, "mono", 1.0);
+}
+
+void sprint2_state::dominos4(machine_config &config)
+{
+	dominos(config);
+	m_outlatch->q_out_cb<5>().set_output("led2"); // START LAMP3
+	m_outlatch->q_out_cb<6>().set_output("led3"); // START LAMP4
+}
 
 ROM_START( sprint1 )
 	ROM_REGION( 0x10000, "maincpu", 0 )
@@ -639,7 +609,7 @@ ROM_START( sprint2a )
 	ROM_LOAD( "6290-01.b1", 0x2000, 0x0800, CRC(41fc985e) SHA1(7178846480cbf8d15955ccd987d0b0e902ab9f90) )
 	ROM_LOAD( "6291-01.c1", 0x2800, 0x0800, CRC(07f7a920) SHA1(845f65d2bd290eb295ca6bae2575f27aaa08c0dd) )
 	ROM_LOAD( "6404.d1",    0x3000, 0x0800, CRC(d2878ff6) SHA1(b742a8896c1bf1cfacf48d06908920d88a2c9ea8) )
-	ROM_LOAD( "6405-02.e1", 0x3800, 0x0800, CRC(e80fd249) SHA1(7bcf7dfd72ca83fdd80593eaf392570da1f71298) )
+	ROM_LOAD( "6405-02.e1", 0x3800, 0x0800, CRC(e80fd249) SHA1(7bcf7dfd72ca83fdd80593eaf392570da1f71298) ) // sldh
 
 	ROM_REGION( 0x0200, "gfx1", 0 ) /* tiles */
 	ROM_LOAD_NIB_HIGH( "6396-01.p4", 0x0000, 0x0200, CRC(801b42dd) SHA1(1db58390d803f404253cbf36d562016441ca568d) )
@@ -716,9 +686,9 @@ ROM_START( dominos4 ) // built from original Atari source code
 	ROM_LOAD( "6401-01.e2", 0x0100, 0x0020, CRC(857df8db) SHA1(06313d5bde03220b2bc313d18e50e4bb1d0cfbbb) )  /* address */
 ROM_END
 
-GAME( 1978, sprint1,  0,       sprint1, sprint1, sprint2_state, sprint1, ROT0, "Atari (Kee Games)", "Sprint 1", 0 )
-GAME( 1976, sprint2,  sprint1, sprint2, sprint2, sprint2_state, sprint2, ROT0, "Atari (Kee Games)", "Sprint 2 (set 1)", 0 )
-GAME( 1976, sprint2a, sprint1, sprint2, sprint2, sprint2_state, sprint2, ROT0, "Atari (Kee Games)", "Sprint 2 (set 2)", 0 )
-GAME( 1976, sprint2h, sprint1, sprint2, sprint2, sprint2_state, sprint2, ROT0, "hack", "Sprint 2 (color kit, Italy)", MACHINE_WRONG_COLORS ) // Italian hack, supposedly is color instead of b/w? how?
-GAME( 1977, dominos,  0,       dominos, dominos, sprint2_state, dominos, ROT0, "Atari", "Dominos", 0 )
-GAME( 1977, dominos4, dominos, dominos, dominos4,sprint2_state, dominos4,ROT0, "Atari", "Dominos 4 (Cocktail)", 0 )
+GAME( 1978, sprint1,  0,       sprint1, sprint1, sprint2_state, init_sprint1, ROT0, "Atari (Kee Games)", "Sprint 1", 0 )
+GAME( 1976, sprint2,  sprint1, sprint2, sprint2, sprint2_state, init_sprint2, ROT0, "Atari (Kee Games)", "Sprint 2 (set 1)", 0 )
+GAME( 1976, sprint2a, sprint1, sprint2, sprint2, sprint2_state, init_sprint2, ROT0, "Atari (Kee Games)", "Sprint 2 (set 2)", 0 )
+GAME( 1976, sprint2h, sprint1, sprint2, sprint2, sprint2_state, init_sprint2, ROT0, "hack", "Sprint 2 (color kit, Italy)", MACHINE_WRONG_COLORS ) // Italian hack, supposedly is color instead of b/w? how?
+GAME( 1977, dominos,  0,       dominos, dominos, sprint2_state, init_dominos, ROT0, "Atari", "Dominos", 0 )
+GAME( 1977, dominos4, dominos, dominos4,dominos4,sprint2_state, init_dominos4,ROT0, "Atari", "Dominos 4 (Cocktail)", 0 )

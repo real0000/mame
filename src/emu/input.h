@@ -17,6 +17,15 @@
 #ifndef MAME_EMU_INPUT_H
 #define MAME_EMU_INPUT_H
 
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+
 
 //**************************************************************************
 //  CONSTANTS
@@ -51,11 +60,11 @@ enum input_device_class
 	DEVICE_CLASS_INTERNAL,
 	DEVICE_CLASS_MAXIMUM
 };
-DECLARE_ENUM_OPERATORS(input_device_class)
+DECLARE_ENUM_INCDEC_OPERATORS(input_device_class)
 
 
 // device index
-const int DEVICE_INDEX_MAXIMUM = 0xff;
+constexpr int DEVICE_INDEX_MAXIMUM = 0xff;
 
 
 // input item classes
@@ -193,6 +202,8 @@ enum input_item_id
 	ITEM_ID_TAB_PAD,
 	ITEM_ID_00_PAD,
 	ITEM_ID_000_PAD,
+	ITEM_ID_COMMA_PAD,
+	ITEM_ID_EQUALS_PAD,
 	ITEM_ID_PRTSCR,
 	ITEM_ID_PAUSE,
 	ITEM_ID_LSHIFT,
@@ -338,19 +349,13 @@ enum input_item_id
 	// absolute maximum ID
 	ITEM_ID_ABSOLUTE_MAXIMUM = 0xfff
 };
-DECLARE_ENUM_OPERATORS(input_item_id)
+DECLARE_ENUM_INCDEC_OPERATORS(input_item_id)
 
 
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
-
-// forward declarations
-class input_device_item;
-class input_device;
-class input_class;
-
 
 // controller alias table typedef
 typedef std::map<std::string, std::string> devicemap_table_type;
@@ -362,7 +367,12 @@ class input_code
 {
 public:
 	// construction/destruction
-	input_code(input_device_class devclass = DEVICE_CLASS_INVALID, int devindex = 0, input_item_class itemclass = ITEM_CLASS_INVALID, input_item_modifier modifier = ITEM_MODIFIER_NONE, input_item_id itemid = ITEM_ID_INVALID)
+	constexpr input_code(
+			input_device_class devclass = DEVICE_CLASS_INVALID,
+			int devindex = 0,
+			input_item_class itemclass = ITEM_CLASS_INVALID,
+			input_item_modifier modifier = ITEM_MODIFIER_NONE,
+			input_item_id itemid = ITEM_ID_INVALID) noexcept
 		: m_internal(((devclass & 0xf) << 28) | ((devindex & 0xff) << 20) | ((itemclass & 0xf) << 16) | ((modifier & 0xf) << 12) | (itemid & 0xfff))
 	{
 		assert(devclass >= 0 && devclass < DEVICE_CLASS_MAXIMUM);
@@ -371,30 +381,48 @@ public:
 		assert(modifier >= 0 && modifier < ITEM_MODIFIER_MAXIMUM);
 		assert(itemid >= 0 && itemid < ITEM_ID_ABSOLUTE_MAXIMUM);
 	}
-	input_code(const input_code &src)
-		: m_internal(src.m_internal) { }
+	constexpr input_code(const input_code &src) noexcept = default;
 
 	// operators
-	bool operator==(const input_code &rhs) const { return m_internal == rhs.m_internal; }
-	bool operator!=(const input_code &rhs) const { return m_internal != rhs.m_internal; }
+	constexpr bool operator==(const input_code &rhs) const noexcept { return m_internal == rhs.m_internal; }
+	constexpr bool operator!=(const input_code &rhs) const noexcept { return m_internal != rhs.m_internal; }
 
 	// getters
-	bool internal() const { return device_class() == DEVICE_CLASS_INTERNAL; }
-	input_device_class device_class() const { return input_device_class((m_internal >> 28) & 0xf); }
-	int device_index() const { return ((m_internal >> 20) & 0xff); }
-	input_item_class item_class() const { return input_item_class((m_internal >> 16) & 0xf); }
-	input_item_modifier item_modifier() const { return input_item_modifier((m_internal >> 12) & 0xf); }
-	input_item_id item_id() const { return input_item_id(m_internal & 0xfff); }
+	constexpr bool internal() const noexcept { return device_class() == DEVICE_CLASS_INTERNAL; }
+	constexpr input_device_class device_class() const noexcept { return input_device_class((m_internal >> 28) & 0xf); }
+	constexpr int device_index() const noexcept { return ((m_internal >> 20) & 0xff); }
+	constexpr input_item_class item_class() const noexcept { return input_item_class((m_internal >> 16) & 0xf); }
+	constexpr input_item_modifier item_modifier() const noexcept { return input_item_modifier((m_internal >> 12) & 0xf); }
+	constexpr input_item_id item_id() const noexcept { return input_item_id(m_internal & 0xfff); }
 
 	// setters
-	void set_device_class(input_device_class devclass) { assert(devclass >= 0 && devclass <= 0xf); m_internal = (m_internal & ~(0xf << 28)) | ((devclass & 0xf) << 28); }
-	void set_device_index(int devindex) { assert(devindex >= 0 && devindex <= 0xff); m_internal = (m_internal & ~(0xff << 20)) | ((devindex & 0xff) << 20); }
-	void set_item_class(input_item_class itemclass) { assert(itemclass >= 0 && itemclass <= 0xf); m_internal = (m_internal & ~(0xf << 16)) | ((itemclass & 0xf) << 16); }
-	void set_item_modifier(input_item_modifier modifier) { assert(modifier >= 0 && modifier <= 0xf); m_internal = (m_internal & ~(0xf << 12)) | ((modifier & 0xf) << 12); }
-	void set_item_id(input_item_id itemid) { assert(itemid >= 0 && itemid <= 0xfff); m_internal = (m_internal & ~0xfff) | (itemid & 0xfff); }
+	void set_device_class(input_device_class devclass) noexcept
+	{
+		assert(devclass >= 0 && devclass <= 0xf);
+		m_internal = (m_internal & ~(0xf << 28)) | ((devclass & 0xf) << 28);
+	}
+	void set_device_index(int devindex) noexcept
+	{
+		assert(devindex >= 0 && devindex <= 0xff);
+		m_internal = (m_internal & ~(0xff << 20)) | ((devindex & 0xff) << 20);
+	}
+	void set_item_class(input_item_class itemclass) noexcept
+	{
+		assert(itemclass >= 0 && itemclass <= 0xf);
+		m_internal = (m_internal & ~(0xf << 16)) | ((itemclass & 0xf) << 16);
+	}
+	void set_item_modifier(input_item_modifier modifier) noexcept
+	{
+		assert(modifier >= 0 && modifier <= 0xf);
+		m_internal = (m_internal & ~(0xf << 12)) | ((modifier & 0xf) << 12);
+	}
+	void set_item_id(input_item_id itemid) noexcept
+	{
+		assert(itemid >= 0 && itemid <= 0xfff);
+		m_internal = (m_internal & ~0xfff) | (itemid & 0xfff);
+	}
 
 private:
-	// internal state
 	u32 m_internal;
 };
 
@@ -406,41 +434,62 @@ class input_seq
 {
 public:
 	// construction/destruction
-	input_seq(input_code code0 = input_seq::end_code, input_code code1 = input_seq::end_code, input_code code2 = input_seq::end_code, input_code code3 = input_seq::end_code, input_code code4 = input_seq::end_code, input_code code5 = input_seq::end_code, input_code code6 = input_seq::end_code)
-		{ set(code0, code1, code2, code3, code4, code5, code6); }
-	input_seq(const input_seq &rhs) { memcpy(m_code, rhs.m_code, sizeof(m_code)); }
+	input_seq() noexcept : input_seq(std::make_index_sequence<std::tuple_size<decltype(m_code)>::value>()) { }
+	template <typename... T> input_seq(input_code code_0, T... code_n) noexcept : input_seq(std::make_index_sequence<std::tuple_size<decltype(m_code)>::value - sizeof...(T) - 1>(), code_0, code_n...) { }
+	constexpr input_seq(const input_seq &rhs) noexcept = default;
 
 	// operators
-	bool operator==(const input_seq &rhs) const { return (memcmp(m_code, rhs.m_code, sizeof(m_code)) == 0); }
-	bool operator!=(const input_seq &rhs) const { return (memcmp(m_code, rhs.m_code, sizeof(m_code)) != 0); }
-	input_code operator[](int index) const { return (index >= 0 && index < ARRAY_LENGTH(m_code)) ? m_code[index] : input_seq::end_code; }
-	input_seq &operator+=(input_code code);
-	input_seq &operator|=(input_code code);
+	bool operator==(const input_seq &rhs) const noexcept { return m_code == rhs.m_code; }
+	bool operator!=(const input_seq &rhs) const noexcept { return m_code != rhs.m_code; }
+	constexpr input_code operator[](int index) const noexcept { return (index >= 0 && index < m_code.size()) ? m_code[index] : end_code; }
+	input_seq &operator+=(input_code code) noexcept;
+	input_seq &operator|=(input_code code) noexcept;
 
 	// getters
-	int length() const;
-	bool is_valid() const;
-	bool is_default() const { return m_code[0] == default_code; }
+	constexpr bool empty() const noexcept { return m_code[0] == end_code; }
+	constexpr int max_size() const noexcept { return std::tuple_size<decltype(m_code)>::value; }
+	int length() const noexcept;
+	bool is_valid() const noexcept;
+	constexpr bool is_default() const noexcept { return m_code[0] == default_code; }
 
 	// setters
-	void set(input_code code0 = input_seq::end_code, input_code code1 = input_seq::end_code, input_code code2 = input_seq::end_code, input_code code3 = input_seq::end_code, input_code code4 = input_seq::end_code, input_code code5 = input_seq::end_code, input_code code6 = input_seq::end_code);
-	void reset() { set(); }
-	void set_default() { set(default_code); }
-	void backspace();
-	void replace(input_code oldcode, input_code newcode);
+	template <typename... T> void set(input_code code_0, T... code_n) noexcept
+	{
+		static_assert(sizeof...(T) < std::tuple_size<decltype(m_code)>::value, "too many codes for input_seq");
+		set<0>(code_0, code_n...);
+	}
+	void reset() noexcept { set(end_code); }
+	void set_default() noexcept { set(default_code); }
+	void backspace() noexcept;
+	void replace(input_code oldcode, input_code newcode) noexcept;
 
 	// constant codes used in sequences
-	static const input_code end_code;
-	static const input_code default_code;
-	static const input_code not_code;
-	static const input_code or_code;
+	static constexpr input_code end_code { DEVICE_CLASS_INTERNAL, 0, ITEM_CLASS_INVALID, ITEM_MODIFIER_NONE, ITEM_ID_SEQ_END };
+	static constexpr input_code default_code { DEVICE_CLASS_INTERNAL, 0, ITEM_CLASS_INVALID, ITEM_MODIFIER_NONE, ITEM_ID_SEQ_DEFAULT };
+	static constexpr input_code not_code { DEVICE_CLASS_INTERNAL, 0, ITEM_CLASS_INVALID, ITEM_MODIFIER_NONE, ITEM_ID_SEQ_NOT };
+	static constexpr input_code or_code { DEVICE_CLASS_INTERNAL, 0, ITEM_CLASS_INVALID, ITEM_MODIFIER_NONE, ITEM_ID_SEQ_OR };
 
 	// constant sequences
 	static const input_seq empty_seq;
 
 private:
+	static constexpr input_code get_end_code(size_t) noexcept { return end_code; }
+
+	template <size_t... N, typename... T> input_seq(std::integer_sequence<size_t, N...>, T... code) noexcept : m_code({ code..., get_end_code(N)... }) { }
+	template <size_t... N> input_seq(std::integer_sequence<size_t, N...>) noexcept : m_code({ get_end_code(N)... }) { }
+
+	template <unsigned N> void set() noexcept
+	{
+		std::fill(std::next(m_code.begin(), N), m_code.end(), end_code);
+	}
+	template <unsigned N, typename... T> void set(input_code code_0, T... code_n) noexcept
+	{
+		m_code[N] = code_0;
+		set<N + 1>(code_n...);
+	}
+
 	// internal state
-	input_code  m_code[16];
+	std::array<input_code, 16> m_code;
 };
 
 
@@ -482,12 +531,8 @@ public:
 	bool seq_pressed(const input_seq &seq);
 	s32 seq_axis_value(const input_seq &seq, input_item_class &itemclass);
 
-	// input sequence polling
-	void seq_poll_start(input_item_class itemclass, const input_seq *startseq = nullptr);
-	bool seq_poll();
-	const input_seq &seq_poll_final() const { return m_poll_seq; }
-
 	// input sequence helpers
+	input_seq seq_clean(const input_seq &seq) const;
 	std::string seq_name(const input_seq &seq) const;
 	std::string seq_to_tokens(const input_seq &seq) const;
 	void seq_from_tokens(input_seq &seq, const char *_token);
@@ -506,11 +551,6 @@ private:
 
 	// classes
 	std::array<std::unique_ptr<input_class>, DEVICE_CLASS_MAXIMUM> m_class;
-
-	// sequence polling state
-	input_seq           m_poll_seq;
-	osd_ticks_t         m_poll_seq_last_ticks;
-	input_item_class    m_poll_seq_class;
 };
 
 
@@ -626,6 +666,8 @@ private:
 #define KEYCODE_TAB_PAD_INDEXED(n) input_code(DEVICE_CLASS_KEYBOARD, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, ITEM_ID_TAB_PAD)
 #define KEYCODE_00_PAD_INDEXED(n) input_code(DEVICE_CLASS_KEYBOARD, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, ITEM_ID_00_PAD)
 #define KEYCODE_000_PAD_INDEXED(n) input_code(DEVICE_CLASS_KEYBOARD, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, ITEM_ID_000_PAD)
+#define KEYCODE_COMMA_PAD_INDEXED(n) input_code(DEVICE_CLASS_KEYBOARD, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, ITEM_ID_COMMA_PAD)
+#define KEYCODE_EQUALS_PAD_INDEXED(n) input_code(DEVICE_CLASS_KEYBOARD, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, ITEM_ID_EQUALS_PAD)
 #define KEYCODE_PRTSCR_INDEXED(n) input_code(DEVICE_CLASS_KEYBOARD, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, ITEM_ID_PRTSCR)
 #define KEYCODE_PAUSE_INDEXED(n) input_code(DEVICE_CLASS_KEYBOARD, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, ITEM_ID_PAUSE)
 #define KEYCODE_LSHIFT_INDEXED(n) input_code(DEVICE_CLASS_KEYBOARD, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, ITEM_ID_LSHIFT)
@@ -745,6 +787,8 @@ private:
 #define KEYCODE_TAB_PAD KEYCODE_TAB_PAD_INDEXED(0)
 #define KEYCODE_00_PAD KEYCODE_00_PAD_INDEXED(0)
 #define KEYCODE_000_PAD KEYCODE_000_PAD_INDEXED(0)
+#define KEYCODE_COMMA_PAD KEYCODE_COMMA_PAD_INDEXED(0)
+#define KEYCODE_EQUALS_PAD KEYCODE_EQUALS_PAD_INDEXED(0)
 #define KEYCODE_PRTSCR KEYCODE_PRTSCR_INDEXED(0)
 #define KEYCODE_PAUSE KEYCODE_PAUSE_INDEXED(0)
 #define KEYCODE_LSHIFT KEYCODE_LSHIFT_INDEXED(0)
@@ -836,12 +880,14 @@ private:
 #define JOYCODE_Z_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_NONE, ITEM_ID_ZAXIS)
 #define JOYCODE_U_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_NONE, ITEM_ID_RXAXIS)
 #define JOYCODE_V_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_NONE, ITEM_ID_RYAXIS)
+#define JOYCODE_W_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_NONE, ITEM_ID_RZAXIS)
 
 #define JOYCODE_X JOYCODE_X_INDEXED(0)
 #define JOYCODE_Y JOYCODE_Y_INDEXED(0)
 #define JOYCODE_Z JOYCODE_Z_INDEXED(0)
 #define JOYCODE_U JOYCODE_U_INDEXED(0)
 #define JOYCODE_V JOYCODE_V_INDEXED(0)
+#define JOYCODE_W JOYCODE_W_INDEXED(0)
 
 // joystick axes as absolute half-axes
 #define JOYCODE_X_POS_ABSOLUTE_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_POS, ITEM_ID_XAXIS)
@@ -854,6 +900,8 @@ private:
 #define JOYCODE_U_NEG_ABSOLUTE_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_NEG, ITEM_ID_RXAXIS)
 #define JOYCODE_V_POS_ABSOLUTE_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_POS, ITEM_ID_RYAXIS)
 #define JOYCODE_V_NEG_ABSOLUTE_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_NEG, ITEM_ID_RYAXIS)
+#define JOYCODE_W_POS_ABSOLUTE_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_POS, ITEM_ID_RZAXIS)
+#define JOYCODE_W_NEG_ABSOLUTE_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_NEG, ITEM_ID_RZAXIS)
 
 #define JOYCODE_X_POS_ABSOLUTE JOYCODE_X_POS_ABSOLUTE_INDEXED(0)
 #define JOYCODE_X_NEG_ABSOLUTE JOYCODE_X_NEG_ABSOLUTE_INDEXED(0)
@@ -865,6 +913,8 @@ private:
 #define JOYCODE_U_NEG_ABSOLUTE JOYCODE_U_NEG_ABSOLUTE_INDEXED(0)
 #define JOYCODE_V_POS_ABSOLUTE JOYCODE_V_POS_ABSOLUTE_INDEXED(0)
 #define JOYCODE_V_NEG_ABSOLUTE JOYCODE_V_NEG_ABSOLUTE_INDEXED(0)
+#define JOYCODE_W_POS_ABSOLUTE JOYCODE_W_POS_ABSOLUTE_INDEXED(0)
+#define JOYCODE_W_NEG_ABSOLUTE JOYCODE_W_NEG_ABSOLUTE_INDEXED(0)
 
 // joystick axes as switches; X/Y are specially handled for left/right/up/down mapping
 #define JOYCODE_X_LEFT_SWITCH_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_LEFT, ITEM_ID_XAXIS)
@@ -877,6 +927,8 @@ private:
 #define JOYCODE_U_NEG_SWITCH_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NEG, ITEM_ID_RXAXIS)
 #define JOYCODE_V_POS_SWITCH_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_POS, ITEM_ID_RYAXIS)
 #define JOYCODE_V_NEG_SWITCH_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NEG, ITEM_ID_RYAXIS)
+#define JOYCODE_W_POS_SWITCH_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_POS, ITEM_ID_RZAXIS)
+#define JOYCODE_W_NEG_SWITCH_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NEG, ITEM_ID_RZAXIS)
 
 #define JOYCODE_X_LEFT_SWITCH JOYCODE_X_LEFT_SWITCH_INDEXED(0)
 #define JOYCODE_X_RIGHT_SWITCH JOYCODE_X_RIGHT_SWITCH_INDEXED(0)
@@ -888,6 +940,8 @@ private:
 #define JOYCODE_U_NEG_SWITCH JOYCODE_U_NEG_SWITCH_INDEXED(0)
 #define JOYCODE_V_POS_SWITCH JOYCODE_V_POS_SWITCH_INDEXED(0)
 #define JOYCODE_V_NEG_SWITCH JOYCODE_V_NEG_SWITCH_INDEXED(0)
+#define JOYCODE_W_POS_SWITCH JOYCODE_W_POS_SWITCH_INDEXED(0)
+#define JOYCODE_W_NEG_SWITCH JOYCODE_W_NEG_SWITCH_INDEXED(0)
 
 // joystick buttons
 #define JOYCODE_BUTTON1_INDEXED(n) input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, ITEM_ID_BUTTON1)

@@ -3,30 +3,36 @@
 #include "emu.h"
 #include "pci-sata.h"
 
-const device_type SATA = device_creator<sata_device>;
+DEFINE_DEVICE_TYPE(SATA, sata_device, "sata", "SATA AHCI interface")
 
 sata_device::sata_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: pci_device(mconfig, SATA, "SATA AHCI interface", tag, owner, clock, "sata", __FILE__)
+	: pci_device(mconfig, SATA, tag, owner, clock)
 {
 }
 
-DEVICE_ADDRESS_MAP_START(primary_command_map, 32, sata_device)
-ADDRESS_MAP_END
+void sata_device::primary_command_map(address_map &map)
+{
+}
 
-DEVICE_ADDRESS_MAP_START(primary_control_map, 32, sata_device)
-ADDRESS_MAP_END
+void sata_device::primary_control_map(address_map &map)
+{
+}
 
-DEVICE_ADDRESS_MAP_START(secondary_command_map, 32, sata_device)
-ADDRESS_MAP_END
+void sata_device::secondary_command_map(address_map &map)
+{
+}
 
-DEVICE_ADDRESS_MAP_START(secondary_control_map, 32, sata_device)
-ADDRESS_MAP_END
+void sata_device::secondary_control_map(address_map &map)
+{
+}
 
-DEVICE_ADDRESS_MAP_START(bus_master_map, 32, sata_device)
-ADDRESS_MAP_END
+void sata_device::bus_master_map(address_map &map)
+{
+}
 
-DEVICE_ADDRESS_MAP_START(ide_command_posting_map, 32, sata_device)
-ADDRESS_MAP_END
+void sata_device::ide_command_posting_map(address_map &map)
+{
+}
 
 
 void sata_device::device_start()

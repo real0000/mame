@@ -18,7 +18,7 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type EPSON_SIO = device_creator<epson_sio_device>;
+DEFINE_DEVICE_TYPE(EPSON_SIO, epson_sio_device, "epson_sio", "EPSON SIO port")
 
 
 //**************************************************************************
@@ -30,7 +30,7 @@ const device_type EPSON_SIO = device_creator<epson_sio_device>;
 //-------------------------------------------------
 
 device_epson_sio_interface::device_epson_sio_interface(const machine_config &mconfig, device_t &device) :
-	device_slot_card_interface(mconfig, device)
+	device_interface(device, "epsonsio")
 {
 	m_slot = dynamic_cast<epson_sio_device *>(device.owner());
 }
@@ -54,10 +54,11 @@ device_epson_sio_interface::~device_epson_sio_interface()
 //-------------------------------------------------
 
 epson_sio_device::epson_sio_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-		device_t(mconfig, EPSON_SIO, "EPSON SIO port", tag, owner, clock, "epson_sio", __FILE__),
-		device_slot_interface(mconfig, *this), m_cart(nullptr),
-		m_write_rx(*this),
-		m_write_pin(*this)
+	device_t(mconfig, EPSON_SIO, tag, owner, clock),
+	device_single_card_slot_interface<device_epson_sio_interface>(mconfig, *this),
+	m_cart(nullptr),
+	m_write_rx(*this),
+	m_write_pin(*this)
 {
 }
 
@@ -77,19 +78,10 @@ epson_sio_device::~epson_sio_device()
 
 void epson_sio_device::device_start()
 {
-	m_cart = dynamic_cast<device_epson_sio_interface *>(get_card_device());
+	m_cart = get_card_device();
 
 	m_write_rx.resolve_safe();
 	m_write_pin.resolve_safe();
-}
-
-
-//-------------------------------------------------
-//  device_reset - device-specific reset
-//-------------------------------------------------
-
-void epson_sio_device::device_reset()
-{
 }
 
 
@@ -110,7 +102,8 @@ WRITE_LINE_MEMBER( epson_sio_device::pout_w )
 //  SLOT INTERFACE
 //**************************************************************************
 
-SLOT_INTERFACE_START( epson_sio_devices )
-	SLOT_INTERFACE("pf10", EPSON_PF10)
-	SLOT_INTERFACE("tf20", EPSON_TF20)
-SLOT_INTERFACE_END
+void epson_sio_devices(device_slot_interface &device)
+{
+	device.option_add("pf10", EPSON_PF10);
+	device.option_add("tf20", EPSON_TF20);
+}

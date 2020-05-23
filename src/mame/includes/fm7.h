@@ -1,21 +1,26 @@
 // license:BSD-3-Clause
 // copyright-holders:Barry Rodewald
-#include "machine/buffer.h"
-#include "bus/centronics/ctronics.h"
-#include "imagedev/cassette.h"
-#include "sound/beep.h"
-#include "sound/2203intf.h"
-#include "machine/wd_fdc.h"
-#include "machine/bankdev.h"
-
 /*
  *
  *  FM-7 header file
  *
  */
+#ifndef MAME_INCLUDES_FM7_H
+#define MAME_INCLUDES_FM7_H
 
-#ifndef FM7_H_
-#define FM7_H_
+#pragma once
+
+
+#include "machine/buffer.h"
+#include "bus/centronics/ctronics.h"
+#include "imagedev/cassette.h"
+#include "imagedev/floppy.h"
+#include "sound/beep.h"
+#include "sound/2203intf.h"
+#include "machine/wd_fdc.h"
+#include "machine/bankdev.h"
+#include "emupal.h"
+
 
 // Interrupt flags
 #define IRQ_FLAG_KEY      0x01
@@ -108,6 +113,47 @@ struct fm7_alu_t
 class fm7_state : public driver_device
 {
 public:
+	fm7_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
+		m_shared_ram(*this, "shared_ram"),
+		m_boot_ram(*this, "boot_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_sub(*this, "sub"),
+		m_x86(*this, "x86"),
+		m_cassette(*this, "cassette"),
+		m_beeper(*this, "beeper"),
+		m_ym(*this, "ym"),
+		m_psg(*this, "psg"),
+		m_screen(*this, "screen"),
+		m_centronics(*this, "centronics"),
+		m_cent_data_out(*this, "cent_data_out"),
+		m_fdc(*this, "fdc"),
+		m_floppy0(*this, "fdc:0"),
+		m_floppy1(*this, "fdc:1"),
+		m_floppy(nullptr),
+		m_ram_ptr(*this, "maincpu"),
+		m_rom_ptr(*this, "init"),
+		m_basic_ptr(*this, "fbasic"),
+		m_kanji(*this, "kanji1"),
+		m_kb_ports(*this, "key%u", 1),
+		m_keymod(*this, "key_modifiers"),
+		m_joy1(*this, "joy1"),
+		m_dsw(*this, "DSW"),
+		m_palette(*this, "palette"),
+		m_av_palette(*this, "av_palette"),
+		m_avbank(*this, "av_bank%u", 1)
+	{
+	}
+
+	void fm16beta(machine_config &config);
+	void fm8(machine_config &config);
+	void fm7(machine_config &config);
+	void fm77av(machine_config &config);
+	void fm11(machine_config &config);
+
+	void init_fm7();
+
+private:
 	enum
 	{
 		TIMER_FM7_BEEPER_OFF,
@@ -119,54 +165,6 @@ public:
 		TIMER_FM77AV_VSYNC
 	};
 
-	fm7_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_shared_ram(*this, "shared_ram"),
-		m_boot_ram(*this, "boot_ram"),
-		m_maincpu(*this, "maincpu"),
-		m_sub(*this, "sub"),
-		m_x86(*this, "x86"),
-		m_cassette(*this, "cassette"),
-		m_beeper(*this, "beeper"),
-		m_ym(*this, "ym"),
-		m_psg(*this, "psg"),
-		m_centronics(*this, "centronics"),
-		m_cent_data_out(*this, "cent_data_out"),
-		m_fdc(*this, "fdc"),
-		m_floppy0(*this, "fdc:0"),
-		m_floppy1(*this, "fdc:1"),
-		m_floppy(nullptr),
-		m_ram_ptr(*this, "maincpu"),
-		m_rom_ptr(*this, "init"),
-		m_basic_ptr(*this, "fbasic"),
-		m_kanji(*this, "kanji1"),
-		m_kb_ports(*this, {"key1", "key2", "key3"}),
-		m_keymod(*this, "key_modifiers"),
-		m_joy1(*this, "joy1"),
-		m_joy2(*this, "joy2"),
-		m_dsw(*this, "DSW"),
-		m_palette(*this, "palette"),
-		m_av_palette(*this, "av_palette"),
-		m_avbank1(*this, "av_bank1"),
-		m_avbank2(*this, "av_bank2"),
-		m_avbank3(*this, "av_bank3"),
-		m_avbank4(*this, "av_bank4"),
-		m_avbank5(*this, "av_bank5"),
-		m_avbank6(*this, "av_bank6"),
-		m_avbank7(*this, "av_bank7"),
-		m_avbank8(*this, "av_bank8"),
-		m_avbank9(*this, "av_bank9"),
-		m_avbank10(*this, "av_bank10"),
-		m_avbank11(*this, "av_bank11"),
-		m_avbank12(*this, "av_bank12"),
-		m_avbank13(*this, "av_bank13"),
-		m_avbank14(*this, "av_bank14"),
-		m_avbank15(*this, "av_bank15"),
-		m_avbank16(*this, "av_bank16")
-	{
-	}
-	DECLARE_DRIVER_INIT(fm7);
-
 	virtual void machine_reset() override;
 	virtual void video_start() override;
 
@@ -177,8 +175,6 @@ public:
 
 	DECLARE_WRITE_LINE_MEMBER(fm7_fdc_intrq_w);
 	DECLARE_WRITE_LINE_MEMBER(fm7_fdc_drq_w);
-	DECLARE_READ8_MEMBER(fm77av_joy_1_r);
-	DECLARE_READ8_MEMBER(fm77av_joy_2_r);
 	DECLARE_WRITE_LINE_MEMBER(fm77av_fmirq);
 
 	DECLARE_READ8_MEMBER(fm7_subintf_r);
@@ -278,7 +274,20 @@ public:
 
 	uint32_t screen_update_fm7(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
-protected:
+	void fm11_mem(address_map &map);
+	void fm11_sub_mem(address_map &map);
+	void fm11_x86_io(address_map &map);
+	void fm11_x86_mem(address_map &map);
+	void fm16_io(address_map &map);
+	void fm16_mem(address_map &map);
+	void fm16_sub_mem(address_map &map);
+	void fm77av_mem(address_map &map);
+	void fm77av_sub_mem(address_map &map);
+	void fm7_banked_mem(address_map &map);
+	void fm7_mem(address_map &map);
+	void fm7_sub_mem(address_map &map);
+	void fm8_mem(address_map &map);
+
 	optional_shared_ptr<uint8_t> m_shared_ram;
 	optional_shared_ptr<uint8_t> m_boot_ram;
 
@@ -338,11 +347,12 @@ protected:
 	required_device<beep_device> m_beeper;
 	optional_device<ym2203_device> m_ym;
 	optional_device<ay8910_device> m_psg;
+	required_device<screen_device> m_screen;
 
 	required_device<centronics_device> m_centronics;
 	required_device<output_latch_device> m_cent_data_out;
 
-	required_device<mb8877_t> m_fdc;
+	required_device<mb8877_device> m_fdc;
 	required_device<floppy_connector> m_floppy0;
 	required_device<floppy_connector> m_floppy1;
 	floppy_image_device *m_floppy;
@@ -380,29 +390,13 @@ protected:
 	required_ioport_array<3> m_kb_ports;
 	required_ioport m_keymod;
 	required_ioport m_joy1;
-	required_ioport m_joy2;
 	required_ioport m_dsw;
 	required_device<palette_device> m_palette;
 	optional_device<palette_device> m_av_palette;
 
-	optional_device<address_map_bank_device> m_avbank1;
-	optional_device<address_map_bank_device> m_avbank2;
-	optional_device<address_map_bank_device> m_avbank3;
-	optional_device<address_map_bank_device> m_avbank4;
-	optional_device<address_map_bank_device> m_avbank5;
-	optional_device<address_map_bank_device> m_avbank6;
-	optional_device<address_map_bank_device> m_avbank7;
-	optional_device<address_map_bank_device> m_avbank8;
-	optional_device<address_map_bank_device> m_avbank9;
-	optional_device<address_map_bank_device> m_avbank10;
-	optional_device<address_map_bank_device> m_avbank11;
-	optional_device<address_map_bank_device> m_avbank12;
-	optional_device<address_map_bank_device> m_avbank13;
-	optional_device<address_map_bank_device> m_avbank14;
-	optional_device<address_map_bank_device> m_avbank15;
-	optional_device<address_map_bank_device> m_avbank16;
+	optional_device_array<address_map_bank_device, 16> m_avbank;
 
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 };
 
-#endif /*FM7_H_*/
+#endif // MAME_INCLUDES_FM7_H

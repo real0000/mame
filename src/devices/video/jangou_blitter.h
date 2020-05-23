@@ -1,24 +1,11 @@
 // license:BSD-3-Clause
 // copyright-holders:Angelo Salese
-/***************************************************************************
 
-Template for skeleton device
-
-***************************************************************************/
+#ifndef MAME_VIDEO_JANGOU_BLITTER_H
+#define MAME_VIDEO_JANGOU_BLITTER_H
 
 #pragma once
 
-#ifndef __JANGOU_BLITTERDEV_H__
-#define __JANGOU_BLITTERDEV_H__
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_JANGOU_BLITTER_ADD(_tag,_freq) \
-	MCFG_DEVICE_ADD(_tag, JANGOU_BLITTER, _freq)
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -33,13 +20,14 @@ public:
 	jangou_blitter_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// I/O operations
-	DECLARE_WRITE8_MEMBER( process_w );
-	DECLARE_WRITE8_MEMBER( alt_process_w );
-	DECLARE_WRITE8_MEMBER( vregs_w );
-	DECLARE_WRITE8_MEMBER( bltflip_w );
-	DECLARE_READ_LINE_MEMBER( status_r );
+	void blit_v1_regs(address_map &map);
+	void blit_v2_regs(address_map &map);
 
-	uint8_t        m_blit_buffer[256 * 256];
+	void vregs_w(offs_t offset, uint8_t data);
+	void bltflip_w(uint8_t data);
+	int status_r();
+
+	const uint8_t &blit_buffer(unsigned y, unsigned x) const { return m_blit_buffer[(256 * y) + x]; }
 
 protected:
 	// device-level overrides
@@ -47,25 +35,31 @@ protected:
 	virtual void device_reset() override;
 
 private:
+	uint8_t m_blit_buffer[256 * 256];
+
 	void plot_gfx_pixel( uint8_t pix, int x, int y );
 	uint8_t gfx_nibble( uint32_t niboffset );
+	void trigger_write(void);
 	uint8_t m_pen_data[0x10];
-	uint8_t m_blit_data[7];
+	uint8_t m_x,m_y,m_width,m_height;
+	uint32_t m_src_addr;
+	//uint8_t m_blit_data[7];
 	uint8_t *m_gfxrom;
 	uint32_t m_gfxrommask;
 	bool m_bltflip;
+
+	// blitter write accessors
+	void x_w(uint8_t data);
+	void y_w(uint8_t data);
+	void height_and_trigger_w(uint8_t data);
+	void width_w(uint8_t data);
+	void src_lo_address_w(uint8_t data);
+	void src_md_address_w(uint8_t data);
+	void src_hi_address_w(uint8_t data);
 };
 
 
 // device type definition
-extern const device_type JANGOU_BLITTER;
+DECLARE_DEVICE_TYPE(JANGOU_BLITTER, jangou_blitter_device)
 
-
-
-//**************************************************************************
-//  GLOBAL VARIABLES
-//**************************************************************************
-
-
-
-#endif
+#endif // MAME_VIDEO_JANGOU_BLITTER_H

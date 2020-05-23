@@ -5,7 +5,7 @@
 
         Elektor Junior
 
-        17/07/2009 Skeleton driver.
+2009-07-17 Skeleton driver.
 
 This is heavily based on the KIM-1, the keycodes and operation being
 identical.
@@ -23,11 +23,24 @@ Test Paste:
         =11^22^33^44^55^66^77^88^99^-0000
         Now press up-arrow to confirm the data has been entered.
 
+NMI and IRQ:
+- When NMI is activated, it jumps to the vector located at 1A7A.
+- When IRQ is activated, it jumps to the vector located at 1A7E.
+- The user needs to populate these vectors before use, or the system
+  will crash when the debugging switches are used. Use RST to escape
+  from this.
+
+
+To Do:
+- Single-Step switch (and associated LED) needs to be hooked up
+
 ****************************************************************************/
 
 #include "emu.h"
 #include "cpu/m6502/m6502.h"
 #include "machine/mos6530n.h"
+#include "machine/timer.h"
+#include "video/pwm.h"
 #include "junior.lh"
 
 
@@ -35,43 +48,57 @@ class junior_state : public driver_device
 {
 public:
 	junior_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-	m_riot(*this, "riot")
-	,
-		m_maincpu(*this, "maincpu") { }
+		: driver_device(mconfig, type, tag)
+		, m_riot(*this, "riot")
+		, m_maincpu(*this, "maincpu")
+		, m_display(*this, "display")
+		, m_io_keyboard(*this, "LINE%u", 0U)
+	{ }
 
-	required_device<mos6532_t> m_riot;
-	DECLARE_READ8_MEMBER(junior_riot_a_r);
-	DECLARE_READ8_MEMBER(junior_riot_b_r);
-	DECLARE_WRITE8_MEMBER(junior_riot_a_w);
-	DECLARE_WRITE8_MEMBER(junior_riot_b_w);
-	uint8_t m_port_a;
-	uint8_t m_port_b;
-	uint8_t m_led_time[6];
-	virtual void machine_start() override;
-	virtual void machine_reset() override;
 	DECLARE_INPUT_CHANGED_MEMBER(junior_reset);
-	TIMER_DEVICE_CALLBACK_MEMBER(junior_update_leds);
+	DECLARE_INPUT_CHANGED_MEMBER(junior_stop);
+	void junior(machine_config &config);
+
+private:
+	u8 riot_a_r();
+	void riot_a_w(u8 data);
+	void riot_b_w(u8 data);
+	u8 m_digit;
+	u8 m_seg;
+
+	virtual void machine_start() override;
+
+	void junior_mem(address_map &map);
+
+	required_device<mos6532_new_device> m_riot;
 	required_device<cpu_device> m_maincpu;
+	required_device<pwm_display_device> m_display;
+	required_ioport_array<4> m_io_keyboard;
 };
 
 
 
 
-static ADDRESS_MAP_START(junior_mem, AS_PROGRAM, 8, junior_state)
-	ADDRESS_MAP_GLOBAL_MASK(0x1FFF)
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x0000, 0x03ff) AM_RAM // 1K RAM
-	AM_RANGE(0x1a00, 0x1a7f) AM_DEVICE("riot", mos6532_t, ram_map)
-	AM_RANGE(0x1a80, 0x1a9f) AM_DEVICE("riot", mos6532_t, io_map)
-	AM_RANGE(0x1c00, 0x1fff) AM_ROM // Monitor
-ADDRESS_MAP_END
+void junior_state::junior_mem(address_map &map)
+{
+	map.global_mask(0x1FFF);
+	map.unmap_value_high();
+	map(0x0000, 0x03ff).ram(); // 1K RAM
+	map(0x1a00, 0x1a7f).m(m_riot, FUNC(mos6532_new_device::ram_map));
+	map(0x1a80, 0x1a9f).m(m_riot, FUNC(mos6532_new_device::io_map));
+	map(0x1c00, 0x1fff).rom().region("maincpu", 0); // Monitor
+}
 
 
 INPUT_CHANGED_MEMBER(junior_state::junior_reset)
 {
 	if (newval == 0)
 		m_maincpu->reset();
+}
+
+INPUT_CHANGED_MEMBER(junior_state::junior_stop)
+{
+	m_maincpu->set_input_line(INPUT_LINE_NMI, newval ? CLEAR_LINE : ASSERT_LINE);
 }
 
 
@@ -109,12 +136,14 @@ PORT_START("LINE0")         /* IN0 keys row 0 */
 
 	PORT_START("LINE3")         /* IN3 STEP and RESET keys, MODE switch */
 	PORT_BIT( 0x80, 0x00, IPT_UNUSED )
-	PORT_BIT( 0x40, 0x40, IPT_KEYBOARD ) PORT_NAME("sw1: ST") PORT_CODE(KEYCODE_F7)
-	PORT_BIT( 0x20, 0x20, IPT_KEYBOARD ) PORT_NAME("sw2: RST") PORT_CODE(KEYCODE_F3) PORT_CHANGED_MEMBER(DEVICE_SELF, junior_state, junior_reset, nullptr)
-	PORT_DIPNAME(0x10, 0x10, "sw3: SS (NumLock)") PORT_CODE(KEYCODE_NUMLOCK) PORT_TOGGLE
+	PORT_BIT( 0x40, 0x40, IPT_KEYBOARD ) PORT_NAME("S1: STOP") PORT_CODE(KEYCODE_F7) PORT_CHANGED_MEMBER(DEVICE_SELF, junior_state, junior_stop, 0)
+	PORT_BIT( 0x20, 0x20, IPT_KEYBOARD ) PORT_NAME("S2: RST") PORT_CODE(KEYCODE_F3) PORT_CHANGED_MEMBER(DEVICE_SELF, junior_state, junior_reset, 0)
+	PORT_DIPNAME(0x10, 0x10, "S24: SS (NumLock)") PORT_CODE(KEYCODE_NUMLOCK) PORT_TOGGLE
 	PORT_DIPSETTING( 0x00, "single step")
 	PORT_DIPSETTING( 0x10, "run")
-	PORT_BIT( 0x08, 0x00, IPT_UNUSED )
+	PORT_DIPNAME(0x08, 0x08, "S25: Display")
+	PORT_DIPSETTING( 0x00, "Off")
+	PORT_DIPSETTING( 0x08, "On")
 	PORT_BIT( 0x04, 0x00, IPT_UNUSED )
 	PORT_BIT( 0x02, 0x00, IPT_UNUSED )
 	PORT_BIT( 0x01, 0x00, IPT_UNUSED )
@@ -122,132 +151,80 @@ INPUT_PORTS_END
 
 
 
-READ8_MEMBER( junior_state::junior_riot_a_r )
+u8 junior_state::riot_a_r()
 {
-	uint8_t data = 0xff;
+	u8 data = 0xff;
 
-	switch( ( m_port_b >> 1 ) & 0x0f )
-	{
-	case 0:
-		data = ioport("LINE0")->read();
-		break;
-	case 1:
-		data = ioport("LINE1")->read();
-		break;
-	case 2:
-		data = ioport("LINE2")->read();
-		break;
-	}
+	if (m_digit < 3)
+		data &= m_io_keyboard[m_digit]->read();
+
 	return data;
 
 }
 
-
-READ8_MEMBER( junior_state::junior_riot_b_r )
+void junior_state::riot_a_w(u8 data)
 {
-	if ( m_port_b & 0x20 )
-		return 0xFF;
-
-	return 0x7F;
-
+	m_seg = ~data;
+	if (BIT(m_io_keyboard[3]->read(), 3))
+		m_display->matrix(1 << m_digit, m_seg);
+	else
+		m_display->matrix(1 << m_digit, 0);
 }
 
 
-WRITE8_MEMBER( junior_state::junior_riot_a_w )
+void junior_state::riot_b_w(u8 data)
 {
-	uint8_t idx = ( m_port_b >> 1 ) & 0x0f;
-
-	m_port_a = data;
-
-	if ((idx >= 4 && idx < 10) & ( m_port_a != 0xff ))
-	{
-		output().set_digit_value( idx-4, m_port_a ^ 0x7f );
-		m_led_time[idx - 4] = 10;
-	}
-}
-
-
-WRITE8_MEMBER( junior_state::junior_riot_b_w )
-{
-	uint8_t idx = ( data >> 1 ) & 0x0f;
-
-	m_port_b = data;
-
-	if ((idx >= 4 && idx < 10) & ( m_port_a != 0xff ))
-	{
-		output().set_digit_value( idx-4, m_port_a ^ 0x7f );
-		m_led_time[idx - 4] = 10;
-	}
-}
-
-
-TIMER_DEVICE_CALLBACK_MEMBER(junior_state::junior_update_leds)
-{
-	int i;
-
-	for ( i = 0; i < 6; i++ )
-	{
-		if ( m_led_time[i] )
-			m_led_time[i]--;
-		else
-			output().set_digit_value( i, 0 );
-	}
+	m_digit = (data >> 1) & 15;
+	if (BIT(m_io_keyboard[3]->read(), 3))
+		m_display->matrix(1 << m_digit, m_seg);
+	else
+		m_display->matrix(1 << m_digit, 0);
 }
 
 
 void junior_state::machine_start()
 {
-	save_item(NAME(m_port_a));
-	save_item(NAME(m_port_b));
+	save_item(NAME(m_digit));
+	save_item(NAME(m_seg));
 }
 
 
-void junior_state::machine_reset()
+void junior_state::junior(machine_config &config)
 {
-	int i;
-
-	for ( i = 0; i < 6; i++ )
-		m_led_time[i] = 0;
-}
-
-
-static MACHINE_CONFIG_START( junior, junior_state )
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu",M6502, XTAL_1MHz)
-	MCFG_CPU_PROGRAM_MAP(junior_mem)
-	MCFG_QUANTUM_TIME(attotime::from_hz(50))
+	M6502(config, m_maincpu, 1_MHz_XTAL);
+	m_maincpu->set_addrmap(AS_PROGRAM, &junior_state::junior_mem);
 
 	/* video hardware */
-	MCFG_DEFAULT_LAYOUT( layout_junior )
+	config.set_default_layout(layout_junior);
+	PWM_DISPLAY(config, m_display).set_size(10, 7);
+	m_display->set_segmask(0x3f0, 0x7f);
 
 	/* Devices */
-	MCFG_DEVICE_ADD("riot", MOS6532n, XTAL_1MHz)
-	MCFG_MOS6530n_IN_PA_CB(READ8(junior_state, junior_riot_a_r))
-	MCFG_MOS6530n_OUT_PA_CB(WRITE8(junior_state, junior_riot_a_w))
-	MCFG_MOS6530n_IN_PB_CB(READ8(junior_state, junior_riot_b_r))
-	MCFG_MOS6530n_OUT_PB_CB(WRITE8(junior_state, junior_riot_b_w))
-	MCFG_MOS6530n_IRQ_CB(INPUTLINE("maincpu", M6502_IRQ_LINE))
-
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("led_timer", junior_state, junior_update_leds, attotime::from_hz(50))
-MACHINE_CONFIG_END
+	MOS6532_NEW(config, m_riot, 1_MHz_XTAL);
+	m_riot->pa_rd_callback().set(FUNC(junior_state::riot_a_r));
+	m_riot->pa_wr_callback().set(FUNC(junior_state::riot_a_w));
+	m_riot->pb_wr_callback().set(FUNC(junior_state::riot_b_w));
+	m_riot->irq_wr_callback().set_inputline(m_maincpu, M6502_IRQ_LINE);
+}
 
 
 /* ROM definition */
 ROM_START( junior )
-	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
+	ROM_REGION( 0x0400, "maincpu", 0 )
 	ROM_DEFAULT_BIOS("orig")
 
 	ROM_SYSTEM_BIOS( 0, "orig", "Original ESS503" )
-	ROMX_LOAD( "ess503.ic2", 0x1c00, 0x0400, CRC(9e804f8c) SHA1(181bdb69fb4711cb008e7966747d4775a5e3ef69), ROM_BIOS(1))
+	ROMX_LOAD( "ess503.ic2", 0x0000, 0x0400, CRC(9e804f8c) SHA1(181bdb69fb4711cb008e7966747d4775a5e3ef69), ROM_BIOS(0))
 
 	ROM_SYSTEM_BIOS( 1, "mod-orig", "Mod-Original (2708)" )
-	ROMX_LOAD( "junior-mod.ic2", 0x1c00, 0x0400, CRC(ee8aa69d) SHA1(a132a51603f1a841c354815e6d868b335ac84364), ROM_BIOS(2))
+	ROMX_LOAD( "junior-mod.ic2", 0x0000, 0x0400, CRC(ee8aa69d) SHA1(a132a51603f1a841c354815e6d868b335ac84364), ROM_BIOS(1))
 
 	ROM_SYSTEM_BIOS( 2, "2732", "Just monitor (2732)" )
-	ROMX_LOAD( "junior27321a.ic2", 0x1c00, 0x0400, CRC(e22f24cc) SHA1(a6edb52a9eea5e99624c128065e748e5a3fb2e4c), ROM_BIOS(3))
+	ROMX_LOAD( "junior27321a.ic2", 0x0000, 0x0400, CRC(e22f24cc) SHA1(a6edb52a9eea5e99624c128065e748e5a3fb2e4c), ROM_BIOS(2))
 ROM_END
 
 /* Driver */
 
-/*    YEAR  NAME    PARENT  COMPAT   MACHINE    INPUT    INIT     COMPANY                     FULLNAME       FLAGS */
-COMP( 1980, junior, 0,      0,       junior,    junior, driver_device,   0,     "Elektor Electronics", "Junior Computer", MACHINE_SUPPORTS_SAVE | MACHINE_NO_SOUND_HW)
+/*    YEAR  NAME    PARENT  COMPAT  MACHINE  INPUT   CLASS         INIT        COMPANY                FULLNAME           FLAGS */
+COMP( 1980, junior, 0,      0,      junior,  junior, junior_state, empty_init, "Elektor Electronics", "Junior Computer", MACHINE_SUPPORTS_SAVE | MACHINE_NO_SOUND_HW)

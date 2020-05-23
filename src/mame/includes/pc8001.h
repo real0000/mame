@@ -2,8 +2,8 @@
 // copyright-holders:Curt Coder
 #pragma once
 
-#ifndef __PC8001__
-#define __PC8001__
+#ifndef MAME_INCLUDES_PC8001_H
+#define MAME_INCLUDES_PC8001_H
 
 
 #include "cpu/z80/z80.h"
@@ -64,7 +64,7 @@ public:
 	DECLARE_READ8_MEMBER( port40_r );
 	DECLARE_WRITE8_MEMBER( port40_w );
 	DECLARE_WRITE_LINE_MEMBER( hrq_w );
-	DECLARE_READ8_MEMBER( dma_mem_r );
+	uint8_t dma_mem_r(offs_t offset);
 
 	/* video state */
 	int m_width80;
@@ -76,6 +76,9 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
 	DECLARE_WRITE_LINE_MEMBER(write_centronics_ack);
 	UPD3301_DRAW_CHARACTER_MEMBER( pc8001_display_pixels );
+	void pc8001(machine_config &config);
+	void pc8001_io(address_map &map);
+	void pc8001_mem(address_map &map);
 };
 
 class pc8001mk2_state : public pc8001_state
@@ -89,6 +92,9 @@ public:
 	required_memory_region m_kanji_rom;
 
 	DECLARE_WRITE8_MEMBER( port31_w );
+	void pc8001mk2(machine_config &config);
+	void pc8001mk2_io(address_map &map);
+	void pc8001mk2_mem(address_map &map);
 };
 
 #endif

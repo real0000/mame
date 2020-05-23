@@ -24,9 +24,9 @@ TODO:
 
 TS 2006.05.28:
 --------------
-Added  'Daikaijuu no Gyakushuu'
+Added  'Daikaiju no Gyakushu'
 - more sprite ram
-- a bit different sound hardware (diff. communciation with sub cpu, no NMI)
+- a bit different sound hardware (diff. communication with sub cpu, no NMI)
 - same video board as  LSA Squad, but different features are used
 
 
@@ -42,8 +42,8 @@ more bullets. In rank D, all enemies shoot more bullets.
 
 ---------------------------------------------------------------------------
 
-Daikaiju no Gyakushu
-Taito, 1986
+Daikaiju no Gyakushu, Taito, 1986
+Hardware info by Guru
 
 (Info from a Japanese friend...)
 The Japanese letters on the title screen say "Daikaizyuu no Gyakusyuu"
@@ -96,13 +96,13 @@ Notes:
       G            - 22-way edge connector
       H            - 12 pin Taito power connector (gnd,gnd,gnd,gnd,5,5,5,-5,12,key,12,12)
       A74_05.IC35  - Motorola 68705P5S Micro-controller, clock 3.000MHz [24/8] (protected, DIP28)
+                     This was decapped and dumped and added to MAME 0.139 in August 2010
       VSync        - 60Hz
 
       ROMs
       ----
           A74_06/07/08/09 - MMI 63S441 1k x4 Bipolar PROM (DIP18)
           A74_01/02/03/04 - Fujitsu 27C256 EPROM (DIP28)
-
 
 
 Bottom board
@@ -154,7 +154,7 @@ Notes:
 #include "speaker.h"
 
 
-#define MASTER_CLOCK    XTAL_24MHz
+#define MASTER_CLOCK    XTAL(24'000'000)
 
 
 WRITE8_MEMBER(lsasquad_state::lsasquad_bankswitch_w)
@@ -170,137 +170,143 @@ WRITE8_MEMBER(lsasquad_state::lsasquad_bankswitch_w)
 	/* other bits unknown */
 }
 
-static ADDRESS_MAP_START( lsasquad_map, AS_PROGRAM, 8, lsasquad_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x9fff) AM_ROMBANK("bank1")
-	AM_RANGE(0xa000, 0xbfff) AM_RAM /* SRAM */
-	AM_RANGE(0xc000, 0xdfff) AM_RAM AM_SHARE("videoram")    /* SCREEN RAM */
-	AM_RANGE(0xe000, 0xe3ff) AM_RAM AM_SHARE("scrollram")   /* SCROLL RAM */
-	AM_RANGE(0xe400, 0xe5ff) AM_RAM AM_SHARE("spriteram")   /* OBJECT RAM */
-	AM_RANGE(0xe800, 0xe800) AM_READ_PORT("DSWA")
-	AM_RANGE(0xe801, 0xe801) AM_READ_PORT("DSWB")
-	AM_RANGE(0xe802, 0xe802) AM_READ_PORT("DSWC")
-	AM_RANGE(0xe803, 0xe803) AM_READ(lsasquad_mcu_status_r) /* COIN + 68705 status */
-	AM_RANGE(0xe804, 0xe804) AM_READ_PORT("P1")
-	AM_RANGE(0xe805, 0xe805) AM_READ_PORT("P2")
-	AM_RANGE(0xe806, 0xe806) AM_READ_PORT("START")
-	AM_RANGE(0xe807, 0xe807) AM_READ_PORT("SERVICE")
-	AM_RANGE(0xea00, 0xea00) AM_WRITE(lsasquad_bankswitch_w)
-	AM_RANGE(0xec00, 0xec00) AM_READWRITE(lsasquad_sound_result_r,lsasquad_sound_command_w)
-	AM_RANGE(0xec01, 0xec01) AM_READ(lsasquad_sound_status_r)
-	AM_RANGE(0xee00, 0xee00) AM_DEVREADWRITE("bmcu", taito68705_mcu_device, data_r, data_w)
-ADDRESS_MAP_END
+void lsasquad_state::lsasquad_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0x9fff).bankr("bank1");
+	map(0xa000, 0xbfff).ram(); /* SRAM */
+	map(0xc000, 0xdfff).ram().share("videoram");    /* SCREEN RAM */
+	map(0xe000, 0xe3ff).ram().share("scrollram");   /* SCROLL RAM */
+	map(0xe400, 0xe5ff).ram().share("spriteram");   /* OBJECT RAM */
+	map(0xe800, 0xe800).portr("DSWA");
+	map(0xe801, 0xe801).portr("DSWB");
+	map(0xe802, 0xe802).portr("DSWC");
+	map(0xe803, 0xe803).r(FUNC(lsasquad_state::lsasquad_mcu_status_r)); /* COIN + 68705 status */
+	map(0xe804, 0xe804).portr("P1");
+	map(0xe805, 0xe805).portr("P2");
+	map(0xe806, 0xe806).portr("START");
+	map(0xe807, 0xe807).portr("SERVICE");
+	map(0xea00, 0xea00).w(FUNC(lsasquad_state::lsasquad_bankswitch_w));
+	map(0xec00, 0xec00).r(m_soundlatch2, FUNC(generic_latch_8_device::read));
+	map(0xec00, 0xec00).w(m_soundlatch, FUNC(generic_latch_8_device::write));
+	map(0xec01, 0xec01).r(FUNC(lsasquad_state::lsasquad_sound_status_r));
+	map(0xee00, 0xee00).rw(m_bmcu, FUNC(taito68705_mcu_device::data_r), FUNC(taito68705_mcu_device::data_w));
+}
 
-static ADDRESS_MAP_START( lsasquad_sound_map, AS_PROGRAM, 8, lsasquad_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x87ff) AM_RAM
-	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
-	AM_RANGE(0xc000, 0xc001) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
-	AM_RANGE(0xd000, 0xd000) AM_READWRITE(lsasquad_sh_sound_command_r, lsasquad_sh_result_w)
-	AM_RANGE(0xd400, 0xd400) AM_WRITE(lsasquad_sh_nmi_disable_w)
-	AM_RANGE(0xd800, 0xd800) AM_WRITE(lsasquad_sh_nmi_enable_w)
-	AM_RANGE(0xd800, 0xd800) AM_READ(lsasquad_sound_status_r)
-	AM_RANGE(0xe000, 0xefff) AM_ROM     /* space for diagnostic ROM? */
-ADDRESS_MAP_END
+void lsasquad_state::lsasquad_sound_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0x87ff).ram();
+	map(0xa000, 0xa001).rw("ymsnd", FUNC(ym2203_device::read), FUNC(ym2203_device::write));
+	map(0xc000, 0xc001).w("aysnd", FUNC(ay8910_device::address_data_w));
+	map(0xd000, 0xd000).r(m_soundlatch, FUNC(generic_latch_8_device::read));
+	map(0xd000, 0xd000).w(m_soundlatch2, FUNC(generic_latch_8_device::write));
+	map(0xd400, 0xd400).w(FUNC(lsasquad_state::lsasquad_sh_nmi_disable_w));
+	map(0xd800, 0xd800).w(FUNC(lsasquad_state::lsasquad_sh_nmi_enable_w));
+	map(0xd800, 0xd800).r(FUNC(lsasquad_state::lsasquad_sound_status_r));
+	map(0xe000, 0xefff).rom();     /* space for diagnostic ROM? */
+}
 
 
 
-static ADDRESS_MAP_START( storming_map, AS_PROGRAM, 8, lsasquad_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x9fff) AM_ROMBANK("bank1")
-	AM_RANGE(0xa000, 0xbfff) AM_RAM /* SRAM */
-	AM_RANGE(0xc000, 0xdfff) AM_RAM AM_SHARE("videoram")    /* SCREEN RAM */
-	AM_RANGE(0xe000, 0xe3ff) AM_RAM AM_SHARE("scrollram")   /* SCROLL RAM */
-	AM_RANGE(0xe400, 0xe5ff) AM_RAM AM_SHARE("spriteram")   /* OBJECT RAM */
-	AM_RANGE(0xe800, 0xe800) AM_READ_PORT("DSWA")
-	AM_RANGE(0xe801, 0xe801) AM_READ_PORT("DSWB")
-	AM_RANGE(0xe802, 0xe802) AM_READ_PORT("DSWC")
-	AM_RANGE(0xe803, 0xe803) AM_READ_PORT("COINS")
-	AM_RANGE(0xe804, 0xe804) AM_READ_PORT("P1")
-	AM_RANGE(0xe805, 0xe805) AM_READ_PORT("P2")
-	AM_RANGE(0xe806, 0xe806) AM_READ_PORT("START")
-	AM_RANGE(0xe807, 0xe807) AM_READ_PORT("SERVICE")
-	AM_RANGE(0xea00, 0xea00) AM_WRITE(lsasquad_bankswitch_w)
-	AM_RANGE(0xec00, 0xec00) AM_READWRITE(lsasquad_sound_result_r,lsasquad_sound_command_w)
-	AM_RANGE(0xec01, 0xec01) AM_READ(lsasquad_sound_status_r)
-ADDRESS_MAP_END
+void lsasquad_state::storming_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0x9fff).bankr("bank1");
+	map(0xa000, 0xbfff).ram(); /* SRAM */
+	map(0xc000, 0xdfff).ram().share("videoram");    /* SCREEN RAM */
+	map(0xe000, 0xe3ff).ram().share("scrollram");   /* SCROLL RAM */
+	map(0xe400, 0xe5ff).ram().share("spriteram");   /* OBJECT RAM */
+	map(0xe800, 0xe800).portr("DSWA");
+	map(0xe801, 0xe801).portr("DSWB");
+	map(0xe802, 0xe802).portr("DSWC");
+	map(0xe803, 0xe803).portr("COINS");
+	map(0xe804, 0xe804).portr("P1");
+	map(0xe805, 0xe805).portr("P2");
+	map(0xe806, 0xe806).portr("START");
+	map(0xe807, 0xe807).portr("SERVICE");
+	map(0xea00, 0xea00).w(FUNC(lsasquad_state::lsasquad_bankswitch_w));
+	map(0xec00, 0xec00).r(m_soundlatch2, FUNC(generic_latch_8_device::read));
+	map(0xec00, 0xec00).w(m_soundlatch, FUNC(generic_latch_8_device::write));
+	map(0xec01, 0xec01).r(FUNC(lsasquad_state::lsasquad_sound_status_r));
+}
 
 
 static INPUT_PORTS_START( lsasquad )
 	PORT_START("DSWA")
-	PORT_DIPNAME( 0x01, 0x00, DEF_STR( Cabinet ) )
+	PORT_DIPNAME( 0x01, 0x00, DEF_STR( Cabinet ) )         PORT_DIPLOCATION("SWA:1")
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( Cocktail ) )
-	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Flip_Screen ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Flip_Screen ) )     PORT_DIPLOCATION("SWA:2")
 	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_SERVICE( 0x04, IP_ACTIVE_LOW )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Demo_Sounds ) )
+	PORT_SERVICE( 0x04, IP_ACTIVE_LOW )                    PORT_DIPLOCATION("SWA:3")
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Demo_Sounds ) )     PORT_DIPLOCATION("SWA:4")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( On ) )
-	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Coin_A ) )
+	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Coin_A ) )          PORT_DIPLOCATION("SWA:5,6")
 	PORT_DIPSETTING(    0x10, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x30, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_3C ) )
 	PORT_DIPSETTING(    0x20, DEF_STR( 1C_2C ) )
-	PORT_DIPNAME( 0xc0, 0xc0, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0xc0, 0xc0, DEF_STR( Coin_B ) )          PORT_DIPLOCATION("SWA:7,8")
 	PORT_DIPSETTING(    0x40, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0xc0, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_3C ) )
 	PORT_DIPSETTING(    0x80, DEF_STR( 1C_2C ) )
 
 	PORT_START("DSWB")
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Difficulty ) )
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Difficulty ) )      PORT_DIPLOCATION("SWB:1,2")
 	PORT_DIPSETTING(    0x02, DEF_STR( Easy ) )
 	PORT_DIPSETTING(    0x03, DEF_STR( Medium ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( Hard ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Hardest ) )
-	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Bonus_Life ) )
+	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Bonus_Life ) )      PORT_DIPLOCATION("SWB:3,4")
 	PORT_DIPSETTING(    0x08, "50000 100000" )
 	PORT_DIPSETTING(    0x0c, "80000 150000" )
 	PORT_DIPSETTING(    0x04, "100000 200000" )
 	PORT_DIPSETTING(    0x00, "150000 300000" )
-	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Lives ) )
+	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Lives ) )           PORT_DIPLOCATION("SWB:5,6")
 	PORT_DIPSETTING(    0x00, "1" )
 	PORT_DIPSETTING(    0x30, "3" )
 	PORT_DIPSETTING(    0x10, "4" )
 	PORT_DIPSETTING(    0x20, "5" )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Allow_Continue ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Allow_Continue ) )  PORT_DIPLOCATION("SWB:7")
 	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Yes ) )
-	PORT_DIPNAME( 0x80, 0x00, DEF_STR( Language ) )
+	PORT_DIPNAME( 0x80, 0x00, DEF_STR( Language ) )        PORT_DIPLOCATION("SWB:8")
 	PORT_DIPSETTING(    0x00, DEF_STR( English ) )
 	PORT_DIPSETTING(    0x80, DEF_STR( Japanese ) )
 
 	PORT_START("DSWC")
-	PORT_DIPNAME( 0x01, 0x01, "Freeze" )
+	PORT_DIPNAME( 0x01, 0x01, "Freeze" )                   PORT_DIPLOCATION("SWC:1")
 	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )         PORT_DIPLOCATION("SWC:2")
 	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, "Invulnerability (Cheat)")
+	PORT_DIPNAME( 0x04, 0x04, "Invulnerability (Cheat)")   PORT_DIPLOCATION("SWC:3")
 	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )         PORT_DIPLOCATION("SWC:4")
 	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )         PORT_DIPLOCATION("SWC:5")
 	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )         PORT_DIPLOCATION("SWC:6")
 	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )         PORT_DIPLOCATION("SWC:7")
 	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )         PORT_DIPLOCATION("SWC:8")
 	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 
 	PORT_START("MCU")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL )   /* 68705 ready to receive cmd */
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL )   /* 0 = 68705 has sent result */
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_CUSTOM )   /* 68705 ready to receive cmd */
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_CUSTOM )   /* 0 = 68705 has sent result */
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_COIN1 )
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_COIN2 )
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_UNKNOWN )
@@ -368,81 +374,82 @@ INPUT_PORTS_END
 
 /* DAIKAIJU */
 
-static ADDRESS_MAP_START( daikaiju_map, AS_PROGRAM, 8, lsasquad_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x9fff) AM_ROMBANK("bank1")
-	AM_RANGE(0xa000, 0xbfff) AM_RAM /* SRAM */
-	AM_RANGE(0xc000, 0xdfff) AM_RAM AM_SHARE("videoram")    /* SCREEN RAM */
-	AM_RANGE(0xe000, 0xe3ff) AM_RAM AM_SHARE("scrollram")   /* SCROLL RAM */
-	AM_RANGE(0xe400, 0xe7ff) AM_RAM AM_SHARE("spriteram")   /* OBJECT RAM */
-	AM_RANGE(0xe800, 0xe800) AM_READ_PORT("DSWA")
-	AM_RANGE(0xe801, 0xe801) AM_READ_PORT("DSWB")
-	AM_RANGE(0xe803, 0xe803) AM_READ(daikaiju_mcu_status_r) /* COIN + 68705 status */
-	AM_RANGE(0xe804, 0xe804) AM_READ_PORT("P1")
-	AM_RANGE(0xe805, 0xe805) AM_READ_PORT("P2")
-	AM_RANGE(0xe806, 0xe806) AM_READ_PORT("START")
-	AM_RANGE(0xe807, 0xe807) AM_READ_PORT("SERVICE")
-	AM_RANGE(0xea00, 0xea00) AM_WRITE(lsasquad_bankswitch_w)
-	AM_RANGE(0xec00, 0xec00) AM_WRITE(lsasquad_sound_command_w)
-	AM_RANGE(0xec01, 0xec01) AM_READ(lsasquad_sound_status_r)
-	AM_RANGE(0xee00, 0xee00) AM_DEVREADWRITE("bmcu", taito68705_mcu_device, data_r, data_w)
-ADDRESS_MAP_END
+void lsasquad_state::daikaiju_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0x9fff).bankr("bank1");
+	map(0xa000, 0xbfff).ram(); /* SRAM */
+	map(0xc000, 0xdfff).ram().share("videoram");    /* SCREEN RAM */
+	map(0xe000, 0xe3ff).ram().share("scrollram");   /* SCROLL RAM */
+	map(0xe400, 0xe7ff).ram().share("spriteram");   /* OBJECT RAM */
+	map(0xe800, 0xe800).portr("DSWA");
+	map(0xe801, 0xe801).portr("DSWB");
+	map(0xe803, 0xe803).r(FUNC(lsasquad_state::daikaiju_mcu_status_r)); /* COIN + 68705 status */
+	map(0xe804, 0xe804).portr("P1");
+	map(0xe805, 0xe805).portr("P2");
+	map(0xe806, 0xe806).portr("START");
+	map(0xe807, 0xe807).portr("SERVICE");
+	map(0xea00, 0xea00).w(FUNC(lsasquad_state::lsasquad_bankswitch_w));
+	map(0xec00, 0xec00).w(m_soundlatch, FUNC(generic_latch_8_device::write));
+	map(0xee00, 0xee00).rw(m_bmcu, FUNC(taito68705_mcu_device::data_r), FUNC(taito68705_mcu_device::data_w));
+}
 
-static ADDRESS_MAP_START( daikaiju_sound_map, AS_PROGRAM, 8, lsasquad_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x87ff) AM_RAM
-	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
-	AM_RANGE(0xc000, 0xc001) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
-	AM_RANGE(0xd000, 0xd000) AM_READ(daikaiju_sh_sound_command_r)
-	AM_RANGE(0xd400, 0xd400) AM_WRITENOP
-	AM_RANGE(0xd800, 0xd800) AM_READ(daikaiju_sound_status_r) AM_WRITENOP
-	AM_RANGE(0xdc00, 0xdc00) AM_WRITENOP
-	AM_RANGE(0xe000, 0xefff) AM_ROM /* space for diagnostic ROM? */
-ADDRESS_MAP_END
+void lsasquad_state::daikaiju_sound_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0x87ff).ram();
+	map(0xa000, 0xa001).rw("ymsnd", FUNC(ym2203_device::read), FUNC(ym2203_device::write));
+	map(0xc000, 0xc001).w("aysnd", FUNC(ay8910_device::address_data_w));
+	map(0xd000, 0xd000).r(m_soundlatch, FUNC(generic_latch_8_device::read));
+	map(0xd400, 0xd400).w(FUNC(lsasquad_state::lsasquad_sh_nmi_disable_w));
+	map(0xd800, 0xd800).rw(FUNC(lsasquad_state::daikaiju_sound_status_r), FUNC(lsasquad_state::lsasquad_sh_nmi_enable_w));
+	map(0xdc00, 0xdc00).nopw();
+	map(0xe000, 0xefff).rom(); /* space for diagnostic ROM? */
+}
 
 static INPUT_PORTS_START( daikaiju )
 	PORT_START("DSWA")
-	PORT_DIPNAME( 0x01, 0x00, DEF_STR( Cabinet ) )
+	PORT_DIPNAME( 0x01, 0x00, DEF_STR( Cabinet ) )         PORT_DIPLOCATION("SWA:1")
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( Cocktail ) )
-	PORT_DIPNAME( 0x02, 0x00, DEF_STR( Flip_Screen ) )
+	PORT_DIPNAME( 0x02, 0x00, DEF_STR( Flip_Screen ) )     PORT_DIPLOCATION("SWA:2")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( On ) )
-	PORT_SERVICE( 0x04, IP_ACTIVE_LOW ) //test mode
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Demo_Sounds ) )
+	PORT_SERVICE( 0x04, IP_ACTIVE_LOW )                    PORT_DIPLOCATION("SWA:3")  //test mode
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Demo_Sounds ) )     PORT_DIPLOCATION("SWA:4")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( On ) )
-	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Coin_A ) )
+	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Coin_A ) )          PORT_DIPLOCATION("SWA:5,6")
 	PORT_DIPSETTING(    0x10, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0x30, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_3C ) )
 	PORT_DIPSETTING(    0x20, DEF_STR( 1C_2C ) )
-	PORT_DIPNAME( 0xc0, 0xc0, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0xc0, 0xc0, DEF_STR( Coin_B ) )          PORT_DIPLOCATION("SWA:7,8")
 	PORT_DIPSETTING(    0x40, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0xc0, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_3C ) )
 	PORT_DIPSETTING(    0x80, DEF_STR( 1C_2C ) )
 
 	PORT_START("DSWB")
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Difficulty ) ) // detailed description at the top of file
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Difficulty ) )      PORT_DIPLOCATION("SWB:1,2")  // detailed description at the top of file
 	PORT_DIPSETTING(    0x01, DEF_STR( Easy ) )
 	PORT_DIPSETTING(    0x03, DEF_STR( Medium ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( Hard ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Hardest ) )
-	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Bonus_Life ) )
+	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Bonus_Life ) )      PORT_DIPLOCATION("SWB:3,4")
 	PORT_DIPSETTING(    0x08, "100000" )
 	PORT_DIPSETTING(    0x0c, "30000" )
 	PORT_DIPSETTING(    0x04, "50000" )
 	PORT_DIPSETTING(    0x00, DEF_STR( None ) )
-	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Lives ) )
+	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Lives ) )           PORT_DIPLOCATION("SWB:5,6")
 	PORT_DIPSETTING(    0x00, "Infinite (Cheat)" )
 	PORT_DIPSETTING(    0x30, "3" )
 	PORT_DIPSETTING(    0x10, "5" )
 	PORT_DIPSETTING(    0x20, "4" )
-	PORT_DIPNAME( 0x40, 0x40, "Invulnerability (Cheat)")
+	PORT_DIPNAME( 0x40, 0x40, "Invulnerability (Cheat)")   PORT_DIPLOCATION("SWB:7")
 	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, "Freeze" ) //stop mode
+	PORT_DIPNAME( 0x80, 0x80, "Freeze" )                   PORT_DIPLOCATION("SWB:8")  //stop mode
 	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 
@@ -451,8 +458,8 @@ static INPUT_PORTS_START( daikaiju )
 
 
 	PORT_START("MCU")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL )   /* 68705 ready to receive cmd */
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL )   /* 0 = 68705 has sent result */
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_CUSTOM )   /* 68705 ready to receive cmd */
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_CUSTOM )   /* 0 = 68705 has sent result */
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_COIN1 )
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_COIN2 )
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_UNKNOWN )
@@ -526,13 +533,13 @@ static const gfx_layout spritelayout =
 	64*8
 };
 
-static GFXDECODE_START( lsasquad )
+static GFXDECODE_START( gfx_lsasquad )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout,     0, 16 )
 	GFXDECODE_ENTRY( "gfx2", 0, spritelayout, 256, 16 )
 GFXDECODE_END
 
 
-WRITE8_MEMBER(lsasquad_state::unk)
+void lsasquad_state::unk(uint8_t data)
 {
 }
 
@@ -541,128 +548,129 @@ MACHINE_START_MEMBER(lsasquad_state,lsasquad)
 	uint8_t *ROM = memregion("maincpu")->base();
 
 	membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x2000);
-
-
-	save_item(NAME(m_sound_pending));
-	save_item(NAME(m_sound_nmi_enable));
-	save_item(NAME(m_pending_nmi));
-	save_item(NAME(m_sound_cmd));
-	save_item(NAME(m_sound_result));
 }
 
 MACHINE_RESET_MEMBER(lsasquad_state,lsasquad)
 {
-	m_sound_pending = 0;
-	m_sound_nmi_enable = 0;
-	m_pending_nmi = 0;
-	m_sound_cmd = 0;
-	m_sound_result = 0;
 }
 
 /* Note: lsasquad clock values are not verified */
-static MACHINE_CONFIG_START( lsasquad, lsasquad_state )
-
+void lsasquad_state::lsasquad(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, MASTER_CLOCK / 4)
-	MCFG_CPU_PROGRAM_MAP(lsasquad_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", lsasquad_state,  irq0_line_hold)
+	Z80(config, m_maincpu, MASTER_CLOCK / 4);
+	m_maincpu->set_addrmap(AS_PROGRAM, &lsasquad_state::lsasquad_map);
+	m_maincpu->set_vblank_int("screen", FUNC(lsasquad_state::irq0_line_hold));
 
-	MCFG_CPU_ADD("audiocpu", Z80, MASTER_CLOCK / 8)
-	MCFG_CPU_PROGRAM_MAP(lsasquad_sound_map)
+	Z80(config, m_audiocpu, MASTER_CLOCK / 8);
+	m_audiocpu->set_addrmap(AS_PROGRAM, &lsasquad_state::lsasquad_sound_map);
 								/* IRQs are triggered by the YM2203 */
-	MCFG_DEVICE_ADD("bmcu", TAITO68705_MCU, MASTER_CLOCK / 8)
+	TAITO68705_MCU(config, m_bmcu, MASTER_CLOCK / 8);
 
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(30000)) /* 500 CPU slices per frame - an high value to ensure proper */
+	config.set_maximum_quantum(attotime::from_hz(30000)); /* 500 CPU slices per frame - a high value to ensure proper */
 							/* synchronization of the CPUs */
 							/* main<->sound synchronization depends on this */
 
 	MCFG_MACHINE_START_OVERRIDE(lsasquad_state,lsasquad)
 	MCFG_MACHINE_RESET_OVERRIDE(lsasquad_state,lsasquad)
 
-	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(lsasquad_state, screen_update_lsasquad)
-	MCFG_SCREEN_PALETTE("palette")
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set("soundnmi", FUNC(input_merger_device::in_w<0>));
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lsasquad)
-	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 512)
+	INPUT_MERGER_ALL_HIGH(config, "soundnmi").output_handler().set_inputline(m_audiocpu, INPUT_LINE_NMI);
+
+	GENERIC_LATCH_8(config, m_soundlatch2);
+
+	/* video hardware */
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(32*8, 32*8);
+	screen.set_visarea(0, 32*8-1, 2*8, 30*8-1);
+	screen.set_screen_update(FUNC(lsasquad_state::screen_update_lsasquad));
+	screen.set_palette(m_palette);
+
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_lsasquad);
+	PALETTE(config, m_palette, palette_device::RGB_444_PROMS, "proms", 512);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("aysnd", AY8910, MASTER_CLOCK / 8)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.12)
+	YM2149(config, "aysnd", MASTER_CLOCK / 8).add_route(ALL_OUTPUTS, "mono", 0.12);
 
-	MCFG_SOUND_ADD("ymsnd", YM2203, MASTER_CLOCK / 8)
-	MCFG_YM2203_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(lsasquad_state, unk))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(lsasquad_state, unk))
-	MCFG_SOUND_ROUTE(0, "mono", 0.12)
-	MCFG_SOUND_ROUTE(1, "mono", 0.12)
-	MCFG_SOUND_ROUTE(2, "mono", 0.12)
-	MCFG_SOUND_ROUTE(3, "mono", 0.63)
-MACHINE_CONFIG_END
+	ym2203_device &ymsnd(YM2203(config, "ymsnd", MASTER_CLOCK / 8));
+	ymsnd.irq_handler().set_inputline(m_audiocpu, 0);
+	ymsnd.port_a_write_callback().set(FUNC(lsasquad_state::unk));
+	ymsnd.port_b_write_callback().set(FUNC(lsasquad_state::unk));
+	ymsnd.add_route(0, "mono", 0.12);
+	ymsnd.add_route(1, "mono", 0.12);
+	ymsnd.add_route(2, "mono", 0.12);
+	ymsnd.add_route(3, "mono", 0.63);
+}
 
-static MACHINE_CONFIG_DERIVED( storming, lsasquad )
+void lsasquad_state::storming(machine_config &config)
+{
+	lsasquad(config);
 
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(storming_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &lsasquad_state::storming_map);
 
-	MCFG_DEVICE_REMOVE("bmcu")
-MACHINE_CONFIG_END
+	config.device_remove("bmcu");
 
-static MACHINE_CONFIG_START( daikaiju, lsasquad_state )
+	AY8910(config.replace(), "aysnd", MASTER_CLOCK / 8).add_route(ALL_OUTPUTS, "mono", 0.12); // AY-3-8910A
+}
 
+void lsasquad_state::daikaiju(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, MASTER_CLOCK / 4)
-	MCFG_CPU_PROGRAM_MAP(daikaiju_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", lsasquad_state,  irq0_line_hold)
+	Z80(config, m_maincpu, MASTER_CLOCK / 4);
+	m_maincpu->set_addrmap(AS_PROGRAM, &lsasquad_state::daikaiju_map);
+	m_maincpu->set_vblank_int("screen", FUNC(lsasquad_state::irq0_line_hold));
 
-	MCFG_CPU_ADD("audiocpu", Z80, MASTER_CLOCK / 8)
-	MCFG_CPU_PROGRAM_MAP(daikaiju_sound_map)
+	Z80(config, m_audiocpu, MASTER_CLOCK / 8);
+	m_audiocpu->set_addrmap(AS_PROGRAM, &lsasquad_state::daikaiju_sound_map);
 	/* IRQs are triggered by the YM2203 */
 
-	MCFG_DEVICE_ADD("bmcu", TAITO68705_MCU, MASTER_CLOCK / 8)
+	TAITO68705_MCU(config, m_bmcu, MASTER_CLOCK / 8);
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(30000)) /* 500 CPU slices per frame - an high value to ensure proper */
+	config.set_maximum_quantum(attotime::from_hz(30000)); /* 500 CPU slices per frame - a high value to ensure proper */
 							/* synchronization of the CPUs */
 							/* main<->sound synchronization depends on this */
 
 	MCFG_MACHINE_START_OVERRIDE(lsasquad_state,lsasquad)
 	MCFG_MACHINE_RESET_OVERRIDE(lsasquad_state,lsasquad)
 
-	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(lsasquad_state, screen_update_daikaiju)
-	MCFG_SCREEN_PALETTE("palette")
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set("soundnmi", FUNC(input_merger_device::in_w<0>));
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lsasquad)
-	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 512)
+	INPUT_MERGER_ALL_HIGH(config, "soundnmi").output_handler().set_inputline(m_audiocpu, INPUT_LINE_NMI);
+
+	/* video hardware */
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(32*8, 32*8);
+	screen.set_visarea(0, 32*8-1, 2*8, 30*8-1);
+	screen.set_screen_update(FUNC(lsasquad_state::screen_update_daikaiju));
+	screen.set_palette(m_palette);
+
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_lsasquad);
+	PALETTE(config, m_palette, palette_device::RGB_444_PROMS, "proms", 512);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("aysnd", AY8910, MASTER_CLOCK / 8)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.12)
+	YM2149(config, "aysnd", MASTER_CLOCK / 8).add_route(ALL_OUTPUTS, "mono", 0.12);
 
-	MCFG_SOUND_ADD("ymsnd", YM2203, MASTER_CLOCK / 8)
-	MCFG_YM2203_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(lsasquad_state, unk))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(lsasquad_state, unk))
-	MCFG_SOUND_ROUTE(0, "mono", 0.12)
-	MCFG_SOUND_ROUTE(1, "mono", 0.12)
-	MCFG_SOUND_ROUTE(2, "mono", 0.12)
-	MCFG_SOUND_ROUTE(3, "mono", 0.63)
-MACHINE_CONFIG_END
+	ym2203_device &ymsnd(YM2203(config, "ymsnd", MASTER_CLOCK / 8));
+	ymsnd.irq_handler().set_inputline(m_audiocpu, 0);
+	ymsnd.port_a_write_callback().set(FUNC(lsasquad_state::unk));
+	ymsnd.port_b_write_callback().set(FUNC(lsasquad_state::unk));
+	ymsnd.add_route(0, "mono", 0.12);
+	ymsnd.add_route(1, "mono", 0.12);
+	ymsnd.add_route(2, "mono", 0.12);
+	ymsnd.add_route(3, "mono", 0.63);
+}
 
 
 /***************************************************************************
@@ -786,6 +794,6 @@ ROM_START( daikaiju )
 ROM_END
 
 
-GAME( 1986, lsasquad, 0,        lsasquad, lsasquad, driver_device, 0, ROT270, "Taito", "Land Sea Air Squad / Riku Kai Kuu Saizensen", MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
-GAME( 1986, storming, lsasquad, storming, storming, driver_device, 0, ROT270, "bootleg", "Storming Party / Riku Kai Kuu Saizensen", MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
-GAME( 1986, daikaiju, 0,        daikaiju, daikaiju, driver_device, 0, ROT270, "Taito", "Daikaiju no Gyakushu", MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+GAME( 1986, lsasquad, 0,        lsasquad, lsasquad, lsasquad_state, empty_init, ROT270, "Taito",   "Land Sea Air Squad / Riku Kai Kuu Saizensen", MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+GAME( 1986, storming, lsasquad, storming, storming, lsasquad_state, empty_init, ROT270, "bootleg", "Storming Party / Riku Kai Kuu Saizensen",     MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+GAME( 1986, daikaiju, 0,        daikaiju, daikaiju, lsasquad_state, empty_init, ROT270, "Taito",   "Daikaiju no Gyakushu",                        MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )

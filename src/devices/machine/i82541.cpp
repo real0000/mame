@@ -3,19 +3,22 @@
 #include "emu.h"
 #include "i82541.h"
 
-const device_type I82541 = device_creator<i82541_device>;
+DEFINE_DEVICE_TYPE(I82541, i82541_device, "i82541_device", "Intel 82541 Ethernet controller")
 
-DEVICE_ADDRESS_MAP_START(registers_map, 32, i82541_device)
-ADDRESS_MAP_END
+void i82541_device::registers_map(address_map &map)
+{
+}
 
-DEVICE_ADDRESS_MAP_START(flash_map, 32, i82541_device)
-ADDRESS_MAP_END
+void i82541_device::flash_map(address_map &map)
+{
+}
 
-DEVICE_ADDRESS_MAP_START(registers_io_map, 32, i82541_device)
-ADDRESS_MAP_END
+void i82541_device::registers_io_map(address_map &map)
+{
+}
 
 i82541_device::i82541_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: pci_device(mconfig, I82541, "I82541 ethernet controller", tag, owner, clock, "i82541", __FILE__)
+	: pci_device(mconfig, I82541, tag, owner, clock)
 {
 }
 

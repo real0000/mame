@@ -1,13 +1,11 @@
 // license:BSD-3-Clause
 // copyright-holders:Olivier Galibert
-#ifndef _NAOMIG1_H_
-#define _NAOMIG1_H_
+#ifndef MAME_MACHINE_NAOMIG1_H
+#define MAME_MACHINE_NAOMIG1_H
 
-#include "cpu/sh4/sh4.h"
+#pragma once
 
-#define MCFG_NAOMI_G1_ADD(_tag, type, _irq_cb)                          \
-	MCFG_DEVICE_ADD(_tag, type, 0)                                      \
-	downcast<naomi_g1_device *>(device)->set_irq_cb(DEVCB_ ## _irq_cb);
+#include "cpu/sh/sh4.h"
 
 class naomi_g1_device : public device_t
 {
@@ -18,11 +16,13 @@ public:
 
 	typedef delegate<void (uint32_t main_adr, void *dma_ptr, uint32_t length, uint32_t size, bool to_mainram)> dma_cb;
 
-	naomi_g1_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
-	template<class _cb> void set_irq_cb(_cb cb) { irq_cb.set_callback(cb); }
-	void set_dma_cb(dma_cb _cb) { _dma_cb = _cb; }
+	auto irq_callback() { return irq_cb.bind(); }
+	auto ext_irq_callback() { return ext_irq_cb.bind(); }
+	auto reset_out_callback() { return reset_out_cb.bind(); }
+	void set_dma_cb(dma_cb cb) { _dma_cb = cb; }
 
-	DECLARE_ADDRESS_MAP(amap, 32);
+	void amap(address_map &map);               // for range 0x005f7400-0x005f74ff
+	virtual void submap(address_map &map) = 0; // for range 0x005f7000-0x005f70ff
 
 	DECLARE_READ32_MEMBER(sb_gdstar_r);   // 5f7404
 	DECLARE_WRITE32_MEMBER(sb_gdstar_w);  // 5f7404
@@ -53,6 +53,8 @@ public:
 protected:
 	enum { G1_TIMER_ID = 0x42 };
 
+	naomi_g1_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
@@ -60,14 +62,19 @@ protected:
 	virtual void dma_get_position(uint8_t *&base, uint32_t &limit, bool to_maincpu) = 0;
 	virtual void dma_advance(uint32_t size) = 0;
 
+	void set_ext_irq(int state) { ext_irq_cb(state); }
+	void set_reset_out() { reset_out_cb(ASSERT_LINE); }
+
 private:
 	uint32_t gdstar, gdlen, gddir, gden, gdst;
 
 	emu_timer *timer;
 	devcb_write8 irq_cb;
+	devcb_write_line ext_irq_cb;
+	devcb_write_line reset_out_cb;
 	dma_cb _dma_cb;
 
 	void dma(void *dma_ptr, uint32_t main_adr, uint32_t size, bool to_mainram);
 };
 
-#endif
+#endif // MAME_MACHINE_NAOMIG1_H

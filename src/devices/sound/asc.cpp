@@ -11,7 +11,7 @@
 
     Registers:
     0x800: VERSION
-    0x801: MODE (1=FIFO mode, 2=wavetable mode)
+    0x801: MODE (0=inactive, 1=FIFO mode, 2=wavetable mode)
     0x802: CONTROL (bit 0=analog or PWM output, 1=stereo/mono, 7=processing time exceeded)
     0x803: FIFO MODE (bit 7=clear FIFO, bit 1="non-ROM companding", bit 0="ROM companding")
     0x804: FIFO IRQ STATUS (bit 0=ch A 1/2 full, 1=ch A full, 2=ch B 1/2 full, 3=ch B full)
@@ -35,7 +35,7 @@
 #include "asc.h"
 
 // device type definition
-const device_type ASC = device_creator<asc_device>;
+DEFINE_DEVICE_TYPE(ASC, asc_device, "asc", "ASC")
 
 //**************************************************************************
 //  LIVE DEVICE
@@ -46,24 +46,14 @@ const device_type ASC = device_creator<asc_device>;
 //-------------------------------------------------
 
 asc_device::asc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, ASC, "ASC", tag, owner, clock, "asc", __FILE__),
-		device_sound_interface(mconfig, *this),
-		write_irq(*this),
-		m_chip_type(0)
+	: device_t(mconfig, ASC, tag, owner, clock)
+	, device_sound_interface(mconfig, *this)
+	, write_irq(*this)
+	, m_chip_type(asc_type::ASC)
+	, m_timer(nullptr)
 {
 }
 
-
-//-------------------------------------------------
-//  static_set_type - configuration helper to set
-//  the chip type
-//-------------------------------------------------
-
-void asc_device::static_set_type(device_t &device, int type)
-{
-	asc_device &asc = downcast<asc_device &>(device);
-	asc.m_chip_type = type;
-}
 
 //-------------------------------------------------
 //  device_start - device-specific startup
@@ -143,6 +133,15 @@ void asc_device::sound_stream_update(sound_stream &stream, stream_sample_t **inp
 			{
 				outL[i] = outR[i] = 0;
 			}
+
+			// IIvx/IIvi bootrom indicates VASP updates this flag even when the chip is off
+			if (m_chip_type == asc_type::VASP)
+			{
+				if (m_fifo_cap_a < 0x1ff)
+				{
+					m_regs[R_FIFOSTAT-0x800] |= 1;  // fifo A less than half full
+				}
+			}
 			break;
 
 		case 1: // FIFO mode
@@ -151,7 +150,14 @@ void asc_device::sound_stream_update(sound_stream &stream, stream_sample_t **inp
 				int8_t smpll, smplr;
 
 				smpll = (int8_t)m_fifo_a[m_fifo_a_rdptr]^0x80;
-				smplr = (int8_t)m_fifo_b[m_fifo_b_rdptr]^0x80;
+				if ((m_chip_type <= asc_type::EASC) || (m_chip_type == asc_type::SONORA))
+				{
+					smplr = (int8_t)m_fifo_b[m_fifo_b_rdptr]^0x80;
+				}
+				else
+				{
+					smplr = smpll;
+				}
 
 				// don't advance the sample pointer if there are no more samples
 				if (m_fifo_cap_a)
@@ -161,25 +167,18 @@ void asc_device::sound_stream_update(sound_stream &stream, stream_sample_t **inp
 					m_fifo_cap_a--;
 				}
 
-				if (m_fifo_cap_b)
+				if ((m_fifo_cap_b) && ((m_chip_type <= asc_type::EASC) || (m_chip_type == asc_type::SONORA)))
 				{
 					m_fifo_b_rdptr++;
 					m_fifo_b_rdptr &= 0x3ff;
 					m_fifo_cap_b--;
 				}
 
+				//printf("chip updating: cap A %x cap B %x\n", m_fifo_cap_a, m_fifo_cap_b);
 				switch (m_chip_type)
 				{
-					case ASC_TYPE_SONORA:
-						if (m_fifo_cap_a < 0x200)
-						{
-							m_regs[R_FIFOSTAT-0x800] |= 0x4;    // fifo less than half full
-							m_regs[R_FIFOSTAT-0x800] |= 0x8;    // just pass the damn test
-							write_irq(ASSERT_LINE);
-						}
-						break;
-
-					default:
+					case asc_type::ASC:
+					case asc_type::EASC:
 						if (m_fifo_cap_a == 0x1ff)
 						{
 							m_regs[R_FIFOSTAT-0x800] |= 1;  // fifo A half-empty
@@ -200,6 +199,33 @@ void asc_device::sound_stream_update(sound_stream &stream, stream_sample_t **inp
 						{
 							m_regs[R_FIFOSTAT-0x800] |= 8;  // fifo B empty
 							write_irq(ASSERT_LINE);
+						}
+						break;
+
+					default:    // V8/Sonora/Eagle/etc
+						if (m_fifo_cap_a < 0x1ff)
+						{
+							m_regs[R_FIFOSTAT-0x800] |= 1;  // fifo A less than half full
+
+							if (m_fifo_cap_a == 0)   // fifo A fully empty
+							{
+								m_regs[R_FIFOSTAT-0x800] |= 2;  // fifo A empty
+							}
+							write_irq(ASSERT_LINE);
+						}
+
+						if (m_chip_type == asc_type::SONORA)
+						{
+							if (m_fifo_cap_b < 0x1ff)
+							{
+								m_regs[R_FIFOSTAT-0x800] |= 4;  // fifo B less than half full
+
+								if (m_fifo_cap_b == 0)   // fifo B fully empty
+								{
+									m_regs[R_FIFOSTAT-0x800] |= 8;  // fifo B empty
+								}
+								write_irq(ASSERT_LINE);
+							}
 						}
 						break;
 				}
@@ -249,7 +275,7 @@ void asc_device::sound_stream_update(sound_stream &stream, stream_sample_t **inp
 //  read - read from the chip's registers and internal RAM
 //-------------------------------------------------
 
-READ8_MEMBER( asc_device::read )
+uint8_t asc_device::read(offs_t offset)
 {
 	uint8_t rv;
 
@@ -272,16 +298,18 @@ READ8_MEMBER( asc_device::read )
 			case R_VERSION:
 				switch (m_chip_type)
 				{
-					case ASC_TYPE_ASC:
+					case asc_type::ASC:
 						return 0;
 
-					case ASC_TYPE_V8:
-					case ASC_TYPE_EAGLE:
-					case ASC_TYPE_SPICE:
-					case ASC_TYPE_VASP:
+					case asc_type::EAGLE:
+						return 0xe0;
+
+					case asc_type::V8:
+					case asc_type::SPICE:
+					case asc_type::VASP:
 						return 0xe8;
 
-					case ASC_TYPE_SONORA:
+					case asc_type::SONORA:
 						return 0xbc;
 
 					default:    // return the actual register value
@@ -292,10 +320,11 @@ READ8_MEMBER( asc_device::read )
 			case R_MODE:
 				switch (m_chip_type)
 				{
-					case ASC_TYPE_V8:
-					case ASC_TYPE_EAGLE:
-					case ASC_TYPE_SPICE:
-					case ASC_TYPE_VASP:
+					case asc_type::V8:
+					case asc_type::EAGLE:
+					case asc_type::SPICE:
+					case asc_type::VASP:
+					case asc_type::SONORA:
 						return 1;
 
 					default:
@@ -306,10 +335,11 @@ READ8_MEMBER( asc_device::read )
 			case R_CONTROL:
 				switch (m_chip_type)
 				{
-					case ASC_TYPE_V8:
-					case ASC_TYPE_EAGLE:
-					case ASC_TYPE_SPICE:
-					case ASC_TYPE_VASP:
+					case asc_type::V8:
+					case asc_type::EAGLE:
+					case asc_type::SPICE:
+					case asc_type::VASP:
+					case asc_type::SONORA:
 						return 1;
 
 					default:
@@ -318,18 +348,23 @@ READ8_MEMBER( asc_device::read )
 				break;
 
 			case R_FIFOSTAT:
-				if (m_chip_type == ASC_TYPE_V8)
+				switch (m_chip_type)
 				{
-					rv = 3;
-				}
-				else
-				{
-					rv = m_regs[R_FIFOSTAT-0x800];
+					case asc_type::V8:
+					case asc_type::EAGLE:
+					case asc_type::SPICE:
+					case asc_type::VASP:
+						rv = m_regs[R_FIFOSTAT-0x800] & 3;
+						break;
+
+					default:
+						rv = m_regs[R_FIFOSTAT-0x800];
+						break;
 				}
 
-//              printf("Read FIFO stat = %02x\n", rv);
+				//if (rv != 0) printf("Read FIFO stat = %02x\n", rv);
 
-				// reading this register clears all bits
+				// reading this register clears all bits (true also on V8/EAGLE?)
 				m_regs[R_FIFOSTAT-0x800] = 0;
 
 				// reading this clears interrupts
@@ -386,9 +421,9 @@ READ8_MEMBER( asc_device::read )
 //  write - write to the chip's registers and internal RAM
 //-------------------------------------------------
 
-WRITE8_MEMBER( asc_device::write )
+void asc_device::write(offs_t offset, uint8_t data)
 {
-//  printf("ASC: write %02x to %x\n", data, offset);
+  //printf("ASC: write %02x to %x\n", data, offset);
 
 	if (offset < 0x400)
 	{
@@ -461,6 +496,7 @@ WRITE8_MEMBER( asc_device::write )
 					m_fifo_a_rdptr = m_fifo_b_rdptr = 0;
 					m_fifo_a_wrptr = m_fifo_b_wrptr = 0;
 					m_fifo_cap_a = m_fifo_cap_b = 0;
+					m_regs[R_FIFOSTAT-0x800] |= 0xa;  // fifos A&B empty
 				}
 				break;
 

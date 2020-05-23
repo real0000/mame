@@ -1,8 +1,6 @@
 // license:BSD-3-Clause
-// copyright-holders:Wilbert Pol
+// copyright-holders:Wilbert Pol, Nigel Barnes
 /******************************************************************************
-    Acorn Electron driver
-    By Wilbert Pol
 
 Hardware Overview
 -----------------
@@ -36,7 +34,7 @@ Notes: (all IC's shown. Only 16 ICs are used)
             Early PCB revisions used a PLCC68 chip in a socket. Later revisions used a
             PGA68 chip soldered directly into the motherboard
      4164 - 4164 64k x4-bit DRAM (4 chips for 32kbytes total)
-      ROM - Hitachi HN613256 32k x8-bit MASK ROM containing OS & BASIC
+      ROM - Hitachi HN613256 32k x8-bit mask ROM containing OS & BASIC
     LM324 - Texas Instruments LM324 Operational Amplifier
       MOD - UHF TV modulator UM1233-E36
      CVBS - Composite color video output socket
@@ -45,6 +43,26 @@ Notes: (all IC's shown. Only 16 ICs are used)
       PWR - 3-pin power input from internal power supply
  KBD_CONN - 22-pin keyboard connector
      SPKR - 2-pin internal speaker connector
+
+
+Master RAM Board
+----------------
+The Master RAM Board (MRB) is an internal expansion board from Slogger, and could
+also be purchased pre-fitted in the form of the Electron 64.
+The MRB comes with a new MOS which provides three modes of operation, selected by a
+switch, which are Normal, Turbo, and 64K. The 64K mode was the first to provide a
+'shadow mode' on the Electron.
+
+
+Stop Press 64i
+--------------
+The Stop Press 64i (SP64i) is another internal expansion board from Slogger, which
+also requires the MRB to fitted. Being released in the early 90's there are no known
+working examples, but bare prototype boards and ROMs were discovered during a Slogger
+workshop clearout.
+It provides a re-written AMX Stop Press (Desktop Publishing) for the Electron to take
+advantage of the extra memory provided by the Master RAM Board, and also offers
+ROM/RAM sockets and User Port for a mouse.
 
 ******************************************************************************
 Emulation notes:
@@ -57,12 +75,12 @@ Incomplete:
     - Graphics (seems to be wrong for several games)
     - 1 MHz bus is not emulated
     - Bus claiming by ULA is not implemented
-    - Currently the cartridge support always loads the upper rom in page 12
-      and the lower rom in page 0. This might need further documentation in
-      the software list and loading code.
 
-Missing:
-    - Other peripherals
+Other internal boards to emulate:
+    - Slogger Turbo Driver
+    - Jafa Mode7 Mk2 Display Unit
+    - move MRB and SP64i to an internal slot device?
+
 ******************************************************************************/
 
 #include "emu.h"
@@ -88,32 +106,36 @@ static const rgb_t electron_palette[8]=
 	rgb_t(0x000,0x000,0x000)
 };
 
-PALETTE_INIT_MEMBER(electron_state, electron)
+void electron_state::electron_colours(palette_device &palette) const
 {
-	palette.set_pen_colors(0, electron_palette, ARRAY_LENGTH(electron_palette));
+	palette.set_pen_colors(0, electron_palette);
 }
 
-static ADDRESS_MAP_START(electron_mem, AS_PROGRAM, 8, electron_state )
-	AM_RANGE(0x0000, 0x7fff) AM_READWRITE(electron_mem_r, electron_mem_w)           /* 32KB of RAM */
-	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank2")                                    /* Banked ROM pages */
-	AM_RANGE(0xc000, 0xfbff) AM_ROM AM_REGION("user1", 0x40000)                     /* OS ROM */
-	AM_RANGE(0xfc00, 0xfcff) AM_READWRITE(electron_fred_r, electron_fred_w )        /* FRED */
-	AM_RANGE(0xfd00, 0xfdff) AM_READWRITE(electron_jim_r, electron_jim_w )          /* JIM */
-	AM_RANGE(0xfe00, 0xfeff) AM_READWRITE(electron_sheila_r, electron_sheila_w )    /* SHEILA */
-	AM_RANGE(0xff00, 0xffff) AM_ROM AM_REGION("user1", 0x43f00)                     /* OS ROM continued */
-ADDRESS_MAP_END
+void electron_state::electron_mem(address_map &map)
+{
+	map(0x0000, 0x7fff).rw(FUNC(electron_state::electron_mem_r), FUNC(electron_state::electron_mem_w));          /* 32KB of RAM */
+	map(0x8000, 0xbfff).rw(FUNC(electron_state::electron_paged_r), FUNC(electron_state::electron_paged_w));      /* Banked ROM pages */
+	map(0xc000, 0xffff).rw(FUNC(electron_state::electron_mos_r), FUNC(electron_state::electron_mos_w));          /* OS ROM */
+	map(0xfc00, 0xfcff).rw(FUNC(electron_state::electron_fred_r), FUNC(electron_state::electron_fred_w));        /* FRED */
+	map(0xfd00, 0xfdff).rw(FUNC(electron_state::electron_jim_r), FUNC(electron_state::electron_jim_w));          /* JIM */
+	map(0xfe00, 0xfeff).rw(FUNC(electron_state::electron_sheila_r), FUNC(electron_state::electron_sheila_w));    /* SHEILA */
+}
+
+void electron_state::electron64_opcodes(address_map &map)
+{
+	map(0x0000, 0xffff).r(FUNC(electron_state::electron64_fetch_r));
+}
 
 INPUT_CHANGED_MEMBER(electron_state::trigger_reset)
 {
 	m_maincpu->set_input_line(INPUT_LINE_RESET, newval ? ASSERT_LINE : CLEAR_LINE);
-	if (newval)
+	if (!newval)
 	{
 		m_exp->reset();
 	}
 }
 
 static INPUT_PORTS_START( electron )
-
 	PORT_START("LINE.0")
 	PORT_BIT(0x01,  IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("\xE2\x86\x92 | \\") PORT_CODE(KEYCODE_BACKSLASH) PORT_CHAR(UCHAR_MAMEKEY(RIGHT)) PORT_CHAR('|') PORT_CHAR('\\') // on the real keyboard, this would be on the 1st row, the 3rd key after 0
 	PORT_BIT(0x02,  IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("COPY") PORT_CODE(KEYCODE_END)  PORT_CHAR(UCHAR_MAMEKEY(F1)) PORT_CHAR('[') PORT_CHAR(']')
@@ -128,7 +150,7 @@ static INPUT_PORTS_START( electron )
 
 	PORT_START("LINE.2")
 	PORT_BIT(0x01,  IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_MINUS)      PORT_CHAR('-') PORT_CHAR('=')
-	PORT_BIT(0x02,  IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("\xE2\x86\x91 \xC2\xA3 {") PORT_CODE(KEYCODE_OPENBRACE) PORT_CHAR(UCHAR_MAMEKEY(UP)) PORT_CHAR('\xA3') PORT_CHAR('{')
+	PORT_BIT(0x02,  IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("\xE2\x86\x91 \xC2\xA3 {") PORT_CODE(KEYCODE_OPENBRACE) PORT_CHAR(UCHAR_MAMEKEY(UP)) PORT_CHAR(0xA3) PORT_CHAR('{')
 	PORT_BIT(0x04,  IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_QUOTE)      PORT_CHAR(':') PORT_CHAR('*')
 	PORT_BIT(0x08,  IP_ACTIVE_HIGH, IPT_UNUSED)
 
@@ -202,88 +224,168 @@ static INPUT_PORTS_START( electron )
 	PORT_BIT(0x01,  IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("BREAK") PORT_CODE(KEYCODE_F12) PORT_CHAR(UCHAR_MAMEKEY(F12)) PORT_CHANGED_MEMBER(DEVICE_SELF, electron_state, trigger_reset, 0)
 INPUT_PORTS_END
 
-static MACHINE_CONFIG_START( electron, electron_state )
-	MCFG_CPU_ADD( "maincpu", M6502, XTAL_16MHz/8 )
-	MCFG_CPU_PROGRAM_MAP( electron_mem )
+static INPUT_PORTS_START( electron64 )
+	PORT_INCLUDE(electron)
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE( 50.08 )
-	MCFG_SCREEN_SIZE( 640, 312 )
-	MCFG_SCREEN_VISIBLE_AREA( 0, 640-1, 0, 256-1 )
-	MCFG_SCREEN_UPDATE_DRIVER(electron_state, screen_update_electron)
-	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_SCANLINE)
-	MCFG_SCREEN_PALETTE("palette")
+	PORT_START("MRB")
+	PORT_CONFNAME(0x03, 0x02, "MRB Mode")
+	PORT_CONFSETTING(0x00, "Normal")
+	PORT_CONFSETTING(0x01, "Turbo")
+	PORT_CONFSETTING(0x02, "64K")
+INPUT_PORTS_END
 
-	MCFG_PALETTE_ADD( "palette", 16 )
-	MCFG_PALETTE_INIT_OWNER(electron_state, electron)
+static INPUT_PORTS_START(electronsp)
+	PORT_INCLUDE(electron64)
 
-	MCFG_SPEAKER_STANDARD_MONO( "mono" )
-	MCFG_SOUND_ADD( "beeper", BEEP, 300 )
-	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
+	PORT_START("ROMPAGES")
+	/* TODO: Actual 4bit dip settings are unknown, require a manual */
+	PORT_DIPNAME(0x0f, 0x06, "SP64i ROM Pages")
+	PORT_DIPSETTING(0x00, "0&1")
+	PORT_DIPSETTING(0x02, "2&3")
+	PORT_DIPSETTING(0x04, "4&5")
+	PORT_DIPSETTING(0x06, "6&7")
+	PORT_DIPSETTING(0x08, "8&9 (reserved)")
+	PORT_DIPSETTING(0x0a, "10&11 (reserved)")
+	PORT_DIPSETTING(0x0c, "12&13")
+	PORT_DIPSETTING(0x0e, "14&15")
+INPUT_PORTS_END
 
-	MCFG_RAM_ADD(RAM_TAG)
-	MCFG_RAM_DEFAULT_SIZE("32K")
+void electron_state::electron(machine_config &config)
+{
+	M6502(config, m_maincpu, 16_MHz_XTAL / 8);
+	m_maincpu->set_addrmap(AS_PROGRAM, &electron_state::electron_mem);
 
-	MCFG_CASSETTE_ADD( "cassette" )
-	MCFG_CASSETTE_FORMATS(bbc_cassette_formats)
-	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
-	MCFG_CASSETTE_INTERFACE("electron_cass")
+	INPUT_MERGER_ANY_HIGH(config, m_irqs).output_handler().set_inputline(m_maincpu, M6502_IRQ_LINE);
 
-	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_plain_slot, "electron_cart")
-	MCFG_GENERIC_LOAD(electron_state, electron_cart)
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_raw(16_MHz_XTAL, 1024, 0, 640, 312, 0, 256);
+	//m_screen->set_raw(16_MHz_XTAL, 1024, 264, 264 + 640, 312, 31, 31 + 256)
+	m_screen->set_screen_update(FUNC(electron_state::screen_update_electron));
+	m_screen->set_video_attributes(VIDEO_UPDATE_SCANLINE);
+	m_screen->set_palette("palette");
+
+	PALETTE(config, "palette", FUNC(electron_state::electron_colours), 8);
+
+	SPEAKER(config, "mono").front_center();
+	BEEP(config, m_beeper, 300).add_route(ALL_OUTPUTS, "mono", 1.00);
+
+	RAM(config, m_ram).set_default_size("32K");
+
+	CASSETTE(config, m_cassette);
+	m_cassette->set_formats(bbc_cassette_formats);
+	m_cassette->set_default_state(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED);
+	m_cassette->set_interface("electron_cass");
 
 	/* expansion port */
-	MCFG_ELECTRON_EXPANSION_SLOT_ADD("exp", electron_expansion_devices, "plus3", false)
-	MCFG_ELECTRON_EXPANSION_SLOT_IRQ_HANDLER(INPUTLINE("maincpu", M6502_IRQ_LINE))
-	MCFG_ELECTRON_EXPANSION_SLOT_NMI_HANDLER(INPUTLINE("maincpu", M6502_NMI_LINE))
+	ELECTRON_EXPANSION_SLOT(config, m_exp, 16_MHz_XTAL, electron_expansion_devices, "plus3");
+	m_exp->irq_handler().set(m_irqs, FUNC(input_merger_device::in_w<1>));
+	m_exp->nmi_handler().set_inputline(m_maincpu, M6502_NMI_LINE);
 
 	/* software lists */
-	MCFG_SOFTWARE_LIST_ADD("cass_list", "electron_cass")
-	MCFG_SOFTWARE_LIST_ADD("cart_list", "electron_cart")
-MACHINE_CONFIG_END
+	SOFTWARE_LIST(config, "cass_list").set_original("electron_cass");
+	SOFTWARE_LIST(config, "cart_list").set_original("electron_cart");
+	SOFTWARE_LIST(config, "flop_list").set_original("electron_flop");
+	SOFTWARE_LIST(config, "rom_list").set_original("electron_rom");
+}
 
 
-static MACHINE_CONFIG_DERIVED( btm2105, electron )
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_COLOR(rgb_t::amber())
+void electron_state::btm2105(machine_config &config)
+{
+	electron(config);
+
+	m_screen->set_color(rgb_t::amber());
 
 	/* expansion port */
-	MCFG_DEVICE_MODIFY("exp")
-	MCFG_DEVICE_SLOT_INTERFACE(electron_expansion_devices, "m2105", true)
+	m_exp->set_default_option("m2105");
+	m_exp->set_fixed(true);
 
 	/* software lists */
-	MCFG_SOFTWARE_LIST_REMOVE("cass_list")
-MACHINE_CONFIG_END
+	config.device_remove("cass_list");
+	config.device_remove("cart_list");
+	config.device_remove("flop_list");
+	config.device_remove("rom_list");
+}
 
 
-/* Electron Rom Load */
+void electron_state::electron64(machine_config &config)
+{
+	electron(config);
+
+	m_maincpu->set_addrmap(AS_PROGRAM, &electron_state::electron_mem);
+	m_maincpu->set_addrmap(AS_OPCODES, &electron_state::electron64_opcodes);
+
+	m_ram->set_default_size("64K");
+}
+
+
+void electronsp_state::electronsp(machine_config &config)
+{
+	/* install mrb board */
+	electron64(config);
+
+	/* rom sockets */
+	GENERIC_SOCKET(config, m_romi[0], generic_plain_slot, "electron_rom", "bin,rom");
+	m_romi[0]->set_device_load(FUNC(electronsp_state::rom1_load));
+	GENERIC_SOCKET(config, m_romi[1], generic_plain_slot, "electron_rom", "bin,rom");
+	m_romi[1]->set_device_load(FUNC(electronsp_state::rom2_load));
+
+	/* via */
+	VIA6522(config, m_via, 16_MHz_XTAL / 16);
+	m_via->readpb_handler().set(m_userport, FUNC(bbc_userport_slot_device::pb_r));
+	m_via->writepb_handler().set(m_userport, FUNC(bbc_userport_slot_device::pb_w));
+	m_via->irq_handler().set(m_irqs, FUNC(input_merger_device::in_w<2>));
+
+	/* user port */
+	BBC_USERPORT_SLOT(config, m_userport, bbc_userport_devices, "amxmouse");
+	m_userport->cb1_handler().set(m_via, FUNC(via6522_device::write_cb1));
+	m_userport->cb2_handler().set(m_via, FUNC(via6522_device::write_cb2));
+}
+
+
 ROM_START(electron)
-	ROM_REGION( 0x44000, "user1", 0 ) /* OS Rom */
-	ROM_LOAD( "os.rom", 0x40000, 0x4000, CRC(bf63fb1f) SHA1(a48b8fa0cfb09140e808ac8a187316c605a0b32e) ) /* OS rom */
-	/* 00000  0 Second external socket on the expansion module (SK2) */
-	/* 04000  1 Second external socket on the expansion module (SK2) */
-	/* 08000  2 First external socket on the expansion module (SK1)  */
-	/* 0c000  3 First external socket on the expansion module (SK1)  */
-	/* 10000  4 Disc                                                 */
-	/* 14000  5 USER applications                                    */
-	/* 18000  6 USER applications                                    */
-	/* 1c000  7 Modem interface ROM                                  */
-	/* 20000  8 Keyboard                                             */
-	/* 24000  9 Keyboard mirror                                      */
-	/* 28000 10 BASIC rom                                            */
-	/* 2c000 11 BASIC rom mirror                                     */
-	/* 30000 12 Expansion module operating system                    */
-	/* 34000 13 High priority slot in expansion module               */
-	/* 38000 14 ECONET                                               */
-	/* 3c000 15 Reserved                                             */
-		ROM_LOAD("basic.rom", 0x28000, 0x4000, CRC(79434781) SHA1(4a7393f3a45ea309f744441c16723e2ef447a281))
-		ROM_COPY("user1", 0x28000, 0x2c000, 0x4000)
+	ROM_REGION( 0x4000, "mos", 0 )
+	ROM_LOAD( "b02_acornos-1.rom", 0x0000, 0x4000, CRC(a0c2cf43) SHA1(a27ce645472cc5497690e4bfab43710efbb0792d) )
+	ROM_REGION( 0x4000, "basic", 0 )
+	ROM_LOAD( "basic.rom", 0x0000, 0x4000, CRC(79434781) SHA1(4a7393f3a45ea309f744441c16723e2ef447a281) )
 ROM_END
 
+ROM_START(electront)
+	ROM_REGION( 0x4000, "mos",  0 )
+	/* Serial 06-ALA01-0000087 from Centre for Computing History */
+	ROM_LOAD( "elk_036.rom", 0x0000, 0x4000, CRC(dd1a99c3) SHA1(87ee1b14895e476909dd002d5ca2346a3a5f3f57) )
+	ROM_REGION( 0x4000, "basic", 0 )
+	ROM_LOAD( "basic.rom", 0x0000, 0x4000, CRC(79434781) SHA1(4a7393f3a45ea309f744441c16723e2ef447a281) )
+ROM_END
+
+ROM_START(electron64)
+	ROM_REGION( 0x4000, "mos", 0 )
+	ROM_LOAD( "os_300.rom", 0x0000, 0x4000, CRC(f80a0cea) SHA1(165e42ff4164a842e56f08ebd420d5027af99fdd) )
+	ROM_REGION( 0x4000, "basic", 0 )
+	ROM_LOAD( "basic.rom", 0x0000, 0x4000, CRC(79434781) SHA1(4a7393f3a45ea309f744441c16723e2ef447a281) )
+ROM_END
+
+ROM_START(electronsp)
+	ROM_REGION( 0x4000, "mos", 0 )
+	ROM_LOAD( "os_310.rom", 0x0000, 0x4000, CRC(8b7a9003) SHA1(6d4e2f8ddc1d829b14206d2747749c4c24789568) )
+	ROM_REGION( 0x4000, "basic", 0 )
+	ROM_LOAD( "basic.rom", 0x0000, 0x4000, CRC(79434781) SHA1(4a7393f3a45ea309f744441c16723e2ef447a281) )
+	ROM_REGION( 0x8000, "sp64", 0 )
+	ROM_SYSTEM_BIOS( 0, "101_2", "v1.01 (2x16K)" )
+	ROMX_LOAD( "sp64_101_1.rom", 0x0000, 0x4000, CRC(07e2c5d6) SHA1(837e3382c376e3cc1ae42f1ca51158657ef2fd73), ROM_BIOS(0) )
+	ROMX_LOAD( "sp64_101_2.rom", 0x4000, 0x4000, CRC(3d0e5dc1) SHA1(89743c43b24950d481c150fd4b4de985600cca2d), ROM_BIOS(0) )
+	ROM_SYSTEM_BIOS( 1, "100", "v1.00 (32K)" )
+	ROMX_LOAD( "sp64_100.rom", 0x0000, 0x8000, CRC(4918221c) SHA1(f185873106e7e7225b2e0c718803dc1ec4ebc685), ROM_BIOS(1) )
+	ROM_SYSTEM_BIOS( 2, "100_2", "v1.00 (2x16K)" )
+	ROMX_LOAD( "sp64_100_1.rom", 0x0000, 0x4000, CRC(6053e5a0) SHA1(6d79e5494349f157672e7c59949f3941e5a3dbdb), ROM_BIOS(2) )
+	ROMX_LOAD( "sp64_100_2.rom", 0x4000, 0x4000, CRC(25d11d8e) SHA1(c1bceeb50fee1e11de7505a3b664b844cfb56289), ROM_BIOS(2) )
+ROM_END
 
 #define rom_btm2105 rom_electron
 
 
-/*     YEAR  NAME       PARENT    COMPAT  MACHINE   INPUT     CLASS          INIT  COMPANY                             FULLNAME           FLAGS */
-COMP ( 1983, electron,  0,        0,      electron, electron, driver_device, 0,    "Acorn",                            "Acorn Electron",  MACHINE_IMPERFECT_SOUND | MACHINE_IMPERFECT_GRAPHICS )
-COMP ( 1985, btm2105,   electron, 0,      btm2105,  electron, driver_device, 0,    "British Telecom Business Systems", "BT Merlin M2105", MACHINE_NOT_WORKING )
+/*     YEAR  NAME        PARENT    COMPAT  MACHINE     INPUT       CLASS             INIT        COMPANY                             FULLNAME                                 FLAGS */
+COMP ( 1983, electron,   0,        0,      electron,   electron,   electron_state,   empty_init, "Acorn Computers",                  "Acorn Electron",                        MACHINE_IMPERFECT_SOUND | MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+COMP ( 1983, electront,  electron, 0,      electron,   electron,   electron_state,   empty_init, "Acorn Computers",                  "Acorn Electron (Trial)",                MACHINE_IMPERFECT_SOUND | MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+COMP ( 1985, btm2105,    electron, 0,      btm2105,    electron,   electron_state,   empty_init, "British Telecom Business Systems", "BT Merlin M2105",                       MACHINE_NOT_WORKING )
+COMP ( 1987, electron64, electron, 0,      electron64, electron64, electron_state,   empty_init, "Acorn Computers / Slogger",        "Acorn Electron (64K Master RAM Board)", MACHINE_IMPERFECT_SOUND | MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+COMP ( 1991, electronsp, electron, 0,      electronsp, electronsp, electronsp_state, empty_init, "Acorn Computers / Slogger",        "Acorn Electron (Stop Press 64i)",       MACHINE_IMPERFECT_SOUND | MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )

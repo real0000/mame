@@ -1,7 +1,9 @@
 // license:BSD-3-Clause
 // copyright-holders:Fabio Priuli
-#ifndef __MD_SLOT_H
-#define __MD_SLOT_H
+#ifndef MAME_BUS_MEGADRIVE_MD_SLOT_H
+#define MAME_BUS_MEGADRIVE_MD_SLOT_H
+
+#pragma once
 
 #include "softlist_dev.h"
 
@@ -87,11 +89,11 @@ enum
 
 // ======================> device_md_cart_interface
 
-class device_md_cart_interface : public device_slot_card_interface
+class device_md_cart_interface : public device_interface
 {
+	friend class base_md_cart_slot_device;
 public:
 	// construction/destruction
-	device_md_cart_interface(const machine_config &mconfig, device_t &device);
 	virtual ~device_md_cart_interface();
 
 	// reading and writing
@@ -104,8 +106,8 @@ public:
 
 	virtual int read_test() { return 0; }   // used by Virtua Racing test
 
-	/* this probably should do more, like make Genesis V2 'die' if the SEGA string is not written promptly */
-	virtual DECLARE_WRITE16_MEMBER(write_tmss_bank) { m_device.logerror("Write to TMSS bank: offset %x data %x\n", 0xa14000 + (offset << 1), data); };
+	// this probably should do more, like make Genesis V2 'die' if the SEGA string is not written promptly
+	virtual DECLARE_WRITE16_MEMBER(write_tmss_bank) { device().logerror("Write to TMSS bank: offset %x data %x\n", 0xa14000 + (offset << 1), data); };
 
 	virtual void rom_alloc(size_t size, const char *tag);
 	virtual void nvram_alloc(size_t size);
@@ -120,6 +122,9 @@ public:
 	void rom_map_setup(uint32_t size);
 	uint32_t get_padded_size(uint32_t size);
 
+protected:
+	device_md_cart_interface(const machine_config &mconfig, device_t &device);
+
 	int m_nvram_start, m_nvram_end;
 	int m_nvram_active, m_nvram_readonly;
 
@@ -129,7 +134,9 @@ public:
 	int m_nvram_handlers_installed;
 
 	// internal state
+public: // FIXME: this needs to be public becuase the S&K "lock-on" cart is implemented in a really dodgy way
 	uint16_t  *m_rom;
+protected:
 	uint32_t  m_rom_size;
 	std::vector<uint16_t> m_nvram;
 
@@ -141,36 +148,31 @@ public:
 
 class base_md_cart_slot_device : public device_t,
 								public device_image_interface,
-								public device_slot_interface
+								public device_single_card_slot_interface<device_md_cart_interface>
 {
 public:
 	// construction/destruction
-	base_md_cart_slot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
 	virtual ~base_md_cart_slot_device();
-
-	// device-level overrides
-	virtual void device_start() override;
 
 	// image-level overrides
 	virtual image_init_result call_load() override;
 	virtual void call_unload() override;
-	virtual const software_list_loader &get_software_list_loader() const override { return rom_software_list_loader::instance(); }
 
-	virtual iodevice_t image_type() const override { return IO_CARTSLOT; }
-	virtual bool is_readable()  const override { return 1; }
-	virtual bool is_writeable() const override { return 0; }
-	virtual bool is_creatable() const override { return 0; }
-	virtual bool must_be_loaded() const override { return m_must_be_loaded; }
-	virtual bool is_reset_on_load() const override { return 1; }
+	virtual iodevice_t image_type() const noexcept override { return IO_CARTSLOT; }
+	virtual bool is_readable()  const noexcept override { return true; }
+	virtual bool is_writeable() const noexcept override { return false; }
+	virtual bool is_creatable() const noexcept override { return false; }
+	virtual bool must_be_loaded() const noexcept override { return m_must_be_loaded; }
+	virtual bool is_reset_on_load() const noexcept override { return true; }
 
 	// slot interface overrides
-	virtual std::string get_default_card_software() override;
+	virtual std::string get_default_card_software(get_default_card_software_hook &hook) const override;
 
 	int get_type() { return m_type; }
 
 	image_init_result load_list();
 	image_init_result load_nonlist();
-	int get_cart_type(uint8_t *ROM, uint32_t len);
+	static int get_cart_type(const uint8_t *ROM, uint32_t len);
 
 	void setup_custom_mappers();
 	void setup_nvram();
@@ -196,6 +198,16 @@ public:
 	int m_type;
 	device_md_cart_interface*       m_cart;
 	bool                            m_must_be_loaded;
+
+protected:
+	base_md_cart_slot_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
+	// device-level overrides
+	virtual void device_start() override;
+
+	// device_image_interface implementation
+	virtual const software_list_loader &get_software_list_loader() const override { return rom_software_list_loader::instance(); }
+
 };
 
 // ======================> md_cart_slot_device
@@ -204,9 +216,19 @@ class md_cart_slot_device :  public base_md_cart_slot_device
 {
 public:
 	// construction/destruction
+	template <typename T>
+	md_cart_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, T &&opts, char const *dflt)
+		: md_cart_slot_device(mconfig, tag, owner, (uint32_t)0)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
+
 	md_cart_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual const char *image_interface() const override { return "megadriv_cart"; }
-	virtual const char *file_extensions() const override { return "smd,bin,md,gen"; }
+	virtual const char *image_interface() const noexcept override { return "megadriv_cart"; }
+	virtual const char *file_extensions() const noexcept override { return "smd,bin,md,gen"; }
 };
 
 // ======================> pico_cart_slot_device
@@ -215,9 +237,18 @@ class pico_cart_slot_device :  public base_md_cart_slot_device
 {
 public:
 	// construction/destruction
+	template <typename T>
+	pico_cart_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, T &&opts, char const *dflt)
+		: pico_cart_slot_device(mconfig, tag, owner, (uint32_t)0)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
 	pico_cart_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual const char *image_interface() const override { return "pico_cart"; }
-	virtual const char *file_extensions() const override { return "bin,md"; }
+	virtual const char *image_interface() const noexcept override { return "pico_cart"; }
+	virtual const char *file_extensions() const noexcept override { return "bin,md"; }
 };
 
 // ======================> copera_cart_slot_device
@@ -226,16 +257,25 @@ class copera_cart_slot_device :  public base_md_cart_slot_device
 {
 public:
 	// construction/destruction
+	template <typename T>
+	copera_cart_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, T &&opts, char const *dflt)
+		: copera_cart_slot_device(mconfig, tag, owner, (uint32_t)0)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
 	copera_cart_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual const char *image_interface() const override { return "copera_cart"; }
-	virtual const char *file_extensions() const override { return "bin,md"; }
+	virtual const char *image_interface() const noexcept override { return "copera_cart"; }
+	virtual const char *file_extensions() const noexcept override { return "bin,md"; }
 };
 
 
 // device type definition
-extern const device_type MD_CART_SLOT;
-extern const device_type PICO_CART_SLOT;
-extern const device_type COPERA_CART_SLOT;
+DECLARE_DEVICE_TYPE(MD_CART_SLOT,     md_cart_slot_device)
+DECLARE_DEVICE_TYPE(PICO_CART_SLOT,   pico_cart_slot_device)
+DECLARE_DEVICE_TYPE(COPERA_CART_SLOT, copera_cart_slot_device)
 
 
 /***************************************************************************
@@ -244,22 +284,4 @@ extern const device_type COPERA_CART_SLOT;
 
 #define MDSLOT_ROM_REGION_TAG ":cart:rom"
 
-#define MCFG_MD_CARTRIDGE_ADD(_tag,_slot_intf,_def_slot) \
-	MCFG_DEVICE_ADD(_tag, MD_CART_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
-
-#define MCFG_PICO_CARTRIDGE_ADD(_tag,_slot_intf,_def_slot) \
-	MCFG_DEVICE_ADD(_tag, PICO_CART_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
-
-#define MCFG_COPERA_CARTRIDGE_ADD(_tag,_slot_intf,_def_slot) \
-	MCFG_DEVICE_ADD(_tag, COPERA_CART_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
-
-
-
-#define MCFG_MD_CARTRIDGE_NOT_MANDATORY                                     \
-	static_cast<md_cart_slot_device *>(device)->set_must_be_loaded(false);
-
-
-#endif
+#endif // MAME_BUS_MEGADRIVE_MD_SLOT_H

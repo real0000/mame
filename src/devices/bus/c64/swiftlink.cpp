@@ -31,35 +31,25 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type C64_SWIFTLINK = device_creator<c64_swiftlink_cartridge_device>;
+DEFINE_DEVICE_TYPE(C64_SWIFTLINK, c64_swiftlink_cartridge_device, "c64_swiftlink", "C64 SwiftLink cartridge")
 
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( c64_swiftlink )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( c64_swiftlink )
-	MCFG_DEVICE_ADD(MOS6551_TAG, MOS6551, 0)
-	MCFG_MOS6551_XTAL(XTAL_3_6864MHz)
-	MCFG_MOS6551_IRQ_HANDLER(WRITELINE(c64_swiftlink_cartridge_device, acia_irq_w))
-	MCFG_MOS6551_TXD_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
-
-	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, nullptr)
-	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(MOS6551_TAG, mos6551_device, write_rxd))
-	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(MOS6551_TAG, mos6551_device, write_dcd))
-	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(MOS6551_TAG, mos6551_device, write_dsr))
-	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(MOS6551_TAG, mos6551_device, write_cts))
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor c64_swiftlink_cartridge_device::device_mconfig_additions() const
+void c64_swiftlink_cartridge_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( c64_swiftlink );
+	MOS6551(config, m_acia, 0);
+	m_acia->set_xtal(3.6864_MHz_XTAL);
+	m_acia->irq_handler().set(FUNC(c64_swiftlink_cartridge_device::acia_irq_w));
+	m_acia->txd_handler().set(RS232_TAG, FUNC(rs232_port_device::write_txd));
+
+	rs232_port_device &rs232(RS232_PORT(config, RS232_TAG, default_rs232_devices, nullptr));
+	rs232.rxd_handler().set(m_acia, FUNC(mos6551_device::write_rxd));
+	rs232.dcd_handler().set(m_acia, FUNC(mos6551_device::write_dcd));
+	rs232.dsr_handler().set(m_acia, FUNC(mos6551_device::write_dsr));
+	rs232.cts_handler().set(m_acia, FUNC(mos6551_device::write_cts));
 }
 
 
@@ -101,7 +91,7 @@ ioport_constructor c64_swiftlink_cartridge_device::device_input_ports() const
 //-------------------------------------------------
 
 c64_swiftlink_cartridge_device::c64_swiftlink_cartridge_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, C64_SWIFTLINK, "C64 SwiftLink cartridge", tag, owner, clock, "c64_swiftlink", __FILE__),
+	device_t(mconfig, C64_SWIFTLINK, tag, owner, clock),
 	device_c64_expansion_card_interface(mconfig, *this),
 	m_acia(*this, MOS6551_TAG),
 	m_io_cs(*this, "CS"),
@@ -136,12 +126,12 @@ void c64_swiftlink_cartridge_device::device_reset()
 //  c64_cd_r - cartridge data read
 //-------------------------------------------------
 
-uint8_t c64_swiftlink_cartridge_device::c64_cd_r(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
+uint8_t c64_swiftlink_cartridge_device::c64_cd_r(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
 {
 	if (((m_cs == DE00) && !io1) || ((m_cs == DF00) && !io2) ||
 		((m_cs == D700) && ((offset & 0xff00) == 0xd700)))
 	{
-		data = m_acia->read(space, offset & 0x03);
+		data = m_acia->read(offset & 0x03);
 	}
 
 	return data;
@@ -152,12 +142,12 @@ uint8_t c64_swiftlink_cartridge_device::c64_cd_r(address_space &space, offs_t of
 //  c64_cd_w - cartridge data write
 //-------------------------------------------------
 
-void c64_swiftlink_cartridge_device::c64_cd_w(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
+void c64_swiftlink_cartridge_device::c64_cd_w(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
 {
 	if (((m_cs == DE00) && !io1) || ((m_cs == DF00) && !io2) ||
 		((m_cs == D700) && ((offset & 0xff00) == 0xd700)))
 	{
-		m_acia->write(space, offset & 0x03, data);
+		m_acia->write(offset & 0x03, data);
 	}
 }
 

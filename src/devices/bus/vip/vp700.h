@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_VIP_VP700_H
+#define MAME_BUS_VIP_VP700_H
 
-#ifndef __VP700__
-#define __VP700__
+#pragma once
 
 #include "exp.h"
 #include "sound/cdp1863.h"
@@ -37,7 +37,7 @@ protected:
 	virtual void device_start() override;
 
 	// device_vip_expansion_card_interface overrides
-	virtual uint8_t vip_program_r(address_space &space, offs_t offset, int cs, int cdef, int *minh) override;
+	virtual uint8_t vip_program_r(offs_t offset, int cs, int cdef, int *minh) override;
 
 private:
 	required_memory_region m_rom;
@@ -45,7 +45,6 @@ private:
 
 
 // device type definition
-extern const device_type VP700;
+DECLARE_DEVICE_TYPE(VP700, vp700_device)
 
-
-#endif
+#endif // MAME_BUS_VIP_VP700_H

@@ -53,10 +53,26 @@
 	SetSZPF_Word(tmp1);                     \
 	Wreg(Reg)=tmp1
 
+#define IncByteReg(Reg)                     \
+	unsigned tmp = (unsigned)Breg(Reg); \
+	unsigned tmp1 = tmp+1;                  \
+	m_OverVal = (tmp == 0x7f);           \
+	SetAF(tmp1,tmp,1);                      \
+	SetSZPF_Byte(tmp1);                     \
+	Breg(Reg)=tmp1
+
+#define DecByteReg(Reg)                     \
+	unsigned tmp = (unsigned)Breg(Reg); \
+	unsigned tmp1 = tmp-1;                  \
+	m_OverVal = (tmp == 0x80);           \
+	SetAF(tmp1,tmp,1);                      \
+	SetSZPF_Byte(tmp1);                     \
+	Breg(Reg)=tmp1
+
 #define JMP(flag)                           \
 	int tmp;                                \
-	EMPTY_PREFETCH();                       \
-	tmp = (int)((int8_t)FETCH());             \
+	EMPTY_PREfetch();                       \
+	tmp = (int)((int8_t)fetch());             \
 	if (flag)                               \
 	{                                       \
 		static const uint8_t table[3]={3,10,10};  \
@@ -98,7 +114,7 @@
 	Breg(AL) &= 0x0F
 
 #define BITOP_BYTE                          \
-	ModRM = FETCH();                            \
+	ModRM = fetch();                            \
 	if (ModRM >= 0xc0) {                    \
 		tmp=Breg(Mod_RM.RM.b[ModRM]);   \
 	}                                       \
@@ -108,7 +124,7 @@
 	}
 
 #define BITOP_WORD                          \
-	ModRM = FETCH();                            \
+	ModRM = fetch();                            \
 	if (ModRM >= 0xc0) {                    \
 		tmp=Wreg(Mod_RM.RM.w[ModRM]);   \
 	}                                       \

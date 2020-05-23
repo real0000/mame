@@ -26,9 +26,6 @@
 
 #pragma once
 
-#include "attotime.h"
-
-
 
 //**************************************************************************
 //  CONSTANTS
@@ -51,9 +48,10 @@ enum profile_type
 	PROFILER_BLIT,
 	PROFILER_SOUND,
 	PROFILER_TIMER_CALLBACK,
-	PROFILER_INPUT,             // input.c and inptport.c
+	PROFILER_INPUT,             // input.cpp and inptport.cpp
 	PROFILER_MOVIE_REC,         // movie recording
 	PROFILER_LOGERROR,          // logerror
+	PROFILER_LUA,               // LUA
 	PROFILER_EXTRA,             // everything else
 
 	// the USER types are available to driver writers to profile
@@ -71,7 +69,7 @@ enum profile_type
 	PROFILER_IDLE,
 	PROFILER_TOTAL
 };
-DECLARE_ENUM_OPERATORS(profile_type)
+DECLARE_ENUM_INCDEC_OPERATORS(profile_type)
 
 
 

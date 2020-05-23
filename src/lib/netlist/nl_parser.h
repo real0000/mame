@@ -1,23 +1,27 @@
 // license:GPL-2.0+
 // copyright-holders:Couriersud
-/*
- * nl_parser.c
- *
- */
+
+///
+/// \file nl_parser.h
+///
 
 #ifndef NL_PARSER_H_
 #define NL_PARSER_H_
 
 #include "nl_setup.h"
-#include "plib/pparser.h"
+#include "plib/ptokenizer.h"
 
 namespace netlist
 {
 	class parser_t : public plib::ptokenizer
 	{
 	public:
-		parser_t(plib::putf8_reader &strm, setup_t &setup)
-		: plib::ptokenizer(strm), m_setup(setup) {}
+		template <typename T>
+		parser_t(T &&strm, nlparse_t &setup)
+			: plib::ptokenizer(std::forward<T>(strm))
+			, m_setup(setup)
+		{
+		}
 
 		bool parse(const pstring &nlname = "");
 
@@ -26,11 +30,11 @@ namespace netlist
 		void net_alias();
 		void dippins();
 		void netdev_param();
+		void netdev_defparam();
 		void netdev_hint();
 		void net_c();
 		void frontier();
 		void device(const pstring &dev_type);
-		void netdev_netlist_start();
 		void netdev_netlist_end();
 		void net_model();
 		void net_submodel();
@@ -38,22 +42,18 @@ namespace netlist
 		void net_local_source();
 		void net_truthtable_start(const pstring &nlname);
 
-		/* for debugging messages */
-		netlist_t &netlist() { return m_setup.netlist(); }
-
-		virtual void verror(const pstring &msg, int line_num, const pstring &line) override;
+		void verror(const pstring &msg) override;
 	private:
-
-		nl_double eval_param(const token_t tok);
-
-		token_id_t m_tok_param_left;
-		token_id_t m_tok_param_right;
+		pstring stringify_expression(token_t &tok);
+		token_id_t m_tok_paren_left;
+		token_id_t m_tok_paren_right;
 		token_id_t m_tok_comma;
 		token_id_t m_tok_ALIAS;
 		token_id_t m_tok_NET_C;
 		token_id_t m_tok_DIPPINS;
 		token_id_t m_tok_FRONTIER;
 		token_id_t m_tok_PARAM;
+		token_id_t m_tok_DEFPARAM;
 		token_id_t m_tok_HINT;
 		token_id_t m_tok_NET_MODEL;
 		token_id_t m_tok_NETLIST_START;
@@ -68,9 +68,9 @@ namespace netlist
 		token_id_t m_tok_TT_LINE;
 		token_id_t m_tok_TT_FAMILY;
 
-		setup_t &m_setup;
+		nlparse_t &m_setup;
 };
 
-}
+} // namespace netlist
 
-#endif /* NL_PARSER_H_ */
+#endif // NL_PARSER_H_

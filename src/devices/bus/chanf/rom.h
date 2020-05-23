@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:Fabio Priuli
-#ifndef __CHANF_ROM_H
-#define __CHANF_ROM_H
+#ifndef MAME_BUS_CHANF_ROM_H
+#define MAME_BUS_CHANF_ROM_H
 
 #include "slot.h"
 
@@ -13,7 +13,6 @@ class chanf_rom_device : public device_t,
 {
 public:
 	// construction/destruction
-	chanf_rom_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
 	chanf_rom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// device-level overrides
@@ -26,10 +25,11 @@ public:
 	void common_write_3853(uint32_t offset, uint8_t data);
 
 	// reading and writing
-	virtual DECLARE_READ8_MEMBER(read_rom) override;
-
+	virtual uint8_t read_rom(offs_t offset) override;
 
 protected:
+	chanf_rom_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	// used for RAM chip in Hangman & Maze
 	uint8_t m_latch[2];       // PORT A & PORT B
 	uint16_t m_addr_latch, m_addr;
@@ -49,8 +49,8 @@ public:
 	virtual void device_reset() override;
 
 	// reading and writing
-	virtual DECLARE_READ8_MEMBER(read_ram) override { return common_read_2102(offset); }
-	virtual DECLARE_WRITE8_MEMBER(write_ram) override { common_write_2102(offset, data); }
+	virtual uint8_t read_ram(offs_t offset) override { return common_read_2102(offset); }
+	virtual void write_ram(offs_t offset, uint8_t data) override { common_write_2102(offset, data); }
 };
 
 
@@ -67,8 +67,8 @@ public:
 	virtual void device_reset() override;
 
 	// reading and writing
-	virtual DECLARE_READ8_MEMBER(read_ram) override { return common_read_2102(offset); }
-	virtual DECLARE_WRITE8_MEMBER(write_ram) override { common_write_2102(offset, data); }
+	virtual uint8_t read_ram(offs_t offset) override { return common_read_2102(offset); }
+	virtual void write_ram(offs_t offset, uint8_t data) override { common_write_2102(offset, data); }
 };
 
 
@@ -81,8 +81,8 @@ public:
 	chanf_chess_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// reading and writing
-	virtual DECLARE_READ8_MEMBER(read_ram) override { return common_read_3853(offset); }
-	virtual DECLARE_WRITE8_MEMBER(write_ram) override { common_write_3853(offset, data); }
+	virtual uint8_t read_ram(offs_t offset) override { return common_read_3853(offset); }
+	virtual void write_ram(offs_t offset, uint8_t data) override { common_write_3853(offset, data); }
 };
 
 
@@ -99,10 +99,10 @@ public:
 	virtual void device_reset() override;
 
 	// reading and writing
-	virtual DECLARE_READ8_MEMBER(read_rom) override;
-	virtual DECLARE_READ8_MEMBER(read_ram) override { return common_read_3853(offset); }
-	virtual DECLARE_WRITE8_MEMBER(write_ram) override { common_write_3853(offset, data); }
-	virtual DECLARE_WRITE8_MEMBER(write_bank) override;
+	virtual uint8_t read_rom(offs_t offset) override;
+	virtual uint8_t read_ram(offs_t offset) override { return common_read_3853(offset); }
+	virtual void write_ram(offs_t offset, uint8_t data) override { common_write_3853(offset, data); }
+	virtual void write_bank(uint8_t data) override;
 
 private:
 	int m_base_bank;
@@ -122,10 +122,10 @@ public:
 	virtual void device_reset() override;
 
 	// reading and writing
-	virtual DECLARE_READ8_MEMBER(read_rom) override;
-	virtual DECLARE_READ8_MEMBER(read_ram) override { return common_read_3853(offset); }
-	virtual DECLARE_WRITE8_MEMBER(write_ram) override { common_write_3853(offset, data); }
-	virtual DECLARE_WRITE8_MEMBER(write_bank) override;
+	virtual uint8_t read_rom(offs_t offset) override;
+	virtual uint8_t read_ram(offs_t offset) override { return common_read_3853(offset); }
+	virtual void write_ram(offs_t offset, uint8_t data) override { common_write_3853(offset, data); }
+	virtual void write_bank(uint8_t data) override;
 
 private:
 	int m_base_bank, m_half_bank;
@@ -133,12 +133,12 @@ private:
 
 
 // device type definition
-extern const device_type CHANF_ROM_STD;
-extern const device_type CHANF_ROM_MAZE;
-extern const device_type CHANF_ROM_HANGMAN;
-extern const device_type CHANF_ROM_CHESS;
-extern const device_type CHANF_ROM_MULTI_OLD;
-extern const device_type CHANF_ROM_MULTI_FINAL;
+DECLARE_DEVICE_TYPE(CHANF_ROM_STD,         chanf_rom_device)
+DECLARE_DEVICE_TYPE(CHANF_ROM_MAZE,        chanf_maze_device)
+DECLARE_DEVICE_TYPE(CHANF_ROM_HANGMAN,     chanf_hangman_device)
+DECLARE_DEVICE_TYPE(CHANF_ROM_CHESS,       chanf_chess_device)
+DECLARE_DEVICE_TYPE(CHANF_ROM_MULTI_OLD,   chanf_multi_old_device)
+DECLARE_DEVICE_TYPE(CHANF_ROM_MULTI_FINAL, chanf_multi_final_device)
 
 
-#endif
+#endif // MAME_BUS_CHANF_ROM_H

@@ -4,7 +4,7 @@
 
     CD40105/HC40105 4-bit x 16-word FIFO Register
 
-    Part of the 4000B series of CMOS TTL devices, the 40105 includes
+    Part of the 4000B series of CMOS logic devices, the 40105 includes
     an asynchronous master reset pin intended to be connected to the
     system bus.
 
@@ -32,8 +32,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type CD40105 = device_creator<cmos_40105_device>;
-const device_type HC40105 = CD40105;
+DEFINE_DEVICE_TYPE(CD40105, cmos_40105_device, "cd40105", "CD40105B FIFO Register")
 
 
 //**************************************************************************
@@ -45,7 +44,7 @@ const device_type HC40105 = CD40105;
 //-------------------------------------------------
 
 cmos_40105_device::cmos_40105_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)
-	: device_t(mconfig, CD40105, "40105 FIFO", tag, owner, clock, "cd40105", __FILE__),
+	: device_t(mconfig, CD40105, tag, owner, clock),
 		m_write_dir(*this),
 		m_write_dor(*this),
 		m_write_q(*this),
@@ -114,11 +113,6 @@ u8 cmos_40105_device::read()
 void cmos_40105_device::write(u8 data)
 {
 	m_d = data & 0x0f;
-}
-
-WRITE8_MEMBER(cmos_40105_device::write)
-{
-	write(data);
 }
 
 

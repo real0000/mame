@@ -4,19 +4,17 @@
  *   DIABLO31 and DIABLO44 hard drive support
  **********************************************************/
 
-#if !defined(_DIABLO_HD_DEVICE_)
-#define _DIABLO_HD_DEVICE_
+#ifndef MAME_MACHINE_DIABLO_HD_H
+#define MAME_MACHINE_DIABLO_HD_H
+
+#pragma once
 
 #include "imagedev/diablo.h"
-
-#ifndef DIABLO_DEBUG
-#define DIABLO_DEBUG    1                           //!< set to 1 to enable debug log output
-#endif
 
 #define DIABLO_HD_0 "diablo0"
 #define DIABLO_HD_1 "diablo1"
 
-extern const device_type DIABLO_HD;
+DECLARE_DEVICE_TYPE(DIABLO_HD, diablo_hd_device)
 
 class diablo_hd_device : public device_t
 {
@@ -70,17 +68,12 @@ protected:
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 private:
-#if DIABLO_DEBUG
-	int m_log_level;
 	template <typename Format, typename... Params> void logprintf(int level, Format &&fmt, Params &&... args);
-#   define  LOG_DRIVE(x) logprintf x
 
-#else
-#   define  LOG_DRIVE(x)
-#endif
+	int m_log_level;
 	bool m_diablo31;                        //!< true, if this is a DIABLO31 drive
 	int m_unit;                             //!< drive unit number (0 or 1)
 	char m_description[32];                 //!< description of the drive(s)
@@ -108,7 +101,7 @@ private:
 	int m_sector;                           //!< current sector number in track
 	int m_page;                             //!< current page (derived from cylinder, head and sector)
 	std::unique_ptr<uint8_t[]> m_cache[2 * DIABLO_PAGES];                        //!< pages raw bytes
-	uint32_t** m_bits;                        //!< pages expanded to bits
+	std::unique_ptr<std::unique_ptr<uint32_t[]>[]> m_bits;                       //!< pages expanded to bits
 	int m_rdfirst;                          //!< set to first bit of a sector that is read from
 	int m_rdlast;                           //!< set to last bit of a sector that was read from
 	int m_wrfirst;                          //!< set to non-zero if a sector is written to
@@ -141,13 +134,11 @@ private:
 	//! expand a sector into an array of clock and data bits
 	uint32_t* expand_sector();
 
-#if DIABLO_DEBUG
 	//! dump a number of words as ASCII characters
 	void dump_ascii(uint8_t *src, size_t size);
 
 	//! dump a record's contents
 	size_t dump_record(uint8_t *src, size_t addr, size_t size, const char *name, int cr);
-#endif
 
 	//! find a sync bit in an array of clock and data bits
 	size_t squeeze_sync(uint32_t *bits, size_t src, size_t size);
@@ -171,7 +162,4 @@ private:
 	void sector_mark_0();
 };
 
-#define MCFG_DIABLO_DRIVES_ADD()    \
-	MCFG_DEVICE_ADD(DIABLO_HD_0, DIABLO_HD, 3333333)    \
-	MCFG_DEVICE_ADD(DIABLO_HD_1, DIABLO_HD, 3333333)
 #endif  // !defined(_DIABLO_HD_DEVICE_)

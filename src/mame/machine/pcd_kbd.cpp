@@ -7,7 +7,7 @@
 #include "sound/spkrdev.h"
 #include "speaker.h"
 
-const device_type PCD_KEYBOARD = device_creator<pcd_keyboard_device>;
+DEFINE_DEVICE_TYPE(PCD_KEYBOARD, pcd_keyboard_device, "pcd_kbd", "Siemens PC-D Keyboard")
 
 ROM_START( pcd_keyboard )
 	ROM_REGION(0x1000, "mcu", 0)
@@ -22,31 +22,25 @@ const tiny_rom_entry *pcd_keyboard_device::device_rom_region() const
 	return ROM_NAME( pcd_keyboard );
 }
 
-static ADDRESS_MAP_START( pcd_keyboard_map, AS_PROGRAM, 8, pcd_keyboard_device )
-	AM_RANGE(0x000, 0xfff) AM_ROM
-ADDRESS_MAP_END
+void pcd_keyboard_device::pcd_keyboard_map(address_map &map)
+{
+	map(0x000, 0xfff).rom();
+}
 
-static ADDRESS_MAP_START( pcd_keyboard_io, AS_IO, 8, pcd_keyboard_device )
-	AM_RANGE(MCS48_PORT_BUS, MCS48_PORT_BUS) AM_READ(bus_r)
-	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_READWRITE(p1_r, p1_w)
-	AM_RANGE(MCS48_PORT_T0, MCS48_PORT_T0) AM_READ(t0_r)
-ADDRESS_MAP_END
-
-static MACHINE_CONFIG_FRAGMENT( pcd_keyboard )
-	MCFG_CPU_ADD("mcu", I8035, 5760000*2) // FIXME: the mc2661 baud rate calculation
-	MCFG_CPU_PROGRAM_MAP(pcd_keyboard_map)
-	MCFG_CPU_IO_MAP(pcd_keyboard_io)
+void pcd_keyboard_device::device_add_mconfig(machine_config &config)
+{
+	i8035_device &mcu(I8035(config, "mcu", 5760000));
+	mcu.set_addrmap(AS_PROGRAM, &pcd_keyboard_device::pcd_keyboard_map);
+	mcu.bus_in_cb().set(FUNC(pcd_keyboard_device::bus_r));
+	mcu.p1_in_cb().set(FUNC(pcd_keyboard_device::p1_r));
+	mcu.p1_out_cb().set(FUNC(pcd_keyboard_device::p1_w));
+	mcu.t0_in_cb().set(FUNC(pcd_keyboard_device::t0_r));
 
 	// sound hardware
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-MACHINE_CONFIG_END
-
-machine_config_constructor pcd_keyboard_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( pcd_keyboard );
+	SPEAKER(config, "mono").front_center();
+	SPEAKER_SOUND(config, "speaker").add_route(ALL_OUTPUTS, "mono", 0.25);
 }
+
 
 INPUT_PORTS_START( pcd_keyboard )
 	PORT_START("ROW.0")
@@ -87,7 +81,7 @@ INPUT_PORTS_START( pcd_keyboard )
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_C) PORT_CHAR('c') PORT_CHAR('C')
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Unknown 0x7C")
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_1_PAD) PORT_CHAR(UCHAR_MAMEKEY(1_PAD))
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Keypad =") PORT_CODE(KEYCODE_ENTER_PAD) PORT_CHAR(UCHAR_MAMEKEY(ENTER_PAD))
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_ENTER_PAD) PORT_CHAR(UCHAR_MAMEKEY(EQUALS_PAD))
 
 	PORT_START("ROW.4")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_F4) PORT_CHAR(UCHAR_MAMEKEY(F4))
@@ -161,7 +155,7 @@ INPUT_PORTS_START( pcd_keyboard )
 
 	PORT_START("ROW.11")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Unknown 0x6F")
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Keypad ,") PORT_CODE(KEYCODE_DEL_PAD) PORT_CHAR(UCHAR_MAMEKEY(DEL_PAD))
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Keypad ,") PORT_CODE(KEYCODE_DEL_PAD) PORT_CHAR(UCHAR_MAMEKEY(COMMA_PAD))
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("CE")
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_3_PAD) PORT_CHAR(UCHAR_MAMEKEY(3_PAD))
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_UNUSED )
@@ -197,7 +191,7 @@ INPUT_PORTS_START( pcd_keyboard )
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME(UTF8_LEFT) PORT_CODE(KEYCODE_LEFT) PORT_CHAR(UCHAR_MAMEKEY(LEFT))
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Unknown 0x71")
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Unknown 0x04")
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Keypad " UTF8_DIVIDE) PORT_CODE(KEYCODE_SLASH_PAD)
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Keypad " UTF8_DIVIDE) PORT_CODE(KEYCODE_SLASH_PAD) PORT_CHAR(UCHAR_MAMEKEY(SLASH_PAD))
 
 	PORT_START("ROW.15")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_F9) PORT_CHAR(UCHAR_MAMEKEY(F9))
@@ -227,7 +221,7 @@ ioport_constructor pcd_keyboard_device::device_input_ports() const
 }
 
 pcd_keyboard_device::pcd_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, PCD_KEYBOARD, "PC-D Keyboard", tag, owner, clock, "pcd_kbd", __FILE__)
+	: device_t(mconfig, PCD_KEYBOARD, tag, owner, clock)
 	, m_rows(*this, "ROW.%u", 0)
 	, m_p1(0)
 	, m_out_tx_handler(*this)
@@ -240,25 +234,25 @@ void pcd_keyboard_device::device_start()
 	m_out_tx_handler(1);
 }
 
-READ8_MEMBER( pcd_keyboard_device::bus_r )
+uint8_t pcd_keyboard_device::bus_r()
 {
 	if(m_p1 & 0x10)
 		return m_rows[16]->read();
 	return m_rows[m_p1 & 0xf]->read();
 }
 
-READ8_MEMBER( pcd_keyboard_device::p1_r )
+uint8_t pcd_keyboard_device::p1_r()
 {
 	return m_p1;
 }
 
-WRITE8_MEMBER( pcd_keyboard_device::p1_w )
+void pcd_keyboard_device::p1_w(uint8_t data)
 {
 	m_p1 = data;
 	m_out_tx_handler(BIT(data, 5));
 }
 
-READ8_MEMBER( pcd_keyboard_device::t0_r )
+READ_LINE_MEMBER( pcd_keyboard_device::t0_r )
 {
 	return m_t0;
 }

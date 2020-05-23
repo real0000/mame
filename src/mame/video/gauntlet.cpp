@@ -21,20 +21,20 @@
 
 TILE_GET_INFO_MEMBER(gauntlet_state::get_alpha_tile_info)
 {
-	uint16_t data = tilemap.basemem_read(tile_index);
+	uint16_t data = m_alpha_tilemap->basemem_read(tile_index);
 	int code = data & 0x3ff;
 	int color = ((data >> 10) & 0x0f) | ((data >> 9) & 0x20);
 	int opaque = data & 0x8000;
-	SET_TILE_INFO_MEMBER(1, code, color, opaque ? TILE_FORCE_LAYER0 : 0);
+	tileinfo.set(1, code, color, opaque ? TILE_FORCE_LAYER0 : 0);
 }
 
 
 TILE_GET_INFO_MEMBER(gauntlet_state::get_playfield_tile_info)
 {
-	uint16_t data = tilemap.basemem_read(tile_index);
+	uint16_t data = m_playfield_tilemap->basemem_read(tile_index);
 	int code = ((m_playfield_tile_bank * 0x1000) + (data & 0xfff)) ^ 0x800;
 	int color = 0x10 + (m_playfield_color_bank * 8) + ((data >> 12) & 7);
-	SET_TILE_INFO_MEMBER(0, code, color, (data >> 15) & 1);
+	tileinfo.set(0, code, color, (data >> 15) & 1);
 }
 
 
@@ -79,10 +79,10 @@ const atari_motion_objects_config gauntlet_state::s_mob_config =
 	0                   /* resulting value to indicate "special" */
 };
 
-VIDEO_START_MEMBER(gauntlet_state,gauntlet)
+void gauntlet_state::video_start()
 {
 	/* modify the motion object code lookup table to account for the code XOR */
-	std::vector<uint16_t> &codelookup = m_mob->code_lookup();
+	std::vector<uint32_t> &codelookup = m_mob->code_lookup();
 	for (auto & elem : codelookup)
 		elem ^= 0x800;
 
@@ -168,11 +168,11 @@ uint32_t gauntlet_state::screen_update_gauntlet(screen_device &screen, bitmap_in
 	/* draw and merge the MO */
 	bitmap_ind16 &mobitmap = m_mob->bitmap();
 	for (const sparse_dirty_rect *rect = m_mob->first_dirty_rect(cliprect); rect != nullptr; rect = rect->next())
-		for (int y = rect->min_y; y <= rect->max_y; y++)
+		for (int y = rect->top(); y <= rect->bottom(); y++)
 		{
 			uint16_t *mo = &mobitmap.pix16(y);
 			uint16_t *pf = &bitmap.pix16(y);
-			for (int x = rect->min_x; x <= rect->max_x; x++)
+			for (int x = rect->left(); x <= rect->right(); x++)
 				if (mo[x] != 0xffff)
 				{
 					/* verified via schematics:

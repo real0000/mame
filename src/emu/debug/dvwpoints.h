@@ -8,16 +8,13 @@
 
 ***************************************************************************/
 
-#ifndef __DVWPOINTS_H__
-#define __DVWPOINTS_H__
+#ifndef MAME_EMU_DEBUG_DVWPOINTS_H
+#define MAME_EMU_DEBUG_DVWPOINTS_H
+
+#pragma once
 
 #include "debugvw.h"
 #include "debugcpu.h"
-
-
-//**************************************************************************
-//  CONSTANTS
-//**************************************************************************
 
 
 //**************************************************************************
@@ -46,9 +43,8 @@ private:
 
 
 	// internal state
-	int (*m_sortType)(void const *, void const *);
+	bool (*m_sortType)(const device_debug::watchpoint *, const device_debug::watchpoint *);
 	std::vector<device_debug::watchpoint *> m_buffer;
 };
 
-
-#endif
+#endif // MAME_EMU_DEBUG_DVWPOINTS_H

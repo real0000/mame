@@ -20,7 +20,7 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type A2BUS_SWYFT = device_creator<a2bus_swyft_device>;
+DEFINE_DEVICE_TYPE(A2BUS_SWYFT, a2bus_swyft_device, "a2swyft", "IAI SwyftCard")
 
 #define SWYFT_ROM_REGION  "swyft_rom"
 
@@ -45,13 +45,12 @@ const tiny_rom_entry *a2bus_swyft_device::device_rom_region() const
 //**************************************************************************
 
 a2bus_swyft_device::a2bus_swyft_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-		device_t(mconfig, A2BUS_SWYFT, "IAI SwyftCard", tag, owner, clock, "a2swyft", __FILE__),
-		device_a2bus_card_interface(mconfig, *this), m_rom(nullptr), m_rombank(0), m_inh_state(0)
+		a2bus_swyft_device(mconfig, A2BUS_SWYFT, tag, owner, clock)
 {
 }
 
-a2bus_swyft_device::a2bus_swyft_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-		device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+a2bus_swyft_device::a2bus_swyft_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+		device_t(mconfig, type, tag, owner, clock),
 		device_a2bus_card_interface(mconfig, *this), m_rom(nullptr), m_rombank(0), m_inh_state(0)
 {
 }
@@ -62,9 +61,6 @@ a2bus_swyft_device::a2bus_swyft_device(const machine_config &mconfig, device_typ
 
 void a2bus_swyft_device::device_start()
 {
-	// set_a2bus_device makes m_slot valid
-	set_a2bus_device();
-
 	m_rom = device().machine().root_device().memregion(this->subtag(SWYFT_ROM_REGION).c_str())->base();
 
 	save_item(NAME(m_rombank));
@@ -78,7 +74,7 @@ void a2bus_swyft_device::device_reset()
 	recalc_slot_inh();
 }
 
-uint8_t a2bus_swyft_device::read_c0nx(address_space &space, uint8_t offset)
+uint8_t a2bus_swyft_device::read_c0nx(uint8_t offset)
 {
 	switch (offset)
 	{
@@ -104,7 +100,7 @@ uint8_t a2bus_swyft_device::read_c0nx(address_space &space, uint8_t offset)
 	return 0xff;
 }
 
-void a2bus_swyft_device::write_c0nx(address_space &space, uint8_t offset, uint8_t data)
+void a2bus_swyft_device::write_c0nx(uint8_t offset, uint8_t data)
 {
 	switch (offset)
 	{
@@ -128,7 +124,7 @@ void a2bus_swyft_device::write_c0nx(address_space &space, uint8_t offset, uint8_
 	}
 }
 
-uint8_t a2bus_swyft_device::read_inh_rom(address_space &space, uint16_t offset)
+uint8_t a2bus_swyft_device::read_inh_rom(uint16_t offset)
 {
 	offset -= 0xd000;
 

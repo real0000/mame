@@ -68,11 +68,6 @@ end
 			}
 	end
 
-	configuration { "vs*" }
-	flags {
-		"Unicode",
-	}
-
 	configuration { "winstore*" }
 		-- Windows Required Files
 		files {
@@ -199,7 +194,7 @@ end
 			targetsuffix "dp"
 		end
 
-	configuration { "mingw*" or "vs*" }
+	configuration { "mingw*" or "vs20*" }
 		targetextension ".exe"
 
 	configuration { "rpi" }
@@ -216,13 +211,16 @@ end
 				.. " -s ALLOW_MEMORY_GROWTH=0"
 				.. " -s TOTAL_MEMORY=268435456"
 				.. " -s DISABLE_EXCEPTION_CATCHING=2"
-				.. " -s EXCEPTION_CATCHING_WHITELIST='[\"__ZN15running_machine17start_all_devicesEv\",\"__ZN12cli_frontend7executeEiPPc\"]'"
-				.. " -s EXPORTED_FUNCTIONS=\"['_main', '_malloc', '__Z14js_get_machinev', '__Z9js_get_uiv', '__Z12js_get_soundv', '__ZN15mame_ui_manager12set_show_fpsEb', '__ZNK15mame_ui_manager8show_fpsEv', '__ZN13sound_manager4muteEbh', '_SDL_PauseAudio', '_SDL_SendKeyboardKey']\""
+				.. " -s EXCEPTION_CATCHING_WHITELIST=\"['__ZN15running_machine17start_all_devicesEv','__ZN12cli_frontend7executeEiPPc','__ZN8chd_file11open_commonEb','__ZN8chd_file13read_metadataEjjRNSt3__212basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE','__ZN8chd_file13read_metadataEjjRNSt3__26vectorIhNS0_9allocatorIhEEEE']\""
+				.. " -s EXPORTED_FUNCTIONS=\"['_main', '_malloc', '__ZN15running_machine30emscripten_get_running_machineEv', '__ZN15running_machine17emscripten_get_uiEv', '__ZN15running_machine20emscripten_get_soundEv', '__ZN15mame_ui_manager12set_show_fpsEb', '__ZNK15mame_ui_manager8show_fpsEv', '__ZN13sound_manager4muteEbh', '_SDL_PauseAudio', '_SDL_SendKeyboardKey', '__ZN15running_machine15emscripten_saveEPKc', '__ZN15running_machine15emscripten_loadEPKc', '__ZN15running_machine21emscripten_hard_resetEv', '__ZN15running_machine21emscripten_soft_resetEv', '__ZN15running_machine15emscripten_exitEv']\""
+				.. " -s EXTRA_EXPORTED_RUNTIME_METHODS=\"['cwrap']\""
+				.. " -s ERROR_ON_UNDEFINED_SYMBOLS=0"
 				.. " --pre-js " .. _MAKE.esc(MAME_DIR) .. "src/osd/modules/sound/js_sound.js"
 				.. " --post-js " .. _MAKE.esc(MAME_DIR) .. "scripts/resources/emscripten/emscripten_post.js"
 				.. " --embed-file " .. _MAKE.esc(MAME_DIR) .. "bgfx/chains@bgfx/chains"
 				.. " --embed-file " .. _MAKE.esc(MAME_DIR) .. "bgfx/effects@bgfx/effects"
 				.. " --embed-file " .. _MAKE.esc(MAME_DIR) .. "bgfx/shaders/essl@bgfx/shaders/essl"
+				.. " --embed-file " .. _MAKE.esc(MAME_DIR) .. "artwork/bgfx@artwork/bgfx"
 				.. " --embed-file " .. _MAKE.esc(MAME_DIR) .. "artwork/slot-mask.png@artwork/slot-mask.png"
 
 			if _OPTIONS["SYMBOLS"]~=nil and _OPTIONS["SYMBOLS"]~="0" then
@@ -233,7 +231,7 @@ end
 
 			if _OPTIONS["WEBASSEMBLY"] then
 				emccopts = emccopts
-					.. " -s BINARYEN=1"
+					.. " -s WASM=" .. _OPTIONS["WEBASSEMBLY"]
 			end
 
 			if _OPTIONS["ARCHOPTS"] then
@@ -296,11 +294,6 @@ if (STANDALONE~=true) then
 		"frontend",
 	}
 end
-if (MACHINES["NETLIST"]~=null) then
-	links {
-		"netlist",
-	}
-end
 	links {
 		"optional",
 		"emu",
@@ -315,10 +308,17 @@ if #disasm_files > 0 then
 		"dasm",
 	}
 end
+if (MACHINES["NETLIST"]~=null) then
+	links {
+		"netlist",
+	}
+end
 	links {
 		"utils",
 		ext_lib("expat"),
 		"softfloat",
+		"softfloat3",
+		"wdlfft",
 		ext_lib("jpeg"),
 		"7z",
 	}
@@ -329,7 +329,7 @@ if (STANDALONE~=true) then
 	}
 if (_OPTIONS["osd"] ~= "uwp") then
 	links {
-		"linenoise-ng",
+		"linenoise",
 	}
 end
 end
@@ -361,6 +361,7 @@ end
 	end
 	links {
 		"bgfx",
+		"bimg",
 		"bx",
 		"ocore_" .. _OPTIONS["osd"],
 	}
@@ -441,12 +442,12 @@ if (STANDALONE~=true) then
 				GEN_DIR  .. _target .. "/" .. _subtarget .."/drivlist.cpp",  MAME_DIR .. "src/".._target .."/" .. _target ..".lst", true },
 			}
 			custombuildtask {
-				{ MAME_DIR .. "src/".._target .."/" .. _subtarget ..".flt" ,  GEN_DIR  .. _target .. "/" .. _subtarget .."/drivlist.cpp",    {  MAME_DIR .. "scripts/build/makelist.py", MAME_DIR .. "src/".._target .."/" .. _target ..".lst"  }, {"@echo Building driver list...",    PYTHON .. " $(1) $(2) $(<) > $(@)" }},
+				{ MAME_DIR .. "src/".._target .."/" .. _subtarget ..".flt" ,  GEN_DIR  .. _target .. "/" .. _subtarget .."/drivlist.cpp",    {  MAME_DIR .. "scripts/build/makedep.py", MAME_DIR .. "src/".._target .."/" .. _target ..".lst"  }, {"@echo Building driver list...",    PYTHON .. " $(1) driverlist $(2) -f $(<) > $(@)" }},
 			}
 		else
 			if os.isfile(MAME_DIR .. "src/".._target .."/" .. _subtarget ..".lst") then
 				custombuildtask {
-					{ MAME_DIR .. "src/".._target .."/" .. _subtarget ..".lst" ,  GEN_DIR  .. _target .. "/" .. _subtarget .."/drivlist.cpp",    {  MAME_DIR .. "scripts/build/makelist.py" }, {"@echo Building driver list...",    PYTHON .. " $(1) $(<) > $(@)" }},
+					{ MAME_DIR .. "src/".._target .."/" .. _subtarget ..".lst" ,  GEN_DIR  .. _target .. "/" .. _subtarget .."/drivlist.cpp",    {  MAME_DIR .. "scripts/build/makedep.py" }, {"@echo Building driver list...",    PYTHON .. " $(1) driverlist $(<) > $(@)" }},
 				}
 			else
 				dependency {
@@ -454,7 +455,7 @@ if (STANDALONE~=true) then
 					GEN_DIR  .. _target .. "/" .. _target .."/drivlist.cpp",  MAME_DIR .. "src/".._target .."/" .. _target ..".lst", true },
 				}
 				custombuildtask {
-					{ MAME_DIR .. "src/".._target .."/" .. _target ..".lst" ,  GEN_DIR  .. _target .. "/" .. _target .."/drivlist.cpp",    {  MAME_DIR .. "scripts/build/makelist.py" }, {"@echo Building driver list...",    PYTHON .. " $(1) $(<) > $(@)" }},
+					{ MAME_DIR .. "src/".._target .."/" .. _target ..".lst" ,  GEN_DIR  .. _target .. "/" .. _target .."/drivlist.cpp",    {  MAME_DIR .. "scripts/build/makedep.py" }, {"@echo Building driver list...",    PYTHON .. " $(1) driverlist $(<) > $(@)" }},
 				}
 			end
 		end
@@ -466,7 +467,7 @@ if (STANDALONE~=true) then
 				GEN_DIR  .. _target .. "/" .. _subtarget .."/drivlist.cpp",  MAME_DIR .. "src/".._target .."/" .. _target ..".lst", true },
 			}
 			custombuildtask {
-				{ GEN_DIR .. _target .."/" .. _subtarget ..".flt" ,  GEN_DIR  .. _target .. "/" .. _subtarget .."/drivlist.cpp",    {  MAME_DIR .. "scripts/build/makelist.py", MAME_DIR .. "src/".._target .."/" .. _target ..".lst"  }, {"@echo Building driver list...",    PYTHON .. " $(1) $(2) $(<) > $(@)" }},
+				{ GEN_DIR .. _target .."/" .. _subtarget ..".flt" ,  GEN_DIR  .. _target .. "/" .. _subtarget .."/drivlist.cpp",    {  MAME_DIR .. "scripts/build/makedep.py", MAME_DIR .. "src/".._target .."/" .. _target ..".lst"  }, {"@echo Building driver list...",    PYTHON .. " $(1) driverlist $(2) -f $(<) > $(@)" }},
 			}
 	end
 
@@ -475,11 +476,18 @@ if (STANDALONE~=true) then
 			{ GEN_DIR .. "version.cpp" ,  GEN_DIR  .. "resource/" .. rctarget .. "vers.rc",    {  MAME_DIR .. "scripts/build/verinfo.py" }, {"@echo Emitting " .. rctarget .. "vers.rc" .. "...",    PYTHON .. " $(1)  -r -b " .. rctarget .. " $(<) > $(@)" }},
 		}
 
-	configuration { "vs*" }
+	configuration { "vs20*" }
 		prebuildcommands {
-			"mkdir " .. path.translate(GEN_DIR  .. "resource/","\\") .. " 2>NUL",
+			"mkdir \"" .. path.translate(GEN_DIR  .. "resource/","\\") .. "\" 2>NUL",
 			"@echo Emitting ".. rctarget .. "vers.rc...",
-			PYTHON .. " " .. path.translate(MAME_DIR .. "scripts/build/verinfo.py","\\") .. " -r -b " .. rctarget .. " " .. path.translate(GEN_DIR .. "version.cpp","\\") .. " > " .. path.translate(GEN_DIR  .. "resource/" .. rctarget .. "vers.rc", "\\") ,
+			PYTHON .. " \"" .. path.translate(MAME_DIR .. "scripts/build/verinfo.py","\\") .. "\" -r -b " .. rctarget .. " \"" .. path.translate(GEN_DIR .. "version.cpp","\\") .. "\" > \"" .. path.translate(GEN_DIR  .. "resource/" .. rctarget .. "vers.rc", "\\") .. "\"" ,
+		}
+
+	configuration { "vsllvm" }
+		prebuildcommands {
+			"mkdir \"" .. path.translate(GEN_DIR  .. "resource/","\\") .. "\" 2>NUL",
+			"@echo Emitting ".. rctarget .. "vers.rc...",
+			PYTHON .. " \"" .. path.translate(MAME_DIR .. "scripts/build/verinfo.py","\\") .. "\" -r -b " .. rctarget .. " \"" .. path.translate(GEN_DIR .. "version.cpp","\\") .. "\" > \"" .. path.translate(GEN_DIR  .. "resource/" .. rctarget .. "vers.rc", "\\") .. "\"" ,
 		}
 end
 

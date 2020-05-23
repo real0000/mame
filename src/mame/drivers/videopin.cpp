@@ -57,7 +57,7 @@ void videopin_state::device_timer(emu_timer &timer, device_timer_id id, int para
 		interrupt_callback(ptr, param);
 		break;
 	default:
-		assert_always(false, "Unknown id in videopin_state::device_timer");
+		throw emu_fatalerror("Unknown id in videopin_state::device_timer");
 	}
 }
 
@@ -81,6 +81,7 @@ TIMER_CALLBACK_MEMBER(videopin_state::interrupt_callback)
 
 void videopin_state::machine_start()
 {
+	m_leds.resolve();
 	m_interrupt_timer = timer_alloc(TIMER_INTERRUPT);
 
 	save_item(NAME(m_time_pushed));
@@ -96,8 +97,8 @@ void videopin_state::machine_reset()
 
 	/* both output latches are cleared on reset */
 
-	out1_w(machine().dummy_space(), 0, 0);
-	out2_w(machine().dummy_space(), 0, 0);
+	out1_w(0);
+	out2_w(0);
 }
 
 
@@ -107,7 +108,7 @@ double videopin_state::calc_plunger_pos()
 }
 
 
-READ8_MEMBER(videopin_state::misc_r)
+uint8_t videopin_state::misc_r()
 {
 	double plunger = calc_plunger_pos();
 
@@ -135,34 +136,33 @@ READ8_MEMBER(videopin_state::misc_r)
 }
 
 
-WRITE8_MEMBER(videopin_state::led_w)
+void videopin_state::led_w(uint8_t data)
 {
-	int i = (m_screen->vpos() >> 5) & 7;
-	static const char *const matrix[8][4] =
+	// LED matrix as seen in Video Pinball manual, fig. 4-14
+	// output to "LEDxx" where xx = 01 to 32, videopin START = LED30
+	static const int matrix[8][4] =
 	{
-		{ "LED26", "LED18", "LED11", "LED13" },
-		{ "LED25", "LED17", "LED10", "LED08" },
-		{ "LED24", "LED29", "LED09", "LED07" },
-		{ "LED23", "LED28", "LED04", "LED06" },
-		{ "LED22", "LED27", "LED03", "LED05" },
-		{ "LED21", "LED16", "LED02", "-" },
-		{ "LED20", "LED15", "LED01", "-" },
-		{ "LED19", "LED14", "LED12", "-" }
+		{ 26, 18, 11, 13 },
+		{ 25, 17, 10,  8 },
+		{ 24, 29,  9,  7 },
+		{ 23, 28,  4,  6 },
+		{ 22, 27,  3,  5 },
+		{ 21, 16,  2, 32 },
+		{ 20, 15,  1, 31 },
+		{ 19, 14, 12, 30 }
 	};
 
-	output().set_value(matrix[i][0], (data >> 0) & 1);
-	output().set_value(matrix[i][1], (data >> 1) & 1);
-	output().set_value(matrix[i][2], (data >> 2) & 1);
-	output().set_value(matrix[i][3], (data >> 3) & 1);
+	// anode from 32V,64V,128V
+	int a = m_screen->vpos() >> 5 & 7;
 
-	if (i == 7)
-		output().set_led_value(0, data & 8);   /* start button */
+	for (int c = 0; c < 4; c++)
+		m_leds[matrix[a][c] - 1] = BIT(data, c);
 
 	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 
-WRITE8_MEMBER(videopin_state::out1_w)
+void videopin_state::out1_w(uint8_t data)
 {
 	/* D0 => OCTAVE0  */
 	/* D1 => OCTACE1  */
@@ -181,11 +181,11 @@ WRITE8_MEMBER(videopin_state::out1_w)
 	machine().bookkeeping().coin_lockout_global_w(~data & 0x08);
 
 	/* Convert octave data to divide value and write to sound */
-	m_discrete->write(space, VIDEOPIN_OCTAVE_DATA, (0x01 << (~data & 0x07)) & 0xfe);
+	m_discrete->write(VIDEOPIN_OCTAVE_DATA, (0x01 << (~data & 0x07)) & 0xfe);
 }
 
 
-WRITE8_MEMBER(videopin_state::out2_w)
+void videopin_state::out2_w(uint8_t data)
 {
 	/* D0 => VOL0      */
 	/* D1 => VOL1      */
@@ -198,17 +198,17 @@ WRITE8_MEMBER(videopin_state::out2_w)
 
 	machine().bookkeeping().coin_counter_w(0, data & 0x10);
 
-	m_discrete->write(space, VIDEOPIN_BELL_EN, data & 0x40); // Bell
-	m_discrete->write(space, VIDEOPIN_BONG_EN, data & 0x20); // Bong
-	m_discrete->write(space, VIDEOPIN_ATTRACT_EN, data & 0x80);  // Attract
-	m_discrete->write(space, VIDEOPIN_VOL_DATA, data & 0x07);        // Vol0,1,2
+	m_discrete->write(VIDEOPIN_BELL_EN, data & 0x40); // Bell
+	m_discrete->write(VIDEOPIN_BONG_EN, data & 0x20); // Bong
+	m_discrete->write(VIDEOPIN_ATTRACT_EN, data & 0x80); // Attract
+	m_discrete->write(VIDEOPIN_VOL_DATA, data & 0x07); // Vol0,1,2
 }
 
 
-WRITE8_MEMBER(videopin_state::note_dvsr_w)
+void videopin_state::note_dvsr_w(uint8_t data)
 {
 	/* note data */
-	m_discrete->write(space, VIDEOPIN_NOTE_DATA, ~data &0xff);
+	m_discrete->write(VIDEOPIN_NOTE_DATA, ~data &0xff);
 }
 
 
@@ -218,20 +218,21 @@ WRITE8_MEMBER(videopin_state::note_dvsr_w)
  *
  *************************************/
 
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, videopin_state )
-	AM_RANGE(0x0000, 0x01ff) AM_RAM
-	AM_RANGE(0x0200, 0x07ff) AM_RAM_WRITE(video_ram_w) AM_SHARE("video_ram")
-	AM_RANGE(0x0800, 0x0800) AM_READ(misc_r) AM_WRITE(note_dvsr_w)
-	AM_RANGE(0x0801, 0x0801) AM_WRITE(led_w)
-	AM_RANGE(0x0802, 0x0802) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)
-	AM_RANGE(0x0804, 0x0804) AM_WRITE(ball_w)
-	AM_RANGE(0x0805, 0x0805) AM_WRITE(out1_w)
-	AM_RANGE(0x0806, 0x0806) AM_WRITE(out2_w)
-	AM_RANGE(0x1000, 0x1000) AM_READ_PORT("IN0")
-	AM_RANGE(0x1800, 0x1800) AM_READ_PORT("DSW")
-	AM_RANGE(0x2000, 0x3fff) AM_ROM
-	AM_RANGE(0xe000, 0xffff) AM_ROM   /* mirror for 6502 vectors */
-ADDRESS_MAP_END
+void videopin_state::main_map(address_map &map)
+{
+	map(0x0000, 0x01ff).ram();
+	map(0x0200, 0x07ff).ram().w(FUNC(videopin_state::video_ram_w)).share("video_ram");
+	map(0x0800, 0x0800).r(FUNC(videopin_state::misc_r)).w(FUNC(videopin_state::note_dvsr_w));
+	map(0x0801, 0x0801).w(FUNC(videopin_state::led_w));
+	map(0x0802, 0x0802).w("watchdog", FUNC(watchdog_timer_device::reset_w));
+	map(0x0804, 0x0804).w(FUNC(videopin_state::ball_w));
+	map(0x0805, 0x0805).w(FUNC(videopin_state::out1_w));
+	map(0x0806, 0x0806).w(FUNC(videopin_state::out2_w));
+	map(0x1000, 0x1000).portr("IN0");
+	map(0x1800, 0x1800).portr("DSW");
+	map(0x2000, 0x3fff).rom();
+	map(0xe000, 0xffff).rom(); // mirror for 6502 vectors
+}
 
 
 /*************************************
@@ -276,8 +277,8 @@ static INPUT_PORTS_START( videopin )
 	PORT_DIPSETTING(    0x01, "210000 (3 balls) / 350000 (5 balls)" )
 
 	PORT_START("IN1")   /* IN2 */
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_SPECIAL ) /* PLUNGER 1 */
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SPECIAL ) /* PLUNGER 2 */
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_CUSTOM ) /* PLUNGER 1 */
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_CUSTOM ) /* PLUNGER 2 */
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -345,7 +346,7 @@ static const gfx_layout ball_layout =
 };
 
 
-static GFXDECODE_START( videopin )
+static GFXDECODE_START( gfx_videopin )
 	GFXDECODE_ENTRY( "gfx1", 0x0000, tile_layout, 0, 1 )
 	GFXDECODE_ENTRY( "gfx2", 0x0000, ball_layout, 0, 1 )
 GFXDECODE_END
@@ -358,33 +359,31 @@ GFXDECODE_END
  *
  *************************************/
 
-static MACHINE_CONFIG_START( videopin, videopin_state )
-
+void videopin_state::videopin(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6502, 12096000 / 16)
-	MCFG_CPU_PROGRAM_MAP(main_map)
+	M6502(config, m_maincpu, 12096000 / 16);
+	m_maincpu->set_addrmap(AS_PROGRAM, &videopin_state::main_map);
 
-	MCFG_WATCHDOG_ADD("watchdog")
+	WATCHDOG_TIMER(config, "watchdog");
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_SIZE(304, 263)
-	MCFG_SCREEN_VISIBLE_AREA(0, 303, 0, 255)
-	MCFG_SCREEN_UPDATE_DRIVER(videopin_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_refresh_hz(60);
+	m_screen->set_size(304, 263);
+	m_screen->set_visarea(0, 303, 0, 255);
+	m_screen->set_screen_update(FUNC(videopin_state::screen_update));
+	m_screen->set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", videopin)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_videopin);
 
-	MCFG_PALETTE_ADD_MONOCHROME("palette")
+	PALETTE(config, m_palette, palette_device::MONOCHROME);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_DISCRETE_INTF(videopin)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	DISCRETE(config, m_discrete, videopin_discrete).add_route(ALL_OUTPUTS, "mono", 1.0);
+}
 
 
 
@@ -394,6 +393,8 @@ MACHINE_CONFIG_END
  *
  *************************************/
 
+// This is PCB revision -01 (older version) with 16 PROMs (1024x4)
+// A later undumped revision (still marked -01) only had 8 PROMs (2048x4)
 ROM_START( videopin )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD_NIB_LOW ( "34242-01.e0", 0x2000, 0x0400, CRC(c6a83795) SHA1(73a65cca7c1e337b336b7d515eafc2981e669be8) )
@@ -424,6 +425,26 @@ ROM_START( videopin )
 
 	ROM_REGION( 0x0100, "proms", 0 )
 	ROM_LOAD( "9402-01.h4",  0x0000, 0x0100, CRC(b8094b4c) SHA1(82dc6799a19984f3b204ee3aeeb007e55afc8be3) ) /* sync */
+ROM_END
+
+// This is an even later revision (marked -02) with 4 EPROMs (4096x8 according to manual, while 2048x8 in reality)
+ROM_START( videopina )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "034253-01.m0", 0x2000, 0x0800, CRC(981b5986) SHA1(78ca6dc1b968529e23796884aa461e71bf7f9a48) )
+	ROM_LOAD( "034254-01.h2", 0x2800, 0x0800, CRC(c3eebf23) SHA1(e9a0e2bf71a5131a8317ad40c1c56f84b5ae1643) )
+	ROM_LOAD( "034255-01.j2", 0x3000, 0x0800, CRC(5565ae42) SHA1(4a9f376650684217d523d3378a5852aaa9fdfedc) )
+	ROM_LOAD( "034256-01.k2", 0x3800, 0x0800, CRC(9f24428c) SHA1(df35225afebb4cc18a593ec665e94f677b3606ee) )
+	ROM_COPY( "maincpu" , 0x3c00, 0xfc00, 0x400 )
+
+	ROM_REGION( 0x0200, "gfx1", 0 ) // tiles
+	ROM_LOAD_NIB_LOW ( "34259-01.d5", 0x0000, 0x0200, CRC(6cd98c06) SHA1(48bf077b7abbd2f529a19bdf85700b93014f39f9) )
+	ROM_LOAD_NIB_HIGH( "34258-01.c5", 0x0000, 0x0200, CRC(91a5f117) SHA1(03ac6b0b3da0ed5faf1ba6695d16918d12ceeff5) )
+
+	ROM_REGION( 0x0020, "gfx2", 0 ) // ball
+	ROM_LOAD( "34257-01.m1", 0x0000, 0x0020, CRC(50245866) SHA1(b0692bc8d44f127f6e7182a1ce75a785e22ac5b9) )
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "9402-01.h4",  0x0000, 0x0100, CRC(b8094b4c) SHA1(82dc6799a19984f3b204ee3aeeb007e55afc8be3) ) // sync
 ROM_END
 
 ROM_START( solarwar )
@@ -465,5 +486,6 @@ ROM_END
  *
  *************************************/
 
-GAMEL( 1979, videopin, 0, videopin, videopin, driver_device, 0, ROT270, "Atari", "Video Pinball", MACHINE_SUPPORTS_SAVE, layout_videopin )
-GAMEL( 1979, solarwar, 0, videopin, solarwar, driver_device, 0, ROT270, "Atari", "Solar War", MACHINE_SUPPORTS_SAVE, layout_videopin )
+GAMEL( 1979, videopin,         0, videopin, videopin, videopin_state, empty_init, ROT270, "Atari", "Video Pinball (16 PROMs version)", MACHINE_SUPPORTS_SAVE, layout_videopin )
+GAMEL( 1979, videopina, videopin, videopin, videopin, videopin_state, empty_init, ROT270, "Atari", "Video Pinball (4 ROMs version)", MACHINE_SUPPORTS_SAVE, layout_videopin )
+GAMEL( 1979, solarwar,         0, videopin, solarwar, videopin_state, empty_init, ROT270, "Atari", "Solar War", MACHINE_SUPPORTS_SAVE, layout_videopin )

@@ -1,35 +1,34 @@
 // license:BSD-3-Clause
 // copyright-holders:smf,R. Belmont,pSXAuthor,Carl
-#ifndef _included_psxcdrom_
-#define _included_psxcdrom_
+#ifndef MAME_MACHINE_PSXCD_H
+#define MAME_MACHINE_PSXCD_H
+
+#pragma once
 
 #include "imagedev/chd_cd.h"
 #include "sound/spu.h"
 
-#define MAX_PSXCD_TIMERS    (4)
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_PSXCD_ADD(_tag, _devname) \
-	MCFG_DEVICE_ADD(_tag, PSXCD, 0)
-
-#define MCFG_PSXCD_IRQ_HANDLER(_devcb) \
-	devcb = &psxcd_device::set_irq_handler(*device, DEVCB_##_devcb);
 
 class psxcd_device : public cdrom_image_device
 {
 public:
+	template <typename T, typename U>
+	psxcd_device(const machine_config &mconfig, const char *tag, device_t *owner, T &&cpu_tag, U &&spu_tag)
+		: psxcd_device(mconfig, tag, owner, (uint32_t)0)
+	{
+		m_maincpu.set_tag(std::forward<T>(cpu_tag));
+		m_spu.set_tag(std::forward<U>(spu_tag));
+	}
+
 	psxcd_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// static configuration helpers
-	template<class _Object> static devcb_base &set_irq_handler(device_t &device, _Object object) { return downcast<psxcd_device &>(device).m_irq_handler.set_callback(object); }
+	// configuration helpers
+	auto irq_handler() { return m_irq_handler.bind(); }
 	virtual image_init_result call_load() override;
 	virtual void call_unload() override;
 
-	DECLARE_WRITE8_MEMBER( write );
-	DECLARE_READ8_MEMBER( read );
+	void write(offs_t offset, uint8_t data);
+	uint8_t read(offs_t offset);
 	void start_dma(uint8_t *mainram, uint32_t size);
 
 protected:
@@ -40,6 +39,8 @@ protected:
 	virtual const tiny_rom_entry *device_rom_region() const override;
 
 private:
+	static constexpr unsigned MAX_PSXCD_TIMERS = 4;
+
 	void write_command(uint8_t byte);
 
 	typedef void (psxcd_device::*cdcmd)();
@@ -149,13 +150,12 @@ private:
 	emu_timer *m_timers[MAX_PSXCD_TIMERS];
 	bool m_timerinuse[MAX_PSXCD_TIMERS];
 
-
 	devcb_write_line m_irq_handler;
-	cpu_device *m_maincpu;
-	spu_device *m_spu;
+	required_device<cpu_device> m_maincpu;
+	required_device<spu_device> m_spu;
 };
 
 // device type definition
-extern const device_type PSXCD;
+DECLARE_DEVICE_TYPE(PSXCD, psxcd_device)
 
-#endif
+#endif // MAME_MACHINE_PSXCD_H

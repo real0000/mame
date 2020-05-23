@@ -7,7 +7,7 @@
 
 
 x68k_keyboard_device::x68k_keyboard_device(const machine_config& mconfig, const char* tag, device_t* owner, uint32_t clock)
-	: buffered_rs232_device(mconfig, X68K_KEYBOARD, "X68k Keyboard", tag, owner, 0, "x68k_keyboard", __FILE__)
+	: buffered_rs232_device(mconfig, X68K_KEYBOARD, tag, owner, 0)
 	, device_matrix_keyboard_interface(mconfig, *this, "LINE0", "LINE1", "LINE2", "LINE3", "LINE4", "LINE5", "LINE6", "LINE7", "LINE8", "LINE9", "LINEA", "LINEB", "LINEC", "LINED", "LINEE")
 {
 }
@@ -276,7 +276,7 @@ void x68k_keyboard_device::device_reset()
 	buffered_rs232_device::device_reset();
 
 	set_data_frame(1, 8, PARITY_NONE, STOP_BITS_1);
-	set_rate(38'400); // TODO: Should be 2400 but MC68901 doesn't support divide by 16
+	set_rate(2400);
 	receive_register_reset();
 	transmit_register_reset();
 
@@ -295,14 +295,8 @@ void x68k_keyboard_device::device_reset()
 	output_rxd(1);
 }
 
-void x68k_keyboard_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
-{
-	device_matrix_keyboard_interface::device_timer(timer, id, param, ptr);
-	buffered_rs232_device::device_timer(timer, id, param, ptr);
-}
 
-
-const device_type X68K_KEYBOARD = device_creator<x68k_keyboard_device>;
+DEFINE_DEVICE_TYPE(X68K_KEYBOARD, x68k_keyboard_device, "x68k_keyboard", "Sharp X68000 Keyboard")
 
 #if 0
 
@@ -318,7 +312,7 @@ void x68k_state::x68k_keyboard_push_scancode(unsigned char code)
 			//if(ioport("options")->read() & 0x01)
 			//{
 			//  m_current_vector[6] = 0x4c;
-			//  m_maincpu->set_input_line_and_vector(6,ASSERT_LINE,0x4c);
+			//  m_maincpu->set_input_line(6,ASSERT_LINE);
 			//  logerror("MFP: Receive buffer full IRQ sent\n");
 			//}
 		}

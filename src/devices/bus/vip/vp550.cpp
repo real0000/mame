@@ -43,32 +43,24 @@ enum
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type VP550 = device_creator<vp550_device>;
+DEFINE_DEVICE_TYPE(VP550, vp550_device, "vp550", "VP-550 Super Sound")
 
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( vp550 )
+//  machine_config( vp550 )
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( vp550 )
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-
-	MCFG_CDP1863_ADD(CDP1863_A_TAG, 0, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-
-	MCFG_CDP1863_ADD(CDP1863_B_TAG, 0, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor vp550_device::device_mconfig_additions() const
+void vp550_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( vp550 );
+	SPEAKER(config, "mono").front_center();
+
+	CDP1863(config, m_pfg_a, 0);
+	m_pfg_a->set_clock2(0);
+	m_pfg_a->add_route(ALL_OUTPUTS, "mono", 1.0);
+
+	CDP1863(config, m_pfg_b, 0);
+	m_pfg_b->set_clock2(0);
+	m_pfg_b->add_route(ALL_OUTPUTS, "mono", 1.0);
 }
 
 
@@ -82,10 +74,11 @@ machine_config_constructor vp550_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 vp550_device::vp550_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, VP550, "VP550", tag, owner, clock, "vp550", __FILE__),
+	device_t(mconfig, VP550, tag, owner, clock),
 	device_vip_expansion_card_interface(mconfig, *this),
 	m_pfg_a(*this, CDP1863_A_TAG),
-	m_pfg_b(*this, CDP1863_B_TAG), m_sync_timer(nullptr)
+	m_pfg_b(*this, CDP1863_B_TAG),
+	m_sync_timer(nullptr)
 {
 }
 
@@ -119,7 +112,7 @@ void vp550_device::device_timer(emu_timer &timer, device_timer_id id, int param,
 //  vip_program_w - program write
 //-------------------------------------------------
 
-void vp550_device::vip_program_w(address_space &space, offs_t offset, uint8_t data, int cdef, int *minh)
+void vp550_device::vip_program_w(offs_t offset, uint8_t data, int cdef, int *minh)
 {
 	if (BIT(offset, 15))
 	{
@@ -129,14 +122,14 @@ void vp550_device::vip_program_w(address_space &space, offs_t offset, uint8_t da
 		{
 		case 1: m_pfg_a->str_w(data); break;
 		case 2: m_pfg_b->str_w(data); break;
-		case 3: octave_w(space, offset, data); break;
+		case 3: octave_w(data); break;
 		}
 
 		switch ((offset >> 4) & 0x03)
 		{
-		case 1: vlmna_w(space, offset, data); break;
-		case 2: vlmnb_w(space, offset, data); break;
-		case 3: sync_w(space, offset, data); break;
+		case 1: vlmna_w(data); break;
+		case 2: vlmnb_w(data); break;
+		case 3: sync_w(data); break;
 		}
 	}
 }
@@ -146,9 +139,9 @@ void vp550_device::vip_program_w(address_space &space, offs_t offset, uint8_t da
 //  vip_sc_w - status code write
 //-------------------------------------------------
 
-void vp550_device::vip_sc_w(int data)
+void vp550_device::vip_sc_w(int n, int sc)
 {
-	if (BIT(data, 1))
+	if (BIT(sc, 1))
 	{
 		if (LOG) logerror("VP550 '%s' Clear Interrupt\n", tag());
 
@@ -186,7 +179,7 @@ void vp550_device::vip_run_w(int state)
 //  octave_w - octave select write
 //-------------------------------------------------
 
-WRITE8_MEMBER( vp550_device::octave_w )
+void vp550_device::octave_w(uint8_t data)
 {
 	int channel = (data >> 2) & 0x03;
 	int clock2 = 0;
@@ -216,7 +209,7 @@ WRITE8_MEMBER( vp550_device::octave_w )
 //  vlmna_w - channel A amplitude write
 //-------------------------------------------------
 
-WRITE8_MEMBER( vp550_device::vlmna_w )
+void vp550_device::vlmna_w(uint8_t data)
 {
 	if (LOG) logerror("VP550 '%s' A Volume: %u\n", tag(), data & 0x0f);
 
@@ -230,7 +223,7 @@ WRITE8_MEMBER( vp550_device::vlmna_w )
 //  vlmnb_w - channel B amplitude write
 //-------------------------------------------------
 
-WRITE8_MEMBER( vp550_device::vlmnb_w )
+void vp550_device::vlmnb_w(uint8_t data)
 {
 	if (LOG) logerror("VP550 '%s' B Volume: %u\n", tag(), data & 0x0f);
 
@@ -244,7 +237,7 @@ WRITE8_MEMBER( vp550_device::vlmnb_w )
 //  sync_w - interrupt enable write
 //-------------------------------------------------
 
-WRITE8_MEMBER( vp550_device::sync_w )
+void vp550_device::sync_w(uint8_t data)
 {
 	if (LOG) logerror("VP550 '%s' Interrupt Enable: %u\n", tag(), BIT(data, 0));
 

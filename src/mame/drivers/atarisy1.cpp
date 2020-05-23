@@ -13,8 +13,11 @@
         * Road Runner (1985) [3 sets]
         * Road Blasters (1987) [10 sets]
 
-    Known bugs:
-        * none at this time
+    TODO:
+        * indytemp: "Welcome" doesn't play at start (regression). Code for
+          speech (0x46) is written but fails to play due to timing issues.
+        * is MOTHERBOARD_ALPHA actually 16KB, or maybe only for the LSI version?
+          see romsets of indytempc, roadblstcg
 
 ****************************************************************************
 
@@ -78,7 +81,7 @@
     MAIN CPU
     ========================================================================
     000000-07FFFF   R     xxxxxxxx xxxxxxxx   Program ROM
-    080000-087FFF   R     xxxxxxxx xxxxxxxx   Slapstic-protected ROM
+    080000-087FFF   R     xxxxxxxx xxxxxxxx   Slapstic-protected ROM (depending on game board)
     2E0000          R     -------- x-------   Sprite interrupt state
     400000-401FFF   R/W   xxxxxxxx xxxxxxxx   Program RAM
     800000            W   -------x xxxxxxxx   Playfield X scroll
@@ -144,7 +147,7 @@
     SOUND CPU
     ========================================================================
     0000-0FFF   R/W   xxxxxxxx   Program RAM
-    1000-100F   R/W   xxxxxxxx   M6522
+    1000-100F   R/W   xxxxxxxx   M6522 (on game board)
     1000-1FFF   R/W   xxxxxxxx   Catridge external RAM/ROM
     1800-1801   R/W   xxxxxxxx   YM2151 communications
     1810        R     xxxxxxxx   Sound command read
@@ -194,11 +197,10 @@ RoadBlasters (aka Future Vette):005*
 #include "includes/atarisy1.h"
 #include "cpu/m68000/m68000.h"
 #include "cpu/m6502/m6502.h"
-#include "machine/atarigen.h"
-#include "machine/6522via.h"
+#include "machine/eeprompar.h"
 #include "machine/watchdog.h"
-#include "sound/ym2151.h"
 #include "sound/pokey.h"
+#include "sound/ym2151.h"
 #include "video/atarimo.h"
 #include "speaker.h"
 
@@ -210,35 +212,24 @@ RoadBlasters (aka Future Vette):005*
  *
  *************************************/
 
-void atarisy1_state::update_interrupts()
+void atarisy1_state::video_int_ack_w(uint8_t data)
 {
-	m_maincpu->set_input_line(2, m_joystick_int && m_joystick_int_enable ? ASSERT_LINE : CLEAR_LINE);
-	m_maincpu->set_input_line(3, m_scanline_int_state ? ASSERT_LINE : CLEAR_LINE);
-	m_maincpu->set_input_line(4, m_video_int_state ? ASSERT_LINE : CLEAR_LINE);
-	m_maincpu->set_input_line(6, m_sound_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(M68K_IRQ_4, CLEAR_LINE);
 }
 
 
-MACHINE_START_MEMBER(atarisy1_state,atarisy1)
+void atarisy1_state::machine_start()
 {
-	atarigen_state::machine_start();
-
-	save_item(NAME(m_joystick_int));
-	save_item(NAME(m_joystick_int_enable));
-	save_item(NAME(m_joystick_value));
 }
 
 
-MACHINE_RESET_MEMBER(atarisy1_state,atarisy1)
+void atarisy1_state::machine_reset()
 {
-	atarigen_state::machine_reset();
+	bankselect_w(0);
 
-	/* reset the joystick parameters */
-	m_joystick_value = 0;
-	m_joystick_int = 0;
-	m_joystick_int_enable = 0;
+	if (m_adc.found())
+		m_ajsint->in_w<0>(0);
 }
-
 
 
 /*************************************
@@ -247,47 +238,36 @@ MACHINE_RESET_MEMBER(atarisy1_state,atarisy1)
  *
  *************************************/
 
-TIMER_DEVICE_CALLBACK_MEMBER(atarisy1_state::delayed_joystick_int)
+template<int Input>
+uint8_t atarisy1_state::digital_joystick_r()
 {
-	m_joystick_value = param;
-	m_joystick_int = 1;
-	update_interrupts();
+	return BIT(ioport("IN0")->read(), 7 - Input) ? 0xf0 : 0x00;
 }
 
 
-READ16_MEMBER(atarisy1_state::joystick_r)
+uint8_t atarisy1_state::adc_r(offs_t offset)
 {
-	int newval = 0xff;
-	static const char *const portnames[] = { "IN0", "IN1" };
+	if (!m_adc.found())
+		return 0xff;
 
-	/* digital joystick type */
-	if (m_joystick_type == 1)
-		newval = (ioport("IN0")->read() & (0x80 >> offset)) ? 0xf0 : 0x00;
+	int value = m_adc->data_r();
 
-	/* Hall-effect analog joystick */
-	else if (m_joystick_type == 2)
-		newval = ioport(portnames[offset & 1])->read();
+	if (!machine().side_effects_disabled())
+		adc_w(offset, 0);
 
-	/* Road Blasters gas pedal */
-	else if (m_joystick_type == 3)
-		newval = ioport("IN1")->read();
-
-	/* the A4 bit enables/disables joystick IRQs */
-	m_joystick_int_enable = ((offset >> 3) & 1) ^ 1;
-
-	/* clear any existing interrupt and set a timer for a new one */
-	m_joystick_int = 0;
-	m_joystick_timer->adjust(attotime::from_usec(50), newval);
-	update_interrupts();
-
-	return m_joystick_value;
+	return value;
 }
 
 
-WRITE16_MEMBER(atarisy1_state::joystick_w)
+void atarisy1_state::adc_w(offs_t offset, uint8_t data)
 {
+	if (!m_adc.found())
+		return;
+
+	m_adc->address_offset_start_w(offset & 7, 0);
+
 	/* the A4 bit enables/disables joystick IRQs */
-	m_joystick_int_enable = ((offset >> 3) & 1) ^ 1;
+	m_ajsint->in_w<0>(!BIT(offset, 3));
 }
 
 
@@ -298,7 +278,7 @@ WRITE16_MEMBER(atarisy1_state::joystick_w)
  *
  *************************************/
 
-READ16_MEMBER(atarisy1_state::trakball_r)
+uint16_t atarisy1_state::trakball_r(offs_t offset)
 {
 	int result = 0xff;
 
@@ -346,7 +326,7 @@ READ16_MEMBER(atarisy1_state::trakball_r)
  *
  *************************************/
 
-READ8_MEMBER(atarisy1_state::switch_6502_r)
+uint8_t atarisy1_state::switch_6502_r()
 {
 	int temp = ioport("1820")->read();
 	if (!(ioport("F60000")->read() & 0x0040)) temp ^= 0x80;
@@ -376,33 +356,21 @@ READ8_MEMBER(atarisy1_state::switch_6502_r)
  *          D5 =    LED (out)
  */
 
-WRITE8_MEMBER(atarisy1_state::via_pa_w)
+void atarisy1_state::via_pb_w(uint8_t data)
 {
-	m_tms->data_w(space, 0, data);
-}
-
-
-READ8_MEMBER(atarisy1_state::via_pa_r)
-{
-	return m_tms->status_r(space, 0);
-}
-
-
-WRITE8_MEMBER(atarisy1_state::via_pb_w)
-{
-	/* write strobe */
+	// write strobe
 	m_tms->wsq_w(data & 1);
 
-	/* read strobe */
+	// read strobe
 	m_tms->rsq_w((data & 2)>>1);
 
-	/* bit 4 is connected to an up-counter, clocked by SYCLKB */
+	// bit 4 is connected to an up-counter, clocked by SYCLKB
 	data = 5 | ((data >> 3) & 2);
-	m_tms->set_frequency(ATARI_CLOCK_14MHz/2 / (16 - data));
+	m_tms->set_unscaled_clock(14.318181_MHz_XTAL/2 / (16 - data));
 }
 
 
-READ8_MEMBER(atarisy1_state::via_pb_r)
+uint8_t atarisy1_state::via_pb_r()
 {
 	return (m_tms->readyq_r() << 2) | (m_tms->intq_r() << 3);
 }
@@ -411,13 +379,19 @@ READ8_MEMBER(atarisy1_state::via_pb_r)
 
 /*************************************
  *
- *  Sound LED handlers
+ *  LED and coin counter handlers
  *
  *************************************/
 
-WRITE8_MEMBER(atarisy1_state::led_w)
+WRITE_LINE_MEMBER(atarisy1_state::coin_counter_right_w)
 {
-	output().set_led_value(offset, ~data & 1);
+	machine().bookkeeping().coin_counter_w(0, state);
+}
+
+
+WRITE_LINE_MEMBER(atarisy1_state::coin_counter_left_w)
+{
+	machine().bookkeeping().coin_counter_w(1, state);
 }
 
 
@@ -428,31 +402,32 @@ WRITE8_MEMBER(atarisy1_state::led_w)
  *
  *************************************/
 
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, atarisy1_state )
-	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x080000, 0x087fff) AM_ROM /* slapstic maps here */
-	AM_RANGE(0x2e0000, 0x2e0001) AM_READ(atarisy1_int3state_r)
-	AM_RANGE(0x400000, 0x401fff) AM_RAM
-	AM_RANGE(0x800000, 0x800001) AM_WRITE(atarisy1_xscroll_w) AM_SHARE("xscroll")
-	AM_RANGE(0x820000, 0x820001) AM_WRITE(atarisy1_yscroll_w) AM_SHARE("yscroll")
-	AM_RANGE(0x840000, 0x840001) AM_WRITE(atarisy1_priority_w)
-	AM_RANGE(0x860000, 0x860001) AM_WRITE(atarisy1_bankselect_w) AM_SHARE("bankselect")
-	AM_RANGE(0x880000, 0x880001) AM_DEVWRITE("watchdog", watchdog_timer_device, reset16_w)
-	AM_RANGE(0x8a0000, 0x8a0001) AM_WRITE(video_int_ack_w)
-	AM_RANGE(0x8c0000, 0x8c0001) AM_DEVWRITE("eeprom", atari_eeprom_device, unlock_write)
-	AM_RANGE(0x900000, 0x9fffff) AM_RAM
-	AM_RANGE(0xa00000, 0xa01fff) AM_RAM_DEVWRITE("playfield", tilemap_device, write) AM_SHARE("playfield")
-	AM_RANGE(0xa02000, 0xa02fff) AM_RAM_WRITE(atarisy1_spriteram_w) AM_SHARE("mob")
-	AM_RANGE(0xa03000, 0xa03fff) AM_RAM_DEVWRITE("alpha", tilemap_device, write) AM_SHARE("alpha")
-	AM_RANGE(0xb00000, 0xb007ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0xf00000, 0xf00fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
-	AM_RANGE(0xf20000, 0xf20007) AM_READ(trakball_r)
-	AM_RANGE(0xf40000, 0xf4001f) AM_READWRITE(joystick_r, joystick_w)
-	AM_RANGE(0xf60000, 0xf60003) AM_READ_PORT("F60000")
-	AM_RANGE(0xf80000, 0xf80001) AM_DEVWRITE8("soundcomm", atari_sound_comm_device, main_command_w, 0x00ff) /* used by roadbls2 */
-	AM_RANGE(0xfc0000, 0xfc0001) AM_DEVREAD8("soundcomm", atari_sound_comm_device, main_response_r, 0x00ff)
-	AM_RANGE(0xfe0000, 0xfe0001) AM_DEVWRITE8("soundcomm", atari_sound_comm_device, main_command_w, 0x00ff)
-ADDRESS_MAP_END
+void atarisy1_state::main_map(address_map &map)
+{
+	map(0x000000, 0x07ffff).rom();
+	map(0x080000, 0x087fff).rom(); // slapstic maps here
+	map(0x2e0000, 0x2e0001).r(FUNC(atarisy1_state::atarisy1_int3state_r));
+	map(0x400000, 0x401fff).ram();
+	map(0x800000, 0x800001).w(FUNC(atarisy1_state::atarisy1_xscroll_w)).share("xscroll");
+	map(0x820000, 0x820001).w(FUNC(atarisy1_state::atarisy1_yscroll_w)).share("yscroll");
+	map(0x840000, 0x840001).w(FUNC(atarisy1_state::atarisy1_priority_w));
+	map(0x860001, 0x860001).w(FUNC(atarisy1_state::bankselect_w));
+	map(0x880001, 0x880001).w("watchdog", FUNC(watchdog_timer_device::reset_w));
+	map(0x8a0001, 0x8a0001).w(FUNC(atarisy1_state::video_int_ack_w));
+	map(0x8c0001, 0x8c0001).w("eeprom", FUNC(eeprom_parallel_28xx_device::unlock_write8));
+	map(0x900000, 0x9fffff).ram();
+	map(0xa00000, 0xa01fff).ram().w(m_playfield_tilemap, FUNC(tilemap_device::write16)).share("playfield");
+	map(0xa02000, 0xa02fff).ram().w(FUNC(atarisy1_state::atarisy1_spriteram_w)).share("mob");
+	map(0xa03000, 0xa03fff).ram().w(m_alpha_tilemap, FUNC(tilemap_device::write16)).share("alpha");
+	map(0xb00000, 0xb007ff).ram().w(m_palette, FUNC(palette_device::write16)).share("palette");
+	map(0xf00000, 0xf00fff).rw("eeprom", FUNC(eeprom_parallel_28xx_device::read), FUNC(eeprom_parallel_28xx_device::write)).umask16(0x00ff);
+	map(0xf20000, 0xf20007).r(FUNC(atarisy1_state::trakball_r));
+	map(0xf40000, 0xf4001f).rw(FUNC(atarisy1_state::adc_r), FUNC(atarisy1_state::adc_w)).umask16(0x00ff);
+	map(0xf60000, 0xf60003).portr("F60000");
+	map(0xf80001, 0xf80001).w(m_soundlatch, FUNC(generic_latch_8_device::write)); // used by roadbls2
+	map(0xfc0001, 0xfc0001).r(m_mainlatch, FUNC(generic_latch_8_device::read));
+	map(0xfe0001, 0xfe0001).w(m_soundlatch, FUNC(generic_latch_8_device::write));
+}
 
 
 
@@ -462,17 +437,23 @@ ADDRESS_MAP_END
  *
  *************************************/
 
-static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, atarisy1_state )
-	AM_RANGE(0x0000, 0x0fff) AM_RAM
-	AM_RANGE(0x1000, 0x100f) AM_DEVREADWRITE("via6522_0", via6522_device, read, write)
-	AM_RANGE(0x1800, 0x1801) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
-	AM_RANGE(0x1810, 0x1810) AM_DEVREADWRITE("soundcomm", atari_sound_comm_device, sound_command_r, sound_response_w)
-	AM_RANGE(0x1820, 0x1820) AM_READ(switch_6502_r)
-	AM_RANGE(0x1824, 0x1825) AM_WRITE(led_w)
-	AM_RANGE(0x1870, 0x187f) AM_DEVREADWRITE("pokey", pokey_device, read, write)
-	AM_RANGE(0x4000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void atarisy1_state::sound_map(address_map &map)
+{
+	map(0x0000, 0x0fff).mirror(0x2000).ram();
+	map(0x1800, 0x1801).mirror(0x278e).rw("ymsnd", FUNC(ym2151_device::read), FUNC(ym2151_device::write));
+	map(0x1810, 0x1810).mirror(0x278f).r(m_soundlatch, FUNC(generic_latch_8_device::read));
+	map(0x1810, 0x1810).mirror(0x278f).w(m_mainlatch, FUNC(generic_latch_8_device::write));
+	map(0x1820, 0x1820).mirror(0x278f).r(FUNC(atarisy1_state::switch_6502_r));
+	map(0x1820, 0x1827).mirror(0x2788).w(m_outlatch, FUNC(ls259_device::write_d0));
+	map(0x1870, 0x187f).mirror(0x2780).rw("pokey", FUNC(pokey_device::read), FUNC(pokey_device::write));
+	map(0x4000, 0xffff).rom();
+}
 
+void atarisy1_state::sound_ext_map(address_map &map)
+{
+	sound_map(map);
+	map(0x1000, 0x100f).mirror(0x27f0).m(m_via, FUNC(via6522_device::map)); // SNDEXT
+}
 
 
 /*************************************
@@ -482,19 +463,19 @@ ADDRESS_MAP_END
  *************************************/
 
 static INPUT_PORTS_START( marble )
-	PORT_START("IN0")  /* F20000 */
+	PORT_START("IN0")  // F20000
 	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_X ) PORT_SENSITIVITY(30) PORT_KEYDELTA(30) PORT_REVERSE PORT_PLAYER(1)
 
-	PORT_START("IN1")  /* F20002 */
+	PORT_START("IN1")  // F20002
 	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_Y ) PORT_SENSITIVITY(30) PORT_KEYDELTA(30) PORT_PLAYER(1)
 
-	PORT_START("IN2")  /* F20004 */
+	PORT_START("IN2")  // F20004
 	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_X ) PORT_SENSITIVITY(30) PORT_KEYDELTA(30) PORT_REVERSE PORT_PLAYER(2)
 
-	PORT_START("IN3")  /* F20006 */
+	PORT_START("IN3")  // F20006
 	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_Y ) PORT_SENSITIVITY(30) PORT_KEYDELTA(30) PORT_PLAYER(2)
 
-	PORT_START("F60000")    /* F60000 */
+	PORT_START("F60000")    // F60000
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_START1 )
 	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_START2 )
 	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -502,38 +483,38 @@ static INPUT_PORTS_START( marble )
 	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_SERVICE( 0x0040, IP_ACTIVE_LOW )
-	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
+	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("soundlatch", generic_latch_8_device, pending_r) // 68KBUF
 	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
-	PORT_START("1820")  /* 1820 (sound) */
+	PORT_START("1820")  // 1820 (sound)
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN3 )
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_SOUND_TO_MAIN_READY("soundcomm")
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("soundlatch", generic_latch_8_device, pending_r) // 68KBUF
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("mainlatch", generic_latch_8_device, pending_r) // SNDBUF
 	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_UNUSED )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_CUSTOM )
 INPUT_PORTS_END
 
 
 static INPUT_PORTS_START( peterpak )
-	PORT_START("IN0")   /* F40000 */
+	PORT_START("IN0")   // F40000
 	PORT_BIT( 0x0f, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP )
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_JOYSTICK_LEFT )
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT )
 
-	PORT_START("IN1")   /* n/a */
+	PORT_START("IN1")   // n/a
 	PORT_BIT( 0xff, IP_ACTIVE_HIGH, IPT_UNUSED )
 
-	PORT_START("IN2")   /* n/a */
+	PORT_START("IN2")   // n/a
 	PORT_BIT( 0xff, IP_ACTIVE_HIGH, IPT_UNUSED )
 
-	PORT_START("IN3")   /* n/a */
+	PORT_START("IN3")   // n/a
 	PORT_BIT( 0xff, IP_ACTIVE_HIGH, IPT_UNUSED )
 
-	PORT_START("F60000")    /* F60000 */
+	PORT_START("F60000")    // F60000
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("Left Throw/P1 Start")
 	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_START2 ) PORT_NAME("Right Throw/P2 Start")
 	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_NAME("Jump")
@@ -541,63 +522,63 @@ static INPUT_PORTS_START( peterpak )
 	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_SERVICE( 0x0040, IP_ACTIVE_LOW )
-	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
+	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("soundlatch", generic_latch_8_device, pending_r) // 68KBUF
 	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
-	PORT_START("1820")  /* 1820 (sound) */
+	PORT_START("1820")  // 1820 (sound)
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN3 )
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_SOUND_TO_MAIN_READY("soundcomm")
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("soundlatch", generic_latch_8_device, pending_r) // 68KBUF
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("mainlatch", generic_latch_8_device, pending_r) // SNDBUF
 	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_UNUSED )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_CUSTOM )
 INPUT_PORTS_END
 
 
 static INPUT_PORTS_START( indytemp )
-	PORT_START("IN0")   /* F40000 */
+	PORT_START("IN0")   // F40000
 	PORT_BIT( 0x0f, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP )
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_JOYSTICK_LEFT )
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT )
 
-	PORT_START("IN1")   /* n/a */
+	PORT_START("IN1")   // n/a
 	PORT_BIT( 0xff, IP_ACTIVE_HIGH, IPT_UNUSED )
 
-	PORT_START("IN2")   /* n/a */
+	PORT_START("IN2")   // n/a
 	PORT_BIT( 0xff, IP_ACTIVE_HIGH, IPT_UNUSED )
 
-	PORT_START("IN3")   /* n/a */
+	PORT_START("IN3")   // n/a
 	PORT_BIT( 0xff, IP_ACTIVE_HIGH, IPT_UNUSED )
 
-	PORT_START("F60000")    /* F60000 */
+	PORT_START("F60000")    // F60000
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("Left Whip/P1 Start")
 	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_START2 ) PORT_NAME("Right Whip/P2 Start")
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_UNKNOWN )  /* freeze? */
+	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_UNKNOWN )  // freeze?
 	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_SERVICE( 0x0040, IP_ACTIVE_LOW )
-	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
+	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("soundlatch", generic_latch_8_device, pending_r) // 68KBUF
 	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
-	PORT_START("1820")  /* 1820 (sound) */
+	PORT_START("1820")  // 1820 (sound)
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN3 )
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_SOUND_TO_MAIN_READY("soundcomm")
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("soundlatch", generic_latch_8_device, pending_r) // 68KBUF
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("mainlatch", generic_latch_8_device, pending_r) // SNDBUF
 	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_UNUSED )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_CUSTOM )
 INPUT_PORTS_END
 
 
 static INPUT_PORTS_START( indytemc )
 	PORT_INCLUDE( indytemp )
 
-	PORT_MODIFY("IN0")  /* F40000 */
+	PORT_MODIFY("IN0")  // F40000
 	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_UP )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )
@@ -607,20 +588,20 @@ INPUT_PORTS_END
 
 
 static INPUT_PORTS_START( roadrunn )
-	PORT_START("IN0")   /* F40000 */
+	PORT_START("IN0")   // F40000
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_MINMAX(0x10,0xf0) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_PLAYER(1)
 
-	PORT_START("IN1")   /* F40002 */
+	PORT_START("IN1")   // F40002
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_MINMAX(0x10,0xf0) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_REVERSE PORT_PLAYER(1)
 
-	PORT_START("IN2")   /* n/a */
+	PORT_START("IN2")   // n/a
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
 
-	PORT_START("IN3")   /* n/a */
+	PORT_START("IN3")   // n/a
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
 
-	PORT_START("F60000")    /* F60000 */
-	/* Note that "P1 Button 1' and 'P2 Start' both act as "Hop' Buttons" in game"  */
+	PORT_START("F60000")    // F60000
+	// Note that "P1 Button 1' and 'P2 Start' both act as "Hop' Buttons" in game"
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("Left Hop/P1 Start")
 	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_NAME("Right Hop/P2 Start")
 	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -628,34 +609,34 @@ static INPUT_PORTS_START( roadrunn )
 	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_SERVICE( 0x0040, IP_ACTIVE_LOW )
-	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
+	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("soundlatch", generic_latch_8_device, pending_r) // 68KBUF
 	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
-	PORT_START("1820")  /* 1820 (sound) */
+	PORT_START("1820")  // 1820 (sound)
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN3 )
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_SOUND_TO_MAIN_READY("soundcomm")
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("soundlatch", generic_latch_8_device, pending_r) // 68KBUF
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("mainlatch", generic_latch_8_device, pending_r) // SNDBUF
 	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_UNUSED )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_CUSTOM )
 INPUT_PORTS_END
 
 
 static INPUT_PORTS_START( roadblst )
-	PORT_START("IN0")   /* F20000 */
+	PORT_START("IN0")   // F20000
 	PORT_BIT( 0xff, 0x00, IPT_DIAL ) PORT_SENSITIVITY(25) PORT_KEYDELTA(10) PORT_REVERSE
 
-	PORT_START("IN1")   /* F40000 */
+	PORT_START("IN1")   // F40000
 	PORT_BIT( 0xff, 0x00, IPT_PEDAL ) PORT_SENSITIVITY(100) PORT_KEYDELTA(64)
 
-	PORT_START("IN2")   /* n/a */
+	PORT_START("IN2")   // n/a
 	PORT_BIT( 0xff, IP_ACTIVE_HIGH, IPT_UNUSED )
 
-	PORT_START("IN3")   /* n/a */
+	PORT_START("IN3")   // n/a
 	PORT_BIT( 0xff, IP_ACTIVE_HIGH, IPT_UNUSED )
 
-	PORT_START("F60000")    /* F60000 */
+	PORT_START("F60000")    // F60000
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_NAME("Special Weapon")
 	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_NAME("Lasers")
 	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -663,17 +644,17 @@ static INPUT_PORTS_START( roadblst )
 	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_SERVICE( 0x0040, IP_ACTIVE_LOW )
-	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
+	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("soundlatch", generic_latch_8_device, pending_r) // 68KBUF
 	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
-	PORT_START("1820")  /* 1820 (sound) */
+	PORT_START("1820")  // 1820 (sound)
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN3 )
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_SOUND_TO_MAIN_READY("soundcomm")
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("soundlatch", generic_latch_8_device, pending_r) // 68KBUF
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("mainlatch", generic_latch_8_device, pending_r) // SNDBUF
 	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_UNUSED )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_CUSTOM )
 INPUT_PORTS_END
 
 
@@ -696,7 +677,7 @@ static const gfx_layout anlayout =
 };
 
 
-static GFXDECODE_START( atarisy1 )
+static GFXDECODE_START( gfx_atarisy1 )
 	GFXDECODE_ENTRY( "alpha", 0x00000, anlayout,       0, 64 )
 GFXDECODE_END
 
@@ -708,98 +689,168 @@ GFXDECODE_END
  *
  *************************************/
 
-static MACHINE_CONFIG_START( atarisy1, atarisy1_state )
+void atarisy1_state::add_adc(machine_config &config)
+{
+	ADC0809(config, m_adc, 14.318181_MHz_XTAL/16);
+	m_adc->eoc_callback().set(m_ajsint, FUNC(input_merger_device::in_w<1>));
+	// IN7 = J102 pin 2
+	// IN6 = J102 pin 3
+	// IN5 = J102 pin 4
+	// IN4 = J102 pin 6
+	// IN3 = J102 pin 8
+	// IN2 = J102 pin 9
+	// IN1 = J102 pin 7
+	// IN0 = J102 pin 5
 
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68010, ATARI_CLOCK_14MHz/2)
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_DEVICE_VBLANK_INT_DRIVER("screen", atarigen_state, video_int_gen)
+	INPUT_MERGER_ALL_HIGH(config, m_ajsint);
+	m_ajsint->output_handler().set_inputline(m_maincpu, M68K_IRQ_2);
+}
 
-	MCFG_CPU_ADD("audiocpu", M6502, ATARI_CLOCK_14MHz/8)
-	MCFG_CPU_PROGRAM_MAP(sound_map)
+void atarisy1_state::add_speech(machine_config &config)
+{
+	m_audiocpu->set_addrmap(AS_PROGRAM, &atarisy1_state::sound_ext_map);
 
-	MCFG_MACHINE_START_OVERRIDE(atarisy1_state,atarisy1)
-	MCFG_MACHINE_RESET_OVERRIDE(atarisy1_state,atarisy1)
+	TMS5220C(config, m_tms, 14.318181_MHz_XTAL/2/11);
+	m_tms->add_route(ALL_OUTPUTS, "lspeaker", 1.0);
+	m_tms->add_route(ALL_OUTPUTS, "rspeaker", 1.0);
 
-	MCFG_ATARI_EEPROM_2804_ADD("eeprom")
+	VIA6522(config, m_via, 14.318181_MHz_XTAL/8);
+	m_via->readpa_handler().set(m_tms, FUNC(tms5220_device::status_r));
+	m_via->readpb_handler().set(FUNC(atarisy1_state::via_pb_r));
+	m_via->writepa_handler().set(m_tms, FUNC(tms5220_device::data_w));
+	m_via->writepb_handler().set(FUNC(atarisy1_state::via_pb_w));
+}
 
-	MCFG_WATCHDOG_ADD("watchdog")
+void atarisy1_state::atarisy1(machine_config &config)
+{
+	// basic machine hardware
+	M68010(config, m_maincpu, 14.318181_MHz_XTAL/2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &atarisy1_state::main_map);
 
-	MCFG_TIMER_DRIVER_ADD("joystick_timer", atarisy1_state, delayed_joystick_int)
-	MCFG_TIMER_DRIVER_ADD("scan_timer", atarisy1_state, atarisy1_int3_callback)
-	MCFG_TIMER_DRIVER_ADD("int3off_timer", atarisy1_state, atarisy1_int3off_callback)
-	MCFG_TIMER_DRIVER_ADD("yreset_timer", atarisy1_state, atarisy1_reset_yscroll_callback)
+	M6502(config, m_audiocpu, 14.318181_MHz_XTAL/8);
+	m_audiocpu->set_addrmap(AS_PROGRAM, &atarisy1_state::sound_map);
 
-	/* video hardware */
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", atarisy1)
+	EEPROM_2804(config, "eeprom").lock_after_write(true);
 
-	MCFG_PALETTE_ADD("palette", 1024)
-	MCFG_PALETTE_FORMAT(IIIIRRRRGGGGBBBB)
+	LS259(config, m_outlatch); // 15H (TTL) or 14F (LSI)
+	m_outlatch->q_out_cb<0>().set("ymsnd", FUNC(ym2151_device::reset_w));
+	m_outlatch->q_out_cb<4>().set_output("led0").invert(); // J106 pin 4
+	m_outlatch->q_out_cb<5>().set_output("led1").invert(); // J106 pin 3
+	m_outlatch->q_out_cb<6>().set(FUNC(atarisy1_state::coin_counter_right_w));
+	m_outlatch->q_out_cb<7>().set(FUNC(atarisy1_state::coin_counter_left_w));
 
-	MCFG_TILEMAP_ADD_STANDARD("playfield", "gfxdecode", 2, atarisy1_state, get_playfield_tile_info, 8,8, SCAN_ROWS, 64,64)
-	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", "gfxdecode", 2, atarisy1_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,32, 0)
+	WATCHDOG_TIMER(config, "watchdog").set_vblank_count(m_screen, 8);
 
-	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", atarisy1_state::s_mob_config)
-	MCFG_ATARI_MOTION_OBJECTS_GFXDECODE("gfxdecode")
+	TIMER(config, m_scanline_timer).configure_generic(FUNC(atarisy1_state::int3_callback));
+	TIMER(config, m_int3off_timer).configure_generic(FUNC(atarisy1_state::int3off_callback));
+	TIMER(config, m_yscroll_reset_timer).configure_generic(FUNC(atarisy1_state::reset_yscroll_callback));
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	/* note: these parameters are from published specs, not derived */
-	/* video timing comes from an 82S163 (H) and an 82S129 (V) */
-	MCFG_SCREEN_RAW_PARAMS(ATARI_CLOCK_14MHz/2, 456, 0, 336, 262, 0, 240)
-	MCFG_SCREEN_UPDATE_DRIVER(atarisy1_state, screen_update_atarisy1)
-	MCFG_SCREEN_PALETTE("palette")
+	// video hardware
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_atarisy1);
 
-	MCFG_VIDEO_START_OVERRIDE(atarisy1_state,atarisy1)
+	PALETTE(config, m_palette).set_format(palette_device::IRGB_4444, 1024);
 
-	/* sound hardware */
-	MCFG_ATARI_SOUND_COMM_ADD("soundcomm", "audiocpu", WRITELINE(atarigen_state, sound_int_write_line))
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+	TILEMAP(config, m_playfield_tilemap, m_gfxdecode, 2, 8,8, TILEMAP_SCAN_ROWS, 64,64).set_info_callback(FUNC(atarisy1_state::get_playfield_tile_info));
+	TILEMAP(config, m_alpha_tilemap, m_gfxdecode, 2, 8,8, TILEMAP_SCAN_ROWS, 64,32, 0).set_info_callback(FUNC(atarisy1_state::get_alpha_tile_info));
 
-	MCFG_YM2151_ADD("ymsnd", ATARI_CLOCK_14MHz/4)
-	MCFG_YM2151_IRQ_HANDLER(DEVWRITELINE("soundcomm", atari_sound_comm_device, ym2151_irq_gen))
-	MCFG_SOUND_ROUTE(0, "lspeaker", 0.80)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 0.80)
+	ATARI_MOTION_OBJECTS(config, m_mob, 0, m_screen, atarisy1_state::s_mob_config);
+	m_mob->set_gfxdecode(m_gfxdecode);
 
-	MCFG_SOUND_ADD("pokey", POKEY, ATARI_CLOCK_14MHz/8)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.40)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.40)
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_video_attributes(VIDEO_UPDATE_BEFORE_VBLANK);
+	// note: these parameters are from published specs, not derived
+	// video timing comes from an 82S163 (H) and an 82S129 (V)
+	m_screen->set_raw(14.318181_MHz_XTAL/2, 456, 0, 336, 262, 0, 240);
+	m_screen->set_screen_update(FUNC(atarisy1_state::screen_update_atarisy1));
+	m_screen->set_palette(m_palette);
+	m_screen->screen_vblank().set_inputline(m_maincpu, M68K_IRQ_4, ASSERT_LINE);
 
-	MCFG_SOUND_ADD("tms", TMS5220C, ATARI_CLOCK_14MHz/2/11)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
+	// sound hardware
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
 
-	/* via */
-	MCFG_DEVICE_ADD("via6522_0", VIA6522, 0)
-	MCFG_VIA6522_READPA_HANDLER(READ8(atarisy1_state, via_pa_r))
-	MCFG_VIA6522_READPB_HANDLER(READ8(atarisy1_state, via_pb_r))
-	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(atarisy1_state, via_pa_w))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(atarisy1_state, via_pb_w))
-MACHINE_CONFIG_END
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set_inputline(m_audiocpu, m6502_device::NMI_LINE);
 
-static MACHINE_CONFIG_DERIVED( marble, atarisy1 )
-	MCFG_SLAPSTIC_ADD("slapstic", 103)
-MACHINE_CONFIG_END
+	GENERIC_LATCH_8(config, m_mainlatch);
+	m_mainlatch->data_pending_callback().set_inputline(m_maincpu, M68K_IRQ_6);
 
-static MACHINE_CONFIG_DERIVED( peterpak, atarisy1 )
-	MCFG_SLAPSTIC_ADD("slapstic", 107)
-MACHINE_CONFIG_END
+	ym2151_device &ymsnd(YM2151(config, "ymsnd", 14.318181_MHz_XTAL/4));
+	ymsnd.irq_handler().set_inputline(m_audiocpu, m6502_device::IRQ_LINE);
+	ymsnd.add_route(0, "lspeaker", 0.80);
+	ymsnd.add_route(1, "rspeaker", 0.80);
 
-static MACHINE_CONFIG_DERIVED( indytemp, atarisy1 )
-	MCFG_SLAPSTIC_ADD("slapstic", 105)
-MACHINE_CONFIG_END
+	pokey_device &pokey(POKEY(config, "pokey", 14.318181_MHz_XTAL/8));
+	pokey.add_route(ALL_OUTPUTS, "lspeaker", 0.40);
+	pokey.add_route(ALL_OUTPUTS, "rspeaker", 0.40);
+}
 
-static MACHINE_CONFIG_DERIVED( roadrunn, atarisy1 )
-	MCFG_SLAPSTIC_ADD("slapstic", 108)
-MACHINE_CONFIG_END
+void atarisy1_state::marble(machine_config &config)
+{
+	atarisy1(config);
+	SLAPSTIC(config, "slapstic", 103, true);
+}
 
-static MACHINE_CONFIG_DERIVED( roadb109, atarisy1 )
-	MCFG_SLAPSTIC_ADD("slapstic", 109)
-MACHINE_CONFIG_END
+void atarisy1_state::peterpak(machine_config &config)
+{
+	atarisy1(config);
+	add_adc(config);
+	SLAPSTIC(config, "slapstic", 107, true);
 
-static MACHINE_CONFIG_DERIVED( roadb110, atarisy1 )
-	MCFG_SLAPSTIC_ADD("slapstic", 110)
-MACHINE_CONFIG_END
+	// Digital joystick read through ADC
+	m_adc->in_callback<0>().set(FUNC(atarisy1_state::digital_joystick_r<0>));
+	m_adc->in_callback<1>().set(FUNC(atarisy1_state::digital_joystick_r<1>));
+	m_adc->in_callback<2>().set(FUNC(atarisy1_state::digital_joystick_r<2>));
+	m_adc->in_callback<3>().set(FUNC(atarisy1_state::digital_joystick_r<3>));
+}
+
+void atarisy1_state::indytemp(machine_config &config)
+{
+	atarisy1(config);
+	add_adc(config);
+	add_speech(config);
+	SLAPSTIC(config, "slapstic", 105, true);
+
+	// Digital joystick read through ADC
+	m_adc->in_callback<0>().set(FUNC(atarisy1_state::digital_joystick_r<0>));
+	m_adc->in_callback<1>().set(FUNC(atarisy1_state::digital_joystick_r<1>));
+	m_adc->in_callback<2>().set(FUNC(atarisy1_state::digital_joystick_r<2>));
+	m_adc->in_callback<3>().set(FUNC(atarisy1_state::digital_joystick_r<3>));
+}
+
+void atarisy1_state::roadrunn(machine_config &config)
+{
+	atarisy1(config);
+	add_adc(config);
+	add_speech(config);
+	SLAPSTIC(config, "slapstic", 108, true);
+
+	// Hall-effect analog joystick
+	m_adc->in_callback<6>().set_ioport("IN0");
+	m_adc->in_callback<7>().set_ioport("IN1");
+}
+
+void atarisy1_state::roadb109(machine_config &config)
+{
+	atarisy1(config);
+	add_adc(config);
+	add_speech(config);
+	SLAPSTIC(config, "slapstic", 109, true);
+
+	// Road Blasters gas pedal
+	m_adc->in_callback<2>().set_ioport("IN1");
+}
+
+void atarisy1_state::roadb110(machine_config &config)
+{
+	atarisy1(config);
+	add_adc(config);
+	add_speech(config);
+	SLAPSTIC(config, "slapstic", 110, true);
+
+	// Road Blasters gas pedal
+	m_adc->in_callback<2>().set_ioport("IN1");
+}
 
 
 
@@ -821,34 +872,34 @@ MACHINE_CONFIG_END
 */
 
 #define ROM_LOAD16_BYTE_BIOS(bios,name,offset,length,hash) \
-	ROMX_LOAD(name, offset, length, hash, ROM_BIOS(bios+1) | ROM_SKIP(1)) /* Note '+1' */
+	ROMX_LOAD(name, offset, length, hash, ROM_BIOS(bios) | ROM_SKIP(1))
 
 #define ROM_LOAD_BIOS(bios,name,offset,length,hash) \
-	ROMX_LOAD(name, offset, length, hash, ROM_BIOS(bios+1)) /* Note '+1' */
+	ROMX_LOAD(name, offset, length, hash, ROM_BIOS(bios))
 
 #define MOTHERBOARD_BIOS                                                                                                       \
 	ROM_SYSTEM_BIOS( 0, "ttl", "TTL Motherboard (Rev 2)" )                                                                     \
 	ROM_LOAD16_BYTE_BIOS(0, "136032.205.l13", 0x00000, 0x04000, CRC(88d0be26) SHA1(d124045eccc562ff0423b23a240e27ad740fa0c9) ) \
 	ROM_LOAD16_BYTE_BIOS(0, "136032.206.l12", 0x00001, 0x04000, CRC(3c79ef05) SHA1(20fdca7131478e1ee12691bdafd2d5bb74cbd16f) ) \
 	ROM_SYSTEM_BIOS( 1, "ttl1", "TTL Motherboard (Rev 1)" )                                                                    \
-	ROM_LOAD16_BYTE_BIOS(1, "136032.105.l13", 0x00000, 0x04000, CRC(690b37d3) SHA1(547372f1044a3442aa52fcd2b3546540aba59344) ) \
+	ROM_LOAD16_BYTE_BIOS(1, "136032.105.l13", 0x00000, 0x04000, CRC(79021d3c) SHA1(85febd34bcb166fc3326b5e5e4e80e157b660a08) ) \
 	ROM_LOAD16_BYTE_BIOS(1, "136032.106.l12", 0x00001, 0x04000, CRC(76ee86c4) SHA1(cbcd424510435a04e9041967a13781fd19b0f2c4) ) \
 	ROM_SYSTEM_BIOS( 2, "lsi", "LSI Motherboard" )                                                                             \
 	ROM_LOAD16_BYTE_BIOS(2, "136032.114.j11", 0x00000, 0x04000, CRC(195c54ad) SHA1(d7cda3cd3db4c6f77074ca05e96ae11b62e048b7) ) \
-	ROM_LOAD16_BYTE_BIOS(2, "136032.115.j10", 0x00001, 0x04000, CRC(7275b4dc) SHA1(0896ab37ea832a1335046353612c1b4c86d8d040) )
+	ROM_LOAD16_BYTE_BIOS(2, "136032.115.j10", 0x00001, 0x04000, CRC(9af9fe29) SHA1(1d5077662e4111ece9f8a5124394dad8b1abdc13) )
 
 #define MOTHERBOARD_ALPHA                                                                                              \
 	ROM_LOAD_BIOS(0, "136032.104.f5", 0x00000, 0x02000, CRC(7a29dc07) SHA1(72ba464da01bd6d3a91b8d9997d5ac14b6f47aad) ) \
 	ROM_LOAD_BIOS(1, "136032.104.f5", 0x00000, 0x02000, CRC(7a29dc07) SHA1(72ba464da01bd6d3a91b8d9997d5ac14b6f47aad) ) \
-	ROM_LOAD_BIOS(2, "136032.107.b2", 0x00000, 0x02000, CRC(315e4bea) SHA1(a00ea23fbdbf075f8f3f184275be83387e8ac82b) ) /* is this bad? it just seems to be missing upper nibbles and hence some of the planes? */
+	ROM_LOAD_BIOS(2, "136032.107.b2", 0x00000, 0x02000, CRC(7a29dc07) SHA1(72ba464da01bd6d3a91b8d9997d5ac14b6f47aad) )
 
 #define MOTHERBOARD_PROMS                                                                                              \
-	ROM_LOAD_BIOS(0, "136032.101.e3",     0x00000, 0x00100, CRC(7e84972a) SHA1(84d422b53547271e3a07342704a05ef481db3f99) ) \
-	ROM_LOAD_BIOS(0, "136032.102.e5",     0x00000, 0x00100, CRC(ebf1e0ae) SHA1(2d327e78832edd67ca3909c25b8c8c839637a1ed) ) \
-	ROM_LOAD_BIOS(0, "136032.103.f7.bin", 0x00000, 0x000eb, CRC(92d6a0b4) SHA1(0a42a4816c89447b16e1f3245409591efea98a4a) ) /* N82S153 */                                        \
-	ROM_LOAD_BIOS(1, "136032.101.e3",     0x00000, 0x00100, CRC(7e84972a) SHA1(84d422b53547271e3a07342704a05ef481db3f99) ) \
-	ROM_LOAD_BIOS(1, "136032.102.e5",     0x00000, 0x00100, CRC(ebf1e0ae) SHA1(2d327e78832edd67ca3909c25b8c8c839637a1ed) ) \
-	ROM_LOAD_BIOS(1, "136032.103.f7.bin", 0x00000, 0x000eb, CRC(92d6a0b4) SHA1(0a42a4816c89447b16e1f3245409591efea98a4a) ) /* N82S153 */
+	ROM_LOAD_BIOS(0, "136032.101.e3", 0x00000, 0x00100, CRC(7e84972a) SHA1(84d422b53547271e3a07342704a05ef481db3f99) ) \
+	ROM_LOAD_BIOS(0, "136032.102.e5", 0x00000, 0x00100, CRC(ebf1e0ae) SHA1(2d327e78832edd67ca3909c25b8c8c839637a1ed) ) \
+	ROM_LOAD_BIOS(0, "136032.103.f7", 0x00000, 0x000eb, CRC(92d6a0b4) SHA1(0a42a4816c89447b16e1f3245409591efea98a4a) ) /* N82S153 */ \
+	ROM_LOAD_BIOS(1, "136032.101.e3", 0x00000, 0x00100, CRC(7e84972a) SHA1(84d422b53547271e3a07342704a05ef481db3f99) ) \
+	ROM_LOAD_BIOS(1, "136032.102.e5", 0x00000, 0x00100, CRC(ebf1e0ae) SHA1(2d327e78832edd67ca3909c25b8c8c839637a1ed) ) \
+	ROM_LOAD_BIOS(1, "136032.103.f7", 0x00000, 0x000eb, CRC(92d6a0b4) SHA1(0a42a4816c89447b16e1f3245409591efea98a4a) ) /* N82S153 */
 
 ROM_START( atarisy1 )
 	ROM_REGION( 0x88000, "maincpu", 0 ) /* 8.5*64k for 68000 code & slapstic ROM */
@@ -1788,31 +1839,29 @@ Dumped from the original Atari
 // different IC positions and different GFX rom configuration.
 ROM_START( roadblstgu )
 	ROM_REGION( 0x88000, "maincpu", 0 ) /* 8.5*64k for 68000 code & slapstic ROM */
-	// expects bios roms 114/115, does not work properly with others (corrupt insert coin text)
-	ROM_LOAD16_BYTE( "136032-114.j7", 0x00000, 0x04000, CRC(195c54ad) SHA1(d7cda3cd3db4c6f77074ca05e96ae11b62e048b7) )
-	ROM_LOAD16_BYTE( "136032-115.j8", 0x00001, 0x04000, CRC(7275b4dc) SHA1(0896ab37ea832a1335046353612c1b4c86d8d040) )
+	MOTHERBOARD_BIOS
+	ROM_DEFAULT_BIOS("lsi") // only works with LSI BIOS
 
 	ROM_LOAD16_BYTE( "136048-1257.c11", 0x010000, 0x008000, CRC(604a5cc0) SHA1(a057a2e47ac7b7c727e9c1bfce28ba955ce75442) )
 	ROM_LOAD16_BYTE( "136048-1258.a11", 0x010001, 0x008000, CRC(3d10929d) SHA1(aa4d568e5d5b62fb8ea11094bad78bb8f713404e) )
 	ROM_LOAD16_BYTE( "136048-1259.c13", 0x020000, 0x008000, CRC(b9c807ac) SHA1(ca955790c98037045aa49425392581f21d33caa9) )
 	ROM_LOAD16_BYTE( "136048-1260.a13", 0x020001, 0x008000, CRC(eaeb1196) SHA1(82bf14244b342c97adde893f19a050baab30ab1e) )
-
-	ROM_LOAD16_BYTE( "136048-1163.c12",  0x050000, 0x008000, CRC(054273b2) SHA1(4c820c00d3b67825c361edc9615c89c2a9a1c6d3) )//
-	ROM_LOAD16_BYTE( "136048-1164.a12",  0x050001, 0x008000, CRC(49181bec) SHA1(79e042e4f079a9806ef12c5c8dfdc2e6e4f90011) )//
-	ROM_LOAD16_BYTE( "136048-1165.c14",  0x060000, 0x008000, CRC(f63dc29a) SHA1(e54637b9d0b271aa9b58e89a442ac03ec812e1eb) )//
-	ROM_LOAD16_BYTE( "136048-1166.a14",  0x060001, 0x008000, CRC(b1fc5955) SHA1(b860213a9b5ae7547c258812045e71795129598f) )//
-	ROM_LOAD16_BYTE( "136048-1167.c16",  0x070000, 0x008000, CRC(c6d30d6f) SHA1(acb552976b2dcfa585097ea246ca88034549c8ab) )//
-	ROM_LOAD16_BYTE( "136048-1168.a16",  0x070001, 0x008000, CRC(16951020) SHA1(5e5a6ad4ae87723060232c7ecb837f5fc2a9be68) )//
-	ROM_LOAD16_BYTE( "136048-2147.c17",  0x080000, 0x004000, CRC(5c1adf67) SHA1(53838a2f5059797991aa337a7bec32f7e694610a) )//
-	ROM_LOAD16_BYTE( "136048-2148.a17",  0x080001, 0x004000, CRC(d9ac8966) SHA1(7d056c1eb8184b4261c5713b0d5799b2fd8bde2a) )//
+	ROM_LOAD16_BYTE( "136048-1163.c12", 0x050000, 0x008000, CRC(054273b2) SHA1(4c820c00d3b67825c361edc9615c89c2a9a1c6d3) )
+	ROM_LOAD16_BYTE( "136048-1164.a12", 0x050001, 0x008000, CRC(49181bec) SHA1(79e042e4f079a9806ef12c5c8dfdc2e6e4f90011) )
+	ROM_LOAD16_BYTE( "136048-1165.c14", 0x060000, 0x008000, CRC(f63dc29a) SHA1(e54637b9d0b271aa9b58e89a442ac03ec812e1eb) )
+	ROM_LOAD16_BYTE( "136048-1166.a14", 0x060001, 0x008000, CRC(b1fc5955) SHA1(b860213a9b5ae7547c258812045e71795129598f) )
+	ROM_LOAD16_BYTE( "136048-1167.c16", 0x070000, 0x008000, CRC(c6d30d6f) SHA1(acb552976b2dcfa585097ea246ca88034549c8ab) )
+	ROM_LOAD16_BYTE( "136048-1168.a16", 0x070001, 0x008000, CRC(16951020) SHA1(5e5a6ad4ae87723060232c7ecb837f5fc2a9be68) )
+	ROM_LOAD16_BYTE( "136048-2147.c17", 0x080000, 0x004000, CRC(5c1adf67) SHA1(53838a2f5059797991aa337a7bec32f7e694610a) )
+	ROM_LOAD16_BYTE( "136048-2148.a17", 0x080001, 0x004000, CRC(d9ac8966) SHA1(7d056c1eb8184b4261c5713b0d5799b2fd8bde2a) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for 6502 code */
 	ROM_LOAD( "136048-1149.e14",   0x4000, 0x4000, CRC(2e54f95e) SHA1(5056ddec3c88384ada1d2ee9b1532b9ba9f34e08) )
-	ROM_LOAD( "136048-1169.e15",   0x8000, 0x4000, CRC(ee318052) SHA1(f66ff39499697b7439dc62567e727fec769c1505) )//
-	ROM_LOAD( "136048-1170.e17",   0xc000, 0x4000, CRC(75dfec33) SHA1(3092348b98419bb23181d21406733d5d21cd3d82) )//
+	ROM_LOAD( "136048-1169.e15",   0x8000, 0x4000, CRC(ee318052) SHA1(f66ff39499697b7439dc62567e727fec769c1505) )
+	ROM_LOAD( "136048-1170.e17",   0xc000, 0x4000, CRC(75dfec33) SHA1(3092348b98419bb23181d21406733d5d21cd3d82) )
 
 	ROM_REGION( 0x2000, "alpha", 0 )
-	ROM_LOAD( "136032.107.b2", 0x00000, 0x02000, CRC(7a29dc07) SHA1(72ba464da01bd6d3a91b8d9997d5ac14b6f47aad) )
+	MOTHERBOARD_ALPHA
 
 	ROM_REGION( 0x380000, "tiles", ROMREGION_INVERT | ROMREGION_ERASEFF )
 	ROM_LOAD( "136048-1101.b4",  0x000000, 0x008000, CRC(fe342d27) SHA1(72deac16ab9b6b811f49d70d700d6bc3a904f9d5) )  /* bank 1, plane 0 *///
@@ -2276,8 +2325,8 @@ Note: The text on the board says "cocktail" but I suppose this is the cockpit ve
 
 ROM_START( roadblstcg )
 	ROM_REGION( 0x88000, "maincpu", 0 ) /* 8.5*64k for 68000 code & slapstic ROM */
-	ROM_LOAD16_BYTE( "136032-117-l9",  0x000001, 0x004000, CRC(9af9fe29) SHA1(1d5077662e4111ece9f8a5124394dad8b1abdc13) ) // alt bios roms? (to put in bios structure, or are they specific to this set?)
-	ROM_LOAD16_BYTE( "136032-116.m9",  0x000000, 0x004000, CRC(195c54ad) SHA1(d7cda3cd3db4c6f77074ca05e96ae11b62e048b7) ) //
+	MOTHERBOARD_BIOS
+	ROM_DEFAULT_BIOS("lsi") // only works with LSI BIOS
 
 	ROM_LOAD16_BYTE( "136048-1235.7p",  0x010000, 0x008000, CRC(58b2998f) SHA1(7e9f4ca2b15cf60c61e0615f214f9fcc518cb194) )
 	ROM_LOAD16_BYTE( "136048-1236.8p",  0x010001, 0x008000, CRC(02e23a40) SHA1(6525351669e95dab869c7adc7d992d12d9313aee) )
@@ -2291,7 +2340,6 @@ ROM_START( roadblstcg )
 	ROM_LOAD16_BYTE( "136048-2146.8n",  0x070001, 0x008000, CRC(16951020) SHA1(5e5a6ad4ae87723060232c7ecb837f5fc2a9be68) )
 	ROM_LOAD16_BYTE( "136048-2147.7k",  0x080000, 0x004000, CRC(5c1adf67) SHA1(53838a2f5059797991aa337a7bec32f7e694610a) )
 	ROM_LOAD16_BYTE( "136048-2148.8k",  0x080001, 0x004000, CRC(d9ac8966) SHA1(7d056c1eb8184b4261c5713b0d5799b2fd8bde2a) )
-
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for 6502 code */
 	ROM_LOAD( "136048-1149.c8",   0x4000, 0x4000, CRC(2e54f95e) SHA1(5056ddec3c88384ada1d2ee9b1532b9ba9f34e08) ) //
@@ -2354,6 +2402,8 @@ ROM_END
 ROM_START( roadblstc1 )
 	ROM_REGION( 0x88000, "maincpu", 0 ) /* 8.5*64k for 68000 code & slapstic ROM */
 	MOTHERBOARD_BIOS
+	ROM_DEFAULT_BIOS("lsi") // only works with LSI BIOS
+
 	ROM_LOAD16_BYTE( "136048-2135.7p",  0x010000, 0x008000, CRC(c0ef86df) SHA1(7dd4d2acba55dc001e009c37fae5a97a53ea1e66) )
 	ROM_LOAD16_BYTE( "136048-2136.8p",  0x010001, 0x008000, CRC(9637e2f0) SHA1(86257e1316356c1a7d86bcf7b57bcaff33ac3df5) )
 	ROM_LOAD16_BYTE( "136048-2137.7r",  0x020000, 0x008000, CRC(5382ab85) SHA1(1511dfaf8537980e506e4180a23ffcfcfec81451) )
@@ -2429,47 +2479,42 @@ ROM_END
  *
  *************************************/
 
-DRIVER_INIT_MEMBER(atarisy1_state,marble)
+void atarisy1_state::init_marble()
 {
-	slapstic_configure(*m_maincpu, 0x080000, 0, memregion("maincpu")->base() + 0x80000);
+	m_slapstic->legacy_configure(*m_maincpu, 0x080000, 0, memregion("maincpu")->base() + 0x80000);
 
-	m_joystick_type = 0;    /* none */
 	m_trackball_type = 1;   /* rotated */
 }
 
 
-DRIVER_INIT_MEMBER(atarisy1_state,peterpak)
+void atarisy1_state::init_peterpak()
 {
-	slapstic_configure(*m_maincpu, 0x080000, 0, memregion("maincpu")->base() + 0x80000);
+	m_slapstic->legacy_configure(*m_maincpu, 0x080000, 0, memregion("maincpu")->base() + 0x80000);
 
-	m_joystick_type = 1;    /* digital */
 	m_trackball_type = 0;   /* none */
 }
 
 
-DRIVER_INIT_MEMBER(atarisy1_state,indytemp)
+void atarisy1_state::init_indytemp()
 {
-	slapstic_configure(*m_maincpu, 0x080000, 0, memregion("maincpu")->base() + 0x80000);
+	m_slapstic->legacy_configure(*m_maincpu, 0x080000, 0, memregion("maincpu")->base() + 0x80000);
 
-	m_joystick_type = 1;    /* digital */
 	m_trackball_type = 0;   /* none */
 }
 
 
-DRIVER_INIT_MEMBER(atarisy1_state,roadrunn)
+void atarisy1_state::init_roadrunn()
 {
-	slapstic_configure(*m_maincpu, 0x080000, 0, memregion("maincpu")->base() + 0x80000);
+	m_slapstic->legacy_configure(*m_maincpu, 0x080000, 0, memregion("maincpu")->base() + 0x80000);
 
-	m_joystick_type = 2;    /* analog */
 	m_trackball_type = 0;   /* none */
 }
 
 
-DRIVER_INIT_MEMBER(atarisy1_state,roadblst)
+void atarisy1_state::init_roadblst()
 {
-	slapstic_configure(*m_maincpu, 0x080000, 0, memregion("maincpu")->base() + 0x80000);
+	m_slapstic->legacy_configure(*m_maincpu, 0x080000, 0, memregion("maincpu")->base() + 0x80000);
 
-	m_joystick_type = 3;    /* pedal */
 	m_trackball_type = 2;   /* steering wheel */
 }
 
@@ -2481,35 +2526,35 @@ DRIVER_INIT_MEMBER(atarisy1_state,roadblst)
  *
  *************************************/
 
-GAME( 1984, atarisy1, 0,        peterpak, peterpak, atarisy1_state, peterpak, ROT0, "Atari Games", "Atari System 1 BIOS", MACHINE_IS_BIOS_ROOT )
+GAME( 1984, atarisy1,   0,        peterpak, peterpak, atarisy1_state, init_peterpak, ROT0, "Atari Games", "Atari System 1 BIOS", MACHINE_IS_BIOS_ROOT )
 
-GAME( 1984, marble,   atarisy1, marble,   marble, atarisy1_state,   marble,   ROT0, "Atari Games", "Marble Madness (set 1)", 0 )
-GAME( 1984, marble2,  marble,   marble,   marble, atarisy1_state,   marble,   ROT0, "Atari Games", "Marble Madness (set 2)", 0 )
-GAME( 1984, marble3,  marble,   marble,   marble, atarisy1_state,   marble,   ROT0, "Atari Games", "Marble Madness (set 3)", 0 )
-GAME( 1984, marble4,  marble,   marble,   marble, atarisy1_state,   marble,   ROT0, "Atari Games", "Marble Madness (set 4)", 0 )
-GAME( 1984, marble5,  marble,   marble,   marble, atarisy1_state,   marble,   ROT0, "Atari Games", "Marble Madness (set 5 - LSI Cartridge)", 0 )
+GAME( 1984, marble,     atarisy1, marble,   marble,   atarisy1_state, init_marble,   ROT0, "Atari Games", "Marble Madness (set 1)", 0 )
+GAME( 1984, marble2,    marble,   marble,   marble,   atarisy1_state, init_marble,   ROT0, "Atari Games", "Marble Madness (set 2)", 0 )
+GAME( 1984, marble3,    marble,   marble,   marble,   atarisy1_state, init_marble,   ROT0, "Atari Games", "Marble Madness (set 3)", 0 )
+GAME( 1984, marble4,    marble,   marble,   marble,   atarisy1_state, init_marble,   ROT0, "Atari Games", "Marble Madness (set 4)", 0 )
+GAME( 1984, marble5,    marble,   marble,   marble,   atarisy1_state, init_marble,   ROT0, "Atari Games", "Marble Madness (set 5 - LSI Cartridge)", 0 )
 
-GAME( 1984, peterpak, atarisy1, peterpak, peterpak, atarisy1_state, peterpak, ROT0, "Atari Games", "Peter Pack Rat", 0 )
+GAME( 1984, peterpak,   atarisy1, peterpak, peterpak, atarisy1_state, init_peterpak, ROT0, "Atari Games", "Peter Pack Rat", 0 )
 
-GAME( 1985, indytemp, atarisy1, indytemp, indytemp, atarisy1_state, indytemp, ROT0, "Atari Games", "Indiana Jones and the Temple of Doom (set 1)", 0 )
-GAME( 1985, indytemp2,indytemp, indytemp, indytemp, atarisy1_state, indytemp, ROT0, "Atari Games", "Indiana Jones and the Temple of Doom (set 2)", 0 )
-GAME( 1985, indytemp3,indytemp, indytemp, indytemp, atarisy1_state, indytemp, ROT0, "Atari Games", "Indiana Jones and the Temple of Doom (set 3)", 0 )
-GAME( 1985, indytemp4,indytemp, indytemp, indytemp, atarisy1_state, indytemp, ROT0, "Atari Games", "Indiana Jones and the Temple of Doom (set 4)", 0 )
-GAME( 1985, indytempd,indytemp, indytemp, indytemp, atarisy1_state, indytemp, ROT0, "Atari Games", "Indiana Jones and the Temple of Doom (German)", 0 )
-GAME( 1985, indytempc,indytemp, indytemp, indytemc, atarisy1_state, indytemp, ROT0, "Atari Games", "Indiana Jones and the Temple of Doom (Cocktail)", MACHINE_IMPERFECT_GRAPHICS )
+GAME( 1985, indytemp,   atarisy1, indytemp, indytemp, atarisy1_state, init_indytemp, ROT0, "Atari Games", "Indiana Jones and the Temple of Doom (set 1)", MACHINE_IMPERFECT_SOUND )
+GAME( 1985, indytemp2,  indytemp, indytemp, indytemp, atarisy1_state, init_indytemp, ROT0, "Atari Games", "Indiana Jones and the Temple of Doom (set 2)", MACHINE_IMPERFECT_SOUND )
+GAME( 1985, indytemp3,  indytemp, indytemp, indytemp, atarisy1_state, init_indytemp, ROT0, "Atari Games", "Indiana Jones and the Temple of Doom (set 3)", MACHINE_IMPERFECT_SOUND )
+GAME( 1985, indytemp4,  indytemp, indytemp, indytemp, atarisy1_state, init_indytemp, ROT0, "Atari Games", "Indiana Jones and the Temple of Doom (set 4)", MACHINE_IMPERFECT_SOUND )
+GAME( 1985, indytempd,  indytemp, indytemp, indytemp, atarisy1_state, init_indytemp, ROT0, "Atari Games", "Indiana Jones and the Temple of Doom (German)", MACHINE_IMPERFECT_SOUND )
+GAME( 1985, indytempc,  indytemp, indytemp, indytemc, atarisy1_state, init_indytemp, ROT0, "Atari Games", "Indiana Jones and the Temple of Doom (cocktail)", MACHINE_IMPERFECT_SOUND | MACHINE_IMPERFECT_GRAPHICS )
 
-GAME( 1985, roadrunn, atarisy1, roadrunn, roadrunn, atarisy1_state, roadrunn, ROT0, "Atari Games", "Road Runner (rev 2)", 0 )
-GAME( 1985, roadrunn2,roadrunn, roadrunn, roadrunn, atarisy1_state, roadrunn, ROT0, "Atari Games", "Road Runner (rev 1+)", 0 )
-GAME( 1985, roadrunn1,roadrunn, roadrunn, roadrunn, atarisy1_state, roadrunn, ROT0, "Atari Games", "Road Runner (rev 1)", 0 )
+GAME( 1985, roadrunn,   atarisy1, roadrunn, roadrunn, atarisy1r_state, init_roadrunn, ROT0, "Atari Games", "Road Runner (rev 2)", 0 )
+GAME( 1985, roadrunn2,  roadrunn, roadrunn, roadrunn, atarisy1r_state, init_roadrunn, ROT0, "Atari Games", "Road Runner (rev 1+)", 0 )
+GAME( 1985, roadrunn1,  roadrunn, roadrunn, roadrunn, atarisy1r_state, init_roadrunn, ROT0, "Atari Games", "Road Runner (rev 1)", 0 )
 
-GAME( 1987, roadblst,   atarisy1, roadb110, roadblst, atarisy1_state, roadblst, ROT0, "Atari Games", "Road Blasters (upright, rev 4)", 0 )
-GAME( 1987, roadblstg,  roadblst, roadb109, roadblst, atarisy1_state, roadblst, ROT0, "Atari Games", "Road Blasters (upright, German, rev 3)", 0 )
-GAME( 1987, roadblst3,  roadblst, roadb109, roadblst, atarisy1_state, roadblst, ROT0, "Atari Games", "Road Blasters (upright, rev 3)", 0 )
-GAME( 1987, roadblstg2, roadblst, roadb110, roadblst, atarisy1_state, roadblst, ROT0, "Atari Games", "Road Blasters (upright, German, rev 2)", 0 )
-GAME( 1987, roadblst2,  roadblst, roadb110, roadblst, atarisy1_state, roadblst, ROT0, "Atari Games", "Road Blasters (upright, rev 2)", 0 )
-GAME( 1987, roadblstg1, roadblst, roadb109, roadblst, atarisy1_state, roadblst, ROT0, "Atari Games", "Road Blasters (upright, German, rev 1)", 0 )
-GAME( 1987, roadblst1,  roadblst, roadb109, roadblst, atarisy1_state, roadblst, ROT0, "Atari Games", "Road Blasters (upright, rev 1)", 0 )
-GAME( 1987, roadblstc,  roadblst, roadb110, roadblst, atarisy1_state, roadblst, ROT0, "Atari Games", "Road Blasters (cockpit, rev 2)", 0 )
-GAME( 1987, roadblstcg, roadblst, roadb109, roadblst, atarisy1_state, roadblst, ROT0, "Atari Games", "Road Blasters (cockpit, German, rev 1)", MACHINE_IMPERFECT_GRAPHICS )
-GAME( 1987, roadblstc1, roadblst, roadb109, roadblst, atarisy1_state, roadblst, ROT0, "Atari Games", "Road Blasters (cockpit, rev 1)", MACHINE_IMPERFECT_GRAPHICS )
-GAME( 1987, roadblstgu, roadblst, roadb109, roadblst, atarisy1_state, roadblst, ROT0, "Atari Games", "Road Blasters (upright, German, rev ?)", 0 )
+GAME( 1987, roadblst,   atarisy1, roadb110, roadblst, atarisy1r_state, init_roadblst, ROT0, "Atari Games", "Road Blasters (upright, rev 4)", 0 )
+GAME( 1987, roadblstg,  roadblst, roadb109, roadblst, atarisy1r_state, init_roadblst, ROT0, "Atari Games", "Road Blasters (upright, German, rev 3)", 0 )
+GAME( 1987, roadblst3,  roadblst, roadb109, roadblst, atarisy1r_state, init_roadblst, ROT0, "Atari Games", "Road Blasters (upright, rev 3)", 0 )
+GAME( 1987, roadblstg2, roadblst, roadb110, roadblst, atarisy1r_state, init_roadblst, ROT0, "Atari Games", "Road Blasters (upright, German, rev 2)", 0 )
+GAME( 1987, roadblst2,  roadblst, roadb110, roadblst, atarisy1r_state, init_roadblst, ROT0, "Atari Games", "Road Blasters (upright, rev 2)", 0 )
+GAME( 1987, roadblstg1, roadblst, roadb109, roadblst, atarisy1r_state, init_roadblst, ROT0, "Atari Games", "Road Blasters (upright, German, rev 1)", 0 )
+GAME( 1987, roadblst1,  roadblst, roadb109, roadblst, atarisy1r_state, init_roadblst, ROT0, "Atari Games", "Road Blasters (upright, rev 1)", 0 )
+GAME( 1987, roadblstc,  roadblst, roadb110, roadblst, atarisy1r_state, init_roadblst, ROT0, "Atari Games", "Road Blasters (cockpit, rev 2)", 0 )
+GAME( 1987, roadblstcg, roadblst, roadb109, roadblst, atarisy1r_state, init_roadblst, ROT0, "Atari Games", "Road Blasters (cockpit, German, rev 1)", 0 )
+GAME( 1987, roadblstc1, roadblst, roadb109, roadblst, atarisy1r_state, init_roadblst, ROT0, "Atari Games", "Road Blasters (cockpit, rev 1)", 0 )
+GAME( 1987, roadblstgu, roadblst, roadb109, roadblst, atarisy1r_state, init_roadblst, ROT0, "Atari Games", "Road Blasters (upright, German, rev ?)", 0 )

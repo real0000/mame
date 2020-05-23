@@ -87,7 +87,7 @@
 #include <iterator>
 #include <utility>
 
-#include <ctype.h>
+#include <cctype>
 
 
 
@@ -138,7 +138,7 @@ inline std::string number_and_format::format() const
 //  cheat_parameter - constructor
 //-------------------------------------------------
 
-cheat_parameter::cheat_parameter(cheat_manager &manager, symbol_table &symbols, const char *filename, util::xml::data_node const &paramnode)
+cheat_parameter::cheat_parameter(cheat_manager &manager, symbol_table &symbols, std::string const &filename, util::xml::data_node const &paramnode)
 	: m_minval(number_and_format(paramnode.get_attribute_int("min", 0), paramnode.get_attribute_int_format("min")))
 	, m_maxval(number_and_format(paramnode.get_attribute_int("max", 0), paramnode.get_attribute_int_format("max")))
 	, m_stepval(number_and_format(paramnode.get_attribute_int("step", 1), paramnode.get_attribute_int_format("step")))
@@ -153,7 +153,7 @@ cheat_parameter::cheat_parameter(cheat_manager &manager, symbol_table &symbols, 
 		if (!itemnode->get_value() || !itemnode->get_value()[0])
 			throw emu_fatalerror("%s.xml(%d): item is missing text\n", filename, itemnode->line);
 
-		// check for non-existant value
+		// check for non-existent value
 		if (!itemnode->has_attribute("value"))
 			throw emu_fatalerror("%s.xml(%d): item is value\n", filename, itemnode->line);
 
@@ -310,6 +310,9 @@ bool cheat_parameter::set_next_state()
 //  CHEAT SCRIPT
 //**************************************************************************
 
+constexpr int cheat_script::script_entry::MAX_ARGUMENTS;
+
+
 //-------------------------------------------------
 //  cheat_script - constructor
 //-------------------------------------------------
@@ -317,7 +320,7 @@ bool cheat_parameter::set_next_state()
 cheat_script::cheat_script(
 		cheat_manager &manager,
 		symbol_table &symbols,
-		char const *filename,
+		std::string const &filename,
 		util::xml::data_node const &scriptnode)
 	: m_state(SCRIPT_STATE_RUN)
 {
@@ -395,11 +398,11 @@ void cheat_script::save(emu_file &cheatfile) const
 cheat_script::script_entry::script_entry(
 		cheat_manager &manager,
 		symbol_table &symbols,
-		char const *filename,
+		std::string const &filename,
 		util::xml::data_node const &entrynode,
 		bool isaction)
-	: m_condition(&symbols)
-	, m_expression(&symbols)
+	: m_condition(symbols)
+	, m_expression(symbols)
 {
 	char const *expression(nullptr);
 	try
@@ -571,7 +574,7 @@ void cheat_script::script_entry::save(emu_file &cheatfile) const
 //  has the correct number and type of arguments
 //-------------------------------------------------
 
-void cheat_script::script_entry::validate_format(const char *filename, int line)
+void cheat_script::script_entry::validate_format(std::string const &filename, int line)
 {
 	// first count arguments
 	int argsprovided(0);
@@ -605,9 +608,9 @@ void cheat_script::script_entry::validate_format(const char *filename, int line)
 cheat_script::script_entry::output_argument::output_argument(
 		cheat_manager &manager,
 		symbol_table &symbols,
-		char const *filename,
+		std::string const &filename,
 		util::xml::data_node const &argnode)
-	: m_expression(&symbols)
+	: m_expression(symbols)
 	, m_count(0)
 {
 	// first extract attributes
@@ -674,9 +677,9 @@ void cheat_script::script_entry::output_argument::save(emu_file &cheatfile) cons
 //  cheat_entry - constructor
 //-------------------------------------------------
 
-cheat_entry::cheat_entry(cheat_manager &manager, symbol_table &globaltable, const char *filename, util::xml::data_node const &cheatnode)
+cheat_entry::cheat_entry(cheat_manager &manager, symbol_table &globaltable, std::string const &filename, util::xml::data_node const &cheatnode)
 	: m_manager(manager)
-	, m_symbols(&manager.machine(), &globaltable)
+	, m_symbols(&globaltable)
 	, m_state(SCRIPT_STATE_OFF)
 	, m_numtemp(DEFAULT_TEMP_VARIABLES)
 	, m_argindex(0)
@@ -810,14 +813,14 @@ bool cheat_entry::activate()
 		// if we're a oneshot cheat, execute the "on" script and indicate change
 		execute_on_script();
 		changed = true;
-		m_manager.machine().popmessage("Activated %s", m_description.c_str());
+		m_manager.machine().popmessage("Activated %s", m_description);
 	}
 	else if (is_oneshot_parameter() && (m_state != SCRIPT_STATE_OFF))
 	{
 		// if we're a oneshot parameter cheat and we're active, execute the "state change" script and indicate change
 		execute_change_script();
 		changed = true;
-		m_manager.machine().popmessage("Activated\n %s = %s", m_description.c_str(), m_parameter->text());
+		m_manager.machine().popmessage("Activated\n %s = %s", m_description, m_parameter->text());
 	}
 
 	return changed;
@@ -1055,22 +1058,28 @@ constexpr int cheat_manager::CHEAT_VERSION;
 cheat_manager::cheat_manager(running_machine &machine)
 	: m_machine(machine)
 	, m_disabled(true)
-	, m_symtable(&machine)
+	, m_symtable()
 {
 	// if the cheat engine is disabled, we're done
 	if (!machine.options().cheat())
 		return;
 
-	m_output.resize(UI_TARGET_FONT_ROWS * 2);
-	m_justify.resize(UI_TARGET_FONT_ROWS * 2);
+	// in its current form, cheat_manager is tightly coupled to mame_ui_manager; therefore we
+	// expect this call to succeed
+	mame_ui_manager *ui = dynamic_cast<mame_ui_manager *>(&machine.ui());
+	assert(ui);
+
+	int target_font_rows = ui->options().font_rows();
+	m_output.resize(target_font_rows * 2);
+	m_justify.resize(target_font_rows * 2);
 
 	// request a callback
 	machine.add_notifier(MACHINE_NOTIFY_FRAME, machine_notify_delegate(&cheat_manager::frame_update, this));
 
 	// create a global symbol table
 	m_symtable.add("frame", symbol_table::READ_ONLY, &m_framecount);
-	m_symtable.add("frombcd", nullptr, 1, 1, execute_frombcd);
-	m_symtable.add("tobcd", nullptr, 1, 1, execute_tobcd);
+	m_symtable.add("frombcd", 1, 1, execute_frombcd);
+	m_symtable.add("tobcd", 1, 1, execute_tobcd);
 
 	// we rely on the debugger expression callbacks; if the debugger isn't
 	// enabled, we must jumpstart them manually
@@ -1161,7 +1170,7 @@ void cheat_manager::reload()
 			// have the same shortname
 			if (image.loaded_through_softlist())
 			{
-				load_cheats(string_format("%s%s%s", image.software_list_name(), PATH_SEPARATOR, image.basename()).c_str());
+				load_cheats(string_format("%s" PATH_SEPARATOR "%s", image.software_list_name(), image.basename()));
 				break;
 			}
 			// else we are loading outside the software list, try to load machine_basename/crc32.xml
@@ -1170,7 +1179,7 @@ void cheat_manager::reload()
 				uint32_t crc = image.crc();
 				if (crc != 0)
 				{
-					load_cheats(string_format("%s%s%08X", machine().basename(), PATH_SEPARATOR, crc).c_str());
+					load_cheats(string_format("%s" PATH_SEPARATOR "%08X", machine().basename(), crc));
 					break;
 				}
 			}
@@ -1192,11 +1201,11 @@ void cheat_manager::reload()
 //  memory to the given filename
 //-------------------------------------------------
 
-bool cheat_manager::save_all(const char *filename)
+bool cheat_manager::save_all(std::string const &filename)
 {
 	// open the file with the proper name
 	emu_file cheatfile(machine().options().cheat_path(), OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
-	osd_file::error const filerr(cheatfile.open(filename, ".xml"));
+	osd_file::error const filerr(cheatfile.open(filename + ".xml"));
 
 	// if that failed, return nothing
 	if (filerr != osd_file::error::NONE)
@@ -1221,7 +1230,7 @@ bool cheat_manager::save_all(const char *filename)
 	catch (emu_fatalerror const &err)
 	{
 		// catch errors and cleanup
-		osd_printf_error("%s\n", err.string());
+		osd_printf_error("%s\n", err.what());
 		cheatfile.remove_on_close();
 	}
 	return false;
@@ -1320,7 +1329,7 @@ std::string cheat_manager::quote_expression(const parsed_expression &expression)
 //  execute_frombcd - convert a value from BCD
 //-------------------------------------------------
 
-uint64_t cheat_manager::execute_frombcd(symbol_table &table, void *ref, int params, const uint64_t *param)
+uint64_t cheat_manager::execute_frombcd(int params, const uint64_t *param)
 {
 	uint64_t value(param[0]);
 	uint64_t multiplier(1);
@@ -1340,7 +1349,7 @@ uint64_t cheat_manager::execute_frombcd(symbol_table &table, void *ref, int para
 //  execute_tobcd - convert a value to BCD
 //-------------------------------------------------
 
-uint64_t cheat_manager::execute_tobcd(symbol_table &table, void *ref, int params, const uint64_t *param)
+uint64_t cheat_manager::execute_tobcd(int params, const uint64_t *param)
 {
 	uint64_t value(param[0]);
 	uint64_t result(0);
@@ -1383,19 +1392,19 @@ void cheat_manager::frame_update()
 //  and create the cheat entry list
 //-------------------------------------------------
 
-void cheat_manager::load_cheats(const char *filename)
+void cheat_manager::load_cheats(std::string const &filename)
 {
 	std::string searchstr(machine().options().cheat_path());
 	std::string curpath;
 	for (path_iterator path(searchstr); path.next(curpath); )
 	{
-		searchstr.append(";").append(curpath).append(PATH_SEPARATOR).append("cheat");
+		searchstr.append(";").append(curpath).append(PATH_SEPARATOR "cheat");
 	}
 	emu_file cheatfile(std::move(searchstr), OPEN_FLAG_READ);
 	try
 	{
 		// loop over all instrances of the files found in our search paths
-		for (osd_file::error filerr = cheatfile.open(filename, ".xml"); filerr == osd_file::error::NONE; filerr = cheatfile.open_next())
+		for (osd_file::error filerr = cheatfile.open(filename + ".xml"); filerr == osd_file::error::NONE; filerr = cheatfile.open_next())
 		{
 			osd_printf_verbose("Loading cheats file from %s\n", cheatfile.fullpath());
 
@@ -1403,10 +1412,10 @@ void cheat_manager::load_cheats(const char *filename)
 			util::xml::parse_options options = { nullptr };
 			util::xml::parse_error error;
 			options.error = &error;
-			std::unique_ptr<util::xml::data_node, void (*)(util::xml::data_node *)> rootnode(util::xml::data_node::file_read(cheatfile, &options), [] (util::xml::data_node *node) { node->file_free(); });
+			util::xml::file::ptr const rootnode(util::xml::file::read(cheatfile, &options));
 
 			// if unable to parse the file, just bail
-			if (rootnode == nullptr)
+			if (!rootnode)
 				throw emu_fatalerror("%s.xml(%d): error parsing XML (%s)\n", filename, error.error_line, error.error_message);
 
 			// find the layout node
@@ -1441,7 +1450,7 @@ void cheat_manager::load_cheats(const char *filename)
 				catch (emu_fatalerror const &err)
 				{
 					// just move on to the next cheat
-					osd_printf_error("%s\n", err.string());
+					osd_printf_error("%s\n", err.what());
 				}
 			}
 		}
@@ -1449,7 +1458,7 @@ void cheat_manager::load_cheats(const char *filename)
 	catch (emu_fatalerror const &err)
 	{
 		// handle errors cleanly
-		osd_printf_error("%s\n", err.string());
+		osd_printf_error("%s\n", err.what());
 		m_cheatlist.clear();
 	}
 }

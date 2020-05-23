@@ -66,7 +66,7 @@ Secret menu hack [totmejan only] (I couldn't find official way to enter, so it's
     Keys: Z
 
     PC=ECC72; 'HMODE' screen
-
+    TODO: find an actual way to access above, at worst find a suitable entry point -AS;
 
 *******************************************************************************************/
 
@@ -77,33 +77,48 @@ Secret menu hack [totmejan only] (I couldn't find official way to enter, so it's
 #include "sound/3812intf.h"
 #include "sound/okim6295.h"
 #include "video/seibu_crtc.h"
+#include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
+#include "tilemap.h"
 
 
-class goodejan_state : public driver_device
+class goodejan_state : public driver_device, public seibu_sound_common
 {
 public:
-	goodejan_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu"),
-		m_gfxdecode(*this, "gfxdecode"),
-		m_palette(*this, "palette"),
-		m_sc0_vram(*this, "sc0_vram"),
-		m_sc1_vram(*this, "sc1_vram"),
-		m_sc2_vram(*this, "sc2_vram"),
-		m_sc3_vram(*this, "sc3_vram"),
-		m_spriteram16(*this, "sprite_ram") { }
+	goodejan_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_gfxdecode(*this, "gfxdecode")
+		, m_palette(*this, "palette")
+		, m_crtc(*this, "crtc")
+		, m_sc0_vram(*this, "sc0_vram")
+		, m_sc1_vram(*this, "sc1_vram")
+		, m_sc2_vram(*this, "sc2_vram")
+		, m_sc3_vram(*this, "sc3_vram")
+		, m_spriteram16(*this, "sprite_ram")
+		, m_key(*this, "KEY%u", 0)
+	{ }
 
+	void totmejan(machine_config &config);
+	void goodejan(machine_config &config);
+
+protected:
+	virtual void video_start() override;
+
+private:
 	required_device<cpu_device> m_maincpu;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<palette_device> m_palette;
+	required_device<seibu_crtc_device> m_crtc;
 
 	required_shared_ptr<uint16_t> m_sc0_vram;
 	required_shared_ptr<uint16_t> m_sc1_vram;
 	required_shared_ptr<uint16_t> m_sc2_vram;
 	required_shared_ptr<uint16_t> m_sc3_vram;
 	required_shared_ptr<uint16_t> m_spriteram16;
+
+	required_ioport_array<5> m_key;
 
 	tilemap_t *m_sc0_tilemap;
 	tilemap_t *m_sc1_tilemap;
@@ -122,20 +137,24 @@ public:
 	DECLARE_WRITE16_MEMBER(seibucrtc_sc1vram_w);
 	DECLARE_WRITE16_MEMBER(seibucrtc_sc2vram_w);
 	DECLARE_WRITE16_MEMBER(seibucrtc_sc3vram_w);
-	DECLARE_WRITE16_MEMBER(layer_en_w);
-	DECLARE_WRITE16_MEMBER(layer_scroll_w);
+	void layer_en_w(uint16_t data);
+	void layer_scroll_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 
 	TILE_GET_INFO_MEMBER(seibucrtc_sc0_tile_info);
 	TILE_GET_INFO_MEMBER(seibucrtc_sc1_tile_info);
 	TILE_GET_INFO_MEMBER(seibucrtc_sc2_tile_info);
 	TILE_GET_INFO_MEMBER(seibucrtc_sc3_tile_info);
 
-	INTERRUPT_GEN_MEMBER(irq);
+	DECLARE_WRITE_LINE_MEMBER(vblank_irq);
 
 	void seibucrtc_sc0bank_w(uint16_t data);
 	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect,int pri);
-	virtual void video_start() override;
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+	void common_io_map(address_map &map);
+	void goodejan_io_map(address_map &map);
+	void goodejan_map(address_map &map);
+	void totmejan_io_map(address_map &map);
 };
 
 /*******************************
@@ -179,65 +198,6 @@ public:
 * 0x2a - Screen 2 (MD) scroll y
 ************************************/
 #define SEIBU_CRTC_SC2_SY   (m_scrollram[3])
-
-#if 0
-/*******************************
-* 0x1a - Layer Dynamic Paging?
-*******************************/
-#define SEIBU_CRTC_DYN_PAGING   (m_seibucrtc_vregs[0x001a/2])
-#define SEIBU_CRTC_SC3_PAGE_SEL (SEIBU_CRTC_DYN_PAGING & 0x0002)
-
-/*******************************
-* 0x1c - Layer Enable
-*******************************/
-#define SEIBU_CRTC_LAYER_EN     (m_seibucrtc_vregs[0x001c/2])
-#define SEIBU_CRTC_ENABLE_SC0   (!(SEIBU_CRTC_LAYER_EN & 0x0001))
-#define SEIBU_CRTC_ENABLE_SC2   (!(SEIBU_CRTC_LAYER_EN & 0x0002))
-#define SEIBU_CRTC_ENABLE_SC1   (!(SEIBU_CRTC_LAYER_EN & 0x0004))
-#define SEIBU_CRTC_ENABLE_SC3   (!(SEIBU_CRTC_LAYER_EN & 0x0008))
-#define SEIBU_CRTC_ENABLE_SPR   (!(SEIBU_CRTC_LAYER_EN & 0x0010))
-
-/************************************
-* 0x20 - Screen 0 (BG) scroll x
-************************************/
-#define SEIBU_CRTC_SC0_SX   (m_seibucrtc_vregs[0x0020/2])
-
-/************************************
-* 0x22 - Screen 0 (BG) scroll y
-************************************/
-#define SEIBU_CRTC_SC0_SY   (m_seibucrtc_vregs[0x0022/2])
-
-/************************************
-* 0x24 - Screen 1 (FG) scroll x
-************************************/
-#define SEIBU_CRTC_SC1_SX   (m_seibucrtc_vregs[0x0028/2])
-
-/************************************
-* 0x26 - Screen 1 (FG) scroll y
-************************************/
-#define SEIBU_CRTC_SC1_SY   (m_seibucrtc_vregs[0x002a/2])
-
-/************************************
-* 0x28 - Screen 2 (MD) scroll x
-************************************/
-#define SEIBU_CRTC_SC2_SX   (m_seibucrtc_vregs[0x0024/2])
-
-/************************************
-* 0x2a - Screen 2 (MD) scroll y
-************************************/
-#define SEIBU_CRTC_SC2_SY   (m_seibucrtc_vregs[0x0026/2])
-
-/************************************
-* 0x2c - Fix screen scroll x (global)
-************************************/
-#define SEIBU_CRTC_FIX_SX   (m_seibucrtc_vregs[0x002c/2])
-
-/************************************
-* 0x2e - Fix screen scroll y (global)
-************************************/
-#define SEIBU_CRTC_FIX_SY   (m_seibucrtc_vregs[0x002e/2])
-
-#endif
 
 /*******************************
 *
@@ -287,28 +247,28 @@ TILE_GET_INFO_MEMBER( goodejan_state::seibucrtc_sc0_tile_info )
 	int tile = m_sc0_vram[tile_index] & 0xfff;
 	int color = (m_sc0_vram[tile_index] >> 12) & 0x0f;
 	tile+=(m_seibucrtc_sc0bank<<12);
-	SET_TILE_INFO_MEMBER(1, tile, color, 0);
+	tileinfo.set(1, tile, color, 0);
 }
 
 TILE_GET_INFO_MEMBER( goodejan_state::seibucrtc_sc2_tile_info )
 {
 	int tile = m_sc2_vram[tile_index] & 0xfff;
 	int color = (m_sc2_vram[tile_index] >> 12) & 0x0f;
-	SET_TILE_INFO_MEMBER(2, tile, color, 0);
+	tileinfo.set(2, tile, color, 0);
 }
 
 TILE_GET_INFO_MEMBER( goodejan_state::seibucrtc_sc1_tile_info )
 {
 	int tile = m_sc1_vram[tile_index] & 0xfff;
 	int color = (m_sc1_vram[tile_index] >> 12) & 0x0f;
-	SET_TILE_INFO_MEMBER(3, tile, color, 0);
+	tileinfo.set(3, tile, color, 0);
 }
 
 TILE_GET_INFO_MEMBER( goodejan_state::seibucrtc_sc3_tile_info )
 {
 	int tile = m_sc3_vram[tile_index] & 0xfff;
 	int color = (m_sc3_vram[tile_index] >> 12) & 0x0f;
-	SET_TILE_INFO_MEMBER(4, tile, color, 0);
+	tileinfo.set(4, tile, color, 0);
 }
 
 void goodejan_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect,int pri)
@@ -353,10 +313,10 @@ void goodejan_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect
 
 void goodejan_state::video_start()
 {
-	m_sc0_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(goodejan_state::seibucrtc_sc0_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,32);
-	m_sc2_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(goodejan_state::seibucrtc_sc2_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,32);
-	m_sc1_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(goodejan_state::seibucrtc_sc1_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,32);
-	m_sc3_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(goodejan_state::seibucrtc_sc3_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_sc0_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(goodejan_state::seibucrtc_sc0_tile_info)), TILEMAP_SCAN_ROWS, 16,16,32,32);
+	m_sc2_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(goodejan_state::seibucrtc_sc2_tile_info)), TILEMAP_SCAN_ROWS, 16,16,32,32);
+	m_sc1_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(goodejan_state::seibucrtc_sc1_tile_info)), TILEMAP_SCAN_ROWS, 16,16,32,32);
+	m_sc3_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(goodejan_state::seibucrtc_sc3_tile_info)), TILEMAP_SCAN_ROWS, 8,8,32,32);
 
 	m_sc2_tilemap->set_transparent_pen(15);
 	m_sc1_tilemap->set_transparent_pen(15);
@@ -409,16 +369,13 @@ WRITE16_MEMBER(goodejan_state::gfxbank_w)
 /* Multiplexer device for the mahjong panel */
 READ16_MEMBER(goodejan_state::mahjong_panel_r)
 {
-	uint16_t ret;
+	u16 ret;
 	ret = 0xffff;
 
-	switch(m_mux_data)
+	for (int i=0; i<5; i++)
 	{
-		case 1:    ret = ioport("KEY0")->read(); break;
-		case 2:    ret = ioport("KEY1")->read(); break;
-		case 4:    ret = ioport("KEY2")->read(); break;
-		case 8:    ret = ioport("KEY3")->read(); break;
-		case 0x10: ret = ioport("KEY4")->read(); break;
+		if (m_mux_data & (1 << i))
+			ret &= m_key[i]->read();
 	}
 
 	return ret;
@@ -429,39 +386,49 @@ WRITE16_MEMBER(goodejan_state::mahjong_panel_w)
 	m_mux_data = data;
 }
 
-static ADDRESS_MAP_START( goodejan_map, AS_PROGRAM, 16, goodejan_state )
-	AM_RANGE(0x00000, 0x0afff) AM_RAM
-	AM_RANGE(0x0c000, 0x0c7ff) AM_RAM_WRITE(seibucrtc_sc0vram_w) AM_SHARE("sc0_vram")
-	AM_RANGE(0x0c800, 0x0cfff) AM_RAM_WRITE(seibucrtc_sc3vram_w) AM_SHARE("sc3_vram")
-	AM_RANGE(0x0d000, 0x0dfff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+void goodejan_state::goodejan_map(address_map &map)
+{
+	map(0x00000, 0x0afff).ram();
+	map(0x0c000, 0x0c7ff).ram().w(FUNC(goodejan_state::seibucrtc_sc0vram_w)).share("sc0_vram");
+	map(0x0c800, 0x0cfff).ram().w(FUNC(goodejan_state::seibucrtc_sc3vram_w)).share("sc3_vram");
+	map(0x0d000, 0x0dfff).ram().w(m_palette, FUNC(palette_device::write16)).share("palette");
 	/*Guess: these two aren't used/initialized at all.*/
-	AM_RANGE(0x0e000, 0x0e7ff) AM_RAM_WRITE(seibucrtc_sc1vram_w) AM_SHARE("sc1_vram")
-	AM_RANGE(0x0e800, 0x0efff) AM_RAM_WRITE(seibucrtc_sc2vram_w) AM_SHARE("sc2_vram")
-	AM_RANGE(0x0f800, 0x0ffff) AM_RAM AM_SHARE("sprite_ram")
-	AM_RANGE(0xc0000, 0xfffff) AM_ROM
-ADDRESS_MAP_END
+	map(0x0e000, 0x0e7ff).ram().w(FUNC(goodejan_state::seibucrtc_sc1vram_w)).share("sc1_vram");
+	map(0x0e800, 0x0efff).ram().w(FUNC(goodejan_state::seibucrtc_sc2vram_w)).share("sc2_vram");
+	map(0x0f800, 0x0ffff).ram().share("sprite_ram");
+	map(0xc0000, 0xfffff).rom();
+}
 
 /* totmejan CRTC is at 8000-804f,goodejan is at 8000-807f */
-static ADDRESS_MAP_START( common_io_map, AS_IO, 16, goodejan_state )
-	AM_RANGE(0x9000, 0x9001) AM_WRITE(gfxbank_w)
-	AM_RANGE(0xb000, 0xb003) AM_WRITENOP
-	AM_RANGE(0xb004, 0xb005) AM_WRITE(mahjong_panel_w)
+void goodejan_state::common_io_map(address_map &map)
+{
+	map(0x9000, 0x9001).w(FUNC(goodejan_state::gfxbank_w));
+	map(0xb000, 0xb003).nopw();
+	map(0xb004, 0xb005).w(FUNC(goodejan_state::mahjong_panel_w));
 
-	AM_RANGE(0xc000, 0xc001) AM_READ_PORT("DSW1")
-	AM_RANGE(0xc002, 0xc003) AM_READ(mahjong_panel_r)
-	AM_RANGE(0xc004, 0xc005) AM_READ_PORT("DSW2") // switches
-	AM_RANGE(0xd000, 0xd00f) AM_DEVREADWRITE("seibu_sound", seibu_sound_device, main_word_r, main_word_w)
-ADDRESS_MAP_END
+	map(0xc000, 0xc001).portr("DSW1");
+	map(0xc002, 0xc003).r(FUNC(goodejan_state::mahjong_panel_r));
+	map(0xc004, 0xc005).portr("DSW2"); // switches
+	map(0xd000, 0xd00f).rw("seibu_sound", FUNC(seibu_sound_device::main_r), FUNC(seibu_sound_device::main_w)).umask16(0x00ff);
+}
 
-static ADDRESS_MAP_START( totmejan_io_map, AS_IO, 16, goodejan_state )
-	AM_RANGE(0x8000, 0x804f) AM_DEVREADWRITE("crtc", seibu_crtc_device, read, write)
-	AM_IMPORT_FROM(common_io_map)
-ADDRESS_MAP_END
+void goodejan_state::totmejan_io_map(address_map &map)
+{
+	common_io_map(map);
+	map(0x8000, 0x804f).rw(m_crtc, FUNC(seibu_crtc_device::read), FUNC(seibu_crtc_device::write));
+}
 
-static ADDRESS_MAP_START( goodejan_io_map, AS_IO, 16, goodejan_state )
-	AM_RANGE(0x8000, 0x807f) AM_DEVREADWRITE("crtc", seibu_crtc_device, read_xor, write_xor)
-	AM_IMPORT_FROM(common_io_map)
-ADDRESS_MAP_END
+void goodejan_state::goodejan_io_map(address_map &map)
+{
+	common_io_map(map);
+	map(0x8000, 0x807f).lrw16(
+							  NAME([this](address_space &space, offs_t offset, u16 mem_mask) {
+								  return m_crtc->read(space, offset ^ 0x20, mem_mask);
+							  }),
+							  NAME([this](address_space &space, offs_t offset, u16 data, u16 mem_mask) {
+								  m_crtc->write(space, offset ^ 0x20, data, mem_mask);
+							  }));
+}
 
 static INPUT_PORTS_START( goodejan )
 	SEIBU_COIN_INPUTS   /* coin inputs read through sound cpu */
@@ -546,19 +513,22 @@ static INPUT_PORTS_START( goodejan )
 	PORT_DIPSETTING(      0x0040, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
 	PORT_DIPUNKNOWN_DIPLOC( 0x0080, 0x0080, "DSWA:8" )
-
-		PORT_DIPNAME( 0x0300, 0x0100, "Starting Points" )             PORT_DIPLOCATION("DSWB:1,2")
+	PORT_DIPNAME( 0x0300, 0x0300, "Starting Points" )             PORT_DIPLOCATION("DSWB:1,2")
 	PORT_DIPSETTING(      0x0300, "1500" )
 	PORT_DIPSETTING(      0x0200, "2000" )
 	PORT_DIPSETTING(      0x0100, "1000" )
 	PORT_DIPSETTING(      0x0000, "3000" )
-
-	PORT_DIPUNKNOWN_DIPLOC( 0x0400, 0x0400, "DSWB:3" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x0800, 0x0800, "DSWB:4" )
-/*  [totmejan] Game definitely uses these, reads these 2 bits and stores at address 01A28h as 0-1st bit;
-    Sub-routine at E7C19h does some arithmetic operations depending on these.
-    I cound't understand whats going on. Call performs just before dealing tiles. */
-
+/*
+ *  [totmejan]
+ *  Before every hand game calls a subroutine at 0xe7c19, and reads these 2 bits from 0x01A28 work RAM buffer.
+ *  This affects the tile distribution RNG via a complex algo for the end goal of giving the player a more or less
+ *  favorable hand depending on the setting.
+ */
+	PORT_DIPNAME( 0x0c00, 0x0c00, DEF_STR( Difficulty ) )         PORT_DIPLOCATION("DSWB:3,4")
+	PORT_DIPSETTING(      0x0800, DEF_STR( Easy ) )
+	PORT_DIPSETTING(      0x0c00, DEF_STR( Normal ) )
+	PORT_DIPSETTING(      0x0400, DEF_STR( Hard ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( Hardest ) )
 	PORT_DIPNAME( 0x1000, 0x1000, DEF_STR( Demo_Sounds ) )        PORT_DIPLOCATION("DSWB:5")
 	PORT_DIPSETTING(      0x1000, DEF_STR( On ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( Off ) )
@@ -569,8 +539,9 @@ static INPUT_PORTS_START( goodejan )
 	PORT_DIPUNKNOWN_DIPLOC( 0x8000, 0x8000, "DSWB:8" )
 
 	PORT_START("DSW2")
-		PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_SERVICE1 )
-		PORT_BIT( 0xfffe, IP_ACTIVE_LOW, IPT_UNKNOWN ) // 0x0002 must be kept low to work as service coin
+	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_SERVICE1 )
+	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_SERVICE2 )
+	PORT_BIT( 0xfffc, IP_ACTIVE_LOW, IPT_UNKNOWN ) // 0x0002 must be kept low to work as service coin
 INPUT_PORTS_END
 
 
@@ -604,7 +575,7 @@ static const gfx_layout charlayout =
 	8*32
 };
 
-static GFXDECODE_START( goodejan )
+static GFXDECODE_START( gfx_goodejan )
 	GFXDECODE_ENTRY( "spr_gfx", 0,tilelayout, 0x200, 0x40 ) /* Sprites */
 	GFXDECODE_ENTRY( "bg_gfx", 0, tilelayout, 0x000, 0x30 ) /* Tiles */
 	GFXDECODE_ENTRY( "md_gfx", 0, tilelayout, 0x300, 0x10 ) /* Text */
@@ -612,73 +583,73 @@ static GFXDECODE_START( goodejan )
 	GFXDECODE_ENTRY( "tx_gfx", 0, charlayout, 0x100, 0x10 ) /* Text */
 GFXDECODE_END
 
-INTERRUPT_GEN_MEMBER(goodejan_state::irq)
+WRITE_LINE_MEMBER(goodejan_state::vblank_irq)
 {
-	device.execute().set_input_line_and_vector(0,HOLD_LINE,0x208/4);
+	if (state)
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0x208/4); // V30
 /* vector 0x00c is just a reti */
 }
 
-WRITE16_MEMBER( goodejan_state::layer_en_w )
+void goodejan_state::layer_en_w(uint16_t data)
 {
 	m_layer_en = data;
 }
 
-WRITE16_MEMBER( goodejan_state::layer_scroll_w )
+void goodejan_state::layer_scroll_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
 	COMBINE_DATA(&m_scrollram[offset]);
 }
 
-
-
-static MACHINE_CONFIG_START( goodejan, goodejan_state )
-
+void goodejan_state::goodejan(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", V30, GOODEJAN_MHZ2/2)
-	MCFG_CPU_PROGRAM_MAP(goodejan_map)
-	MCFG_CPU_IO_MAP(goodejan_io_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", goodejan_state, irq)
+	V30(config, m_maincpu, GOODEJAN_MHZ2/2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &goodejan_state::goodejan_map);
+	m_maincpu->set_addrmap(AS_IO, &goodejan_state::goodejan_io_map);
 
-	MCFG_CPU_ADD("audiocpu", Z80, GOODEJAN_MHZ1/2)
-	MCFG_CPU_PROGRAM_MAP(seibu_sound_map)
+	z80_device &audiocpu(Z80(config, "audiocpu", GOODEJAN_MHZ1/2));
+	audiocpu.set_addrmap(AS_PROGRAM, &goodejan_state::seibu_sound_map);
+	audiocpu.set_irq_acknowledge_callback("seibu_sound", FUNC(seibu_sound_device::im0_vector_cb));
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1) //TODO: dynamic resolution
-	MCFG_SCREEN_UPDATE_DRIVER(goodejan_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	// guess: assume ~59.61 Hz like toki, assume clock coming from the otherwise unused 12 MHz XTal
+	// (audio one don't give valid ranges for the provided HSync)
+	screen.set_raw(GOODEJAN_MHZ3/2, 390, 0, 256, 258, 16, 240);
+	screen.set_screen_update(FUNC(goodejan_state::screen_update));
+	screen.set_palette(m_palette);
+	screen.screen_vblank().set(FUNC(goodejan_state::vblank_irq));
 
-	MCFG_DEVICE_ADD("crtc", SEIBU_CRTC, 0)
-	MCFG_SEIBU_CRTC_LAYER_EN_CB(WRITE16(goodejan_state, layer_en_w))
-	MCFG_SEIBU_CRTC_LAYER_SCROLL_CB(WRITE16(goodejan_state, layer_scroll_w))
+	SEIBU_CRTC(config, m_crtc, 0);
+	m_crtc->layer_en_callback().set(FUNC(goodejan_state::layer_en_w));
+	m_crtc->layer_scroll_callback().set(FUNC(goodejan_state::layer_scroll_w));
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", goodejan)
-	MCFG_PALETTE_ADD("palette", 0x1000)
-	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_goodejan);
+	PALETTE(config, m_palette).set_format(palette_device::xBGR_444, 0x800);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("ymsnd", YM3812, GOODEJAN_MHZ1/2)
-	MCFG_YM3812_IRQ_HANDLER(DEVWRITELINE("seibu_sound", seibu_sound_device, fm_irqhandler))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	ym3812_device &ymsnd(YM3812(config, "ymsnd", GOODEJAN_MHZ1/2));
+	ymsnd.irq_handler().set("seibu_sound", FUNC(seibu_sound_device::fm_irqhandler));
+	ymsnd.add_route(ALL_OUTPUTS, "mono", 1.0);
 
-	MCFG_OKIM6295_ADD("oki", GOODEJAN_MHZ2/16, OKIM6295_PIN7_LOW)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
+	okim6295_device &oki(OKIM6295(config, "oki", GOODEJAN_MHZ2/16, okim6295_device::PIN7_HIGH));
+	oki.add_route(ALL_OUTPUTS, "mono", 0.40);
 
-	MCFG_DEVICE_ADD("seibu_sound", SEIBU_SOUND, 0)
-	MCFG_SEIBU_SOUND_CPU("audiocpu")
-	MCFG_SEIBU_SOUND_ROMBANK("seibu_bank1")
-	MCFG_SEIBU_SOUND_YM_READ_CB(DEVREAD8("ymsnd", ym3812_device, read))
-	MCFG_SEIBU_SOUND_YM_WRITE_CB(DEVWRITE8("ymsnd", ym3812_device, write))
-MACHINE_CONFIG_END
+	seibu_sound_device &seibu_sound(SEIBU_SOUND(config, "seibu_sound", 0));
+	seibu_sound.int_callback().set_inputline("audiocpu", 0);
+	seibu_sound.set_rom_tag("audiocpu");
+	seibu_sound.set_rombank_tag("seibu_bank1");
+	seibu_sound.ym_read_callback().set("ymsnd", FUNC(ym3812_device::read));
+	seibu_sound.ym_write_callback().set("ymsnd", FUNC(ym3812_device::write));
+}
 
-static MACHINE_CONFIG_DERIVED( totmejan, goodejan )
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_IO_MAP(totmejan_io_map)
-MACHINE_CONFIG_END
+void goodejan_state::totmejan(machine_config &config)
+{
+	goodejan(config);
+	m_maincpu->set_addrmap(AS_IO, &goodejan_state::totmejan_io_map);
+}
 
 ROM_START( totmejan )
 	ROM_REGION( 0x100000, "maincpu", 0 ) /* V30 code */
@@ -708,7 +679,7 @@ ROM_START( totmejan )
 	ROM_REGION( 0x80000, "oki", 0 )  /* ADPCM samples */
 	ROM_LOAD( "e-jan.0911", 0x00000, 0x80000, CRC(a7fb93c2) SHA1(c2e1300f142032c087c96e1a785af28a6d678947) )
 
-	ROM_REGION( 0x200, "user1", 0 ) /* not used */
+	ROM_REGION( 0x100, "proms", 0 ) /* not used */
 	ROM_LOAD( "fmj08.083", 0x000, 0x100, CRC(9657b7ad) SHA1(e9b469c2b3534593f7fe0ea19cbbf93b55957e42) )
 ROM_END
 
@@ -740,7 +711,7 @@ ROM_START( goodejan )
 	ROM_REGION( 0x80000, "oki", 0 )  /* ADPCM samples */
 	ROM_LOAD( "e-jan.911", 0x00000, 0x80000, CRC(6d2cbc35) SHA1(61f47e2a94b8877906224f46d8301a26a0b9e55f) )
 
-	ROM_REGION( 0x200, "user1", 0 ) /* not used */
+	ROM_REGION( 0x100, "proms", 0 ) /* not used */
 	ROM_LOAD( "fmj08.083", 0x000, 0x100, CRC(9657b7ad) SHA1(e9b469c2b3534593f7fe0ea19cbbf93b55957e42) )
 ROM_END
 
@@ -772,10 +743,10 @@ ROM_START( goodejana )
 	ROM_REGION( 0x80000, "oki", 0 )  /* ADPCM samples */
 	ROM_LOAD( "e-jan.911", 0x00000, 0x80000, CRC(6d2cbc35) SHA1(61f47e2a94b8877906224f46d8301a26a0b9e55f) )
 
-	ROM_REGION( 0x200, "user1", 0 ) /* not used */
+	ROM_REGION( 0x100, "proms", 0 ) /* not used */
 	ROM_LOAD( "fmj08.083", 0x000, 0x100, CRC(9657b7ad) SHA1(e9b469c2b3534593f7fe0ea19cbbf93b55957e42) )
 ROM_END
 
-GAME( 1991, totmejan, 0,        totmejan, goodejan, driver_device, 0, ROT0, "Seibu Kaihatsu (Tecmo license)", "Tottemo E Jong", MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
-GAME( 1991, goodejan, 0,        goodejan, goodejan, driver_device, 0, ROT0, "Seibu Kaihatsu (Tecmo license)", "Good E Jong -Kachinuki Mahjong Syoukin Oh!!- (set 1)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
-GAME( 1991, goodejana,goodejan, goodejan, goodejan, driver_device, 0, ROT0, "Seibu Kaihatsu (Tecmo license)", "Good E Jong -Kachinuki Mahjong Syoukin Oh!!- (set 2)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+GAME( 1991, totmejan,  0,        totmejan, goodejan, goodejan_state, empty_init, ROT0, "Seibu Kaihatsu (Tecmo license)", "Tottemo E Jong",                                       MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+GAME( 1991, goodejan,  0,        goodejan, goodejan, goodejan_state, empty_init, ROT0, "Seibu Kaihatsu (Tecmo license)", "Good E Jong -Kachinuki Mahjong Syoukin Oh!!- (set 1)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+GAME( 1991, goodejana, goodejan, goodejan, goodejan, goodejan_state, empty_init, ROT0, "Seibu Kaihatsu (Tecmo license)", "Good E Jong -Kachinuki Mahjong Syoukin Oh!!- (set 2)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )

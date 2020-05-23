@@ -21,13 +21,13 @@ enum
 //  ws_rom_device - constructor
 //-------------------------------------------------
 
-const device_type WS_ROM_STD = device_creator<ws_rom_device>;
-const device_type WS_ROM_SRAM = device_creator<ws_rom_sram_device>;
-const device_type WS_ROM_EEPROM = device_creator<ws_rom_eeprom_device>;
+DEFINE_DEVICE_TYPE(WS_ROM_STD,    ws_rom_device,        "ws_rom",    "Wonderswan Standard Carts")
+DEFINE_DEVICE_TYPE(WS_ROM_SRAM,   ws_rom_sram_device,   "ws_sram",   "Wonderswan Carts w/SRAM")
+DEFINE_DEVICE_TYPE(WS_ROM_EEPROM, ws_rom_eeprom_device, "ws_eeprom", "Wonderswan Carts w/EEPROM")
 
 
-ws_rom_device::ws_rom_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+ws_rom_device::ws_rom_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, type, tag, owner, clock),
 	device_ws_cart_interface(mconfig, *this),
 	m_base20(0),
 	m_base30(0),
@@ -45,34 +45,22 @@ ws_rom_device::ws_rom_device(const machine_config &mconfig, device_type type, co
 {
 }
 
-ws_rom_device::ws_rom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, WS_ROM_STD, "Wonderswan Standard Carts", tag, owner, clock, "ws_rom", __FILE__),
-						device_ws_cart_interface( mconfig, *this ), m_base20(0),
-	m_base30(0),
-	m_base40(0),
-	m_rtc_setting(0),
-	m_rtc_year(0),
-	m_rtc_month(0),
-	m_rtc_day(0),
-	m_rtc_day_of_week(0),
-	m_rtc_hour(0),
-	m_rtc_minute(0),
-	m_rtc_second(0),
-	m_rtc_index(0),
-	rtc_timer(nullptr)
-				{
+ws_rom_device::ws_rom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	ws_rom_device(mconfig, WS_ROM_STD, tag, owner, clock)
+{
 }
 
-ws_rom_sram_device::ws_rom_sram_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: ws_rom_device(mconfig, WS_ROM_SRAM, "Wonderswan Carts w/SRAM", tag, owner, clock, "ws_sram", __FILE__), m_nvram_base(0)
-				{
+ws_rom_sram_device::ws_rom_sram_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	ws_rom_device(mconfig, WS_ROM_SRAM, tag, owner, clock),
+	m_nvram_base(0)
+{
 }
 
 
-ws_rom_eeprom_device::ws_rom_eeprom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: ws_rom_device(mconfig, WS_ROM_EEPROM, "Wonderswan Carts w/EEPROM", tag, owner, clock, "ws_eeprom", __FILE__), m_eeprom_mode(0),
-	m_eeprom_address(0), m_eeprom_command(0), m_eeprom_start(0), m_eeprom_write_enabled(0)
-				{
+ws_rom_eeprom_device::ws_rom_eeprom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	ws_rom_device(mconfig, WS_ROM_EEPROM, tag, owner, clock),
+	m_eeprom_mode(0), m_eeprom_address(0), m_eeprom_command(0), m_eeprom_start(0), m_eeprom_write_enabled(0)
+{
 }
 
 
@@ -217,26 +205,26 @@ void ws_rom_device::device_timer(emu_timer &timer, device_timer_id id, int param
  mapper specific handlers
  -------------------------------------------------*/
 
-READ8_MEMBER(ws_rom_device::read_rom20)
+uint8_t ws_rom_device::read_rom20(offs_t offset)
 {
 	return m_rom[offset + m_base20];
 }
 
 
-READ8_MEMBER(ws_rom_device::read_rom30)
+uint8_t ws_rom_device::read_rom30(offs_t offset)
 {
 	return m_rom[offset + m_base30];
 }
 
 
-READ8_MEMBER(ws_rom_device::read_rom40)
+uint8_t ws_rom_device::read_rom40(offs_t offset)
 {
 	// we still need to mask in some cases, e.g. when game is 512K
 	return m_rom[(offset + m_base40) & (m_rom_size - 1)];
 }
 
 
-READ8_MEMBER(ws_rom_device::read_io)
+uint8_t ws_rom_device::read_io(offs_t offset)
 {
 	uint8_t value = m_io_regs[offset];
 
@@ -266,7 +254,7 @@ READ8_MEMBER(ws_rom_device::read_io)
 	return value;
 }
 
-WRITE8_MEMBER(ws_rom_device::write_io)
+void ws_rom_device::write_io(offs_t offset, uint8_t data)
 {
 	switch (offset)
 	{
@@ -356,30 +344,30 @@ WRITE8_MEMBER(ws_rom_device::write_io)
 	m_io_regs[offset] = data;
 }
 
-READ8_MEMBER(ws_rom_sram_device::read_ram)
+uint8_t ws_rom_sram_device::read_ram(offs_t offset)
 {
 	return m_nvram[m_nvram_base + offset];
 }
 
-WRITE8_MEMBER(ws_rom_sram_device::write_ram)
+void ws_rom_sram_device::write_ram(offs_t offset, uint8_t data)
 {
 	m_nvram[m_nvram_base + offset] = data;
 }
 
-WRITE8_MEMBER(ws_rom_sram_device::write_io)
+void ws_rom_sram_device::write_io(offs_t offset, uint8_t data)
 {
 	switch (offset)
 	{
 		case 0x01:  // SRAM bank to select
 			m_nvram_base = (data * 0x10000) & (m_nvram.size() -  1);
 		default:
-			ws_rom_device::write_io(space, offset, data);
+			ws_rom_device::write_io(offset, data);
 			break;
 	}
 }
 
 
-READ8_MEMBER(ws_rom_eeprom_device::read_io)
+uint8_t ws_rom_eeprom_device::read_io(offs_t offset)
 {
 	uint8_t value = m_io_regs[offset];
 
@@ -393,14 +381,14 @@ READ8_MEMBER(ws_rom_eeprom_device::read_io)
 			// EEPROM reads, taken from regs
 			break;
 		default:
-			value = ws_rom_device::read_io(space, offset);
+			value = ws_rom_device::read_io(offset);
 			break;
 	}
 
 	return value;
 }
 
-WRITE8_MEMBER(ws_rom_eeprom_device::write_io)
+void ws_rom_eeprom_device::write_io(offs_t offset, uint8_t data)
 {
 	switch (offset)
 	{
@@ -542,7 +530,7 @@ WRITE8_MEMBER(ws_rom_eeprom_device::write_io)
 			break;
 
 		default:
-			ws_rom_device::write_io(space, offset, data);
+			ws_rom_device::write_io(offset, data);
 			break;
 	}
 

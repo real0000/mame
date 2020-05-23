@@ -10,70 +10,75 @@
 
 #include "emu.h"
 #include "audio/segam1audio.h"
+
+#include "machine/clock.h"
 #include "speaker.h"
 
-#define M68000_TAG      "m1sndcpu"
-#define MULTIPCM_1_TAG  "m1pcm1"
-#define MULTIPCM_2_TAG  "m1pcm2"
-#define YM3438_TAG      "m1ym"
+void segam1audio_device::segam1audio_map(address_map &map)
+{
+	map(0x000000, 0x03ffff).rom();
+	map(0x080000, 0x09ffff).rom().region("sndcpu", 0x20000); // mirror of upper ROM socket
+	map(0xc20000, 0xc20003).rw(m_uart, FUNC(i8251_device::read), FUNC(i8251_device::write)).umask16(0x00ff);
+	map(0xc40000, 0xc40007).rw(m_multipcm_1, FUNC(multipcm_device::read), FUNC(multipcm_device::write)).umask16(0x00ff);
+	map(0xc40012, 0xc40013).nopw();
+	map(0xc50000, 0xc50001).w(FUNC(segam1audio_device::m1_snd_mpcm_bnk1_w));
+	map(0xc60000, 0xc60007).rw(m_multipcm_2, FUNC(multipcm_device::read), FUNC(multipcm_device::write)).umask16(0x00ff);
+	map(0xc70000, 0xc70001).w(FUNC(segam1audio_device::m1_snd_mpcm_bnk2_w));
+	map(0xd00000, 0xd00007).rw(m_ym, FUNC(ym3438_device::read), FUNC(ym3438_device::write)).umask16(0x00ff);
+	map(0xf00000, 0xf0ffff).ram();
+}
 
-static ADDRESS_MAP_START( segam1audio_map, AS_PROGRAM, 16, segam1audio_device )
-		AM_RANGE(0x000000, 0x03ffff) AM_ROM AM_REGION(":m1sndcpu", 0)
-		AM_RANGE(0x080000, 0x09ffff) AM_ROM AM_REGION(":m1sndcpu", 0x20000) // mirror of upper ROM socket
-	AM_RANGE(0xc20000, 0xc20001) AM_READWRITE(m1_snd_68k_latch_r, m1_snd_68k_latch1_w )
-	AM_RANGE(0xc20002, 0xc20003) AM_READWRITE(m1_snd_v60_ready_r, m1_snd_68k_latch2_w )
-	AM_RANGE(0xc40000, 0xc40007) AM_DEVREADWRITE8(MULTIPCM_1_TAG, multipcm_device, read, write, 0x00ff )
-	AM_RANGE(0xc40012, 0xc40013) AM_WRITENOP
-	AM_RANGE(0xc50000, 0xc50001) AM_WRITE(m1_snd_mpcm_bnk1_w )
-	AM_RANGE(0xc60000, 0xc60007) AM_DEVREADWRITE8(MULTIPCM_2_TAG, multipcm_device, read, write, 0x00ff )
-	AM_RANGE(0xc70000, 0xc70001) AM_WRITE(m1_snd_mpcm_bnk2_w )
-	AM_RANGE(0xd00000, 0xd00007) AM_DEVREADWRITE8(YM3438_TAG, ym3438_device, read, write, 0x00ff )
-	AM_RANGE(0xf00000, 0xf0ffff) AM_RAM
-ADDRESS_MAP_END
+void segam1audio_device::mpcm1_map(address_map &map)
+{
+	map(0x000000, 0x0fffff).rom();
+	map(0x100000, 0x1fffff).bankr(m_mpcmbank1);
+}
 
-static ADDRESS_MAP_START( mpcm1_map, AS_0, 8, segam1audio_device )
-	AM_RANGE(0x000000, 0x3fffff) AM_ROM AM_REGION(":m1pcm1", 0)
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( mpcm2_map, AS_0, 8, segam1audio_device )
-	AM_RANGE(0x000000, 0x3fffff) AM_ROM AM_REGION(":m1pcm2", 0)
-ADDRESS_MAP_END
-
-MACHINE_CONFIG_FRAGMENT( segam1audio )
-	MCFG_CPU_ADD(M68000_TAG, M68000, 10000000)  // verified on real h/w
-	MCFG_CPU_PROGRAM_MAP(segam1audio_map)
-
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
-
-	MCFG_SOUND_ADD(YM3438_TAG, YM3438, 8000000)
-	MCFG_SOUND_ROUTE(0, "lspeaker", 0.60)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 0.60)
-
-	MCFG_SOUND_ADD(MULTIPCM_1_TAG, MULTIPCM, 8000000)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, mpcm1_map)
-	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
-
-	MCFG_SOUND_ADD(MULTIPCM_2_TAG, MULTIPCM, 8000000)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, mpcm2_map)
-	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
-MACHINE_CONFIG_END
+void segam1audio_device::mpcm2_map(address_map &map)
+{
+	map(0x000000, 0x0fffff).rom();
+	map(0x100000, 0x1fffff).bankr(m_mpcmbank2);
+}
 
 //**************************************************************************
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type SEGAM1AUDIO = device_creator<segam1audio_device>;
+DEFINE_DEVICE_TYPE(SEGAM1AUDIO, segam1audio_device, "segam1audio", "Sega Model 1 Sound Board")
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+// device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor segam1audio_device::device_mconfig_additions() const
+void segam1audio_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( segam1audio );
+	M68000(config, m_audiocpu, 10000000);  // verified on real h/w
+	m_audiocpu->set_addrmap(AS_PROGRAM, &segam1audio_device::segam1audio_map);
+
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
+
+	YM3438(config, m_ym, 8000000);
+	m_ym->add_route(0, "lspeaker", 0.60);
+	m_ym->add_route(1, "rspeaker", 0.60);
+
+	MULTIPCM(config, m_multipcm_1, 8000000);
+	m_multipcm_1->set_addrmap(0, &segam1audio_device::mpcm1_map);
+	m_multipcm_1->add_route(0, "lspeaker", 1.0);
+	m_multipcm_1->add_route(1, "rspeaker", 1.0);
+
+	MULTIPCM(config, m_multipcm_2, 8000000);
+	m_multipcm_2->set_addrmap(0, &segam1audio_device::mpcm2_map);
+	m_multipcm_2->add_route(0, "lspeaker", 1.0);
+	m_multipcm_2->add_route(1, "rspeaker", 1.0);
+
+	I8251(config, m_uart, 8000000); // T82C51, clock unknown
+	m_uart->rxrdy_handler().set_inputline(m_audiocpu, M68K_IRQ_2);
+	m_uart->txd_handler().set(FUNC(segam1audio_device::output_txd));
+
+	clock_device &uart_clock(CLOCK(config, "uart_clock", 500000)); // 16 times 31.25MHz (standard Sega/MIDI sound data rate)
+	uart_clock.signal_handler().set(m_uart, FUNC(i8251_device::write_txc));
+	uart_clock.signal_handler().append(m_uart, FUNC(i8251_device::write_rxc));
 }
 
 //**************************************************************************
@@ -85,12 +90,17 @@ machine_config_constructor segam1audio_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 segam1audio_device::segam1audio_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, SEGAM1AUDIO, "Sega Model 1 Sound Board", tag, owner, clock, "segam1audio", __FILE__),
-	m_audiocpu(*this, M68000_TAG),
-	m_multipcm_1(*this, MULTIPCM_1_TAG),
-	m_multipcm_2(*this, MULTIPCM_2_TAG),
-	m_ym(*this, YM3438_TAG),
-	m_main_irq_cb(*this)
+	device_t(mconfig, SEGAM1AUDIO, tag, owner, clock),
+	m_audiocpu(*this, "sndcpu"),
+	m_multipcm_1(*this, "pcm1"),
+	m_multipcm_2(*this, "pcm2"),
+	m_ym(*this, "ymsnd"),
+	m_uart(*this, "uart"),
+	m_multipcm1_region(*this, "pcm1"),
+	m_multipcm2_region(*this, "pcm2"),
+	m_mpcmbank1(*this, "m1pcm1_bank"),
+	m_mpcmbank2(*this, "m1pcm2_bank"),
+	m_rxd_handler(*this)
 {
 }
 
@@ -100,7 +110,9 @@ segam1audio_device::segam1audio_device(const machine_config &mconfig, const char
 
 void segam1audio_device::device_start()
 {
-	m_main_irq_cb.resolve_safe();
+	m_rxd_handler.resolve_safe();
+	m_mpcmbank1->configure_entries(0, 4, m_multipcm1_region->base(), 0x100000);
+	m_mpcmbank2->configure_entries(0, 4, m_multipcm2_region->base(), 0x100000);
 }
 
 //-------------------------------------------------
@@ -109,73 +121,25 @@ void segam1audio_device::device_start()
 
 void segam1audio_device::device_reset()
 {
-	// init the sound FIFO
-	m_fifo_rptr = m_fifo_wptr = 0;
-	memset(m_to_68k, 0, sizeof(m_to_68k));
+	m_uart->write_cts(0);
 }
 
-READ16_MEMBER(segam1audio_device::m1_snd_68k_latch_r)
+void segam1audio_device::m1_snd_mpcm_bnk1_w(uint16_t data)
 {
-	uint16_t retval;
-
-	retval = m_to_68k[m_fifo_rptr];
-
-	m_fifo_rptr++;
-	if (m_fifo_rptr >= ARRAY_LENGTH(m_to_68k)) m_fifo_rptr = 0;
-
-	return retval;
+	m_mpcmbank1->set_entry(data & 3);
 }
 
-READ16_MEMBER(segam1audio_device::m1_snd_v60_ready_r)
+void segam1audio_device::m1_snd_mpcm_bnk2_w(uint16_t data)
 {
-	return 1;
+	m_mpcmbank2->set_entry(data & 3);
 }
 
-WRITE16_MEMBER(segam1audio_device::m1_snd_mpcm_bnk1_w)
+WRITE_LINE_MEMBER(segam1audio_device::write_txd)
 {
-	m_multipcm_1->set_bank(0x100000 * (data & 3), 0x100000 * (data & 3));
+	m_uart->write_rxd(state);
 }
 
-WRITE16_MEMBER(segam1audio_device::m1_snd_mpcm_bnk2_w)
+WRITE_LINE_MEMBER(segam1audio_device::output_txd)
 {
-	m_multipcm_2->set_bank(0x100000 * (data & 3), 0x100000 * (data & 3));
-}
-
-WRITE16_MEMBER(segam1audio_device::m1_snd_68k_latch1_w)
-{
-}
-
-WRITE16_MEMBER(segam1audio_device::m1_snd_68k_latch2_w)
-{
-}
-
-READ16_MEMBER(segam1audio_device::ready_r)
-{
-	int sr = m_audiocpu->state_int(M68K_SR);
-
-	if ((sr & 0x0700) > 0x0100)
-	{
-		return 0;
-	}
-
-	return 0xff;
-}
-
-void segam1audio_device::check_fifo_irq()
-{
-	// if the FIFO has something in it, signal the 68k
-	if (m_fifo_rptr != m_fifo_wptr)
-	{
-		m_audiocpu->set_input_line(2, HOLD_LINE);
-	}
-}
-
-void segam1audio_device::write_fifo(uint8_t data)
-{
-	m_to_68k[m_fifo_wptr] = data;
-	m_fifo_wptr++;
-	if (m_fifo_wptr >= ARRAY_LENGTH(m_to_68k)) m_fifo_wptr = 0;
-
-	// signal the 68000 that there's data waiting
-	m_audiocpu->set_input_line(2, HOLD_LINE);
+	m_rxd_handler(state);
 }

@@ -21,7 +21,7 @@
 // the algorithm is a 32-bits key stored in the PIC16C621A. The hardware auto-reset the feed value
 // to the cart-based IV every 16 blocks (32 bytes); that reset is not address-based, but index-based.
 
-const device_type NAOMI_M4_BOARD = device_creator<naomi_m4_board>;
+DEFINE_DEVICE_TYPE(NAOMI_M4_BOARD, naomi_m4_board, "naomi_m4_board", "Sega NAOMI M4 Board")
 
 const uint8_t naomi_m4_board::k_sboxes[4][16] = {
 	{9,8,2,11,1,14,5,15,12,6,0,3,7,13,10,4},
@@ -40,23 +40,17 @@ static uint8_t cfidata[] = {
 0x01,0x00
 };
 
-DEVICE_ADDRESS_MAP_START(submap, 16, naomi_m4_board)
-	AM_RANGE(0x1a, 0x1b) AM_READ(m4_id_r)
-
-	AM_INHERIT_FROM(naomi_board::submap)
-ADDRESS_MAP_END
+void naomi_m4_board::submap(address_map &map)
+{
+	naomi_board::submap(map);
+	map(0x1a, 0x1b).r(FUNC(naomi_m4_board::m4_id_r)); // Read: bits 8-15 - 0x55, bit 7 - 1 if IC7 EPR rom enabled; Write: bit 0 - master/slave board selection.
+}
 
 naomi_m4_board::naomi_m4_board(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: naomi_board(mconfig, NAOMI_M4_BOARD, "Sega NAOMI M4 Board", tag, owner, clock, "naomi_m4_board", __FILE__)
+	: naomi_board(mconfig, NAOMI_M4_BOARD, tag, owner, clock)
 	, m_region(*this, DEVICE_SELF)
 	, m_key_data(*this, finder_base::DUMMY_TAG)
 {
-}
-
-void naomi_m4_board::static_set_tags(device_t &device, const char *key_tag)
-{
-	naomi_m4_board &dev = downcast<naomi_m4_board &>(device);
-	dev.m_key_data.set_tag(key_tag);
 }
 
 void naomi_m4_board::device_start()
@@ -78,7 +72,7 @@ void naomi_m4_board::device_start()
 	buffer = std::make_unique<uint8_t[]>(BUFFER_SIZE);
 	enc_init();
 
-	save_pointer(NAME(buffer.get()), BUFFER_SIZE);
+	save_pointer(NAME(buffer), BUFFER_SIZE);
 	save_item(NAME(rom_cur_address));
 	save_item(NAME(buffer_actual_size));
 	save_item(NAME(encryption));

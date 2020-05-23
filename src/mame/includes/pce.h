@@ -8,8 +8,8 @@
  *
  ****************************************************************************/
 
-#ifndef PCE_H_
-#define PCE_H_
+#ifndef MAME_INCLUDES_PCE_H
+#define MAME_INCLUDES_PCE_H
 
 #include "cdrom.h"
 #include "cpu/h6280/h6280.h"
@@ -64,18 +64,26 @@ public:
 	int m_joystick_port_select;
 	int m_joystick_data_select;
 	uint8_t m_joy_6b_packet[5];
-	DECLARE_WRITE8_MEMBER(mess_pce_joystick_w);
-	DECLARE_READ8_MEMBER(mess_pce_joystick_r);
+	void mess_pce_joystick_w(uint8_t data);
+	uint8_t mess_pce_joystick_r();
 	DECLARE_WRITE8_MEMBER(pce_cd_intf_w);
 	DECLARE_READ8_MEMBER(pce_cd_intf_r);
 	DECLARE_READ8_MEMBER(pce_cd_acard_wram_r);
 	DECLARE_WRITE8_MEMBER(pce_cd_acard_wram_w);
-	DECLARE_DRIVER_INIT(sgx);
-	DECLARE_DRIVER_INIT(tg16);
-	DECLARE_DRIVER_INIT(mess_pce);
+	void init_sgx();
+	void init_tg16();
+	void init_mess_pce();
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_MACHINE_START(pce);
 	DECLARE_MACHINE_RESET(mess_pce);
+	void pce_common(machine_config &config);
+	void pce(machine_config &config);
+	void tg16(machine_config &config);
+	void sgx(machine_config &config);
+	void pce_io(address_map &map);
+	void pce_mem(address_map &map);
+	void sgx_io(address_map &map);
+	void sgx_mem(address_map &map);
 };
 
-#endif /* PCE_H_ */
+#endif // MAME_INCLUDES_PCE_H

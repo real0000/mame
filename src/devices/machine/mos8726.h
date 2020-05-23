@@ -41,21 +41,10 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_MOS8726_H
+#define MAME_MACHINE_MOS8726_H
+
 #pragma once
-
-#ifndef __MOS8726__
-#define __MOS8726__
-
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_MOS8726_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, MOS8726, 1000000) // dummy clock
-
 
 
 //**************************************************************************
@@ -71,8 +60,8 @@ public:
 	// construction/destruction
 	mos8726_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 
 	DECLARE_WRITE_LINE_MEMBER( bs_w );
 
@@ -90,8 +79,6 @@ protected:
 
 
 // device type definition
-extern const device_type MOS8726;
+DECLARE_DEVICE_TYPE(MOS8726, mos8726_device)
 
-
-
-#endif
+#endif // MAME_MACHINE_MOS8726_H

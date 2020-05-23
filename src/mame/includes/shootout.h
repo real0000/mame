@@ -1,13 +1,19 @@
 // license:BSD-3-Clause
 // copyright-holders:Ernesto Corvi, Phil Stroffolino, Bryan McPhail
+#ifndef MAME_INCLUDES_SHOOTOUT_H
+#define MAME_INCLUDES_SHOOTOUT_H
+
+#pragma once
 
 #include "machine/gen_latch.h"
+#include "emupal.h"
+#include "tilemap.h"
 
 class shootout_state : public driver_device
 {
 public:
-	shootout_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	shootout_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_gfxdecode(*this, "gfxdecode"),
@@ -15,8 +21,18 @@ public:
 		m_soundlatch(*this, "soundlatch"),
 		m_spriteram(*this, "spriteram"),
 		m_textram(*this, "textram"),
-		m_videoram(*this, "videoram")  { }
+		m_videoram(*this, "videoram")
+	{ }
 
+	void shootouj(machine_config &config);
+	void shootouk(machine_config &config);
+	void shootout(machine_config &config);
+
+	void init_shootout();
+
+	DECLARE_INPUT_CHANGED_MEMBER(coin_inserted);
+
+private:
 	required_device<cpu_device> m_maincpu;
 	optional_device<cpu_device> m_audiocpu;
 	required_device<gfxdecode_device> m_gfxdecode;
@@ -32,22 +48,18 @@ public:
 
 	int m_ccnt_old_val;
 
-	DECLARE_WRITE8_MEMBER(bankswitch_w);
+	void bankswitch_w(uint8_t data);
 	DECLARE_READ8_MEMBER(sound_cpu_command_r);
 	DECLARE_WRITE8_MEMBER(sound_cpu_command_w);
-	DECLARE_WRITE8_MEMBER(flipscreen_w);
+	void flipscreen_w(uint8_t data);
 	DECLARE_WRITE8_MEMBER(coincounter_w);
 	DECLARE_WRITE8_MEMBER(videoram_w);
 	DECLARE_WRITE8_MEMBER(textram_w);
 
-	DECLARE_INPUT_CHANGED_MEMBER(coin_inserted);
-
-	DECLARE_DRIVER_INIT(shootout);
-
 	virtual void machine_reset() override;
 	virtual void video_start() override;
 
-	DECLARE_PALETTE_INIT(shootout);
+	void shootout_palette(palette_device &palette) const;
 
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	TILE_GET_INFO_MEMBER(get_fg_tile_info);
@@ -55,4 +67,10 @@ public:
 	uint32_t screen_update_shootout(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_shootouj(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int bank_bits );
+
+	void shootouj_map(address_map &map);
+	void shootout_map(address_map &map);
+	void shootout_sound_map(address_map &map);
 };
+
+#endif // MAME_INCLUDES_SHOOTOUT_H

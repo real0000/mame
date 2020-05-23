@@ -6,65 +6,54 @@
 
 **********************************************************************/
 
+#ifndef MAME_VIDEO_HUC6260_H
+#define MAME_VIDEO_HUC6260_H
 
-#ifndef __HUC6260_H_
-#define __HUC6260_H_
-
-
-
-#define HUC6260_PALETTE_SIZE    1024
-
-/* Screen timing stuff */
-#define HUC6260_WPF         1365    /* width of a line in frame including blanking areas */
-#define HUC6260_LPF         263     /* max number of lines in a single frame */
-
-
-#define MCFG_HUC6260_NEXT_PIXEL_DATA_CB(_devcb) \
-	devcb = &huc6260_device::set_next_pixel_data_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_HUC6260_TIME_TIL_NEXT_EVENT_CB(_devcb) \
-	devcb = &huc6260_device::set_time_til_next_event_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_HUC6260_VSYNC_CHANGED_CB(_devcb) \
-	devcb = &huc6260_device::set_vsync_changed_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_HUC6260_HSYNC_CHANGED_CB(_devcb) \
-	devcb = &huc6260_device::set_hsync_changed_callback(*device, DEVCB_##_devcb);
+#pragma once
 
 
 class huc6260_device :  public device_t,
+						public device_palette_interface,
 						public device_video_interface
 {
 public:
+	static constexpr unsigned PALETTE_SIZE = 1024;
+
+	/* Screen timing stuff */
+	static constexpr unsigned WPF = 1365;   // width of a line in frame including blanking areas
+	static constexpr unsigned LPF = 263;    // max number of lines in a single frame
+
+
 	// construction/destruction
 	huc6260_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_next_pixel_data_callback(device_t &device, _Object object) { return downcast<huc6260_device &>(device).m_next_pixel_data_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_time_til_next_event_callback(device_t &device, _Object object) { return downcast<huc6260_device &>(device).m_time_til_next_event_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_vsync_changed_callback(device_t &device, _Object object) { return downcast<huc6260_device &>(device).m_vsync_changed_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_hsync_changed_callback(device_t &device, _Object object) { return downcast<huc6260_device &>(device).m_hsync_changed_cb.set_callback(object); }
+	auto next_pixel_data() { return m_next_pixel_data_cb.bind(); }
+	auto time_til_next_event() { return m_time_til_next_event_cb.bind(); }
+	auto vsync_changed() { return m_vsync_changed_cb.bind(); }
+	auto hsync_changed() { return m_hsync_changed_cb.bind(); }
 
 	void video_update(bitmap_ind16 &bitmap, const rectangle &cliprect);
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
-	DECLARE_PALETTE_INIT(huc6260);
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 
-	READ8_MEMBER(palette_direct_read);
-	WRITE8_MEMBER(palette_direct_write);
+	uint8_t palette_direct_read(offs_t offset);
+	void palette_direct_write(offs_t offset, uint8_t data);
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+
+	virtual uint32_t palette_entries() const override { return PALETTE_SIZE; }
 
 private:
+	void palette_init();
+
 	int     m_last_h;
 	int     m_last_v;
 	int     m_height;
 
-	/* callbacks */
 	/* Callback function to retrieve pixel data */
 	devcb_read16                    m_next_pixel_data_cb;
 
@@ -80,7 +69,7 @@ private:
 
 	uint16_t  m_palette[512];
 	uint16_t  m_address;
-	uint8_t   m_greyscales;       /* Should the HuC6260 output grey or color graphics */
+	uint16_t  m_greyscales;       /* Should the HuC6260 output grey or color graphics */
 	uint8_t   m_blur;             /* Should the edges of graphics be blurred/Select screen height 0=262, 1=263 */
 	uint8_t   m_pixels_per_clock; /* Number of pixels to output per colour clock */
 	uint16_t  m_pixel_data;
@@ -91,7 +80,6 @@ private:
 };
 
 
-extern const device_type HUC6260;
+DECLARE_DEVICE_TYPE(HUC6260, huc6260_device)
 
-
-#endif
+#endif // MAME_VIDEO_HUC6260_H

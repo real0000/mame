@@ -12,7 +12,7 @@
  *  (http://worstconsole.blogspot.ca/2012/12/the-worstconsoleever.html)
  *  Note a spare dead GIC has been given to Lord Nightmare and should be sent for decap!
  *
- *  The Unisonc Champion is the only known GI "Gimini Mid-Range 8950 Programmable Game Set"
+ *  The Unisonic Champion is the only known GI "Gimini Mid-Range 8950 Programmable Game Set"
  *  to ever reach the market, and only in limited quantities (aprox 500 units ever built)
  *
  *  Architecture:
@@ -44,6 +44,7 @@
 #include "bus/generic/slot.h"
 #include "bus/generic/carts.h"
 
+#include "emupal.h"
 #include "screen.h"
 #include "softlist.h"
 #include "speaker.h"
@@ -52,62 +53,76 @@
 class unichamp_state : public driver_device
 {
 public:
-	unichamp_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	unichamp_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_gic(*this, "gic"),
 		m_cart(*this, "cartslot"),
-		m_ctrls(*this, "CTRLS"){}
+		m_ctrls(*this, "CTRLS")
+	{ }
 
-	required_device<cpu_device> m_maincpu;
+	void unichamp(machine_config &config);
+
+	void init_unichamp();
+
+protected:
+	virtual void machine_start() override;
+
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
+
+private:
+	required_device<cp1610_cpu_device> m_maincpu;
 	required_device<gic_device> m_gic;
 	required_device<generic_slot_device> m_cart;
 
+	required_ioport m_ctrls;
+
 	uint8_t m_ram[256];
-	DECLARE_DRIVER_INIT(unichamp);
-	virtual void machine_start() override;
-	virtual void machine_reset() override;
-	DECLARE_PALETTE_INIT(unichamp);
 
-	DECLARE_READ8_MEMBER(bext_r);
+	void unichamp_palette(palette_device &palette) const;
 
-	DECLARE_READ16_MEMBER(unichamp_gicram_r);
-	DECLARE_WRITE16_MEMBER(unichamp_gicram_w);
+	uint8_t bext_r(offs_t offset);
 
-	DECLARE_READ16_MEMBER(unichamp_trapl_r);
-	DECLARE_WRITE16_MEMBER(unichamp_trapl_w);
+	uint8_t gicram_r(offs_t offset);
+	void gicram_w(offs_t offset, uint8_t data);
+
+	uint16_t trapl_r(offs_t offset);
+	void trapl_w(offs_t offset, uint16_t data);
+
+	uint16_t read_ff();
+
+	uint16_t iab_r();
 
 	uint32_t screen_update_unichamp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
-protected:
-	required_ioport m_ctrls;
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
+	void unichamp_mem(address_map &map);
 };
 
-PALETTE_INIT_MEMBER(unichamp_state, unichamp)
+void unichamp_state::unichamp_palette(palette_device &palette) const
 {
 	/*
 	palette.set_pen_color(GIC_BLACK, rgb_t(0x00, 0x00, 0x00));
-	palette.set_pen_color(GIC_RED,   rgb_t(0xAE, 0x49, 0x41));//(from box shot)
+	palette.set_pen_color(GIC_RED,   rgb_t(0xae, 0x49, 0x41));//(from box shot)
 	palette.set_pen_color(GIC_GREEN, rgb_t(0x62, 0x95, 0x88));//(from box shot)
-	palette.set_pen_color(GIC_WHITE, rgb_t(0xFF, 0xFF, 0xFF));
+	palette.set_pen_color(GIC_WHITE, rgb_t(0xff, 0xff, 0xff));
 	*/
 
 	//using from intv.c instead as suggested by RB
 	palette.set_pen_color(GIC_BLACK, rgb_t(0x00, 0x00, 0x00));
-	palette.set_pen_color(GIC_RED,   rgb_t(0xFF, 0x3D, 0x10));
-	//palette.set_pen_color(GIC_GREEN, rgb_t(0x38, 0x6B, 0x3F)); //intv's DARK GREEN
-	palette.set_pen_color(GIC_GREEN, rgb_t(0x00, 0xA7, 0x56)); //intv's GREEN
-	palette.set_pen_color(GIC_WHITE, rgb_t(0xFF, 0xFC, 0xFF));
+	palette.set_pen_color(GIC_RED,   rgb_t(0xff, 0x3d, 0x10));
+	//palette.set_pen_color(GIC_GREEN, rgb_t(0x38, 0x6b, 0x3f)); //intv's DARK GREEN
+	palette.set_pen_color(GIC_GREEN, rgb_t(0x00, 0xa7, 0x56)); //intv's GREEN
+	palette.set_pen_color(GIC_WHITE, rgb_t(0xff, 0xfc, 0xff));
 }
 
 
-static ADDRESS_MAP_START( unichamp_mem, AS_PROGRAM, 16, unichamp_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x1FFF) //B13/B14/B15 are grounded!
-	AM_RANGE(0x0000, 0x00FF) AM_READWRITE(unichamp_gicram_r, unichamp_gicram_w)
-	AM_RANGE(0x0100, 0x07FF) AM_READWRITE(unichamp_trapl_r, unichamp_trapl_w)
-	AM_RANGE(0x0800, 0x17FF) AM_ROM AM_REGION("maincpu", 0x0800 << 1)   // Carts and EXE ROM, 10-bits wide
-ADDRESS_MAP_END
+void unichamp_state::unichamp_mem(address_map &map)
+{
+	map.global_mask(0x1FFF); //B13/B14/B15 are grounded!
+	map(0x0000, 0x00FF).rw(FUNC(unichamp_state::gicram_r), FUNC(unichamp_state::gicram_w)).umask16(0x00ff);
+	map(0x0100, 0x07FF).rw(FUNC(unichamp_state::trapl_r), FUNC(unichamp_state::trapl_w));
+	map(0x0800, 0x0FFF).rom().region("maincpu", 0);   // Carts and EXE ROM, 10-bits wide
+}
 
 
 static INPUT_PORTS_START( unichamp )
@@ -129,12 +144,12 @@ void unichamp_state::device_timer(emu_timer &timer, device_timer_id id, int para
 }
 
 
-READ8_MEMBER(unichamp_state::bext_r)
+uint8_t unichamp_state::bext_r(offs_t offset)
 {
 	//The BEXT instruction pushes a user-defined nibble out on the four EBCA pins (EBCA0 to EBCA3)
 	//and reads the ECBI input pin for HIGH or LOW signal to know whether or not to branch
 
-	//The unisonic control system couldnt be simpler in desing.
+	//The unisonic control system couldnt be simpler in design.
 	//Each of the two player controllers has three buttons:
 	//one tying !RESET(GIC pin 21) to ground when closed - resetting the WHOLE system.
 	//a YES button (connecting EBCA0 to EBCI for Player1 and EBC2 to EBCI for Player2)
@@ -150,15 +165,17 @@ READ8_MEMBER(unichamp_state::bext_r)
 }
 
 
-DRIVER_INIT_MEMBER(unichamp_state,unichamp)
+void unichamp_state::init_unichamp()
 {
-	m_gic->set_shared_memory(m_ram);
+}
+
+uint16_t unichamp_state::read_ff()
+{
+	return 0xffff;
 }
 
 void unichamp_state::machine_start()
 {
-	m_gic->set_shared_memory(m_ram);
-
 	if (m_cart->exists()){
 		//flip endians in more "this surely exists in MAME" way?
 		//NOTE The unichamp roms have the same endianness as intv on disk and in memory
@@ -169,14 +186,17 @@ void unichamp_state::machine_start()
 			ptr[i] = ptr[i+1];
 			ptr[i+1] = TEMP;
 		}
+		m_maincpu->space(AS_PROGRAM).install_read_handler(0x1000, 0x17ff,
+					read16s_delegate(*m_cart, FUNC(generic_slot_device::read16_rom)));
+	} else
+		m_maincpu->space(AS_PROGRAM).install_read_handler(0x1000, 0x17ff,
+					read16smo_delegate(*this, FUNC(unichamp_state::read_ff)));
 
-		m_maincpu->space(AS_PROGRAM).install_read_handler(0x1000, 0x1800,
-					read16_delegate(FUNC(generic_slot_device::read16_rom),(generic_slot_device*)m_cart));
-	}
+	memset(m_ram, 0, sizeof(m_ram));
 }
 
 /* Set Reset and INTR/INTRM Vector */
-void unichamp_state::machine_reset()
+uint16_t unichamp_state::iab_r()
 {
 	/*
 	the intv driver did not explain this but from the CP1600 manual:
@@ -190,87 +210,77 @@ void unichamp_state::machine_reset()
 	//The cart ROMS are self mapped to 0x1000
 	//upon boot the EXEC ROM puts 0x0800 on the bus for the CPU to use as first INT vector
 
-	m_maincpu->set_input_line_vector(CP1610_RESET,     0x0800);
-	m_maincpu->set_input_line_vector(CP1610_INT_INTRM, 0x0804);//not used anyway
-	m_maincpu->set_input_line_vector(CP1610_INT_INTR,  0x0804);//not used anyway
-
 	/* Set initial PC */
-	m_maincpu->set_state_int(CP1610_R7, 0x0800);
+	return 0x0800;
 }
-
 
 uint32_t unichamp_state::screen_update_unichamp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	return m_gic->screen_update(screen, bitmap, cliprect);
 }
 
-READ16_MEMBER( unichamp_state::unichamp_gicram_r )
+uint8_t unichamp_state::gicram_r(offs_t offset)
 {
-	return (int)m_ram[offset];
+	return m_ram[offset];
 }
 
-WRITE16_MEMBER( unichamp_state::unichamp_gicram_w )
+void unichamp_state::gicram_w(offs_t offset, uint8_t data)
 {
-	m_ram[offset] = data&0xff;
+	m_ram[offset] = data;
 }
 
-READ16_MEMBER( unichamp_state::unichamp_trapl_r )
+uint16_t unichamp_state::trapl_r(offs_t offset)
 {
 	logerror("trapl_r(%x)\n",offset);
 	return (int)0;
 }
 
-WRITE16_MEMBER( unichamp_state::unichamp_trapl_w )
+void unichamp_state::trapl_w(offs_t offset, uint16_t data)
 {
 	logerror("trapl_w(%x) = %x\n",offset,data);
 }
 
-static MACHINE_CONFIG_START( unichamp, unichamp_state )
+void unichamp_state::unichamp(machine_config &config)
+{
 	/* basic machine hardware */
 
 	//The CPU is really clocked this way:
-	//MCFG_CPU_ADD("maincpu", CP1610, XTAL_3_579545MHz/4)
+	//CP1610(config, m_maincpu, XTAL(3'579'545)/4);
 	//But since it is only running 7752/29868 th's of the time...
-	//TODO find a more accurate method? (the emulation will me the same though)
-	MCFG_CPU_ADD("maincpu", CP1610, (int)((7752.0/29868.0)*XTAL_3_579545MHz/4))
+	//TODO find a more accurate method? (the emulation will be the same though)
+	CP1610(config, m_maincpu, (7752.0/29868.0)*XTAL(3'579'545)/4);
+	m_maincpu->set_addrmap(AS_PROGRAM, &unichamp_state::unichamp_mem);
+	m_maincpu->bext().set(FUNC(unichamp_state::bext_r));
+	m_maincpu->iab().set(FUNC(unichamp_state::iab_r));
 
-	MCFG_CPU_PROGRAM_MAP(unichamp_mem)
-	MCFG_QUANTUM_TIME(attotime::from_hz(60))
-	MCFG_CP1610_BEXT_CALLBACK(READ8(unichamp_state, bext_r))
+	config.set_maximum_quantum(attotime::from_hz(60));
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_RAW_PARAMS( XTAL_3_579545MHz,
-							gic_device::LINE_CLOCKS,
-							gic_device::START_ACTIVE_SCAN,
-							gic_device::END_ACTIVE_SCAN,
-							gic_device::LINES,
-							gic_device::START_Y,
-							gic_device::START_Y + gic_device::SCREEN_HEIGHT )
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_raw(XTAL(3'579'545),
+		gic_device::LINE_CLOCKS, gic_device::START_ACTIVE_SCAN, gic_device::END_ACTIVE_SCAN,
+		gic_device::LINES,       gic_device::START_Y,           gic_device::START_Y + gic_device::SCREEN_HEIGHT);
+	screen.set_screen_update(FUNC(unichamp_state::screen_update_unichamp));
+	screen.set_palette("palette");
 
-	MCFG_SCREEN_UPDATE_DRIVER(unichamp_state, screen_update_unichamp)
-	MCFG_SCREEN_PALETTE("palette")
-
-	MCFG_PALETTE_ADD("palette", 4)
-	MCFG_PALETTE_INIT_OWNER(unichamp_state, unichamp)
+	PALETTE(config, "palette", FUNC(unichamp_state::unichamp_palette), 4);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_GIC_ADD( "gic", XTAL_3_579545MHz, "screen" )
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
+	SPEAKER(config, "mono").front_center();
+	GIC(config, m_gic, XTAL(3'579'545));
+	m_gic->set_screen("screen");
+	m_gic->ram_callback().set(FUNC(unichamp_state::gicram_r));
+	m_gic->add_route(ALL_OUTPUTS, "mono", 0.40);
 
 	/* cartridge */
-	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_linear_slot, "unichamp_cart")
-	MCFG_GENERIC_EXTENSIONS("bin,rom")
-	MCFG_SOFTWARE_LIST_ADD("cart_list", "unichamp")
-
-MACHINE_CONFIG_END
-
+	GENERIC_CARTSLOT(config, m_cart, generic_linear_slot, "unichamp_cart", "bin,rom");
+	SOFTWARE_LIST(config, "cart_list").set_original("unichamp");
+}
 
 ROM_START(unichamp)
-	ROM_REGION(0x10000<<1,"maincpu", ROMREGION_ERASEFF)
+	ROM_REGION(0x1000,"maincpu", ROMREGION_ERASEFF)
 
-	ROM_LOAD16_WORD( "9501-01009.u2", 0x0800<<1, 0x1000, CRC(49a0bd8f) SHA1(f4d126d3462ad351da4b75d76c75942d5a6f27ef))
+	ROM_LOAD16_WORD( "9501-01009.u2", 0, 0x1000, CRC(49a0bd8f) SHA1(f4d126d3462ad351da4b75d76c75942d5a6f27ef))
 
 	//these below are for local tests. you can use them in softlist or -cart
 	//ROM_LOAD16_WORD( "pac-02.bin",   0x1000<<1, 0x1000, CRC(fe3213be) SHA1(5b9c407fe86865f3454d4be824a7f2bf53478f73))
@@ -280,4 +290,4 @@ ROM_START(unichamp)
 ROM_END
 
 
-CONS( 1977, unichamp, 0,  0, unichamp, unichamp,  unichamp_state,   unichamp,  "Unisonic", "Champion 2711", 0/*MACHINE_IMPERFECT_GRAPHICS*/)
+CONS( 1977, unichamp, 0, 0, unichamp, unichamp, unichamp_state, init_unichamp, "Unisonic", "Champion 2711", 0/*MACHINE_IMPERFECT_GRAPHICS*/ )

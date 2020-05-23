@@ -23,7 +23,6 @@
 #include "emu.h"
 #include "strata.h"
 
-#define MAX_STRATA  1
 
 #define FEEPROM_SIZE        0x800000    // 64Mbit
 #define BLOCK_SIZE          0x020000
@@ -44,11 +43,11 @@
 #define SET_BLOCKLOCK(block) (m_blocklock[(block) >> 3] |= 1 << ((block) & 7))
 #define CLEAR_BLOCKLOCK(block) (m_blocklock[(block) >> 3] &= ~(1 << ((block) & 7)))
 
-const device_type STRATAFLASH = device_creator<strataflash_device>;
+DEFINE_DEVICE_TYPE(STRATAFLASH, strataflash_device, "strataflash", "Intel 28F640J5")
 
 strataflash_device::strataflash_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, STRATAFLASH, "Intel 28F640J5", tag, owner, clock, "strataflash", __FILE__),
-		device_nvram_interface(mconfig, *this)
+	: device_t(mconfig, STRATAFLASH, tag, owner, clock)
+	, device_nvram_interface(mconfig, *this)
 {
 }
 
@@ -179,7 +178,7 @@ void strataflash_device::nvram_write(emu_file &file)
 //-------------------------------------------------
 //  device_start - device-specific startup
 //-------------------------------------------------
-void strataflash_device::device_start(void)
+void strataflash_device::device_start()
 {
 	m_mode = FM_NORMAL;
 	m_status = 0x80;
@@ -204,7 +203,7 @@ void strataflash_device::device_start(void)
 /*
     read a 8/16-bit word from FEEPROM
 */
-uint16_t strataflash_device::read8_16(address_space& space, offs_t offset, bus_width_t bus_width)
+uint16_t strataflash_device::read8_16(offs_t offset, bus_width_t bus_width)
 {
 	switch (bus_width)
 	{
@@ -394,7 +393,7 @@ uint16_t strataflash_device::read8_16(address_space& space, offs_t offset, bus_w
 /*
     write a 8/16-bit word to FEEPROM
 */
-void strataflash_device::write8_16(address_space& space, offs_t offset, uint16_t data, bus_width_t bus_width)
+void strataflash_device::write8_16(offs_t offset, uint16_t data, bus_width_t bus_width)
 {
 	switch (bus_width)
 	{
@@ -635,31 +634,31 @@ void strataflash_device::write8_16(address_space& space, offs_t offset, uint16_t
 /*
     read a byte from FEEPROM
 */
-READ8_MEMBER( strataflash_device::read8 )
+uint8_t strataflash_device::read8(offs_t offset)
 {
-	return read8_16(space, offset, bw_8);
+	return read8_16(offset, bw_8);
 }
 
 /*
     Write a byte to FEEPROM
 */
-WRITE8_MEMBER( strataflash_device::write8 )
+void strataflash_device::write8(offs_t offset, uint8_t data)
 {
-	write8_16(space, offset, data, bw_8);
+	write8_16(offset, data, bw_8);
 }
 
 /*
     read a 16-bit word from FEEPROM
 */
-READ16_MEMBER( strataflash_device::read16 )
+uint16_t strataflash_device::read16(offs_t offset)
 {
-	return read8_16(space, offset, bw_16);
+	return read8_16(offset, bw_16);
 }
 
 /*
     Write a byte to FEEPROM
 */
-WRITE16_MEMBER( strataflash_device::write16 )
+void strataflash_device::write16(offs_t offset, uint16_t data)
 {
-	write8_16(space, offset, data, bw_16);
+	write8_16(offset, data, bw_16);
 }

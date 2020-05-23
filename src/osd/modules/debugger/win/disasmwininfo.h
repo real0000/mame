@@ -5,9 +5,10 @@
 //  disasmwininfo.h - Win32 debug window handling
 //
 //============================================================
+#ifndef MAME_DEBUGGER_WIN_DISASMWININFO_H
+#define MAME_DEBUGGER_WIN_DISASMWININFO_H
 
-#ifndef __DEBUG_WIN_DISASM_WIN_INFO_H__
-#define __DEBUG_WIN_DISASM_WIN_INFO_H__
+#pragma once
 
 #include "debugwin.h"
 
@@ -26,7 +27,7 @@ protected:
 	virtual void draw_contents(HDC dc) override;
 
 private:
-	virtual void process_string(char const *string) override;
+	virtual void process_string(const std::string &string) override;
 
 	void update_caption();
 

@@ -12,10 +12,6 @@
  *  * http://www.bitsavers.org/pdf/sms/pc/OMTI_AT_Controller_Series_Jan87.pdf
  */
 
-#define VERBOSE 0
-
-static int verbose = VERBOSE;
-
 #include "emu.h"
 #include "omti8621.h"
 #include "image.h"
@@ -23,7 +19,11 @@ static int verbose = VERBOSE;
 #include "formats/naslite_dsk.h"
 #include "formats/apollo_dsk.h"
 
-#define LOG(x)  { logerror ("%s: ", cpu_context(this)); logerror x; logerror ("\n"); }
+#define VERBOSE 0
+
+static int verbose = VERBOSE;
+
+#define LOG(x)  { logerror ("%s: ", cpu_context()); logerror x; logerror ("\n"); }
 #define LOG1(x) { if (verbose > 0) LOG(x)}
 #define LOG2(x) { if (verbose > 1) LOG(x)}
 #define LOG3(x) { if (verbose > 2) LOG(x)}
@@ -45,7 +45,7 @@ static int verbose = VERBOSE;
 #define OMTI_BIOS_REGION "omti_bios"
 
 // forward declaration of image class
-extern const device_type OMTI_DISK;
+DECLARE_DEVICE_TYPE(OMTI_DISK, omti_disk_image_device)
 
 class omti_disk_image_device :  public device_t,
 								public device_image_interface
@@ -55,19 +55,20 @@ public:
 	omti_disk_image_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// image-level overrides
-	virtual iodevice_t image_type() const override { return IO_HARDDISK; }
+	virtual iodevice_t image_type() const noexcept override { return IO_HARDDISK; }
 
-	virtual bool is_readable()  const override { return 1; }
-	virtual bool is_writeable() const override { return 1; }
-	virtual bool is_creatable() const override { return 1; }
-	virtual bool must_be_loaded() const override { return 0; }
-	virtual bool is_reset_on_load() const override { return 0; }
-	virtual bool support_command_line_image_creation() const override { return 1; }
-	virtual const char *file_extensions() const override { return "awd"; }
-	virtual const char *custom_instance_name() const override { return "disk"; }
-	virtual const char *custom_brief_instance_name() const override { return "disk"; }
+	virtual bool is_readable()  const noexcept override { return true; }
+	virtual bool is_writeable() const noexcept override { return true; }
+	virtual bool is_creatable() const noexcept override { return true; }
+	virtual bool must_be_loaded() const noexcept override { return false; }
+	virtual bool is_reset_on_load() const noexcept override { return false; }
+	virtual bool support_command_line_image_creation() const noexcept override { return true; }
+	virtual const char *file_extensions() const noexcept override { return "awd"; }
+	virtual const char *custom_instance_name() const noexcept override { return "winchester"; }
+	virtual const char *custom_brief_instance_name() const noexcept override { return "disk"; }
 
 	virtual image_init_result call_create(int format_type, util::option_resolution *format_options) override;
+
 protected:
 	// device-level overrides
 	virtual void device_start() override;
@@ -186,43 +187,22 @@ enum {
  cpu_context - return a string describing the current CPU context
  ***************************************************************************/
 
-static const char *cpu_context(const device_t *device) {
-	static char statebuf[64]; /* string buffer containing state description */
+std::string omti8621_device::cpu_context() const
+{
+	osd_ticks_t t = osd_ticks();
+	int s = (t / osd_ticks_per_second()) % 3600;
+	int ms = (t / (osd_ticks_per_second() / 1000)) % 1000;
 
-	device_t *cpu = device->machine().firstcpu;
-
-	/* if we have an executing CPU, output data */
-	if (cpu != nullptr) {
-		osd_ticks_t t = osd_ticks();
-		int s = (t / osd_ticks_per_second()) % 3600;
-		int ms = (t / (osd_ticks_per_second() / 1000)) % 1000;
-
-		sprintf(statebuf, "%d.%03d %s pc=%08x - %s", s, ms, cpu->tag(),
-				cpu->safe_pcbase(), device->tag());
-	} else {
-		strcpy(statebuf, "(no context)");
-	}
-	return statebuf;
+	return string_format("%d.%03d %s", s, ms, machine().describe_context());
 }
 
-static SLOT_INTERFACE_START( pc_hd_floppies )
-	SLOT_INTERFACE( "525hd", FLOPPY_525_HD )
-	SLOT_INTERFACE( "35hd", FLOPPY_35_HD )
-	SLOT_INTERFACE( "525dd", FLOPPY_525_DD )
-	SLOT_INTERFACE( "35dd", FLOPPY_35_DD )
-SLOT_INTERFACE_END
-
-MACHINE_CONFIG_FRAGMENT( omti_disk )
-	MCFG_DEVICE_ADD(OMTI_DISK0_TAG, OMTI_DISK, 0)
-	MCFG_DEVICE_ADD(OMTI_DISK1_TAG, OMTI_DISK, 0)
-
-	MCFG_PC_FDC_AT_ADD(OMTI_FDC_TAG)
-	MCFG_PC_FDC_INTRQ_CALLBACK(WRITELINE(omti8621_device, fdc_irq_w))
-	MCFG_PC_FDC_DRQ_CALLBACK(WRITELINE(omti8621_device, fdc_drq_w))
-	MCFG_FLOPPY_DRIVE_ADD(OMTI_FDC_TAG":0", pc_hd_floppies, "525hd", omti8621_device::floppy_formats)
-// Apollo workstations never have more then 1 floppy drive
-//  MCFG_FLOPPY_DRIVE_ADD(OMTI_FDC_TAG":1", pc_hd_floppies, "525hd", omti8621_device::floppy_formats)
-MACHINE_CONFIG_END
+static void pc_hd_floppies(device_slot_interface &device)
+{
+	device.option_add("525hd", FLOPPY_525_HD);
+	device.option_add("35hd", FLOPPY_35_HD);
+	device.option_add("525dd", FLOPPY_525_DD);
+	device.option_add("35dd", FLOPPY_35_DD);
+}
 
 FLOPPY_FORMATS_MEMBER( omti8621_device::floppy_formats )
 	FLOPPY_APOLLO_FORMAT,
@@ -264,9 +244,17 @@ static INPUT_PORTS_START( omti_port )
 	PORT_DIPSETTING(    0x01, "CA000h" )
 INPUT_PORTS_END
 
-machine_config_constructor omti8621_device::device_mconfig_additions() const
+void omti8621_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( omti_disk );
+	OMTI_DISK(config, OMTI_DISK0_TAG, 0);
+	OMTI_DISK(config, OMTI_DISK1_TAG, 0);
+
+	UPD765A(config, m_fdc, 48_MHz_XTAL / 6, false, false); // clocked through FDC9239BT
+	m_fdc->intrq_wr_callback().set(FUNC(omti8621_device::fdc_irq_w));
+	m_fdc->drq_wr_callback().set(FUNC(omti8621_device::fdc_drq_w));
+	FLOPPY_CONNECTOR(config, m_floppy[0], pc_hd_floppies, "525hd", omti8621_device::floppy_formats);
+// Apollo workstations never have more then 1 floppy drive
+//  FLOPPY_CONNECTOR(config, m_floppy[1], pc_hd_floppies, nullptr, omti8621_device::floppy_formats);
 }
 
 const tiny_rom_entry *omti8621_device::device_rom_region() const
@@ -322,16 +310,16 @@ void omti8621_device::device_reset()
 		int esdi_base = io_bases[m_iobase->read() & 7];
 
 		// install the ESDI ports
-		m_isa->install16_device(esdi_base, esdi_base + 7, read16_delegate(FUNC(omti8621_device::read), this), write16_delegate(FUNC(omti8621_device::write), this));
+		m_isa->install16_device(esdi_base, esdi_base + 7, read16_delegate(*this, FUNC(omti8621_device::read)), write16_delegate(*this, FUNC(omti8621_device::write)));
 
 		// and the onboard AT FDC ports
 		if (m_iobase->read() & 8)
 		{
-			m_isa->install_device(0x0370, 0x0377, *m_fdc, &pc_fdc_interface::map);
+			m_isa->install_device(0x0370, 0x0377, *this, &omti8621_device::fdc_map);
 		}
 		else
 		{
-			m_isa->install_device(0x03f0, 0x03f7, *m_fdc, &pc_fdc_interface::map);
+			m_isa->install_device(0x03f0, 0x03f7, *this, &omti8621_device::fdc_map);
 		}
 
 		m_isa->set_dma_channel(2, this, true);
@@ -374,38 +362,40 @@ void omti8621_device::device_reset()
 	diskaddr_format_bad_track = 0;
 	alternate_track_address[0] = 0;
 	alternate_track_address[1] = 0;
+
+	fd_moten_w(0);
+	fd_rate_w(0);
+	fd_extra_w(0);
 }
 
-const device_type ISA16_OMTI8621 = device_creator<omti8621_pc_device>;
+DEFINE_DEVICE_TYPE(ISA16_OMTI8621, omti8621_pc_device, "omti8621isa", "OMTI 8621 ESDI/floppy controller (ISA)")
 
 omti8621_pc_device::omti8621_pc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: omti8621_device(mconfig, ISA16_OMTI8621, "OMTI 8621 ESDI/floppy controller (ISA)", tag, owner, clock, "omti8621isa", __FILE__)
+	: omti8621_device(mconfig, ISA16_OMTI8621, tag, owner, clock)
 {
 }
 
-const device_type ISA16_OMTI8621_APOLLO = device_creator<omti8621_apollo_device>;
+DEFINE_DEVICE_TYPE(ISA16_OMTI8621_APOLLO, omti8621_apollo_device, "omti8621ap", "OMTI 8621 ESDI/floppy controller (Apollo)")
 
 omti8621_apollo_device::omti8621_apollo_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: omti8621_device(mconfig, ISA16_OMTI8621_APOLLO, "OMTI 8621 ESDI/floppy controller (Apollo)", tag, owner, clock, "omti8621ap", __FILE__)
+	: omti8621_device(mconfig, ISA16_OMTI8621_APOLLO, tag, owner, clock)
 {
 }
 
 omti8621_device::omti8621_device(
 		const machine_config &mconfig,
 		device_type type,
-		const char *name,
 		const char *tag,
 		device_t *owner,
-		uint32_t clock,
-		const char *shortname,
-		const char *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source)
+		uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock)
 	, device_isa16_card_interface(mconfig, *this)
 	, m_fdc(*this, OMTI_FDC_TAG)
+	, m_floppy(*this, OMTI_FDC_TAG":%u", 0U)
 	, m_iobase(*this, "IO_BASE")
 	, m_biosopts(*this, "BIOS_OPTS")
 	, jumper(0), omti_state(0), status_port(0), config_port(0), mask_port(0), command_length(0), command_index(0), command_status(0), data_buffer(nullptr)
-	, data_length(0), data_index(0), diskaddr_ecc_error(0), diskaddr_format_bad_track(0), m_timer(nullptr), m_installed(false)
+	, data_length(0), data_index(0), diskaddr_ecc_error(0), diskaddr_format_bad_track(0), m_timer(nullptr), m_moten(0), m_installed(false)
 {
 }
 
@@ -707,7 +697,7 @@ void omti8621_device::log_command(const uint8_t cdb[], const uint16_t cdb_length
 {
 	if (verbose > 0) {
 		int i;
-		logerror("%s: OMTI command ", cpu_context(this));
+		logerror("%s: OMTI command ", cpu_context());
 		switch (cdb[0]) {
 		case OMTI_CMD_TEST_DRIVE_READY: // 0x00
 			logerror("Test Drive Ready");
@@ -806,7 +796,7 @@ void omti8621_device::log_data()
 {
 	if (verbose > 0) {
 		int i;
-		logerror("%s: OMTI data (length=%02x)", cpu_context(this),
+		logerror("%s: OMTI data (length=%02x)", cpu_context(),
 				data_length);
 		for (i = 0; i < data_length && i < OMTI_DISK_SECTOR_SIZE; i++) {
 			logerror(" %02x", data_buffer[i]);
@@ -1283,12 +1273,14 @@ void omti8621_device::set_jumper(uint16_t disk_type)
 // FDC uses the standard IRQ 6 / DMA 2, doesn't appear to be configurable
 WRITE_LINE_MEMBER( omti8621_device::fdc_irq_w )
 {
-	m_isa->irq6_w(state ? ASSERT_LINE : CLEAR_LINE);
+	if (BIT(m_moten, 3))
+		m_isa->irq6_w(state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 WRITE_LINE_MEMBER( omti8621_device::fdc_drq_w )
 {
-	m_isa->drq2_w(state ? ASSERT_LINE : CLEAR_LINE);
+	if (BIT(m_moten, 3))
+		m_isa->drq2_w(state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 uint8_t omti8621_device::dack_r(int line)
@@ -1301,19 +1293,89 @@ void omti8621_device::dack_w(int line, uint8_t data)
 	return m_fdc->dma_w(data);
 }
 
+void omti8621_device::dack_line_w(int line, int state)
+{
+	//m_fdc->dack_w(state);
+}
+
 void omti8621_device::eop_w(int state)
 {
 	m_fdc->tc_w(state == ASSERT_LINE);
 }
 
+void omti8621_device::fdc_map(address_map &map)
+{
+	map(2, 2).w(FUNC(omti8621_device::fd_moten_w));
+	map(4, 5).m(m_fdc, FUNC(upd765a_device::map));
+	map(6, 6).w(FUNC(omti8621_device::fd_extra_w));
+	map(7, 7).rw(FUNC(omti8621_device::fd_disk_chg_r), FUNC(omti8621_device::fd_rate_w));
+}
+
+void omti8621_device::fd_moten_w(uint8_t data)
+{
+	if (BIT(data, 3) && !BIT(m_moten, 3))
+	{
+		m_isa->irq6_w(m_fdc->get_irq() ? ASSERT_LINE : CLEAR_LINE);
+		m_isa->drq2_w(m_fdc->get_drq() ? ASSERT_LINE : CLEAR_LINE);
+	}
+	else if (!BIT(data, 3) && BIT(m_moten, 3))
+	{
+		m_isa->irq6_w(CLEAR_LINE);
+		m_isa->drq2_w(CLEAR_LINE);
+	}
+
+	m_moten = data;
+
+	if (!BIT(data, 2))
+		m_fdc->soft_reset();
+
+	for (int i = 0; i < 2; i++)
+	{
+		floppy_image_device *floppy = m_floppy[i].found() ? m_floppy[i]->get_device() : nullptr;
+		if (floppy != nullptr)
+			floppy->mon_w(!BIT(data, i + 4));
+
+		if (i == (data & 0x01))
+			m_fdc->set_floppy(BIT(data, i + 4) ? floppy : nullptr);
+	}
+}
+
+void omti8621_device::fd_rate_w(uint8_t data)
+{
+	// Bit 1 = FD_MINI (TODO)
+	// Bit 0 = FD_RATE (TODO)
+}
+
+void omti8621_device::fd_extra_w(uint8_t data)
+{
+	// Bit 7 = FD_EXTRA-2 (NC)
+	// Bit 6 = FD_EXTRA-1 (NC)
+	// Bit 5 = FD_PIN_6 (TODO)
+	// Bit 4 = FD_IUSE_HLD (TODO)
+	// Bit 3 = FD_DEN_SEL (TODO)
+	// Bit 2 = FD_PRE-2 (TODO)
+	// Bit 1 = FD_PRE-1 (TODO)
+	// Bit 0 = FD_PRE-0 (TODO)
+}
+
+uint8_t omti8621_device::fd_disk_chg_r()
+{
+	floppy_image_device *floppy = m_floppy[m_moten & 0x01].found() ? m_floppy[m_moten & 0x01]->get_device() : nullptr;
+	if (floppy == nullptr || floppy->dskchg_r())
+		return 0x00;
+	else
+		return 0x80;
+}
+
 //##########################################################################
 
 // device type definition
-const device_type OMTI_DISK = device_creator<omti_disk_image_device>;
+DEFINE_DEVICE_TYPE(OMTI_DISK, omti_disk_image_device, "omti_disk_image", "OMTI 8621 ESDI disk")
 
 omti_disk_image_device::omti_disk_image_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, OMTI_DISK, "OMTI8621 ESDI disk", tag, owner, clock, "omti_disk_image", __FILE__),
-		device_image_interface(mconfig, *this), m_type(0), m_cylinders(0), m_heads(0), m_sectors(0), m_sectorbytes(0), m_sector_count(0), m_image(nullptr)
+	: device_t(mconfig, OMTI_DISK, tag, owner, clock)
+	, device_image_interface(mconfig, *this)
+	, m_type(0), m_cylinders(0), m_heads(0), m_sectors(0), m_sectorbytes(0), m_sector_count(0), m_image(nullptr)
 {
 }
 
@@ -1324,7 +1386,7 @@ omti_disk_image_device::omti_disk_image_device(const machine_config &mconfig, co
 
 void omti_disk_image_device::omti_disk_config(uint16_t disk_type)
 {
-	LOG1(("omti_disk_config: configuring disk with type %x", disk_type));
+	logerror("omti_disk_config: configuring disk with type %x\n", disk_type);
 
 	switch (disk_type)
 	{
@@ -1367,11 +1429,11 @@ void omti_disk_image_device::device_start()
 
 	if (!m_image->is_open())
 	{
-		LOG1(("device_start_omti_disk: no disk"));
+		logerror("device_start_omti_disk: no disk\n");
 	}
 	else
 	{
-		LOG1(("device_start_omti_disk: with disk image %s",m_image->basename() ));
+		logerror("device_start_omti_disk: with disk image %s\n", m_image->basename());
 	}
 
 	// default disk type
@@ -1384,14 +1446,14 @@ void omti_disk_image_device::device_start()
 
 void omti_disk_image_device::device_reset()
 {
-	LOG1(("device_reset_omti_disk"));
+	logerror("device_reset_omti_disk\n");
 
 	if (exists() && fseek(0, SEEK_END) == 0)
 	{
 		uint32_t disk_size = (uint32_t)(ftell() / OMTI_DISK_SECTOR_SIZE);
 		uint16_t disk_type = disk_size >= 300000 ? OMTI_DISK_TYPE_348_MB : OMTI_DISK_TYPE_155_MB;
 		if (disk_type != m_type) {
-			LOG1(("device_reset_omti_disk: disk size=%d blocks, disk type=%x", disk_size, disk_type ));
+			logerror("device_reset_omti_disk: disk size=%d blocks, disk type=%x\n", disk_size, disk_type);
 			omti_disk_config(disk_type);
 		}
 	}
@@ -1403,7 +1465,7 @@ void omti_disk_image_device::device_reset()
 
 image_init_result omti_disk_image_device::call_create(int format_type, util::option_resolution *format_options)
 {
-	LOG(("device_create_omti_disk: creating OMTI Disk with %d blocks", m_sector_count));
+	logerror("device_create_omti_disk: creating OMTI Disk with %d blocks\n", m_sector_count);
 
 	int x;
 	unsigned char sectordata[OMTI_DISK_SECTOR_SIZE]; // empty block data

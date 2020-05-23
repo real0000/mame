@@ -6,22 +6,10 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_PROF80MMU_H
+#define MAME_MACHINE_PROF80MMU_H
+
 #pragma once
-
-#ifndef __PROF80_MMU__
-#define __PROF80_MMU__
-
-
-
-
-///*************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-///*************************************************************************
-
-#define MCFG_PROF80_MMU_ADD(_tag, _program_map) \
-	MCFG_DEVICE_ADD(_tag, PROF80_MMU, 0) \
-	MCFG_DEVICE_ADDRESS_MAP(AS_PROGRAM, _program_map)
-
 
 
 ///*************************************************************************
@@ -30,26 +18,26 @@
 
 // ======================> prof80_mmu_device
 
-class prof80_mmu_device : public device_t,
-							public device_memory_interface
+class prof80_mmu_device : public device_t, public device_memory_interface
 {
 public:
 	prof80_mmu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	virtual DECLARE_ADDRESS_MAP(z80_program_map, 8);
+	virtual void z80_program_map(address_map &map);
 
-	DECLARE_WRITE8_MEMBER( par_w );
+	void par_w(offs_t offset, uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER( mme_w );
 
+	void program_map(address_map &map);
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
-	DECLARE_READ8_MEMBER( program_r );
-	DECLARE_WRITE8_MEMBER( program_w );
+	uint8_t program_r(offs_t offset);
+	void program_w(offs_t offset, uint8_t data);
 
 private:
 	const address_space_config m_program_space_config;
@@ -60,8 +48,8 @@ private:
 
 
 // device type definition
-extern const device_type PROF80_MMU;
+DECLARE_DEVICE_TYPE(PROF80_MMU, prof80_mmu_device)
 
 
 
-#endif
+#endif // MAME_MACHINE_PROF80MMU_H

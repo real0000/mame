@@ -11,62 +11,75 @@ TODO:
     Add pci configuration write to PIF byte
 ***************************************************************************/
 
-#ifndef PCI_IDE_H
-#define PCI_IDE_H
+#ifndef MAME_MACHINE_PCI_IDE_H
+#define MAME_MACHINE_PCI_IDE_H
+
+#pragma once
 
 #include "pci.h"
 #include "idectrl.h"
 
-#define MCFG_IDE_PCI_ADD(_tag, _main_id, _revision, _subdevice_id) \
-	MCFG_PCI_DEVICE_ADD(_tag, IDE_PCI, _main_id, _revision, 0x01018a, _subdevice_id)
-
-// Setting this to a value other than -1 will cause the ide_pci_device to assert/clear the cpu interrupt directly.
-#define MCFG_IDE_PCI_IRQ_ADD(_cpu_tag, _irq_num) \
-	downcast<ide_pci_device *>(device)->set_irq_info(_cpu_tag, _irq_num);
-
-#define MCFG_IDE_PCI_IRQ_HANDLER(_devcb) \
-	devcb = &ide_pci_device::set_irq_handler(*device, DEVCB_##_devcb);
-
 class ide_pci_device : public pci_device {
 public:
+	ide_pci_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock, uint32_t main_id, uint32_t revision, uint32_t subdevice_id
+		, const char *bmtag = ":pci:00.0", uint32_t bmspace = AS_DATA)
+		: ide_pci_device(mconfig, tag, owner, clock)
+	{
+		set_ids(main_id, revision, 0x01018a, subdevice_id);
+		m_bus_master_tag = bmtag;
+		m_bus_master_space = bmspace;
+	}
 	ide_pci_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	required_device<bus_master_ide_controller_device> m_ide;
-	required_device<bus_master_ide_controller_device> m_ide2;
-	virtual DECLARE_ADDRESS_MAP(config_map, 32) override;
-	DECLARE_WRITE_LINE_MEMBER(ide_interrupt);
-	DECLARE_READ32_MEMBER(ide_read_cs1);
-	DECLARE_WRITE32_MEMBER(ide_write_cs1);
-	DECLARE_READ32_MEMBER(ide2_read_cs1);
-	DECLARE_WRITE32_MEMBER(ide2_write_cs1);
-	void set_irq_info(const char *tag, const int irq_num);
-	template<class _Object> static devcb_base &set_irq_handler(device_t &device, _Object object) { return downcast<ide_pci_device &>(device).m_irq_handler.set_callback(object); }
+
+	auto irq_handler() { return m_irq_handler.bind(); }
+
+	// This will set the top 12 bits for address decoding in legacy mode. Needed for seattle driver.
+	void set_legacy_top(int val) { m_legacy_top = val & 0xfff; };
+
+	// Sets the default Programming Interface (PIF) register
+	void set_pif(int val) { m_pif = val & 0xff; };
 
 protected:
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
+	virtual void config_map(address_map &map) override;
 
 private:
-	const char *m_cpu_tag;
-	cpu_device *m_cpu;
-	int m_irq_num;
-	devcb_write_line m_irq_handler;
-	uint32_t pci_bar[6];
-
-	uint32_t m_config_data[0x10];
-	DECLARE_ADDRESS_MAP(chan1_data_command_map, 32);
-	DECLARE_ADDRESS_MAP(chan1_control_map, 32);
-	DECLARE_ADDRESS_MAP(chan2_data_command_map, 32);
-	DECLARE_ADDRESS_MAP(chan2_control_map, 32);
-	DECLARE_ADDRESS_MAP(bus_master_map, 32);
+	DECLARE_WRITE_LINE_MEMBER(ide_interrupt);
 	DECLARE_WRITE8_MEMBER(prog_if_w);
 	DECLARE_READ32_MEMBER(pcictrl_r);
 	DECLARE_WRITE32_MEMBER(pcictrl_w);
+	DECLARE_READ32_MEMBER(address_base_r);
 	DECLARE_WRITE32_MEMBER(address_base_w);
+	DECLARE_WRITE32_MEMBER(subsystem_id_w);
+	DECLARE_READ32_MEMBER(ide_read_cs1);
+	DECLARE_WRITE32_MEMBER(ide_write_cs1);
+	DECLARE_READ32_MEMBER(ide2_read_cs1);
+	DECLARE_WRITE32_MEMBER(ide2_write_cs1);
+
+	required_device<bus_master_ide_controller_device> m_ide;
+	required_device<bus_master_ide_controller_device> m_ide2;
+
+	devcb_write_line m_irq_handler;
+	uint32_t pci_bar[6];
+	// Bits 31-20 for legacy mode hack
+	uint32_t m_legacy_top;
+	uint32_t m_pif;
+	const char* m_bus_master_tag;
+	uint32_t m_bus_master_space;
+
+	uint32_t m_config_data[0x10];
+	void chan1_data_command_map(address_map &map);
+	void chan1_control_map(address_map &map);
+	void chan2_data_command_map(address_map &map);
+	void chan2_control_map(address_map &map);
+	void bus_master_map(address_map &map);
 };
 
-extern const device_type IDE_PCI;
+DECLARE_DEVICE_TYPE(IDE_PCI, ide_pci_device)
 
-#endif
+#endif // MAME_MACHINE_PCI_IDE_H

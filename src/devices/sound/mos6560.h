@@ -29,61 +29,12 @@
 
 ***************************************************************************/
 
-#ifndef MAME_DEVICES_SOUND_MOS6560_H
-#define MAME_DEVICES_SOUND_MOS6560_H
+#ifndef MAME_SOUND_MOS6560_H
+#define MAME_SOUND_MOS6560_H
 
 #pragma once
 
 #include "screen.h"
-
-
-//***************************************************************************
-// DEVICE CONFIGURATION MACROS
-//***************************************************************************
-
-#define MCFG_MOS6560_ADD(_tag, _screen_tag, _clock, _videoram_map, _colorram_map) \
-	MCFG_SCREEN_ADD(_screen_tag, RASTER) \
-	MCFG_SCREEN_REFRESH_RATE(MOS6560_VRETRACERATE) \
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) \
-	MCFG_SCREEN_SIZE((MOS6560_XSIZE + 7) & ~7, MOS6560_YSIZE) \
-	MCFG_SCREEN_VISIBLE_AREA(MOS6560_MAME_XPOS, MOS6560_MAME_XPOS + MOS6560_MAME_XSIZE - 1, MOS6560_MAME_YPOS, MOS6560_MAME_YPOS + MOS6560_MAME_YSIZE - 1) \
-	MCFG_SCREEN_UPDATE_DEVICE(_tag, mos6560_device, screen_update) \
-	MCFG_SOUND_ADD(_tag, MOS6560, _clock) \
-	MCFG_VIDEO_SET_SCREEN(_screen_tag) \
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, _videoram_map) \
-	MCFG_DEVICE_ADDRESS_MAP(AS_1, _colorram_map)
-
-#define MCFG_MOS6561_ADD(_tag, _screen_tag, _clock, _videoram_map, _colorram_map) \
-	MCFG_SCREEN_ADD(_screen_tag, RASTER) \
-	MCFG_SCREEN_REFRESH_RATE(MOS6561_VRETRACERATE) \
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) \
-	MCFG_SCREEN_SIZE((MOS6561_XSIZE + 7) & ~7, MOS6561_YSIZE) \
-	MCFG_SCREEN_VISIBLE_AREA(MOS6561_MAME_XPOS, MOS6561_MAME_XPOS + MOS6561_MAME_XSIZE - 1, MOS6561_MAME_YPOS, MOS6561_MAME_YPOS + MOS6561_MAME_YSIZE - 1) \
-	MCFG_SCREEN_UPDATE_DEVICE(_tag, mos6560_device, screen_update) \
-	MCFG_SOUND_ADD(_tag, MOS6561, _clock) \
-	MCFG_VIDEO_SET_SCREEN(_screen_tag) \
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, _videoram_map) \
-	MCFG_DEVICE_ADDRESS_MAP(AS_1, _colorram_map)
-
-#define MCFG_MOS656X_ATTACK_UFO_ADD(_tag, _screen_tag, _clock, _videoram_map, _colorram_map) \
-	MCFG_SCREEN_ADD(_screen_tag, RASTER) \
-	MCFG_SCREEN_REFRESH_RATE(MOS6560_VRETRACERATE) \
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) \
-	MCFG_SCREEN_SIZE((MOS6560_XSIZE + 7) & ~7, MOS6560_YSIZE) \
-	MCFG_SCREEN_VISIBLE_AREA(0, 23*8 - 1, 0, 22*8 - 1) \
-	MCFG_SCREEN_UPDATE_DEVICE(_tag, mos6560_device, screen_update) \
-	MCFG_SOUND_ADD(_tag, MOS656X_ATTACK_UFO, _clock) \
-	MCFG_VIDEO_SET_SCREEN(_screen_tag) \
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, _videoram_map) \
-	MCFG_DEVICE_ADDRESS_MAP(AS_1, _colorram_map)
-
-
-#define MCFG_MOS6560_POTX_CALLBACK(_read) \
-	devcb = &mos6560_device::set_potx_rd_callback(*device, DEVCB_##_read);
-
-#define MCFG_MOS6560_POTY_CALLBACK(_read) \
-	devcb = &mos6560_device::set_poty_rd_callback(*device, DEVCB_##_read);
-
 
 
 //**************************************************************************
@@ -134,23 +85,24 @@ class mos6560_device : public device_t,
 						public device_video_interface
 {
 public:
-	mos6560_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source);
 	mos6560_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_potx_rd_callback(device_t &device, _Object object) { return downcast<mos6560_device &>(device).m_read_potx.set_callback(object); }
-	template<class _Object> static devcb_base &set_poty_rd_callback(device_t &device, _Object object) { return downcast<mos6560_device &>(device).m_read_poty.set_callback(object); }
+	auto potx_rd_callback() { return m_read_potx.bind(); }
+	auto poty_rd_callback() { return m_read_poty.bind(); }
 
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 
 	uint8_t bus_r();
 
-	DECLARE_WRITE_LINE_MEMBER( lp_w );
+	void lp_w(int state);
 
 	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
+	void mos6560_colorram_map(address_map &map);
+	void mos6560_videoram_map(address_map &map);
 protected:
 	enum
 	{
@@ -163,6 +115,8 @@ protected:
 	{
 		TIMER_LINE
 	};
+
+	mos6560_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint32_t variant);
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -182,7 +136,7 @@ protected:
 	void sound_start();
 	void raster_interrupt_gen();
 
-	int  m_variant;
+	const int  m_variant;
 
 	const address_space_config      m_videoram_space_config;
 	const address_space_config      m_colorram_space_config;
@@ -231,7 +185,7 @@ protected:
 
 // ======================> mos6561_device
 
-class mos6561_device :  public mos6560_device
+class mos6561_device : public mos6560_device
 {
 public:
 	// construction/destruction
@@ -241,7 +195,7 @@ public:
 
 // ======================> mos656x_attack_ufo_device
 
-class mos656x_attack_ufo_device :  public mos6560_device
+class mos656x_attack_ufo_device : public mos6560_device
 {
 public:
 	// construction/destruction
@@ -250,10 +204,8 @@ public:
 
 
 // device type definitions
-extern const device_type MOS6560;
-extern const device_type MOS6561;
-extern const device_type MOS656X_ATTACK_UFO;
+DECLARE_DEVICE_TYPE(MOS6560,            mos6560_device)
+DECLARE_DEVICE_TYPE(MOS6561,            mos6561_device)
+DECLARE_DEVICE_TYPE(MOS656X_ATTACK_UFO, mos656x_attack_ufo_device)
 
-
-
-#endif // MAME_DEVICES_SOUND_MOS6560_H
+#endif // MAME_SOUND_MOS6560_H

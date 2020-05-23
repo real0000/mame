@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_MACHINE_TRS80M2KB_H
+#define MAME_MACHINE_TRS80M2KB_H
 
-#ifndef __TRS80M2_KEYBOARD__
-#define __TRS80M2_KEYBOARD__
+#pragma once
 
 #include "cpu/mcs48/mcs48.h"
 #include "sound/discrete.h"
@@ -21,16 +21,6 @@
 //**************************************************************************
 
 #define TRS80M2_KEYBOARD_TAG    "trs80m2kb"
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_TRS80M2_KEYBOARD_CLOCK_CALLBACK(_write) \
-	devcb = &trs80m2_keyboard_device::set_clock_wr_callback(*device, DEVCB_##_write);
-
 
 
 //**************************************************************************
@@ -45,26 +35,19 @@ public:
 	// construction/destruction
 	trs80m2_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_clock_wr_callback(device_t &device, _Object object) { return downcast<trs80m2_keyboard_device &>(device).m_write_clock.set_callback(object); }
-
-	// optional information overrides
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	virtual ioport_constructor device_input_ports() const override;
+	auto clock_wr_callback() { return m_write_clock.bind(); }
 
 	DECLARE_WRITE_LINE_MEMBER( busy_w );
 	DECLARE_READ_LINE_MEMBER( data_r );
-
-	// not really public
-	DECLARE_READ8_MEMBER( kb_t1_r );
-	DECLARE_READ8_MEMBER( kb_p0_r );
-	DECLARE_WRITE8_MEMBER( kb_p1_w );
-	DECLARE_WRITE8_MEMBER( kb_p2_w );
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+	// optional information overrides
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+	virtual ioport_constructor device_input_ports() const override;
 
 private:
 	enum
@@ -73,8 +56,9 @@ private:
 		LED_1
 	};
 
-	required_device<cpu_device> m_maincpu;
+	required_device<i8021_device> m_maincpu;
 	required_ioport_array<12> m_y;
+	output_finder<2> m_leds;
 
 	devcb_write_line   m_write_clock;
 
@@ -83,12 +67,17 @@ private:
 	int m_clk;
 
 	uint8_t m_keylatch;
+
+	DECLARE_READ_LINE_MEMBER( kb_t1_r );
+	uint8_t kb_p0_r();
+	void kb_p1_w(uint8_t data);
+	void kb_p2_w(uint8_t data);
 };
 
 
 // device type definition
-extern const device_type TRS80M2_KEYBOARD;
+DECLARE_DEVICE_TYPE(TRS80M2_KEYBOARD, trs80m2_keyboard_device)
 
 
 
-#endif
+#endif // MAME_MACHINE_TRS80M2KB_H

@@ -12,15 +12,15 @@
 /*                                                                         */
 /***************************************************************************/
 
-const device_type K001006 = device_creator<k001006_device>;
+DEFINE_DEVICE_TYPE(K001006, k001006_device, "k001006", "K001006 Texel Unit")
 
 k001006_device::k001006_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, K001006, "K001006 Texel Unit", tag, owner, clock, "k001006", __FILE__),
+	: device_t(mconfig, K001006, tag, owner, clock),
 	m_pal_ram(nullptr),
 	m_unknown_ram(nullptr),
 	m_addr(0),
 	m_device_sel(0),
-	m_palette(nullptr), m_gfx_region(nullptr), m_gfxrom(nullptr),
+	m_palette(nullptr), m_gfxrom(*this, finder_base::DUMMY_TAG),
 	m_tex_layout(0)
 {
 }
@@ -35,14 +35,13 @@ void k001006_device::device_start()
 	m_unknown_ram = make_unique_clear<uint16_t[]>(0x1000);
 	m_palette = make_unique_clear<uint32_t[]>(0x800);
 
-	m_gfxrom = machine().root_device().memregion(m_gfx_region)->base();
 	m_texrom = std::make_unique<uint8_t[]>(0x800000);
 
 	preprocess_texture_data(m_texrom.get(), m_gfxrom, 0x800000, m_tex_layout);
 
-	save_pointer(NAME(m_pal_ram.get()), 0x800*sizeof(uint16_t));
-	save_pointer(NAME(m_unknown_ram.get()), 0x1000*sizeof(uint16_t));
-	save_pointer(NAME(m_palette.get()), 0x800*sizeof(uint32_t));
+	save_pointer(NAME(m_pal_ram), 0x800*sizeof(uint16_t));
+	save_pointer(NAME(m_unknown_ram), 0x1000*sizeof(uint16_t));
+	save_pointer(NAME(m_palette), 0x800*sizeof(uint32_t));
 	save_item(NAME(m_device_sel));
 	save_item(NAME(m_addr));
 }
@@ -70,7 +69,7 @@ READ32_MEMBER( k001006_device::read )
 		{
 			case 0x0b:      // CG Board ROM read
 			{
-				uint16_t *rom = (uint16_t*)space.machine().root_device().memregion(m_gfx_region)->base();
+				uint16_t *rom = (uint16_t*)&m_gfxrom[0];
 				return rom[m_addr / 2] << 16;
 			}
 			case 0x0d:      // Palette RAM read

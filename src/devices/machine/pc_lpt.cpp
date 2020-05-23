@@ -10,10 +10,10 @@
 #include "pc_lpt.h"
 
 
-const device_type PC_LPT = device_creator<pc_lpt_device>;
+DEFINE_DEVICE_TYPE(PC_LPT, pc_lpt_device, "pc_lpt", "PC LPT")
 
-pc_lpt_device::pc_lpt_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, PC_LPT, "PC-LPT", tag, owner, clock, "pc_lpt", __FILE__),
+pc_lpt_device::pc_lpt_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, PC_LPT, tag, owner, clock),
 	m_irq(1),
 	m_data(0xff), m_control(0),
 	m_irq_enabled(1),
@@ -46,62 +46,60 @@ void pc_lpt_device::device_reset()
 	m_cent_ctrl_out->write(m_control);
 }
 
-static MACHINE_CONFIG_FRAGMENT( pc_lpt )
-	MCFG_CENTRONICS_ADD("centronics", centronics_devices, "printer")
-	MCFG_CENTRONICS_DATA_INPUT_BUFFER("cent_data_in")
-	MCFG_CENTRONICS_FAULT_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit3))
-	MCFG_CENTRONICS_SELECT_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit4))
-	MCFG_CENTRONICS_PERROR_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit5))
-	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(pc_lpt_device, write_centronics_ack))
-	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit7))
-
-	MCFG_CENTRONICS_STROBE_HANDLER(DEVWRITELINE("cent_ctrl_in", input_buffer_device, write_bit0))
-	MCFG_CENTRONICS_AUTOFD_HANDLER(DEVWRITELINE("cent_ctrl_in", input_buffer_device, write_bit1))
-	MCFG_CENTRONICS_INIT_HANDLER(DEVWRITELINE("cent_ctrl_in", input_buffer_device, write_bit2))
-	MCFG_CENTRONICS_SELECT_IN_HANDLER(DEVWRITELINE("cent_ctrl_in", input_buffer_device, write_bit3))
-
-	MCFG_DEVICE_ADD("cent_data_in", INPUT_BUFFER, 0)
-	MCFG_DEVICE_ADD("cent_ctrl_in", INPUT_BUFFER, 0)
-	MCFG_DEVICE_ADD("cent_status_in", INPUT_BUFFER, 0)
-
-	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
-
-	MCFG_DEVICE_ADD("cent_ctrl_out", OUTPUT_LATCH, 0)
-	MCFG_OUTPUT_LATCH_BIT0_HANDLER(DEVWRITELINE("centronics", centronics_device, write_strobe))
-	MCFG_OUTPUT_LATCH_BIT1_HANDLER(DEVWRITELINE("centronics", centronics_device, write_autofd))
-	MCFG_OUTPUT_LATCH_BIT2_HANDLER(DEVWRITELINE("centronics", centronics_device, write_init))
-	MCFG_OUTPUT_LATCH_BIT3_HANDLER(DEVWRITELINE("centronics", centronics_device, write_select_in))
-	MCFG_OUTPUT_LATCH_BIT4_HANDLER(WRITELINE(pc_lpt_device, write_irq_enabled))
-MACHINE_CONFIG_END
-
-machine_config_constructor pc_lpt_device::device_mconfig_additions() const
+void pc_lpt_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( pc_lpt  );
+	centronics_device &centronics(CENTRONICS(config, "centronics", centronics_devices, "printer"));
+	centronics.set_data_input_buffer(m_cent_data_in);
+	centronics.fault_handler().set(m_cent_status_in, FUNC(input_buffer_device::write_bit3));
+	centronics.select_handler().set(m_cent_status_in, FUNC(input_buffer_device::write_bit4));
+	centronics.perror_handler().set(m_cent_status_in, FUNC(input_buffer_device::write_bit5));
+	centronics.ack_handler().set(FUNC(pc_lpt_device::write_centronics_ack));
+	centronics.busy_handler().set(m_cent_status_in, FUNC(input_buffer_device::write_bit7));
+
+	centronics.strobe_handler().set(m_cent_ctrl_in, FUNC(input_buffer_device::write_bit0));
+	centronics.autofd_handler().set(m_cent_ctrl_in, FUNC(input_buffer_device::write_bit1));
+	centronics.init_handler().set(m_cent_ctrl_in, FUNC(input_buffer_device::write_bit2));
+	centronics.select_in_handler().set(m_cent_ctrl_in, FUNC(input_buffer_device::write_bit3));
+
+	INPUT_BUFFER(config, m_cent_data_in);
+	INPUT_BUFFER(config, m_cent_ctrl_in);
+	INPUT_BUFFER(config, m_cent_status_in);
+
+	OUTPUT_LATCH(config, m_cent_data_out);
+	centronics.set_output_latch(*m_cent_data_out);
+
+	OUTPUT_LATCH(config, m_cent_ctrl_out);
+	m_cent_ctrl_out->bit_handler<0>().set("centronics", FUNC(centronics_device::write_strobe));
+	m_cent_ctrl_out->bit_handler<1>().set("centronics", FUNC(centronics_device::write_autofd));
+	m_cent_ctrl_out->bit_handler<2>().set("centronics", FUNC(centronics_device::write_init));
+	m_cent_ctrl_out->bit_handler<3>().set("centronics", FUNC(centronics_device::write_select_in));
+	m_cent_ctrl_out->bit_handler<4>().set(FUNC(pc_lpt_device::write_irq_enabled));
 }
 
-READ8_MEMBER( pc_lpt_device::data_r )
+
+uint8_t pc_lpt_device::data_r()
 {
 	// pull up mechanism for input lines, zeros are provided by peripheral
 	return m_data & m_cent_data_in->read();
 }
 
-WRITE8_MEMBER( pc_lpt_device::data_w )
+void pc_lpt_device::data_w(uint8_t data)
 {
 	m_data = data;
 	m_cent_data_out->write(m_data);
 }
 
-READ8_MEMBER( pc_lpt_device::status_r )
+uint8_t pc_lpt_device::status_r()
 {
 	return m_cent_status_in->read() ^ STATUS_BUSY;
 }
 
-READ8_MEMBER( pc_lpt_device::control_r )
+uint8_t pc_lpt_device::control_r()
 {
 	return ~((m_control & m_cent_ctrl_in->read() & 0x3f) ^ CONTROL_INIT);
 }
 
-WRITE8_MEMBER( pc_lpt_device::control_w )
+void pc_lpt_device::control_w(uint8_t data)
 {
 	//  logerror("pc_lpt_control_w: 0x%02x\n", data);
 
@@ -109,13 +107,13 @@ WRITE8_MEMBER( pc_lpt_device::control_w )
 	m_cent_ctrl_out->write(m_control);
 }
 
-READ8_MEMBER( pc_lpt_device::read )
+uint8_t pc_lpt_device::read(offs_t offset)
 {
 	switch (offset)
 	{
-	case 0: return data_r(space, 0);
-	case 1: return status_r(space, 0);
-	case 2: return control_r(space, 0);
+	case 0: return data_r();
+	case 1: return status_r();
+	case 2: return control_r();
 	}
 
 	/* if we reach this its an error */
@@ -124,13 +122,13 @@ READ8_MEMBER( pc_lpt_device::read )
 	return 0xff;
 }
 
-WRITE8_MEMBER( pc_lpt_device::write )
+void pc_lpt_device::write(offs_t offset, uint8_t data)
 {
 	switch (offset)
 	{
-	case 0: data_w(space, 0, data); break;
+	case 0: data_w(data); break;
 	case 1: break;
-	case 2: control_w(space, 0, data); break;
+	case 2: control_w(data); break;
 	}
 }
 
@@ -149,13 +147,13 @@ void pc_lpt_device::update_irq()
 	}
 }
 
-WRITE_LINE_MEMBER( pc_lpt_device::write_irq_enabled )
+void pc_lpt_device::write_irq_enabled(int state)
 {
 	m_irq_enabled = state;
 	update_irq();
 }
 
-WRITE_LINE_MEMBER( pc_lpt_device::write_centronics_ack )
+void pc_lpt_device::write_centronics_ack(int state)
 {
 	m_centronics_ack = state;
 	m_cent_status_in->write_bit6(state);

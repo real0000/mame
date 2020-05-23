@@ -6,10 +6,10 @@
 
 \*********************************/
 
-#pragma once
+#ifndef MAME_CPU_ARCOMPACT_ARCOMPACT_H
+#define MAME_CPU_ARCOMPACT_ARCOMPACT_H
 
-#ifndef __ARCOMPACT_H__
-#define __ARCOMPACT_H__
+#pragma once
 
 enum
 {
@@ -82,29 +82,28 @@ public:
 	DECLARE_WRITE32_MEMBER( arcompact_auxreg025_INTVECTORBASE_w);
 
 
+	void arcompact_auxreg_map(address_map &map);
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 5; }
-	virtual uint32_t execute_max_cycles() const override { return 5; }
-	virtual uint32_t execute_input_lines() const override { return 0; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 5; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 5; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 0; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : ( (spacenum == AS_IO) ? &m_io_config : nullptr ); }
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_import(const device_state_entry &entry) override;
 	virtual void state_export(const device_state_entry &entry) override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 2; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 8; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 
 
@@ -840,8 +839,8 @@ private:
 	inline uint8_t READ8(uint32_t address) { return m_program->read_byte(address << 0); }
 	inline void WRITE8(uint32_t address, uint8_t data){     m_program->write_byte(address << 0, data); }
 
-	inline  uint64_t READAUX(uint64_t address) { return m_io->read_dword(address *4); }
-	inline void WRITEAUX(uint64_t address, uint32_t data) { m_io->write_dword(address *4, data); }
+	inline uint64_t READAUX(uint64_t address) { return m_io->read_dword(address); }
+	inline void WRITEAUX(uint64_t address, uint32_t data) { m_io->write_dword(address, data); }
 
 
 	int check_condition(uint8_t condition);
@@ -894,7 +893,7 @@ private:
 #define CONDITION_LT ((STATUS32_CHECK_N && !STATUS32_CHECK_V) || (!STATUS32_CHECK_N && STATUS32_CHECK_V))
 #define CONDITION_MI (STATUS32_CHECK_N)
 
-extern const device_type ARCA5;
 
+DECLARE_DEVICE_TYPE(ARCA5, arcompact_device)
 
-#endif /* __ARCOMPACT_H__ */
+#endif // MAME_CPU_ARCOMPACT_ARCOMPACT_H

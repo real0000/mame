@@ -15,14 +15,14 @@
 //**************************************************************************
 
 // device type definition
-const device_type CDP1879 = device_creator<cdp1879_device>;
+DEFINE_DEVICE_TYPE(CDP1879, cdp1879_device, "cdp1879", "RCA CDP1879 RTC")
 
 //-------------------------------------------------
 //  cdp1879_device - constructor
 //-------------------------------------------------
 
 cdp1879_device::cdp1879_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, CDP1879, "RCA CDP1879", tag, owner, clock, "cdp1879", __FILE__),
+	: device_t(mconfig, CDP1879, tag, owner, clock),
 		device_rtc_interface(mconfig, *this),
 		m_irq_w(*this)
 {
@@ -70,7 +70,7 @@ void cdp1879_device::device_timer(emu_timer &timer, device_timer_id id, int para
 
 	// comparator IRQ
 	bool new_state = true;
-	for (int i = R_CNT_SECONDS; i <= R_CNT_MONTH; i++)
+	for (int i = R_CNT_SECONDS; i <= R_CNT_HOURS; i++)
 	{
 		if(m_regs[i] != m_regs[i + 6])
 		{
@@ -114,9 +114,9 @@ void cdp1879_device::update_rtc()
 	set_clock_register(RTC_MONTH, bcd_to_integer(m_regs[R_CNT_MONTH]));
 }
 
-READ8_MEMBER(cdp1879_device::read)
+uint8_t cdp1879_device::read(offs_t offset)
 {
-	if (offset == R_CTL_IRQSTATUS && !machine().side_effect_disabled())
+	if (offset == R_CTL_IRQSTATUS && !machine().side_effects_disabled())
 	{
 		// reading the IRQ status clears IRQ line and IRQ status
 		uint8_t data = m_regs[offset];
@@ -128,7 +128,7 @@ READ8_MEMBER(cdp1879_device::read)
 	return m_regs[offset];
 }
 
-WRITE8_MEMBER(cdp1879_device::write)
+void cdp1879_device::write(offs_t offset, uint8_t data)
 {
 	switch (offset)
 	{

@@ -19,41 +19,12 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_MOS6529_H
+#define MAME_MACHINE_MOS6529_H
+
 #pragma once
 
-#ifndef __MOS6529__
-#define __MOS6529__
 
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_MOS6529_P0_HANDLER(_devcb) \
-	devcb = &mos6529_device::set_p0_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_MOS6529_P1_HANDLER(_devcb) \
-	devcb = &mos6529_device::set_p1_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_MOS6529_P2_HANDLER(_devcb) \
-	devcb = &mos6529_device::set_p2_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_MOS6529_P3_HANDLER(_devcb) \
-	devcb = &mos6529_device::set_p3_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_MOS6529_P4_HANDLER(_devcb) \
-	devcb = &mos6529_device::set_p4_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_MOS6529_P5_HANDLER(_devcb) \
-	devcb = &mos6529_device::set_p5_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_MOS6529_P6_HANDLER(_devcb) \
-	devcb = &mos6529_device::set_p6_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_MOS6529_P7_HANDLER(_devcb) \
-	devcb = &mos6529_device::set_p7_handler(*device, DEVCB_##_devcb);
 
 
 //**************************************************************************
@@ -68,26 +39,19 @@ public:
 	// construction/destruction
 	mos6529_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_p0_handler(device_t &device, _Object object) { return downcast<mos6529_device &>(device).m_p0_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_p1_handler(device_t &device, _Object object) { return downcast<mos6529_device &>(device).m_p1_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_p2_handler(device_t &device, _Object object) { return downcast<mos6529_device &>(device).m_p2_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_p3_handler(device_t &device, _Object object) { return downcast<mos6529_device &>(device).m_p3_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_p4_handler(device_t &device, _Object object) { return downcast<mos6529_device &>(device).m_p4_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_p5_handler(device_t &device, _Object object) { return downcast<mos6529_device &>(device).m_p5_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_p6_handler(device_t &device, _Object object) { return downcast<mos6529_device &>(device).m_p6_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_p7_handler(device_t &device, _Object object) { return downcast<mos6529_device &>(device).m_p7_handler.set_callback(object); }
+	template <std::size_t Bit> auto p_handler() { return m_p_handler[Bit].bind(); }
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	uint8_t read();
+	void write(uint8_t data);
 
-	DECLARE_WRITE_LINE_MEMBER( write_p0 ) { if (state) m_input |= 1; else m_input &= ~1; }
-	DECLARE_WRITE_LINE_MEMBER( write_p1 ) { if (state) m_input |= 2; else m_input &= ~2; }
-	DECLARE_WRITE_LINE_MEMBER( write_p2 ) { if (state) m_input |= 4; else m_input &= ~4; }
-	DECLARE_WRITE_LINE_MEMBER( write_p3 ) { if (state) m_input |= 8; else m_input &= ~8; }
-	DECLARE_WRITE_LINE_MEMBER( write_p4 ) { if (state) m_input |= 16; else m_input &= ~16; }
-	DECLARE_WRITE_LINE_MEMBER( write_p5 ) { if (state) m_input |= 32; else m_input &= ~32; }
-	DECLARE_WRITE_LINE_MEMBER( write_p6 ) { if (state) m_input |= 64; else m_input &= ~64; }
-	DECLARE_WRITE_LINE_MEMBER( write_p7 ) { if (state) m_input |= 128; else m_input &= ~128; }
+	void write_p0(int state) { if (state) m_input |= 1; else m_input &= ~1; }
+	void write_p1(int state) { if (state) m_input |= 2; else m_input &= ~2; }
+	void write_p2(int state) { if (state) m_input |= 4; else m_input &= ~4; }
+	void write_p3(int state) { if (state) m_input |= 8; else m_input &= ~8; }
+	void write_p4(int state) { if (state) m_input |= 16; else m_input &= ~16; }
+	void write_p5(int state) { if (state) m_input |= 32; else m_input &= ~32; }
+	void write_p6(int state) { if (state) m_input |= 64; else m_input &= ~64; }
+	void write_p7(int state) { if (state) m_input |= 128; else m_input &= ~128; }
 
 protected:
 	// device-level overrides
@@ -95,18 +59,11 @@ protected:
 
 	uint8_t m_input;
 
-	devcb_write_line m_p0_handler;
-	devcb_write_line m_p1_handler;
-	devcb_write_line m_p2_handler;
-	devcb_write_line m_p3_handler;
-	devcb_write_line m_p4_handler;
-	devcb_write_line m_p5_handler;
-	devcb_write_line m_p6_handler;
-	devcb_write_line m_p7_handler;
+	devcb_write_line::array<8> m_p_handler;
 };
 
 
 // device type definition
-extern const device_type MOS6529;
+DECLARE_DEVICE_TYPE(MOS6529, mos6529_device)
 
-#endif
+#endif // MAME_MACHINE_MOS6529_H

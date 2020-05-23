@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2010-2019 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bx#license-bsd-2-clause
  */
 
@@ -17,7 +17,5 @@ namespace bx
 	int64_t getHPFrequency();
 
 } // namespace bx
-
-#include "timer.inl"
 
 #endif // BX_TIMER_H_HEADER_GUARD

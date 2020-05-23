@@ -1,24 +1,13 @@
 // license:BSD-3-Clause
 // copyright-holders:Miodrag Milanovic
-#ifndef __I8008_H__
-#define __I8008_H__
+#ifndef MAME_CPU_I8008_I8008_H
+#define MAME_CPU_I8008_I8008_H
 
-//**************************************************************************
-//  ENUMERATIONS
-//**************************************************************************
-
-enum
-{
-	I8008_PC,
-	I8008_A,I8008_B,I8008_C,I8008_D,I8008_E,I8008_H,I8008_L,
-	I8008_ADDR1,I8008_ADDR2,I8008_ADDR3,I8008_ADDR4,I8008_ADDR5,I8008_ADDR6,I8008_ADDR7,I8008_ADDR8
-};
+#pragma once
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
-
-class i8008_device;
 
 // ======================> asap_device
 class i8008_device : public cpu_device
@@ -28,29 +17,33 @@ public:
 	i8008_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 protected:
+	enum
+	{
+		I8008_PC,
+		I8008_A,I8008_B,I8008_C,I8008_D,I8008_E,I8008_H,I8008_L,
+		I8008_ADDR1,I8008_ADDR2,I8008_ADDR3,I8008_ADDR4,I8008_ADDR5,I8008_ADDR6,I8008_ADDR7,I8008_ADDR8
+	};
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override;
-	virtual uint32_t execute_max_cycles() const override;
+	virtual uint32_t execute_min_cycles() const noexcept override;
+	virtual uint32_t execute_max_cycles() const noexcept override;
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_import(const device_state_entry &entry) override;
 	virtual void state_export(const device_state_entry &entry) override;
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
-
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override;
-	virtual uint32_t disasm_max_opcode_bytes() const override;
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 	virtual void execute_one(int opcode);
 
@@ -90,10 +83,10 @@ protected:
 
 	address_space *m_program;
 	address_space *m_io;
-	direct_read_data *m_direct;
+	memory_access_cache<0, 0, ENDIANNESS_LITTLE> *m_cache;
 };
 
 // device type definition
-extern const device_type I8008;
+DECLARE_DEVICE_TYPE(I8008, i8008_device)
 
-#endif
+#endif // MAME_CPU_I8008_I8008_H

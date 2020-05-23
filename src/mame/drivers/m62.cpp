@@ -173,204 +173,223 @@ WRITE8_MEMBER(m62_state::youjyudn_bankswitch_w)
 }
 
 
-static ADDRESS_MAP_START( kungfum_map, AS_PROGRAM, 8, m62_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0xa000, 0xa000) AM_WRITE(m62_hscroll_low_w)
-	AM_RANGE(0xb000, 0xb000) AM_WRITE(m62_hscroll_high_w)
-	AM_RANGE(0xc000, 0xc0ff) AM_WRITEONLY AM_SHARE("spriteram")
+void m62_state::kungfum_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0xa000, 0xa000).w(FUNC(m62_state::m62_hscroll_low_w));
+	map(0xb000, 0xb000).w(FUNC(m62_state::m62_hscroll_high_w));
+	map(0xc000, 0xc0ff).writeonly().share("spriteram");
 	/* Kung Fu Master is the only game in this driver to have separated (but */
 	/* contiguous) videoram and colorram. They are interleaved in all the others. */
-	AM_RANGE(0xd000, 0xdfff) AM_RAM_WRITE(kungfum_tileram_w) AM_SHARE("m62_tileram")
-	AM_RANGE(0xe000, 0xefff) AM_RAM
-ADDRESS_MAP_END
+	map(0xd000, 0xdfff).ram().w(FUNC(m62_state::kungfum_tileram_w)).share("m62_tileram");
+	map(0xe000, 0xefff).ram();
+}
 
-static ADDRESS_MAP_START( kungfum_io_map, AS_IO, 8, m62_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_READ_PORT("SYSTEM") AM_DEVWRITE("irem_audio", irem_audio_device, cmd_w)
-	AM_RANGE(0x01, 0x01) AM_READ_PORT("P1") AM_WRITE(m62_flipscreen_w)  /* + coin counters */
-	AM_RANGE(0x02, 0x02) AM_READ_PORT("P2")
-	AM_RANGE(0x03, 0x03) AM_READ_PORT("DSW1")
-	AM_RANGE(0x04, 0x04) AM_READ_PORT("DSW2")
-ADDRESS_MAP_END
+void m62_state::kungfum_io_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).portr("SYSTEM").w(m_audio, FUNC(irem_audio_device::cmd_w));
+	map(0x01, 0x01).portr("P1").w(FUNC(m62_state::m62_flipscreen_w));  /* + coin counters */
+	map(0x02, 0x02).portr("P2");
+	map(0x03, 0x03).portr("DSW1");
+	map(0x04, 0x04).portr("DSW2");
+}
 
-static ADDRESS_MAP_START( battroad_map, AS_PROGRAM, 8, m62_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0xa000, 0xbfff) AM_ROMBANK("bank1")
-	AM_RANGE(0xc000, 0xc0ff) AM_WRITEONLY AM_SHARE("spriteram")
-	AM_RANGE(0xc800, 0xcfff) AM_RAM_WRITE(m62_textram_w) AM_SHARE("m62_textram")
-	AM_RANGE(0xd000, 0xdfff) AM_RAM_WRITE(m62_tileram_w) AM_SHARE("m62_tileram")
-	AM_RANGE(0xe000, 0xefff) AM_RAM
-ADDRESS_MAP_END
+void m62_state::battroad_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0xa000, 0xbfff).bankr("bank1");
+	map(0xc000, 0xc0ff).writeonly().share("spriteram");
+	map(0xc800, 0xcfff).ram().w(FUNC(m62_state::m62_textram_w)).share("m62_textram");
+	map(0xd000, 0xdfff).ram().w(FUNC(m62_state::m62_tileram_w)).share("m62_tileram");
+	map(0xe000, 0xefff).ram();
+}
 
-static ADDRESS_MAP_START( battroad_io_map, AS_IO, 8, m62_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_READ_PORT("SYSTEM") AM_DEVWRITE("irem_audio", irem_audio_device, cmd_w)
-	AM_RANGE(0x01, 0x01) AM_READ_PORT("P1") AM_WRITE(m62_flipscreen_w)  /* + coin counters */
-	AM_RANGE(0x02, 0x02) AM_READ_PORT("P2")
-	AM_RANGE(0x03, 0x03) AM_READ_PORT("DSW1")
-	AM_RANGE(0x04, 0x04) AM_READ_PORT("DSW2")
-	AM_RANGE(0x80, 0x80) AM_WRITE(m62_vscroll_low_w)
-	AM_RANGE(0x81, 0x81) AM_WRITE(m62_hscroll_high_w)
-	AM_RANGE(0x82, 0x82) AM_WRITE(m62_hscroll_low_w)
-	AM_RANGE(0x83, 0x83) AM_WRITE(battroad_bankswitch_w)
-ADDRESS_MAP_END
+void m62_state::battroad_io_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).portr("SYSTEM").w(m_audio, FUNC(irem_audio_device::cmd_w));
+	map(0x01, 0x01).portr("P1").w(FUNC(m62_state::m62_flipscreen_w));  /* + coin counters */
+	map(0x02, 0x02).portr("P2");
+	map(0x03, 0x03).portr("DSW1");
+	map(0x04, 0x04).portr("DSW2");
+	map(0x80, 0x80).w(FUNC(m62_state::m62_vscroll_low_w));
+	map(0x81, 0x81).w(FUNC(m62_state::m62_hscroll_high_w));
+	map(0x82, 0x82).w(FUNC(m62_state::m62_hscroll_low_w));
+	map(0x83, 0x83).w(FUNC(m62_state::battroad_bankswitch_w));
+}
 
-static ADDRESS_MAP_START( ldrun_map, AS_PROGRAM, 8, m62_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0xc000, 0xc0ff) AM_WRITEONLY AM_SHARE("spriteram")
-	AM_RANGE(0xd000, 0xdfff) AM_RAM_WRITE(m62_tileram_w) AM_SHARE("m62_tileram")
-	AM_RANGE(0xe000, 0xefff) AM_RAM
-ADDRESS_MAP_END
+void m62_state::ldrun_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0xc000, 0xc0ff).writeonly().share("spriteram");
+	map(0xd000, 0xdfff).ram().w(FUNC(m62_state::m62_tileram_w)).share("m62_tileram");
+	map(0xe000, 0xefff).ram();
+}
 
-static ADDRESS_MAP_START( ldrun2_map, AS_PROGRAM, 8, m62_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x9fff) AM_ROMBANK("bank1")
-	AM_RANGE(0xc000, 0xc0ff) AM_WRITEONLY AM_SHARE("spriteram")
-	AM_RANGE(0xd000, 0xdfff) AM_RAM_WRITE(m62_tileram_w) AM_SHARE("m62_tileram")
-	AM_RANGE(0xe000, 0xefff) AM_RAM
-ADDRESS_MAP_END
+void m62_state::ldrun2_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0x9fff).bankr("bank1");
+	map(0xc000, 0xc0ff).writeonly().share("spriteram");
+	map(0xd000, 0xdfff).ram().w(FUNC(m62_state::m62_tileram_w)).share("m62_tileram");
+	map(0xe000, 0xefff).ram();
+}
 
-static ADDRESS_MAP_START( ldrun2_io_map, AS_IO, 8, m62_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_READ_PORT("SYSTEM") AM_DEVWRITE("irem_audio", irem_audio_device, cmd_w)
-	AM_RANGE(0x01, 0x01) AM_READ_PORT("P1") AM_WRITE(m62_flipscreen_w)  /* + coin counters */
-	AM_RANGE(0x02, 0x02) AM_READ_PORT("P2")
-	AM_RANGE(0x03, 0x03) AM_READ_PORT("DSW1")
-	AM_RANGE(0x04, 0x04) AM_READ_PORT("DSW2")
-	AM_RANGE(0x80, 0x80) AM_READ(ldrun2_bankswitch_r)
-	AM_RANGE(0x80, 0x81) AM_WRITE(ldrun2_bankswitch_w)
-ADDRESS_MAP_END
+void m62_state::ldrun2_io_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).portr("SYSTEM").w(m_audio, FUNC(irem_audio_device::cmd_w));
+	map(0x01, 0x01).portr("P1").w(FUNC(m62_state::m62_flipscreen_w));  /* + coin counters */
+	map(0x02, 0x02).portr("P2");
+	map(0x03, 0x03).portr("DSW1");
+	map(0x04, 0x04).portr("DSW2");
+	map(0x80, 0x80).r(FUNC(m62_state::ldrun2_bankswitch_r));
+	map(0x80, 0x81).w(FUNC(m62_state::ldrun2_bankswitch_w));
+}
 
-static ADDRESS_MAP_START( ldrun3_map, AS_PROGRAM, 8, m62_state )
-	AM_RANGE(0x0000, 0xbfff) AM_ROM
-	AM_RANGE(0xc800, 0xc800) AM_READ(ldrun3_prot_5_r)
-	AM_RANGE(0xcc00, 0xcc00) AM_READ(ldrun3_prot_7_r)
-	AM_RANGE(0xcfff, 0xcfff) AM_READ(ldrun3_prot_7_r)
-	AM_RANGE(0xc000, 0xc0ff) AM_WRITEONLY AM_SHARE("spriteram")
-	AM_RANGE(0xd000, 0xdfff) AM_RAM_WRITE(m62_tileram_w) AM_SHARE("m62_tileram")
-	AM_RANGE(0xd000, 0xefff) AM_RAM
-ADDRESS_MAP_END
+void m62_state::ldrun3_map(address_map &map)
+{
+	map(0x0000, 0xbfff).rom();
+	map(0xc800, 0xc800).r(FUNC(m62_state::ldrun3_prot_5_r));
+	map(0xcc00, 0xcc00).r(FUNC(m62_state::ldrun3_prot_7_r));
+	map(0xcfff, 0xcfff).r(FUNC(m62_state::ldrun3_prot_7_r));
+	map(0xc000, 0xc0ff).writeonly().share("spriteram");
+	map(0xd000, 0xdfff).ram().w(FUNC(m62_state::m62_tileram_w)).share("m62_tileram");
+	map(0xe000, 0xefff).ram();
+}
 
-static ADDRESS_MAP_START( ldrun3_io_map, AS_IO, 8, m62_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_READ_PORT("SYSTEM") AM_DEVWRITE("irem_audio", irem_audio_device, cmd_w)
-	AM_RANGE(0x01, 0x01) AM_READ_PORT("P1") AM_WRITE(m62_flipscreen_w)  /* + coin counters */
-	AM_RANGE(0x02, 0x02) AM_READ_PORT("P2")
-	AM_RANGE(0x03, 0x03) AM_READ_PORT("DSW1")
-	AM_RANGE(0x04, 0x04) AM_READ_PORT("DSW2")
-	AM_RANGE(0x80, 0x80) AM_WRITE(m62_vscroll_low_w)
-	AM_RANGE(0x81, 0x81) AM_WRITE(ldrun3_topbottom_mask_w)
-ADDRESS_MAP_END
+void m62_state::ldrun3_io_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).portr("SYSTEM").w(m_audio, FUNC(irem_audio_device::cmd_w));
+	map(0x01, 0x01).portr("P1").w(FUNC(m62_state::m62_flipscreen_w));  /* + coin counters */
+	map(0x02, 0x02).portr("P2");
+	map(0x03, 0x03).portr("DSW1");
+	map(0x04, 0x04).portr("DSW2");
+	map(0x80, 0x80).w(FUNC(m62_state::m62_vscroll_low_w));
+	map(0x81, 0x81).w(FUNC(m62_state::ldrun3_topbottom_mask_w));
+}
 
-static ADDRESS_MAP_START( ldrun4_map, AS_PROGRAM, 8, m62_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")
-	AM_RANGE(0xc000, 0xc0ff) AM_WRITEONLY AM_SHARE("spriteram")
-	AM_RANGE(0xc800, 0xc800) AM_WRITE(ldrun4_bankswitch_w)
-	AM_RANGE(0xd000, 0xdfff) AM_RAM_WRITE(m62_tileram_w) AM_SHARE("m62_tileram")
-	AM_RANGE(0xe000, 0xefff) AM_RAM
-ADDRESS_MAP_END
+void m62_state::ldrun4_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0xbfff).bankr("bank1");
+	map(0xc000, 0xc0ff).writeonly().share("spriteram");
+	map(0xc800, 0xc800).w(FUNC(m62_state::ldrun4_bankswitch_w));
+	map(0xd000, 0xdfff).ram().w(FUNC(m62_state::m62_tileram_w)).share("m62_tileram");
+	map(0xe000, 0xefff).ram();
+}
 
-static ADDRESS_MAP_START( ldrun4_io_map, AS_IO, 8, m62_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_READ_PORT("SYSTEM") AM_DEVWRITE("irem_audio", irem_audio_device, cmd_w)
-	AM_RANGE(0x01, 0x01) AM_READ_PORT("P1") AM_WRITE(m62_flipscreen_w)  /* + coin counters */
-	AM_RANGE(0x02, 0x02) AM_READ_PORT("P2")
-	AM_RANGE(0x03, 0x03) AM_READ_PORT("DSW1")
-	AM_RANGE(0x04, 0x04) AM_READ_PORT("DSW2")
-	AM_RANGE(0x82, 0x82) AM_WRITE(m62_hscroll_high_w)
-	AM_RANGE(0x83, 0x83) AM_WRITE(m62_hscroll_low_w)
-ADDRESS_MAP_END
+void m62_state::ldrun4_io_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).portr("SYSTEM").w(m_audio, FUNC(irem_audio_device::cmd_w));
+	map(0x01, 0x01).portr("P1").w(FUNC(m62_state::m62_flipscreen_w));  /* + coin counters */
+	map(0x02, 0x02).portr("P2");
+	map(0x03, 0x03).portr("DSW1");
+	map(0x04, 0x04).portr("DSW2");
+	map(0x82, 0x82).w(FUNC(m62_state::m62_hscroll_high_w));
+	map(0x83, 0x83).w(FUNC(m62_state::m62_hscroll_low_w));
+}
 
-static ADDRESS_MAP_START( lotlot_map, AS_PROGRAM, 8, m62_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0xa000, 0xafff) AM_RAM_WRITE(m62_textram_w) AM_SHARE("m62_textram")
-	AM_RANGE(0xc000, 0xc0ff) AM_WRITEONLY AM_SHARE("spriteram")
-	AM_RANGE(0xd000, 0xdfff) AM_RAM_WRITE(m62_tileram_w) AM_SHARE("m62_tileram")
-	AM_RANGE(0xe000, 0xefff) AM_RAM
-ADDRESS_MAP_END
+void m62_state::lotlot_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0xa000, 0xafff).ram().w(FUNC(m62_state::m62_textram_w)).share("m62_textram");
+	map(0xc000, 0xc0ff).writeonly().share("spriteram");
+	map(0xd000, 0xdfff).ram().w(FUNC(m62_state::m62_tileram_w)).share("m62_tileram");
+	map(0xe000, 0xefff).ram();
+}
 
-static ADDRESS_MAP_START( kidniki_map, AS_PROGRAM, 8, m62_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x9fff) AM_ROMBANK("bank1")
-	AM_RANGE(0xa000, 0xafff) AM_RAM_WRITE(m62_tileram_w) AM_SHARE("m62_tileram")
-	AM_RANGE(0xc000, 0xc0ff) AM_WRITEONLY AM_SHARE("spriteram")
-	AM_RANGE(0xd000, 0xdfff) AM_RAM_WRITE(m62_textram_w) AM_SHARE("m62_textram")
-	AM_RANGE(0xe000, 0xefff) AM_RAM
-ADDRESS_MAP_END
+void m62_state::kidniki_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0x9fff).bankr("bank1");
+	map(0xa000, 0xafff).ram().w(FUNC(m62_state::m62_tileram_w)).share("m62_tileram");
+	map(0xc000, 0xc0ff).writeonly().share("spriteram");
+	map(0xd000, 0xdfff).ram().w(FUNC(m62_state::m62_textram_w)).share("m62_textram");
+	map(0xe000, 0xefff).ram();
+}
 
-static ADDRESS_MAP_START( kidniki_io_map, AS_IO, 8, m62_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_READ_PORT("SYSTEM") AM_DEVWRITE("irem_audio", irem_audio_device, cmd_w)
-	AM_RANGE(0x01, 0x01) AM_READ_PORT("P1") AM_WRITE(m62_flipscreen_w)  /* + coin counters */
-	AM_RANGE(0x02, 0x02) AM_READ_PORT("P2")
-	AM_RANGE(0x03, 0x03) AM_READ_PORT("DSW1")
-	AM_RANGE(0x04, 0x04) AM_READ_PORT("DSW2")
-	AM_RANGE(0x80, 0x80) AM_WRITE(m62_hscroll_low_w)
-	AM_RANGE(0x81, 0x81) AM_WRITE(m62_hscroll_high_w)
-	AM_RANGE(0x82, 0x82) AM_WRITE(kidniki_text_vscroll_low_w)
-	AM_RANGE(0x83, 0x83) AM_WRITE(kidniki_text_vscroll_high_w)
-	AM_RANGE(0x84, 0x84) AM_WRITE(kidniki_background_bank_w)
-	AM_RANGE(0x85, 0x85) AM_WRITE(kidniki_bankswitch_w)
-ADDRESS_MAP_END
+void m62_state::kidniki_io_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).portr("SYSTEM").w(m_audio, FUNC(irem_audio_device::cmd_w));
+	map(0x01, 0x01).portr("P1").w(FUNC(m62_state::m62_flipscreen_w));  /* + coin counters */
+	map(0x02, 0x02).portr("P2");
+	map(0x03, 0x03).portr("DSW1");
+	map(0x04, 0x04).portr("DSW2");
+	map(0x80, 0x80).w(FUNC(m62_state::m62_hscroll_low_w));
+	map(0x81, 0x81).w(FUNC(m62_state::m62_hscroll_high_w));
+	map(0x82, 0x82).w(FUNC(m62_state::kidniki_text_vscroll_low_w));
+	map(0x83, 0x83).w(FUNC(m62_state::kidniki_text_vscroll_high_w));
+	map(0x84, 0x84).w(FUNC(m62_state::kidniki_background_bank_w));
+	map(0x85, 0x85).w(FUNC(m62_state::kidniki_bankswitch_w));
+}
 
-static ADDRESS_MAP_START( spelunkr_map, AS_PROGRAM, 8, m62_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x9fff) AM_ROMBANK("bank1")
-	AM_RANGE(0xa000, 0xbfff) AM_RAM_WRITE(m62_tileram_w) AM_SHARE("m62_tileram")
-	AM_RANGE(0xc000, 0xc0ff) AM_WRITEONLY AM_SHARE("spriteram")
-	AM_RANGE(0xc800, 0xcfff) AM_RAM_WRITE(m62_textram_w) AM_SHARE("m62_textram")
-	AM_RANGE(0xd000, 0xd000) AM_WRITE(m62_vscroll_low_w)
-	AM_RANGE(0xd001, 0xd001) AM_WRITE(m62_vscroll_high_w)
-	AM_RANGE(0xd002, 0xd002) AM_WRITE(m62_hscroll_low_w)
-	AM_RANGE(0xd003, 0xd003) AM_WRITE(m62_hscroll_high_w)
-	AM_RANGE(0xd004, 0xd004) AM_WRITE(spelunkr_bankswitch_w)
-	AM_RANGE(0xd005, 0xd005) AM_WRITE(spelunkr_palbank_w)
-	AM_RANGE(0xe000, 0xefff) AM_RAM
-ADDRESS_MAP_END
+void m62_state::spelunkr_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0x9fff).bankr("bank1");
+	map(0xa000, 0xbfff).ram().w(FUNC(m62_state::m62_tileram_w)).share("m62_tileram");
+	map(0xc000, 0xc0ff).writeonly().share("spriteram");
+	map(0xc800, 0xcfff).ram().w(FUNC(m62_state::m62_textram_w)).share("m62_textram");
+	map(0xd000, 0xd000).w(FUNC(m62_state::m62_vscroll_low_w));
+	map(0xd001, 0xd001).w(FUNC(m62_state::m62_vscroll_high_w));
+	map(0xd002, 0xd002).w(FUNC(m62_state::m62_hscroll_low_w));
+	map(0xd003, 0xd003).w(FUNC(m62_state::m62_hscroll_high_w));
+	map(0xd004, 0xd004).w(FUNC(m62_state::spelunkr_bankswitch_w));
+	map(0xd005, 0xd005).w(FUNC(m62_state::spelunkr_palbank_w));
+	map(0xe000, 0xefff).ram();
+}
 
-static ADDRESS_MAP_START( spelunk2_map, AS_PROGRAM, 8, m62_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x8fff) AM_ROMBANK("bank1")
-	AM_RANGE(0x9000, 0x9fff) AM_ROMBANK("bank2")
-	AM_RANGE(0xa000, 0xbfff) AM_RAM_WRITE(m62_tileram_w) AM_SHARE("m62_tileram")
-	AM_RANGE(0xc000, 0xc0ff) AM_WRITEONLY AM_SHARE("spriteram")
-	AM_RANGE(0xc800, 0xcfff) AM_RAM_WRITE(m62_textram_w) AM_SHARE("m62_textram")
-	AM_RANGE(0xd000, 0xd000) AM_WRITE(m62_vscroll_low_w)
-	AM_RANGE(0xd001, 0xd001) AM_WRITE(m62_hscroll_low_w)
-	AM_RANGE(0xd002, 0xd002) AM_WRITE(spelunk2_gfxport_w)
-	AM_RANGE(0xd003, 0xd003) AM_WRITE(spelunk2_bankswitch_w)
-	AM_RANGE(0xe000, 0xefff) AM_RAM
-ADDRESS_MAP_END
+void m62_state::spelunk2_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0x8fff).bankr("bank1");
+	map(0x9000, 0x9fff).bankr("bank2");
+	map(0xa000, 0xbfff).ram().w(FUNC(m62_state::m62_tileram_w)).share("m62_tileram");
+	map(0xc000, 0xc0ff).writeonly().share("spriteram");
+	map(0xc800, 0xcfff).ram().w(FUNC(m62_state::m62_textram_w)).share("m62_textram");
+	map(0xd000, 0xd000).w(FUNC(m62_state::m62_vscroll_low_w));
+	map(0xd001, 0xd001).w(FUNC(m62_state::m62_hscroll_low_w));
+	map(0xd002, 0xd002).w(FUNC(m62_state::spelunk2_gfxport_w));
+	map(0xd003, 0xd003).w(FUNC(m62_state::spelunk2_bankswitch_w));
+	map(0xe000, 0xefff).ram();
+}
 
-static ADDRESS_MAP_START( youjyudn_map, AS_PROGRAM, 8, m62_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")
-	AM_RANGE(0xc000, 0xc0ff) AM_WRITEONLY AM_SHARE("spriteram")
-	AM_RANGE(0xc800, 0xcfff) AM_RAM_WRITE(m62_textram_w) AM_SHARE("m62_textram")
-	AM_RANGE(0xd000, 0xd7ff) AM_RAM_WRITE(m62_tileram_w) AM_SHARE("m62_tileram")
-	AM_RANGE(0xe000, 0xefff) AM_RAM
-ADDRESS_MAP_END
+void m62_state::youjyudn_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0xbfff).bankr("bank1");
+	map(0xc000, 0xc0ff).writeonly().share("spriteram");
+	map(0xc800, 0xcfff).ram().w(FUNC(m62_state::m62_textram_w)).share("m62_textram");
+	map(0xd000, 0xd7ff).ram().w(FUNC(m62_state::m62_tileram_w)).share("m62_tileram");
+	map(0xe000, 0xefff).ram();
+}
 
-static ADDRESS_MAP_START( youjyudn_io_map, AS_IO, 8, m62_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_READ_PORT("SYSTEM") AM_DEVWRITE("irem_audio", irem_audio_device, cmd_w)
-	AM_RANGE(0x01, 0x01) AM_READ_PORT("P1") AM_WRITE(m62_flipscreen_w)  /* + coin counters */
-	AM_RANGE(0x02, 0x02) AM_READ_PORT("P2")
-	AM_RANGE(0x03, 0x03) AM_READ_PORT("DSW1")
-	AM_RANGE(0x04, 0x04) AM_READ_PORT("DSW2")
-	AM_RANGE(0x80, 0x80) AM_WRITE(m62_hscroll_high_w)
-	AM_RANGE(0x81, 0x81) AM_WRITE(m62_hscroll_low_w)
-	AM_RANGE(0x83, 0x83) AM_WRITE(youjyudn_bankswitch_w)
-ADDRESS_MAP_END
+void m62_state::youjyudn_io_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).portr("SYSTEM").w(m_audio, FUNC(irem_audio_device::cmd_w));
+	map(0x01, 0x01).portr("P1").w(FUNC(m62_state::m62_flipscreen_w));  /* + coin counters */
+	map(0x02, 0x02).portr("P2");
+	map(0x03, 0x03).portr("DSW1");
+	map(0x04, 0x04).portr("DSW2");
+	map(0x80, 0x80).w(FUNC(m62_state::m62_hscroll_high_w));
+	map(0x81, 0x81).w(FUNC(m62_state::m62_hscroll_low_w));
+	map(0x83, 0x83).w(FUNC(m62_state::youjyudn_bankswitch_w));
+}
 
-static ADDRESS_MAP_START( horizon_map, AS_PROGRAM, 8, m62_state )
-	AM_RANGE(0x0000, 0xbfff) AM_ROM
-	AM_RANGE(0xc000, 0xc1ff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0xc800, 0xc83f) AM_RAM_WRITE(horizon_scrollram_w) AM_SHARE("scrollram")
-	AM_RANGE(0xd000, 0xdfff) AM_RAM_WRITE(m62_tileram_w) AM_SHARE("m62_tileram")
-	AM_RANGE(0xe000, 0xefff) AM_RAM
-ADDRESS_MAP_END
+void m62_state::horizon_map(address_map &map)
+{
+	map(0x0000, 0xbfff).rom();
+	map(0xc000, 0xc1ff).ram().share("spriteram");
+	map(0xc800, 0xc83f).ram().w(FUNC(m62_state::horizon_scrollram_w)).share("scrollram");
+	map(0xd000, 0xdfff).ram().w(FUNC(m62_state::m62_tileram_w)).share("m62_tileram");
+	map(0xe000, 0xefff).ram();
+}
 
 
 static INPUT_PORTS_START( common )
@@ -775,20 +794,18 @@ static INPUT_PORTS_START( horizon )
 INPUT_PORTS_END
 
 
-#define TILELAYOUT(NUM) static const gfx_layout tilelayout_##NUM =  \
-{                                                                   \
-	8,8,    /* 8*8 characters */                                    \
-	NUM,    /* NUM characters */                                    \
-	3,  /* 3 bits per pixel */                                      \
-	{ 2*NUM*8*8, NUM*8*8, 0 },                                      \
-	{ 0, 1, 2, 3, 4, 5, 6, 7 },                                     \
-	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8 },                     \
-	8*8 /* every char takes 8 consecutive bytes */                  \
-}
 
-TILELAYOUT(1024);
-TILELAYOUT(2048);
-TILELAYOUT(4096);
+
+static const gfx_layout tile_charlayout =
+{
+	8,8,
+	RGN_FRAC(1,3),
+	3,
+	{ RGN_FRAC(2,3), RGN_FRAC(1,3), 0 },
+	{ 0, 1, 2, 3, 4, 5, 6, 7 },
+	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8 },
+	8*8
+};
 
 
 static const gfx_layout battroad_charlayout =
@@ -864,57 +881,73 @@ static const gfx_layout spritelayout =
 	32*8
 };
 
-static GFXDECODE_START( ldrun )
-	GFXDECODE_ENTRY( "gfx1", 0, tilelayout_1024,       0, 32 )  /* use colors   0-255 */
-	GFXDECODE_ENTRY( "gfx2", 0, spritelayout,        256, 32 )  /* use colors 256-511 */
+/* standard decodes */
+
+static GFXDECODE_START( gfx_m62_sprites )
+	GFXDECODE_ENTRY( "gfx2", 0, spritelayout,        0, 32 )
 GFXDECODE_END
 
-static GFXDECODE_START( battroad )
-	GFXDECODE_ENTRY( "gfx1", 0, tilelayout_1024,       0, 32 )  /* use colors   0-255 */
-	GFXDECODE_ENTRY( "gfx2", 0, spritelayout,        256, 32 )  /* use colors 256-511 */
-	GFXDECODE_ENTRY( "gfx3", 0, battroad_charlayout,    512, 32 )   /* use colors 512-543 */
+static GFXDECODE_START( gfx_m62_tiles )
+	GFXDECODE_ENTRY( "gfx1", 0, tile_charlayout,       0, 32 )
 GFXDECODE_END
 
-static GFXDECODE_START( ldrun3 )
-	GFXDECODE_ENTRY( "gfx1", 0, tilelayout_2048,      0, 32 )   /* use colors   0-255 */
-	GFXDECODE_ENTRY( "gfx2", 0, spritelayout,       256, 32 )   /* use colors 256-511 */
+/* per game modified decodes */
+
+static GFXDECODE_START( gfx_m62_tiles_lotlot )
+	GFXDECODE_ENTRY( "gfx1", 0, lotlot_charlayout,    0, 32 )
 GFXDECODE_END
 
-static GFXDECODE_START( lotlot )
-	GFXDECODE_ENTRY( "gfx1", 0, lotlot_charlayout,    0, 32 )   /* use colors   0-255 */
-	GFXDECODE_ENTRY( "gfx2", 0, spritelayout,       256, 32 )   /* use colors 256-511 */
-	GFXDECODE_ENTRY( "gfx3", 0, lotlot_charlayout,  512, 32 )   /* use colors 512-767 */
+static GFXDECODE_START( gfx_m62_tiles_spelunk2 )
+	GFXDECODE_ENTRY( "gfx1", 0, tile_charlayout,         0, 64 )
 GFXDECODE_END
 
-static GFXDECODE_START( kidniki )
-	GFXDECODE_ENTRY( "gfx1", 0, tilelayout_4096,      0, 32 )   /* use colors   0-255 */
-	GFXDECODE_ENTRY( "gfx2", 0, spritelayout,       256, 32 )   /* use colors 256-511 */
-	GFXDECODE_ENTRY( "gfx3", 0, kidniki_charlayout,   0, 32 )   /* use colors   0-255 */
+static GFXDECODE_START( gfx_m62_tiles_youjyudn )
+	GFXDECODE_ENTRY( "gfx1", 0, youjyudn_tilelayout,  0, 32 )
 GFXDECODE_END
 
-static GFXDECODE_START( spelunkr )
-	GFXDECODE_ENTRY( "gfx1", 0, tilelayout_4096,         0, 32 )    /* use colors   0-255 */
-	GFXDECODE_ENTRY( "gfx2", 0, spritelayout,       256, 32 )   /* use colors 256-511 */
-	GFXDECODE_ENTRY( "gfx3", 0, spelunk2_charlayout,  0, 32 )   /* use colors   0-255 */
+/* Games with FG layers */
+
+static GFXDECODE_START( gfx_m62_fg_battroad )
+	GFXDECODE_ENTRY( "gfx3", 0, battroad_charlayout, 0, 32 )
 GFXDECODE_END
 
-static GFXDECODE_START( spelunk2 )
-	GFXDECODE_ENTRY( "gfx1", 0, tilelayout_4096,         0, 64 )    /* use colors   0-511 */
-	GFXDECODE_ENTRY( "gfx2", 0, spritelayout,       512, 32 )   /* use colors 512-767 */
-	GFXDECODE_ENTRY( "gfx3", 0, spelunk2_charlayout,  0, 64 )   /* use colors   0-511 */
+static GFXDECODE_START( gfx_m62_fg_lotlot )
+	GFXDECODE_ENTRY( "gfx3", 0, lotlot_charlayout,  0, 32 )
 GFXDECODE_END
 
-static GFXDECODE_START( youjyudn )
-	GFXDECODE_ENTRY( "gfx1", 0, youjyudn_tilelayout,  0, 32 )   /* use colors   0-255 */
-	GFXDECODE_ENTRY( "gfx2", 0, spritelayout,       256, 32 )   /* use colors 256-511 */
-	GFXDECODE_ENTRY( "gfx3", 0, kidniki_charlayout, 128, 16 )   /* use colors 128-255 */
+static GFXDECODE_START( gfx_m62_fg_kidniki )
+	GFXDECODE_ENTRY( "gfx3", 0, kidniki_charlayout,   0, 32 )
 GFXDECODE_END
 
+static GFXDECODE_START( gfx_m62_fg_spelunkr )
+	GFXDECODE_ENTRY( "gfx3", 0, spelunk2_charlayout,  0, 32 )
+GFXDECODE_END
 
-void m62_state::machine_start()
+static GFXDECODE_START( gfx_m62_fg_spelunk2 )
+	GFXDECODE_ENTRY( "gfx3", 0, spelunk2_charlayout,  0, 64 )
+GFXDECODE_END
+
+static GFXDECODE_START( gfx_m62_fg_youjyudn )
+	GFXDECODE_ENTRY( "gfx3", 0, kidniki_charlayout, 128, 16 )
+GFXDECODE_END
+
+void m62_state::machine_init_save()
 {
 	save_item(NAME(m_ldrun2_bankswap));
 	save_item(NAME(m_bankcontrol));
+}
+
+void m62_state::machine_start()
+{
+	machine_init_save();
+	// do this here as we no longer have a single palette init call and this happens after all of them
+	m62_amplify_contrast(1);
+}
+
+MACHINE_START_MEMBER(m62_state, battroad)
+{
+	machine_init_save();
+	m62_amplify_contrast(0);
 }
 
 void m62_state::machine_reset()
@@ -932,215 +965,220 @@ void m62_state::machine_reset()
 	m_bankcontrol[1] = 0;
 }
 
-static MACHINE_CONFIG_START( ldrun, m62_state )
+void m62_state::ldrun(machine_config &config)
+{
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, 24000000/6)
-	MCFG_CPU_PROGRAM_MAP(ldrun_map)
-	MCFG_CPU_IO_MAP(kungfum_io_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", m62_state,  irq0_line_hold)
+	Z80(config, m_maincpu, 24000000/6);
+	m_maincpu->set_addrmap(AS_PROGRAM, &m62_state::ldrun_map);
+	m_maincpu->set_addrmap(AS_IO, &m62_state::kungfum_io_map);
+	m_maincpu->set_vblank_int("screen", FUNC(m62_state::irq0_line_hold));
 
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(55)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(1790) /* frames per second and vblank duration from the Lode Runner manual */)
-	MCFG_SCREEN_SIZE(64*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA((64*8-384)/2, 64*8-(64*8-384)/2-1, 0*8, 32*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(m62_state, screen_update_ldrun)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(55);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(1790) /* frames per second and vblank duration from the Lode Runner manual */);
+	screen.set_size(64*8, 32*8);
+	screen.set_visarea((64*8-384)/2, 64*8-(64*8-384)/2-1, 0*8, 32*8-1);
+	screen.set_screen_update(FUNC(m62_state::screen_update_ldrun));
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ldrun)
-	MCFG_PALETTE_ADD("palette", 512)
-	MCFG_PALETTE_INIT_OWNER(m62_state,m62)
+	GFXDECODE(config, m_spr_decode, m_spr_palette, gfx_m62_sprites);
+	GFXDECODE(config, m_chr_decode, m_chr_palette, gfx_m62_tiles);
+
+	PALETTE(config, m_chr_palette, FUNC(m62_state::m62_chr), 256);
+	PALETTE(config, m_spr_palette, FUNC(m62_state::m62_spr), 256);
 
 	/* sound hardware */
-	//MCFG_FRAGMENT_ADD(m62_audio)
-	MCFG_DEVICE_ADD("irem_audio", IREM_M62_AUDIO, 0)
+	//m62_audio(config);
+	IREM_M62_AUDIO(config, m_audio, 0);
 
-MACHINE_CONFIG_END
+}
 
 
-static MACHINE_CONFIG_DERIVED( kungfum, ldrun )
+void m62_state::kungfum(machine_config &config)
+{
+	ldrun(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CLOCK(18432000/6)
-	MCFG_CPU_PROGRAM_MAP(kungfum_map)
-	MCFG_CPU_IO_MAP(kungfum_io_map)
+	m_maincpu->set_clock(18432000/6);
+	m_maincpu->set_addrmap(AS_PROGRAM, &m62_state::kungfum_map);
+	m_maincpu->set_addrmap(AS_IO, &m62_state::kungfum_io_map);
 
 	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_VISIBLE_AREA((64*8-256)/2, 64*8-(64*8-256)/2-1, 0*8, 32*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(m62_state, screen_update_kungfum)
+	subdevice<screen_device>("screen")->set_visarea((64*8-256)/2, 64*8-(64*8-256)/2-1, 0*8, 32*8-1);
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(m62_state::screen_update_kungfum));
 
 	MCFG_VIDEO_START_OVERRIDE(m62_state,kungfum)
-MACHINE_CONFIG_END
+}
 
 
-static MACHINE_CONFIG_DERIVED( battroad, ldrun )
+void m62_state::battroad(machine_config &config)
+{
+	ldrun(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CLOCK(18432000/6)
-	MCFG_CPU_PROGRAM_MAP(battroad_map)
-	MCFG_CPU_IO_MAP(battroad_io_map)
+	m_maincpu->set_clock(18432000/6);
+	m_maincpu->set_addrmap(AS_PROGRAM, &m62_state::battroad_map);
+	m_maincpu->set_addrmap(AS_IO, &m62_state::battroad_io_map);
+
+	MCFG_MACHINE_START_OVERRIDE(m62_state,battroad)
 
 	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_VISIBLE_AREA((64*8-256)/2, 64*8-(64*8-256)/2-1, 0*8, 32*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(m62_state, screen_update_battroad)
-	MCFG_GFXDECODE_MODIFY("gfxdecode", battroad)
-	MCFG_PALETTE_MODIFY("palette")
-	MCFG_PALETTE_ENTRIES(544)
+	subdevice<screen_device>("screen")->set_visarea((64*8-256)/2, 64*8-(64*8-256)/2-1, 0*8, 32*8-1);
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(m62_state::screen_update_battroad));
 
-	MCFG_PALETTE_INIT_OWNER(m62_state,battroad)
+	GFXDECODE(config, m_fg_decode, m_fg_palette, gfx_m62_fg_battroad);
+
+	PALETTE(config, m_fg_palette, FUNC(m62_state::m62_battroad_fg), 32);
+
 	MCFG_VIDEO_START_OVERRIDE(m62_state,battroad)
-MACHINE_CONFIG_END
+}
 
 
-static MACHINE_CONFIG_DERIVED( ldrun2, ldrun )
+void m62_state::ldrun2(machine_config &config)
+{
+	ldrun(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(ldrun2_map)
-	MCFG_CPU_IO_MAP(ldrun2_io_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &m62_state::ldrun2_map);
+	m_maincpu->set_addrmap(AS_IO, &m62_state::ldrun2_io_map);
 
 	MCFG_VIDEO_START_OVERRIDE(m62_state,ldrun2)
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(m62_state, screen_update_ldrun)
-MACHINE_CONFIG_END
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(m62_state::screen_update_ldrun));
+}
 
 
-static MACHINE_CONFIG_DERIVED( ldrun3, ldrun )
+void m62_state::ldrun3(machine_config &config)
+{
+	ldrun(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(ldrun3_map)
-	MCFG_CPU_IO_MAP(ldrun3_io_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &m62_state::ldrun3_map);
+	m_maincpu->set_addrmap(AS_IO, &m62_state::ldrun3_io_map);
 
 	/* video hardware */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", ldrun3)
 	MCFG_VIDEO_START_OVERRIDE(m62_state,ldrun2)
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(m62_state, screen_update_ldrun3)
-MACHINE_CONFIG_END
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(m62_state::screen_update_ldrun3));
+}
 
 
-static MACHINE_CONFIG_DERIVED( ldrun4, ldrun )
+void m62_state::ldrun4(machine_config &config)
+{
+	ldrun(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(ldrun4_map)
-	MCFG_CPU_IO_MAP(ldrun4_io_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &m62_state::ldrun4_map);
+	m_maincpu->set_addrmap(AS_IO, &m62_state::ldrun4_io_map);
 
 	/* video hardware */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", ldrun3)
 	MCFG_VIDEO_START_OVERRIDE(m62_state,ldrun4)
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(m62_state, screen_update_ldrun4)
-MACHINE_CONFIG_END
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(m62_state::screen_update_ldrun4));
+}
 
 
-static MACHINE_CONFIG_DERIVED( lotlot, ldrun )
+void m62_state::lotlot(machine_config &config)
+{
+	ldrun(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(lotlot_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &m62_state::lotlot_map);
 
 	/* video hardware */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", lotlot)
+	GFXDECODE(config, m_fg_decode, m_fg_palette, gfx_m62_fg_lotlot);
+	m_chr_decode->set_info(gfx_m62_tiles_lotlot);
 
-	MCFG_PALETTE_MODIFY("palette")
-	MCFG_PALETTE_ENTRIES(768)
+	PALETTE(config, m_fg_palette, FUNC(m62_state::m62_lotlot_fg), 256);
 
-	MCFG_PALETTE_INIT_OWNER(m62_state,lotlot)
+
 	MCFG_VIDEO_START_OVERRIDE(m62_state,lotlot)
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(m62_state, screen_update_lotlot)
-MACHINE_CONFIG_END
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(m62_state::screen_update_lotlot));
+}
 
 
-static MACHINE_CONFIG_DERIVED( kidniki, ldrun )
+void m62_state::kidniki(machine_config &config)
+{
+	ldrun(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(kidniki_map)
-	MCFG_CPU_IO_MAP(kidniki_io_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &m62_state::kidniki_map);
+	m_maincpu->set_addrmap(AS_IO, &m62_state::kidniki_io_map);
 
 	/* video hardware */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", kidniki)
+	GFXDECODE(config, m_fg_decode, m_chr_palette, gfx_m62_fg_kidniki);
 
 	MCFG_VIDEO_START_OVERRIDE(m62_state,kidniki)
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(m62_state, screen_update_kidniki)
-MACHINE_CONFIG_END
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(m62_state::screen_update_kidniki));
+}
 
 
-static MACHINE_CONFIG_DERIVED( spelunkr, ldrun )
+void m62_state::spelunkr(machine_config &config)
+{
+	ldrun(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(spelunkr_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &m62_state::spelunkr_map);
 
 	/* video hardware */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", spelunkr)
+	GFXDECODE(config, m_fg_decode, m_chr_palette, gfx_m62_fg_spelunkr);
 
 	MCFG_VIDEO_START_OVERRIDE(m62_state,spelunkr)
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(m62_state, screen_update_spelunkr)
-MACHINE_CONFIG_END
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(m62_state::screen_update_spelunkr));
+}
 
 
-static MACHINE_CONFIG_DERIVED( spelunk2, ldrun )
+void m62_state::spelunk2(machine_config &config)
+{
+	ldrun(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(spelunk2_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &m62_state::spelunk2_map);
 
 	/* video hardware */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", spelunk2)
-	MCFG_PALETTE_MODIFY("palette")
-	MCFG_PALETTE_ENTRIES(768)
+	m_chr_decode->set_info(gfx_m62_tiles_spelunk2);
+	GFXDECODE(config, m_fg_decode, m_chr_palette, gfx_m62_fg_spelunk2);
 
-	MCFG_PALETTE_INIT_OWNER(m62_state,spelunk2)
+	m_chr_palette->set_entries(512);
+	m_chr_palette->set_init(FUNC(m62_state::spelunk2_palette));
+
 	MCFG_VIDEO_START_OVERRIDE(m62_state,spelunk2)
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(m62_state, screen_update_spelunk2)
-MACHINE_CONFIG_END
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(m62_state::screen_update_spelunk2));
+}
 
 
-static MACHINE_CONFIG_DERIVED( youjyudn, ldrun )
+void m62_state::youjyudn(machine_config &config)
+{
+	ldrun(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CLOCK(18432000/6)
-	MCFG_CPU_PROGRAM_MAP(youjyudn_map)
-	MCFG_CPU_IO_MAP(youjyudn_io_map)
+	m_maincpu->set_clock(18432000/6);
+	m_maincpu->set_addrmap(AS_PROGRAM, &m62_state::youjyudn_map);
+	m_maincpu->set_addrmap(AS_IO, &m62_state::youjyudn_io_map);
 
 	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_VISIBLE_AREA((64*8-256)/2, 64*8-(64*8-256)/2-1, 0*8, 32*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(m62_state, screen_update_youjyudn)
-	MCFG_GFXDECODE_MODIFY("gfxdecode", youjyudn)
+	subdevice<screen_device>("screen")->set_visarea((64*8-256)/2, 64*8-(64*8-256)/2-1, 0*8, 32*8-1);
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(m62_state::screen_update_youjyudn));
+
+	m_chr_decode->set_info(gfx_m62_tiles_youjyudn);
+	GFXDECODE(config, m_fg_decode, m_chr_palette, gfx_m62_fg_youjyudn);
 
 	MCFG_VIDEO_START_OVERRIDE(m62_state,youjyudn)
-MACHINE_CONFIG_END
+}
 
 
-static MACHINE_CONFIG_DERIVED( horizon, ldrun )
+void m62_state::horizon(machine_config &config)
+{
+	ldrun(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(horizon_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &m62_state::horizon_map);
 
 	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_VISIBLE_AREA((64*8-256)/2, 64*8-(64*8-256)/2-1, 0*8, 32*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(m62_state, screen_update_horizon)
+	subdevice<screen_device>("screen")->set_visarea((64*8-256)/2, 64*8-(64*8-256)/2-1, 0*8, 32*8-1);
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(m62_state::screen_update_horizon));
 
 	MCFG_VIDEO_START_OVERRIDE(m62_state,horizon)
-MACHINE_CONFIG_END
+}
 
 
 /***************************************************************************
@@ -1178,16 +1216,21 @@ ROM_START( kungfum )
 	ROM_LOAD( "b-4d-.bin",    0x14000, 0x2000, CRC(6a70615f) SHA1(f4683dc0a566567e95e85268612bcf0e6297d955) )
 	ROM_LOAD( "b-4a-.bin",    0x16000, 0x2000, CRC(6189d626) SHA1(ce8e5e95c2684c685481e9c8d921380b20ac0460) )
 
-	ROM_REGION( 0x0720, "proms", 0 )
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "b-5f-.bin",    0x00, 0x20, CRC(7a601c3d) SHA1(5c5cdf51b2c9fdb2b05402d9c260208ae73fe245) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "b-1m-.bin",    0x0000, 0x0100, CRC(76c05a9c) SHA1(1f46f436a17f8c883bdd6d9804b828a81a76f880) )    /* sprite palette red component */
+	ROM_LOAD( "b-1n-.bin",    0x0100, 0x0100, CRC(23f06b99) SHA1(6b3d6349f019aeab33838ae392bc3f3f89906326) )    /* sprite palette green component */
+	ROM_LOAD( "b-1l-.bin",    0x0200, 0x0100, CRC(35e45021) SHA1(511b94507f41b377f38184ed9a85f34949b28d26) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "g-1j-.bin",    0x0000, 0x0100, CRC(668e6bca) SHA1(cd5262b1310821ba7b12873e4db35f081d6b9df4) )    /* character palette red component */
-	ROM_LOAD( "b-1m-.bin",    0x0100, 0x0100, CRC(76c05a9c) SHA1(1f46f436a17f8c883bdd6d9804b828a81a76f880) )    /* sprite palette red component */
-	ROM_LOAD( "g-1f-.bin",    0x0200, 0x0100, CRC(964b6495) SHA1(76f30a65a0ded14babad2006221aa40621fb7ea1) )    /* character palette green component */
-	ROM_LOAD( "b-1n-.bin",    0x0300, 0x0100, CRC(23f06b99) SHA1(6b3d6349f019aeab33838ae392bc3f3f89906326) )    /* sprite palette green component */
-	ROM_LOAD( "g-1h-.bin",    0x0400, 0x0100, CRC(550563e1) SHA1(11edb45acba8b28a462c49956ebb1ba0a8b2ff26) )    /* character palette blue component */
-	ROM_LOAD( "b-1l-.bin",    0x0500, 0x0100, CRC(35e45021) SHA1(511b94507f41b377f38184ed9a85f34949b28d26) )    /* sprite palette blue component */
-	ROM_LOAD( "b-5f-.bin",    0x0600, 0x0020, CRC(7a601c3d) SHA1(5c5cdf51b2c9fdb2b05402d9c260208ae73fe245) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "b-6f-.bin",    0x0620, 0x0100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) )    /* video timing - same as battroad */
+	ROM_LOAD( "g-1f-.bin",    0x0100, 0x0100, CRC(964b6495) SHA1(76f30a65a0ded14babad2006221aa40621fb7ea1) )    /* character palette green component */
+	ROM_LOAD( "g-1h-.bin",    0x0200, 0x0100, CRC(550563e1) SHA1(11edb45acba8b28a462c49956ebb1ba0a8b2ff26) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "b-6f-.bin",    0x000, 0x100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) )    /* video timing - same as battroad */
 ROM_END
 
 ROM_START( kungfumd )
@@ -1212,16 +1255,21 @@ ROM_START( kungfumd )
 	ROM_LOAD( "snx_b-4c-b", 0x10000, 0x4000, CRC(1df11d81) SHA1(5055f0c8046f57d4c899ecf90a9bfcf0c1a58f59) )
 	ROM_LOAD( "snx_b-4e-b", 0x14000, 0x4000, CRC(2d3b69dd) SHA1(472e1c06fd3184b91d9b718bb590d45702ed84cd) )
 
-	ROM_REGION( 0x0720, "proms", 0 )
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "b-5f-.bin", 0x00, 0x20, CRC(7a601c3d) SHA1(5c5cdf51b2c9fdb2b05402d9c260208ae73fe245) )   /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "b-1m-.bin", 0x0000, 0x0100, CRC(76c05a9c) SHA1(1f46f436a17f8c883bdd6d9804b828a81a76f880) )   /* sprite palette red component */
+	ROM_LOAD( "b-1n-.bin", 0x0100, 0x0100, CRC(23f06b99) SHA1(6b3d6349f019aeab33838ae392bc3f3f89906326) )   /* sprite palette green component */
+	ROM_LOAD( "b-1l-.bin", 0x0200, 0x0100, CRC(35e45021) SHA1(511b94507f41b377f38184ed9a85f34949b28d26) )   /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "g-1j-.bin", 0x0000, 0x0100, CRC(668e6bca) SHA1(cd5262b1310821ba7b12873e4db35f081d6b9df4) )   /* character palette red component */
-	ROM_LOAD( "b-1m-.bin", 0x0100, 0x0100, CRC(76c05a9c) SHA1(1f46f436a17f8c883bdd6d9804b828a81a76f880) )   /* sprite palette red component */
-	ROM_LOAD( "g-1f-.bin", 0x0200, 0x0100, CRC(964b6495) SHA1(76f30a65a0ded14babad2006221aa40621fb7ea1) )   /* character palette green component */
-	ROM_LOAD( "b-1n-.bin", 0x0300, 0x0100, CRC(23f06b99) SHA1(6b3d6349f019aeab33838ae392bc3f3f89906326) )   /* sprite palette green component */
-	ROM_LOAD( "g-1h-.bin", 0x0400, 0x0100, CRC(550563e1) SHA1(11edb45acba8b28a462c49956ebb1ba0a8b2ff26) )   /* character palette blue component */
-	ROM_LOAD( "b-1l-.bin", 0x0500, 0x0100, CRC(35e45021) SHA1(511b94507f41b377f38184ed9a85f34949b28d26) )   /* sprite palette blue component */
-	ROM_LOAD( "b-5f-.bin", 0x0600, 0x0020, CRC(7a601c3d) SHA1(5c5cdf51b2c9fdb2b05402d9c260208ae73fe245) )   /* sprite height, one entry per 32 */
-														/* sprites. Used at run time! */
-	ROM_LOAD( "b-6f-.bin", 0x0620, 0x0100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) )   /* video timing - same as battroad */
+	ROM_LOAD( "g-1f-.bin", 0x0100, 0x0100, CRC(964b6495) SHA1(76f30a65a0ded14babad2006221aa40621fb7ea1) )   /* character palette green component */
+	ROM_LOAD( "g-1h-.bin", 0x0200, 0x0100, CRC(550563e1) SHA1(11edb45acba8b28a462c49956ebb1ba0a8b2ff26) )   /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "b-6f-.bin", 0x0000, 0x0100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) )   /* video timing - same as battroad */
 ROM_END
 
 ROM_START( spartanx )
@@ -1253,16 +1301,21 @@ ROM_START( spartanx )
 	ROM_LOAD( "b-4d-.bin",    0x14000, 0x2000, CRC(6a70615f) SHA1(f4683dc0a566567e95e85268612bcf0e6297d955) )
 	ROM_LOAD( "b-4a-.bin",    0x16000, 0x2000, CRC(6189d626) SHA1(ce8e5e95c2684c685481e9c8d921380b20ac0460) )
 
-	ROM_REGION( 0x0720, "proms", 0 )
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "b-5f-.bin",    0x00, 0x20, CRC(7a601c3d) SHA1(5c5cdf51b2c9fdb2b05402d9c260208ae73fe245) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "b-1m-.bin",    0x0000, 0x0100, CRC(76c05a9c) SHA1(1f46f436a17f8c883bdd6d9804b828a81a76f880) )    /* sprite palette red component */
+	ROM_LOAD( "b-1n-.bin",    0x0100, 0x0100, CRC(23f06b99) SHA1(6b3d6349f019aeab33838ae392bc3f3f89906326) )    /* sprite palette green component */
+	ROM_LOAD( "b-1l-.bin",    0x0200, 0x0100, CRC(35e45021) SHA1(511b94507f41b377f38184ed9a85f34949b28d26) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "g-1j-.bin",    0x0000, 0x0100, CRC(668e6bca) SHA1(cd5262b1310821ba7b12873e4db35f081d6b9df4) )    /* character palette red component */
-	ROM_LOAD( "b-1m-.bin",    0x0100, 0x0100, CRC(76c05a9c) SHA1(1f46f436a17f8c883bdd6d9804b828a81a76f880) )    /* sprite palette red component */
-	ROM_LOAD( "g-1f-.bin",    0x0200, 0x0100, CRC(964b6495) SHA1(76f30a65a0ded14babad2006221aa40621fb7ea1) )    /* character palette green component */
-	ROM_LOAD( "b-1n-.bin",    0x0300, 0x0100, CRC(23f06b99) SHA1(6b3d6349f019aeab33838ae392bc3f3f89906326) )    /* sprite palette green component */
-	ROM_LOAD( "g-1h-.bin",    0x0400, 0x0100, CRC(550563e1) SHA1(11edb45acba8b28a462c49956ebb1ba0a8b2ff26) )    /* character palette blue component */
-	ROM_LOAD( "b-1l-.bin",    0x0500, 0x0100, CRC(35e45021) SHA1(511b94507f41b377f38184ed9a85f34949b28d26) )    /* sprite palette blue component */
-	ROM_LOAD( "b-5f-.bin",    0x0600, 0x0020, CRC(7a601c3d) SHA1(5c5cdf51b2c9fdb2b05402d9c260208ae73fe245) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "b-6f-.bin",    0x0620, 0x0100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) )    /* video timing - same as battroad */
+	ROM_LOAD( "g-1f-.bin",    0x0100, 0x0100, CRC(964b6495) SHA1(76f30a65a0ded14babad2006221aa40621fb7ea1) )    /* character palette green component */
+	ROM_LOAD( "g-1h-.bin",    0x0200, 0x0100, CRC(550563e1) SHA1(11edb45acba8b28a462c49956ebb1ba0a8b2ff26) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "b-6f-.bin",    0x0000, 0x0100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) )    /* video timing - same as battroad */
 ROM_END
 
 ROM_START( kungfub )
@@ -1294,33 +1347,43 @@ ROM_START( kungfub )
 	ROM_LOAD( "b-4d-.bin",    0x14000, 0x2000, CRC(6a70615f) SHA1(f4683dc0a566567e95e85268612bcf0e6297d955) )
 	ROM_LOAD( "b-4a-.bin",    0x16000, 0x2000, CRC(6189d626) SHA1(ce8e5e95c2684c685481e9c8d921380b20ac0460) )
 
-	ROM_REGION( 0x14a0, "proms", 0 )
+	/* what are these bootleg proms? it already has the ones needed below */
+	ROM_REGION( 0x0080, "boot_proms", 0 )
+	ROM_LOAD( "18s030-gfx-10a.bin",   0x0000, 0x0020, CRC(3858acd0) SHA1(49c96467c0e7146ed89f5107bcb7908bf4ce721a) )
+	ROM_LOAD( "18s030-gfx-5d.bin",    0x0020, 0x0020, CRC(51304fcd) SHA1(be4d659e526f6fa5318b4cd3b6612c5b73f24437) )
+	ROM_LOAD( "18s030-gfx-5e.bin",    0x0040, 0x0020, CRC(51304fcd) SHA1(be4d659e526f6fa5318b4cd3b6612c5b73f24437) )
+	ROM_LOAD( "18s030-gfx-6l.bin",    0x0060, 0x0020, CRC(3858acd0) SHA1(49c96467c0e7146ed89f5107bcb7908bf4ce721a) )
+
+	ROM_REGION( 0x0d00, "boot_proms2", 0 )
+	ROM_LOAD( "tbp24s10-gfx-3b.bin",  0x0000, 0x0100, CRC(e6506ef4) SHA1(079841da7640b14d94aaaeb572bf018932b58293) )
+	ROM_LOAD( "tbp24s10-gfx-4a.bin",  0x0100, 0x0100, CRC(e0aa8869) SHA1(ac8bdfeba69420ba56ec561bf3d0f1229d02cea2) )
+	ROM_LOAD( "tbp24s10-gfx-4c.bin",  0x0200, 0x0100, CRC(b43d094f) SHA1(2bed4892d8a91d7faac5a07bf858d9294eb30606) )
+	ROM_LOAD( "tbp24s10-gfx-6d.bin",  0x0300, 0x0100, CRC(48bb39c9) SHA1(fbe525cc45c9287ab5f6c02c2bd729a11540d6be) )
+	ROM_LOAD( "tbp24s10-gfx-6e.bin",  0x0400, 0x0100, CRC(48bb39c9) SHA1(fbe525cc45c9287ab5f6c02c2bd729a11540d6be) )
+	ROM_LOAD( "tbp24s10-gfx-6m.bin",  0x0500, 0x0100, CRC(9f7a1a4d) SHA1(2bc38cbf4d0d65311b60c71073d81ca58ac01a5b) )
+	ROM_LOAD( "tbp24s10-gfx-6n.bin",  0x0600, 0x0100, CRC(35e5b39e) SHA1(8889fad8a2c095129e4e50de5e2f66e986a4bedf) )
+	ROM_LOAD( "tbp24s10-gfx-8a.bin",  0x0700, 0x0100, CRC(35e5b39e) SHA1(8889fad8a2c095129e4e50de5e2f66e986a4bedf) )
+	ROM_LOAD( "tbp24s10-gfx-9a.bin",  0x0800, 0x0100, CRC(9f7a1a4d) SHA1(2bc38cbf4d0d65311b60c71073d81ca58ac01a5b) )
+	//ROM_LOAD( "tbp24s10-gfx-9k.bin",  0x0900, 0x0100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) ) /* loaded below */
+	ROM_LOAD( "tbp24s10-main-8b.bin", 0x0a00, 0x0100, CRC(180fbc57) SHA1(fe1cede9ec1002d48c4eb055d36f2b74c8dd4af8) )
+	ROM_LOAD( "tbp24s10-main-8c.bin", 0x0b00, 0x0100, CRC(3bb32e5a) SHA1(b666e48cb7526b9a38e151cdcc56d298c640bc3f) )
+	ROM_LOAD( "tbp24s10-main-8d.bin", 0x0c00, 0x0100, CRC(599c319f) SHA1(1e52e30f3beb2718fc382e3b85af6b6911863a08) )
+
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "18s030-gfx-8t.bin",    0x00, 0x20, CRC(7a601c3d) SHA1(5c5cdf51b2c9fdb2b05402d9c260208ae73fe245) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "tbp24s10-gfx-1r.bin",  0x0000, 0x0100, CRC(76c05a9c) SHA1(1f46f436a17f8c883bdd6d9804b828a81a76f880) )    /* sprite palette red component */
+	ROM_LOAD( "tbp24s10-gfx-1s.bin",  0x0100, 0x0100, CRC(23f06b99) SHA1(6b3d6349f019aeab33838ae392bc3f3f89906326) )    /* sprite palette green component */
+	ROM_LOAD( "tbp24s10-gfx-1p.bin",  0x0200, 0x0100, CRC(35e45021) SHA1(511b94507f41b377f38184ed9a85f34949b28d26) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "tbp24s10-main-1c.bin", 0x0000, 0x0100, CRC(668e6bca) SHA1(cd5262b1310821ba7b12873e4db35f081d6b9df4) )    /* character palette red component */
-	ROM_LOAD( "tbp24s10-gfx-1r.bin",  0x0100, 0x0100, CRC(76c05a9c) SHA1(1f46f436a17f8c883bdd6d9804b828a81a76f880) )    /* sprite palette red component */
-	ROM_LOAD( "tbp24s10-main-1a.bin", 0x0200, 0x0100, CRC(964b6495) SHA1(76f30a65a0ded14babad2006221aa40621fb7ea1) )    /* character palette green component */
-	ROM_LOAD( "tbp24s10-gfx-1s.bin",  0x0300, 0x0100, CRC(23f06b99) SHA1(6b3d6349f019aeab33838ae392bc3f3f89906326) )    /* sprite palette green component */
-	ROM_LOAD( "tbp24s10-main-1b.bin", 0x0400, 0x0100, CRC(550563e1) SHA1(11edb45acba8b28a462c49956ebb1ba0a8b2ff26) )    /* character palette blue component */
-	ROM_LOAD( "tbp24s10-gfx-1p.bin",  0x0500, 0x0100, CRC(35e45021) SHA1(511b94507f41b377f38184ed9a85f34949b28d26) )    /* sprite palette blue component */
-	ROM_LOAD( "18s030-gfx-8t.bin",    0x0600, 0x0020, CRC(7a601c3d) SHA1(5c5cdf51b2c9fdb2b05402d9c260208ae73fe245) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "tbp24s10-gfx-9k.bin",  0x0620, 0x0100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) )    /* video timing - same as battroad */
-	ROM_LOAD( "18s030-gfx-10a.bin",   0x0720, 0x0020, CRC(3858acd0) SHA1(49c96467c0e7146ed89f5107bcb7908bf4ce721a) )
-	ROM_LOAD( "18s030-gfx-5d.bin",    0x0740, 0x0020, CRC(51304fcd) SHA1(be4d659e526f6fa5318b4cd3b6612c5b73f24437) )
-	ROM_LOAD( "18s030-gfx-5e.bin",    0x0760, 0x0020, CRC(51304fcd) SHA1(be4d659e526f6fa5318b4cd3b6612c5b73f24437) )
-	ROM_LOAD( "18s030-gfx-6l.bin",    0x0780, 0x0020, CRC(3858acd0) SHA1(49c96467c0e7146ed89f5107bcb7908bf4ce721a) )
-	ROM_LOAD( "tbp24s10-gfx-3b.bin",  0x07a0, 0x0100, CRC(e6506ef4) SHA1(079841da7640b14d94aaaeb572bf018932b58293) )
-	ROM_LOAD( "tbp24s10-gfx-4a.bin",  0x08a0, 0x0100, CRC(e0aa8869) SHA1(ac8bdfeba69420ba56ec561bf3d0f1229d02cea2) )
-	ROM_LOAD( "tbp24s10-gfx-4c.bin",  0x09a0, 0x0100, CRC(b43d094f) SHA1(2bed4892d8a91d7faac5a07bf858d9294eb30606) )
-	ROM_LOAD( "tbp24s10-gfx-6d.bin",  0x0aa0, 0x0100, CRC(48bb39c9) SHA1(fbe525cc45c9287ab5f6c02c2bd729a11540d6be) )
-	ROM_LOAD( "tbp24s10-gfx-6e.bin",  0x0ba0, 0x0100, CRC(48bb39c9) SHA1(fbe525cc45c9287ab5f6c02c2bd729a11540d6be) )
-	ROM_LOAD( "tbp24s10-gfx-6m.bin",  0x0ca0, 0x0100, CRC(9f7a1a4d) SHA1(2bc38cbf4d0d65311b60c71073d81ca58ac01a5b) )
-	ROM_LOAD( "tbp24s10-gfx-6n.bin",  0x0da0, 0x0100, CRC(35e5b39e) SHA1(8889fad8a2c095129e4e50de5e2f66e986a4bedf) )
-	ROM_LOAD( "tbp24s10-gfx-8a.bin",  0x0ea0, 0x0100, CRC(35e5b39e) SHA1(8889fad8a2c095129e4e50de5e2f66e986a4bedf) )
-	ROM_LOAD( "tbp24s10-gfx-9a.bin",  0x0fa0, 0x0100, CRC(9f7a1a4d) SHA1(2bc38cbf4d0d65311b60c71073d81ca58ac01a5b) )
-	ROM_LOAD( "tbp24s10-gfx-9k.bin",  0x10a0, 0x0100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) )
-	ROM_LOAD( "tbp24s10-main-8b.bin", 0x11a0, 0x0100, CRC(180fbc57) SHA1(fe1cede9ec1002d48c4eb055d36f2b74c8dd4af8) )
-	ROM_LOAD( "tbp24s10-main-8c.bin", 0x12a0, 0x0100, CRC(3bb32e5a) SHA1(b666e48cb7526b9a38e151cdcc56d298c640bc3f) )
-	ROM_LOAD( "tbp24s10-main-8d.bin", 0x13a0, 0x0100, CRC(599c319f) SHA1(1e52e30f3beb2718fc382e3b85af6b6911863a08) )
+	ROM_LOAD( "tbp24s10-main-1a.bin", 0x0100, 0x0100, CRC(964b6495) SHA1(76f30a65a0ded14babad2006221aa40621fb7ea1) )    /* character palette green component */
+	ROM_LOAD( "tbp24s10-main-1b.bin", 0x0200, 0x0100, CRC(550563e1) SHA1(11edb45acba8b28a462c49956ebb1ba0a8b2ff26) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "tbp24s10-gfx-9k.bin",  0x0000, 0x0100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) )    /* video timing - same as battroad */
 ROM_END
 
 ROM_START( kungfub2 )
@@ -1352,16 +1415,21 @@ ROM_START( kungfub2 )
 	ROM_LOAD( "b-4d-.bin",    0x14000, 0x2000, CRC(6a70615f) SHA1(f4683dc0a566567e95e85268612bcf0e6297d955) )
 	ROM_LOAD( "b-4a-.bin",    0x16000, 0x2000, CRC(6189d626) SHA1(ce8e5e95c2684c685481e9c8d921380b20ac0460) )
 
-	ROM_REGION( 0x0720, "proms", 0 )
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "b-5f-.bin",    0x00, 0x20, CRC(7a601c3d) SHA1(5c5cdf51b2c9fdb2b05402d9c260208ae73fe245) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "b-1m-.bin",    0x0000, 0x0100, CRC(76c05a9c) SHA1(1f46f436a17f8c883bdd6d9804b828a81a76f880) )    /* sprite palette red component */
+	ROM_LOAD( "b-1n-.bin",    0x0100, 0x0100, CRC(23f06b99) SHA1(6b3d6349f019aeab33838ae392bc3f3f89906326) )    /* sprite palette green component */
+	ROM_LOAD( "b-1l-.bin",    0x0200, 0x0100, CRC(35e45021) SHA1(511b94507f41b377f38184ed9a85f34949b28d26) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "g-1j-.bin",    0x0000, 0x0100, CRC(668e6bca) SHA1(cd5262b1310821ba7b12873e4db35f081d6b9df4) )    /* character palette red component */
-	ROM_LOAD( "b-1m-.bin",    0x0100, 0x0100, CRC(76c05a9c) SHA1(1f46f436a17f8c883bdd6d9804b828a81a76f880) )    /* sprite palette red component */
-	ROM_LOAD( "g-1f-.bin",    0x0200, 0x0100, CRC(964b6495) SHA1(76f30a65a0ded14babad2006221aa40621fb7ea1) )    /* character palette green component */
-	ROM_LOAD( "b-1n-.bin",    0x0300, 0x0100, CRC(23f06b99) SHA1(6b3d6349f019aeab33838ae392bc3f3f89906326) )    /* sprite palette green component */
-	ROM_LOAD( "g-1h-.bin",    0x0400, 0x0100, CRC(550563e1) SHA1(11edb45acba8b28a462c49956ebb1ba0a8b2ff26) )    /* character palette blue component */
-	ROM_LOAD( "b-1l-.bin",    0x0500, 0x0100, CRC(35e45021) SHA1(511b94507f41b377f38184ed9a85f34949b28d26) )    /* sprite palette blue component */
-	ROM_LOAD( "b-5f-.bin",    0x0600, 0x0020, CRC(7a601c3d) SHA1(5c5cdf51b2c9fdb2b05402d9c260208ae73fe245) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "b-6f-.bin",    0x0620, 0x0100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) )    /* video timing - same as battroad */
+	ROM_LOAD( "g-1f-.bin",    0x0100, 0x0100, CRC(964b6495) SHA1(76f30a65a0ded14babad2006221aa40621fb7ea1) )    /* character palette green component */
+	ROM_LOAD( "g-1h-.bin",    0x0200, 0x0100, CRC(550563e1) SHA1(11edb45acba8b28a462c49956ebb1ba0a8b2ff26) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "b-6f-.bin",    0x0000, 0x0100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) )    /* video timing - same as battroad */
 ROM_END
 
 ROM_START( battroad )
@@ -1399,17 +1467,24 @@ ROM_START( battroad )
 	ROM_LOAD( "br-c-1b",    0x00000, 0x2000, CRC(8088911e) SHA1(d75d0a4ee5e51f14d93c8525486ee2cf2e87be9c) ) /* characters */
 	ROM_LOAD( "br-c-1c",    0x02000, 0x2000, CRC(3d78b653) SHA1(b693d20ad28fed867ffbc23cda150f3201206d3c) )
 
-	ROM_REGION( 0x0740, "proms", 0 )
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "br-b-5p",     0x00, 0x20, CRC(ce746937) SHA1(387e73a9ca684ac2e30061fca281970ff20ef0a5) ) /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "br-b-1m",     0x0000, 0x0100, CRC(3bd30c7d) SHA1(ce9812c47321820f144c5a285c15dbb2073c8847) ) /* sprite palette red component */
+	ROM_LOAD( "br-b-1n",     0x0100, 0x0100, CRC(b7f3dc3b) SHA1(7bffb6f3ddd0459bd060b0c1ca22a291153672d5) ) /* sprite palette green component */
+	ROM_LOAD( "br-b-1l",     0x0200, 0x0100, CRC(5271c7d8) SHA1(1254b61133ed8fd6e032df04482fb775c3f66981) ) /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "br-c-3j",     0x0000, 0x0100, CRC(aceaed79) SHA1(64cf6d012fc8d5163251812b4c2ac80d8f6dd353) ) /* tile palette red component */
-	ROM_LOAD( "br-b-1m",     0x0100, 0x0100, CRC(3bd30c7d) SHA1(ce9812c47321820f144c5a285c15dbb2073c8847) ) /* sprite palette red component */
-	ROM_LOAD( "br-c-3l",     0x0200, 0x0100, CRC(7cf6f380) SHA1(950a28dcb6e9d3d743c76ce07616ee7d6a0c138c) ) /* tile palette green component */
-	ROM_LOAD( "br-b-1n",     0x0300, 0x0100, CRC(b7f3dc3b) SHA1(7bffb6f3ddd0459bd060b0c1ca22a291153672d5) ) /* sprite palette green component */
-	ROM_LOAD( "br-c-3k",     0x0400, 0x0100, CRC(d90e4a54) SHA1(498c65773c83dfdb99703811bce7831f9a1af432) ) /* tile palette blue component */
-	ROM_LOAD( "br-b-1l",     0x0500, 0x0100, CRC(5271c7d8) SHA1(1254b61133ed8fd6e032df04482fb775c3f66981) ) /* sprite palette blue component */
-	ROM_LOAD( "br-c-1j",     0x0600, 0x0020, CRC(78eb5d77) SHA1(dd82f7843bea8c953f491faade6ced17e57ddf3c) ) /* character palette */
-	ROM_LOAD( "br-b-5p",     0x0620, 0x0020, CRC(ce746937) SHA1(387e73a9ca684ac2e30061fca281970ff20ef0a5) ) /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "br-b-6f",     0x0640, 0x0100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) ) /* video timing - same as kungfum */
+	ROM_LOAD( "br-c-3l",     0x0100, 0x0100, CRC(7cf6f380) SHA1(950a28dcb6e9d3d743c76ce07616ee7d6a0c138c) ) /* tile palette green component */
+	ROM_LOAD( "br-c-3k",     0x0200, 0x0100, CRC(d90e4a54) SHA1(498c65773c83dfdb99703811bce7831f9a1af432) ) /* tile palette blue component */
+
+	ROM_REGION( 0x20, "fg_color_proms", 0 )
+	ROM_LOAD( "br-c-1j",     0x00, 0x20, CRC(78eb5d77) SHA1(dd82f7843bea8c953f491faade6ced17e57ddf3c) ) /* character palette */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "br-b-6f",     0x000, 0x100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) ) /* video timing - same as kungfum */
 ROM_END
 
 ROM_START( ldrun )
@@ -1433,16 +1508,21 @@ ROM_START( ldrun )
 	ROM_LOAD( "lr-b-3n",      0x2000, 0x2000, CRC(55154154) SHA1(35304676e1ab55adccdabdc766a4e0e0901d3cd0) )
 	ROM_LOAD( "lr-b-4c",      0x4000, 0x2000, CRC(924e34d0) SHA1(6a841419797a129235fc7d0405a5be55e8d703da) )
 
-	ROM_REGION( 0x0720, "proms", 0 )
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "lr-b-5p",      0x00, 0x20, CRC(e01f69e2) SHA1(0d00ef348025ea4a9c274a7e3dbb006217d8449d) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "lr-b-1m",      0x0000, 0x0100, CRC(4bae1c25) SHA1(17a9e2567d9d648dca69510bb201f8af0738b068) )    /* sprite palette red component */
+	ROM_LOAD( "lr-b-1n",      0x0100, 0x0100, CRC(9cd3db94) SHA1(bff95965f946df0e4af1f99db5b2468bf1d4403f) )    /* sprite palette green component */
+	ROM_LOAD( "lr-b-1l",      0x0200, 0x0100, CRC(08d8cf9a) SHA1(a46213e0dc04e44b0544401eb341fd49eef331dd) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "lr-e-3m",      0x0000, 0x0100, CRC(53040416) SHA1(2c6915164d1c31afc60a21b557abdf023d5b3f46) )    /* character palette red component */
-	ROM_LOAD( "lr-b-1m",      0x0100, 0x0100, CRC(4bae1c25) SHA1(17a9e2567d9d648dca69510bb201f8af0738b068) )    /* sprite palette red component */
-	ROM_LOAD( "lr-e-3l",      0x0200, 0x0100, CRC(67786037) SHA1(cd40dfd94295afe57139733752643cf48b8566b1) )    /* character palette green component */
-	ROM_LOAD( "lr-b-1n",      0x0300, 0x0100, CRC(9cd3db94) SHA1(bff95965f946df0e4af1f99db5b2468bf1d4403f) )    /* sprite palette green component */
-	ROM_LOAD( "lr-e-3n",      0x0400, 0x0100, CRC(5b716837) SHA1(e3ea250891fec43a97e92ac1c3a4fbb5ee2d4a4d) )    /* character palette blue component */
-	ROM_LOAD( "lr-b-1l",      0x0500, 0x0100, CRC(08d8cf9a) SHA1(a46213e0dc04e44b0544401eb341fd49eef331dd) )    /* sprite palette blue component */
-	ROM_LOAD( "lr-b-5p",      0x0600, 0x0020, CRC(e01f69e2) SHA1(0d00ef348025ea4a9c274a7e3dbb006217d8449d) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "lr-b-6f",      0x0620, 0x0100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+	ROM_LOAD( "lr-e-3l",      0x0100, 0x0100, CRC(67786037) SHA1(cd40dfd94295afe57139733752643cf48b8566b1) )    /* character palette green component */
+	ROM_LOAD( "lr-e-3n",      0x0200, 0x0100, CRC(5b716837) SHA1(e3ea250891fec43a97e92ac1c3a4fbb5ee2d4a4d) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "lr-b-6f",      0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
 ROM_END
 
 ROM_START( ldruna )
@@ -1466,16 +1546,21 @@ ROM_START( ldruna )
 	ROM_LOAD( "lr-b-3n",      0x2000, 0x2000, CRC(55154154) SHA1(35304676e1ab55adccdabdc766a4e0e0901d3cd0) )
 	ROM_LOAD( "lr-b-4c",      0x4000, 0x2000, CRC(924e34d0) SHA1(6a841419797a129235fc7d0405a5be55e8d703da) )
 
-	ROM_REGION( 0x0720, "proms", 0 )
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "lr-b-5p",      0x00, 0x20, CRC(e01f69e2) SHA1(0d00ef348025ea4a9c274a7e3dbb006217d8449d) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "lr-b-1m",      0x0000, 0x0100, CRC(4bae1c25) SHA1(17a9e2567d9d648dca69510bb201f8af0738b068) )    /* sprite palette red component */
+	ROM_LOAD( "lr-b-1n",      0x0100, 0x0100, CRC(9cd3db94) SHA1(bff95965f946df0e4af1f99db5b2468bf1d4403f) )    /* sprite palette green component */
+	ROM_LOAD( "lr-b-1l",      0x0200, 0x0100, CRC(08d8cf9a) SHA1(a46213e0dc04e44b0544401eb341fd49eef331dd) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "lr-e-3m",      0x0000, 0x0100, CRC(53040416) SHA1(2c6915164d1c31afc60a21b557abdf023d5b3f46) )    /* character palette red component */
-	ROM_LOAD( "lr-b-1m",      0x0100, 0x0100, CRC(4bae1c25) SHA1(17a9e2567d9d648dca69510bb201f8af0738b068) )    /* sprite palette red component */
-	ROM_LOAD( "lr-e-3l",      0x0200, 0x0100, CRC(67786037) SHA1(cd40dfd94295afe57139733752643cf48b8566b1) )    /* character palette green component */
-	ROM_LOAD( "lr-b-1n",      0x0300, 0x0100, CRC(9cd3db94) SHA1(bff95965f946df0e4af1f99db5b2468bf1d4403f) )    /* sprite palette green component */
-	ROM_LOAD( "lr-e-3n",      0x0400, 0x0100, CRC(5b716837) SHA1(e3ea250891fec43a97e92ac1c3a4fbb5ee2d4a4d) )    /* character palette blue component */
-	ROM_LOAD( "lr-b-1l",      0x0500, 0x0100, CRC(08d8cf9a) SHA1(a46213e0dc04e44b0544401eb341fd49eef331dd) )    /* sprite palette blue component */
-	ROM_LOAD( "lr-b-5p",      0x0600, 0x0020, CRC(e01f69e2) SHA1(0d00ef348025ea4a9c274a7e3dbb006217d8449d) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "lr-b-6f",      0x0620, 0x0100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+	ROM_LOAD( "lr-e-3l",      0x0100, 0x0100, CRC(67786037) SHA1(cd40dfd94295afe57139733752643cf48b8566b1) )    /* character palette green component */
+	ROM_LOAD( "lr-e-3n",      0x0200, 0x0100, CRC(5b716837) SHA1(e3ea250891fec43a97e92ac1c3a4fbb5ee2d4a4d) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "lr-b-6f",      0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
 ROM_END
 
 ROM_START( ldrun2 )
@@ -1505,16 +1590,21 @@ ROM_START( ldrun2 )
 	ROM_LOAD( "lr2-b-4c",     0x08000, 0x2000, CRC(fbe6d24c) SHA1(d4d9bfa5abf7d9b2457543c56bb04edf209157b8) )
 	ROM_LOAD( "lr2-b-4e",     0x0a000, 0x2000, CRC(75172d1f) SHA1(6771c31ad834ca94a6575e34d781add5bfadce22) )
 
-	ROM_REGION( 0x0720, "proms", 0 )
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "lr2-b-5p",     0x00, 0x20, CRC(e01f69e2) SHA1(0d00ef348025ea4a9c274a7e3dbb006217d8449d) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "lr2-b-1m",     0x0000, 0x0100, CRC(4ec9bb3d) SHA1(e36398e0e92525f0c5086cb2b5a4a976d1e4f126) )    /* sprite palette red component */
+	ROM_LOAD( "lr2-b-1n",     0x0100, 0x0100, CRC(1daf1fa4) SHA1(5742ceff566e1d9f1148df4e408571aa290996d3) )    /* sprite palette green component */
+	ROM_LOAD( "lr2-b-1l",     0x0200, 0x0100, CRC(c8fb708a) SHA1(ed38f36fa7918179c7176c762c0fcc86b5ddb218) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "lr2-h-3m",     0x0000, 0x0100, CRC(2c5d834b) SHA1(4144a566d7eef06e9cd2d4c774e4b1e6f9ef56b1) )    /* character palette red component */
-	ROM_LOAD( "lr2-b-1m",     0x0100, 0x0100, CRC(4ec9bb3d) SHA1(e36398e0e92525f0c5086cb2b5a4a976d1e4f126) )    /* sprite palette red component */
-	ROM_LOAD( "lr2-h-3l",     0x0200, 0x0100, CRC(3ae69aca) SHA1(683bf617a36952d08bea53ea9c82b12f81c62c53) )    /* character palette green component */
-	ROM_LOAD( "lr2-b-1n",     0x0300, 0x0100, CRC(1daf1fa4) SHA1(5742ceff566e1d9f1148df4e408571aa290996d3) )    /* sprite palette green component */
-	ROM_LOAD( "lr2-h-3n",     0x0400, 0x0100, CRC(2b28aec5) SHA1(946633bd7203ba1481250f900f3232c18538613b) )    /* character palette blue component */
-	ROM_LOAD( "lr2-b-1l",     0x0500, 0x0100, CRC(c8fb708a) SHA1(ed38f36fa7918179c7176c762c0fcc86b5ddb218) )    /* sprite palette blue component */
-	ROM_LOAD( "lr2-b-5p",     0x0600, 0x0020, CRC(e01f69e2) SHA1(0d00ef348025ea4a9c274a7e3dbb006217d8449d) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "lr2-b-6f",     0x0620, 0x0100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+	ROM_LOAD( "lr2-h-3l",     0x0100, 0x0100, CRC(3ae69aca) SHA1(683bf617a36952d08bea53ea9c82b12f81c62c53) )    /* character palette green component */
+	ROM_LOAD( "lr2-h-3n",     0x0200, 0x0100, CRC(2b28aec5) SHA1(946633bd7203ba1481250f900f3232c18538613b) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "lr2-b-6f",     0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
 ROM_END
 
 ROM_START( ldrun3 )
@@ -1540,17 +1630,24 @@ ROM_START( ldrun3 )
 	ROM_LOAD( "snxb4cb.bin",  0x10000, 0x4000, CRC(585aa244) SHA1(d90cf29280e5f73b14dc5b33b1a82970e8e1a560) )
 	ROM_LOAD( "snxb4eb.bin",  0x14000, 0x4000, CRC(2d3b69dd) SHA1(472e1c06fd3184b91d9b718bb590d45702ed84cd) )
 
-	ROM_REGION( 0x0820, "proms", 0 )
+	ROM_REGION( 0x100, "proms", 0 )
+	ROM_LOAD( "lr3-n-4f",     0x000, 0x100, CRC(df674be9) SHA1(4d8c5378234bc24fac62dc227d8cd72f1ab7a35c) )    /* unknown */
+
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "lr3-b-5p",     0x00, 0x20, CRC(e01f69e2) SHA1(0d00ef348025ea4a9c274a7e3dbb006217d8449d) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "lr3-b-1m",     0x0000, 0x0100, CRC(f02d7167) SHA1(385a9179143e3dcccd7052e70c7cc71473caaaca) ) /* sprite palette red component */
+	ROM_LOAD( "lr3-b-1n",     0x0100, 0x0100, CRC(9e37f181) SHA1(8e36eb8f4aefcc6d21dfbb2e86dcb4875bcf82cd) ) /* sprite palette green component */
+	ROM_LOAD( "lr3-b-1l",     0x0200, 0x0100, CRC(5b11c41d) SHA1(186ca7bfa2894311fc573f3f5882da677e029f2a) ) /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "lr3-n-2l",     0x0000, 0x0100, CRC(e880b86b) SHA1(3934f37dc45b725af1c7d862086249256366d572) ) /* character palette red component */
-	ROM_LOAD( "lr3-b-1m",     0x0100, 0x0100, CRC(f02d7167) SHA1(385a9179143e3dcccd7052e70c7cc71473caaaca) ) /* sprite palette red component */
-	ROM_LOAD( "lr3-n-2k",     0x0200, 0x0100, CRC(047ee051) SHA1(7c18a223d37ccc5fea20f8f856fba20335c75ea4) ) /* character palette green component */
-	ROM_LOAD( "lr3-b-1n",     0x0300, 0x0100, CRC(9e37f181) SHA1(8e36eb8f4aefcc6d21dfbb2e86dcb4875bcf82cd) ) /* sprite palette green component */
-	ROM_LOAD( "lr3-n-2m",     0x0400, 0x0100, CRC(69ad8678) SHA1(96134aa530cb93a5e3b56fffa996aefa08a666a2) ) /* character palette blue component */
-	ROM_LOAD( "lr3-b-1l",     0x0500, 0x0100, CRC(5b11c41d) SHA1(186ca7bfa2894311fc573f3f5882da677e029f2a) ) /* sprite palette blue component */
-	ROM_LOAD( "lr3-b-5p",     0x0600, 0x0020, CRC(e01f69e2) SHA1(0d00ef348025ea4a9c274a7e3dbb006217d8449d) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "lr3-n-4f",     0x0620, 0x0100, CRC(df674be9) SHA1(4d8c5378234bc24fac62dc227d8cd72f1ab7a35c) )    /* unknown */
-	ROM_LOAD( "lr3-b-6f",     0x0720, 0x0100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+	ROM_LOAD( "lr3-n-2k",     0x0100, 0x0100, CRC(047ee051) SHA1(7c18a223d37ccc5fea20f8f856fba20335c75ea4) ) /* character palette green component */
+	ROM_LOAD( "lr3-n-2m",     0x0200, 0x0100, CRC(69ad8678) SHA1(96134aa530cb93a5e3b56fffa996aefa08a666a2) ) /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "lr3-b-6f",     0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
 ROM_END
 
 ROM_START( ldrun3j )
@@ -1573,17 +1670,24 @@ ROM_START( ldrun3j )
 	ROM_LOAD( "lr3-b-3n",     0x04000, 0x4000, CRC(eab7ad91) SHA1(c4e8dec38f6df27c0309172232aa8056be7982c4) )
 	ROM_LOAD( "lr3-b-4c",     0x08000, 0x4000, CRC(1a460a46) SHA1(2f9e85ab45e8ec7a08edb9c1f82bce694cc2bc99) )
 
-	ROM_REGION( 0x0820, "proms", 0 )
+	ROM_REGION( 0x100, "proms", 0 )
+	ROM_LOAD( "lr3-n-4f",     0x000, 0x100, CRC(df674be9) SHA1(4d8c5378234bc24fac62dc227d8cd72f1ab7a35c) )    /* unknown */
+
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "lr3-b-5p",     0x00, 0x20, CRC(e01f69e2) SHA1(0d00ef348025ea4a9c274a7e3dbb006217d8449d) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "lr3-b-1m",     0x0000, 0x0100, CRC(f02d7167) SHA1(385a9179143e3dcccd7052e70c7cc71473caaaca) ) /* sprite palette red component */
+	ROM_LOAD( "lr3-b-1n",     0x0100, 0x0100, CRC(9e37f181) SHA1(8e36eb8f4aefcc6d21dfbb2e86dcb4875bcf82cd) ) /* sprite palette green component */
+	ROM_LOAD( "lr3-b-1l",     0x0200, 0x0100, CRC(5b11c41d) SHA1(186ca7bfa2894311fc573f3f5882da677e029f2a) ) /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "lr3-n-2l",     0x0000, 0x0100, CRC(e880b86b) SHA1(3934f37dc45b725af1c7d862086249256366d572) ) /* character palette red component */
-	ROM_LOAD( "lr3-b-1m",     0x0100, 0x0100, CRC(f02d7167) SHA1(385a9179143e3dcccd7052e70c7cc71473caaaca) ) /* sprite palette red component */
-	ROM_LOAD( "lr3-n-2k",     0x0200, 0x0100, CRC(047ee051) SHA1(7c18a223d37ccc5fea20f8f856fba20335c75ea4) ) /* character palette green component */
-	ROM_LOAD( "lr3-b-1n",     0x0300, 0x0100, CRC(9e37f181) SHA1(8e36eb8f4aefcc6d21dfbb2e86dcb4875bcf82cd) ) /* sprite palette green component */
-	ROM_LOAD( "lr3-n-2m",     0x0400, 0x0100, CRC(69ad8678) SHA1(96134aa530cb93a5e3b56fffa996aefa08a666a2) ) /* character palette blue component */
-	ROM_LOAD( "lr3-b-1l",     0x0500, 0x0100, CRC(5b11c41d) SHA1(186ca7bfa2894311fc573f3f5882da677e029f2a) ) /* sprite palette blue component */
-	ROM_LOAD( "lr3-b-5p",     0x0600, 0x0020, CRC(e01f69e2) SHA1(0d00ef348025ea4a9c274a7e3dbb006217d8449d) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "lr3-n-4f",     0x0620, 0x0100, CRC(df674be9) SHA1(4d8c5378234bc24fac62dc227d8cd72f1ab7a35c) )    /* unknown */
-	ROM_LOAD( "lr3-b-6f",     0x0720, 0x0100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+	ROM_LOAD( "lr3-n-2k",     0x0100, 0x0100, CRC(047ee051) SHA1(7c18a223d37ccc5fea20f8f856fba20335c75ea4) ) /* character palette green component */
+	ROM_LOAD( "lr3-n-2m",     0x0200, 0x0100, CRC(69ad8678) SHA1(96134aa530cb93a5e3b56fffa996aefa08a666a2) ) /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "lr3-b-6f",     0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
 ROM_END
 
 ROM_START( ldrun4 )
@@ -1609,17 +1713,24 @@ ROM_START( ldrun4 )
 	ROM_LOAD( "lr4-b-4c",     0x10000, 0x4000, CRC(82c53669) SHA1(5e020e1df81ddc3ca0f0aeff0010ec3cd87ce426) )
 	ROM_LOAD( "lr4-b-4e",     0x14000, 0x4000, CRC(767a1352) SHA1(675bda83bf46421a37dbfaa9323e5ecc4a3b63dd) )
 
-	ROM_REGION( 0x0820, "proms", 0 )
+	ROM_REGION( 0x100, "proms", 0 )
+	ROM_LOAD( "lr4-v-4h",     0x000, 0x100, CRC(df674be9) SHA1(4d8c5378234bc24fac62dc227d8cd72f1ab7a35c) )    /* unknown */
+
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "lr4-b-5p",     0x00, 0x20, CRC(e01f69e2) SHA1(0d00ef348025ea4a9c274a7e3dbb006217d8449d) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "lr4-b-1m",     0x0000, 0x0100, CRC(5d8d17d0) SHA1(214f9f7f9fa9c2b616c5b4a3060c4bb96ea9fef4) ) /* sprite palette red component */
+	ROM_LOAD( "lr4-b-1n",     0x0100, 0x0100, CRC(da1129d2) SHA1(169e616c7340ab76f931493eba188756da48a8ec) ) /* sprite palette green component */
+	ROM_LOAD( "lr4-b-1l",     0x0200, 0x0100, CRC(0d89b692) SHA1(b2854290c46c34934ff91980d72768070ebc8bf3) ) /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "lr4-v-1m",     0x0000, 0x0100, CRC(fe51bf1d) SHA1(92461d6fcbc94bde9639720e8f58b974e5adb2dc) ) /* character palette red component */
-	ROM_LOAD( "lr4-b-1m",     0x0100, 0x0100, CRC(5d8d17d0) SHA1(214f9f7f9fa9c2b616c5b4a3060c4bb96ea9fef4) ) /* sprite palette red component */
-	ROM_LOAD( "lr4-v-1n",     0x0200, 0x0100, CRC(da0658e5) SHA1(5a7f665e4d63938b4e4415066eb6c986e82bd1a7) ) /* character palette green component */
-	ROM_LOAD( "lr4-b-1n",     0x0300, 0x0100, CRC(da1129d2) SHA1(169e616c7340ab76f931493eba188756da48a8ec) ) /* sprite palette green component */
-	ROM_LOAD( "lr4-v-1p",     0x0400, 0x0100, CRC(0df23ebe) SHA1(054736b762aa6698c1e6d827f8db62ae0342c83f) ) /* character palette blue component */
-	ROM_LOAD( "lr4-b-1l",     0x0500, 0x0100, CRC(0d89b692) SHA1(b2854290c46c34934ff91980d72768070ebc8bf3) ) /* sprite palette blue component */
-	ROM_LOAD( "lr4-b-5p",     0x0600, 0x0020, CRC(e01f69e2) SHA1(0d00ef348025ea4a9c274a7e3dbb006217d8449d) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "lr4-v-4h",     0x0620, 0x0100, CRC(df674be9) SHA1(4d8c5378234bc24fac62dc227d8cd72f1ab7a35c) )    /* unknown */
-	ROM_LOAD( "lr4-b-6f",     0x0720, 0x0100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+	ROM_LOAD( "lr4-v-1n",     0x0100, 0x0100, CRC(da0658e5) SHA1(5a7f665e4d63938b4e4415066eb6c986e82bd1a7) ) /* character palette green component */
+	ROM_LOAD( "lr4-v-1p",     0x0200, 0x0100, CRC(0df23ebe) SHA1(054736b762aa6698c1e6d827f8db62ae0342c83f) ) /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "lr4-b-6f",     0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
 ROM_END
 
 ROM_START( lotlot )
@@ -1645,21 +1756,30 @@ ROM_START( lotlot )
 	ROM_LOAD( "lot-k-4l",     0x02000, 0x2000, CRC(f98dca1f) SHA1(b88d2b9cb3ac8d5523f3788fca8bae60f8fad6f7) )
 	ROM_LOAD( "lot-k-4n",     0x04000, 0x2000, CRC(f0cd76a5) SHA1(3f7b1890ca36c190d3fe2571382ada93798a0a51) )
 
-	ROM_REGION( 0x0e20, "proms", 0 )
+	ROM_REGION( 0x400, "proms", 0 )
+	ROM_LOAD( "lot-k-7e",     0x000, 0x200, CRC(6cef0fbd) SHA1(0c5c63a203e7bd852a3574c18f212487caf529ca) )    /* unknown */
+	ROM_LOAD( "lot-k-7h",     0x200, 0x200, CRC(04442bee) SHA1(37d10b605830b9355b00256af479c06cd4b97950) )    /* unknown */
+
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "lot-b-5p",     0x00, 0x20, CRC(110b21fd) SHA1(a7a660ff18540e2d73a80f341cd50c5f4d184085) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "lot-b-1m",     0x0000, 0x0100, CRC(c146461d) SHA1(87a5dc3a93a9f9f08e97eef77eb099792fdf70e6) ) /* sprite palette red component */
+	ROM_LOAD( "lot-b-1n",     0x0100, 0x0100, CRC(01e07db6) SHA1(3a18a6919b966d429d5ec9cf812768804407f92e) ) /* sprite palette green component */
+	ROM_LOAD( "lot-b-1l",     0x0200, 0x0100, CRC(8b6fcde3) SHA1(04e9ce04b77a5f8737f2ec0aaeadaccdbbdda573) ) /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "lot-k-2f",     0x0000, 0x0100, CRC(b820a05e) SHA1(79158f0cd64231c5cd90dc391e492a21aba4c30d) ) /* tile palette red component */
-	ROM_LOAD( "lot-b-1m",     0x0100, 0x0100, CRC(c146461d) SHA1(87a5dc3a93a9f9f08e97eef77eb099792fdf70e6) ) /* sprite palette red component */
-	ROM_LOAD( "lot-k-2l",     0x0200, 0x0100, CRC(ac3e230d) SHA1(e7d5afc707580a5c1df1201694a4db685af5f986) ) /* character palette red component */
-	ROM_LOAD( "lot-k-2e",     0x0300, 0x0100, CRC(9b1fa005) SHA1(076af5d7a30a47b5884fcf33452a10aad91d30ee) ) /* tile palette green component */
-	ROM_LOAD( "lot-b-1n",     0x0400, 0x0100, CRC(01e07db6) SHA1(3a18a6919b966d429d5ec9cf812768804407f92e) ) /* sprite palette green component */
-	ROM_LOAD( "lot-k-2k",     0x0500, 0x0100, CRC(1811ad2b) SHA1(fb7aa262595010dd0fc1a94d74a37359f20e4cd7) ) /* character palette green component */
-	ROM_LOAD( "lot-k-2d",     0x0600, 0x0100, CRC(315ed9a8) SHA1(7bfa91729cce7911a45035e2fa576a2b6b010a65) ) /* tile palette blue component */
-	ROM_LOAD( "lot-b-1l",     0x0700, 0x0100, CRC(8b6fcde3) SHA1(04e9ce04b77a5f8737f2ec0aaeadaccdbbdda573) ) /* sprite palette blue component */
-	ROM_LOAD( "lot-k-2j",     0x0800, 0x0100, CRC(e791ef2a) SHA1(cb1236630cbbc23e2e684ad3b7f51e52389eea2e) ) /* character palette blue component */
-	ROM_LOAD( "lot-b-5p",     0x0900, 0x0020, CRC(110b21fd) SHA1(a7a660ff18540e2d73a80f341cd50c5f4d184085) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "lot-k-7e",     0x0920, 0x0200, CRC(6cef0fbd) SHA1(0c5c63a203e7bd852a3574c18f212487caf529ca) )    /* unknown */
-	ROM_LOAD( "lot-k-7h",     0x0b20, 0x0200, CRC(04442bee) SHA1(37d10b605830b9355b00256af479c06cd4b97950) )    /* unknown */
-	ROM_LOAD( "lot-b-6f",     0x0d20, 0x0100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+	ROM_LOAD( "lot-k-2e",     0x0100, 0x0100, CRC(9b1fa005) SHA1(076af5d7a30a47b5884fcf33452a10aad91d30ee) ) /* tile palette green component */
+	ROM_LOAD( "lot-k-2d",     0x0200, 0x0100, CRC(315ed9a8) SHA1(7bfa91729cce7911a45035e2fa576a2b6b010a65) ) /* tile palette blue component */
+
+	ROM_REGION( 0x300, "fg_color_proms", 0 )
+	ROM_LOAD( "lot-k-2l",     0x0000, 0x0100, CRC(ac3e230d) SHA1(e7d5afc707580a5c1df1201694a4db685af5f986) ) /* character palette red component */
+	ROM_LOAD( "lot-k-2k",     0x0100, 0x0100, CRC(1811ad2b) SHA1(fb7aa262595010dd0fc1a94d74a37359f20e4cd7) ) /* character palette green component */
+	ROM_LOAD( "lot-k-2j",     0x0200, 0x0100, CRC(e791ef2a) SHA1(cb1236630cbbc23e2e684ad3b7f51e52389eea2e) ) /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "lot-b-6f",     0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
 ROM_END
 
 ROM_START( kidniki )
@@ -1699,17 +1819,24 @@ ROM_START( kidniki )
 	ROM_LOAD( "dr09.4m",      0x04000, 0x4000, CRC(17df6f95) SHA1(669a81906dfd81d807cbb2b5827ddb504536cb2c) )
 	ROM_LOAD( "dr10.4n",      0x08000, 0x4000, CRC(820ce252) SHA1(910dbb910fdfcf9542360c0cd78c58c93d1d0c26) )
 
-	ROM_REGION( 0x0920, "proms", 0 )
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "dr28.8f",      0x000, 0x200, CRC(6cef0fbd) SHA1(0c5c63a203e7bd852a3574c18f212487caf529ca) )    /* unknown */
+
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "dr32.5p",      0x00, 0x20, CRC(11cd1f2e) SHA1(45ceb84ff373127ff370610c1ce8d83fc6045bcb) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "dr30.1m",      0x0000, 0x0100, CRC(28c73263) SHA1(ffeb8d1310759bf20b1624ab92fc91078726679c) )    /* sprite palette red component */
+	ROM_LOAD( "dr31.1n",      0x0100, 0x0100, CRC(3529210e) SHA1(3042ec941bdcb873077e77cffe36d4a28298bbbb) )    /* sprite palette green component */
+	ROM_LOAD( "dr29.1l",      0x0200, 0x0100, CRC(1173a754) SHA1(dbb7d02b72ae1842e0d17aee324a5b85ff2a2178) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "dr25.3f",      0x0000, 0x0100, CRC(8e91430b) SHA1(a7a1567a0fd31cd65260f3ddb5280368704378bd) )    /* character palette red component */
-	ROM_LOAD( "dr30.1m",      0x0100, 0x0100, CRC(28c73263) SHA1(ffeb8d1310759bf20b1624ab92fc91078726679c) )    /* sprite palette red component */
-	ROM_LOAD( "dr26.3h",      0x0200, 0x0100, CRC(b563b93f) SHA1(86aefdaa63b35fe82f9f70eff3e4c14629f7a184) )    /* character palette green component */
-	ROM_LOAD( "dr31.1n",      0x0300, 0x0100, CRC(3529210e) SHA1(3042ec941bdcb873077e77cffe36d4a28298bbbb) )    /* sprite palette green component */
-	ROM_LOAD( "dr27.3j",      0x0400, 0x0100, CRC(70d668ef) SHA1(2cc647f2708932105bb9a5130aacc5a8a160e418) )    /* character palette blue component */
-	ROM_LOAD( "dr29.1l",      0x0500, 0x0100, CRC(1173a754) SHA1(dbb7d02b72ae1842e0d17aee324a5b85ff2a2178) )    /* sprite palette blue component */
-	ROM_LOAD( "dr32.5p",      0x0600, 0x0020, CRC(11cd1f2e) SHA1(45ceb84ff373127ff370610c1ce8d83fc6045bcb) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "dr28.8f",      0x0620, 0x0200, CRC(6cef0fbd) SHA1(0c5c63a203e7bd852a3574c18f212487caf529ca) )    /* unknown */
-	ROM_LOAD( "dr33.6f",      0x0820, 0x0100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+	ROM_LOAD( "dr26.3h",      0x0100, 0x0100, CRC(b563b93f) SHA1(86aefdaa63b35fe82f9f70eff3e4c14629f7a184) )    /* character palette green component */
+	ROM_LOAD( "dr27.3j",      0x0200, 0x0100, CRC(70d668ef) SHA1(2cc647f2708932105bb9a5130aacc5a8a160e418) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "dr33.6f",      0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
 ROM_END
 
 ROM_START( kidnikiu )
@@ -1749,19 +1876,81 @@ ROM_START( kidnikiu )
 	ROM_LOAD( "dr09.4m",      0x04000, 0x4000, CRC(17df6f95) SHA1(669a81906dfd81d807cbb2b5827ddb504536cb2c) )
 	ROM_LOAD( "dr10.4n",      0x08000, 0x4000, CRC(820ce252) SHA1(910dbb910fdfcf9542360c0cd78c58c93d1d0c26) )
 
-	ROM_REGION( 0x0920, "proms", 0 )
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "dr28.8f",      0x000, 0x200, CRC(6cef0fbd) SHA1(0c5c63a203e7bd852a3574c18f212487caf529ca) )    /* unknown */
+
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "dr32.5p",      0x00, 0x20, CRC(11cd1f2e) SHA1(45ceb84ff373127ff370610c1ce8d83fc6045bcb) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "dr30.1m",      0x0000, 0x0100, CRC(28c73263) SHA1(ffeb8d1310759bf20b1624ab92fc91078726679c) )    /* sprite palette red component */
+	ROM_LOAD( "dr31.1n",      0x0100, 0x0100, CRC(3529210e) SHA1(3042ec941bdcb873077e77cffe36d4a28298bbbb) )    /* sprite palette green component */
+	ROM_LOAD( "dr29.1l",      0x0200, 0x0100, CRC(1173a754) SHA1(dbb7d02b72ae1842e0d17aee324a5b85ff2a2178) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "dr25.3f",      0x0000, 0x0100, CRC(8e91430b) SHA1(a7a1567a0fd31cd65260f3ddb5280368704378bd) )    /* character palette red component */
-	ROM_LOAD( "dr30.1m",      0x0100, 0x0100, CRC(28c73263) SHA1(ffeb8d1310759bf20b1624ab92fc91078726679c) )    /* sprite palette red component */
-	ROM_LOAD( "dr26.3h",      0x0200, 0x0100, CRC(b563b93f) SHA1(86aefdaa63b35fe82f9f70eff3e4c14629f7a184) )    /* character palette green component */
-	ROM_LOAD( "dr31.1n",      0x0300, 0x0100, CRC(3529210e) SHA1(3042ec941bdcb873077e77cffe36d4a28298bbbb) )    /* sprite palette green component */
-	ROM_LOAD( "dr27.3j",      0x0400, 0x0100, CRC(70d668ef) SHA1(2cc647f2708932105bb9a5130aacc5a8a160e418) )    /* character palette blue component */
-	ROM_LOAD( "dr29.1l",      0x0500, 0x0100, CRC(1173a754) SHA1(dbb7d02b72ae1842e0d17aee324a5b85ff2a2178) )    /* sprite palette blue component */
-	ROM_LOAD( "dr32.5p",      0x0600, 0x0020, CRC(11cd1f2e) SHA1(45ceb84ff373127ff370610c1ce8d83fc6045bcb) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "dr28.8f",      0x0620, 0x0200, CRC(6cef0fbd) SHA1(0c5c63a203e7bd852a3574c18f212487caf529ca) )    /* unknown */
-	ROM_LOAD( "dr33.6f",      0x0820, 0x0100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+	ROM_LOAD( "dr26.3h",      0x0100, 0x0100, CRC(b563b93f) SHA1(86aefdaa63b35fe82f9f70eff3e4c14629f7a184) )    /* character palette green component */
+	ROM_LOAD( "dr27.3j",      0x0200, 0x0100, CRC(70d668ef) SHA1(2cc647f2708932105bb9a5130aacc5a8a160e418) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "dr33.6f",      0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
 ROM_END
 
+// 3 PCB stack (3047A, 3047B, 3047C), stickered Yanza.
+// Very similar to yanchamr, just with mostly bigger ROMs. Main difference is in "gfx3", where the bootleggers redrew the title. PROMs weren't dumped for this set.
+ROM_START( kidnikib )
+	ROM_REGION( 0x30000, "maincpu", 0 ) /* main CPU, only 10.bin has small differences */
+	ROM_LOAD( "3.bin",  0x00000, 0x08000, CRC(461e1625) SHA1(6c568c589af345314dc327c7b189a00758bf4465) )
+	ROM_LOAD( "10.bin", 0x10000, 0x08000, CRC(2975bd31) SHA1(7c7e32beba6e461cdd7231e5390b7586669ac0de) )  /* banked at 8000-9fff */
+	ROM_LOAD( "11.bin", 0x18000, 0x08000, CRC(a929110b) SHA1(87334f946e14c79426bc7a14e8da984bb8ef9cfc) )
+
+	ROM_REGION( 0x10000, "irem_audio:iremsound", 0 )   /* sound CPU, identical */
+	ROM_LOAD( "2.bin", 0x4000, 0x04000, CRC(cb365f3b) SHA1(fefad25459eb00d228ee29931c5714ae895b76c7) )
+	ROM_LOAD( "1.bin", 0x8000, 0x08000, CRC(606a0fc3) SHA1(1843ae4faba66a955909442a02729854328b6011) )
+
+	ROM_REGION( 0x18000, "gfx1", 0 ) // identical
+	ROM_LOAD( "6.bin", 0x00000, 0x8000, CRC(cb9761fc) SHA1(3eaf289ebd4ee1b1659dda0804fc0597ccc76218) )   /* tiles */
+	ROM_LOAD( "5.bin", 0x08000, 0x8000, CRC(59732741) SHA1(e77fbe3b0cd57a6a3fea7da46d8f23a4bcc7b583) )
+	ROM_LOAD( "4.bin", 0x10000, 0x8000, CRC(0370fd82) SHA1(0ddad9638b778f5651fccbec9b2c711c8ad07098) )
+
+	ROM_REGION( 0x30000, "gfx2", 0 ) // identical
+	ROM_LOAD( "15.bin", 0x00000, 0x4000, CRC(454017f3) SHA1(35ebcf0337720bffbc855b733b9a6643d37d59c4) )   /* sprites */
+	ROM_CONTINUE(       0x0c000, 0x4000 )
+	ROM_LOAD( "14.bin", 0x08000, 0x4000, CRC(a9a9ab62) SHA1(8eb905c1555f7e3c45dca26a03c560d2d59f9370) )
+	ROM_CONTINUE(       0x04000, 0x4000 )
+	ROM_LOAD( "17.bin", 0x10000, 0x4000, CRC(5cd4a019) SHA1(5c658e85fe3ed6c85dfaee9c78ac86bc09dab3c5) )
+	ROM_CONTINUE(       0x1c000, 0x4000 )
+	ROM_LOAD( "16.bin", 0x18000, 0x4000, CRC(90fab5e7) SHA1(66e60801c46424fe2b01bc18ce72280ca532ca51) )
+	ROM_CONTINUE(       0x14000, 0x4000 )
+	ROM_LOAD( "13.bin", 0x20000, 0x4000, CRC(44a978f2) SHA1(cf6644a6ff9ff39ecd2a126fcdbed96222c44756) )
+	ROM_CONTINUE(       0x2c000, 0x4000 )
+	ROM_LOAD( "12.bin", 0x28000, 0x4000, CRC(5eb4b1b1) SHA1(04daa4ccfe2fb707424dd557fb698bdc4950648d) )
+	ROM_CONTINUE(       0x24000, 0x4000 )
+
+	ROM_REGION( 0x0c000, "gfx3", 0 ) // all different, hacked up title screen
+	ROM_LOAD( "7.bin", 0x00000, 0x4000, CRC(abad77b7) SHA1(9c0110738670a8a3e3bba4251a661c1f78b576a4) )   /* chars */
+	ROM_LOAD( "8.bin", 0x04000, 0x4000, CRC(62e59144) SHA1(ab4c085cd4e4d4c741f32aecf6072ebf57cc37ad) ) // 11001xxxxxxxxx = 0x00, redumped multiple times
+	ROM_LOAD( "9.bin", 0x08000, 0x4000, CRC(81fded13) SHA1(394e52de4ad35c4c1a91d4f4e25f323f06d531aa) )
+
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "dr28.8f",      0x000, 0x200, CRC(6cef0fbd) SHA1(0c5c63a203e7bd852a3574c18f212487caf529ca) )    /* unknown */
+
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "dr32.5p",      0x00, 0x20, CRC(11cd1f2e) SHA1(45ceb84ff373127ff370610c1ce8d83fc6045bcb) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "dr30.1m",      0x0000, 0x0100, CRC(28c73263) SHA1(ffeb8d1310759bf20b1624ab92fc91078726679c) )    /* sprite palette red component */
+	ROM_LOAD( "dr31.1n",      0x0100, 0x0100, CRC(3529210e) SHA1(3042ec941bdcb873077e77cffe36d4a28298bbbb) )    /* sprite palette green component */
+	ROM_LOAD( "dr29.1l",      0x0200, 0x0100, CRC(1173a754) SHA1(dbb7d02b72ae1842e0d17aee324a5b85ff2a2178) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
+	ROM_LOAD( "dr25.3f",      0x0000, 0x0100, CRC(8e91430b) SHA1(a7a1567a0fd31cd65260f3ddb5280368704378bd) )    /* character palette red component */
+	ROM_LOAD( "dr26.3h",      0x0100, 0x0100, CRC(b563b93f) SHA1(86aefdaa63b35fe82f9f70eff3e4c14629f7a184) )    /* character palette green component */
+	ROM_LOAD( "dr27.3j",      0x0200, 0x0100, CRC(70d668ef) SHA1(2cc647f2708932105bb9a5130aacc5a8a160e418) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "dr33.6f",      0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+ROM_END
 
 ROM_START( yanchamr )
 	ROM_REGION( 0x30000, "maincpu", 0 ) /* main CPU */
@@ -1800,17 +1989,24 @@ ROM_START( yanchamr )
 	ROM_LOAD( "ky_t-4m-.bin", 0x04000, 0x4000, CRC(4075c396) SHA1(5d1612a89631800693c79dce01fa2494a8b1f49a) )
 	ROM_LOAD( "ky_t-4n-.bin", 0x08000, 0x4000, CRC(7564f2ff) SHA1(fbf0adf3d8e15d899ece96e34019cfcc56c52ddb) )
 
-	ROM_REGION( 0x0920, "proms", 0 )
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "dr28.8f",      0x000, 0x200, CRC(6cef0fbd) SHA1(0c5c63a203e7bd852a3574c18f212487caf529ca) )    /* unknown */
+
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "dr32.5p",      0x00, 0x20, CRC(11cd1f2e) SHA1(45ceb84ff373127ff370610c1ce8d83fc6045bcb) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "dr30.1m",      0x0000, 0x0100, CRC(28c73263) SHA1(ffeb8d1310759bf20b1624ab92fc91078726679c) )    /* sprite palette red component */
+	ROM_LOAD( "dr31.1n",      0x0100, 0x0100, CRC(3529210e) SHA1(3042ec941bdcb873077e77cffe36d4a28298bbbb) )    /* sprite palette green component */
+	ROM_LOAD( "dr29.1l",      0x0200, 0x0100, CRC(1173a754) SHA1(dbb7d02b72ae1842e0d17aee324a5b85ff2a2178) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "dr25.3f",      0x0000, 0x0100, CRC(8e91430b) SHA1(a7a1567a0fd31cd65260f3ddb5280368704378bd) )    /* character palette red component */
-	ROM_LOAD( "dr30.1m",      0x0100, 0x0100, CRC(28c73263) SHA1(ffeb8d1310759bf20b1624ab92fc91078726679c) )    /* sprite palette red component */
-	ROM_LOAD( "dr26.3h",      0x0200, 0x0100, CRC(b563b93f) SHA1(86aefdaa63b35fe82f9f70eff3e4c14629f7a184) )    /* character palette green component */
-	ROM_LOAD( "dr31.1n",      0x0300, 0x0100, CRC(3529210e) SHA1(3042ec941bdcb873077e77cffe36d4a28298bbbb) )    /* sprite palette green component */
-	ROM_LOAD( "dr27.3j",      0x0400, 0x0100, CRC(70d668ef) SHA1(2cc647f2708932105bb9a5130aacc5a8a160e418) )    /* character palette blue component */
-	ROM_LOAD( "dr29.1l",      0x0500, 0x0100, CRC(1173a754) SHA1(dbb7d02b72ae1842e0d17aee324a5b85ff2a2178) )    /* sprite palette blue component */
-	ROM_LOAD( "dr32.5p",      0x0600, 0x0020, CRC(11cd1f2e) SHA1(45ceb84ff373127ff370610c1ce8d83fc6045bcb) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "dr28.8f",      0x0620, 0x0200, CRC(6cef0fbd) SHA1(0c5c63a203e7bd852a3574c18f212487caf529ca) )    /* unknown */
-	ROM_LOAD( "dr33.6f",      0x0820, 0x0100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+	ROM_LOAD( "dr26.3h",      0x0100, 0x0100, CRC(b563b93f) SHA1(86aefdaa63b35fe82f9f70eff3e4c14629f7a184) )    /* character palette green component */
+	ROM_LOAD( "dr27.3j",      0x0200, 0x0100, CRC(70d668ef) SHA1(2cc647f2708932105bb9a5130aacc5a8a160e418) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "dr33.6f",      0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
 ROM_END
 
 ROM_START( lithero )
@@ -1843,17 +2039,24 @@ ROM_START( lithero )
 	ROM_LOAD( "9.bin",        0x04000, 0x4000, CRC(daafa2c1) SHA1(e7bd964faac5dfc1546e0ce629dbedf8d4da9ba6) )
 	ROM_LOAD( "10.bin",       0x08000, 0x4000, CRC(60649d19) SHA1(38590a3d03655a5e1a95afa9279da49b65abfa2c) )
 
-	ROM_REGION( 0x0920, "proms", 0 )
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "dr28.8f",      0x000, 0x200, CRC(6cef0fbd) SHA1(0c5c63a203e7bd852a3574c18f212487caf529ca) )    /* unknown */
+
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "dr32.5p",      0x00, 0x20, CRC(11cd1f2e) SHA1(45ceb84ff373127ff370610c1ce8d83fc6045bcb) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "dr30.1m",      0x0000, 0x0100, CRC(28c73263) SHA1(ffeb8d1310759bf20b1624ab92fc91078726679c) )    /* sprite palette red component */
+	ROM_LOAD( "dr31.1n",      0x0100, 0x0100, CRC(3529210e) SHA1(3042ec941bdcb873077e77cffe36d4a28298bbbb) )    /* sprite palette green component */
+	ROM_LOAD( "dr29.1l",      0x0200, 0x0100, CRC(1173a754) SHA1(dbb7d02b72ae1842e0d17aee324a5b85ff2a2178) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "dr25.3f",      0x0000, 0x0100, CRC(8e91430b) SHA1(a7a1567a0fd31cd65260f3ddb5280368704378bd) )    /* character palette red component */
-	ROM_LOAD( "dr30.1m",      0x0100, 0x0100, CRC(28c73263) SHA1(ffeb8d1310759bf20b1624ab92fc91078726679c) )    /* sprite palette red component */
-	ROM_LOAD( "dr26.3h",      0x0200, 0x0100, CRC(b563b93f) SHA1(86aefdaa63b35fe82f9f70eff3e4c14629f7a184) )    /* character palette green component */
-	ROM_LOAD( "dr31.1n",      0x0300, 0x0100, CRC(3529210e) SHA1(3042ec941bdcb873077e77cffe36d4a28298bbbb) )    /* sprite palette green component */
-	ROM_LOAD( "dr27.3j",      0x0400, 0x0100, CRC(70d668ef) SHA1(2cc647f2708932105bb9a5130aacc5a8a160e418) )    /* character palette blue component */
-	ROM_LOAD( "dr29.1l",      0x0500, 0x0100, CRC(1173a754) SHA1(dbb7d02b72ae1842e0d17aee324a5b85ff2a2178) )    /* sprite palette blue component */
-	ROM_LOAD( "dr32.5p",      0x0600, 0x0020, CRC(11cd1f2e) SHA1(45ceb84ff373127ff370610c1ce8d83fc6045bcb) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "dr28.8f",      0x0620, 0x0200, CRC(6cef0fbd) SHA1(0c5c63a203e7bd852a3574c18f212487caf529ca) )    /* unknown */
-	ROM_LOAD( "dr33.6f",      0x0820, 0x0100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+	ROM_LOAD( "dr26.3h",      0x0100, 0x0100, CRC(b563b93f) SHA1(86aefdaa63b35fe82f9f70eff3e4c14629f7a184) )    /* character palette green component */
+	ROM_LOAD( "dr27.3j",      0x0200, 0x0100, CRC(70d668ef) SHA1(2cc647f2708932105bb9a5130aacc5a8a160e418) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "dr33.6f",      0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
 ROM_END
 
 ROM_START( spelunkr )
@@ -1909,17 +2112,24 @@ ROM_START( spelunkr )
 	ROM_CONTINUE(             0x09800, 0x0800 )
 	ROM_CONTINUE(             0x0b800, 0x0800 )
 
-	ROM_REGION( 0x0920, "proms", 0 )
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "sprm.8h",      0x000, 0x200, CRC(875cc442) SHA1(1117b6ae516c361b4cc4d0b7146ca98472ce2b21) )    /* unknown */
+
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "sprb.5p",      0x00, 0x20, CRC(746c6238) SHA1(10b901bb1eca69b274999ad7ada3dd6c58bc5d84) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "sprb.1m",      0x0000, 0x0100, CRC(8d8cccad) SHA1(e984d358b6fac9e3cb4618d11ddb22e9eb422dd0) )    /* sprite palette red component */
+	ROM_LOAD( "sprb.1n",      0x0100, 0x0100, CRC(c40e1cb2) SHA1(fb2aac95c852ef67d03fd2c4b5f5f9330405d435) )    /* sprite palette green component */
+	ROM_LOAD( "sprb.1l",      0x0200, 0x0100, CRC(3ec46248) SHA1(734fe63b9f6e60cdd3bcc9664521b20ffe2765d9) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "sprm.2k",      0x0000, 0x0100, CRC(fd8fa991) SHA1(6e546a57de10223886a9a7480580b03b759dbd87) )    /* character palette red component */
-	ROM_LOAD( "sprb.1m",      0x0100, 0x0100, CRC(8d8cccad) SHA1(e984d358b6fac9e3cb4618d11ddb22e9eb422dd0) )    /* sprite palette red component */
-	ROM_LOAD( "sprm.2j",      0x0200, 0x0100, CRC(0e3890b4) SHA1(1b7c858a5729ddd3cbc7329b93082ec588a55131) )    /* character palette green component */
-	ROM_LOAD( "sprb.1n",      0x0300, 0x0100, CRC(c40e1cb2) SHA1(fb2aac95c852ef67d03fd2c4b5f5f9330405d435) )    /* sprite palette green component */
-	ROM_LOAD( "sprm.2h",      0x0400, 0x0100, CRC(0478082b) SHA1(e831ba7ef71632da2ab0bcc3cebbd6ef9f39a690) )    /* character palette blue component */
-	ROM_LOAD( "sprb.1l",      0x0500, 0x0100, CRC(3ec46248) SHA1(734fe63b9f6e60cdd3bcc9664521b20ffe2765d9) )    /* sprite palette blue component */
-	ROM_LOAD( "sprb.5p",      0x0600, 0x0020, CRC(746c6238) SHA1(10b901bb1eca69b274999ad7ada3dd6c58bc5d84) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "sprm.8h",      0x0620, 0x0200, CRC(875cc442) SHA1(1117b6ae516c361b4cc4d0b7146ca98472ce2b21) )    /* unknown */
-	ROM_LOAD( "sprb.6f",      0x0820, 0x0100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+	ROM_LOAD( "sprm.2j",      0x0100, 0x0100, CRC(0e3890b4) SHA1(1b7c858a5729ddd3cbc7329b93082ec588a55131) )    /* character palette green component */
+	ROM_LOAD( "sprm.2h",      0x0200, 0x0100, CRC(0478082b) SHA1(e831ba7ef71632da2ab0bcc3cebbd6ef9f39a690) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "sprb.6f",      0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
 ROM_END
 
 ROM_START( spelunkrj )
@@ -1975,17 +2185,24 @@ ROM_START( spelunkrj )
 	ROM_CONTINUE(             0x09800, 0x0800 )
 	ROM_CONTINUE(             0x0b800, 0x0800 )
 
-	ROM_REGION( 0x0920, "proms", 0 )
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "sprm.8h",      0x000, 0x200, CRC(875cc442) SHA1(1117b6ae516c361b4cc4d0b7146ca98472ce2b21) )    /* unknown */
+
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "sprb.5p",      0x00, 0x20, CRC(746c6238) SHA1(10b901bb1eca69b274999ad7ada3dd6c58bc5d84) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "sprb.1m",      0x0000, 0x0100, CRC(8d8cccad) SHA1(e984d358b6fac9e3cb4618d11ddb22e9eb422dd0) )    /* sprite palette red component */
+	ROM_LOAD( "sprb.1n",      0x0100, 0x0100, CRC(c40e1cb2) SHA1(fb2aac95c852ef67d03fd2c4b5f5f9330405d435) )    /* sprite palette green component */
+	ROM_LOAD( "sprb.1l",      0x0200, 0x0100, CRC(3ec46248) SHA1(734fe63b9f6e60cdd3bcc9664521b20ffe2765d9) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "sprm.2k",      0x0000, 0x0100, CRC(fd8fa991) SHA1(6e546a57de10223886a9a7480580b03b759dbd87) )    /* character palette red component */
-	ROM_LOAD( "sprb.1m",      0x0100, 0x0100, CRC(8d8cccad) SHA1(e984d358b6fac9e3cb4618d11ddb22e9eb422dd0) )    /* sprite palette red component */
-	ROM_LOAD( "sprm.2j",      0x0200, 0x0100, CRC(0e3890b4) SHA1(1b7c858a5729ddd3cbc7329b93082ec588a55131) )    /* character palette green component */
-	ROM_LOAD( "sprb.1n",      0x0300, 0x0100, CRC(c40e1cb2) SHA1(fb2aac95c852ef67d03fd2c4b5f5f9330405d435) )    /* sprite palette green component */
-	ROM_LOAD( "sprm.2h",      0x0400, 0x0100, CRC(0478082b) SHA1(e831ba7ef71632da2ab0bcc3cebbd6ef9f39a690) )    /* character palette blue component */
-	ROM_LOAD( "sprb.1l",      0x0500, 0x0100, CRC(3ec46248) SHA1(734fe63b9f6e60cdd3bcc9664521b20ffe2765d9) )    /* sprite palette blue component */
-	ROM_LOAD( "sprb.5p",      0x0600, 0x0020, CRC(746c6238) SHA1(10b901bb1eca69b274999ad7ada3dd6c58bc5d84) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "sprm.8h",      0x0620, 0x0200, CRC(875cc442) SHA1(1117b6ae516c361b4cc4d0b7146ca98472ce2b21) )    /* unknown */
-	ROM_LOAD( "sprb.6f",      0x0820, 0x0100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+	ROM_LOAD( "sprm.2j",      0x0100, 0x0100, CRC(0e3890b4) SHA1(1b7c858a5729ddd3cbc7329b93082ec588a55131) )    /* character palette green component */
+	ROM_LOAD( "sprm.2h",      0x0200, 0x0100, CRC(0478082b) SHA1(e831ba7ef71632da2ab0bcc3cebbd6ef9f39a690) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "sprb.6f",      0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
 ROM_END
 
 ROM_START( spelunk2 )
@@ -2039,20 +2256,27 @@ ROM_START( spelunk2 )
 	ROM_CONTINUE(             0x09800, 0x0800 )
 	ROM_CONTINUE(             0x0b800, 0x0800 )
 
-	ROM_REGION( 0x0a20, "proms", 0 )
-	ROM_LOAD( "sp2-r.1k",     0x0000, 0x0200, CRC(31c1bcdc) SHA1(6504d5bafad427a1104562f84319d9e29f6c4800) )    /* chars red and green component */
-	ROM_LOAD( "sp2-r.2k",     0x0200, 0x0100, CRC(1cf5987e) SHA1(811538304aff683d2a2a925b7e7ac990454d75f4) )    /* chars blue component */
-	ROM_LOAD( "sp2-r.2j",     0x0300, 0x0100, CRC(1acbe2a5) SHA1(22b6eb43733eb40c6d2deb8a008e43c651d891e8) )    /* chars blue component */
-	ROM_LOAD( "sp2-b.1m",     0x0400, 0x0100, CRC(906104c7) SHA1(e5e656d4da7f9dac32e2a112ce03be5dc3a4c46e) )    /* sprites red component */
-	ROM_LOAD( "sp2-b.1n",     0x0500, 0x0100, CRC(5a564c06) SHA1(b9234983ccd69b90ae3aed19b1ac4c6c329d8302) )    /* sprites green component */
-	ROM_LOAD( "sp2-b.1l",     0x0600, 0x0100, CRC(8f4a2e3c) SHA1(1d445ce63fb3e043d67f98d158dc7f0fab244248) )    /* sprites blue component */
-	ROM_LOAD( "sp2-b.5p",     0x0700, 0x0020, CRC(cd126f6a) SHA1(f5a902bc93dbc98f1c78e08699ed7d1fc5d03481) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "sp2-r.8j",     0x0720, 0x0200, CRC(875cc442) SHA1(1117b6ae516c361b4cc4d0b7146ca98472ce2b21) )    /* unknown */
-	ROM_LOAD( "sp2-b.6f",     0x0920, 0x0100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "sp2-r.8j",     0x000, 0x200, CRC(875cc442) SHA1(1117b6ae516c361b4cc4d0b7146ca98472ce2b21) )    /* unknown */
 
 	ROM_REGION( 0x0200, "plds", 0 )
 	ROM_LOAD( "ampal16r4a-sp2-r-3h.bin", 0x0000, 0x0104, NO_DUMP ) /* PAL is read protected */
+
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "sp2-b.5p",     0x00, 0x20, CRC(cd126f6a) SHA1(f5a902bc93dbc98f1c78e08699ed7d1fc5d03481) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "sp2-b.1m",     0x0000, 0x0100, CRC(906104c7) SHA1(e5e656d4da7f9dac32e2a112ce03be5dc3a4c46e) )    /* sprites red component */
+	ROM_LOAD( "sp2-b.1n",     0x0100, 0x0100, CRC(5a564c06) SHA1(b9234983ccd69b90ae3aed19b1ac4c6c329d8302) )    /* sprites green component */
+	ROM_LOAD( "sp2-b.1l",     0x0200, 0x0100, CRC(8f4a2e3c) SHA1(1d445ce63fb3e043d67f98d158dc7f0fab244248) )    /* sprites blue component */
+
+	ROM_REGION( 0x400, "chr_color_proms", 0 ) /* different format to other games */
+	ROM_LOAD( "sp2-r.1k",     0x0000, 0x0200, CRC(31c1bcdc) SHA1(6504d5bafad427a1104562f84319d9e29f6c4800) )    /* chars red and green component */
+	ROM_LOAD( "sp2-r.2k",     0x0200, 0x0100, CRC(1cf5987e) SHA1(811538304aff683d2a2a925b7e7ac990454d75f4) )    /* chars blue component */
+	ROM_LOAD( "sp2-r.2j",     0x0300, 0x0100, CRC(1acbe2a5) SHA1(22b6eb43733eb40c6d2deb8a008e43c651d891e8) )    /* chars blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "sp2-b.6f",     0x000, 0x100, CRC(34d88d3c) SHA1(727f4c5cfff33538886fa0a29fd119aa085d7008) )    /* video timing - common to the other games */
 ROM_END
 
 ROM_START( youjyudn )
@@ -2086,20 +2310,27 @@ ROM_START( youjyudn )
 	ROM_LOAD( "yju_p4mb.1",   0x04000, 0x4000, CRC(1e1a0d09) SHA1(7a4ef033d962f84e46368a21381456972d10b6dc) )
 	ROM_LOAD( "yju_p4pb.0",   0x08000, 0x4000, CRC(b4ab520b) SHA1(646f2467e335e527662fec2bbcb771fbb5f1b696) )
 
-	ROM_REGION( 0x0920, "proms", 0 )
-	ROM_LOAD( "yju_p2jb.bpr", 0x0000, 0x0100, CRC(a4483631) SHA1(aa8a9fadb0b0624b5784f8e9b31f774c6360b47c) )    /* character palette red component */
-	ROM_LOAD( "yju_b1ma.r",   0x0100, 0x0100, CRC(a8340e13) SHA1(258da6946043d9ba7a68402299f87fda26482a1a) )    /* sprite palette red component */
-	ROM_LOAD( "yju_p2kb.bpr", 0x0200, 0x0100, CRC(85481103) SHA1(1216e359f9f2057f0c7f303f6e765ec39a316df6) )    /* character palette green component */
-	ROM_LOAD( "yju_b1na.g",   0x0300, 0x0100, CRC(f5b4bc41) SHA1(78271b7078a8d485ce38e3a0d647f6c071441e62) )    /* sprite palette green component */
-	ROM_LOAD( "yju_p2hb.bpr", 0x0400, 0x0100, CRC(a6fd355c) SHA1(98c25797c0f24cb2df775f18bcf899501d93ca2c) )    /* character palette blue component */
-	ROM_LOAD( "yju_b1la.b",   0x0500, 0x0100, CRC(45e10491) SHA1(0ae8918a9854e44970b0d3eddc52867920711f1a) )    /* sprite palette blue component */
-	ROM_LOAD( "yju_b-5p.bpr", 0x0600, 0x0020, CRC(2095e6a3) SHA1(32ef8b56d161807b6eff91b88636ffad558742ea) )    /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "yju_p-8d.bpr", 0x0620, 0x0200, CRC(6cef0fbd) SHA1(0c5c63a203e7bd852a3574c18f212487caf529ca) )    /* unknown */
-	ROM_LOAD( "yju_b-6f.bpr", 0x0820, 0x0100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) )    /* video timing - same as kungfum */
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "yju_p-8d.bpr", 0x000, 0x200, CRC(6cef0fbd) SHA1(0c5c63a203e7bd852a3574c18f212487caf529ca) )    /* unknown */
 
 	ROM_REGION( 0x200, "plds", 0 )
 	ROM_LOAD( "yju_b-pal16r4a-8m.pal", 0x0000, 0x0104, CRC(3ece8e61) SHA1(f7b04b80455068123e171a46e79d4b940bc4033d) )
+
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "yju_b-5p.bpr", 0x00, 0x20, CRC(2095e6a3) SHA1(32ef8b56d161807b6eff91b88636ffad558742ea) )    /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "yju_b1ma.r",   0x0000, 0x0100, CRC(a8340e13) SHA1(258da6946043d9ba7a68402299f87fda26482a1a) )    /* sprite palette red component */
+	ROM_LOAD( "yju_b1na.g",   0x0100, 0x0100, CRC(f5b4bc41) SHA1(78271b7078a8d485ce38e3a0d647f6c071441e62) )    /* sprite palette green component */
+	ROM_LOAD( "yju_b1la.b",   0x0200, 0x0100, CRC(45e10491) SHA1(0ae8918a9854e44970b0d3eddc52867920711f1a) )    /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
+	ROM_LOAD( "yju_p2jb.bpr", 0x0000, 0x0100, CRC(a4483631) SHA1(aa8a9fadb0b0624b5784f8e9b31f774c6360b47c) )    /* character palette red component */
+	ROM_LOAD( "yju_p2kb.bpr", 0x0100, 0x0100, CRC(85481103) SHA1(1216e359f9f2057f0c7f303f6e765ec39a316df6) )    /* character palette green component */
+	ROM_LOAD( "yju_p2hb.bpr", 0x0200, 0x0100, CRC(a6fd355c) SHA1(98c25797c0f24cb2df775f18bcf899501d93ca2c) )    /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "yju_b-6f.bpr", 0x000, 0x100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) )    /* video timing - same as kungfum */
 ROM_END
 
 ROM_START( horizon )
@@ -2124,81 +2355,98 @@ ROM_START( horizon )
 	ROM_LOAD( "hrzb-4c.20", 0x10000, 0x4000, CRC(90b385e7) SHA1(d7a3698535bb4e9d96dd3e793b8051c74ea36eee) )
 	ROM_LOAD( "hrzb-4e.21", 0x14000, 0x4000, CRC(d05d77a2) SHA1(b892f690ec4a0ed4e856c677867d6eac98afaa1d) )
 
-	ROM_REGION( 0x0720, "proms", 0 )
+	ROM_REGION( 0x20, "spr_height_prom", 0 )
+	ROM_LOAD( "hrzb-5p",     0x00, 0x20, CRC(208b49e9) SHA1(065f1e05dd8bb94304969147e5d497931b5ff00a) ) /* sprite height, one entry per 32 */
+
+	ROM_REGION( 0x300, "spr_color_proms", 0 )
+	ROM_LOAD( "hrzb-1m.r",   0x0000, 0x0100, CRC(0871690a) SHA1(8065598c64e44e4fd170632048161705f15c1d7d) ) /* sprite palette red component */
+	ROM_LOAD( "hrzb-1n.g",   0x0100, 0x0100, CRC(f247d0a9) SHA1(7a2ae1e9699793fecb0abd84c2ee2b08e819b6f7) ) /* sprite palette green component */
+	ROM_LOAD( "hrzb-1l.b",   0x0200, 0x0100, CRC(9ad0a0c8) SHA1(0c03906deafd6cc2247b022881e0190bd59c3c1b) ) /* sprite palette blue component */
+
+	ROM_REGION( 0x300, "chr_color_proms", 0 )
 	ROM_LOAD( "hrzd-1d",     0x0000, 0x0100, CRC(b33b08f9) SHA1(00b6c4be93c4d5d5f157d08e91dfea3a0ecdeb4a) ) /* character palette red component */
-	ROM_LOAD( "hrzb-1m.r",   0x0100, 0x0100, CRC(0871690a) SHA1(8065598c64e44e4fd170632048161705f15c1d7d) ) /* sprite palette red component */
-	ROM_LOAD( "hrzd-1c",     0x0200, 0x0100, CRC(6e696f3a) SHA1(d66ffe0cbc42889d750d9c8b7e57a84e5dacaf3d) ) /* character palette green component */
-	ROM_LOAD( "hrzb-1n.g",   0x0300, 0x0100, CRC(f247d0a9) SHA1(7a2ae1e9699793fecb0abd84c2ee2b08e819b6f7) ) /* sprite palette green component */
-	ROM_LOAD( "hrzd-1e",     0x0400, 0x0100, CRC(1fa60379) SHA1(4fdcc8d68f61afaae36075919b5bec4d12f7ed8e) ) /* character palette blue component */
-	ROM_LOAD( "hrzb-1l.b",   0x0500, 0x0100, CRC(9ad0a0c8) SHA1(0c03906deafd6cc2247b022881e0190bd59c3c1b) ) /* sprite palette blue component */
-	ROM_LOAD( "hrzb-5p",     0x0600, 0x0020, CRC(208b49e9) SHA1(065f1e05dd8bb94304969147e5d497931b5ff00a) ) /* sprite height, one entry per 32 */
-															/* sprites. Used at run time! */
-	ROM_LOAD( "hrzb-6f",     0x0620, 0x0100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) ) /* video timing - same as kungfum */
+	ROM_LOAD( "hrzd-1c",     0x0100, 0x0100, CRC(6e696f3a) SHA1(d66ffe0cbc42889d750d9c8b7e57a84e5dacaf3d) ) /* character palette green component */
+	ROM_LOAD( "hrzd-1e",     0x0200, 0x0100, CRC(1fa60379) SHA1(4fdcc8d68f61afaae36075919b5bec4d12f7ed8e) ) /* character palette blue component */
+
+	ROM_REGION( 0x100, "timing", 0 )
+	ROM_LOAD( "hrzb-6f",     0x000, 0x100, CRC(82c20d12) SHA1(268903f7d9be58a70d030b02bf31a2d6b5b6e249) ) /* video timing - same as kungfum */
 ROM_END
 
 
-DRIVER_INIT_MEMBER(m62_state,battroad)
+void m62_state::init_battroad()
 {
 	/* configure memory banks */
 	membank("bank1")->configure_entries(0, 16, memregion("maincpu")->base() + 0x10000, 0x2000);
 }
 
-DRIVER_INIT_MEMBER(m62_state,ldrun2)
+void m62_state::init_ldrun2()
 {
 	/* configure memory banks */
 	membank("bank1")->configure_entries(0, 2, memregion("maincpu")->base() + 0x10000, 0x2000);
 }
 
-DRIVER_INIT_MEMBER(m62_state,ldrun4)
+void m62_state::init_ldrun4()
 {
 	/* configure memory banks */
 	membank("bank1")->configure_entries(0, 2, memregion("maincpu")->base() + 0x10000, 0x4000);
 }
 
-DRIVER_INIT_MEMBER(m62_state,kidniki)
+void m62_state::init_kidniki()
 {
 	/* configure memory banks */
 	membank("bank1")->configure_entries(0, 16, memregion("maincpu")->base() + 0x10000, 0x2000);
 }
 
-DRIVER_INIT_MEMBER(m62_state,spelunkr)
+void m62_state::init_spelunkr()
 {
 	/* configure memory banks */
 	membank("bank1")->configure_entries(0, 4, memregion("maincpu")->base() + 0x10000, 0x2000);
 }
 
-DRIVER_INIT_MEMBER(m62_state,spelunk2)
+void m62_state::init_spelunk2()
 {
 	/* configure memory banks */
 	membank("bank1")->configure_entries(0,  4, memregion("maincpu")->base() + 0x20000, 0x1000);
 	membank("bank2")->configure_entries(0, 16, memregion("maincpu")->base() + 0x10000, 0x1000);
 }
 
-DRIVER_INIT_MEMBER(m62_state,youjyudn)
+void m62_state::init_youjyudn()
 {
 	/* configure memory banks */
 	membank("bank1")->configure_entries(0, 2, memregion("maincpu")->base() + 0x10000, 0x4000);
 }
 
-GAME( 1984, kungfum,  0,        kungfum,  kungfum,  driver_device, 0,        ROT0,   "Irem", "Kung-Fu Master (World)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1984, kungfumd, kungfum,  kungfum,  kungfum,  driver_device, 0,        ROT0,   "Irem (Data East USA license)", "Kung-Fu Master (US)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1984, spartanx, kungfum,  kungfum,  kungfum,  driver_device, 0,        ROT0,   "Irem", "Spartan X (Japan)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1984, kungfub,  kungfum,  kungfum,  kungfum,  driver_device, 0,        ROT0,   "bootleg", "Kung-Fu Master (bootleg set 1)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1984, kungfub2, kungfum,  kungfum,  kungfum,  driver_device, 0,        ROT0,   "bootleg", "Kung-Fu Master (bootleg set 2)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1984, battroad, 0,        battroad, battroad, m62_state,     battroad, ROT90,  "Irem", "The Battle-Road", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1984, ldrun,    0,        ldrun,    ldrun,    driver_device, 0,        ROT0,   "Irem (licensed from Broderbund)", "Lode Runner (set 1)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1984, ldruna,   ldrun,    ldrun,    ldrun,    driver_device, 0,        ROT0,   "Irem (licensed from Broderbund, Digital Controls Inc. license)", "Lode Runner (set 2)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1984, ldrun2,   0,        ldrun2,   ldrun2,   m62_state,     ldrun2,   ROT0,   "Irem (licensed from Broderbund)", "Lode Runner II - The Bungeling Strikes Back", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND ) /* Japanese version is called Bangeringu Teikoku No Gyakushuu */
-GAME( 1985, ldrun3,   0,        ldrun3,   ldrun3,   driver_device, 0,        ROT0,   "Irem (licensed from Broderbund)", "Lode Runner III - The Golden Labyrinth", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1985, ldrun3j,  ldrun3,   ldrun3,   ldrun3,   driver_device, 0,        ROT0,   "Irem (licensed from Broderbund)", "Lode Runner III - Majin No Fukkatsu (Japan)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1986, ldrun4,   0,        ldrun4,   ldrun4,   m62_state,     ldrun4,   ROT0,   "Irem (licensed from Broderbund)", "Lode Runner IV - Teikoku Karano Dasshutsu (Japan)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1985, lotlot,   0,        lotlot,   lotlot,   driver_device, 0,        ROT0,   "Irem (licensed from Tokuma Shoten)", "Lot Lot", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1986, kidniki,  0,        kidniki,  kidniki,  m62_state,     kidniki,  ROT0,   "Irem", "Kid Niki - Radical Ninja (World)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1986, kidnikiu, kidniki,  kidniki,  kidniki,  m62_state,     kidniki,  ROT0,   "Irem (Data East USA license)", "Kid Niki - Radical Ninja (US)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1986, yanchamr, kidniki,  kidniki,  kidniki,  m62_state,     kidniki,  ROT0,   "Irem", "Kaiketsu Yanchamaru (Japan)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1987, lithero,  kidniki,  kidniki,  kidniki,  m62_state,     kidniki,  ROT0,   "bootleg", "Little Hero", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1985, spelunkr, 0,        spelunkr, spelunkr, m62_state,     spelunkr, ROT0,   "Irem (licensed from Broderbund)", "Spelunker", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1985, spelunkrj,spelunkr, spelunkr, spelunkr, m62_state,     spelunkr, ROT0,   "Irem (licensed from Broderbund)", "Spelunker (Japan)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1986, spelunk2, 0,        spelunk2, spelunk2, m62_state,     spelunk2, ROT0,   "Irem (licensed from Broderbund)", "Spelunker II", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1986, youjyudn, 0,        youjyudn, youjyudn, m62_state,     youjyudn, ROT270, "Irem", "Youjyuden (Japan)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
-GAME( 1985, horizon,  0,        horizon,  horizon,  driver_device, 0,        ROT0,   "Irem", "Horizon (Irem)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+GAME( 1984, kungfum,   0,        kungfum,  kungfum,  m62_state, empty_init,    ROT0,   "Irem", "Kung-Fu Master (World)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+GAME( 1984, kungfumd,  kungfum,  kungfum,  kungfum,  m62_state, empty_init,    ROT0,   "Irem (Data East USA license)", "Kung-Fu Master (US)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+GAME( 1984, spartanx,  kungfum,  kungfum,  kungfum,  m62_state, empty_init,    ROT0,   "Irem", "Spartan X (Japan)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+GAME( 1984, kungfub,   kungfum,  kungfum,  kungfum,  m62_state, empty_init,    ROT0,   "bootleg", "Kung-Fu Master (bootleg set 1)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+GAME( 1984, kungfub2,  kungfum,  kungfum,  kungfum,  m62_state, empty_init,    ROT0,   "bootleg", "Kung-Fu Master (bootleg set 2)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+
+GAME( 1984, battroad,  0,        battroad, battroad, m62_state, init_battroad, ROT90,  "Irem", "The Battle-Road", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+
+GAME( 1984, ldrun,     0,        ldrun,    ldrun,    m62_state, empty_init,    ROT0,   "Irem (licensed from Broderbund)", "Lode Runner (set 1)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+GAME( 1984, ldruna,    ldrun,    ldrun,    ldrun,    m62_state, empty_init,    ROT0,   "Irem (licensed from Broderbund, Digital Controls Inc. license)", "Lode Runner (set 2)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+
+GAME( 1984, ldrun2,    0,        ldrun2,   ldrun2,   m62_state, init_ldrun2,   ROT0,   "Irem (licensed from Broderbund)", "Lode Runner II - The Bungeling Strikes Back", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND ) /* Japanese version is called Bangeringu Teikoku no Gyakushuu */
+
+GAME( 1985, ldrun3,    0,        ldrun3,   ldrun3,   m62_state, empty_init,    ROT0,   "Irem (licensed from Broderbund)", "Lode Runner III - The Golden Labyrinth", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+GAME( 1985, ldrun3j,   ldrun3,   ldrun3,   ldrun3,   m62_state, empty_init,    ROT0,   "Irem (licensed from Broderbund)", "Lode Runner III - Majin no Fukkatsu (Japan)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+
+GAME( 1986, ldrun4,    0,        ldrun4,   ldrun4,   m62_state, init_ldrun4,   ROT0,   "Irem (licensed from Broderbund)", "Lode Runner IV - Teikoku Karano Dasshutsu (Japan)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+
+GAME( 1985, lotlot,    0,        lotlot,   lotlot,   m62_state, empty_init,    ROT0,   "Irem (licensed from Tokuma Shoten)", "Lot Lot", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+
+GAME( 1986, kidniki,   0,        kidniki,  kidniki,  m62_state, init_kidniki,  ROT0,   "Irem", "Kid Niki - Radical Ninja (World)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+GAME( 1986, kidnikiu,  kidniki,  kidniki,  kidniki,  m62_state, init_kidniki,  ROT0,   "Irem (Data East USA license)", "Kid Niki - Radical Ninja (US)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+GAME( 1986, kidnikib,  kidniki,  kidniki,  kidniki,  m62_state, init_kidniki,  ROT0,   "bootleg", "Kid Niki (bootleg)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+GAME( 1986, yanchamr,  kidniki,  kidniki,  kidniki,  m62_state, init_kidniki,  ROT0,   "Irem", "Kaiketsu Yanchamaru (Japan)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+GAME( 1987, lithero,   kidniki,  kidniki,  kidniki,  m62_state, init_kidniki,  ROT0,   "bootleg", "Little Hero", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+
+GAME( 1985, spelunkr,  0,        spelunkr, spelunkr, m62_state, init_spelunkr, ROT0,   "Irem (licensed from Broderbund)", "Spelunker", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+GAME( 1985, spelunkrj, spelunkr, spelunkr, spelunkr, m62_state, init_spelunkr, ROT0,   "Irem (licensed from Broderbund)", "Spelunker (Japan)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+
+GAME( 1986, spelunk2,  0,        spelunk2, spelunk2, m62_state, init_spelunk2, ROT0,   "Irem (licensed from Broderbund)", "Spelunker II - 23 no Kagi (Japan)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+
+GAME( 1986, youjyudn,  0,        youjyudn, youjyudn, m62_state, init_youjyudn, ROT270, "Irem", "Youjyuden (Japan)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+
+GAME( 1985, horizon,   0,        horizon,  horizon,  m62_state, empty_init,    ROT0,   "Irem", "Horizon (Irem)", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )

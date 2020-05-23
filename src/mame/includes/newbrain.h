@@ -1,25 +1,24 @@
 // license:BSD-3-Clause
 // copyright-holders:Curt Coder
-#pragma once
+#ifndef MAME_INCLUDES_NEWBRAIN_H
+#define MAME_INCLUDES_NEWBRAIN_H
 
-#ifndef __NEWBRAIN__
-#define __NEWBRAIN__
+#pragma once
 
 
 #include "bus/newbrain/exp.h"
 #include "bus/rs232/rs232.h"
 #include "cpu/z80/z80.h"
-#include "cpu/z80/z80daisy.h"
+#include "machine/z80daisy.h"
 #include "cpu/cop400/cop400.h"
 #include "imagedev/cassette.h"
 #include "machine/rescap.h"
 #include "machine/ram.h"
+#include "emupal.h"
 
 #define SCREEN_TAG      "screen"
 #define Z80_TAG         "409"
 #define COP420_TAG      "419"
-#define CASSETTE_TAG    "cassette"
-#define CASSETTE2_TAG   "cassette2"
 #define RS232_V24_TAG   "to"
 #define RS232_PRN_TAG   "po"
 
@@ -32,14 +31,15 @@ public:
 		m_cop(*this, COP420_TAG),
 		m_palette(*this, "palette"),
 		m_exp(*this, NEWBRAIN_EXPANSION_SLOT_TAG),
-		m_cassette1(*this, CASSETTE_TAG),
-		m_cassette2(*this, CASSETTE2_TAG),
+		m_cassette1(*this, "cassette1"),
+		m_cassette2(*this, "cassette2"),
 		m_rs232_v24(*this, RS232_V24_TAG),
 		m_rs232_prn(*this, RS232_PRN_TAG),
 		m_ram(*this, RAM_TAG),
 		m_rom(*this, Z80_TAG),
 		m_char_rom(*this, "chargen"),
 		m_y(*this, "Y%u", 0),
+		m_digits(*this, "digit%u", 0U),
 		m_pwrup(0),
 		m_userint(1),
 		m_clkint(1),
@@ -49,27 +49,36 @@ public:
 	{
 	}
 
+	void newbrain(machine_config &config);
+	void newbrain_a(machine_config &config);
+	void newbrain_ad(machine_config &config);
+	void newbrain_md(machine_config &config);
+	void newbrain_video(machine_config &config);
+
+private:
 	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
-	DECLARE_READ8_MEMBER( mreq_r );
-	DECLARE_WRITE8_MEMBER( mreq_w );
-	DECLARE_READ8_MEMBER( iorq_r );
-	DECLARE_WRITE8_MEMBER( iorq_w );
+	uint8_t mreq_r(offs_t offset);
+	void mreq_w(offs_t offset, uint8_t data);
+	uint8_t iorq_r(offs_t offset);
+	void iorq_w(offs_t offset, uint8_t data);
 
-	DECLARE_WRITE8_MEMBER( enrg_w );
-	DECLARE_WRITE8_MEMBER( tvtl_w );
-	DECLARE_READ8_MEMBER( ust_a_r );
-	DECLARE_READ8_MEMBER( ust_b_r );
+	void enrg_w(uint8_t data);
+	void tvtl_w(uint8_t data);
+	uint8_t ust_a_r();
+	uint8_t ust_b_r();
 
-	DECLARE_WRITE8_MEMBER( cop_g_w );
-	DECLARE_READ8_MEMBER( cop_g_r );
-	DECLARE_WRITE8_MEMBER( cop_d_w );
-	DECLARE_READ8_MEMBER( cop_in_r );
+	void cop_g_w(uint8_t data);
+	uint8_t cop_g_r();
+	void cop_d_w(uint8_t data);
+	uint8_t cop_in_r();
 	DECLARE_WRITE_LINE_MEMBER( k2_w );
 	DECLARE_READ_LINE_MEMBER( tdi_r );
 	DECLARE_WRITE_LINE_MEMBER( k1_w );
 
-protected:
+	void newbrain_iorq(address_map &map);
+	void newbrain_mreq(address_map &map);
+
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
@@ -91,13 +100,13 @@ protected:
 	int get_reset_t();
 	int get_pwrup_t();
 
-	void screen_update(bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void do_screen_update(bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void tvl(uint8_t data, int a6);
 
 	required_device<z80_device> m_maincpu;
 	required_device<cop400_cpu_device> m_cop;
 	required_device<palette_device> m_palette;
-	required_device<newbrain_expansion_slot_t> m_exp;
+	required_device<newbrain_expansion_slot_device> m_exp;
 	required_device<cassette_image_device> m_cassette1;
 	required_device<cassette_image_device> m_cassette2;
 	required_device<rs232_port_device> m_rs232_v24;
@@ -106,6 +115,7 @@ protected:
 	required_memory_region m_rom;
 	required_memory_region m_char_rom;
 	required_ioport_array<16> m_y;
+	output_finder<16> m_digits;
 
 	int m_clk;
 	int m_tvp;
@@ -134,10 +144,5 @@ protected:
 
 	emu_timer *m_clkint_timer;
 };
-
-
-// ---------- defined in video/newbrain.c ----------
-
-MACHINE_CONFIG_EXTERN( newbrain_video );
 
 #endif

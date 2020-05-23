@@ -10,14 +10,12 @@ Atari Tank 8 video emulation
 #include "includes/tank8.h"
 
 
-PALETTE_INIT_MEMBER(tank8_state, tank8)
+void tank8_state::tank8_palette(palette_device &palette) const
 {
-	int i;
-
 	palette.set_indirect_color(8, rgb_t(0x00, 0x00, 0x00));
 	palette.set_indirect_color(9, rgb_t(0xff, 0xff, 0xff));
 
-	for (i = 0; i < 8; i++)
+	for (int i = 0; i < 8; i++)
 	{
 		palette.set_pen_indirect(2 * i + 0, 8);
 		palette.set_pen_indirect(2 * i + 1, i);
@@ -93,7 +91,7 @@ TILE_GET_INFO_MEMBER(tank8_state::get_tile_info)
 			color |= 4;
 	}
 
-	SET_TILE_INFO_MEMBER(code >> 7, code, color, (code & 0x40) ? (TILE_FLIPX | TILE_FLIPY) : 0);
+	tileinfo.set(code >> 7, code, color, (code & 0x40) ? (TILE_FLIPX | TILE_FLIPY) : 0);
 }
 
 
@@ -106,10 +104,9 @@ void tank8_state::video_start()
 	m_screen->register_screen_bitmap(m_helper2);
 	m_screen->register_screen_bitmap(m_helper3);
 
-	m_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(tank8_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(tank8_state::get_tile_info)), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 
-	/* VBLANK starts on scanline #256 and ends on scanline #24 */
-
+	// VBLANK starts on scanline #256 and ends on scanline #24
 	m_tilemap->set_scrolly(0, 2 * 24);
 
 	save_item(NAME(m_collision_index));
@@ -177,7 +174,7 @@ void tank8_state::device_timer(emu_timer &timer, device_timer_id id, int param, 
 		set_collision(param);
 		break;
 	default:
-		assert_always(false, "Unknown id in tank8_state::device_timer");
+		throw emu_fatalerror("Unknown id in tank8_state::device_timer");
 	}
 }
 
@@ -193,7 +190,7 @@ uint32_t tank8_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap,
 }
 
 
-void tank8_state::screen_eof(screen_device &screen, bool state)
+WRITE_LINE_MEMBER(tank8_state::screen_vblank)
 {
 	// on falling edge
 	if (!state)
@@ -202,7 +199,7 @@ void tank8_state::screen_eof(screen_device &screen, bool state)
 		int y;
 		const rectangle &visarea = m_screen->visible_area();
 
-		m_tilemap->draw(screen, m_helper1, visarea, 0, 0);
+		m_tilemap->draw(*m_screen, m_helper1, visarea, 0, 0);
 
 		m_helper2.fill(8, visarea);
 		m_helper3.fill(8, visarea);
@@ -210,7 +207,7 @@ void tank8_state::screen_eof(screen_device &screen, bool state)
 		draw_sprites(m_helper2, visarea);
 		draw_bullets(m_helper3, visarea);
 
-		for (y = visarea.min_y; y <= visarea.max_y; y++)
+		for (y = visarea.top(); y <= visarea.bottom(); y++)
 		{
 			int _state = 0;
 
@@ -221,7 +218,7 @@ void tank8_state::screen_eof(screen_device &screen, bool state)
 			if ((m_screen->frame_number() ^ y) & 1)
 				continue; /* video display is interlaced */
 
-			for (x = visarea.min_x; x <= visarea.max_x; x++)
+			for (x = visarea.left(); x <= visarea.right(); x++)
 			{
 				uint8_t index;
 
@@ -277,7 +274,7 @@ void tank8_state::screen_eof(screen_device &screen, bool state)
 						index |= 0x80; /* collision on right side */
 				}
 
-				m_collision_timer->adjust(screen.time_until_pos(y, x), index);
+				m_collision_timer->adjust(m_screen->time_until_pos(y, x), index);
 
 				_state = 1;
 			}

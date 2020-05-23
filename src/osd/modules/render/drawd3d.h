@@ -16,6 +16,9 @@
 #include <functional>
 #include <d3d9.h>
 #include <d3dx9.h>
+#include <cmath>
+#undef interface
+
 #include <d3d11.h>
 #include <D3DCompiler.h>
 #include "d3d/d3dcomm.h"
@@ -52,7 +55,7 @@ struct index_buffer;
 class shaders;
 struct hlsl_options;
 
-/* renderer is the information about Direct3D for the current screen */
+/* renderer_d3d9 is the information about Direct3D for the current screen */
 class renderer_d3d9 : public osd_renderer, public slider_dirty_notifier
 {
 public:

@@ -7,15 +7,16 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include <algorithm>
 #include "74153.h"
+
+#include <algorithm>
 
 
 //**************************************************************************
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type TTL153 = device_creator<ttl153_device>;
+DEFINE_DEVICE_TYPE(TTL153, ttl153_device, "ttl153", "SN54/74153")
 
 
 //**************************************************************************
@@ -27,7 +28,7 @@ const device_type TTL153 = device_creator<ttl153_device>;
 //-------------------------------------------------
 
 ttl153_device::ttl153_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, TTL153, "SN54/74153", tag, owner, clock, "ttl153", __FILE__),
+	device_t(mconfig, TTL153, tag, owner, clock),
 	m_za_cb(*this),
 	m_zb_cb(*this),
 	m_s{ false, false },
@@ -125,6 +126,14 @@ WRITE_LINE_MEMBER( ttl153_device::s1_w )
 	update_b();
 }
 
+void ttl153_device::s_w(uint8_t data)
+{
+	m_s[0] = bool(BIT(data, 0));
+	m_s[1] = bool(BIT(data, 1));
+	update_a();
+	update_b();
+}
+
 WRITE_LINE_MEMBER( ttl153_device::i0a_w )
 {
 	m_ia[0] = bool(state);
@@ -146,6 +155,15 @@ WRITE_LINE_MEMBER( ttl153_device::i2a_w )
 WRITE_LINE_MEMBER( ttl153_device::i3a_w )
 {
 	m_ia[3] = bool(state);
+	update_a();
+}
+
+void ttl153_device::ia_w(uint8_t data)
+{
+	m_ia[0] = bool(BIT(data, 0));
+	m_ia[1] = bool(BIT(data, 1));
+	m_ia[2] = bool(BIT(data, 2));
+	m_ia[3] = bool(BIT(data, 3));
 	update_a();
 }
 
@@ -171,4 +189,23 @@ WRITE_LINE_MEMBER( ttl153_device::i3b_w )
 {
 	m_ib[3] = bool(state);
 	update_b();
+}
+
+void ttl153_device::ib_w(uint8_t data)
+{
+	m_ib[0] = bool(BIT(data, 0));
+	m_ib[1] = bool(BIT(data, 1));
+	m_ib[2] = bool(BIT(data, 2));
+	m_ib[3] = bool(BIT(data, 3));
+	update_b();
+}
+
+READ_LINE_MEMBER( ttl153_device::za_r )
+{
+	return m_z[0] ? 1 : 0;
+}
+
+READ_LINE_MEMBER( ttl153_device::zb_r )
+{
+	return m_z[1] ? 1 : 0;
 }

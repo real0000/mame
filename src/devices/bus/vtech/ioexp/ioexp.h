@@ -24,63 +24,61 @@
 
 ***************************************************************************/
 
+#ifndef MAME_BUS_VTECH_IOEXP_IOEXP_H
+#define MAME_BUS_VTECH_IOEXP_IOEXP_H
+
 #pragma once
 
-#ifndef __VTECH_IOEXP_H__
-#define __VTECH_IOEXP_H__
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_IOEXP_SLOT_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, IOEXP_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(ioexp_slot_carts, nullptr, false)
-
+// include here so drivers don't need to
+#include "carts.h"
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-class device_ioexp_interface;
+class device_vtech_ioexp_interface;
 
-class ioexp_slot_device : public device_t, public device_slot_interface
+class vtech_ioexp_slot_device : public device_t, public device_single_card_slot_interface<device_vtech_ioexp_interface>
 {
+	friend class device_vtech_ioexp_interface;
 public:
 	// construction/destruction
-	ioexp_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual ~ioexp_slot_device();
+	vtech_ioexp_slot_device(machine_config const &mconfig, char const *tag, device_t *owner)
+		: vtech_ioexp_slot_device(mconfig, tag, owner, (uint32_t)0)
+	{
+		option_reset();
+		vtech_ioexp_slot_carts(*this);
+		set_default_option(nullptr);
+		set_fixed(false);
+	}
+	vtech_ioexp_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	virtual ~vtech_ioexp_slot_device();
 
-	void set_io_space(address_space *io);
-
-	address_space *m_io;
+	template <typename T> void set_io_space(T &&tag, int spacenum) { m_io.set_tag(std::forward<T>(tag), spacenum); }
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
-	virtual void device_reset() override;
 
-	device_ioexp_interface *m_cart;
+	required_address_space m_io;
 };
 
 // class representing interface-specific live ioexp device
-class device_ioexp_interface : public device_slot_card_interface
+class device_vtech_ioexp_interface : public device_interface
 {
 public:
 	// construction/destruction
-	device_ioexp_interface(const machine_config &mconfig, device_t &device);
-	virtual ~device_ioexp_interface();
+	virtual ~device_vtech_ioexp_interface();
 
 protected:
-	ioexp_slot_device *m_slot;
+	device_vtech_ioexp_interface(const machine_config &mconfig, device_t &device);
+
+	address_space &io_space() { return *m_slot->m_io; }
+
+	vtech_ioexp_slot_device *m_slot;
 };
 
 // device type definition
-extern const device_type IOEXP_SLOT;
+DECLARE_DEVICE_TYPE(VTECH_IOEXP_SLOT, vtech_ioexp_slot_device)
 
-// include here so drivers don't need to
-#include "carts.h"
-
-#endif // __VTECH_IOEXP_H__
+#endif // MAME_BUS_VTECH_IOEXP_IOEXP_H

@@ -6,13 +6,18 @@
 #include "emu.h"
 #include "isbc_208.h"
 
-const device_type ISBC_208 = device_creator<isbc_208_device>;
+#include "formats/pc_dsk.h"
+
+
+DEFINE_DEVICE_TYPE(ISBC_208, isbc_208_device, "isbc_208", "ISBC 208 Flexible Disk Driver Controller")
 
 isbc_208_device::isbc_208_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, ISBC_208, "ISBC 208 Flexible Disk Drive Controller", tag, owner, clock, "isbc_208", __FILE__),
+	device_t(mconfig, ISBC_208, tag, owner, clock),
+	m_maincpu(*this, finder_base::DUMMY_TAG),
 	m_dmac(*this, "dmac"),
 	m_fdc(*this, "fdc"),
-	m_out_irq_func(*this)
+	m_out_irq_func(*this),
+	m_maincpu_mem(nullptr)
 {
 }
 
@@ -20,37 +25,36 @@ FLOPPY_FORMATS_MEMBER( isbc_208_device::floppy_formats )
 	FLOPPY_PC_FORMAT
 FLOPPY_FORMATS_END
 
-static SLOT_INTERFACE_START( isbc_208_floppies )
-	SLOT_INTERFACE( "8dd", FLOPPY_8_DSDD )
-	SLOT_INTERFACE( "525dd", FLOPPY_525_DD )
-SLOT_INTERFACE_END
-
-static MACHINE_CONFIG_FRAGMENT( isbc_208 )
-	MCFG_DEVICE_ADD("dmac", AM9517A, XTAL_8MHz/4)
-	MCFG_I8237_OUT_HREQ_CB(WRITELINE(isbc_208_device, hreq_w))
-	MCFG_I8237_OUT_EOP_CB(WRITELINE(isbc_208_device, out_eop_w))
-	MCFG_I8237_IN_MEMR_CB(READ8(isbc_208_device, dma_read_byte))
-	MCFG_I8237_OUT_MEMW_CB(WRITE8(isbc_208_device, dma_write_byte))
-	MCFG_I8237_IN_IOR_0_CB(DEVREAD8("fdc", i8272a_device, mdma_r))
-	MCFG_I8237_OUT_IOW_0_CB(DEVWRITE8("fdc", i8272a_device, mdma_w))
-
-	MCFG_I8272A_ADD("fdc", true)
-	MCFG_UPD765_INTRQ_CALLBACK(WRITELINE(isbc_208_device, irq_w))
-	MCFG_UPD765_DRQ_CALLBACK(DEVWRITELINE("dmac", am9517a_device, dreq0_w))
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", isbc_208_floppies, "525dd", isbc_208_device::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", isbc_208_floppies, "525dd", isbc_208_device::floppy_formats)
-MACHINE_CONFIG_END
-
-DEVICE_ADDRESS_MAP_START( map, 8, isbc_208_device )
-	AM_RANGE(0x00, 0x0f) AM_DEVREADWRITE("dmac", am9517a_device, read, write)
-	AM_RANGE(0x10, 0x11) AM_DEVICE("fdc", i8272a_device, map)
-	AM_RANGE(0x12, 0x15) AM_READWRITE(stat_r, aux_w)
-ADDRESS_MAP_END
-
-machine_config_constructor isbc_208_device::device_mconfig_additions() const
+static void isbc_208_floppies(device_slot_interface &device)
 {
-	return MACHINE_CONFIG_NAME( isbc_208 );
+	device.option_add("8dd", FLOPPY_8_DSDD);
+	device.option_add("525dd", FLOPPY_525_DD);
 }
+
+void isbc_208_device::device_add_mconfig(machine_config &config)
+{
+	AM9517A(config, m_dmac, 8_MHz_XTAL/4);
+	m_dmac->out_hreq_callback().set(FUNC(isbc_208_device::hreq_w));
+	m_dmac->out_eop_callback().set(FUNC(isbc_208_device::out_eop_w));
+	m_dmac->in_memr_callback().set(FUNC(isbc_208_device::dma_read_byte));
+	m_dmac->out_memw_callback().set(FUNC(isbc_208_device::dma_write_byte));
+	m_dmac->in_ior_callback<0>().set(m_fdc, FUNC(i8272a_device::dma_r));
+	m_dmac->out_iow_callback<0>().set(m_fdc, FUNC(i8272a_device::dma_w));
+
+	I8272A(config, m_fdc, 8_MHz_XTAL, true);
+	m_fdc->intrq_wr_callback().set(FUNC(isbc_208_device::irq_w));
+	m_fdc->drq_wr_callback().set(m_dmac, FUNC(am9517a_device::dreq0_w));
+	FLOPPY_CONNECTOR(config, "fdc:0", isbc_208_floppies, "525dd", isbc_208_device::floppy_formats);
+	FLOPPY_CONNECTOR(config, "fdc:1", isbc_208_floppies, "525dd", isbc_208_device::floppy_formats);
+}
+
+void isbc_208_device::map(address_map &map)
+{
+	map(0x00, 0x0f).rw(m_dmac, FUNC(am9517a_device::read), FUNC(am9517a_device::write));
+	map(0x10, 0x11).m(m_fdc, FUNC(i8272a_device::map));
+	map(0x12, 0x15).rw(FUNC(isbc_208_device::stat_r), FUNC(isbc_208_device::aux_w));
+}
+
 
 WRITE_LINE_MEMBER(isbc_208_device::out_eop_w)
 {
@@ -64,30 +68,30 @@ WRITE_LINE_MEMBER(isbc_208_device::irq_w)
 
 WRITE_LINE_MEMBER(isbc_208_device::hreq_w)
 {
-	machine().device<cpu_device>(m_maincpu_tag)->set_input_line(INPUT_LINE_HALT, state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_HALT, state ? ASSERT_LINE : CLEAR_LINE);
 	/* Assert HLDA */
 	m_dmac->hack_w(state);
 }
 
-READ8_MEMBER(isbc_208_device::dma_read_byte)
+uint8_t isbc_208_device::dma_read_byte(offs_t offset)
 {
 	return m_maincpu_mem->read_byte(((offset + (m_seg << 4)) & 0xfffff) | ((m_aux & 0xf0) << 16));
 }
 
 
-WRITE8_MEMBER(isbc_208_device::dma_write_byte)
+void isbc_208_device::dma_write_byte(offs_t offset, uint8_t data)
 {
 	return m_maincpu_mem->write_byte(((offset + (m_seg << 4)) & 0xfffff) | ((m_aux & 0xf0) << 16), data);
 }
 
-READ8_MEMBER(isbc_208_device::stat_r)
+uint8_t isbc_208_device::stat_r(offs_t offset)
 {
 	if(!offset)
 		return m_fdc->get_irq() ? 1 : 0;
 	return 0;
 }
 
-WRITE8_MEMBER( isbc_208_device::aux_w )
+void isbc_208_device::aux_w(offs_t offset, uint8_t data)
 {
 	switch(offset)
 	{
@@ -120,7 +124,7 @@ void isbc_208_device::device_reset()
 
 void isbc_208_device::device_start()
 {
-	m_maincpu_mem = &machine().device<cpu_device>(m_maincpu_tag)->space(AS_PROGRAM);
+	m_maincpu_mem = &m_maincpu->space(AS_PROGRAM);
 	m_out_irq_func.resolve_safe();
 }
 

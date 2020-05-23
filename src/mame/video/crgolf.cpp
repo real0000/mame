@@ -23,39 +23,38 @@
  *
  *************************************/
 
-PALETTE_INIT_MEMBER(crgolf_state, crgolf)
+void crgolf_state::crgolf_palette(palette_device &palette) const
 {
-	offs_t offs;
-	const uint8_t *prom = memregion("proms")->base();
+	uint8_t const *const prom = memregion("proms")->base();
 
-	for (offs = 0; offs < NUM_PENS; offs++)
+	for (offs_t offs = 0; offs < NUM_PENS; offs++)
 	{
-		int bit0, bit1, bit2, r, g, b;
+		int bit0, bit1, bit2;
 
-		uint8_t data = prom[offs];
+		uint8_t const data = prom[offs];
 
-		/* red component */
-		bit0 = (data >> 0) & 0x01;
-		bit1 = (data >> 1) & 0x01;
-		bit2 = (data >> 2) & 0x01;
-		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+		// red component
+		bit0 = BIT(data, 0);
+		bit1 = BIT(data, 1);
+		bit2 = BIT(data, 2);
+		int const r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		/* green component */
-		bit0 = (data >> 3) & 0x01;
-		bit1 = (data >> 4) & 0x01;
-		bit2 = (data >> 5) & 0x01;
-		g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+		// green component
+		bit0 = BIT(data, 3);
+		bit1 = BIT(data, 4);
+		bit2 = BIT(data, 5);
+		int const g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		/* blue component */
-		bit0 = (data >> 6) & 0x01;
-		bit1 = (data >> 7) & 0x01;
-		b = 0x4f * bit0 + 0xa8 * bit1;
+		// blue component
+		bit0 = BIT(data, 6);
+		bit1 = BIT(data, 7);
+		int const b = 0x4f * bit0 + 0xa8 * bit1;
 
 		m_palette->set_pen_color(offs, r, g, b);
 	}
 }
 
-PALETTE_INIT_MEMBER(crgolf_state, mastrglf)
+void crgolf_state::mastrglf_palette(palette_device &palette) const
 {
 }
 
@@ -67,7 +66,7 @@ PALETTE_INIT_MEMBER(crgolf_state, mastrglf)
 
 uint32_t crgolf_state::screen_update_crgolf(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	int flip = *m_screen_flip & 1;
+	int flip = m_screen_flip;
 
 	offs_t offs;
 
@@ -99,10 +98,10 @@ uint32_t crgolf_state::screen_update_crgolf(screen_device &screen, bitmap_ind16 
 			uint8_t data_b = 0;
 			uint8_t data_a = 0;
 
-			if (~*m_screena_enable & 1)
+			if (!m_screena_enable)
 				data_a = ((data_a0 & 0x80) >> 7) | ((data_a1 & 0x80) >> 6) | ((data_a2 & 0x80) >> 5);
 
-			if (~*m_screenb_enable & 1)
+			if (!m_screenb_enable)
 				data_b = ((data_b0 & 0x80) >> 7) | ((data_b1 & 0x80) >> 6) | ((data_b2 & 0x80) >> 5);
 
 			/* screen A has priority over B */
@@ -112,7 +111,7 @@ uint32_t crgolf_state::screen_update_crgolf(screen_device &screen, bitmap_ind16 
 				color = data_b | 0x08;
 
 			/* add HI bit if enabled */
-			if (*m_color_select)
+			if (m_color_select)
 				color = color | 0x10;
 
 			bitmap.pix16(y, x) = color;

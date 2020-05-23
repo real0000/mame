@@ -5,9 +5,6 @@
 Mr F Lea
 Pacific Novelty 1982
 
-TODO:
-- fix slave cpu irq generation
-
 4 way joystick and jump button
 
 I/O Board
@@ -69,6 +66,7 @@ Stephh's notes (based on the games Z80 code and some tests) :
 #include "includes/mrflea.h"
 
 #include "cpu/z80/z80.h"
+#include "machine/i8255.h"
 #include "sound/ay8910.h"
 #include "speaker.h"
 
@@ -79,77 +77,17 @@ Stephh's notes (based on the games Z80 code and some tests) :
  *
  *************************************/
 
-WRITE8_MEMBER(mrflea_state::mrflea_main_w)
-{
-	m_status |= 0x01; // pending command to main CPU
-	m_main = data;
-}
-
-WRITE8_MEMBER(mrflea_state::mrflea_io_w)
-{
-	m_status |= 0x08; // pending command to IO CPU
-	m_io = data;
-	m_subcpu->set_input_line(0, HOLD_LINE );
-}
-
-READ8_MEMBER(mrflea_state::mrflea_main_r)
-{
-	m_status &= ~0x01; // main CPU command read
-	return m_main;
-}
-
-READ8_MEMBER(mrflea_state::mrflea_io_r)
-{
-	m_status &= ~0x08; // IO CPU command read
-	return m_io;
-}
-
-READ8_MEMBER(mrflea_state::mrflea_main_status_r)
-{
-	/*  0x01: main CPU command pending
-	    0x08: io cpu ready */
-	return m_status ^ 0x08;
-}
-
-READ8_MEMBER(mrflea_state::mrflea_io_status_r)
-{
-	/*  0x08: IO CPU command pending
-	    0x01: main cpu ready */
-	return m_status ^ 0x01;
-}
-
 TIMER_DEVICE_CALLBACK_MEMBER(mrflea_state::mrflea_slave_interrupt)
 {
 	int scanline = param;
 
-	if ((scanline == 248) || (scanline == 248/2 && (m_status & 0x08)))
-		m_subcpu->set_input_line(0, HOLD_LINE);
+	if (scanline == 248)
+		m_pic->ir1_w(ASSERT_LINE);
+	if (scanline == 0)
+		m_pic->ir1_w(CLEAR_LINE);
 }
 
-READ8_MEMBER(mrflea_state::mrflea_interrupt_type_r)
-{
-/* there are two interrupt types:
-    1. triggered (in response to sound command)
-    2. heartbeat (for music timing)
-*/
-
-	if (m_status & 0x08 )
-		return 0x00; /* process command */
-
-	return 0x01; /* music/sound update? */
-}
-
-WRITE8_MEMBER(mrflea_state::mrflea_select1_w)
-{
-	m_select1 = data;
-}
-
-READ8_MEMBER(mrflea_state::mrflea_input1_r)
-{
-	return 0x00;
-}
-
-WRITE8_MEMBER(mrflea_state::mrflea_data1_w)
+void mrflea_state::mrflea_data1_w(uint8_t data)
 {
 }
 
@@ -159,50 +97,47 @@ WRITE8_MEMBER(mrflea_state::mrflea_data1_w)
  *
  *************************************/
 
-static ADDRESS_MAP_START( mrflea_master_map, AS_PROGRAM, 8, mrflea_state )
-	AM_RANGE(0x0000, 0xbfff) AM_ROM
-	AM_RANGE(0xc000, 0xcfff) AM_RAM
-	AM_RANGE(0xe000, 0xe7ff) AM_RAM_WRITE(mrflea_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0xe800, 0xe83f) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0xec00, 0xecff) AM_RAM_WRITE(mrflea_spriteram_w) AM_SHARE("spriteram")
-ADDRESS_MAP_END
+void mrflea_state::mrflea_master_map(address_map &map)
+{
+	map(0x0000, 0xbfff).rom();
+	map(0xc000, 0xcfff).ram();
+	map(0xe000, 0xe7ff).ram().w(FUNC(mrflea_state::mrflea_videoram_w)).share("videoram");
+	map(0xe800, 0xe83f).ram().w(m_palette, FUNC(palette_device::write8)).share("palette");
+	map(0xec00, 0xecff).ram().w(FUNC(mrflea_state::mrflea_spriteram_w)).share("spriteram");
+}
 
-static ADDRESS_MAP_START( mrflea_master_io_map, AS_IO, 8, mrflea_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_WRITENOP /* watchdog? */
-	AM_RANGE(0x40, 0x40) AM_WRITE(mrflea_io_w)
-	AM_RANGE(0x41, 0x41) AM_READ(mrflea_main_r)
-	AM_RANGE(0x42, 0x42) AM_READ(mrflea_main_status_r)
-	AM_RANGE(0x43, 0x43) AM_WRITENOP /* 0xa6,0x0d,0x05 */
-	AM_RANGE(0x60, 0x60) AM_WRITE(mrflea_gfx_bank_w)
-ADDRESS_MAP_END
+void mrflea_state::mrflea_master_io_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).nopw(); /* watchdog? */
+	map(0x40, 0x43).rw("mainppi", FUNC(i8255_device::read), FUNC(i8255_device::write));
+	map(0x60, 0x60).w(FUNC(mrflea_state::mrflea_gfx_bank_w));
+}
 
 
-static ADDRESS_MAP_START( mrflea_slave_map, AS_PROGRAM, 8, mrflea_state )
-	AM_RANGE(0x0000, 0x0fff) AM_ROM
-	AM_RANGE(0x2000, 0x3fff) AM_ROM
-	AM_RANGE(0x8000, 0x80ff) AM_RAM
-	AM_RANGE(0x9000, 0x905a) AM_RAM /* ? */
-ADDRESS_MAP_END
+void mrflea_state::mrflea_slave_map(address_map &map)
+{
+	map(0x0000, 0x0fff).rom();
+	map(0x2000, 0x3fff).rom();
+	map(0x8000, 0x80ff).ram();
+	map(0x9000, 0x905a).ram(); /* ? */
+}
 
-static ADDRESS_MAP_START( mrflea_slave_io_map, AS_IO, 8, mrflea_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_WRITENOP /* watchdog */
-	AM_RANGE(0x10, 0x10) AM_READ(mrflea_interrupt_type_r) AM_WRITENOP /* ? / irq ACK */
-	AM_RANGE(0x11, 0x11) AM_WRITENOP /* 0x83,0x00,0xfc */
-	AM_RANGE(0x20, 0x20) AM_READ(mrflea_io_r)
-	AM_RANGE(0x21, 0x21) AM_WRITE(mrflea_main_w)
-	AM_RANGE(0x22, 0x22) AM_READ(mrflea_io_status_r)
-	AM_RANGE(0x23, 0x23) AM_WRITENOP /* 0xb4,0x09,0x05 */
-	AM_RANGE(0x40, 0x40) AM_DEVREAD("ay1", ay8910_device, data_r)
-	AM_RANGE(0x40, 0x41) AM_DEVWRITE("ay1", ay8910_device, data_address_w)
-	AM_RANGE(0x42, 0x42) AM_READWRITE(mrflea_input1_r, mrflea_data1_w)
-	AM_RANGE(0x43, 0x43) AM_WRITE(mrflea_select1_w)
-	AM_RANGE(0x44, 0x44) AM_DEVREAD("ay2", ay8910_device, data_r)
-	AM_RANGE(0x44, 0x45) AM_DEVWRITE("ay2", ay8910_device, data_address_w)
-	AM_RANGE(0x46, 0x46) AM_DEVREAD("ay3", ay8910_device, data_r)
-	AM_RANGE(0x46, 0x47) AM_DEVWRITE("ay3", ay8910_device, data_address_w)
-ADDRESS_MAP_END
+void mrflea_state::mrflea_slave_io_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).nopw(); /* watchdog */
+	map(0x10, 0x11).rw(m_pic, FUNC(pic8259_device::read), FUNC(pic8259_device::write));
+	map(0x20, 0x23).rw("subppi", FUNC(i8255_device::read), FUNC(i8255_device::write));
+	map(0x40, 0x40).rw("ay1", FUNC(ay8910_device::data_r), FUNC(ay8910_device::data_w));
+	map(0x41, 0x41).w("ay1", FUNC(ay8910_device::address_w));
+	map(0x42, 0x42).rw("ay2", FUNC(ay8910_device::data_r), FUNC(ay8910_device::data_w));
+	map(0x43, 0x43).w("ay2", FUNC(ay8910_device::address_w));
+	map(0x44, 0x44).rw("ay3", FUNC(ay8910_device::data_r), FUNC(ay8910_device::data_w));
+	map(0x45, 0x45).w("ay3", FUNC(ay8910_device::address_w));
+	map(0x46, 0x46).rw("ay4", FUNC(ay8910_device::data_r), FUNC(ay8910_device::data_w));
+	map(0x47, 0x47).w("ay4", FUNC(ay8910_device::address_w));
+}
 
 /*************************************
  *
@@ -264,6 +199,9 @@ static INPUT_PORTS_START( mrflea )
 	PORT_DIPSETTING( 0x00, DEF_STR( Hardest ) )
 	PORT_DIPUNUSED( 0x40, 0x40 )
 	PORT_DIPUNUSED( 0x80, 0x80 )
+
+	PORT_START("UNKNOWN")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 INPUT_PORTS_END
 
 
@@ -296,7 +234,7 @@ static const gfx_layout sprite_layout = {
 	16*16
 };
 
-static GFXDECODE_START( mrflea )
+static GFXDECODE_START( gfx_mrflea )
 	GFXDECODE_ENTRY( "gfx1", 0, sprite_layout,  0x10, 1 )
 	GFXDECODE_ENTRY( "gfx2", 0, tile_layout,    0x00, 1 )
 GFXDECODE_END
@@ -310,67 +248,74 @@ GFXDECODE_END
 void mrflea_state::machine_start()
 {
 	save_item(NAME(m_gfx_bank));
-	save_item(NAME(m_io));
-	save_item(NAME(m_main));
-	save_item(NAME(m_status));
-	save_item(NAME(m_select1));
 }
 
 void mrflea_state::machine_reset()
 {
 	m_gfx_bank = 0;
-	m_io = 0;
-	m_main = 0;
-	m_status = 0;
-	m_select1 = 0;
 }
 
-static MACHINE_CONFIG_START( mrflea, mrflea_state )
-
+void mrflea_state::mrflea(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, 4000000) /* 4 MHz? */
-	MCFG_CPU_PROGRAM_MAP(mrflea_master_map)
-	MCFG_CPU_IO_MAP(mrflea_master_io_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", mrflea_state,  irq0_line_hold) /* NMI resets the game */
+	Z80(config, m_maincpu, 4000000); /* 4 MHz? */
+	m_maincpu->set_addrmap(AS_PROGRAM, &mrflea_state::mrflea_master_map);
+	m_maincpu->set_addrmap(AS_IO, &mrflea_state::mrflea_master_io_map);
+	m_maincpu->set_vblank_int("screen", FUNC(mrflea_state::irq0_line_hold)); /* NMI resets the game */
 
-	MCFG_CPU_ADD("sub", Z80, 6000000)
-	MCFG_CPU_PROGRAM_MAP(mrflea_slave_map)
-	MCFG_CPU_IO_MAP(mrflea_slave_io_map)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", mrflea_state, mrflea_slave_interrupt, "screen", 0, 1)
+	Z80(config, m_subcpu, 6000000); // runs in IM 1, so doesn't use 8259 INTA
+	m_subcpu->set_addrmap(AS_PROGRAM, &mrflea_state::mrflea_slave_map);
+	m_subcpu->set_addrmap(AS_IO, &mrflea_state::mrflea_slave_io_map);
+	TIMER(config, "scantimer").configure_scanline(FUNC(mrflea_state::mrflea_slave_interrupt), "screen", 0, 1);
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
+	config.set_maximum_quantum(attotime::from_hz(6000));
 
+	i8255_device &mainppi(I8255(config, "mainppi", 0));
+	mainppi.in_pb_callback().set("subppi", FUNC(i8255_device::pb_r));
+	mainppi.out_pc_callback().set("subppi", FUNC(i8255_device::pc4_w)).bit(7); // OBFA -> STBA
+	mainppi.out_pc_callback().append("subppi", FUNC(i8255_device::pc2_w)).bit(1); // IBFB -> ACKB
+
+	i8255_device &subppi(I8255(config, "subppi", 0));
+	subppi.in_pa_callback().set("mainppi", FUNC(i8255_device::pa_r));
+	subppi.out_pc_callback().set("mainppi", FUNC(i8255_device::pc6_w)).bit(5); // IBFA -> ACKA
+	subppi.out_pc_callback().append(m_pic, FUNC(pic8259_device::ir0_w)).bit(3); // INTRA
+	subppi.out_pc_callback().append("mainppi", FUNC(i8255_device::pc2_w)).bit(1); // OBFB -> STBB
+
+	PIC8259(config, m_pic, 0);
+	m_pic->out_int_callback().set_inputline(m_subcpu, 0);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 31*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(mrflea_state, screen_update_mrflea)
-	MCFG_SCREEN_PALETTE("palette")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_refresh_hz(60);
+	m_screen->set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	m_screen->set_size(32*8, 32*8);
+	m_screen->set_visarea(0*8, 32*8-1, 0*8, 31*8-1);
+	m_screen->set_screen_update(FUNC(mrflea_state::screen_update_mrflea));
+	m_screen->set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mrflea)
-	MCFG_PALETTE_ADD("palette", 32)
-	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
-
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_mrflea);
+	PALETTE(config, m_palette).set_format(palette_device::xRGB_444, 32);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("ay1", AY8910, 2000000)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("IN1"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("IN0"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	ay8910_device &ay1(AY8910(config, "ay1", 2000000));
+	ay1.port_a_read_callback().set_ioport("IN1");
+	ay1.port_b_read_callback().set_ioport("IN0");
+	ay1.add_route(ALL_OUTPUTS, "mono", 0.25);
 
-	MCFG_SOUND_ADD("ay2", AY8910, 2000000)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW2"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW1"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	AY8910(config, "ay2", 2000000).add_route(ALL_OUTPUTS, "mono", 0.25); // not used for sound?
 
-	MCFG_SOUND_ADD("ay3", AY8910, 2000000)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-MACHINE_CONFIG_END
+	ay8910_device &ay3(AY8910(config, "ay3", 2000000));
+	ay3.port_a_read_callback().set_ioport("DSW2");
+	ay3.port_b_read_callback().set_ioport("DSW1");
+	ay3.add_route(ALL_OUTPUTS, "mono", 0.25);
+
+	ay8910_device &ay4(AY8910(config, "ay4", 2000000));
+	ay4.port_a_read_callback().set_ioport("UNKNOWN");
+	ay4.port_b_write_callback().set(FUNC(mrflea_state::mrflea_data1_w));
+	ay4.add_route(ALL_OUTPUTS, "mono", 0.25);
+}
 
 /*************************************
  *
@@ -387,7 +332,7 @@ ROM_START( mrflea )
 	ROM_LOAD( "cpu_b3", 0x8000, 0x2000, CRC(f55b01e4) SHA1(93689fa02aab9d1f1acd55b305eafe542ee447b8) )
 	ROM_LOAD( "cpu_b5", 0xa000, 0x2000, CRC(79f560aa) SHA1(7326693d7369682f5770bf80df0181d603212900) )
 
-	ROM_REGION( 0x10000, "sub", 0 ) /* Z80 code; IO CPU */
+	ROM_REGION( 0x10000, "subcpu", 0 ) /* Z80 code; IO CPU */
 	ROM_LOAD( "io_a11", 0x0000, 0x1000, CRC(7a20c3ee) SHA1(8e0d5770881e6d3d1df17a2ede5a8823ca9d78e3) )
 	ROM_LOAD( "io_c11", 0x2000, 0x1000, CRC(8d26e0c8) SHA1(e90e37bd64e991dc47ab80394337073c69b450da) )
 	ROM_LOAD( "io_d11", 0x3000, 0x1000, CRC(abd9afc0) SHA1(873314164707ee84739ec76c6119a65a17001620) )
@@ -419,4 +364,4 @@ ROM_END
  *
  *************************************/
 
-GAME( 1982, mrflea,   0,        mrflea,   mrflea, driver_device,   0,        ROT270, "Pacific Novelty", "The Amazing Adventures of Mr. F. Lea" , MACHINE_SUPPORTS_SAVE )
+GAME( 1982, mrflea,   0,        mrflea,   mrflea, mrflea_state, empty_init, ROT270, "Pacific Novelty", "The Amazing Adventures of Mr. F. Lea" , MACHINE_SUPPORTS_SAVE )

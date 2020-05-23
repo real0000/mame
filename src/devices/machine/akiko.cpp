@@ -15,8 +15,8 @@
 
 #include "emu.h"
 #include "akiko.h"
-#include "imagedev/chd_cd.h"
 #include "coreutil.h"
+#include "romload.h"
 
 
 //**************************************************************************
@@ -31,19 +31,14 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type AKIKO = device_creator<akiko_device>;
+DEFINE_DEVICE_TYPE(AKIKO, akiko_device, "akiko", "CBM AKIKO")
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( akiko )
-MACHINE_CONFIG_END
-
-machine_config_constructor akiko_device::device_mconfig_additions() const
+void akiko_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( akiko );
 }
 
 
@@ -56,7 +51,7 @@ machine_config_constructor akiko_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 akiko_device::akiko_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, AKIKO, "CBM AKIKO", tag, owner, clock, "akiko", __FILE__),
+	: device_t(mconfig, AKIKO, tag, owner, clock),
 	m_c2p_input_index(0),
 	m_c2p_output_index(0),
 	m_i2c_scl_out(0),
@@ -75,12 +70,12 @@ akiko_device::akiko_device(const machine_config &mconfig, const char *tag, devic
 	m_cdrom_cmd_start(0),
 	m_cdrom_cmd_end(0),
 	m_cdrom_cmd_resp(0),
-	m_cdda(nullptr),
+	m_cdda(*this, "^cdda"),
+	m_cddevice(*this, "^cdrom"),
 	m_cdrom(nullptr),
 	m_cdrom_toc(nullptr),
 	m_dma_timer(nullptr),
 	m_frame_timer(nullptr),
-	m_cdrom_is_device(0),
 	m_mem_r(*this), m_mem_w(*this), m_int_w(*this),
 	m_scl_w(*this), m_sda_r(*this), m_sda_w(*this)
 {
@@ -137,7 +132,6 @@ void akiko_device::device_start()
 	m_cdrom_toc = nullptr;
 	m_dma_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(akiko_device::dma_proc), this));
 	m_frame_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(akiko_device::frame_proc), this));
-	m_cdda = machine().device<cdda_device>("cdda");
 }
 
 //-------------------------------------------------
@@ -146,19 +140,15 @@ void akiko_device::device_start()
 
 void akiko_device::device_reset()
 {
-	cdrom_image_device *cddevice = machine().device<cdrom_image_device>("cdrom");
-
-	if (cddevice != nullptr)
+	if (m_cddevice.found())
 	{
 		// MESS case
-		m_cdrom = cddevice->get_cdrom_file();
-		m_cdrom_is_device = 1;
+		m_cdrom = m_cddevice->get_cdrom_file();
 	}
 	else
 	{
 		// MAME case
 		m_cdrom = cdrom_open(machine().rom_load().get_disk_handle(":cdrom"));
-		m_cdrom_is_device = 0;
 	}
 
 	/* create the TOC table */
@@ -218,7 +208,7 @@ void akiko_device::device_reset()
 
 void akiko_device::device_stop()
 {
-	if (!m_cdrom_is_device)
+	if (!m_cddevice.found())
 	{
 		if( m_cdrom )
 		{

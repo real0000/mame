@@ -20,48 +20,42 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type A2BUS_SOFTCARD = device_creator<a2bus_softcard_device>;
+DEFINE_DEVICE_TYPE(A2BUS_SOFTCARD, a2bus_softcard_device, "a2softcard", "Microsoft SoftCard")
 
 #define Z80_TAG         "z80"
 
-static ADDRESS_MAP_START( z80_mem, AS_PROGRAM, 8, a2bus_softcard_device )
-	AM_RANGE(0x0000, 0xffff) AM_READWRITE(dma_r, dma_w)
-ADDRESS_MAP_END
-
-MACHINE_CONFIG_FRAGMENT( a2softcard )
-	MCFG_CPU_ADD(Z80_TAG, Z80, 1021800*2)   // Z80 runs on double the Apple II's clock
-	MCFG_CPU_PROGRAM_MAP(z80_mem)
-MACHINE_CONFIG_END
+void a2bus_softcard_device::z80_mem(address_map &map)
+{
+	map(0x0000, 0xffff).rw(FUNC(a2bus_softcard_device::dma_r), FUNC(a2bus_softcard_device::dma_w));
+}
 
 /***************************************************************************
     FUNCTION PROTOTYPES
 ***************************************************************************/
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor a2bus_softcard_device::device_mconfig_additions() const
+void a2bus_softcard_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( a2softcard );
+	Z80(config, m_z80, 1021800*2);   // Z80 runs on double the Apple II's clock
+	m_z80->set_addrmap(AS_PROGRAM, &a2bus_softcard_device::z80_mem);
 }
 
 //**************************************************************************
 //  LIVE DEVICE
 //**************************************************************************
 
-a2bus_softcard_device::a2bus_softcard_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+a2bus_softcard_device::a2bus_softcard_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, type, tag, owner, clock),
 	device_a2bus_card_interface(mconfig, *this),
 	m_z80(*this, Z80_TAG), m_bEnabled(false), m_FirstZ80Boot(false)
 {
 }
 
 a2bus_softcard_device::a2bus_softcard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, A2BUS_SOFTCARD, "Microsoft SoftCard", tag, owner, clock, "a2softcard", __FILE__),
-	device_a2bus_card_interface(mconfig, *this),
-	m_z80(*this, Z80_TAG), m_bEnabled(false), m_FirstZ80Boot(false)
+	a2bus_softcard_device(mconfig, A2BUS_SOFTCARD, tag, owner, clock)
 {
 }
 
@@ -71,9 +65,6 @@ a2bus_softcard_device::a2bus_softcard_device(const machine_config &mconfig, cons
 
 void a2bus_softcard_device::device_start()
 {
-	// set_a2bus_device makes m_slot valid
-	set_a2bus_device();
-
 	save_item(NAME(m_bEnabled));
 	save_item(NAME(m_FirstZ80Boot));
 }
@@ -86,12 +77,12 @@ void a2bus_softcard_device::device_reset()
 	m_z80->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 }
 
-void a2bus_softcard_device::write_cnxx(address_space &space, uint8_t offset, uint8_t data)
+void a2bus_softcard_device::write_cnxx(uint8_t offset, uint8_t data)
 {
 	if (!m_bEnabled)
 	{
 		m_z80->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
-		set_maincpu_halt(ASSERT_LINE);
+		raise_slot_dma();
 
 		if (m_FirstZ80Boot)
 		{
@@ -104,7 +95,7 @@ void a2bus_softcard_device::write_cnxx(address_space &space, uint8_t offset, uin
 	else
 	{
 		m_z80->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
-		set_maincpu_halt(CLEAR_LINE);
+		lower_slot_dma();
 		m_bEnabled = false;
 	}
 }
@@ -115,27 +106,27 @@ READ8_MEMBER( a2bus_softcard_device::dma_r )
 	{
 		if (offset <= 0xafff)
 		{
-			return slot_dma_read(space, offset+0x1000);
+			return slot_dma_read(offset+0x1000);
 		}
 		else if (offset <= 0xbfff)  // LC bank 2 d000-dfff
 		{
-			return slot_dma_read(space, (offset&0xfff) + 0xd000);
+			return slot_dma_read((offset&0xfff) + 0xd000);
 		}
 		else if (offset <= 0xcfff)  // LC e000-efff
 		{
-			return slot_dma_read(space, (offset&0xfff) + 0xe000);
+			return slot_dma_read((offset&0xfff) + 0xe000);
 		}
 		else if (offset <= 0xdfff)  // LC f000-ffff (or ROM?)
 		{
-			return slot_dma_read(space, (offset&0xfff) + 0xf000);
+			return slot_dma_read((offset&0xfff) + 0xf000);
 		}
 		else if (offset <= 0xefff)  // I/O space c000-cfff
 		{
-			return slot_dma_read(space, (offset&0xfff) + 0xc000);
+			return slot_dma_read((offset&0xfff) + 0xc000);
 		}
 		else    // zero page
 		{
-			return slot_dma_read(space, offset&0xfff);
+			return slot_dma_read(offset&0xfff);
 		}
 	}
 
@@ -153,27 +144,27 @@ WRITE8_MEMBER( a2bus_softcard_device::dma_w )
 	{
 		if (offset <= 0xafff)
 		{
-			slot_dma_write(space, offset+0x1000, data);
+			slot_dma_write(offset+0x1000, data);
 		}
 		else if (offset <= 0xbfff)  // LC bank 2 d000-dfff
 		{
-			slot_dma_write(space, (offset&0xfff) + 0xd000, data);
+			slot_dma_write((offset&0xfff) + 0xd000, data);
 		}
 		else if (offset <= 0xcfff)  // LC e000-efff
 		{
-			slot_dma_write(space, (offset&0xfff) + 0xe000, data);
+			slot_dma_write((offset&0xfff) + 0xe000, data);
 		}
 		else if (offset <= 0xdfff)  // LC f000-ffff (or ROM?)
 		{
-			slot_dma_write(space, (offset&0xfff) + 0xf000, data);
+			slot_dma_write((offset&0xfff) + 0xf000, data);
 		}
 		else if (offset <= 0xefff)  // I/O space c000-cfff
 		{
-			slot_dma_write(space, (offset&0xfff) + 0xc000, data);
+			slot_dma_write((offset&0xfff) + 0xc000, data);
 		}
 		else    // zero page
 		{
-			slot_dma_write(space, offset&0xfff, data);
+			slot_dma_write(offset&0xfff, data);
 		}
 	}
 }

@@ -1,29 +1,32 @@
 // license:BSD-3-Clause
 // copyright-holders:Carl
+#ifndef MAME_VIDEO_PCD_H
+#define MAME_VIDEO_PCD_H
 
-#ifndef _PCD_H_
-#define _PCD_H_
+#pragma once
 
 #include "machine/pic8259.h"
+#include "machine/timer.h"
 #include "video/scn2674.h"
+#include "emupal.h"
 
-#define MCFG_PCX_VIDEO_TXD_HANDLER(_devcb) \
-	devcb = &pcx_video_device::set_txd_handler(*device, DEVCB_##_devcb);
+#include "diserial.h"
+
 
 class pcdx_video_device : public device_t, public device_gfx_interface
 {
 public:
-	pcdx_video_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
-
-	virtual DECLARE_ADDRESS_MAP(map, 16) = 0;
-	DECLARE_READ8_MEMBER(detect_r);
-	DECLARE_WRITE8_MEMBER(detect_w);
-	DECLARE_PALETTE_INIT(pcdx);
+	virtual void map(address_map &map) = 0;
+	uint8_t detect_r();
+	void detect_w(uint8_t data);
 
 protected:
+	pcdx_video_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
+	void pcdx_palette(palette_device &palette) const;
+
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_mcu;
-	required_device<scn2674_device> m_crtc;
 	required_device<pic8259_device> m_pic2;
 };
 
@@ -32,23 +35,20 @@ class pcd_video_device : public pcdx_video_device
 public:
 	pcd_video_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	virtual DECLARE_ADDRESS_MAP(map, 16) override;
-	DECLARE_WRITE8_MEMBER(vram_sw_w);
-	DECLARE_READ8_MEMBER(vram_r);
-	DECLARE_WRITE8_MEMBER(vram_w);
-	DECLARE_READ8_MEMBER(t1_r);
-	DECLARE_READ8_MEMBER(p1_r);
-	DECLARE_WRITE8_MEMBER(p2_w);
-	TIMER_DEVICE_CALLBACK_MEMBER(mouse_timer);
+	virtual void map(address_map &map) override;
+	void vram_sw_w(uint8_t data);
+	uint8_t vram_r(offs_t offset);
+	void vram_w(offs_t offset, uint8_t data);
 
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	virtual ioport_constructor device_input_ports() const override;
-	SCN2674_DRAW_CHARACTER_MEMBER(display_pixels);
 protected:
 	void device_start() override;
 	void device_reset() override;
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+	virtual ioport_constructor device_input_ports() const override;
+
 private:
+	required_device<scn2674_device> m_crtc;
 	required_ioport m_mouse_btn;
 	required_ioport m_mouse_x;
 	required_ioport m_mouse_y;
@@ -69,6 +69,13 @@ private:
 		int ya;
 		int yb;
 	} m_mouse;
+
+	uint8_t t1_r();
+	uint8_t p1_r();
+	void p2_w(uint8_t data);
+	TIMER_DEVICE_CALLBACK_MEMBER(mouse_timer);
+
+	SCN2674_DRAW_CHARACTER_MEMBER(display_pixels);
 };
 
 class pcx_video_device : public pcdx_video_device,
@@ -76,39 +83,43 @@ class pcx_video_device : public pcdx_video_device,
 {
 public:
 	pcx_video_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	template<class _Object> static devcb_base &set_txd_handler(device_t &device, _Object object) { return downcast<pcx_video_device &>(device).m_txd_handler.set_callback(object); }
+	auto txd_handler() { return m_txd_handler.bind(); }
 
-	virtual DECLARE_ADDRESS_MAP(map, 16) override;
-	DECLARE_READ8_MEMBER(term_r);
-	DECLARE_WRITE8_MEMBER(term_w);
-	DECLARE_READ8_MEMBER(term_mcu_r);
-	DECLARE_WRITE8_MEMBER(term_mcu_w);
-	DECLARE_READ8_MEMBER(rx_callback);
-	DECLARE_WRITE8_MEMBER(tx_callback);
-	DECLARE_READ8_MEMBER(vram_r);
-	DECLARE_WRITE8_MEMBER(vram_w);
-	DECLARE_READ8_MEMBER(vram_latch_r);
-	DECLARE_WRITE8_MEMBER(vram_latch_w);
-	DECLARE_READ8_MEMBER(unk_r);
-	DECLARE_WRITE8_MEMBER(p1_w);
+	virtual void map(address_map &map) override;
+	uint8_t term_r(offs_t offset);
+	void term_w(offs_t offset, uint8_t data);
+	uint8_t term_mcu_r(offs_t offset);
+	void term_mcu_w(offs_t offset, uint8_t data);
+	uint8_t unk_r();
+	void p1_w(uint8_t data);
 
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	SCN2674_DRAW_CHARACTER_MEMBER(display_pixels);
+	void pcx_vid_io(address_map &map);
+	void pcx_vid_map(address_map &map);
+	void pcx_char_ram(address_map &map);
+	void pcx_attr_ram(address_map &map);
 protected:
 	void device_start() override;
 	void device_reset() override;
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
 	void tra_callback() override;
 	void rcv_complete() override;
-	void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
+
 private:
-	std::vector<uint8_t> m_vram;
+	required_device<scn2672_device> m_crtc;
+
 	required_region_ptr<uint8_t> m_charrom;
 	devcb_write_line m_txd_handler;
-	uint8_t m_term_key, m_term_char, m_term_stat, m_vram_latch_r[2], m_vram_latch_w[2], m_p1;
+	uint8_t m_term_key, m_term_char, m_term_stat, m_p1;
+
+	uint8_t rx_callback();
+	void tx_callback(uint8_t data);
+
+	SCN2672_DRAW_CHARACTER_MEMBER(display_pixels);
 };
 
-extern const device_type PCD_VIDEO;
-extern const device_type PCX_VIDEO;
+DECLARE_DEVICE_TYPE(PCD_VIDEO, pcd_video_device)
+DECLARE_DEVICE_TYPE(PCX_VIDEO, pcx_video_device)
 
-#endif
+#endif // MAME_VIDEO_PCD_H

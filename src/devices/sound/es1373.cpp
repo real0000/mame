@@ -11,33 +11,91 @@
 #define LOG_ES_FILE       (0)
 
 
-static MACHINE_CONFIG_FRAGMENT( es1373 )
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
-MACHINE_CONFIG_END
+/* Ensonic ES1373 registers 0x00-0x3f */
+#define ES_INT_CS_CTRL          (0x00/4)
+#define ES_INT_CS_STATUS        (0x04/4)
+#define ES_UART_DATA            (0x08/4)
+#define ES_UART_STATUS          (0x09/4)
+#define ES_UART_CTRL            (0x09/4)
+#define ES_UART_RSVD            (0x0A/4)
+#define ES_MEM_PAGE             (0x0C/4)
+#define ES_SRC_IF               (0x10/4)
+#define ES_CODEC                (0x14/4)
+#define ES_LEGACY               (0x18/4)
+#define ES_CHAN_CTRL            (0x1C/4)
+#define ES_SERIAL_CTRL          (0x20/4)
+#define ES_DAC1_CNT             (0x24/4)
+#define ES_DAC2_CNT             (0x28/4)
+#define ES_ADC_CNT              (0x2C/4)
+#define ES_HOST_IF0             (0x30/4)
+#define ES_HOST_IF1             (0x34/4)
+#define ES_HOST_IF2             (0x38/4)
+#define ES_HOST_IF3             (0x3C/4)
 
-machine_config_constructor es1373_device::device_mconfig_additions() const
+// Interrupt/Chip Select Control Register (ES_INT_CS_CTRL) bits
+#define ICCTRL_ADC_STOP_MASK   0x00002000
+#define ICCTRL_DAC1_EN_MASK    0x00000040
+#define ICCTRL_DAC2_EN_MASK    0x00000020
+#define ICCTRL_ADC_EN_MASK     0x00000010
+#define ICCTRL_UART_EN_MASK    0x00000008
+#define ICCTRL_JYSTK_EN_MASK   0x00000004
+
+// Interrupt/Chip Select Status Register (ES_INT_CS_STATUS) bits
+#define ICSTATUS_INTR_MASK        0x80000000
+#define ICSTATUS_DAC1_INT_MASK    0x00000004
+#define ICSTATUS_DAC2_INT_MASK    0x00000002
+#define ICSTATUS_ADC_INT_MASK     0x00000001
+
+// Serial Interface Control Register (ES_SERIAL_CTRL) bits
+#define SCTRL_P2_END_MASK     0x00380000
+#define SCTRL_P2_START_MASK   0x00070000
+#define SCTRL_R1_LOOP_MASK    0x00008000
+#define SCTRL_P2_LOOP_MASK    0x00004000
+#define SCTRL_P1_LOOP_MASK    0x00002000
+#define SCTRL_P2_PAUSE_MASK   0x00001000
+#define SCTRL_P1_PAUSE_MASK   0x00000800
+#define SCTRL_R1_INT_EN_MASK  0x00000400
+#define SCTRL_P2_INT_EN_MASK  0x00000200
+#define SCTRL_P1_INT_EN_MASK  0x00000100
+#define SCTRL_P1_RELOAD_MASK  0x00000080
+#define SCTRL_P2_STOP_MASK    0x00000040
+#define SCTRL_R1_S_MASK       0x00000030
+#define SCTRL_P2_S_MASK       0x0000000C
+#define SCTRL_P1_S_MASK       0x00000003
+
+#define SCTRL_8BIT_MONO             0x0
+#define SCTRL_8BIT_STEREO           0x1
+#define SCTRL_16BIT_MONO            0x2
+#define SCTRL_16BIT_STEREO      0x3
+
+#define ES_PCI_READ 0
+#define ES_PCI_WRITE 1
+
+void es1373_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( es1373 );
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
 }
 
-const device_type ES1373 = device_creator<es1373_device>;
+DEFINE_DEVICE_TYPE(ES1373, es1373_device, "es1373", "Creative Labs Ensoniq AudioPCI97 ES1373")
 
-DEVICE_ADDRESS_MAP_START(map, 32, es1373_device)
-	AM_RANGE(0x00, 0x3f) AM_READWRITE  (reg_r,  reg_w)
-ADDRESS_MAP_END
+void es1373_device::map(address_map &map)
+{
+	map(0x00, 0x3f).rw(FUNC(es1373_device::reg_r), FUNC(es1373_device::reg_w));
+}
 
 es1373_device::es1373_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: pci_device(mconfig, ES1373, "Creative Labs Ensoniq AudioPCI97 ES1373", tag, owner, clock, "es1373", __FILE__),
-		device_sound_interface(mconfig, *this), m_stream(nullptr),
-		m_eslog(nullptr), m_tempCount(0), m_timer(nullptr), m_memory_space(nullptr), m_cpu_tag(nullptr), m_cpu(nullptr),
-		m_irq_num(-1)
+	: pci_device(mconfig, ES1373, tag, owner, clock)
+	, device_sound_interface(mconfig, *this), m_stream(nullptr)
+	, m_eslog(nullptr), m_tempCount(0), m_timer(nullptr), m_memory_space(nullptr), m_irq_handler(*this)
 {
+	set_ids(0x12741371, 0x04, 0x040100, 0x12741371);
 }
 
-void es1373_device::set_irq_info(const char *tag, const int irq_num)
+void es1373_device::device_resolve_objects()
 {
-	m_cpu_tag = tag;
-	m_irq_num = irq_num;
+	pci_device::device_resolve_objects();
+	m_irq_handler.resolve_safe();
 }
 
 //-------------------------------------------------
@@ -58,7 +116,6 @@ void es1373_device::device_stop()
 //-------------------------------------------------
 void es1373_device::device_start()
 {
-	m_cpu = machine().device<cpu_device>(m_cpu_tag);
 	pci_device::device_start();
 	add_map(0x40, M_IO, FUNC(es1373_device::map));
 
@@ -68,6 +125,56 @@ void es1373_device::device_start()
 	m_timer = timer_alloc(0, nullptr);
 	m_timer->adjust(attotime::zero, 0, attotime::from_hz(44100/2/16));
 
+	// Save states
+	save_item(NAME(m_ac97_regs));
+	save_item(NAME(m_es_regs));
+	save_item(NAME(m_sound_cache));
+	save_item(NAME(m_src_ram));
+	save_item(NAME(m_dac1.number));
+	save_item(NAME(m_dac1.enable));
+	save_item(NAME(m_dac1.int_en));
+	save_item(NAME(m_dac1.loop_en));
+	save_item(NAME(m_dac1.initialized));
+	save_item(NAME(m_dac1.format));
+	save_item(NAME(m_dac1.buf_wptr));
+	save_item(NAME(m_dac1.buf_rptr));
+	save_item(NAME(m_dac1.buf_count));
+	save_item(NAME(m_dac1.buf_size));
+	save_item(NAME(m_dac1.pci_addr));
+	save_item(NAME(m_dac1.pci_count));
+	save_item(NAME(m_dac1.pci_size));
+	save_item(NAME(m_dac2.number));
+	save_item(NAME(m_dac2.enable));
+	save_item(NAME(m_dac2.int_en));
+	save_item(NAME(m_dac2.loop_en));
+	save_item(NAME(m_dac2.initialized));
+	save_item(NAME(m_dac2.format));
+	save_item(NAME(m_dac2.buf_wptr));
+	save_item(NAME(m_dac2.buf_rptr));
+	save_item(NAME(m_dac2.buf_count));
+	save_item(NAME(m_dac2.buf_size));
+	save_item(NAME(m_dac2.pci_addr));
+	save_item(NAME(m_dac2.pci_count));
+	save_item(NAME(m_dac2.pci_size));
+	save_item(NAME(m_adc.number));
+	save_item(NAME(m_adc.enable));
+	save_item(NAME(m_adc.int_en));
+	save_item(NAME(m_adc.loop_en));
+	save_item(NAME(m_adc.initialized));
+	save_item(NAME(m_adc.format));
+	save_item(NAME(m_adc.buf_wptr));
+	save_item(NAME(m_adc.buf_rptr));
+	save_item(NAME(m_adc.buf_count));
+	save_item(NAME(m_adc.buf_size));
+	save_item(NAME(m_adc.pci_addr));
+	save_item(NAME(m_adc.pci_count));
+	save_item(NAME(m_adc.pci_size));
+}
+
+void es1373_device::device_post_load()
+{
+	pci_device::device_post_load();
+	remap_cb();
 }
 
 void es1373_device::device_reset()
@@ -154,12 +261,12 @@ void es1373_device::sound_stream_update(sound_stream &stream, stream_sample_t **
 							// Keep playing
 							m_adc.buf_count = 0;
 							if (LOG_ES)
-								logerror("%X: send_audio_out ADC clearing buf_count\n", machine().device("maincpu")->safe_pc());
+								logerror("%s: send_audio_out ADC clearing buf_count\n", machine().describe_context());
 						}
 						if (m_adc.int_en) {
 							m_es_regs[ES_INT_CS_STATUS] |= ICSTATUS_ADC_INT_MASK;
 							if (LOG_ES)
-								logerror("%X: send_audio_out Setting ADC interrupt\n", machine().device("maincpu")->safe_pc());
+								logerror("%s: send_audio_out Setting ADC interrupt\n", machine().describe_context());
 						}
 					}
 					if (!(m_adc.buf_count&1) && !(m_adc.buf_wptr&0xf)) {
@@ -178,10 +285,7 @@ void es1373_device::sound_stream_update(sound_stream &stream, stream_sample_t **
 	if (m_es_regs[ES_INT_CS_STATUS]&(ICSTATUS_DAC1_INT_MASK|ICSTATUS_DAC2_INT_MASK|ICSTATUS_ADC_INT_MASK)) {
 		m_es_regs[ES_INT_CS_STATUS] |= ICSTATUS_INTR_MASK;
 		// Assert interrupt
-		//m_cpu->set_input_line(ES_IRQ_NUM, ASSERT_LINE);
-		if (m_irq_num!=-1) {
-			m_cpu->set_input_line(m_irq_num, ASSERT_LINE);
-		}
+		m_irq_handler(1);
 	}
 }
 
@@ -209,8 +313,8 @@ void es1373_device::send_audio_out(chan_info& chan, uint32_t intr_mask, stream_s
 				transfer_pci_audio(chan, ES_PCI_READ);
 			}
 			if (LOG_ES && i==0)
-				logerror("%X: chan: %X samples: %i buf_count: %X buf_size: %X buf_rptr: %X buf_wptr: %X\n",
-					machine().device("maincpu")->safe_pc(), chan.number, samples, chan.buf_count, chan.buf_size, chan.buf_rptr, chan.buf_wptr);
+				logerror("%s: chan: %X samples: %i buf_count: %X buf_size: %X buf_rptr: %X buf_wptr: %X\n",
+					machine().describe_context(), chan.number, samples, chan.buf_count, chan.buf_size, chan.buf_rptr, chan.buf_wptr);
 			// Buffer is 4 bytes per location, need to switch on sample mode
 			switch (chan.format) {
 				case SCTRL_8BIT_MONO:
@@ -253,12 +357,12 @@ void es1373_device::send_audio_out(chan_info& chan, uint32_t intr_mask, stream_s
 					chan.buf_count = 0;
 					//chan.buf_rptr -= 1;
 					if (LOG_ES)
-						logerror("%X: send_audio_out DAC2 clearing buf_count\n", machine().device("maincpu")->safe_pc());
+						logerror("%s: send_audio_out DAC2 clearing buf_count\n", machine().describe_context());
 				}
 				if (chan.int_en) {
 					m_es_regs[ES_INT_CS_STATUS] |= intr_mask;
 					if (LOG_ES)
-						logerror("%X: send_audio_out Setting DAC2 interrupt\n", machine().device("maincpu")->safe_pc());
+						logerror("%s: send_audio_out Setting DAC2 interrupt\n", machine().describe_context());
 				}
 			}
 			if (buf_row_done && !(chan.buf_rptr&0xf)) {
@@ -381,7 +485,7 @@ READ32_MEMBER (es1373_device::reg_r)
 			break;
 	}
 	if (LOG_ES_REG)
-		logerror("%08X:ES1373 read from offset %02X = %08X & %08X\n", machine().device("maincpu")->safe_pc(), offset*4, result, mem_mask);
+		logerror("%s:ES1373 read from offset %02X = %08X & %08X\n", machine().describe_context(), offset*4, result, mem_mask);
 	return result;
 }
 
@@ -429,10 +533,10 @@ WRITE32_MEMBER(es1373_device::reg_w)
 				if (!(m_es_regs[ES_INT_CS_STATUS]&(ICSTATUS_DAC1_INT_MASK|ICSTATUS_DAC2_INT_MASK|ICSTATUS_ADC_INT_MASK))) {
 					// Deassert interrupt
 					if (m_es_regs[ES_INT_CS_STATUS]&ICSTATUS_INTR_MASK && m_irq_num!=-1) {
-						m_cpu->set_input_line(m_irq_num, CLEAR_LINE);
+						m_irq_handler(0);
 						m_es_regs[ES_INT_CS_STATUS] &= ~ICSTATUS_INTR_MASK;
 						if (0 && LOG_ES_REG)
-							logerror("%X: es1373_device::reg_w Clearing interrupt\n", machine().device("maincpu")->safe_pc());
+							logerror("%s: es1373_device::reg_w Clearing interrupt\n", machine().describe_context());
 					}
 				}
 				if (0 && LOG_ES_REG)
@@ -487,7 +591,7 @@ WRITE32_MEMBER(es1373_device::reg_w)
 					m_dac2.pci_count = (data>>16)&0xffff;
 					m_dac2.pci_size = data&0xffff;
 					if (LOG_ES_REG)
-						logerror("%08X:ES1373 write to offset %02X = %08X & %08X\n", machine().device("maincpu")->safe_pc(), offset*4, data, mem_mask);
+						logerror("%s:ES1373 write to offset %02X = %08X & %08X\n", machine().describe_context(), offset*4, data, mem_mask);
 					break;
 				default:
 					break;
@@ -498,6 +602,6 @@ WRITE32_MEMBER(es1373_device::reg_w)
 	}
 
 	if (LOG_ES_REG)
-		logerror("%08X:ES1373 write to offset %02X = %08X & %08X\n", machine().device("maincpu")->safe_pc(), offset*4, data, mem_mask);
+		logerror("%s:ES1373 write to offset %02X = %08X & %08X\n", machine().describe_context(), offset*4, data, mem_mask);
 
 }

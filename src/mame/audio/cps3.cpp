@@ -11,7 +11,7 @@
 
 
 // device type definition
-const device_type CPS3 = device_creator<cps3_sound_device>;
+DEFINE_DEVICE_TYPE(CPS3, cps3_sound_device, "cps3_custom", "CPS3 Custom Sound")
 
 
 //**************************************************************************
@@ -23,11 +23,11 @@ const device_type CPS3 = device_creator<cps3_sound_device>;
 //-------------------------------------------------
 
 cps3_sound_device::cps3_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, CPS3, "CPS3 Audio Custom", tag, owner, clock, "cps3_custom", __FILE__),
-		device_sound_interface(mconfig, *this),
-		m_stream(nullptr),
-		m_key(0),
-		m_base(nullptr)
+	: device_t(mconfig, CPS3, tag, owner, clock)
+	, device_sound_interface(mconfig, *this)
+	, m_stream(nullptr)
+	, m_key(0)
+	, m_base(nullptr)
 {
 }
 
@@ -40,6 +40,14 @@ void cps3_sound_device::device_start()
 {
 	/* Allocate the stream */
 	m_stream = stream_alloc(0, 2, clock() / 384);
+
+	save_item(NAME(m_key));
+	for (int i = 0; i < 16; i++)
+	{
+		save_item(NAME(m_voice[i].regs), i);
+		save_item(NAME(m_voice[i].pos), i);
+		save_item(NAME(m_voice[i].frac), i);
+	}
 }
 
 
@@ -130,7 +138,7 @@ void cps3_sound_device::sound_stream_update(sound_stream &stream, stream_sample_
 }
 
 
-WRITE32_MEMBER( cps3_sound_device::cps3_sound_w )
+void cps3_sound_device::sound_w(offs_t offset, uint32_t data, uint32_t mem_mask)
 {
 	m_stream->update();
 
@@ -163,7 +171,7 @@ WRITE32_MEMBER( cps3_sound_device::cps3_sound_w )
 }
 
 
-READ32_MEMBER( cps3_sound_device::cps3_sound_r )
+uint32_t cps3_sound_device::sound_r(offs_t offset, uint32_t mem_mask)
 {
 	m_stream->update();
 

@@ -80,7 +80,7 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type PCI_BUS = device_creator<pci_bus_device>;
+DEFINE_DEVICE_TYPE(PCI_BUS, pci_bus_device, "pci_bus", "PCI Bus")
 
 //**************************************************************************
 //  LIVE DEVICE
@@ -90,8 +90,9 @@ const device_type PCI_BUS = device_creator<pci_bus_device>;
 //  pci_bus_device - constructor
 //-------------------------------------------------
 pci_bus_device::pci_bus_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-		device_t(mconfig, PCI_BUS, "PCI Bus", tag, owner, clock, "pci_bus", __FILE__), m_busnum(0),
-		m_father(nullptr), m_address(0), m_devicenum(0), m_busnumber(0), m_busnumaddr(nullptr)
+	device_t(mconfig, PCI_BUS, tag, owner, clock), m_busnum(0),
+	m_address(0), m_devicenum(0), m_busnumber(0), m_busnumaddr(nullptr),
+	m_father(*this, finder_base::DUMMY_TAG)
 {
 	for (auto & elem : m_devtag) {
 		elem= nullptr;
@@ -208,18 +209,18 @@ WRITE32_MEMBER( pci_bus_device::write )
 READ64_MEMBER(pci_bus_device::read_64be)
 {
 	uint64_t result = 0;
-	mem_mask = flipendian_int64(mem_mask);
+	mem_mask = swapendian_int64(mem_mask);
 	if (ACCESSING_BITS_0_31)
 		result |= (uint64_t)read(space, offset * 2 + 0, mem_mask >> 0) << 0;
 	if (ACCESSING_BITS_32_63)
 		result |= (uint64_t)read(space, offset * 2 + 1, mem_mask >> 32) << 32;
-	return flipendian_int64(result);
+	return swapendian_int64(result);
 }
 
 WRITE64_MEMBER(pci_bus_device::write_64be)
 {
-	data = flipendian_int64(data);
-	mem_mask = flipendian_int64(mem_mask);
+	data = swapendian_int64(data);
+	mem_mask = swapendian_int64(mem_mask);
 	if (ACCESSING_BITS_0_31)
 		write(space, offset * 2 + 0, data >> 0, mem_mask >> 0);
 	if (ACCESSING_BITS_32_63)
@@ -233,6 +234,18 @@ void pci_bus_device::add_sibling(pci_bus_device *sibling, int busnum)
 	m_siblings_busnum[m_siblings_count] = busnum;
 	m_siblings_count++;
 }
+
+void pci_bus_device::remap(int space_id, offs_t start, offs_t end)
+{
+	for (int i = 0; i < ARRAY_LENGTH(m_devtag); i++)
+	{
+		if (m_device[i] != nullptr)
+			m_device[i]->remap(space_id, start, end);
+	}
+	for (int i = 0; i < m_siblings_count; i++)
+		m_siblings[i]->remap(space_id, start, end);
+}
+
 
 
 //-------------------------------------------------
@@ -262,18 +275,18 @@ void pci_bus_device::device_start()
 	for (int i = 0; i < ARRAY_LENGTH(m_devtag); i++)
 	{
 		sprintf(id, "%d", i);
-		pci_connector *conn = downcast<pci_connector *>(subdevice(id));
-		if (conn!=nullptr)
+		pci_connector_device *conn = downcast<pci_connector_device *>(subdevice(id));
+		if (conn != nullptr)
+		{
 			m_device[i] = conn->get_device();
+			m_device[i]->set_pci_bus(this);
+		}
 		else
 			m_device[i] = nullptr;
 	}
 
-	if (m_father != nullptr) {
-		pci_bus_device *father = machine().device<pci_bus_device>(m_father);
-		if (father)
-			father->add_sibling(this, m_busnum);
-	}
+	if (m_father.found())
+		m_father->add_sibling(this, m_busnum);
 
 	/* register pci states */
 	save_item(NAME(m_address));
@@ -297,8 +310,9 @@ void pci_bus_device::device_reset()
 //  pci_device_interface - constructor
 //-------------------------------------------------
 
-pci_device_interface::pci_device_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig, device)
+pci_device_interface::pci_device_interface(const machine_config &mconfig, device_t &device) :
+	device_interface(device, "lpci"),
+	m_pci_bus(nullptr)
 {
 }
 
@@ -311,24 +325,24 @@ pci_device_interface::~pci_device_interface()
 }
 
 
-const device_type PCI_CONNECTOR = device_creator<pci_connector>;
+DEFINE_DEVICE_TYPE(PCI_CONNECTOR, pci_connector_device, "pci_connector", "PCI device connector abstraction")
 
 
-pci_connector::pci_connector(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, PCI_CONNECTOR, "PCI device connector abstraction", tag, owner, clock, "pci_connector", __FILE__),
-	device_slot_interface(mconfig, *this)
+pci_connector_device::pci_connector_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, PCI_CONNECTOR, tag, owner, clock),
+	device_single_card_slot_interface<pci_device_interface>(mconfig, *this)
 {
 }
 
-pci_connector::~pci_connector()
+pci_connector_device::~pci_connector_device()
 {
 }
 
-void pci_connector::device_start()
+void pci_connector_device::device_start()
 {
 }
 
-pci_device_interface *pci_connector::get_device()
+pci_device_interface *pci_connector_device::get_device()
 {
-	return dynamic_cast<pci_device_interface *>(get_card_device());
+	return get_card_device();
 }

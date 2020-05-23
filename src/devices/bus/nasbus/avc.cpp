@@ -16,29 +16,25 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type NASCOM_AVC = device_creator<nascom_avc_device>;
+DEFINE_DEVICE_TYPE(NASCOM_AVC, nascom_avc_device, "nascom_avc", "Nascom Advanced Video Card")
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( nascom_avc )
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_RAW_PARAMS(16250000, 1024, 0, 768, 320, 0, 256)
-	MCFG_SCREEN_UPDATE_DEVICE("mc6845", mc6845_device, screen_update)
-
-	MCFG_PALETTE_ADD_3BIT_RGB("palette")
-
-	MCFG_MC6845_ADD("mc6845", MC6845, "screen", XTAL_16MHz / 8)
-	MCFG_MC6845_SHOW_BORDER_AREA(false)
-	MCFG_MC6845_CHAR_WIDTH(6)
-	MCFG_MC6845_UPDATE_ROW_CB(nascom_avc_device, crtc_update_row)
-MACHINE_CONFIG_END
-
-machine_config_constructor nascom_avc_device::device_mconfig_additions() const
+void nascom_avc_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( nascom_avc );
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_raw(16250000, 1024, 0, 768, 320, 0, 256);
+	screen.set_screen_update("mc6845", FUNC(mc6845_device::screen_update));
+
+	PALETTE(config, m_palette, palette_device::RGB_3BIT);
+
+	MC6845(config, m_crtc, XTAL(16'000'000) / 8);
+	m_crtc->set_screen("screen");
+	m_crtc->set_show_border_area(false);
+	m_crtc->set_char_width(6);
+	m_crtc->set_update_row_callback(FUNC(nascom_avc_device::crtc_update_row));
 }
 
 
@@ -51,7 +47,7 @@ machine_config_constructor nascom_avc_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 nascom_avc_device::nascom_avc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, NASCOM_AVC, "Nascom Advanced Video Card", tag, owner, clock, "nascom_avc", __FILE__),
+	device_t(mconfig, NASCOM_AVC, tag, owner, clock),
 	device_nasbus_card_interface(mconfig, *this),
 	m_crtc(*this, "mc6845"),
 	m_palette(*this, "palette"),
@@ -82,9 +78,9 @@ void nascom_avc_device::device_start()
 
 void nascom_avc_device::device_reset()
 {
-	m_nasbus->m_io->install_write_handler(0xb0, 0xb0, write8_delegate(FUNC(mc6845_device::address_w), m_crtc.target()));
-	m_nasbus->m_io->install_readwrite_handler(0xb1, 0xb1, read8_delegate(FUNC(mc6845_device::register_r), m_crtc.target()), write8_delegate(FUNC(mc6845_device::register_w), m_crtc.target()));
-	m_nasbus->m_io->install_write_handler(0xb2, 0xb2, write8_delegate(FUNC(nascom_avc_device::control_w), this));
+	io_space().install_write_handler(0xb0, 0xb0, write8smo_delegate(*m_crtc, FUNC(mc6845_device::address_w)));
+	io_space().install_readwrite_handler(0xb1, 0xb1, read8smo_delegate(*m_crtc, FUNC(mc6845_device::register_r)), write8smo_delegate(*m_crtc, FUNC(mc6845_device::register_w)));
+	io_space().install_write_handler(0xb2, 0xb2, write8smo_delegate(*this, FUNC(nascom_avc_device::control_w)));
 }
 
 
@@ -128,26 +124,26 @@ MC6845_UPDATE_ROW( nascom_avc_device::crtc_update_row )
 	}
 }
 
-WRITE8_MEMBER( nascom_avc_device::control_w )
+void nascom_avc_device::control_w(uint8_t data)
 {
 	logerror("nascom_avc_device::control_w: 0x%02x\n", data);
 
 	// page video ram in?
 	if (((m_control & 0x07) == 0) && (data & 0x07))
 	{
-		m_nasbus->ram_disable_w(0);
-		m_nasbus->m_program->install_readwrite_handler(0x8000, 0xbfff, read8_delegate(FUNC(nascom_avc_device::vram_r), this), write8_delegate(FUNC(nascom_avc_device::vram_w), this));
+		ram_disable_w(0);
+		program_space().install_readwrite_handler(0x8000, 0xbfff, read8sm_delegate(*this, FUNC(nascom_avc_device::vram_r)), write8sm_delegate(*this, FUNC(nascom_avc_device::vram_w)));
 	}
 	else if ((data & 0x07) == 0)
 	{
-		m_nasbus->m_program->unmap_readwrite(0x8000, 0xbfff);
-		m_nasbus->ram_disable_w(1);
+		program_space().unmap_readwrite(0x8000, 0xbfff);
+		ram_disable_w(1);
 	}
 
 	m_control = data;
 }
 
-READ8_MEMBER( nascom_avc_device::vram_r )
+uint8_t nascom_avc_device::vram_r(offs_t offset)
 {
 	// manual says only one plane can be read, i assume this is the order
 	if (BIT(m_control, 0)) return m_r_ram[offset];
@@ -158,7 +154,7 @@ READ8_MEMBER( nascom_avc_device::vram_r )
 	return 0xff;
 }
 
-WRITE8_MEMBER( nascom_avc_device::vram_w )
+void nascom_avc_device::vram_w(offs_t offset, uint8_t data)
 {
 	// all planes can be written at the same time
 	if (BIT(m_control, 0)) m_r_ram[offset] = data;

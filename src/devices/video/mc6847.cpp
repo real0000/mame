@@ -99,24 +99,24 @@
 
 const uint32_t mc6847_base_device::s_palette[mc6847_base_device::PALETTE_LENGTH] =
 {
-	rgb_t(0x07, 0xff, 0x00), /* GREEN */
-	rgb_t(0xff, 0xff, 0x00), /* YELLOW */
-	rgb_t(0x3b, 0x08, 0xff), /* BLUE */
-	rgb_t(0xcc, 0x00, 0x3b), /* RED */
-	rgb_t(0xff, 0xff, 0xff), /* BUFF */
-	rgb_t(0x07, 0xe3, 0x99), /* CYAN */
-	rgb_t(0xff, 0x1c, 0xff), /* MAGENTA */
-	rgb_t(0xff, 0x81, 0x00), /* ORANGE */
+	rgb_t(0x30, 0xd2, 0x00), /* GREEN */
+	rgb_t(0xc1, 0xe5, 0x00), /* YELLOW */
+	rgb_t(0x4c, 0x3a, 0xb4), /* BLUE */
+	rgb_t(0x9a, 0x32, 0x36), /* RED */
+	rgb_t(0xbf, 0xc8, 0xad), /* BUFF */
+	rgb_t(0x41, 0xaf, 0x71), /* CYAN */
+	rgb_t(0xc8, 0x4e, 0xf0), /* MAGENTA */
+	rgb_t(0xd4, 0x7f, 0x00), /* ORANGE */
 
-	rgb_t(0x00, 0x00, 0x00), /* BLACK */
-	rgb_t(0x07, 0xff, 0x00), /* GREEN */
-	rgb_t(0x00, 0x00, 0x00), /* BLACK */
-	rgb_t(0xff, 0xff, 0xff), /* BUFF */
+	rgb_t(0x26, 0x30, 0x16), /* BLACK */
+	rgb_t(0x30, 0xd2, 0x00), /* GREEN */
+	rgb_t(0x26, 0x30, 0x16), /* BLACK */
+	rgb_t(0xbf, 0xc8, 0xad), /* BUFF */
 
 	rgb_t(0x00, 0x7c, 0x00), /* ALPHANUMERIC DARK GREEN */
-	rgb_t(0x07, 0xff, 0x00), /* ALPHANUMERIC BRIGHT GREEN */
-	rgb_t(0x91, 0x00, 0x00), /* ALPHANUMERIC DARK ORANGE */
-	rgb_t(0xff, 0x81, 0x00)  /* ALPHANUMERIC BRIGHT ORANGE */
+	rgb_t(0x30, 0xd2, 0x00), /* ALPHANUMERIC BRIGHT GREEN */
+	rgb_t(0x6b, 0x27, 0x00), /* ALPHANUMERIC DARK ORANGE */
+	rgb_t(0xff, 0xb7, 0x00)  /* ALPHANUMERIC BRIGHT ORANGE */
 };
 
 
@@ -129,16 +129,18 @@ const uint32_t mc6847_base_device::s_palette[mc6847_base_device::PALETTE_LENGTH]
 //  ctor
 //-------------------------------------------------
 
-mc6847_friend_device::mc6847_friend_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock,
-		const uint8_t *fontdata, bool is_mc6847t1, double tpfs, int field_sync_falling_edge_scanline, bool supports_partial_body_scanlines, const char *shortname, const char *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-		m_write_hsync(*this),
-		m_write_fsync(*this),
-		m_character_map(fontdata, is_mc6847t1)
+mc6847_friend_device::mc6847_friend_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock,
+		const uint8_t *fontdata, bool is_mc6847t1, double tpfs, int field_sync_falling_edge_scanline, int divider, bool supports_partial_body_scanlines)
+	: device_t(mconfig, type, tag, owner, clock)
+	, device_video_interface(mconfig, *this)
+	, m_write_hsync(*this)
+	, m_write_fsync(*this)
+	, m_charrom_cb(*this)
+	, m_character_map(fontdata, is_mc6847t1)
+	, m_tpfs(tpfs)
+	, m_divider(divider)
+	, m_supports_partial_body_scanlines(supports_partial_body_scanlines)
 {
-	m_tpfs = tpfs;
-	m_supports_partial_body_scanlines = supports_partial_body_scanlines;
-
 	// The MC6847 and the GIME apply field sync on different scanlines
 	m_field_sync_falling_edge_scanline = field_sync_falling_edge_scanline;
 }
@@ -154,9 +156,9 @@ inline emu_timer *mc6847_friend_device::setup_timer(device_timer_id id, double o
 {
 	emu_timer *timer = timer_alloc(id);
 	timer->adjust(
-		attotime::from_ticks(offset * 4, m_clock * 4),
-		0,
-		attotime::from_ticks(period * 4, m_clock * 4));
+			clocks_to_attotime(offset * m_divider),
+			0,
+			clocks_to_attotime(period * m_divider));
 	return timer;
 }
 
@@ -166,7 +168,7 @@ inline emu_timer *mc6847_friend_device::setup_timer(device_timer_id id, double o
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void mc6847_friend_device::device_start(void)
+void mc6847_friend_device::device_start()
 {
 	m_write_hsync.resolve_safe();
 	m_write_fsync.resolve_safe();
@@ -204,7 +206,7 @@ void mc6847_friend_device::device_start(void)
 //  device_start - device-specific reset
 //-------------------------------------------------
 
-void mc6847_friend_device::device_reset(void)
+void mc6847_friend_device::device_reset()
 {
 	device_t::device_reset();
 	m_video_changed = true;
@@ -216,7 +218,7 @@ void mc6847_friend_device::device_reset(void)
 //  device_post_load - device-specific post load
 //-------------------------------------------------
 
-void mc6847_friend_device::device_post_load(void)
+void mc6847_friend_device::device_post_load()
 {
 	device_t::device_post_load();
 	m_video_changed = true;
@@ -228,7 +230,7 @@ void mc6847_friend_device::device_post_load(void)
 //  update_field_sync_timer
 //-------------------------------------------------
 
-void mc6847_friend_device::update_field_sync_timer(void)
+void mc6847_friend_device::update_field_sync_timer()
 {
 	// are we expecting field sync?
 	bool expected_field_sync = (m_physical_scanline < m_field_sync_falling_edge_scanline)
@@ -238,7 +240,7 @@ void mc6847_friend_device::update_field_sync_timer(void)
 	if (expected_field_sync != m_field_sync)
 	{
 		// if so, determine the duration
-		attotime duration = attotime::from_ticks(160, m_clock);
+		attotime duration = clocks_to_attotime(160 * m_divider);
 
 		// and reset the timer
 		m_fsync_timer->adjust(duration, expected_field_sync ? 1 : 0);
@@ -268,7 +270,7 @@ void mc6847_friend_device::device_timer(emu_timer &timer, device_timer_id id, in
 //  new_frame
 //-------------------------------------------------
 
-inline void mc6847_friend_device::new_frame(void)
+inline void mc6847_friend_device::new_frame()
 {
 	m_physical_scanline = 0;
 	m_logical_scanline = 0;
@@ -281,9 +283,9 @@ inline void mc6847_friend_device::new_frame(void)
 //  scanline_zone_string
 //-------------------------------------------------
 
-const char *mc6847_friend_device::scanline_zone_string(scanline_zone zone)
+std::string mc6847_friend_device::scanline_zone_string(scanline_zone zone) const
 {
-	const char *result;
+	std::string result;
 	switch(zone)
 	{
 		case SCANLINE_ZONE_TOP_BORDER:      result = "SCANLINE_ZONE_TOP_BORDER";    break;
@@ -397,7 +399,7 @@ inline void mc6847_friend_device::change_field_sync(bool line)
 //  next_scanline
 //-------------------------------------------------
 
-inline void mc6847_friend_device::next_scanline(void)
+inline void mc6847_friend_device::next_scanline()
 {
 	/* advance to next scanline */
 	m_physical_scanline++;
@@ -464,7 +466,7 @@ void mc6847_friend_device::field_sync_changed(bool line)
 //  enter_bottom_border
 //-------------------------------------------------
 
-void mc6847_friend_device::enter_bottom_border(void)
+void mc6847_friend_device::enter_bottom_border()
 {
 }
 
@@ -486,8 +488,8 @@ void mc6847_friend_device::record_border_scanline(uint16_t physical_scanline)
 
 int32_t mc6847_friend_device::get_clocks_since_hsync()
 {
-	uint64_t hsync_on_clocks = attotime_to_clocks(m_hsync_on_timer->start());
-	uint64_t current_clocks = attotime_to_clocks(machine().time());
+	uint64_t hsync_on_clocks = attotime_to_clocks(m_hsync_on_timer->start()) / m_divider;
+	uint64_t current_clocks = attotime_to_clocks(machine().time()) / m_divider;
 	return (int32_t) (current_clocks - hsync_on_clocks);
 }
 
@@ -526,14 +528,12 @@ void mc6847_friend_device::video_flush()
 //  describe_context
 //-------------------------------------------------
 
-const char *mc6847_friend_device::describe_context(void)
+std::string mc6847_friend_device::describe_context() const
 {
-	static char buffer[128];
-	snprintf(buffer, ARRAY_LENGTH(buffer), "%s (scanline %s:%d)",
+	return string_format("%s (scanline %s:%d)",
 		machine().describe_context(),
 		scanline_zone_string((scanline_zone) m_logical_scanline_zone),
 		m_logical_scanline);
-	return buffer;
 }
 
 
@@ -546,8 +546,8 @@ const char *mc6847_friend_device::describe_context(void)
 //  ctor
 //-------------------------------------------------
 
-mc6847_base_device::mc6847_base_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const uint8_t *fontdata, double tpfs, const char *shortname, const char *source) :
-	mc6847_friend_device(mconfig, type, name, tag, owner, clock, fontdata, (type == MC6847T1_NTSC) || (type == MC6847T1_PAL), tpfs, 25+191, true, shortname, source),
+mc6847_base_device::mc6847_base_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, const uint8_t *fontdata, double tpfs) :
+	mc6847_friend_device(mconfig, type, tag, owner, clock, fontdata, (type == MC6847T1_NTSC) || (type == MC6847T1_PAL), tpfs, 25+191, 1, true),
 	m_input_cb(*this),
 	m_black_and_white(false),
 	m_fixed_mode(0),
@@ -559,6 +559,8 @@ mc6847_base_device::mc6847_base_device(const machine_config &mconfig, device_typ
 	{
 		m_bw_palette[i] = black_and_white(s_palette[i]);
 	}
+
+	m_artifacter.create_color_blend_table( s_palette );
 }
 
 
@@ -578,6 +580,31 @@ void mc6847_base_device::setup_fixed_mode()
 
 
 //-------------------------------------------------
+//  device_config_complete - perform any
+//  operations now that the configuration is
+//  complete
+//-------------------------------------------------
+
+void mc6847_base_device::device_config_complete()
+{
+	if (!has_screen())
+		return;
+
+	if (!screen().refresh_attoseconds())
+	{
+		// FIXME: use correct raw parameters rather than this nonsense
+		screen().set_refresh_hz(m_tpfs > 310.0 ? 50 : 60);
+		screen().set_size(320, 243);
+		screen().set_visarea(0, 320-1, 1, 241-1);
+		screen().set_vblank_time(0);
+	}
+
+	if (!screen().has_screen_update())
+		screen().set_screen_update(*this, FUNC(mc6847_base_device::screen_update));
+}
+
+
+//-------------------------------------------------
 //  device_start - device-specific startup
 //-------------------------------------------------
 
@@ -591,7 +618,7 @@ void mc6847_base_device::device_start()
 
 	/* resolve callbacks */
 	m_input_cb.resolve_safe(0);
-	m_charrom_cb.bind_relative_to(*owner());
+	m_charrom_cb.resolve();
 
 	/* set up fixed mode */
 	setup_fixed_mode();
@@ -828,7 +855,7 @@ uint32_t mc6847_base_device::screen_update(screen_device &screen, bitmap_rgb32 &
 	const pixel_t *palette = m_palette;
 
 	/* if the video didn't change, indicate as much */
-	if (!has_video_changed())
+	if (!m_artifacter.poll_config() && !has_video_changed())
 		return UPDATE_HAS_NOT_CHANGED;
 
 	/* top border */
@@ -879,7 +906,14 @@ uint32_t mc6847_base_device::screen_update(screen_device &screen, bitmap_rgb32 &
 				*bitmap_addr(bitmap, y + base_y, x) = border_value(m_data[y].m_mode[width - 1], palette, is_mc6847t1);
 
 		/* artifacting */
-		m_artifacter.process_artifacts<1>(bitmap_addr(bitmap, y + base_y, base_x), m_data[y].m_mode[0], palette);
+		if( m_artifacter.get_pal_artifacting() )
+		{
+			if( y % 2)
+				m_artifacter.process_artifacts_pal<1>(bitmap, y - 1, base_x, base_y, m_data[y].m_mode[0], palette);
+		}
+		else
+			m_artifacter.process_artifacts<1>(bitmap_addr(bitmap, y + base_y, base_x), m_data[y].m_mode[0], palette);
+
 	}
 
 	width = m_data[191].m_sample_count;
@@ -910,6 +944,8 @@ mc6847_friend_device::character_map::character_map(const uint8_t *text_fontdata,
 		m_text_fontdata_lower_case[i]           = text_fontdata[i + (i < 32*12 ? 64*12 : 0)] ^ (i < 32*12 ? 0xFF : 0x00);
 		m_text_fontdata_lower_case_inverse[i]   = m_text_fontdata_lower_case[i] ^ 0xFF;
 	}
+	for (int i = 0; i < 128*12; i++)
+		m_stripes[i] = ~(i / 12);
 
 	// loop through all modes
 	for (mode = 0; mode < ARRAY_LENGTH(m_entries); mode++)
@@ -923,7 +959,17 @@ mc6847_friend_device::character_map::character_map(const uint8_t *text_fontdata,
 		uint16_t color_base_0;
 		uint16_t color_base_1;
 
-		if ((mode & MODE_INTEXT) && !is_mc6847t1)
+		if ((mode & ((is_mc6847t1 ? 0 : MODE_INTEXT) | MODE_AS)) == MODE_AS)
+		{
+			// semigraphics 4
+			fontdata = semigraphics4_fontdata8x12;
+			character_mask      = 0x0F;
+			color_base_0        = 8;
+			color_base_1        = 0;
+			color_shift_1       = 4;
+			color_mask_1        = 0x07;
+		}
+		else if (((mode & (MODE_INTEXT | MODE_AS)) == (MODE_INTEXT | MODE_AS)) && !is_mc6847t1)
 		{
 			// semigraphics 6
 			fontdata            = semigraphics6_fontdata8x12;
@@ -933,15 +979,14 @@ mc6847_friend_device::character_map::character_map(const uint8_t *text_fontdata,
 			color_shift_1       = 6;
 			color_mask_1        = 0x03;
 		}
-		else if (mode & MODE_AS)
+		else if (((mode & (MODE_INTEXT | MODE_AS)) == MODE_INTEXT) && !is_mc6847t1)
 		{
-			// semigraphics 4
-			fontdata            = semigraphics4_fontdata8x12;
-			character_mask      = 0x0F;
-			color_base_0        = 8;
-			color_base_1        = 0;
-			color_shift_1       = 4;
-			color_mask_1        = 0x07;
+			// so-called "stripe" mode - this is when INTEXT is specified but we don't have
+			// an external ROM nor are we on an MC6847T1
+			fontdata            = m_stripes;
+			character_mask      = 0x7F;
+			color_base_0        = (mode & MODE_CSS ? 14 : 12);
+			color_base_1        = (mode & MODE_CSS ? 15 : 13);
 		}
 		else
 		{
@@ -1640,6 +1685,7 @@ ioport_constructor mc6847_base_device::device_input_ports() const
 
 mc6847_base_device::artifacter::artifacter()
 {
+	m_palartifacting = false;
 	m_config = nullptr;
 	m_artifacting = 0;
 	m_saved_artifacting = 0;
@@ -1656,9 +1702,22 @@ mc6847_base_device::artifacter::artifacter()
 
 void mc6847_base_device::artifacter::setup_config(device_t *device)
 {
-	char port_name[32];
-	snprintf(port_name, ARRAY_LENGTH(port_name), "%s:%s", device->tag(), ARTIFACTING_TAG);
+	std::string port_name = util::string_format("%s:%s", device->tag(), ARTIFACTING_TAG);
 	m_config = device->ioport(port_name);
+}
+
+
+
+//-------------------------------------------------
+//  artifacter::poll_config
+//-------------------------------------------------
+
+bool mc6847_base_device::artifacter::poll_config()
+{
+	ioport_value new_artifacting = m_config ? m_config->read() : 0;
+	bool changed = new_artifacting != m_artifacting;
+	m_artifacting = new_artifacting;
+	return changed;
 }
 
 
@@ -1756,18 +1815,43 @@ mc6847_base_device::pixel_t mc6847_base_device::artifacter::mix_color(double fac
 
 
 
+//-------------------------------------------------
+//  artifacter::create_color_blend_table
+//-------------------------------------------------
+
+void mc6847_base_device::artifacter::create_color_blend_table( const pixel_t *palette )
+{
+	// PAL color blend map
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[3],palette[2]),rgb_t(0x7c, 0x2e, 0x81))); /* RED-BLUE */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[2],palette[3]),rgb_t(0x6b, 0x3e, 0x6b))); /* BLUE-RED */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[7],palette[6]),rgb_t(0xbe, 0x73, 0x65))); /* ORANGE-MAGENTA */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[6],palette[7]),rgb_t(0xde, 0x5f, 0x6a))); /* MAGENTA-ORANGE */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[7],palette[5]),rgb_t(0x7e, 0xa2, 0x00))); /* ORANGE-CYAN */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[5],palette[7]),rgb_t(0x99, 0x8d, 0x3c))); /* CYAN-ORANGE */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[5],palette[6]),rgb_t(0x82, 0x80, 0xc5))); /* CYAN-MAGENTA */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[6],palette[5]),rgb_t(0x89, 0x80, 0x9f))); /* MAGENTA-CYAN */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[0],palette[5]),rgb_t(0x44, 0xb7, 0x1b))); /* GREEN-CYAN */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[5],palette[0]),rgb_t(0x4a, 0xf2, 0x70))); /* CYAN-GREEN */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[1],palette[4]),rgb_t(0xdc, 0xd2, 0x57))); /* YELLOW-BUFF */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[4],palette[1]),rgb_t(0xd1, 0xf6, 0x95))); /* BUFF-YELLOW */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[0],palette[6]),rgb_t(0xa6, 0x86, 0x10))); /* GREEN-MAGENTA */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[6],palette[0]),rgb_t(0x6b, 0xbe, 0xb3))); /* MAGENTA-GREEN */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[0],palette[7]),rgb_t(0x91, 0xc5, 0x3b))); /* GREEN-ORANGE */
+	m_palcolorblendmap.insert(std::pair<std::pair<pixel_t,pixel_t>,pixel_t>(std::pair<pixel_t,pixel_t>(palette[7],palette[0]),rgb_t(0xad, 0xbc, 0x22))); /* ORANGE-GREEN */
+}
+
 //**************************************************************************
 //  VARIATIONS
 //**************************************************************************
 
-const device_type MC6847_NTSC = device_creator<mc6847_ntsc_device>;
-const device_type MC6847_PAL = device_creator<mc6847_pal_device>;
-const device_type MC6847Y_NTSC = device_creator<mc6847y_ntsc_device>;
-const device_type MC6847Y_PAL = device_creator<mc6847y_pal_device>;
-const device_type MC6847T1_NTSC = device_creator<mc6847t1_ntsc_device>;
-const device_type MC6847T1_PAL = device_creator<mc6847t1_pal_device>;
-const device_type S68047 = device_creator<s68047_device>;
-const device_type M5C6847P1 = device_creator<m5c6847p1_device>;
+DEFINE_DEVICE_TYPE(MC6847_NTSC,   mc6847_ntsc_device,   "mc6847_ntsc",   "Motorola MC6847 VDG (NTSC)")
+DEFINE_DEVICE_TYPE(MC6847_PAL,    mc6847_pal_device,    "mc6847_pal",    "Motorola MC6847 VDG (PAL)")
+DEFINE_DEVICE_TYPE(MC6847Y_NTSC,  mc6847y_ntsc_device,  "mc6847y_ntsc",  "Motorola MC6847Y VDG (NTSC)")
+DEFINE_DEVICE_TYPE(MC6847Y_PAL,   mc6847y_pal_device,   "mc6847y_pal",   "Motorola MC6847Y VDG (PAL)")
+DEFINE_DEVICE_TYPE(MC6847T1_NTSC, mc6847t1_ntsc_device, "mc6847t1_ntsc", "Motorola MC6847T1 VDG (NTSC)")
+DEFINE_DEVICE_TYPE(MC6847T1_PAL,  mc6847t1_pal_device,  "mc6847t1_pal",  "Motorola MC6847T1 VDG (PAL)")
+DEFINE_DEVICE_TYPE(S68047,        s68047_device,        "s68047",        "AMI S68047")
+DEFINE_DEVICE_TYPE(M5C6847P1,     m5c6847p1_device,     "m5c6847p1",     "Mitsubishi M5C6847P-1 VDG")
 
 
 
@@ -1776,7 +1860,7 @@ const device_type M5C6847P1 = device_creator<m5c6847p1_device>;
 //-------------------------------------------------
 
 mc6847_ntsc_device::mc6847_ntsc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mc6847_base_device(mconfig, MC6847_NTSC, "MC6847_NTSC", tag, owner, clock, ntsc_square_fontdata8x12, 262.0, "mc6847_ntsc", __FILE__)
+	: mc6847_base_device(mconfig, MC6847_NTSC, tag, owner, clock, ntsc_square_fontdata8x12, 262.0)
 {
 }
 
@@ -1787,8 +1871,9 @@ mc6847_ntsc_device::mc6847_ntsc_device(const machine_config &mconfig, const char
 //-------------------------------------------------
 
 mc6847_pal_device::mc6847_pal_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mc6847_base_device(mconfig, MC6847_PAL, "MC6847_PAL", tag, owner, clock, pal_square_fontdata8x12, 313.0, "mc6847_pal", __FILE__)
+	: mc6847_base_device(mconfig, MC6847_PAL, tag, owner, clock, pal_square_fontdata8x12, 313.0)
 {
+	m_artifacter.set_pal_artifacting(true);
 }
 
 
@@ -1798,7 +1883,7 @@ mc6847_pal_device::mc6847_pal_device(const machine_config &mconfig, const char *
 //-------------------------------------------------
 
 mc6847y_ntsc_device::mc6847y_ntsc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mc6847_base_device(mconfig, MC6847Y_NTSC, "MC6847Y_NTSC", tag, owner, clock, ntsc_square_fontdata8x12, 262.5, "mc6847y", __FILE__)
+	: mc6847_base_device(mconfig, MC6847Y_NTSC, tag, owner, clock, ntsc_square_fontdata8x12, 262.5)
 {
 }
 
@@ -1809,8 +1894,9 @@ mc6847y_ntsc_device::mc6847y_ntsc_device(const machine_config &mconfig, const ch
 //-------------------------------------------------
 
 mc6847y_pal_device::mc6847y_pal_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mc6847_base_device(mconfig, MC6847Y_PAL, "MC6847Y_PAL", tag, owner, clock, pal_square_fontdata8x12, 313.0, "mc6847y_pal", __FILE__)
+	: mc6847_base_device(mconfig, MC6847Y_PAL, tag, owner, clock, pal_square_fontdata8x12, 313.0)
 {
+	m_artifacter.set_pal_artifacting(true);
 }
 
 
@@ -1820,7 +1906,7 @@ mc6847y_pal_device::mc6847y_pal_device(const machine_config &mconfig, const char
 //-------------------------------------------------
 
 mc6847t1_ntsc_device::mc6847t1_ntsc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mc6847_base_device(mconfig, MC6847T1_NTSC, "MC6847T1_NTSC", tag, owner, clock, ntsc_round_fontdata8x12, 262.0, "mc6847t1_ntsc", __FILE__)
+	: mc6847_base_device(mconfig, MC6847T1_NTSC, tag, owner, clock, ntsc_round_fontdata8x12, 262.0)
 {
 }
 
@@ -1831,8 +1917,9 @@ mc6847t1_ntsc_device::mc6847t1_ntsc_device(const machine_config &mconfig, const 
 //-------------------------------------------------
 
 mc6847t1_pal_device::mc6847t1_pal_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mc6847_base_device(mconfig, MC6847T1_PAL, "MC6847T1_PAL", tag, owner, clock, pal_round_fontdata8x12, 313.0, "mc6847t1_pal", __FILE__)
+	: mc6847_base_device(mconfig, MC6847T1_PAL, tag, owner, clock, pal_round_fontdata8x12, 313.0)
 {
+	m_artifacter.set_pal_artifacting(true);
 }
 
 
@@ -1842,7 +1929,7 @@ mc6847t1_pal_device::mc6847t1_pal_device(const machine_config &mconfig, const ch
 //-------------------------------------------------
 
 s68047_device::s68047_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mc6847_base_device(mconfig, S68047, "S68047", tag, owner, clock, s68047_fontdata8x12, 262.0, "s68047", __FILE__)
+	: mc6847_base_device(mconfig, S68047, tag, owner, clock, s68047_fontdata8x12, 262.0)
 {
 }
 
@@ -1891,6 +1978,6 @@ const uint32_t s68047_device::s_s68047_hack_palette[16] =
 //-------------------------------------------------
 
 m5c6847p1_device::m5c6847p1_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mc6847_base_device(mconfig, M5C6847P1, "M5C6847P-1", tag, owner, clock, ntsc_square_fontdata8x12, 262.5, "m5c6847p1", __FILE__)
+	: mc6847_base_device(mconfig, M5C6847P1, tag, owner, clock, ntsc_square_fontdata8x12, 262.5)
 {
 }

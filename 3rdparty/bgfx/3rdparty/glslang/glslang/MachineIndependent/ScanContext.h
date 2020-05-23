@@ -38,6 +38,8 @@
 // sits between the preprocessor scanner and parser.
 //
 
+#pragma once
+
 #include "ParseHelper.h"
 
 namespace glslang {
@@ -48,7 +50,10 @@ class TParserToken;
 
 class TScanContext {
 public:
-    explicit TScanContext(TParseContextBase& pc) : parseContext(pc), afterType(false), field(false) { }
+    explicit TScanContext(TParseContextBase& pc) :
+        parseContext(pc),
+        afterType(false), afterStruct(false),
+        field(false), afterBuffer(false) { }
     virtual ~TScanContext() { }
 
     static void fillInKeywordMap();
@@ -74,7 +79,9 @@ protected:
 
     TParseContextBase& parseContext;
     bool afterType;           // true if we've recognized a type, so can only be looking for an identifier
+    bool afterStruct;         // true if we've recognized the STRUCT keyword, so can only be looking for an identifier
     bool field;               // true if we're on a field, right after a '.'
+    bool afterBuffer;         // true if we've recognized the BUFFER keyword
     TSourceLoc loc;
     TParserToken* parserToken;
     TPpToken* ppToken;

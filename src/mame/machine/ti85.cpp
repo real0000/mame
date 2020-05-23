@@ -2,14 +2,14 @@
 // copyright-holders:Krzysztof Strzecha,Jon Sturm
 /***************************************************************************
   TI-85 driver by Krzysztof Strzecha
-  TI-83 Plus, TI-84 Plus, and Siliver Edition support by Jon Sturm
+  TI-83 Plus, TI-84 Plus, and Silver Edition support by Jon Sturm
 
   Functions to emulate general aspects of the machine (RAM, ROM, interrupts,
   I/O ports)
 
 ***************************************************************************/
 
-#include <stdarg.h>
+#include <cstdarg>
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "includes/ti85.h"
@@ -155,24 +155,24 @@ void ti85_state::update_ti83p_memory ()
 {
 	//address_space &space = m_maincpu->space(AS_PROGRAM);
 
-	m_membank1->set_bank(m_booting ? 0x1f : 0); //Always flash page 0, well almost
+	m_membank[0]->set_bank(m_booting ? 0x1f : 0); //Always flash page 0, well almost
 
 	if (m_ti83p_port4 & 1)
 	{
-		m_membank2->set_bank(m_ti8x_memory_page_1 & 0xfe);
+		m_membank[1]->set_bank(m_ti8x_memory_page_1 & 0xfe);
 
-		m_membank3->set_bank(m_ti8x_memory_page_1);
+		m_membank[2]->set_bank(m_ti8x_memory_page_1);
 
-		m_membank4->set_bank(m_ti8x_memory_page_2);
+		m_membank[3]->set_bank(m_ti8x_memory_page_2);
 
 	}
 	else
 	{
-		m_membank2->set_bank(m_ti8x_memory_page_1);
+		m_membank[1]->set_bank(m_ti8x_memory_page_1);
 
-		m_membank3->set_bank(m_ti8x_memory_page_2);
+		m_membank[2]->set_bank(m_ti8x_memory_page_2);
 
-		m_membank4->set_bank(0x40); //Always first ram page
+		m_membank[3]->set_bank(0x40); //Always first ram page
 
 	}
 }
@@ -181,25 +181,25 @@ void ti85_state::update_ti83pse_memory ()
 {
 	//address_space &space = m_maincpu->space(AS_PROGRAM);
 
-	m_membank1->set_bank(m_booting ? (m_model==TI84P ? 0x3f : 0x7f) : 0);
+	m_membank[0]->set_bank(m_booting ? (m_model==TI84P ? 0x3f : 0x7f) : 0);
 
 	if (m_ti83p_port4 & 1)
 	{
-		m_membank2->set_bank(m_ti8x_memory_page_1 & 0xfe);
+		m_membank[1]->set_bank(m_ti8x_memory_page_1 & 0xfe);
 
-		m_membank3->set_bank(m_ti8x_memory_page_1 | 1);
+		m_membank[2]->set_bank(m_ti8x_memory_page_1 | 1);
 
-		m_membank4->set_bank(m_ti8x_memory_page_2);
+		m_membank[3]->set_bank(m_ti8x_memory_page_2);
 
 
 	}
 	else
 	{
-		m_membank2->set_bank(m_ti8x_memory_page_1);
+		m_membank[1]->set_bank(m_ti8x_memory_page_1);
 
-		m_membank3->set_bank(m_ti8x_memory_page_2);
+		m_membank[2]->set_bank(m_ti8x_memory_page_2);
 
-		m_membank4->set_bank(m_ti8x_memory_page_3 + 0x80);
+		m_membank[3]->set_bank(m_ti8x_memory_page_3 + 0x80);
 
 	}
 }
@@ -255,7 +255,8 @@ void ti85_state::machine_start()
 	m_port4_bit0 = 0;
 	m_ti81_port_7_data = 0;
 
-	machine().scheduler().timer_pulse(attotime::from_hz(256), timer_expired_delegate(FUNC(ti85_state::ti85_timer_callback),this));
+	m_ti85_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(ti85_state::ti85_timer_callback), this));
+	m_ti85_timer->adjust(attotime::from_hz(256), 0, attotime::from_hz(256));
 
 	space.unmap_write(0x0000, 0x3fff);
 	space.unmap_write(0x4000, 0x7fff);
@@ -268,19 +269,48 @@ MACHINE_RESET_MEMBER(ti85_state,ti85)
 	m_PCR = 0xc0;
 }
 
-DIRECT_UPDATE_MEMBER(ti85_state::ti83p_direct_update_handler)
+uint8_t ti85_state::ti83p_membank2_r(offs_t offset)
 {
-	if (m_booting)
+	/// http://wikiti.brandonw.net/index.php?title=83Plus:State_of_the_calculator_at_boot
+	/// should only trigger when fetching opcodes
+	if (m_booting && !machine().side_effects_disabled())
 	{
-		if (((m_ti83p_port4 & 1) && (address >= 0x4000 && address < 0xc000)) || (address >= 0x4000 && address < 0x8000))
+		m_booting = false;
+
+		if (m_model == TI83P)
 		{
-			m_booting = false;
 			update_ti83p_memory();
 		}
+		else
+		{
+			update_ti83pse_memory();
+		}
 	}
-	return address;
+
+	return m_membank[1]->read8(offset);
 }
 
+uint8_t ti85_state::ti83p_membank3_r(offs_t offset)
+{
+	/// http://wikiti.brandonw.net/index.php?title=83Plus:State_of_the_calculator_at_boot
+	/// should only trigger when fetching opcodes
+	/// should be using port 6 instead of 4
+	if (m_booting && (m_ti83p_port4 & 1) && !machine().side_effects_disabled())
+	{
+		m_booting = false;
+
+		if (m_model == TI83P)
+		{
+			update_ti83p_memory();
+		}
+		else
+		{
+			update_ti83pse_memory();
+		}
+	}
+
+	return m_membank[2]->read8(offset);
+}
 
 MACHINE_RESET_MEMBER(ti85_state,ti83p)
 {
@@ -307,7 +337,6 @@ MACHINE_START_MEMBER(ti85_state,ti83p)
 	m_model = TI83P;
 	//address_space &space = m_maincpu->space(AS_PROGRAM);
 	//m_bios = memregion("flash")->base();
-	m_maincpu->space(AS_PROGRAM).set_direct_update_handler(direct_update_delegate(&ti85_state::ti83p_direct_update_handler, this));
 
 	m_timer_interrupt_mask = 0;
 	m_timer_interrupt_status = 0;
@@ -331,10 +360,10 @@ MACHINE_START_MEMBER(ti85_state,ti83p)
 
 	ti85_state::update_ti83p_memory();
 
-
-	machine().scheduler().timer_pulse(attotime::from_hz(256), timer_expired_delegate(FUNC(ti85_state::ti83_timer1_callback),this));
-	machine().scheduler().timer_pulse(attotime::from_hz(512), timer_expired_delegate(FUNC(ti85_state::ti83_timer2_callback),this));
-
+	m_ti83_1st_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(ti85_state::ti83_timer1_callback), this));
+	m_ti83_1st_timer->adjust(attotime::from_hz(256), 0, attotime::from_hz(256));
+	m_ti83_2nd_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(ti85_state::ti83_timer2_callback), this));
+	m_ti83_2nd_timer->adjust(attotime::from_hz(512), 0, attotime::from_hz(512));
 
 	/* save states and debugging */
 	save_item(NAME(m_timer_interrupt_status));
@@ -349,7 +378,6 @@ MACHINE_START_MEMBER(ti85_state,ti83p)
 void ti85_state::ti8xpse_init_common()
 {
 	//address_space &space = m_maincpu->space(AS_PROGRAM);
-	//address_space &asic =  ADDRESS_MAP_NAME(ti83p_asic_mem);
 
 	m_timer_interrupt_mask = 0;
 	m_timer_interrupt_status = 0;
@@ -371,11 +399,11 @@ void ti85_state::ti8xpse_init_common()
 	m_flash_unlocked = 0;
 
 	ti85_state::update_ti83pse_memory();
-	m_maincpu->space(AS_PROGRAM).set_direct_update_handler(direct_update_delegate(&ti85_state::ti83p_direct_update_handler, this));
 
-
-	machine().scheduler().timer_pulse(attotime::from_hz(256), timer_expired_delegate(FUNC(ti85_state::ti83_timer1_callback),this));
-	machine().scheduler().timer_pulse(attotime::from_hz(512), timer_expired_delegate(FUNC(ti85_state::ti83_timer2_callback),this));
+	m_ti83_1st_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(ti85_state::ti83_timer1_callback), this));
+	m_ti83_1st_timer->adjust(attotime::from_hz(256), 0, attotime::from_hz(256));
+	m_ti83_2nd_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(ti85_state::ti83_timer2_callback), this));
+	m_ti83_2nd_timer->adjust(attotime::from_hz(512), 0, attotime::from_hz(512));
 
 	m_crystal_timer1 = timer_alloc(CRYSTAL_TIMER1);
 	m_crystal_timer2 = timer_alloc(CRYSTAL_TIMER2);
@@ -442,9 +470,10 @@ MACHINE_START_MEMBER(ti85_state,ti86)
 	membank("bank2")->set_base(m_bios + 0x04000);
 
 	membank("bank4")->set_base(m_ti8x_ram.get());
-	machine().device<nvram_device>("nvram")->set_base(m_ti8x_ram.get(), sizeof(uint8_t)*128*1024);
+	subdevice<nvram_device>("nvram")->set_base(m_ti8x_ram.get(), sizeof(uint8_t)*128*1024);
 
-	machine().scheduler().timer_pulse(attotime::from_hz(256), timer_expired_delegate(FUNC(ti85_state::ti85_timer_callback),this));
+	m_ti85_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(ti85_state::ti85_timer_callback), this));
+	m_ti85_timer->adjust(attotime::from_hz(256), 0, attotime::from_hz(256));
 }
 
 
@@ -1187,7 +1216,7 @@ void ti85_state::ti86_setup_snapshot (uint8_t * data)
 	m_interrupt_speed = 0x03;
 }
 
-SNAPSHOT_LOAD_MEMBER( ti85_state, ti8x )
+SNAPSHOT_LOAD_MEMBER(ti85_state::snapshot_cb)
 {
 	int expected_snapshot_size = 0;
 	std::vector<uint8_t> ti8x_snapshot_data;

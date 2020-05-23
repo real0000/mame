@@ -7,6 +7,40 @@
     391508-01 = Rev 0 is MC68HC05C4AFN
     391508-02 = Rev 1 is MC68HC05C12FN
 
+    The ROMs from the mask-programmed MPUs used by Commodore are not
+    dumped.  The program here is for the UVEPROM MC68HC705C8A.  It will
+    not work on the mask-programmed MPUs used by Commodore, due to
+    differences in the onboard watchdog hardware.
+
+    If /IRQ is tied low, this program supports a Num Lock mode mapping
+    the numeric keypad over the main keyboard for compact keyboards that
+    lack a physical numeric keypad.  To enable it, hold Ctrl and press
+    Caps Lock; to disable it, press Caps Lock.  The Caps Lock LED will
+    be lit and blink off every 22 seconds or so while Num Lock mode is
+    active.  The following keys are remapped while Num Lock is active:
+    * 04  4       ->  5A  Keypad (
+    * 05  5       ->  5B  Keypad )
+    * 06  6       ->  5C  Keypad /
+    * 07  7       ->  3D  Keypad 7
+    * 08  8       ->  3E  Keypad 8
+    * 09  9       ->  3F  Keypad 9
+    * 0A  0       ->  5D  Keypad *
+    * 16  U       ->  2D  Keypad 4
+    * 17  I       ->  2E  Keypad 5
+    * 18  O       ->  2F  Keypad 6
+    * 19  P       ->  4A  Keypad -
+    * 26  J       ->  1D  Keypad 1
+    * 27  K       ->  1E  Keypad 2
+    * 28  L       ->  1F  Keypad 3
+    * 29  ;       ->  5E  Keypad +
+    * 37  M       ->  0F  Keypad 0
+    * 39  .       ->  3C  Keypad .
+    * 44  Return  ->  43  Keypad Enter
+
+    Switching between full size and compact modes is currently
+    implemented as a configuration option, but it should be split off
+    as a separate device without the numeric keypad.
+
 ***************************************************************************/
 
 #include "emu.h"
@@ -23,7 +57,7 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-device_type const A1200_KBD = device_creator<bus::amiga::keyboard::a1200_kbd_device>;
+DEFINE_DEVICE_TYPE_NS(A1200_KBD, bus::amiga::keyboard, a1200_kbd_device, "a1200kbd_rb", "Amiga 1200 Keyboard Rev B")
 
 
 
@@ -46,23 +80,18 @@ INPUT_PORTS_END
 INPUT_PORTS_START(a1200_us_keyboard)
 	PORT_INCLUDE(matrix_us)
 	PORT_INCLUDE(a1200_mod)
+
+	// FIXME: split compact mode into a separate device without the numeric keypad
+	PORT_START("IRQ")
+	PORT_CONFNAME(0x01, 0x01, "Layout") PORT_CHANGED_MEMBER(DEVICE_SELF, a1200_kbd_device, layout_changed, 0)
+	PORT_CONFSETTING(0x01, "Full Size")
+	PORT_CONFSETTING(0x00, "Compact")
 INPUT_PORTS_END
-
-
-MACHINE_CONFIG_FRAGMENT(a1200kbd_revB)
-	MCFG_CPU_ADD("mpu", M68HC705C8A, XTAL_3MHz)
-	MCFG_M68HC05_PORTB_R_CB(READ8(a1200_kbd_device, mpu_portb_r));
-	MCFG_M68HC05_PORTD_R_CB(IOPORT("MOD"));
-	MCFG_M68HC05_PORTA_W_CB(WRITE8(a1200_kbd_device, mpu_porta_w));
-	MCFG_M68HC05_PORTB_W_CB(WRITE8(a1200_kbd_device, mpu_portb_w));
-	MCFG_M68HC05_PORTC_W_CB(WRITE8(a1200_kbd_device, mpu_portc_w));
-	MCFG_M68HC05_TCMP_CB(WRITELINE(a1200_kbd_device, mpu_tcmp));
-MACHINE_CONFIG_END
 
 
 ROM_START(a1200kbd_revB)
 	ROM_REGION(0x2000, "mpu", 0)
-	ROM_LOAD("DFA_Rev_B_A1200_HC705.bin", 0x0000, 0x2000, CRC(2a77eec4) SHA1(301ec6a69404457d912c89e3fc54095eda9f0e93))
+	ROM_LOAD("dfa_rev_b_a1200_hc705.bin", 0x0000, 0x2000, CRC(2a77eec4) SHA1(301ec6a69404457d912c89e3fc54095eda9f0e93))
 ROM_END
 
 } // anonymous namespace
@@ -74,10 +103,11 @@ ROM_END
 //**************************************************************************
 
 a1200_kbd_device::a1200_kbd_device(machine_config const &mconfig, char const *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, A1200_KBD, "Amiga 1200 Keyboard Rev B", tag, owner, clock, "a1200kbd_rb", __FILE__)
+	: device_t(mconfig, A1200_KBD, tag, owner, clock)
 	, device_amiga_keyboard_interface(mconfig, *this)
 	, m_rows(*this, "ROW%u", 0)
 	, m_mpu(*this, "mpu")
+	, m_led_kbd_caps(*this, "led_kbd_caps")
 	, m_row_drive(0xffff)
 	, m_host_kdat(true)
 	, m_mpu_kdat(true)
@@ -95,7 +125,12 @@ WRITE_LINE_MEMBER(a1200_kbd_device::kdat_w)
 	}
 }
 
-READ8_MEMBER(a1200_kbd_device::mpu_portb_r)
+INPUT_CHANGED_MEMBER(a1200_kbd_device::layout_changed)
+{
+	m_mpu->set_input_line(M68HC05_IRQ_LINE, newval ? CLEAR_LINE : ASSERT_LINE);
+}
+
+u8 a1200_kbd_device::mpu_portb_r()
 {
 	u8 result(m_host_kdat ? 0xff : 0xfe);
 	for (unsigned row = 0; m_rows.size() > row; ++row)
@@ -106,12 +141,12 @@ READ8_MEMBER(a1200_kbd_device::mpu_portb_r)
 	return result;
 }
 
-WRITE8_MEMBER(a1200_kbd_device::mpu_porta_w)
+void a1200_kbd_device::mpu_porta_w(offs_t offset, u8 data, u8 mem_mask)
 {
 	m_row_drive = (m_row_drive & 0xff00) | u16(u8(data | ~mem_mask));
 }
 
-WRITE8_MEMBER(a1200_kbd_device::mpu_portb_w)
+void a1200_kbd_device::mpu_portb_w(offs_t offset, u8 data, u8 mem_mask)
 {
 	u8 const kdat(BIT(data, 0) | BIT(~mem_mask, 0));
 	m_host->kdat_w(kdat ? 1 : 0);
@@ -126,10 +161,10 @@ WRITE8_MEMBER(a1200_kbd_device::mpu_portb_w)
 	}
 }
 
-WRITE8_MEMBER(a1200_kbd_device::mpu_portc_w)
+void a1200_kbd_device::mpu_portc_w(offs_t offset, u8 data, u8 mem_mask)
 {
 	m_row_drive = (m_row_drive & 0x80ff) | (u16(u8(data | ~mem_mask) & 0x7f) << 8);
-	machine().output().set_value("led_kbd_caps", BIT(~data, 7));
+	m_led_kbd_caps = BIT(~data, 7);
 }
 
 WRITE_LINE_MEMBER(a1200_kbd_device::mpu_tcmp)
@@ -137,12 +172,18 @@ WRITE_LINE_MEMBER(a1200_kbd_device::mpu_tcmp)
 	m_host->krst_w(state);
 }
 
-machine_config_constructor a1200_kbd_device::device_mconfig_additions() const
+void a1200_kbd_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME(a1200kbd_revB);
+	m68hc705c8a_device &mpu(M68HC705C8A(config, m_mpu, XTAL(3'000'000)));
+	mpu.portb_r().set(FUNC(a1200_kbd_device::mpu_portb_r));
+	mpu.portd_r().set_ioport("MOD");
+	mpu.porta_w().set(FUNC(a1200_kbd_device::mpu_porta_w));
+	mpu.portb_w().set(FUNC(a1200_kbd_device::mpu_portb_w));
+	mpu.portc_w().set(FUNC(a1200_kbd_device::mpu_portc_w));
+	mpu.tcmp().set(FUNC(a1200_kbd_device::mpu_tcmp));
 }
 
-const tiny_rom_entry *a1200_kbd_device::device_rom_region() const
+tiny_rom_entry const *a1200_kbd_device::device_rom_region() const
 {
 	return ROM_NAME(a1200kbd_revB);
 }
@@ -154,6 +195,8 @@ ioport_constructor a1200_kbd_device::device_input_ports() const
 
 void a1200_kbd_device::device_start()
 {
+	m_led_kbd_caps.resolve();
+
 	save_item(NAME(m_row_drive));
 	save_item(NAME(m_host_kdat));
 	save_item(NAME(m_mpu_kdat));
@@ -163,8 +206,9 @@ void a1200_kbd_device::device_start()
 	m_mpu_kdat = true;
 }
 
-void a1200_kbd_device::device_reset()
+void a1200_kbd_device::device_reset_after_children()
 {
+	m_mpu->set_input_line(M68HC05_IRQ_LINE, BIT(ioport("IRQ")->read(), 0) ? CLEAR_LINE : ASSERT_LINE);
 }
 
 } } } // namespace bus::amiga::keyboard

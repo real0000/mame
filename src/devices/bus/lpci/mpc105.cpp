@@ -10,7 +10,6 @@
 
 #include "emu.h"
 #include "mpc105.h"
-#include "machine/ram.h"
 
 #define LOG_MPC105      0
 
@@ -18,7 +17,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type MPC105 = device_creator<mpc105_device>;
+DEFINE_DEVICE_TYPE(MPC105, mpc105_device, "mpc105", "Motorola MPC105")
 
 
 //**************************************************************************
@@ -30,13 +29,13 @@ const device_type MPC105 = device_creator<mpc105_device>;
 //-------------------------------------------------
 
 mpc105_device::mpc105_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, MPC105, "MPC105", tag, owner, clock, "mpc105", __FILE__),
+	: device_t(mconfig, MPC105, tag, owner, clock),
 	pci_device_interface( mconfig, *this ),
-	m_cpu_tag(nullptr),
 	m_bank_base_default(0),
 	m_bank_base(0),
 	m_bank_enable(0),
-	m_maincpu(nullptr)
+	m_maincpu(*this, finder_base::DUMMY_TAG),
+	m_ram(*this, ":" RAM_TAG)
 {
 }
 
@@ -46,7 +45,6 @@ mpc105_device::mpc105_device(const machine_config &mconfig, const char *tag, dev
 
 void mpc105_device::device_start()
 {
-	m_maincpu = machine().device<cpu_device>(m_cpu_tag);
 }
 
 //-------------------------------------------------
@@ -69,6 +67,7 @@ void mpc105_device::update_memory()
 	int bank;
 	offs_t begin, end;
 	char bank_str[10];
+	u32 ram_size = m_ram->size();
 
 	if (LOG_MPC105)
 		logerror("mpc105_update_memory(machine): Updating memory (bank enable=0x%02X)\n", m_bank_enable);
@@ -93,17 +92,17 @@ void mpc105_device::update_memory()
 				|   (((m_bank_registers[(bank / 4) + 6] >> (bank % 4) * 8)) & 0x03) << 28
 				| 0x000FFFFF;
 
-			end = std::min(end, begin + machine().device<ram_device>(RAM_TAG)->size() - 1);
+			end = std::min(end, begin + ram_size - 1);
 
 			if ((begin + 0x100000) <= end)
 			{
 				if (LOG_MPC105)
-					logerror("\tbank #%d [%02d]: 0x%08X - 0x%08X [%p-%p]\n", bank, bank + m_bank_base, begin, end, machine().device<ram_device>(RAM_TAG)->pointer(), machine().device<ram_device>(RAM_TAG)->pointer() + (end - begin));
+					logerror("\tbank #%d [%02d]: 0x%08X - 0x%08X [%p-%p]\n", bank, bank + m_bank_base, begin, end, m_ram->pointer(), m_ram->pointer() + (end - begin));
 
 				if (m_bank_base > 0)
 				{
-					sprintf(bank_str,"bank%d",bank + m_bank_base);
-					membank(bank_str)->set_base(machine().device<ram_device>(RAM_TAG)->pointer());
+					sprintf(bank_str,"bank%d",uint8_t(bank + m_bank_base));
+					membank(bank_str)->set_base(m_ram->pointer());
 				}
 			}
 		}

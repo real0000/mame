@@ -63,7 +63,7 @@ Notes:
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type ABC_MEMORY_CARD = device_creator<abc_memory_card_t>;
+DEFINE_DEVICE_TYPE(ABC_MEMORY_CARD, abc_memory_card_device, "abc_memcard", "ABC Memory Card")
 
 
 //-------------------------------------------------
@@ -74,11 +74,11 @@ ROM_START( abc_dos )
 	ROM_REGION( 0x1000, "dos", 0 )
 	ROM_DEFAULT_BIOS("ufd20")
 	ROM_SYSTEM_BIOS( 0, "abcdos", "ABC-DOS" ) // Scandia Metric FD2
-	ROMX_LOAD( "abcdos.3d",   0x0000, 0x1000, CRC(2cb2192f) SHA1(a6b3a9587714f8db807c05bee6c71c0684363744), ROM_BIOS(1) )
+	ROMX_LOAD( "abcdos.3d",   0x0000, 0x1000, CRC(2cb2192f) SHA1(a6b3a9587714f8db807c05bee6c71c0684363744), ROM_BIOS(0) )
 	ROM_SYSTEM_BIOS( 1, "dosdd80", "ABC-DOS DD" ) // ABC 830
-	ROMX_LOAD( "dosdd80.3d",  0x0000, 0x1000, CRC(36db4c15) SHA1(ae462633f3a9c142bb029beb14749a84681377fa), ROM_BIOS(2) )
+	ROMX_LOAD( "dosdd80.3d",  0x0000, 0x1000, CRC(36db4c15) SHA1(ae462633f3a9c142bb029beb14749a84681377fa), ROM_BIOS(1) )
 	ROM_SYSTEM_BIOS( 2, "ufd20", "UFD-DOS v.20" ) // ABC 830
-	ROMX_LOAD( "ufddos20.3d", 0x0000, 0x1000, CRC(69b09c0b) SHA1(403997a06cf6495b8fa13dc74eff6a64ef7aa53e), ROM_BIOS(3) )
+	ROMX_LOAD( "ufddos20.3d", 0x0000, 0x1000, CRC(69b09c0b) SHA1(403997a06cf6495b8fa13dc74eff6a64ef7aa53e), ROM_BIOS(2) )
 
 	ROM_REGION( 0x400, "iec", 0 )
 	ROM_LOAD( "iec.4b", 0x000, 0x400, NO_DUMP )
@@ -95,7 +95,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *abc_memory_card_t::device_rom_region() const
+const tiny_rom_entry *abc_memory_card_device::device_rom_region() const
 {
 	return ROM_NAME( abc_dos );
 }
@@ -107,11 +107,11 @@ const tiny_rom_entry *abc_memory_card_t::device_rom_region() const
 //**************************************************************************
 
 //-------------------------------------------------
-//  abc_memory_card_t - constructor
+//  abc_memory_card_device - constructor
 //-------------------------------------------------
 
-abc_memory_card_t::abc_memory_card_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, ABC_MEMORY_CARD, "ABC Memory Card", tag, owner, clock, "abc_mem", __FILE__),
+abc_memory_card_device::abc_memory_card_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, ABC_MEMORY_CARD, tag, owner, clock),
 	device_abcbus_card_interface(mconfig, *this),
 	m_dos_rom(*this, "dos"),
 	m_iec_rom(*this, "iec"),
@@ -125,7 +125,7 @@ abc_memory_card_t::abc_memory_card_t(const machine_config &mconfig, const char *
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void abc_memory_card_t::device_start()
+void abc_memory_card_device::device_start()
 {
 }
 
@@ -139,7 +139,7 @@ void abc_memory_card_t::device_start()
 //  abcbus_xmemfl -
 //-------------------------------------------------
 
-uint8_t abc_memory_card_t::abcbus_xmemfl(offs_t offset)
+uint8_t abc_memory_card_device::abcbus_xmemfl(offs_t offset)
 {
 	uint8_t data = 0xff;
 

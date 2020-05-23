@@ -12,39 +12,14 @@
 
 ***************************************************************************/
 
+#ifndef MAME_MACHINE_AKIKO_H
+#define MAME_MACHINE_AKIKO_H
+
 #pragma once
 
-#ifndef __AKIKO_H__
-#define __AKIKO_H__
-
 #include "cdrom.h"
+#include "imagedev/chd_cd.h"
 #include "sound/cdda.h"
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_AKIKO_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, AKIKO, 0)
-
-#define MCFG_AKIKO_MEM_READ_CB(_devcb) \
-	devcb = &akiko_device::set_mem_r_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_AKIKO_MEM_WRITE_CB(_devcb) \
-	devcb = &akiko_device::set_mem_w_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_AKIKO_INT_CB(_devcb) \
-	devcb = &akiko_device::set_int_w_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_AKIKO_SCL_HANDLER(_devcb) \
-	devcb = &akiko_device::set_scl_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_AKIKO_SDA_READ_HANDLER(_devcb) \
-	devcb = &akiko_device::set_sda_read_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_AKIKO_SDA_WRITE_HANDLER(_devcb) \
-	devcb = &akiko_device::set_sda_write_handler(*device, DEVCB_##_devcb);
 
 
 //**************************************************************************
@@ -57,26 +32,14 @@ class akiko_device : public device_t
 {
 public:
 	akiko_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~akiko_device() {}
 
 	// callbacks
-	template<class _Object> static devcb_base &set_mem_r_callback(device_t &device, _Object object)
-		{ return downcast<akiko_device &>(device).m_mem_r.set_callback(object); }
-
-	template<class _Object> static devcb_base &set_mem_w_callback(device_t &device, _Object object)
-		{ return downcast<akiko_device &>(device).m_mem_w.set_callback(object); }
-
-	template<class _Object> static devcb_base &set_int_w_callback(device_t &device, _Object object)
-		{ return downcast<akiko_device &>(device).m_int_w.set_callback(object); }
-
-	template<class _Object> static devcb_base &set_scl_handler(device_t &device, _Object object)
-		{ return downcast<akiko_device &>(device).m_scl_w.set_callback(object); }
-
-	template<class _Object> static devcb_base &set_sda_read_handler(device_t &device, _Object object)
-		{ return downcast<akiko_device &>(device).m_sda_r.set_callback(object); }
-
-	template<class _Object> static devcb_base &set_sda_write_handler(device_t &device, _Object object)
-		{ return downcast<akiko_device &>(device).m_sda_w.set_callback(object); }
+	auto mem_r_callback() { return m_mem_r.bind(); }
+	auto mem_w_callback() { return m_mem_w.bind(); }
+	auto int_callback() { return m_int_w.bind(); }
+	auto scl_callback() { return m_scl_w.bind(); }
+	auto sda_r_callback() { return m_sda_r.bind(); }
+	auto sda_w_callback() { return m_sda_w.bind(); }
 
 	DECLARE_READ32_MEMBER( read );
 	DECLARE_WRITE32_MEMBER( write );
@@ -86,11 +49,11 @@ protected:
 	virtual void device_start() override;
 	virtual void device_stop() override;
 	virtual void device_reset() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 private:
 	// 1X CDROM sector time in msec (300KBps)
-	static const int CD_SECTOR_TIME = (1000/((150*1024)/2048));
+	static constexpr int CD_SECTOR_TIME = (1000/((150*1024)/2048));
 
 	// chunky to planar converter
 	uint32_t m_c2p_input_buffer[8];
@@ -120,15 +83,14 @@ private:
 	uint8_t m_cdrom_cmd_end;
 	uint8_t m_cdrom_cmd_resp;
 
-	cdda_device *m_cdda;
+	required_device<cdda_device> m_cdda;
+	optional_device<cdrom_image_device> m_cddevice;
 	cdrom_file *m_cdrom;
 
 	std::unique_ptr<uint8_t[]> m_cdrom_toc;
 
 	emu_timer *m_dma_timer;
 	emu_timer *m_frame_timer;
-
-	int m_cdrom_is_device;
 
 	void nvram_write(uint32_t data);
 	uint32_t nvram_read();
@@ -164,6 +126,6 @@ private:
 };
 
 // device type definition
-extern const device_type AKIKO;
+DECLARE_DEVICE_TYPE(AKIKO, akiko_device)
 
-#endif
+#endif // MAME_MACHINE_AKIKO_H

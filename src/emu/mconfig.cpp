@@ -12,67 +12,97 @@
 #include "emuopts.h"
 #include "screen.h"
 
-#include <ctype.h>
+#include <cctype>
+
+#include <cstring>
+#include <numeric>
 
 
 //**************************************************************************
 //  MACHINE CONFIGURATIONS
 //**************************************************************************
 
+class machine_config::current_device_stack
+{
+public:
+	current_device_stack(current_device_stack const &) = delete;
+	current_device_stack(machine_config &host) : m_host(host), m_device(host.m_current_device) { m_host.m_current_device = nullptr; }
+	~current_device_stack() { assert(!m_host.m_current_device); m_host.m_current_device = m_device; }
+private:
+	machine_config &m_host;
+	device_t *const m_device;
+};
+
+
 //-------------------------------------------------
 //  machine_config - constructor
 //-------------------------------------------------
 
 machine_config::machine_config(const game_driver &gamedrv, emu_options &options)
-	: m_minimum_quantum(attotime::zero),
-		m_vr_machine_name(""),
-		m_default_layout(nullptr),
-		m_gamedrv(gamedrv),
-		m_options(options)
+	: m_gamedrv(gamedrv)
+	, m_options(options)
+	, m_root_device()
+	, m_default_layouts([] (char const *a, char const *b) { return 0 > std::strcmp(a, b); })
+	, m_current_device(nullptr)
+	, m_maximum_quantums([] (char const *a, char const *b) { return 0 > std::strcmp(a, b); })
+	, m_perfect_quantum_device(nullptr, "")
+	, m_vr_machine_name("")
 {
-	// construct the config
-	(*gamedrv.machine_config)(*this, nullptr, nullptr);
+	// add the root device
+	device_add("root", gamedrv.type, 0);
 
-	bool is_selected_driver = core_stricmp(gamedrv.name,options.system_name())==0;
 	// intialize slot devices - make sure that any required devices have been allocated
-
 	for (device_slot_interface &slot : slot_interface_iterator(root_device()))
 	{
 		device_t &owner = slot.device();
-		std::string selval;
-		bool isdefault = (options.priority(owner.tag()+1)==OPTION_PRIORITY_DEFAULT);
-		if (is_selected_driver && options.exists(owner.tag()+1))
-			selval = options.main_value(owner.tag()+1);
-		else if (slot.default_option() != nullptr)
-			selval.assign(slot.default_option());
+		const char *slot_option_name = owner.tag() + 1;
 
-		if (!selval.empty())
+		// figure out which device goes into this slot
+		bool const has_option = options.has_slot_option(slot_option_name);
+		const char *selval;
+		bool is_default;
+		if (!has_option)
 		{
-			const device_slot_option *option = slot.option(selval.c_str());
+			// The only time we should be getting here is when emuopts.cpp is invoking
+			// us to evaluate slot/image options, and the internal state of emuopts.cpp has
+			// not caught up yet
+			selval = slot.default_option();
+			is_default = true;
+		}
+		else
+		{
+			const slot_option &opt = options.slot_option(slot_option_name);
+			selval = opt.value().c_str();
+			is_default = !opt.specified();
+		}
 
-			if (option && (isdefault || option->selectable()))
+		if (selval && *selval)
+		{
+			// TODO: make this thing more self-contained so it can apply itself - shouldn't need to know all this here
+			device_slot_interface::slot_option const *option = slot.option(selval);
+			if (option && (is_default || option->selectable()))
 			{
-				device_t *new_dev = device_add(&owner, option->name(), option->devtype(), option->clock());
+				// create the device
+				token const tok(begin_configuration(owner));
+				device_t *const new_dev = device_add(option->name(), option->devtype(), option->clock());
+				slot.set_card_device(new_dev);
 
-				const char *default_bios = option->default_bios();
+				char const *const default_bios = option->default_bios();
 				if (default_bios != nullptr)
-					device_t::static_set_default_bios_tag(*new_dev, default_bios);
+					new_dev->set_default_bios_tag(default_bios);
 
-				machine_config_constructor additions = option->machine_config();
-				if (additions != nullptr)
-					(*additions)(const_cast<machine_config &>(*this), new_dev, new_dev);
+				auto additions = option->machine_config();
+				if (additions)
+					additions(new_dev);
 
-				const input_device_default *input_device_defaults = option->input_device_defaults();
+				input_device_default const *const input_device_defaults = option->input_device_defaults();
 				if (input_device_defaults)
-					device_t::static_set_input_default(*new_dev, input_device_defaults);
+					new_dev->set_input_default(input_device_defaults);
 			}
 			else
-				throw emu_fatalerror("Unknown slot option '%s' in slot '%s'", selval.c_str(), owner.tag()+1);
+				throw emu_fatalerror("Unknown slot option '%s' in slot '%s'", selval, owner.tag()+1);
 		}
 	}
-
-	// when finished, set the game driver
-	driver_device::static_set_game(*m_root_device, gamedrv);
 
 	// then notify all devices that their configuration is complete
 	for (device_t &device : device_iterator(root_device()))
@@ -91,13 +121,73 @@ machine_config::~machine_config()
 
 
 //-------------------------------------------------
-//  first_screen - return a pointer to the first
-//  screen device
+//  maximum_quantum - get smallest configured
+//  maximum quantum
 //-------------------------------------------------
 
-screen_device *machine_config::first_screen() const
+attotime machine_config::maximum_quantum(attotime const &default_quantum) const
 {
-	return screen_device_iterator(root_device()).first();
+	return std::accumulate(
+			m_maximum_quantums.begin(),
+			m_maximum_quantums.end(),
+			default_quantum,
+			[] (attotime const &lhs, maximum_quantum_map::value_type const &rhs) { return (std::min)(lhs, rhs.second); });
+}
+
+//-------------------------------------------------
+//  perfect_quantum_device - get device configured
+//  for perfect quantum if any
+//-------------------------------------------------
+
+device_execute_interface *machine_config::perfect_quantum_device() const
+{
+	if (!m_perfect_quantum_device.first)
+		return nullptr;
+
+	device_t *const found(m_perfect_quantum_device.first->subdevice(m_perfect_quantum_device.second.c_str()));
+	if (!found)
+	{
+		throw emu_fatalerror(
+				"Device %s relative to %s specified for perfect interleave is not present!\n",
+				m_perfect_quantum_device.second,
+				m_perfect_quantum_device.first->tag());
+	}
+
+	device_execute_interface *result;
+	if (!found->interface(result))
+	{
+		throw emu_fatalerror("Device %s (%s) specified for perfect interleave does not implement device_execute_interface!\n",
+				found->tag(),
+				found->shortname());
+	}
+
+	return result;
+}
+
+
+//-------------------------------------------------
+//  set_default_layout - set layout for current
+//  device
+//-------------------------------------------------
+
+void machine_config::set_default_layout(internal_layout const &layout)
+{
+	std::pair<default_layout_map::iterator, bool> const ins(m_default_layouts.emplace(current_device().tag(), &layout));
+	if (!ins.second)
+		ins.first->second = &layout;
+}
+
+
+//-------------------------------------------------
+//  set_maximum_quantum - set maximum scheduling
+//  quantum for current device device
+//-------------------------------------------------
+
+void machine_config::set_maximum_quantum(attotime const &quantum)
+{
+	std::pair<maximum_quantum_map::iterator, bool> const ins(m_maximum_quantums.emplace(current_device().tag(), quantum));
+	if (!ins.second)
+		ins.first->second = quantum;
 }
 
 
@@ -106,9 +196,66 @@ screen_device *machine_config::first_screen() const
 //  new device
 //-------------------------------------------------
 
-device_t *machine_config::device_add(device_t *owner, const char *tag, device_type type, u32 clock)
+device_t *machine_config::device_add(const char *tag, device_type type, u32 clock)
 {
-	const char *orig_tag = tag;
+	std::pair<const char *, device_t *> const owner(resolve_owner(tag));
+	return &add_device(type.create(*this, owner.first, owner.second, clock), owner.second);
+}
+
+
+//-------------------------------------------------
+//  device_replace - configuration helper to
+//  replace one device with a new device
+//-------------------------------------------------
+
+device_t *machine_config::device_replace(const char *tag, device_type type, u32 clock)
+{
+	std::tuple<const char *, device_t *, device_t *> const existing(prepare_replace(tag));
+	std::unique_ptr<device_t> device(type.create(*this, std::get<0>(existing), std::get<1>(existing), clock));
+	return &replace_device(std::move(device), *std::get<1>(existing), std::get<2>(existing));
+}
+
+
+//-------------------------------------------------
+//  device_remove - configuration helper to
+//  remove a device
+//-------------------------------------------------
+
+device_t *machine_config::device_remove(const char *tag)
+{
+	// find the original device by relative tag (must exist)
+	assert(m_current_device);
+	device_t *const device = m_current_device->subdevice(tag);
+	if (device == nullptr)
+	{
+		osd_printf_warning("Warning: attempting to remove non-existent device '%s'\n", tag);
+	}
+	else
+	{
+		// make sure we have the old device's actual owner
+		device_t *const owner = device->owner();
+		assert(owner);
+
+		// remove references to the old device
+		remove_references(*device);
+
+		// let the device's owner do the work
+		owner->subdevices().m_list.remove(*device);
+	}
+	return nullptr;
+}
+
+
+//-------------------------------------------------
+//  resolve_owner - get the actual owner and base
+//  tag given tag relative to current context
+//-------------------------------------------------
+
+std::pair<const char *, device_t *> machine_config::resolve_owner(const char *tag) const
+{
+	assert(bool(m_current_device) == bool(m_root_device));
+	char const *const orig_tag = tag;
+	device_t *owner(m_current_device);
 
 	// if the device path is absolute, start from the root
 	if (tag[0] == ':')
@@ -118,115 +265,84 @@ device_t *machine_config::device_add(device_t *owner, const char *tag, device_ty
 	}
 
 	// go down the path until we're done with it
+	std::string part;
 	while (strchr(tag, ':'))
 	{
 		const char *next = strchr(tag, ':');
 		assert(next != tag);
-		std::string part(tag, next-tag);
+		part.assign(tag, next - tag);
 		owner = owner->subdevices().find(part);
-		if (owner == nullptr)
-			throw emu_fatalerror("Could not find %s when looking up path for device %s\n",
-									part.c_str(), orig_tag);
+		if (!owner)
+			throw emu_fatalerror("Could not find %s when looking up path for device %s\n", part.c_str(), orig_tag);
 		tag = next+1;
 	}
 	assert(tag[0] != '\0');
 
-	if (owner != nullptr)
-	{
-		// allocate the new device
-		std::unique_ptr<device_t> device = type(*this, tag, owner, clock);
+	return std::make_pair(tag, owner);
+}
 
-		// append it to the owner's list
-		return &config_new_device(owner->subdevices().m_list.append(*device.release()));
+
+//-------------------------------------------------
+//  prepare_replace - ensure owner is present and
+//  existing device is removed if necessary
+//-------------------------------------------------
+
+std::tuple<const char *, device_t *, device_t *> machine_config::prepare_replace(const char *tag)
+{
+	// make sure we have the old device's actual owner
+	std::pair<const char *, device_t *> const owner(resolve_owner(tag));
+	assert(owner.second);
+
+	// remove references to the old device
+	device_t *const old_device(owner.second->subdevice(owner.first));
+	if (old_device)
+		remove_references(*old_device);
+	else
+		osd_printf_warning("Warning: attempting to replace non-existent device '%s'\n", tag);
+
+	return std::make_tuple(owner.first, owner.second, old_device);
+}
+
+
+//-------------------------------------------------
+//  add_device - add a new device at the correct
+//  point in the hierarchy
+//-------------------------------------------------
+
+device_t &machine_config::add_device(std::unique_ptr<device_t> &&device, device_t *owner)
+{
+	current_device_stack const context(*this);
+	if (owner)
+	{
+		// allocate the new device and append it to the owner's list
+		device_t &result(owner->subdevices().m_list.append(*device.release()));
+		result.add_machine_configuration(*this);
+		return result;
 	}
 	else
 	{
 		// allocate the root device directly
 		assert(!m_root_device);
-		m_root_device = type(*this, tag, nullptr, clock);
-		return &config_new_device(*m_root_device);
+		m_root_device = std::move(device);
+		m_root_device->add_machine_configuration(*this);
+		return *m_root_device;
 	}
 }
 
 
 //-------------------------------------------------
-//  device_replace - configuration helper to
-//  replace one device with a new device
+//  replace_device - substitute the new device for
+//  the old one in the owner's list
 //-------------------------------------------------
 
-device_t *machine_config::device_replace(device_t *owner, const char *tag, device_type type, u32 clock)
+device_t &machine_config::replace_device(std::unique_ptr<device_t> &&device, device_t &owner, device_t *existing)
 {
-	// find the original device by relative tag (must exist)
-	assert(owner != nullptr);
-	device_t *old_device = owner->subdevice(tag);
-	if (old_device == nullptr)
-	{
-		osd_printf_warning("Warning: attempting to replace non-existent device '%s'\n", tag);
-		return device_add(owner, tag, type, clock);
-	}
-	else
-	{
-		// make sure we have the old device's actual owner
-		owner = old_device->owner();
-		assert(owner != nullptr);
-
-		// remove references to the old device
-		remove_references(*old_device);
-
-		// allocate the new device
-		std::unique_ptr<device_t> new_device = type(*this, tag, owner, clock);
-
-		// substitute it for the old one in the owner's list
-		return &config_new_device(owner->subdevices().m_list.replace_and_remove(*new_device.release(), *old_device));
-	}
-}
-
-
-//-------------------------------------------------
-//  device_remove - configuration helper to
-//  remove a device
-//-------------------------------------------------
-
-device_t *machine_config::device_remove(device_t *owner, const char *tag)
-{
-	// find the original device by relative tag (must exist)
-	assert(owner != nullptr);
-	device_t *device = owner->subdevice(tag);
-	if (device == nullptr)
-	{
-		osd_printf_warning("Warning: attempting to remove non-existent device '%s'\n", tag);
-		return nullptr;
-	}
-
-	// make sure we have the old device's actual owner
-	owner = device->owner();
-	assert(owner != nullptr);
-
-	// remove references to the old device
-	remove_references(*device);
-
-	// let the device's owner do the work
-	owner->subdevices().m_list.remove(*device);
-	return nullptr;
-}
-
-
-//-------------------------------------------------
-//  device_find - configuration helper to
-//  locate a device
-//-------------------------------------------------
-
-device_t *machine_config::device_find(device_t *owner, const char *tag)
-{
-	// find the original device by relative tag (must exist)
-	assert(owner != nullptr);
-	device_t *device = owner->subdevice(tag);
-	assert(device != nullptr);
-	if (device == nullptr)
-		throw emu_fatalerror("Unable to find device '%s'\n", tag);
-
-	// return the device
-	return device;
+	current_device_stack const context(*this);
+	device_t &result(existing
+			? owner.subdevices().m_list.replace_and_remove(*device.release(), *existing)
+			: owner.subdevices().m_list.append(*device.release()));
+	result.add_machine_configuration(*this);
+	return result;
 }
 
 
@@ -235,26 +351,66 @@ device_t *machine_config::device_find(device_t *owner, const char *tag)
 //  to a device about to be removed from the tree
 //-------------------------------------------------
 
-void machine_config::remove_references(ATTR_UNUSED device_t &device)
+void machine_config::remove_references(device_t &device)
 {
+	// sanity check
+	if (m_perfect_quantum_device.first == &device)
+	{
+		throw emu_fatalerror(
+				"Removing %s device %s would make the perfect quantum device target invalid\n",
+				device.shortname(),
+				device.tag());
+	}
+
+	// remove default layouts and maximum quantum settings for subdevices
+	char const *const tag(device.tag());
+	std::size_t const taglen(std::strlen(tag));
+	for (auto it = m_default_layouts.lower_bound(tag); (m_default_layouts.end() != it) && !std::strncmp(tag, it->first, taglen); )
+	{
+		if (!it->first[taglen] || (':' == it->first[taglen]))
+			it = m_default_layouts.erase(it);
+		else
+			++it;
+	}
+	for (auto it = m_maximum_quantums.lower_bound(tag); (m_maximum_quantums.end() != it) && !std::strncmp(tag, it->first, taglen); )
+	{
+		if (!it->first[taglen] || (':' == it->first[taglen]))
+			it = m_maximum_quantums.erase(it);
+		else
+			++it;
+	}
+
 	// iterate over all devices and remove any references
 	for (device_t &scan : device_iterator(root_device()))
-		scan.subdevices().m_tagmap.clear(); //remove(&device);
+		scan.subdevices().m_tagmap.clear();
 }
 
 
 //-------------------------------------------------
-//  config_new_device - helper for recursive
-//  configuration of newly added devices
+//  set_perfect_quantum - set device to base
+//  scheduling interval on
 //-------------------------------------------------
 
-device_t &machine_config::config_new_device(device_t &device)
+void machine_config::set_perfect_quantum(device_t &device, std::string tag)
 {
-	// apply any machine configuration owned by the device now
-	machine_config_constructor additions = device.machine_config_additions();
-	if (additions != nullptr)
-		(*additions)(*this, &device, nullptr);
+	if (!m_current_device)
+	{
+		throw emu_fatalerror(
+				"Perfect quantum device can only be set during configuration (set to %s relative to %s)\n",
+				tag,
+				device.tag());
+	}
 
-	// return the new device
-	return device;
+	if (m_current_device != m_root_device.get())
+	{
+		throw emu_fatalerror(
+				"Perfect quantum device can only be set by the root device (set to %s relative to %s while configuring %s device %s)\n",
+				tag,
+				device.tag(),
+				m_current_device->shortname(),
+				m_current_device->tag());
+	}
+
+	m_perfect_quantum_device.first = &device;
+	m_perfect_quantum_device.second = std::move(tag);
 }

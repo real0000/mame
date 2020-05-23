@@ -29,68 +29,31 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_I8355_H
+#define MAME_MACHINE_I8355_H
+
 #pragma once
 
-#ifndef __I8355__
-#define __I8355__
-
-
-
-
-///*************************************************************************
-//  MACROS / CONSTANTS
-///*************************************************************************
-
-
-
-
-///*************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-///*************************************************************************
-
-#define MCFG_I8355_IN_PA_CB(_devcb) \
-	devcb = &i8355_device::set_in_pa_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_I8355_OUT_PA_CB(_devcb) \
-	devcb = &i8355_device::set_out_pa_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_I8355_IN_PB_CB(_devcb) \
-	devcb = &i8355_device::set_in_pb_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_I8355_OUT_PB_CB(_devcb) \
-	devcb = &i8355_device::set_out_pb_callback(*device, DEVCB_##_devcb);
-
-
-///*************************************************************************
-//  TYPE DEFINITIONS
-///*************************************************************************
-
-// ======================> i8355_device
-
-class i8355_device :    public device_t,
-						public device_memory_interface
+class i8355_device : public device_t
 {
 public:
 	// construction/destruction
 	i8355_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_in_pa_callback(device_t &device, _Object object) { return downcast<i8355_device &>(device).m_in_pa_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_pa_callback(device_t &device, _Object object) { return downcast<i8355_device &>(device).m_out_pa_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_in_pb_callback(device_t &device, _Object object) { return downcast<i8355_device &>(device).m_in_pb_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_pb_callback(device_t &device, _Object object) { return downcast<i8355_device &>(device).m_out_pb_cb.set_callback(object); }
+	auto in_pa() { return m_in_pa_cb.bind(); }
+	auto out_pa() { return m_out_pa_cb.bind(); }
+	auto in_pb() { return m_in_pb_cb.bind(); }
+	auto out_pb() { return m_out_pb_cb.bind(); }
 
-	DECLARE_READ8_MEMBER( io_r );
-	DECLARE_WRITE8_MEMBER( io_w );
+	u8 io_r(offs_t offset);
+	void io_w(offs_t offset, u8 data);
 
-	DECLARE_READ8_MEMBER( memory_r );
+	u8 memory_r(offs_t offset);
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
-
-	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
 
 	inline uint8_t read_port(int port);
 	inline void write_port(int port, uint8_t data);
@@ -106,13 +69,12 @@ private:
 	uint8_t m_output[2];          // output latches
 	uint8_t m_ddr[2];             // DDR latches
 
-	const address_space_config      m_space_config;
+	// internal ROM
+	required_region_ptr<uint8_t> m_rom;
 };
 
 
 // device type definition
-extern const device_type I8355;
+DECLARE_DEVICE_TYPE(I8355, i8355_device)
 
-
-
-#endif
+#endif // MAME_MACHINE_I8355_H

@@ -7,42 +7,40 @@
     driven by one or more output bits
 
 **********************************************************************/
-#ifndef MAME_DEVICES_SOUND_SPKRDEV_H
-#define MAME_DEVICES_SOUND_SPKRDEV_H
+#ifndef MAME_SOUND_SPKRDEV_H
+#define MAME_SOUND_SPKRDEV_H
 
 #pragma once
 
-
-// Length of anti-aliasing filter kernel, measured in number of intermediate samples
-enum
-{
-	FILTER_LENGTH = 64
-};
-
-#define MCFG_SPEAKER_LEVELS(_num, _levels) \
-		speaker_sound_device::static_set_levels(*device, _num, _levels);
 
 class speaker_sound_device : public device_t,
 								public device_sound_interface
 {
 public:
-	speaker_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	speaker_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 	~speaker_sound_device() {}
 
-	// static configuration
-	static void static_set_levels(device_t &device, int num_levels, const int16_t *levels) { downcast<speaker_sound_device &>(device).m_num_levels = num_levels; downcast<speaker_sound_device &>(device).m_levels = levels;}
+	// configuration
+	void set_levels(int num_levels, const int16_t *levels) { m_num_levels = num_levels; m_levels = levels; }
 
-	void level_w(int new_level);
+	void level_w(int new_level); // can use as writeline
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+	virtual void device_post_load() override;
 
 	// sound stream update overrides
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples) override;
 
 private:
+	// Length of anti-aliasing filter kernel, measured in number of intermediate samples
+	enum
+	{
+		FILTER_LENGTH = 64
+	};
+
 	// internal state
 
 	// Updates the composed volume array according to time
@@ -78,8 +76,6 @@ private:
 	int           m_interm_sample_index;              /* counts interm. samples between stream samples */
 	attotime      m_last_update_time;                 /* internal timestamp */
 
-	void speaker_postload();
-
 	// DC blocker state
 	double  m_prevx, m_prevy;
 
@@ -87,9 +83,6 @@ private:
 	const int16_t  *m_levels;     /* optional: pointer to level lookup table */
 };
 
-extern const device_type SPEAKER_SOUND;
+DECLARE_DEVICE_TYPE(SPEAKER_SOUND, speaker_sound_device)
 
-extern template class device_finder<speaker_sound_device, false>;
-extern template class device_finder<speaker_sound_device, true>;
-
-#endif // MAME_DEVICES_SOUND_SPKRDEV_H
+#endif // MAME_SOUND_SPKRDEV_H

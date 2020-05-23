@@ -1,40 +1,14 @@
 // license:BSD-3-Clause
 // copyright-holders:Juergen Buchmueller
+#ifndef MAME_SOUND_TMS36XX_H
+#define MAME_SOUND_TMS36XX_H
+
 #pragma once
-
-#ifndef __TMS36XX_H__
-#define __TMS36XX_H__
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_TMS36XX_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, TMS36XX, _clock)
-#define MCFG_TMS36XX_REPLACE(_tag, _clock) \
-	MCFG_DEVICE_REPLACE(_tag, TMS36XX, _clock)
-
-#define MCFG_TMS36XX_TYPE(_type) \
-	tms36xx_device::set_subtype(*device, _type);
-
-#define MCFG_TMS36XX_DECAY_TIMES(_dec0, _dec1, _dec2, _dec3, _dec4, _dec5) \
-	tms36xx_device::set_decays(*device, _dec0, _dec1, _dec2, _dec3, _dec4, _dec5);
-
-#define MCFG_TMS36XX_TUNE_SPEED(_speed) \
-	tms36xx_device::set_tune_speed(*device, _speed);
-
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-// subtypes
-#define MM6221AA    21      // Phoenix (fixed melodies)
-#define TMS3615     15      // Naughty Boy, Pleiads (13 notes, one output)
-#define TMS3617     17      // Monster Bash (13 notes, six outputs)
-
-#define TMS36XX_VMIN    0x0000
-#define TMS36XX_VMAX    0x7fff
 
 
 // ======================> tms36xx_device
@@ -43,44 +17,48 @@ class tms36xx_device : public device_t,
 						public device_sound_interface
 {
 public:
-	tms36xx_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~tms36xx_device() { }
-
-	static void set_subtype(device_t &device, int type)
+	enum class subtype
 	{
-		tms36xx_device &dev = downcast<tms36xx_device &>(device);
+		MM6221AA    = 21,     // Phoenix (fixed melodies)
+		TMS3615     = 15,     // Naughty Boy, Pleiads (13 notes, one output)
+		TMS3617     = 17      // Monster Bash (13 notes, six outputs)
+	};
+
+	tms36xx_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+	void set_subtype(subtype type)
+	{
 		switch (type)
 		{
-		case MM6221AA:
-			dev.m_subtype = "MM6221AA";
+		case subtype::MM6221AA:
+			m_subtype = "MM6221AA";
 			break;
-		case TMS3615:
-			dev.m_subtype = "TMS3615";
+		case subtype::TMS3615:
+			m_subtype = "TMS3615";
 			break;
-		case TMS3617:
-			dev.m_subtype = "TMS3617";
+		case subtype::TMS3617:
+			m_subtype = "TMS3617";
 			break;
 		default:
-			fatalerror("Invalid TMS36XX type: %d\n", type);
+			fatalerror("Invalid TMS36XX type: %d\n", int(type));
 			break;
 		}
 	}
-	static void set_tune_speed(device_t &device, double speed)
+	void set_tune_speed(double speed) { m_speed = (speed > 0) ? TMS36XX_VMAX / speed : TMS36XX_VMAX; }
+	void set_decays(double decay_0, double decay_1, double decay_2, double decay_3, double decay_4, double decay_5)
 	{
-		downcast<tms36xx_device &>(device).m_speed = (speed > 0) ? TMS36XX_VMAX / speed : TMS36XX_VMAX;
-	}
-	static void set_decays(device_t &device, double decay_0, double decay_1, double decay_2, double decay_3, double decay_4, double decay_5)
-	{
-		tms36xx_device &dev = downcast<tms36xx_device &>(device);
-		dev.m_decay_time[0] = decay_0;
-		dev.m_decay_time[1] = decay_1;
-		dev.m_decay_time[2] = decay_2;
-		dev.m_decay_time[3] = decay_3;
-		dev.m_decay_time[4] = decay_4;
-		dev.m_decay_time[5] = decay_5;
+		m_decay_time[0] = decay_0;
+		m_decay_time[1] = decay_1;
+		m_decay_time[2] = decay_2;
+		m_decay_time[3] = decay_3;
+		m_decay_time[4] = decay_4;
+		m_decay_time[5] = decay_5;
 	}
 
 protected:
+	static constexpr unsigned TMS36XX_VMIN = 0x0000;
+	static constexpr unsigned TMS36XX_VMAX = 0x7fff;
+
 	// device-level overrides
 	virtual void device_start() override;
 
@@ -131,7 +109,7 @@ private:
 	int m_tune_max;       // end of tune
 };
 
-extern const device_type TMS36XX;
+DECLARE_DEVICE_TYPE(TMS36XX, tms36xx_device)
 
 
-#endif /* __TMS36XX_H__ */
+#endif // MAME_SOUND_TMS36XX_H

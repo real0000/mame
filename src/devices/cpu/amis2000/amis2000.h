@@ -6,45 +6,41 @@
 
 */
 
-#ifndef _AMIS2000_H_
-#define _AMIS2000_H_
+#ifndef MAME_CPU_AMIS2000_AMIS2000_H
+#define MAME_CPU_AMIS2000_AMIS2000_H
 
-
-
-// generic input pins (4 bits each)
-#define MCFG_AMI_S2000_READ_K_CB(_devcb) \
-	devcb = &amis2000_base_device::set_read_k_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_AMI_S2000_READ_I_CB(_devcb) \
-	devcb = &amis2000_base_device::set_read_i_callback(*device, DEVCB_##_devcb);
-
-// 8-bit external databus coupled as input/output pins
-#define MCFG_AMI_S2000_READ_D_CB(_devcb) \
-	devcb = &amis2000_base_device::set_read_d_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_AMI_S2000_WRITE_D_CB(_devcb) \
-	devcb = &amis2000_base_device::set_write_d_callback(*device, DEVCB_##_devcb);
-
-// 13-bit external address bus coupled as output pins
-#define MCFG_AMI_S2000_WRITE_A_CB(_devcb) \
-	devcb = &amis2000_base_device::set_write_a_callback(*device, DEVCB_##_devcb);
-
-// F_out pin (only for S2152)
-#define MCFG_AMI_S2152_FOUT_CB(_devcb) \
-	devcb = &amis2000_base_device::set_write_f_callback(*device, DEVCB_##_devcb);
-
-// S2000 has a hardcoded 7seg table, that (unlike S2200) is officially
-// uncustomizable, but wildfire proves to be an exception to that rule.
-#define MCFG_AMI_S2000_7SEG_DECODER(_ptr) \
-	amis2000_base_device::set_7seg_table(*device, _ptr);
-
+#pragma once
 
 class amis2000_base_device : public cpu_device
 {
 public:
+	// generic input pins (4 bits each)
+	auto read_k() { return m_read_k.bind(); }
+	auto read_i() { return m_read_i.bind(); }
+
+	// 8-bit external databus coupled as input/output pins
+	auto read_d() { return m_read_d.bind(); }
+	auto write_d() { return m_write_d.bind(); }
+
+	// 13-bit external address bus coupled as output pins
+	auto write_a() { return m_write_a.bind(); }
+
+	// F_out pin (only for S2152)
+	auto write_f() { return m_write_f.bind(); }
+
+	// S2000 has a hardcoded 7seg table, that (unlike S2200) is officially
+	// uncustomizable, but wildfire proves to be an exception to that rule.
+	void set_7seg_table(const u8 *ptr) { m_7seg_table = ptr; } // d0=A, d1=B, etc.
+
+	void data_64x4(address_map &map);
+	void data_80x4(address_map &map);
+	void program_1_5k(address_map &map);
+	void program_1k(address_map &map);
+
+protected:
 	// construction/destruction
-	amis2000_base_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, u32 clock, u8 bu_bits, u8 callstack_bits, u8 callstack_depth, int prgwidth, address_map_constructor program, int datawidth, address_map_constructor data, const char *shortname, const char *source)
-		: cpu_device(mconfig, type, name, tag, owner, clock, shortname, source)
+	amis2000_base_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock, u8 bu_bits, u8 callstack_bits, u8 callstack_depth, int prgwidth, address_map_constructor program, int datawidth, address_map_constructor data)
+		: cpu_device(mconfig, type, tag, owner, clock)
 		, m_program_config("program", ENDIANNESS_BIG, 8, prgwidth, 0, program)
 		, m_data_config("data", ENDIANNESS_BIG, 8, datawidth, 0, data)
 		, m_bu_bits(bu_bits)
@@ -57,37 +53,26 @@ public:
 		, m_write_d(*this)
 		, m_write_a(*this)
 		, m_write_f(*this)
-	{ }
+	{
+	}
 
-	// static configuration helpers
-	template<class _Object> static devcb_base &set_read_k_callback(device_t &device, _Object object) { return downcast<amis2000_base_device &>(device).m_read_k.set_callback(object); }
-	template<class _Object> static devcb_base &set_read_i_callback(device_t &device, _Object object) { return downcast<amis2000_base_device &>(device).m_read_i.set_callback(object); }
-	template<class _Object> static devcb_base &set_read_d_callback(device_t &device, _Object object) { return downcast<amis2000_base_device &>(device).m_read_d.set_callback(object); }
-	template<class _Object> static devcb_base &set_write_d_callback(device_t &device, _Object object) { return downcast<amis2000_base_device &>(device).m_write_d.set_callback(object); }
-	template<class _Object> static devcb_base &set_write_a_callback(device_t &device, _Object object) { return downcast<amis2000_base_device &>(device).m_write_a.set_callback(object); }
-	template<class _Object> static devcb_base &set_write_f_callback(device_t &device, _Object object) { return downcast<amis2000_base_device &>(device).m_write_f.set_callback(object); }
-	static void set_7seg_table(device_t &device, const u8 *ptr) { downcast<amis2000_base_device &>(device).m_7seg_table = ptr; }
-
-protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual u64 execute_clocks_to_cycles(u64 clocks) const override { return (clocks + 4 - 1) / 4; } // 4 cycles per machine cycle
-	virtual u64 execute_cycles_to_clocks(u64 cycles) const override { return (cycles * 4); } // "
-	virtual u32 execute_min_cycles() const override { return 1; }
-	virtual u32 execute_max_cycles() const override { return 2; }
-	virtual u32 execute_input_lines() const override { return 1; }
+	virtual u64 execute_clocks_to_cycles(u64 clocks) const noexcept override { return (clocks + 4 - 1) / 4; } // 4 cycles per machine cycle
+	virtual u64 execute_cycles_to_clocks(u64 cycles) const noexcept override { return (cycles * 4); } // "
+	virtual u32 execute_min_cycles() const noexcept override { return 1; }
+	virtual u32 execute_max_cycles() const noexcept override { return 2; }
+	virtual u32 execute_input_lines() const noexcept override { return 1; }
 	virtual void execute_run() override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return(spacenum == AS_PROGRAM) ? &m_program_config : ((spacenum == AS_DATA) ? &m_data_config : nullptr); }
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_disasm_interface overrides
-	virtual u32 disasm_min_opcode_bytes() const override { return 1; }
-	virtual u32 disasm_max_opcode_bytes() const override { return 1; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const u8 *oprom, const u8 *opram, u32 options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 	// device_state_interface overrides
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
@@ -236,10 +221,8 @@ protected:
 };
 
 
+DECLARE_DEVICE_TYPE(AMI_S2000, amis2000_cpu_device)
+DECLARE_DEVICE_TYPE(AMI_S2150, amis2150_cpu_device)
+DECLARE_DEVICE_TYPE(AMI_S2152, amis2152_cpu_device)
 
-extern const device_type AMI_S2000;
-extern const device_type AMI_S2150;
-extern const device_type AMI_S2152;
-
-
-#endif /* _AMIS2000_H_ */
+#endif // MAME_CPU_AMIS2000_AMIS2000_H

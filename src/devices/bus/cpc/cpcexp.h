@@ -43,43 +43,11 @@
  *
  */
 
+#ifndef MAME_BUS_CPC_CPCEXP_H
+#define MAME_BUS_CPC_CPCEXP_H
+
 #pragma once
 
-#ifndef CPCEXP_H_
-#define CPCEXP_H_
-
-
-//**************************************************************************
-//  CONSTANTS
-//**************************************************************************
-
-#define CPC_EXP_SLOT_TAG        "cpcexp"
-
-enum
-{
-	MAP_LOWER = 0,  // special lower ROM handling
-	MAP_UPPER,      // special upper ROM handling
-	MAP_OTHER       // custom ROM handling (eg: Brunword MK4)
-};
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_CPC_EXPANSION_SLOT_OUT_IRQ_CB(_devcb) \
-	devcb = &cpc_expansion_slot_device::set_out_irq_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_CPC_EXPANSION_SLOT_OUT_NMI_CB(_devcb) \
-	devcb = &cpc_expansion_slot_device::set_out_nmi_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_CPC_EXPANSION_SLOT_OUT_RESET_CB(_devcb) \
-	devcb = &cpc_expansion_slot_device::set_out_reset_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_CPC_EXPANSION_SLOT_OUT_ROMDIS_CB(_devcb) \
-	devcb = &cpc_expansion_slot_device::set_out_romdis_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_CPC_EXPANSION_SLOT_ROM_SELECT(_devcb) \
-	devcb = &cpc_expansion_slot_device::set_out_rom_select_callback(*device, DEVCB_##_devcb);
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -88,21 +56,30 @@ enum
 // ======================> device_cpc_expansion_card_interface
 
 // class representing interface-specific live cpc_expansion card
-class device_cpc_expansion_card_interface : public device_slot_card_interface
+class device_cpc_expansion_card_interface : public device_interface
 {
 public:
+	enum
+	{
+		MAP_LOWER = 0,  // special lower ROM handling
+		MAP_UPPER,      // special upper ROM handling
+		MAP_OTHER       // custom ROM handling (eg: Brunword MK4)
+	};
+
 	// construction/destruction
-	device_cpc_expansion_card_interface(const machine_config &mconfig, device_t &device);
 	virtual ~device_cpc_expansion_card_interface();
 
 	// reset
-	virtual void cpc_reset_w() { };
-	virtual WRITE_LINE_MEMBER( cursor_w ) { };
-	virtual WRITE_LINE_MEMBER( romen_w ) { };
+	virtual void cpc_reset_w() { }
+	virtual WRITE_LINE_MEMBER( cursor_w ) { }
+	virtual WRITE_LINE_MEMBER( romen_w ) { }
 
 	void set_rom_bank(uint8_t sel) { m_rom_sel = sel; }  // tell device the currently selected ROM
 	uint8_t get_rom_bank() { return m_rom_sel; }
-	virtual void set_mapping(uint8_t type) { };
+	virtual void set_mapping(uint8_t type) { }
+
+protected:
+	device_cpc_expansion_card_interface(const machine_config &mconfig, device_t &device);
 
 private:
 	uint8_t m_rom_sel;  // currently selected ROM
@@ -111,19 +88,29 @@ private:
 
 // ======================> cpc_expansion_slot_device
 
-class cpc_expansion_slot_device : public device_t,
-									public device_slot_interface
+class cpc_expansion_slot_device : public device_t, public device_single_card_slot_interface<device_cpc_expansion_card_interface>
 {
 public:
 	// construction/destruction
 	cpc_expansion_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	template <typename T>
+	cpc_expansion_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock, T &&opts, const char *dflt)
+		: cpc_expansion_slot_device(mconfig, tag, owner, clock)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
 	virtual ~cpc_expansion_slot_device();
 
-	template<class _Object> static devcb_base &set_out_irq_callback(device_t &device, _Object object) { return downcast<cpc_expansion_slot_device &>(device).m_out_irq_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_nmi_callback(device_t &device, _Object object) { return downcast<cpc_expansion_slot_device &>(device).m_out_nmi_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_reset_callback(device_t &device, _Object object) { return downcast<cpc_expansion_slot_device &>(device).m_out_reset_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_romdis_callback(device_t &device, _Object object) { return downcast<cpc_expansion_slot_device &>(device).m_out_romdis_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_rom_select_callback(device_t &device, _Object object) { return downcast<cpc_expansion_slot_device &>(device).m_out_rom_select.set_callback(object); }
+	template <class Object> void set_cpu_tag(Object &&tag) { m_cpu.set_tag(std::forward<Object>(tag)); }
+
+	auto irq_callback() { return m_out_irq_cb.bind(); }
+	auto nmi_callback() { return m_out_nmi_cb.bind(); }
+	auto reset_callback() { return m_out_reset_cb.bind(); }
+	auto romdis_callback() { return m_out_romdis_cb.bind(); }
+	auto rom_select_callback() { return m_out_rom_select.bind(); }
 
 	DECLARE_WRITE_LINE_MEMBER( irq_w );
 	DECLARE_WRITE_LINE_MEMBER( nmi_w );
@@ -136,10 +123,14 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( cursor_w ) { if(m_card) m_card->cursor_w(state); }  // pass on CRTC Cursor signal
 	DECLARE_WRITE_LINE_MEMBER( romen_w ) { if(m_card) m_card->romen_w(state); }  // pass on /ROMEN signal
 
+	cpu_device &cpu() const { return *m_cpu; }
+
 protected:
 	// device-level overrides
+	virtual void device_config_complete() override;
 	virtual void device_start() override;
-	virtual void device_reset() override;
+
+	required_device<cpu_device> m_cpu;
 
 	devcb_write_line    m_out_irq_cb;
 	devcb_write_line    m_out_nmi_cb;
@@ -153,6 +144,6 @@ protected:
 
 
 // device type definition
-extern const device_type CPC_EXPANSION_SLOT;
+DECLARE_DEVICE_TYPE(CPC_EXPANSION_SLOT, cpc_expansion_slot_device)
 
-#endif /* CPCEXP_H_ */
+#endif // MAME_BUS_CPC_CPCEXP_H

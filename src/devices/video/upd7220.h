@@ -29,11 +29,10 @@
 
 **********************************************************************/
 
+#ifndef MAME_VIDEO_UPD7220_H
+#define MAME_VIDEO_UPD7220_H
+
 #pragma once
-
-#ifndef __UPD7220__
-#define __UPD7220__
-
 
 
 
@@ -45,32 +44,9 @@
 #define UPD7220_DRAW_TEXT_LINE_MEMBER(_name) void _name(bitmap_rgb32 &bitmap, uint32_t addr, int y, int wd, int pitch, int lr, int cursor_on, int cursor_addr)
 
 
-#define MCFG_UPD7220_DISPLAY_PIXELS_CALLBACK_OWNER(_class, _method) \
-	upd7220_device::static_set_display_pixels_callback(*device, upd7220_display_pixels_delegate(&_class::_method, #_class "::" #_method, downcast<_class *>(owner)));
-
-#define MCFG_UPD7220_DRAW_TEXT_CALLBACK_OWNER(_class, _method) \
-	upd7220_device::static_set_draw_text_callback(*device, upd7220_draw_text_delegate(&_class::_method, #_class "::" #_method, downcast<_class *>(owner)));
-
-#define MCFG_UPD7220_DRQ_CALLBACK(_write) \
-	devcb = &upd7220_device::set_drq_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_UPD7220_HSYNC_CALLBACK(_write) \
-	devcb = &upd7220_device::set_hsync_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_UPD7220_VSYNC_CALLBACK(_write) \
-	devcb = &upd7220_device::set_vsync_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_UPD7220_BLANK_CALLBACK(_write) \
-	devcb = &upd7220_device::set_blank_wr_callback(*device, DEVCB_##_write);
-
-
-
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
-
-typedef device_delegate<void (bitmap_rgb32 &bitmap, int y, int x, uint32_t address)> upd7220_display_pixels_delegate;
-typedef device_delegate<void (bitmap_rgb32 &bitmap, uint32_t addr, int y, int wd, int pitch, int lr, int cursor_on, int cursor_addr)> upd7220_draw_text_delegate;
 
 
 // ======================> upd7220_device
@@ -80,35 +56,39 @@ class upd7220_device :  public device_t,
 						public device_video_interface
 {
 public:
+	using display_pixels_delegate = device_delegate<void (bitmap_rgb32 &bitmap, int y, int x, uint32_t address)>;
+	using draw_text_delegate = device_delegate<void (bitmap_rgb32 &bitmap, uint32_t addr, int y, int wd, int pitch, int lr, int cursor_on, int cursor_addr)>;
+
 	// construction/destruction
 	upd7220_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	static void static_set_display_pixels_callback(device_t &device, upd7220_display_pixels_delegate callback) { downcast<upd7220_device &>(device).m_display_cb = callback; }
-	static void static_set_draw_text_callback(device_t &device, upd7220_draw_text_delegate callback) { downcast<upd7220_device &>(device).m_draw_text_cb = callback; }
+	template <typename... T> void set_display_pixels(T &&... args) { m_display_cb.set(std::forward<T>(args)...); }
+	template <typename... T> void set_draw_text(T &&... args) { m_draw_text_cb.set(std::forward<T>(args)...); }
 
-	template<class _Object> static devcb_base &set_drq_wr_callback(device_t &device, _Object object) { return downcast<upd7220_device &>(device).m_write_drq.set_callback(object); }
-	template<class _Object> static devcb_base &set_hsync_wr_callback(device_t &device, _Object object) { return downcast<upd7220_device &>(device).m_write_hsync.set_callback(object); }
-	template<class _Object> static devcb_base &set_vsync_wr_callback(device_t &device, _Object object) { return downcast<upd7220_device &>(device).m_write_vsync.set_callback(object); }
-	template<class _Object> static devcb_base &set_blank_wr_callback(device_t &device, _Object object) { return downcast<upd7220_device &>(device).m_write_blank.set_callback(object); }
+	auto drq_wr_callback() { return m_write_drq.bind(); }
+	auto hsync_wr_callback() { return m_write_hsync.bind(); }
+	auto vsync_wr_callback() { return m_write_vsync.bind(); }
+	auto blank_wr_callback() { return m_write_blank.bind(); }
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 
-	DECLARE_READ8_MEMBER( dack_r );
-	DECLARE_WRITE8_MEMBER( dack_w );
+	uint8_t dack_r();
+	void dack_w(uint8_t data);
 
 	DECLARE_WRITE_LINE_MEMBER( ext_sync_w );
 	DECLARE_WRITE_LINE_MEMBER( lpen_w );
 
 	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
+
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual space_config_vector memory_space_config() const override;
 
 private:
 	enum
@@ -149,8 +129,10 @@ private:
 	void draw_graphics_line(bitmap_rgb32 &bitmap, uint32_t addr, int y, int wd, int pitch);
 	void update_graphics(bitmap_rgb32 &bitmap, const rectangle &cliprect, int force_bitmap);
 
-	upd7220_display_pixels_delegate     m_display_cb;
-	upd7220_draw_text_delegate          m_draw_text_cb;
+	void upd7220_vram(address_map &map);
+
+	display_pixels_delegate     m_display_cb;
+	draw_text_delegate          m_draw_text_cb;
 
 	devcb_write_line   m_write_drq;
 	devcb_write_line   m_write_hsync;
@@ -222,8 +204,6 @@ private:
 
 
 // device type definition
-extern const device_type UPD7220;
+DECLARE_DEVICE_TYPE(UPD7220, upd7220_device)
 
-
-
-#endif
+#endif // MAME_VIDEO_UPD7220_H

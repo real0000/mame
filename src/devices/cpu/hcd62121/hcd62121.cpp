@@ -1,5 +1,5 @@
 // license:BSD-3-Clause
-// copyright-holders:Wilbert Pol
+// copyright-holders:Wilbert Pol, Ricardo Barreira
 /**********************************************************************
 
     Hitachi hcd62121 cpu core emulation.
@@ -7,8 +7,11 @@
 The Hitachi hcd62121 is the custom cpu which was used in the Casio
 CFX-9850 (and maybe some other things too).
 
-This CPU core is based on the information provided by Martin Poupe.
+This CPU core is mainly based on the information provided by Martin Poupe.
 Martin Poupe's site can be found at http://martin.poupe.org/casio/
+
+Other contributors to reverse-engineering this CPU include Petr Pfeifer
+who hacked the hardware, Uwe Ryssel, Brad O'Dell and Ricardo Barreira.
 
 TODO:
  - instruction timings
@@ -17,24 +20,40 @@ TODO:
 **********************************************************************/
 
 #include "emu.h"
-#include "debugger.h"
 #include "hcd62121.h"
+#include "hcd62121d.h"
+
+#include "debugger.h"
 
 
-/* From the battery check routine at 20:e874 it looks like
-   bit 3 of the flag register should be the Zero flag. */
+enum
+{
+	HCD62121_IP=1, HCD62121_SP, HCD62121_F, HCD62121_LAR,
+	HCD62121_CS, HCD62121_DS, HCD62121_SS, HCD62121_DSIZE,
+	/* 128 byte register file */
+	HCD62121_R00, HCD62121_R04, HCD62121_R08, HCD62121_R0C,
+	HCD62121_R10, HCD62121_R14, HCD62121_R18, HCD62121_R1C,
+	HCD62121_R20, HCD62121_R24, HCD62121_R28, HCD62121_R2C,
+	HCD62121_R30, HCD62121_R34, HCD62121_R38, HCD62121_R3C,
+	HCD62121_R40, HCD62121_R44, HCD62121_R48, HCD62121_R4C,
+	HCD62121_R50, HCD62121_R54, HCD62121_R58, HCD62121_R5C,
+	HCD62121_R60, HCD62121_R64, HCD62121_R68, HCD62121_R6C,
+	HCD62121_R70, HCD62121_R74, HCD62121_R78, HCD62121_R7C
+};
+
+
+constexpr u8 FLAG_CL = 0x10;
 constexpr u8 FLAG_Z = 0x08;
-constexpr u8 FLAG_C = 0x02;
-constexpr u8 FLAG_ZL = 0x04;
-constexpr u8 FLAG_CL = 0x01;
-constexpr u8 FLAG_ZH = 0x10;
+constexpr u8 FLAG_C = 0x04;
+constexpr u8 FLAG_ZL = 0x02;
+constexpr u8 FLAG_ZH = 0x01;
 
 
-const device_type HCD62121 = device_creator<hcd62121_cpu_device>;
+DEFINE_DEVICE_TYPE(HCD62121, hcd62121_cpu_device, "hcd62121", "Hitachi HCD62121")
 
 
 hcd62121_cpu_device::hcd62121_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, HCD62121, "Hitachi HCD62121", tag, owner, clock, "hcd62121", __FILE__)
+	: cpu_device(mconfig, HCD62121, tag, owner, clock)
 	, m_program_config("program", ENDIANNESS_BIG, 8, 24, 0)
 	, m_prev_pc(0)
 	, m_sp(0)
@@ -45,15 +64,25 @@ hcd62121_cpu_device::hcd62121_cpu_device(const machine_config &mconfig, const ch
 	, m_sseg(0)
 	, m_f(0)
 	, m_lar(0)
+	, m_opt(0)
+	, m_port(0)
 	, m_program(nullptr)
 	, m_icount(0)
 	, m_kol_cb(*this)
 	, m_koh_cb(*this)
+	, m_port_cb(*this)
+	, m_opt_cb(*this)
 	, m_ki_cb(*this)
 	, m_in0_cb(*this)
 {
 }
 
+device_memory_interface::space_config_vector hcd62121_cpu_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
+}
 
 u8 hcd62121_cpu_device::read_op()
 {
@@ -85,12 +114,12 @@ void hcd62121_cpu_device::read_reg(int size, u8 op1)
 	if (op1 & 0x80)
 	{
 		for (int i = 0; i < size; i++)
-			m_temp1[i] = m_reg[(op1 - i) & 0x7f];
+			m_temp1[i] = m_reg[(op1 - i) & 0x7f]; // TODO - is this really how wrap-around for registers works?
 	}
 	else
 	{
 		for (int i = 0; i < size; i++)
-			m_temp1[i] = m_reg[(op1 + i) & 0x7f];
+			m_temp1[i] = m_reg[(op1 + i) & 0x7f]; // TODO - is this really how wrap-around for registers works?
 	}
 }
 
@@ -109,8 +138,7 @@ void hcd62121_cpu_device::write_reg(int size, u8 op1)
 	}
 }
 
-
-void hcd62121_cpu_device::read_regreg(int size, u8 op1, u8 op2, bool op_is_logical)
+void hcd62121_cpu_device::read_regreg(int size, u8 op1, u8 op2, bool copy_extend_immediate)
 {
 	for (int i = 0; i < size; i++)
 		m_temp1[i] = m_reg[(op1 + i) & 0x7f];
@@ -120,7 +148,7 @@ void hcd62121_cpu_device::read_regreg(int size, u8 op1, u8 op2, bool op_is_logic
 		/* Second operand is an immediate value */
 		m_temp2[0] = op2;
 		for (int i = 1; i < size; i++)
-			m_temp2[i] = op_is_logical ? op2 : 0;
+			m_temp2[i] = copy_extend_immediate ? op2 : 0;
 	}
 	else
 	{
@@ -129,7 +157,7 @@ void hcd62121_cpu_device::read_regreg(int size, u8 op1, u8 op2, bool op_is_logic
 			m_temp2[i] = m_reg[(op2 + i) & 0x7f];
 	}
 
-	if (!(op1 & 0x80) && !(op2 & 0x80))
+	if (!(op1 & 0x80))
 	{
 		/* We need to swap parameters */
 		for (int i = 0; i < size; i++)
@@ -142,24 +170,24 @@ void hcd62121_cpu_device::read_regreg(int size, u8 op1, u8 op2, bool op_is_logic
 }
 
 
-void hcd62121_cpu_device::write_regreg(int size, u8 op1, u8 op2)
+void hcd62121_cpu_device::write_regreg(int size, u8 arg1, u8 arg2)
 {
-	if ((op1 & 0x80) || (op2 & 0x80))
+	if ((arg1 & 0x80))
 	{
-		/* store in reg1 */
+		/* store in arg1 */
 		for (int i = 0; i < size; i++)
-			m_reg[(op1 + i) & 0x7f] = m_temp1[i];
+			m_reg[(arg1 + i) & 0x7f] = m_temp1[i];
 	}
 	else
 	{
-		/* store in reg2 */
+		/* store in arg2 */
 		for (int i = 0; i < size; i++)
-			m_reg[(op2 + i) & 0x7f] = m_temp1[i];
+			m_reg[(arg2 + i) & 0x7f] = m_temp1[i];
 	}
 }
 
 
-void hcd62121_cpu_device::read_iregreg(int size, u8 op1, u8 op2)
+void hcd62121_cpu_device::read_iregreg(int size, u8 op1, u8 op2, bool copy_extend_immediate)
 {
 	u16 ad = m_reg[(0x40 | op1) & 0x7f ] | (m_reg[(0x40 | (op1 + 1)) & 0x7f] << 8);
 
@@ -172,12 +200,14 @@ void hcd62121_cpu_device::read_iregreg(int size, u8 op1, u8 op2)
 
 	if (op1 & 0x80)
 	{
+		/* Second operand is an immediate value */
 		m_temp2[0] = op2;
 		for (int i = 1; i < size; i++)
-			m_temp2[i] = 0;
+			m_temp2[i] = copy_extend_immediate ? op2 : 0;
 	}
 	else
 	{
+		/* Second operand is a register */
 		for (int i = 0; i < size; i++)
 			m_temp2[i] = m_reg[(op2 + i) & 0x7f];
 	}
@@ -257,11 +287,11 @@ bool hcd62121_cpu_device::check_cond(u8 op)
 	case 0x03:  /* Z set */
 		return (m_f & FLAG_Z);
 
-	case 0x04:  /* Z or C set */
-		return (m_f & (FLAG_Z | FLAG_C));
+	case 0x04:  /* ZH not set */
+		return (!(m_f & FLAG_ZH));
 
-	case 0x05:  /* CL set */
-		return (m_f & FLAG_CL);
+	case 0x05:  /* ZL not set */
+		return (!(m_f & FLAG_ZL));
 
 	case 0x06:  /* C clear */
 		return (!(m_f & FLAG_C));
@@ -280,6 +310,8 @@ void hcd62121_cpu_device::device_start()
 
 	m_kol_cb.resolve_safe();
 	m_koh_cb.resolve_safe();
+	m_port_cb.resolve_safe();
+	m_opt_cb.resolve_safe();
 	m_ki_cb.resolve_safe(0);
 	m_in0_cb.resolve_safe(0);
 
@@ -295,6 +327,8 @@ void hcd62121_cpu_device::device_start()
 	save_item(NAME(m_reg));
 	save_item(NAME(m_temp1));
 	save_item(NAME(m_temp2));
+	save_item(NAME(m_opt));
+	save_item(NAME(m_port));
 
 	// Register state for debugger
 	state_add(STATE_GENPC,    "GENPC",    m_rtemp).callexport().formatstr("%8s");
@@ -343,7 +377,7 @@ void hcd62121_cpu_device::device_start()
 	state_add(HCD62121_R78, "R78", m_reg[0x00]).callimport().callexport().formatstr("%8s");
 	state_add(HCD62121_R7C, "R7C", m_reg[0x00]).callimport().callexport().formatstr("%8s");
 
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 }
 
 
@@ -489,6 +523,8 @@ void hcd62121_cpu_device::device_reset()
 	m_lar = 0;
 	m_f = 0;
 	m_dsize = 0;
+	m_opt = 0;
+	m_port = 0;
 
 	for (auto & elem : m_reg)
 	{
@@ -544,169 +580,217 @@ inline void hcd62121_cpu_device::set_cl_flag(bool is_cl)
 
 inline void hcd62121_cpu_device::op_msk(int size)
 {
-	bool mskres = true;
+	bool zero_high = true;
+	bool zero_low = true;
 
 	for (int i = 0; i < size; i++)
 	{
-		if ((m_temp1[i] & m_temp2[i]) != m_temp2[i])
-			mskres = false;
+		if ((m_temp1[i] & m_temp2[i] & 0xf0) != (m_temp2[i] & 0xf0))
+			zero_high = false;
+		if ((m_temp1[i] & m_temp2[i] & 0x0f) != (m_temp2[i] & 0x0f))
+			zero_low = false;
 	}
 
-	set_zero_flag(!mskres);
-}
+	set_zero_flag(zero_high && zero_low);
+	set_zh_flag(zero_high);
+	set_zl_flag(zero_low);
 
-
-inline void hcd62121_cpu_device::op_imsk(int size)
-{
-	bool mskres = true;
-	bool set_zero = false;
-
-	for (int i = 0; i < size; i++)
-	{
-		if ((m_temp1[i] & ~m_temp2[i]) != ~m_temp2[i])
-			mskres = false;
-		if (m_temp1[i] | m_temp2[i])
-			set_zero = true;
-	}
-
-	set_zero_flag(set_zero);
-	set_carry_flag(!mskres);
+	set_cl_flag(false);
+	set_carry_flag(false);
 }
 
 
 inline void hcd62121_cpu_device::op_and(int size)
 {
-	bool is_zero = true;
+	bool zero_high = true;
+	bool zero_low = true;
 
 	for (int i = 0; i < size; i++)
 	{
 		m_temp1[i] = m_temp1[i] & m_temp2[i];
-		if (m_temp1[i])
-			is_zero = false;
+		if (m_temp1[i] & 0xf0)
+			zero_high = false;
+		if (m_temp1[i] & 0x0f)
+			zero_low = false;
 	}
 
-	set_zero_flag(is_zero);
-	set_zl_flag((m_temp1[0] & 0x0f) == 0);
-	set_zh_flag((m_temp1[0] & 0xf0) == 0);
+	set_zero_flag(zero_high && zero_low);
+	set_zh_flag(zero_high);
+	set_zl_flag(zero_low);
+	set_cl_flag(false);
+	set_carry_flag(false);
 }
 
 
 inline void hcd62121_cpu_device::op_or(int size)
 {
-	bool is_zero = true;
+	bool zero_high = true;
+	bool zero_low = true;
 
 	for (int i = 0; i < size; i++)
 	{
 		m_temp1[i] = m_temp1[i] | m_temp2[i];
-		if (m_temp1[i])
-			is_zero = false;
+		if (m_temp1[i] & 0xf0)
+			zero_high = false;
+		if (m_temp1[i] & 0x0f)
+			zero_low = false;
 	}
 
-	set_zero_flag(is_zero);
-	set_zl_flag((m_temp1[0] & 0x0f) == 0);
-	set_zh_flag((m_temp1[0] & 0xf0) == 0);
+	set_zero_flag(zero_high && zero_low);
+	set_zh_flag(zero_high);
+	set_zl_flag(zero_low);
+	set_cl_flag(false);
+	set_carry_flag(false);
 }
 
 
 inline void hcd62121_cpu_device::op_xor(int size)
 {
-	bool is_zero = true;
+	bool zero_high = true;
+	bool zero_low = true;
 
 	for (int i = 0; i < size; i++)
 	{
 		m_temp1[i] = m_temp1[i] ^ m_temp2[i];
-		if (m_temp1[i])
-			is_zero = false;
+		if (m_temp1[i] & 0xf0)
+			zero_high = false;
+		if (m_temp1[i] & 0x0f)
+			zero_low = false;
 	}
 
-	set_zero_flag(is_zero);
-	set_zl_flag((m_temp1[0] & 0x0f) == 0);
-	set_zh_flag((m_temp1[0] & 0xf0) == 0);
+	set_zero_flag(zero_high && zero_low);
+	set_zh_flag(zero_high);
+	set_zl_flag(zero_low);
+	set_cl_flag(false);
+	set_carry_flag(false);
 }
 
 
 inline void hcd62121_cpu_device::op_add(int size)
 {
-	bool is_zero = true;
+	bool zero_high = true;
+	bool zero_low = true;
 	u8 carry = 0;
-
-	set_cl_flag((m_temp1[0] & 0x0f) + (m_temp2[0] & 0x0f) > 15);
 
 	for (int i = 0; i < size; i++)
 	{
+		if (i == size - 1) {
+			set_cl_flag((m_temp1[i] & 0x0f) + (m_temp2[i] & 0x0f) + carry > 0x0f);
+		}
+
 		u16 res = m_temp1[i] + m_temp2[i] + carry;
-
 		m_temp1[i] = res & 0xff;
-		if (m_temp1[i])
-			is_zero = false;
-
 		carry = (res & 0xff00) ? 1 : 0;
+
+		if (m_temp1[i] & 0xf0)
+			zero_high = false;
+		if (m_temp1[i] & 0x0f)
+			zero_low = false;
 	}
 
-	set_zero_flag(is_zero);
+	set_zero_flag(zero_high && zero_low);
+	set_zh_flag(zero_high);
+	set_zl_flag(zero_low);
 	set_carry_flag(carry);
-	set_zl_flag((m_temp1[0] & 0x0f) == 0);
-	set_zh_flag((m_temp1[0] & 0xf0) == 0);
 }
 
 
 // BCD ADD
 inline void hcd62121_cpu_device::op_addb(int size)
 {
-	bool is_zero = true;
+	bool zero_high = true;
+	bool zero_low = true;
 	u8 carry = 0;
-
-	set_cl_flag((m_temp1[0] & 0x0f) + (m_temp2[0] & 0x0f) > 9);
 
 	for (int i = 0; i < size; i++)
 	{
-		u16 res = (m_temp1[i] & 0x0f) + (m_temp2[i] & 0x0f) + carry;
-
-		if (res > 9)
-		{
-			res += 6;
+		if (i == size - 1) {
+			set_cl_flag((m_temp1[i] & 0x0f) + (m_temp2[i] & 0x0f) + carry > 9);
 		}
-		res += (m_temp1[i] & 0xf0) + (m_temp2[i] & 0xf0);
-		if (res > 0x9f)
-		{
-			res += 0x60;
-		}
-		m_temp1[i] = res & 0xff;
-		if (m_temp1[i])
-			is_zero = false;
 
-		carry = (res & 0xff00) ? 1 : 0;
+		int num1 = (m_temp1[i] & 0x0f) + ((m_temp1[i] & 0xf0) >> 4) * 10;
+		int num2 = (m_temp2[i] & 0x0f) + ((m_temp2[i] & 0xf0) >> 4) * 10;
+
+		int result = num1 + num2 + carry;
+		carry = (result > 99);
+		if (result > 99)
+			result -= 100;
+		m_temp1[i] = (result % 10) | ((result / 10) << 4);
+
+		if (m_temp1[i] & 0xf0)
+			zero_high = false;
+		if (m_temp1[i] & 0x0f)
+			zero_low = false;
 	}
 
-	set_zero_flag(is_zero);
+	set_zero_flag(zero_high && zero_low);
+	set_zh_flag(zero_high);
+	set_zl_flag(zero_low);
 	set_carry_flag(carry);
-	set_zl_flag((m_temp1[0] & 0x0f) == 0);
-	set_zh_flag((m_temp1[0] & 0xf0) == 0);
+}
+
+
+// BCD SUBTRACT
+inline void hcd62121_cpu_device::op_subb(int size)
+{
+	bool zero_high = true;
+	bool zero_low = true;
+	u8 carry = 0;
+
+	for (int i = 0; i < size; i++)
+	{
+		if (i == size - 1) {
+			set_cl_flag((m_temp1[i] & 0x0f) - (m_temp2[i] & 0x0f) - carry < 0);
+		}
+
+		int num1 = (m_temp1[i] & 0x0f) + ((m_temp1[i] & 0xf0) >> 4) * 10;
+		int num2 = (m_temp2[i] & 0x0f) + ((m_temp2[i] & 0xf0) >> 4) * 10;
+
+		int result = num1 - num2 - carry;
+		carry = (result < 0);
+		if (result < 0)
+			result += 100;
+		m_temp1[i] = (result % 10) | ((result / 10) << 4);
+
+		if (m_temp1[i] & 0xf0)
+			zero_high = false;
+		if (m_temp1[i] & 0x0f)
+			zero_low = false;
+	}
+
+	set_zero_flag(zero_high && zero_low);
+	set_zh_flag(zero_high);
+	set_zl_flag(zero_low);
+	set_carry_flag(carry);
 }
 
 
 inline void hcd62121_cpu_device::op_sub(int size)
 {
-	bool is_zero = true;
+	bool zero_high = true;
+	bool zero_low = true;
 	u8 carry = 0;
-
-	set_cl_flag((m_temp1[0] & 0x0f) < (m_temp2[0] & 0x0f));
 
 	for (int i = 0; i < size; i++)
 	{
+		if (i == size - 1) {
+			set_cl_flag((m_temp1[i] & 0x0f) - (m_temp2[i] & 0x0f) - carry < 0);
+		}
+
 		u16 res = m_temp1[i] - m_temp2[i] - carry;
-
 		m_temp1[i] = res & 0xff;
-		if (m_temp1[i])
-			is_zero = false;
-
 		carry = ( res & 0xff00 ) ? 1 : 0;
+
+		if (m_temp1[i] & 0xf0)
+			zero_high = false;
+		if (m_temp1[i] & 0x0f)
+			zero_low = false;
 	}
 
-	set_zero_flag(is_zero);
+	set_zero_flag(zero_high && zero_low);
+	set_zh_flag(zero_high);
+	set_zl_flag(zero_low);
 	set_carry_flag(carry);
-	set_zl_flag((m_temp1[0] & 0x0f) == 0);
-	set_zh_flag((m_temp1[0] & 0xf0) == 0);
 }
 
 
@@ -736,16 +820,43 @@ void hcd62121_cpu_device::execute_run()
 	{
 		offs_t pc = (m_cseg << 16) | m_ip;
 
-		debugger_instruction_hook(this, pc);
+		debugger_instruction_hook(pc);
 		m_prev_pc = pc;
 
 		u8 op = read_op();
 
 		// actual instruction timings unknown
 		m_icount -= 4;
-
 		switch (op)
 		{
+		case 0x00:      /* shrb/shlb r1,8 */ // Yes, this just sets a register to 0!
+		case 0x01:      /* shrw/shlw r1,8 */
+		case 0x02:      /* shrq/shlq r1,8 */
+		case 0x03:      /* shrt/shlt r1,8 */
+			{
+				int size = datasize(op);
+				u8 reg1 = read_op();
+
+				// TODO - read_reg should support reading this
+				if (reg1 & 0x80) {
+					read_reg(size, (reg1 & 0x7f) - size + 1);
+					for (int i=0; i < size - 1; i++) {
+						m_temp1[i] = m_temp1[i + 1];
+					}
+					m_temp1[size-1] = 0;
+					write_reg(size, (reg1 & 0x7f) - size + 1);
+				}
+				else
+				{
+					read_reg(size, reg1);
+					for (int i = size-1; i > 0; i--) {
+						m_temp1[i] = m_temp1[i - 1];
+					}
+					m_temp1[0] = 0;
+					write_reg(size, reg1);
+				}
+			}
+			break;
 		case 0x04:      /* mskb r1,r2 */
 		case 0x05:      /* mskw r1,r2 */
 		case 0x06:      /* mskq r1,r2 */
@@ -755,17 +866,17 @@ void hcd62121_cpu_device::execute_run()
 				u8 reg1 = read_op();
 				u8 reg2 = read_op();
 
-				read_regreg(size, reg1, reg2, false);
+				read_regreg(size, reg1, reg2, true);
 
 				op_msk(size);
 			}
 			break;
 
-		case 0x08:      /* shb r1,4 */
-		case 0x09:      /* shw r1,4 */
-		case 0x0A:      /* shq r1,4 */
-		case 0x0B:      /* sht r1,4 */
-			/* Shift is a nibble shift! */
+		case 0x08:      /* shrb/shlb r1,4 */
+		case 0x09:      /* shrw/shlw r1,4 */
+		case 0x0A:      /* shrq/shlq r1,4 */
+		case 0x0B:      /* shrt/shlt r1,4 */
+			/* Nibble shift */
 			{
 				int size = datasize(op);
 				u8 reg1 = read_op();
@@ -773,19 +884,25 @@ void hcd62121_cpu_device::execute_run()
 
 				read_reg(size, reg1);
 
-				for (int i = 0; i < size; i++)
+				if (reg1 & 0x80)
 				{
-					if (reg1 & 0x80)
+					// shift right
+					for (int i = 0; i < size; i++)
 					{
 						d1 = (m_temp1[i] & 0x0f) << 4;
 						m_temp1[i] = (m_temp1[i] >> 4) | d2;
+						d2 = d1;
 					}
-					else
+				}
+				else
+				{
+					// shift left
+					for (int i = 0; i < size; i++)
 					{
 						d1 = (m_temp1[i] & 0xf0) >> 4;
 						m_temp1[i] = (m_temp1[i] << 4) | d2;
+						d2 = d1;
 					}
-					d2 = d1;
 				}
 
 				write_reg(size, reg1);
@@ -801,7 +918,7 @@ void hcd62121_cpu_device::execute_run()
 				u8 reg1 = read_op();
 				u8 reg2 = read_op();
 
-				read_regreg(size, reg1, reg2, false);
+				read_regreg(size, reg1, reg2, true);
 
 				op_and(size);
 			}
@@ -816,7 +933,7 @@ void hcd62121_cpu_device::execute_run()
 				u8 reg1 = read_op();
 				u8 reg2 = read_op();
 
-				read_regreg(size, reg1, reg2, false);
+				read_regreg(size, reg1, reg2, true);
 
 				op_xor(size);
 
@@ -857,10 +974,10 @@ void hcd62121_cpu_device::execute_run()
 			}
 			break;
 
-		case 0x1C:      /* imskb r1,r2 */
-		case 0x1D:      /* imskw r1,r2 */
-		case 0x1E:      /* imskq r1,r2 */
-		case 0x1F:      /* imskt r1,r2 */
+		case 0x1C:      /* cmpaddb r1,r2 */
+		case 0x1D:      /* cmpaddw r1,r2 */
+		case 0x1E:      /* cmpaddq r1,r2 */
+		case 0x1F:      /* cmpaddt r1,r2 */
 			{
 				int size = datasize(op);
 				u8 reg1 = read_op();
@@ -868,30 +985,42 @@ void hcd62121_cpu_device::execute_run()
 
 				read_regreg(size, reg1, reg2, false);
 
-				op_imsk(size);
+				op_add(size);
 			}
 			break;
 
-		case 0x20:      /* shrb r1 */
-		case 0x21:      /* shrw r1 */
-		case 0x22:      /* shrq r1 */
-		case 0x23:      /* shrt r1 */
-			/* Shift is a single shift! */
+		case 0x20:      /* shrb r1,1 */
+		case 0x21:      /* shrw r1,1 */
+		case 0x22:      /* shrq r1,1 */
+		case 0x23:      /* shrt r1,1 */
 			{
 				int size = datasize(op);
 				u8 reg1 = read_op();
 				u8 d1 = 0, d2 = 0;
+				bool zero_high = true;
+				bool zero_low = true;
 
 				read_reg(size, reg1);
 
+				d2 = 0;
+				set_cl_flag ((m_temp1[0] & (1U<<4)) != 0U);
 				for (int i = 0; i < size; i++)
 				{
 					d1 = (m_temp1[i] & 0x01) << 7;
 					m_temp1[i] = (m_temp1[i] >> 1) | d2;
 					d2 = d1;
+					if (m_temp1[i] & 0xf0)
+						zero_high = false;
+					if (m_temp1[i] & 0x0f)
+						zero_low = false;
 				}
 
 				write_reg(size, reg1);
+
+				set_zero_flag(zero_high && zero_low);
+				set_zh_flag(zero_high);
+				set_zl_flag(zero_low);
+				set_carry_flag (d2 != 0);
 			}
 			break;
 
@@ -904,7 +1033,7 @@ void hcd62121_cpu_device::execute_run()
 				u8 reg1 = read_op();
 				u8 reg2 = read_op();
 
-				read_regreg(size, reg1, reg2, false);
+				read_regreg(size, reg1, reg2, true);
 
 				op_or(size);
 
@@ -912,26 +1041,37 @@ void hcd62121_cpu_device::execute_run()
 			}
 			break;
 
-		case 0x28:      /* shlb r1 */
-		case 0x29:      /* shlw r1 */
-		case 0x2A:      /* shlq r1 */
-		case 0x2B:      /* shlt r1 */
-			/* Shift is a single shift! */
+		case 0x28:      /* shlb r1,1 */
+		case 0x29:      /* shlw r1,1 */
+		case 0x2A:      /* shlq r1,1 */
+		case 0x2B:      /* shlt r1,1 */
 			{
 				int size = datasize(op);
 				u8 reg1 = read_op();
 				u8 d1 = 0, d2 = 0;
+				bool zero_high = true;
+				bool zero_low = true;
 
 				read_reg(size, reg1);
 
+				set_cl_flag ((m_temp1[0] & (1U<<3)) != 0U);
 				for (int i = 0; i < size; i++)
 				{
 					d1 = (m_temp1[i] & 0x80) >> 7;
 					m_temp1[i] = (m_temp1[i] << 1) | d2;
 					d2 = d1;
+
+					if (m_temp1[i] & 0xf0)
+						zero_high = false;
+					if (m_temp1[i] & 0x0f)
+						zero_low = false;
 				}
 
 				write_reg(size, reg1);
+				set_zero_flag(zero_high && zero_low);
+				set_zh_flag(zero_high);
+				set_zl_flag(zero_low);
+				set_carry_flag (d2 != 0);
 			}
 			break;
 
@@ -947,6 +1087,23 @@ void hcd62121_cpu_device::execute_run()
 				read_regreg(size, reg1, reg2, true);
 
 				op_and(size);
+
+				write_regreg(size, reg1, reg2);
+			}
+			break;
+
+		case 0x30:      /* subbb r1,r2 */
+		case 0x31:      /* subbw r1,r2 */
+		case 0x32:      /* subbq r1,r2 */
+		case 0x33:      /* subbt r1,r2 */
+			{
+				int size = datasize(op);
+				u8 reg1 = read_op();
+				u8 reg2 = read_op();
+
+				read_regreg(size, reg1, reg2, false);
+
+				op_subb(size);
 
 				write_regreg(size, reg1, reg2);
 			}
@@ -1012,9 +1169,26 @@ void hcd62121_cpu_device::execute_run()
 				u8 reg1 = read_op();
 				u8 reg2 = read_op();
 
-				read_iregreg(size, reg1, reg2);
+				read_iregreg(size, reg1, reg2, true);
 
 				op_and(size);
+			}
+			break;
+
+		case 0x50:      /* xorb ir1,r2 */
+		case 0x51:      /* xorw ir1,r2 */
+		case 0x52:      /* xorq ir1,r2 */
+		case 0x53:      /* xort ir1,r2 */
+			{
+				int size = datasize(op);
+				u8 reg1 = read_op();
+				u8 reg2 = read_op();
+
+				read_iregreg(size, reg1, reg2, true);
+
+				op_xor(size);
+
+				write_iregreg(size, reg1, reg2);
 			}
 			break;
 
@@ -1027,7 +1201,7 @@ void hcd62121_cpu_device::execute_run()
 				u8 reg1 = read_op();
 				u8 reg2 = read_op();
 
-				read_iregreg(size, reg1, reg2);
+				read_iregreg(size, reg1, reg2, false);
 
 				op_sub(size);
 			}
@@ -1042,12 +1216,27 @@ void hcd62121_cpu_device::execute_run()
 				u8 reg1 = read_op();
 				u8 reg2 = read_op();
 
-				read_iregreg(size, reg1, reg2);
+				read_iregreg(size, reg1, reg2, false);
 
 				for (int i = 0; i < size; i++)
 					m_temp1[i] = m_temp2[i];
 
 				write_iregreg(size, reg1, reg2);
+			}
+			break;
+
+		case 0x5C:      /* cmpaddb ir1,r2 */
+		case 0x5D:      /* cmpaddw ir1,r2 */
+		case 0x5E:      /* cmpaddq ir1,r2 */
+		case 0x5F:      /* cmpaddt ir1,r2 */
+			{
+				int size = datasize(op);
+				u8 reg1 = read_op();
+				u8 reg2 = read_op();
+
+				read_iregreg(size, reg1, reg2, false);
+
+				op_add(size);
 			}
 			break;
 
@@ -1060,7 +1249,7 @@ void hcd62121_cpu_device::execute_run()
 				u8 reg1 = read_op();
 				u8 reg2 = read_op();
 
-				read_iregreg(size, reg1, reg2);
+				read_iregreg(size, reg1, reg2, true);
 
 				op_or(size);
 
@@ -1077,9 +1266,43 @@ void hcd62121_cpu_device::execute_run()
 				u8 reg1 = read_op();
 				u8 reg2 = read_op();
 
-				read_iregreg(size, reg1, reg2);
+				read_iregreg(size, reg1, reg2, true);
 
 				op_and(size);
+
+				write_iregreg(size, reg1, reg2);
+			}
+			break;
+
+		case 0x74:      /* subb ir1,r2 */
+		case 0x75:      /* subw ir1,r2 */
+		case 0x76:      /* subq ir1,r2 */
+		case 0x77:      /* subt ir1,r2 */
+			{
+				int size = datasize(op);
+				u8 reg1 = read_op();
+				u8 reg2 = read_op();
+
+				read_iregreg(size, reg1, reg2, false);
+
+				op_sub(size);
+
+				write_iregreg(size, reg1, reg2);
+			}
+			break;
+
+		case 0x78:      /* adbb ir1,r2 */
+		case 0x79:      /* adbw ir1,r2 */
+		case 0x7A:      /* adbq ir1,r2 */
+		case 0x7B:      /* adbt ir1,r2 */
+			{
+				int size = datasize(op);
+				u8 reg1 = read_op();
+				u8 reg2 = read_op();
+
+				read_iregreg(size, reg1, reg2, false);
+
+				op_addb(size);
 
 				write_iregreg(size, reg1, reg2);
 			}
@@ -1094,7 +1317,7 @@ void hcd62121_cpu_device::execute_run()
 				u8 reg1 = read_op();
 				u8 reg2 = read_op();
 
-				read_iregreg(size, reg1, reg2);
+				read_iregreg(size, reg1, reg2, false);
 
 				op_add(size);
 
@@ -1103,7 +1326,11 @@ void hcd62121_cpu_device::execute_run()
 			break;
 
 		case 0x88:      /* jump _a16 */
-			m_ip = (read_op() << 8) | read_op();
+			{
+				u8 a1 = read_op();
+				u8 a2 = read_op();
+				m_ip = (a1 << 8) | a2;
+			}
 			break;
 
 		case 0x89:      /* jumpf cs:a16 */
@@ -1128,8 +1355,30 @@ void hcd62121_cpu_device::execute_run()
 			}
 			break;
 
-		case 0x8C:      /* unk_8C */
-		case 0x8D:      /* unk_8D */
+		case 0x8C:      /* bstack_to_dmem */
+			{
+				int size = m_dsize + 1;
+				for (int i=0; i < size; i++) {
+					u8 byte = m_program->read_byte((m_sseg << 16) | m_sp);
+					m_program->write_byte((m_dseg << 16) | m_lar, byte);
+					m_sp--;
+					m_lar--;
+				}
+			}
+			break;
+
+		case 0x8D:      /* fstack_to_dmem */
+			{
+				int size = m_dsize + 1;
+				for (int i=0; i < size; i++) {
+					u8 byte = m_program->read_byte((m_sseg << 16) | m_sp);
+					m_program->write_byte((m_dseg << 16) | m_lar, byte);
+					m_sp++;
+					m_lar++;
+				}
+			}
+			break;
+
 		case 0x8E:      /* unk_8E */
 			logerror("%02x:%04x: unimplemented instruction %02x encountered\n", m_cseg, m_ip-1, op);
 			break;
@@ -1138,8 +1387,8 @@ void hcd62121_cpu_device::execute_run()
 		case 0x91:      /* retzl */
 		case 0x92:      /* retc */
 		case 0x93:      /* retz */
-		case 0x94:      /* retzc */
-		case 0x95:      /* retcl */
+		case 0x94:      /* retnzh */
+		case 0x95:      /* retnzl */
 		case 0x96:      /* retnc */
 		case 0x97:      /* retnz */
 			if (check_cond(op))
@@ -1168,8 +1417,8 @@ void hcd62121_cpu_device::execute_run()
 		case 0xA1:      /* jmpzl a16 */
 		case 0xA2:      /* jmpc a16 */
 		case 0xA3:      /* jmpz a16 */
-		case 0xA4:      /* jmpzc a16 */
-		case 0xA5:      /* jmpcl a16 */
+		case 0xA4:      /* jmpnzh a16 */
+		case 0xA5:      /* jmpnzl a16 */
 		case 0xA6:      /* jmpnc a16 */
 		case 0xA7:      /* jmpnz a16 */
 			{
@@ -1185,8 +1434,8 @@ void hcd62121_cpu_device::execute_run()
 		case 0xA9:      /* callzl a16 */
 		case 0xAA:      /* callc a16 */
 		case 0xAB:      /* callz a16 */
-		case 0xAC:      /* callzc a16 */
-		case 0xAD:      /* callcl a16 */
+		case 0xAC:      /* callnzh a16 */
+		case 0xAD:      /* callnzl a16 */
 		case 0xAE:      /* callnc a16 */
 		case 0xAF:      /* callnz a16 */
 			{
@@ -1202,8 +1451,8 @@ void hcd62121_cpu_device::execute_run()
 			}
 			break;
 
-		case 0xB1:      /* unk_B1 reg/i8 */
-		case 0xB3:      /* unk_B3 reg/i8 */
+		case 0xB1:      /* unk_B1 reg/i8 - PORTx control/direction? */
+		case 0xB3:      /* unk_B3 reg/i8 - timer/irq related? */
 			logerror("%02x:%04x: unimplemented instruction %02x encountered\n", m_cseg, m_ip-1, op);
 			read_op();
 			break;
@@ -1224,12 +1473,12 @@ void hcd62121_cpu_device::execute_run()
 			m_kol_cb(read_op());
 			break;
 
-		case 0xB9:      /* unk_B9 reg/i8 */
+		case 0xB9:      /* unk_B9 reg/i8 - timer/irq related? */
 			logerror("%02x:%04x: unimplemented instruction %02x encountered\n", m_cseg, m_ip-1, op);
 			read_op();
 			break;
 
-		case 0xBB:      /* jmpcl? a16 */
+		case 0xBB:      /* jmpcl a16 */
 			logerror("%02x:%04x: unimplemented instruction %02x encountered\n", m_cseg, m_ip-1, op);
 			{
 				u8 a1 = read_op();
@@ -1240,7 +1489,7 @@ void hcd62121_cpu_device::execute_run()
 			}
 			break;
 
-		case 0xBF:      /* jmpncl? a16 */
+		case 0xBF:      /* jmpncl a16 */
 			logerror("%02x:%04x: unimplemented instruction %02x encountered\n", m_cseg, m_ip-1, op);
 			{
 				u8 a1 = read_op();
@@ -1251,13 +1500,16 @@ void hcd62121_cpu_device::execute_run()
 			}
 			break;
 
-		case 0xC0:      /* movb reg,i8 */
+		//case 0xC0:      /* movb reg,i8 */  // TODO - test
 		case 0xC1:      /* movw reg,i16 */
-		case 0xC2:      /* movw reg,i64 */
-		case 0xC3:      /* movw reg,i80 */
+		//case 0xC2:      /* movw reg,i64 */ // TODO - test
+		//case 0xC3:      /* movw reg,i80 */ // TODO - test
 			{
 				int size = datasize(op);
 				u8 reg = read_op();
+
+				if (reg & 0x80)
+					fatalerror("%02x:%04x: unimplemented instruction %02x encountered with (arg & 0x80) != 0\n", m_cseg, m_ip-1, op);
 
 				for (int i = 0; i < size; i++)
 				{
@@ -1272,12 +1524,12 @@ void hcd62121_cpu_device::execute_run()
 		case 0xC7:      /* movt (lar),r1 / r1,(lar) */
 			{
 				int size = datasize(op);
-				u8 reg1 = read_op();
-				u8 reg2 = read_op();
+				u8 arg1 = read_op();
+				u8 arg2 = read_op();
 				int pre_inc = 0;
 				int post_inc = 1;
 
-				switch (reg1 & 0x60)
+				switch (arg1 & 0x60)
 				{
 				case 0x00:
 					pre_inc = 0;
@@ -1297,23 +1549,29 @@ void hcd62121_cpu_device::execute_run()
 					break;
 				}
 
-				if ((reg1 & 0x80) || (reg2 & 0x80))
+				if ((arg1 & 0x80) || (arg2 & 0x80))
 				{
-					/* (lar) <- r1 */
+					/* (lar) <- r2 (immediate or register) */
 					for (int i = 0; i < size; i++)
 					{
 						m_lar += pre_inc;
-						m_program->write_byte((m_dseg << 16) | m_lar, m_reg[(reg2 + i) & 0x7f]);
+						if (arg1 & 0x80) {
+							m_program->write_byte((m_dseg << 16) | m_lar, arg2);
+						}
+						else
+						{
+							m_program->write_byte((m_dseg << 16) | m_lar, m_reg[(arg2 + i) & 0x7f]);
+						}
 						m_lar += post_inc;
 					}
 				}
 				else
 				{
-					/* r1 <- (lar) */
+					/* r2 <- (lar) */
 					for (int i = 0; i < size; i++)
 					{
 						m_lar += pre_inc;
-						m_reg[(reg2 + i) & 0x7f] = m_program->read_byte((m_dseg << 16) | m_lar);
+						m_reg[(arg2 + i) & 0x7f] = m_program->read_byte((m_dseg << 16) | m_lar);
 						m_lar += post_inc;
 					}
 				}
@@ -1329,7 +1587,11 @@ void hcd62121_cpu_device::execute_run()
 				u8 reg1 = read_op();
 				u8 reg2 = read_op();
 
-				read_iregreg(size, reg1, reg2);
+				if (reg1 & 0x80) {
+					fatalerror("%02x:%04x: unimplemented swap with immediate encountered\n", m_cseg, m_ip-1);
+				}
+
+				read_iregreg(size, reg1, reg2, false);
 
 				for (int i = 0; i < size; i++)
 				{
@@ -1340,6 +1602,7 @@ void hcd62121_cpu_device::execute_run()
 
 				write_iregreg(size, reg1, reg2);
 				write_iregreg2(size, reg1, reg2);
+				// TODO - are flags affected?
 			}
 			break;
 
@@ -1381,11 +1644,11 @@ void hcd62121_cpu_device::execute_run()
 			break;
 
 		case 0xD8:      /* movb f,reg */
-			m_f = m_reg[read_op() & 0x7f];
+			m_f = m_reg[read_op() & 0x7f] & 0x3f;
 			break;
 
 		case 0xD9:      /* movb f,i8 */
-			m_f = read_op();
+			m_f = read_op() & 0x3f;
 			break;
 
 		case 0xDC:      /* movb ds,reg */
@@ -1404,30 +1667,47 @@ void hcd62121_cpu_device::execute_run()
 			}
 			break;
 
+		case 0xDF:      /* movw lar,i8 */
+			m_lar = read_op();
+			break;
+
 		case 0xE0:      /* in0 reg */
 			{
+				logerror("%06x: in0 read\n", (m_cseg << 16) | m_ip);
 				u8 reg1 = read_op();
 
 				m_reg[reg1 & 0x7f] = m_in0_cb();
 			}
 			break;
 
-		case 0xE1:      /* unk_E1 reg/i8 (in?) */
-			logerror("%02x:%04x: unimplemented instruction %02x encountered\n", m_cseg, m_ip-1, op);
-			read_op();
+		case 0xE1:      /* movb reg,OPT */
+			m_reg[read_op() & 0x7f] = m_opt;
 			break;
 
 		case 0xE2:      /* in kb, reg */
 			m_reg[read_op() & 0x7f] = m_ki_cb();
 			break;
 
-		case 0xE3:      /* unk_e3 reg/i8 (in?) */
-		case 0xE4:      /* unk_e4 reg/i8 (in?) */
-		case 0xE5:      /* unk_e5 reg/i8 (in?) */
-		case 0xE6:      /* unk_e6 reg/i8 (in?) */
-		case 0xE7:      /* unk_e7 reg/i8 (in?) */
-			logerror("%02x:%04x: unimplemented instruction %02x encountered\n", m_cseg, m_ip-1, op);
-			read_op();
+		case 0xE3:      /* movb reg,dsize */
+			{
+				u8 reg = read_op();
+				if (reg & 0x80)
+					fatalerror("%02x:%04x: unimplemented instruction %02x encountered with (arg & 0x80) != 0\n", m_cseg, m_ip-1, op);
+				m_reg[reg & 0x7f] = m_dsize;
+			}
+			break;
+
+		case 0xE4:      /* movb reg,f */
+			{
+				u8 reg = read_op();
+				if (reg & 0x80)
+					fatalerror("%02x:%04x: unimplemented instruction %02x encountered with (arg & 0x80) != 0\n", m_cseg, m_ip-1, op);
+				m_reg[reg & 0x7f] = m_f;
+			}
+			break;
+
+		case 0xE6:      /* movb reg,PORT */
+			m_reg[read_op() & 0x7f] = m_port;
 			break;
 
 		case 0xE8:      /* movw r1,lar */
@@ -1439,7 +1719,7 @@ void hcd62121_cpu_device::execute_run()
 			}
 			break;
 
-		case 0xEB:      /* movw reg,ss */
+		case 0xEB:      /* movw reg,sp */
 			{
 				u8 reg1 = read_op();
 
@@ -1452,21 +1732,30 @@ void hcd62121_cpu_device::execute_run()
 			m_reg[read_op() & 0x7f] = m_sseg;
 			break;
 
-		case 0xF0:      /* unk_F0 reg/i8 (out?) */
+		case 0xF0:      /* movb OPT,reg */
+			m_opt = m_reg[read_op() & 0x7f];
+			m_opt_cb(m_opt);
+			break;
+
+		case 0xF2:      /* movb PORT,reg */
+			m_port = m_reg[read_op() & 0x7f];
+			m_port_cb(m_port);
+			break;
+
 		case 0xF1:      /* unk_F1 reg/i8 (out?) */
-		case 0xF2:      /* unk_F2 reg/i8 (out?) */
 		case 0xF3:      /* unk_F3 reg/i8 (out?) */
-		case 0xF4:      /* unk_F4 reg/i8 (out?) */
 		case 0xF5:      /* unk_F5 reg/i8 (out?) */
-		case 0xF6:      /* unk_F6 reg/i8 (out?) */
 		case 0xF7:      /* unk_F7 reg/i8 (out?) */
 			logerror("%02x:%04x: unimplemented instruction %02x encountered\n", m_cseg, m_ip-1, op);
 			read_op();
 			break;
 
-		case 0xFC:      /* unk_FC - disable interrupts?? */
+		case 0xFC:      /* unk_FC - disable interrupts/stop timer?? */
 		case 0xFD:      /* unk_FD */
-		case 0xFE:      /* unk_FE */
+		case 0xFE:      /* unk_FE - wait for/start timer */
+			if (op == 0xFE)
+				m_icount -= 75000; // TODO: temporary value that makes emulation speed acceptable
+
 			logerror("%02x:%04x: unimplemented instruction %02x encountered\n", m_cseg, m_ip-1, op);
 			break;
 
@@ -1480,9 +1769,7 @@ void hcd62121_cpu_device::execute_run()
 	} while (m_icount > 0);
 }
 
-
-offs_t hcd62121_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const u8 *oprom, const u8 *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> hcd62121_cpu_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE(hcd62121);
-	return CPU_DISASSEMBLE_NAME(hcd62121)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<hcd62121_disassembler>();
 }

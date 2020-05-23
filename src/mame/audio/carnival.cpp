@@ -61,7 +61,7 @@ enum
 };
 
 
-WRITE8_MEMBER( vicdual_state::carnival_audio_1_w )
+WRITE8_MEMBER( carnival_state::carnival_audio_1_w )
 {
 	int bitsChanged;
 	int bitsGoneHigh;
@@ -126,8 +126,7 @@ WRITE8_MEMBER( vicdual_state::carnival_audio_1_w )
 	}
 }
 
-
-WRITE8_MEMBER( vicdual_state::carnival_audio_2_w )
+WRITE8_MEMBER( carnival_state::carnival_audio_2_w )
 {
 	int bitsChanged;
 	//int bitsGoneHigh;
@@ -156,65 +155,106 @@ WRITE8_MEMBER( vicdual_state::carnival_audio_2_w )
 
 /* Music board */
 
-void vicdual_state::carnival_psg_latch(address_space &space)
+// common
+
+void carnival_state::mboard_map(address_map &map)
 {
-	if (m_psgBus & 1)
-	{
-		// BDIR W, BC1 selects address or data
-		if (m_psgBus & 2)
-			m_psg->address_w(space, 0, m_psgData);
-		else
-			m_psg->data_w(space, 0, m_psgData);
-	}
+	map(0x0000, 0x03ff).rom();
 }
 
-WRITE8_MEMBER( vicdual_state::carnival_music_port_1_w )
-{
-	// P1: ay8912 d0-d7
-	m_psgData = data;
-	carnival_psg_latch(space);
-}
-
-WRITE8_MEMBER( vicdual_state::carnival_music_port_2_w )
-{
-	// P2 d6: AY8912 BDIR(R/W)
-	// P2 d7: AY8912 BC1
-	m_psgBus = data >> 6 & 3;
-	carnival_psg_latch(space);
-}
-
-
-READ8_MEMBER( vicdual_state::carnival_music_port_t1_r )
+READ_LINE_MEMBER( carnival_state::carnival_music_port_t1_r )
 {
 	// T1: comms from audio port 2 d3
 	return ~m_port2State >> 3 & 1;
 }
 
 
-static ADDRESS_MAP_START( mboard_map, AS_PROGRAM, 8, vicdual_state )
-	AM_RANGE(0x0000, 0x03ff) AM_ROM
-ADDRESS_MAP_END
+// AY8912 music
 
-static ADDRESS_MAP_START( mboard_io_map, AS_IO, 8, vicdual_state )
-	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_WRITE(carnival_music_port_1_w)
-	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_WRITE(carnival_music_port_2_w)
-	AM_RANGE(MCS48_PORT_T1, MCS48_PORT_T1) AM_READ(carnival_music_port_t1_r)
-ADDRESS_MAP_END
+void carnival_state::carnival_psg_latch()
+{
+	if (m_musicBus & 1)
+	{
+		// BDIR W, BC1 selects address or data
+		if (m_musicBus & 2)
+			m_psg->address_w(m_musicData);
+		else
+			m_psg->data_w(m_musicData);
+	}
+}
 
+void carnival_state::carnivala_music_port_1_w(uint8_t data)
+{
+	// P1: AY8912 d0-d7
+	m_musicData = data;
+	carnival_psg_latch();
+}
 
-MACHINE_CONFIG_FRAGMENT( carnival_audio )
+void carnival_state::carnivala_music_port_2_w(uint8_t data)
+{
+	// P2 d6: AY8912 BDIR(R/W)
+	// P2 d7: AY8912 BC1
+	m_musicBus = data >> 6 & 3;
+	carnival_psg_latch();
+}
 
+void carnival_state::carnivala_audio(machine_config &config)
+{
 	/* music board */
-	MCFG_CPU_ADD("audiocpu", I8039, XTAL_3_579545MHz)
-	MCFG_CPU_PROGRAM_MAP(mboard_map)
-	MCFG_CPU_IO_MAP(mboard_io_map)
+	I8035(config, m_audiocpu, XTAL(3'579'545));
+	m_audiocpu->set_addrmap(AS_PROGRAM, &carnival_state::mboard_map);
+	m_audiocpu->p1_out_cb().set(FUNC(carnival_state::carnivala_music_port_1_w));
+	m_audiocpu->p2_out_cb().set(FUNC(carnival_state::carnivala_music_port_2_w));
+	m_audiocpu->t1_in_cb().set(FUNC(carnival_state::carnival_music_port_t1_r));
 
-	MCFG_SOUND_ADD("psg", AY8912, XTAL_3_579545MHz/3)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	AY8912(config, m_psg, XTAL(3'579'545)/3).add_route(ALL_OUTPUTS, "mono", 0.25); // also seen with AY-3-8910, daughterboard has place for either chip
 
 	/* samples */
-	MCFG_SOUND_ADD("samples", SAMPLES, 0)
-	MCFG_SAMPLES_CHANNELS(10)
-	MCFG_SAMPLES_NAMES(carnival_sample_names)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
-MACHINE_CONFIG_END
+	SAMPLES(config, m_samples);
+	m_samples->set_channels(10);
+	m_samples->set_samples_names(carnival_sample_names);
+	m_samples->add_route(ALL_OUTPUTS, "mono", 0.5);
+}
+
+
+// PIT8253 music
+
+void carnival_state::carnivalb_music_port_1_w(uint8_t data)
+{
+	// P1: PIT8253 d0-d7
+	m_musicData = data;
+}
+
+void carnival_state::carnivalb_music_port_2_w(uint8_t data)
+{
+	// P2 d7: PIT8253 write strobe
+	// P2 d5,d6: PIT8253 A0,A1
+	if (~m_musicBus & data & 0x80)
+		m_pit->write(data >> 5 & 3, m_musicData);
+
+	m_musicBus = data;
+}
+
+void carnival_state::carnivalb_audio(machine_config &config)
+{
+	// already inherited carnivala_audio
+	config.device_remove("psg");
+
+	m_audiocpu->p1_out_cb().set(FUNC(carnival_state::carnivalb_music_port_1_w));
+	m_audiocpu->p2_out_cb().set(FUNC(carnival_state::carnivalb_music_port_2_w));
+
+	PIT8253(config, m_pit, 0);
+	m_pit->set_clk<0>(XTAL(3'579'545)/3);
+	m_pit->set_clk<1>(XTAL(3'579'545)/3);
+	m_pit->set_clk<2>(XTAL(3'579'545)/3);
+
+	m_pit->out_handler<0>().set(m_dac[0], FUNC(dac_bit_interface::write));
+	m_pit->out_handler<1>().set(m_dac[1], FUNC(dac_bit_interface::write));
+	m_pit->out_handler<2>().set(m_dac[2], FUNC(dac_bit_interface::write));
+
+	for (int i = 0; i < 3; i++)
+	{
+		DAC_1BIT(config, m_dac[i]).add_route(ALL_OUTPUTS, "mono", 0.15);
+		VOLTAGE_REGULATOR(config, m_vref[i]).add_route(0, m_dac[i], 1.0, DAC_VREF_POS_INPUT);
+	}
+}

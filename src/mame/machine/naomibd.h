@@ -1,24 +1,18 @@
 // license:BSD-3-Clause
 // copyright-holders:Olivier Galibert
-#ifndef _NAOMIBD_H_
-#define _NAOMIBD_H_
+#ifndef MAME_MACHINE_NAOMIBD_H
+#define MAME_MACHINE_NAOMIBD_H
+
+#pragma once
 
 #include "machine/naomig1.h"
 #include "machine/x76f100.h"
 
-#define MCFG_NAOMI_BOARD_ADD(_tag, type, _eeprom_tag, _irq_cb)    \
-	MCFG_NAOMI_G1_ADD(_tag, type, _irq_cb)                        \
-	naomi_board::static_set_eeprom_tag(*device, _eeprom_tag);
-
 class naomi_board : public naomi_g1_device
 {
 public:
-	naomi_board(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
-
-	static void static_set_eeprom_tag(device_t &device, const char *_eeprom_tag);
-
 	// Can be patched in the underlying class
-	virtual DECLARE_ADDRESS_MAP(submap, 16);
+	virtual void submap(address_map &map) override;
 
 	DECLARE_WRITE16_MEMBER(rom_offseth_w);          // 5f7000
 	DECLARE_WRITE16_MEMBER(rom_offsetl_w);          // 5f7004
@@ -34,6 +28,8 @@ public:
 	DECLARE_READ16_MEMBER( default_r);
 
 protected:
+	naomi_board(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
@@ -49,13 +45,12 @@ protected:
 	virtual void board_write(offs_t offset, uint16_t data);
 
 	uint32_t rom_offset;
+	optional_device<x76f100_device> eeprom;
+
 private:
 	uint32_t dma_offset, dma_cur_offset;
 	uint16_t dma_count;
 	bool pio_ready, dma_ready;
-
-	const char *eeprom_tag;
-	x76f100_device *eeprom;
 };
 
-#endif
+#endif // MAME_MACHINE_NAOMIBD_H

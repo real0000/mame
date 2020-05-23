@@ -3,11 +3,10 @@
 
 // Williams Pinball Controller Pic-based protection simulation
 
-#ifndef WPC_PIC_H
-#define WPC_PIC_H
+#ifndef MAME_MACHINE_WPC_PIC_H
+#define MAME_MACHINE_WPC_PIC_H
 
-#define MCFG_WPC_PIC_ADD( _tag ) \
-	MCFG_DEVICE_ADD( _tag, WPC_PIC, 0 )
+#pragma once
 
 class wpc_pic_device : public device_t
 {
@@ -15,8 +14,8 @@ public:
 	wpc_pic_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 	virtual ~wpc_pic_device();
 
-	DECLARE_READ8_MEMBER(read);
-	DECLARE_WRITE8_MEMBER(write);
+	uint8_t read();
+	void write(uint8_t data);
 
 	void set_serial(const char *serial);
 
@@ -33,6 +32,6 @@ protected:
 	void check_game_id();
 };
 
-extern const device_type WPC_PIC;
+DECLARE_DEVICE_TYPE(WPC_PIC, wpc_pic_device)
 
-#endif
+#endif // MAME_MACHINE_WPC_PIC_H

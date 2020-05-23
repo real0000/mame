@@ -29,14 +29,15 @@
 //  md_rom_device - constructor
 //-------------------------------------------------
 
-const device_type MD_ROM_GAMEGENIE = device_creator<md_rom_ggenie_device>;
+DEFINE_DEVICE_TYPE(MD_ROM_GAMEGENIE, md_rom_ggenie_device, "md_ggenie", "MD Game Genie")
 
 
 md_rom_ggenie_device::md_rom_ggenie_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, MD_ROM_GAMEGENIE, "MD Game Genie", tag, owner, clock, "md_ggenie", __FILE__),
-						device_md_cart_interface( mconfig, *this ),
-						m_exp(*this, "subslot"), m_gg_bypass(0), m_reg_enable(0)
-				{
+	: device_t(mconfig, MD_ROM_GAMEGENIE, tag, owner, clock)
+	, device_md_cart_interface(mconfig, *this)
+	, m_exp(*this, "subslot")
+	, m_gg_bypass(0), m_reg_enable(0)
+{
 }
 
 
@@ -156,30 +157,23 @@ WRITE16_MEMBER(md_rom_ggenie_device::write)
 	}
 }
 
-//-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( ggenie_slot )
-//-------------------------------------------------
 
-static SLOT_INTERFACE_START(ggenie_sub_cart)
-	SLOT_INTERFACE_INTERNAL("rom",  MD_STD_ROM)
-	SLOT_INTERFACE_INTERNAL("rom_svp",  MD_STD_ROM)
-	SLOT_INTERFACE_INTERNAL("rom_sram",  MD_ROM_SRAM)
-	SLOT_INTERFACE_INTERNAL("rom_sramsafe",  MD_ROM_SRAM)
-	SLOT_INTERFACE_INTERNAL("rom_fram",  MD_ROM_FRAM)
-SLOT_INTERFACE_END
-
-static MACHINE_CONFIG_FRAGMENT( ggenie_slot )
-	MCFG_MD_CARTRIDGE_ADD("subslot", ggenie_sub_cart, nullptr)
-	MCFG_MD_CARTRIDGE_NOT_MANDATORY
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor md_rom_ggenie_device::device_mconfig_additions() const
+static void ggenie_sub_cart(device_slot_interface &device)
 {
-	return MACHINE_CONFIG_NAME( ggenie_slot );
+	device.option_add_internal("rom",  MD_STD_ROM);
+	device.option_add_internal("rom_svp",  MD_STD_ROM);
+	device.option_add_internal("rom_sram",  MD_ROM_SRAM);
+	device.option_add_internal("rom_sramsafe",  MD_ROM_SRAM);
+	device.option_add_internal("rom_fram",  MD_ROM_FRAM);
+}
+
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void md_rom_ggenie_device::device_add_mconfig(machine_config &config)
+{
+	MD_CART_SLOT(config, m_exp, ggenie_sub_cart, nullptr);
+	m_exp->set_must_be_loaded(false);
 }

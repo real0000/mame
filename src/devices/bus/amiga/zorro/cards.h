@@ -21,23 +21,17 @@
 
 ***************************************************************************/
 
+#ifndef MAME_BUS_AMIGA_ZORRO_CARDS_H
+#define MAME_BUS_AMIGA_ZORRO_CARDS_H
+
 #pragma once
 
-#ifndef __CARDS_H__
-#define __CARDS_H__
 
+void a1000_expansion_cards(device_slot_interface &device) ATTR_COLD;
+void a500_expansion_cards(device_slot_interface &device) ATTR_COLD;
+void a2000_expansion_cards(device_slot_interface &device) ATTR_COLD;
 
-#include "a2052.h"
-#include "a2232.h"
-#include "a590.h"
-#include "action_replay.h"
-#include "buddha.h"
+void zorro2_cards(device_slot_interface &device) ATTR_COLD;
+void zorro3_cards(device_slot_interface &device) ATTR_COLD;
 
-SLOT_INTERFACE_EXTERN( a1000_expansion_cards );
-SLOT_INTERFACE_EXTERN( a500_expansion_cards );
-SLOT_INTERFACE_EXTERN( a2000_expansion_cards );
-
-SLOT_INTERFACE_EXTERN( zorro2_cards );
-SLOT_INTERFACE_EXTERN( zorro3_cards );
-
-#endif // __CARDS_H__
+#endif // MAME_BUS_AMIGA_ZORRO_CARDS_H

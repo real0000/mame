@@ -16,40 +16,45 @@ TODO:
 *******************************************************************/
 
 #include "emu.h"
-#include "debugger.h"
 #include "tlcs900.h"
+#include "dasm900.h"
+#include "debugger.h"
 
 
-const device_type TMP95C061 = device_creator<tmp95c061_device>;
-const device_type TMP95C063 = device_creator<tmp95c063_device>;
+DEFINE_DEVICE_TYPE(TMP95C061, tmp95c061_device, "tmp95c061", "Toshiba TMP95C061")
+DEFINE_DEVICE_TYPE(TMP95C063, tmp95c063_device, "tmp95c063", "Toshiba TMP95C063")
 
 
-static ADDRESS_MAP_START( tmp95c061_mem8, AS_PROGRAM, 8, tmp95c061_device )
-	AM_RANGE( 0x000000, 0x00007f ) AM_READWRITE( internal_r, internal_w )
-ADDRESS_MAP_END
+void tmp95c061_device::tmp95c061_mem8(address_map &map)
+{
+	map(0x000000, 0x00007f).rw(FUNC(tmp95c061_device::internal_r), FUNC(tmp95c061_device::internal_w));
+}
 
-static ADDRESS_MAP_START( tmp95c061_mem16, AS_PROGRAM, 16, tmp95c061_device )
-	AM_RANGE( 0x000000, 0x00007f ) AM_READWRITE8( internal_r, internal_w, 0xffff )
-ADDRESS_MAP_END
-
-
-static ADDRESS_MAP_START(tmp95c063_mem8, AS_PROGRAM, 8, tmp95c063_device )
-	AM_RANGE( 0x000000, 0x00009f ) AM_READWRITE( internal_r, internal_w )
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START(tmp95c063_mem16, AS_PROGRAM, 16, tmp95c063_device )
-	AM_RANGE( 0x000000, 0x00009f ) AM_READWRITE8( internal_r, internal_w, 0xffff )
-ADDRESS_MAP_END
+void tmp95c061_device::tmp95c061_mem16(address_map &map)
+{
+	map(0x000000, 0x00007f).rw(FUNC(tmp95c061_device::internal_r), FUNC(tmp95c061_device::internal_w));
+}
 
 
-tlcs900h_device::tlcs900h_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname)
-	: cpu_device(mconfig, type, name, tag, owner, clock, shortname, __FILE__),
+void tmp95c063_device::tmp95c063_mem8(address_map &map)
+{
+	map(0x000000, 0x00009f).rw(FUNC(tmp95c063_device::internal_r), FUNC(tmp95c063_device::internal_w));
+}
+
+void tmp95c063_device::tmp95c063_mem16(address_map &map)
+{
+	map(0x000000, 0x00009f).rw(FUNC(tmp95c063_device::internal_r), FUNC(tmp95c063_device::internal_w));
+}
+
+
+tlcs900h_device::tlcs900h_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	cpu_device(mconfig, type, tag, owner, clock),
 	m_am8_16(0)
 {
 }
 
-tmp95c061_device::tmp95c061_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: tlcs900h_device(mconfig, TMP95C061, "TMP95C061", tag, owner, clock, "tmp95c061" ),
+tmp95c061_device::tmp95c061_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	tlcs900h_device(mconfig, TMP95C061, tag, owner, clock),
 	m_port1_read(*this),
 	m_port1_write(*this),
 	m_port2_write(*this),
@@ -69,6 +74,13 @@ tmp95c061_device::tmp95c061_device(const machine_config &mconfig, const char *ta
 {
 }
 
+device_memory_interface::space_config_vector tlcs900h_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
+}
+
 //-------------------------------------------------
 //  device_config_complete - perform any
 //  operations now that the configuration is
@@ -79,16 +91,16 @@ void tmp95c061_device::device_config_complete()
 {
 	if (m_am8_16 == 0)
 	{
-		m_program_config = address_space_config("program", ENDIANNESS_LITTLE, 16, 24, 0, ADDRESS_MAP_NAME(tmp95c061_mem16));
+		m_program_config = address_space_config("program", ENDIANNESS_LITTLE, 16, 24, 0, address_map_constructor(FUNC(tmp95c061_device::tmp95c061_mem16), this));
 	}
 	else
 	{
-		m_program_config = address_space_config("program", ENDIANNESS_LITTLE, 8, 24, 0, ADDRESS_MAP_NAME(tmp95c061_mem8));
+		m_program_config = address_space_config("program", ENDIANNESS_LITTLE, 8, 24, 0, address_map_constructor(FUNC(tmp95c061_device::tmp95c061_mem8), this));
 	}
 }
 
-tmp95c063_device::tmp95c063_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: tlcs900h_device(mconfig, TMP95C063, "TMP95C063", tag, owner, clock, "tmp95c063"),
+tmp95c063_device::tmp95c063_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	tlcs900h_device(mconfig, TMP95C063, tag, owner, clock),
 	m_port1_read(*this),
 	m_port1_write(*this),
 	m_port2_write(*this),
@@ -111,14 +123,7 @@ tmp95c063_device::tmp95c063_device(const machine_config &mconfig, const char *ta
 	m_portd_write(*this),
 	m_porte_read(*this),
 	m_porte_write(*this),
-	m_an0_read(*this),
-	m_an1_read(*this),
-	m_an2_read(*this),
-	m_an3_read(*this),
-	m_an4_read(*this),
-	m_an5_read(*this),
-	m_an6_read(*this),
-	m_an7_read(*this)
+	m_an_read(*this)
 {
 }
 
@@ -132,19 +137,18 @@ void tmp95c063_device::device_config_complete()
 {
 	if (m_am8_16 == 0)
 	{
-		m_program_config = address_space_config("program", ENDIANNESS_LITTLE, 16, 24, 0, ADDRESS_MAP_NAME(tmp95c063_mem16));
+		m_program_config = address_space_config("program", ENDIANNESS_LITTLE, 16, 24, 0, address_map_constructor(FUNC(tmp95c063_device::tmp95c063_mem16), this));
 	}
 	else
 	{
-		m_program_config = address_space_config("program", ENDIANNESS_LITTLE, 8, 24, 0, ADDRESS_MAP_NAME(tmp95c063_mem8));
+		m_program_config = address_space_config("program", ENDIANNESS_LITTLE, 8, 24, 0, address_map_constructor(FUNC(tmp95c063_device::tmp95c063_mem8), this));
 	}
 }
 
 
-offs_t tlcs900h_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> tlcs900h_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( tlcs900 );
-	return CPU_DISASSEMBLE_NAME(tlcs900)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<tlcs900_disassembler>();
 }
 
 
@@ -381,7 +385,7 @@ void tlcs900h_device::device_start()
 	state_add( STATE_GENPCBASE, "CURPC", m_pc.d ).noshow();
 	state_add( STATE_GENFLAGS, "GENFLAGS", m_sr.w.l ).formatstr("%12s").noshow();
 
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 }
 
 
@@ -1045,7 +1049,7 @@ void tlcs900h_device::execute_run()
 			m_check_irqs = 0;
 		}
 
-		debugger_instruction_hook( this, m_pc.d );
+		debugger_instruction_hook( m_pc.d );
 
 		if ( m_halted )
 		{
@@ -1152,7 +1156,7 @@ void tmp95c061_device::execute_set_input(int input, int level)
 }
 
 
-READ8_MEMBER( tmp95c061_device::internal_r )
+uint8_t tmp95c061_device::internal_r(offs_t offset)
 {
 	switch (offset)
 	{
@@ -1176,7 +1180,7 @@ void tmp95c061_device::update_porta()
 	m_porta_write(0, ((fc & m_reg[TMP95C061_PAFC]) | (m_reg[TMP95C061_PA] & ~m_reg[TMP95C061_PAFC])) & m_reg[TMP95C061_PACR], 0xff);
 }
 
-WRITE8_MEMBER( tmp95c061_device::internal_w )
+void tmp95c061_device::internal_w(offs_t offset, uint8_t data)
 {
 	switch ( offset )
 	{
@@ -1754,42 +1758,42 @@ void tmp95c063_device::tlcs900_handle_ad()
 				switch( m_reg[TMP95C063_ADMOD2] & 0x07 )
 				{
 				case 0x00:  // AN0
-					ad_value = m_an0_read(0) & 0x3ff;
+					ad_value = m_an_read[0](0) & 0x3ff;
 					m_reg[TMP95C063_ADREG04L] = (ad_value & 0x3) << 6;
 					m_reg[TMP95C063_ADREG04H] = (ad_value >> 2) & 0xff;
 					break;
 				case 0x01:  // AN1
-					ad_value = m_an1_read(0) & 0x3ff;
+					ad_value = m_an_read[1](0) & 0x3ff;
 					m_reg[TMP95C063_ADREG15L] = (ad_value & 0x3) << 6;
 					m_reg[TMP95C063_ADREG15H] = (ad_value >> 2) & 0xff;
 					break;
 				case 0x02:  // AN2
-					ad_value = m_an2_read(0) & 0x3ff;
+					ad_value = m_an_read[2](0) & 0x3ff;
 					m_reg[TMP95C063_ADREG26L] = (ad_value & 0x3) << 6;
 					m_reg[TMP95C063_ADREG26H] = (ad_value >> 2) & 0xff;
 					break;
 				case 0x03:  // AN3
-					ad_value = m_an3_read(0) & 0x3ff;
+					ad_value = m_an_read[3](0) & 0x3ff;
 					m_reg[TMP95C063_ADREG37L] = (ad_value & 0x3) << 6;
 					m_reg[TMP95C063_ADREG37H] = (ad_value >> 2) & 0xff;
 					break;
 				case 0x04:  // AN4
-					ad_value = m_an4_read(0) & 0x3ff;
+					ad_value = m_an_read[4](0) & 0x3ff;
 					m_reg[TMP95C063_ADREG04L] = (ad_value & 0x3) << 6;
 					m_reg[TMP95C063_ADREG04H] = (ad_value >> 2) & 0xff;
 					break;
 				case 0x05:  // AN5
-					ad_value = m_an5_read(0) & 0x3ff;
+					ad_value = m_an_read[5](0) & 0x3ff;
 					m_reg[TMP95C063_ADREG15L] = (ad_value & 0x3) << 6;
 					m_reg[TMP95C063_ADREG15H] = (ad_value >> 2) & 0xff;
 					break;
 				case 0x06:  // AN6
-					ad_value = m_an6_read(0) & 0x3ff;
+					ad_value = m_an_read[6](0) & 0x3ff;
 					m_reg[TMP95C063_ADREG26L] = (ad_value & 0x3) << 6;
 					m_reg[TMP95C063_ADREG26H] = (ad_value >> 2) & 0xff;
 					break;
 				case 0x07:  // AN7
-					ad_value = m_an7_read(0) & 0x3ff;
+					ad_value = m_an_read[7](0) & 0x3ff;
 					m_reg[TMP95C063_ADREG37L] = (ad_value & 0x3) << 6;
 					m_reg[TMP95C063_ADREG37H] = (ad_value >> 2) & 0xff;
 					break;
@@ -1800,78 +1804,78 @@ void tmp95c063_device::tlcs900_handle_ad()
 				switch( m_reg[TMP95C063_ADMOD2] & 0x07 )
 				{
 					case 0x00:      // AN0
-						ad_value = m_an0_read(0) & 0x3ff;
+						ad_value = m_an_read[0](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG04L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG04H] = (ad_value >> 2) & 0xff;
 						break;
 					case 0x01:      // AN0 -> AN1
-						ad_value = m_an0_read(0) & 0x3ff;
+						ad_value = m_an_read[0](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG04L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG04H] = (ad_value >> 2) & 0xff;
-						ad_value = m_an1_read(0) & 0x3ff;
+						ad_value = m_an_read[1](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG15L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG15H] = (ad_value >> 2) & 0xff;
 						break;
 					case 0x02:      // AN0 -> AN1 -> AN2
-						ad_value = m_an0_read(0) & 0x3ff;
+						ad_value = m_an_read[0](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG04L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG04H] = (ad_value >> 2) & 0xff;
-						ad_value = m_an1_read(0) & 0x3ff;
+						ad_value = m_an_read[1](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG15L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG15H] = (ad_value >> 2) & 0xff;
-						ad_value = m_an2_read(0) & 0x3ff;
+						ad_value = m_an_read[2](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG26L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG26H] = (ad_value >> 2) & 0xff;
 						break;
 					case 0x03:      // AN0 -> AN1 -> AN2 -> AN3
-						ad_value = m_an0_read(0) & 0x3ff;
+						ad_value = m_an_read[0](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG04L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG04H] = (ad_value >> 2) & 0xff;
-						ad_value = m_an1_read(0) & 0x3ff;
+						ad_value = m_an_read[1](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG15L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG15H] = (ad_value >> 2) & 0xff;
-						ad_value = m_an2_read(0) & 0x3ff;
+						ad_value = m_an_read[2](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG26L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG26H] = (ad_value >> 2) & 0xff;
-						ad_value = m_an3_read(0) & 0x3ff;
+						ad_value = m_an_read[3](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG37L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG37H] = (ad_value >> 2) & 0xff;
 						break;
 					case 0x04:      // AN4
-						ad_value = m_an4_read(0) & 0x3ff;
+						ad_value = m_an_read[4](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG04L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG04H] = (ad_value >> 2) & 0xff;
 						break;
 					case 0x05:      // AN4 -> AN5
-						ad_value = m_an4_read(0) & 0x3ff;
+						ad_value = m_an_read[4](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG04L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG04H] = (ad_value >> 2) & 0xff;
-						ad_value = m_an5_read(0) & 0x3ff;
+						ad_value = m_an_read[5](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG15L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG15H] = (ad_value >> 2) & 0xff;
 						break;
 					case 0x06:      // AN4 -> AN5 -> AN6
-						ad_value = m_an4_read(0) & 0x3ff;
+						ad_value = m_an_read[4](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG04L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG04H] = (ad_value >> 2) & 0xff;
-						ad_value = m_an5_read(0) & 0x3ff;
+						ad_value = m_an_read[5](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG15L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG15H] = (ad_value >> 2) & 0xff;
-						ad_value = m_an6_read(0) & 0x3ff;
+						ad_value = m_an_read[6](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG26L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG26H] = (ad_value >> 2) & 0xff;
 						break;
 					case 0x07:      // AN4 -> AN5 -> AN6 -> AN7
-						ad_value = m_an4_read(0) & 0x3ff;
+						ad_value = m_an_read[4](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG04L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG04H] = (ad_value >> 2) & 0xff;
-						ad_value = m_an5_read(0) & 0x3ff;
+						ad_value = m_an_read[5](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG15L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG15H] = (ad_value >> 2) & 0xff;
-						ad_value = m_an6_read(0) & 0x3ff;
+						ad_value = m_an_read[6](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG26L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG26H] = (ad_value >> 2) & 0xff;
-						ad_value = m_an7_read(0) & 0x3ff;
+						ad_value = m_an_read[7](0) & 0x3ff;
 						m_reg[TMP95C063_ADREG37L] = (ad_value & 0x3) << 6;
 						m_reg[TMP95C063_ADREG37H] = (ad_value >> 2) & 0xff;
 						break;
@@ -1915,20 +1919,11 @@ void tmp95c063_device::device_start()
 	m_portd_write.resolve_safe();
 	m_porte_read.resolve_safe(0);
 	m_porte_write.resolve_safe();
-	m_an0_read.resolve_safe(0);
-	m_an1_read.resolve_safe(0);
-	m_an2_read.resolve_safe(0);
-	m_an3_read.resolve_safe(0);
-	m_an4_read.resolve_safe(0);
-	m_an5_read.resolve_safe(0);
-	m_an6_read.resolve_safe(0);
-	m_an7_read.resolve_safe(0);
+	m_an_read.resolve_all_safe(0);
 }
 
 void tmp95c063_device::device_reset()
 {
-	int i;
-
 	m_pc.b.l = RDMEM( 0xFFFF00 );
 	m_pc.b.h = RDMEM( 0xFFFF01 );
 	m_pc.b.h2 = RDMEM( 0xFFFF02 );
@@ -2011,14 +2006,13 @@ void tmp95c063_device::device_reset()
 	m_reg[TMP95C063_ADREG37H] = 0x00;
 	m_reg[TMP95C063_WDMOD] = 0x80;
 
-	for ( i = 0; i < TLCS900_NUM_INPUTS; i++ )
-	{
+	for (int i = 0; i < TLCS900_NUM_INPUTS; i++)
 		m_level[i] = CLEAR_LINE;
-	}
+
 	m_prefetch_clear = true;
 }
 
-READ8_MEMBER( tmp95c063_device::internal_r )
+uint8_t tmp95c063_device::internal_r(offs_t offset)
 {
 	switch (offset)
 	{
@@ -2038,7 +2032,7 @@ READ8_MEMBER( tmp95c063_device::internal_r )
 }
 
 
-WRITE8_MEMBER( tmp95c063_device::internal_w )
+void tmp95c063_device::internal_w(offs_t offset, uint8_t data)
 {
 	switch ( offset )
 	{

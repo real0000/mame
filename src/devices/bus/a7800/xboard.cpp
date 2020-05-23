@@ -53,30 +53,29 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type A78_XBOARD = device_creator<a78_xboard_device>;
-const device_type A78_XM = device_creator<a78_xm_device>;
+DEFINE_DEVICE_TYPE(A78_XBOARD, a78_xboard_device, "a78_xboard", "Atari 7800 XBoarD expansion")
+DEFINE_DEVICE_TYPE(A78_XM,     a78_xm_device,     "a78_xm",     "Atari 7800 XM expansion module")
 
 
-a78_xboard_device::a78_xboard_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: a78_rom_device(mconfig, type, name, tag, owner, clock, shortname, source),
-						m_xbslot(*this, "xb_slot"),
-						m_pokey(*this, "xb_pokey"), m_reg(0), m_ram_bank(0)
-				{
+a78_xboard_device::a78_xboard_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: a78_rom_device(mconfig, type, tag, owner, clock)
+	, m_xbslot(*this, "xb_slot")
+	, m_pokey(*this, "xb_pokey")
+	, m_reg(0), m_ram_bank(0)
+{
 }
 
 
 a78_xboard_device::a78_xboard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a78_rom_device(mconfig, A78_XBOARD, "Atari 7800 XBoarD expansion", tag, owner, clock, "a78_xboard", __FILE__),
-						m_xbslot(*this, "xb_slot"),
-						m_pokey(*this, "xb_pokey"), m_reg(0), m_ram_bank(0)
-				{
+	: a78_xboard_device(mconfig, A78_XBOARD, tag, owner, clock)
+{
 }
 
 
 a78_xm_device::a78_xm_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a78_xboard_device(mconfig, A78_XM, "Atari 7800 XM expansion module", tag, owner, clock, "a78_xm", __FILE__),
-						m_ym(*this, "xm_ym2151"), m_ym_enabled(0)
-				{
+	: a78_xboard_device(mconfig, A78_XM, tag, owner, clock)
+	, m_ym(*this, "xm_ym2151"), m_ym_enabled(0)
+{
 }
 
 
@@ -107,36 +106,28 @@ void a78_xm_device::device_reset()
 }
 
 
-static MACHINE_CONFIG_FRAGMENT( a78_xb )
-	MCFG_A78_CARTRIDGE_ADD("xb_slot", a7800_cart, nullptr)
-
-	MCFG_SPEAKER_STANDARD_MONO("xb_speaker")
-
-	MCFG_SOUND_ADD("xb_pokey", POKEY, XTAL_14_31818MHz/8)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "xb_speaker", 1.00)
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_FRAGMENT( a78_xm )
-	MCFG_A78_CARTRIDGE_ADD("xb_slot", a7800_cart, nullptr)
-
-	MCFG_SPEAKER_STANDARD_MONO("xb_speaker")
-
-	MCFG_SOUND_ADD("xb_pokey", POKEY, XTAL_14_31818MHz/8)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "xb_speaker", 1.00)
-
-	MCFG_SOUND_ADD("xm_ym2151", YM2151, XTAL_14_31818MHz/4)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "xb_speaker", 1.00)
-MACHINE_CONFIG_END
-
-machine_config_constructor a78_xboard_device::device_mconfig_additions() const
+void a78_xboard_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( a78_xb );
+	A78_CART_SLOT(config, m_xbslot, a7800_cart, nullptr);
+
+	SPEAKER(config, "xb_speaker").front_center();
+
+	POKEY(config, m_pokey, XTAL(14'318'181)/8);
+	m_pokey->add_route(ALL_OUTPUTS, "xb_speaker", 1.00);
 }
 
-machine_config_constructor a78_xm_device::device_mconfig_additions() const
+void a78_xm_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( a78_xm );
+	A78_CART_SLOT(config, m_xbslot, a7800_cart, nullptr);
+
+	SPEAKER(config, "xb_speaker").front_center();
+
+	POKEY(config, m_pokey, XTAL(14'318'181)/8);
+	m_pokey->add_route(ALL_OUTPUTS, "xb_speaker", 1.00);
+
+	YM2151(config, m_ym, XTAL(14'318'181)/4).add_route(ALL_OUTPUTS, "xb_speaker", 1.00);
 }
+
 
 /*-------------------------------------------------
  mapper specific handlers
@@ -148,38 +139,38 @@ machine_config_constructor a78_xm_device::device_mconfig_additions() const
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a78_xboard_device::read_40xx)
+uint8_t a78_xboard_device::read_40xx(offs_t offset)
 {
 	if (BIT(m_reg, 3) && offset < 0x4000)
 		return m_ram[offset + (m_ram_bank * 0x4000)];
 	else
-		return m_xbslot->read_40xx(space, offset);
+		return m_xbslot->read_40xx(offset);
 }
 
-WRITE8_MEMBER(a78_xboard_device::write_40xx)
+void a78_xboard_device::write_40xx(offs_t offset, uint8_t data)
 {
 	if (BIT(m_reg, 3) && offset < 0x4000)
 		m_ram[offset + (m_ram_bank * 0x4000)] = data;
 	else
-		m_xbslot->write_40xx(space, offset, data);
+		m_xbslot->write_40xx(offset, data);
 }
 
-READ8_MEMBER(a78_xboard_device::read_04xx)
+uint8_t a78_xboard_device::read_04xx(offs_t offset)
 {
 	if (BIT(m_reg, 4) && offset >= 0x50 && offset < 0x60)
-		return m_pokey->read(space, offset & 0x0f);
+		return m_pokey->read(offset & 0x0f);
 	else if (BIT(m_reg, 4) && offset >= 0x60 && offset < 0x70)
-		return m_xbslot->read_04xx(space, offset - 0x10);   // access second POKEY
+		return m_xbslot->read_04xx(offset - 0x10);   // access second POKEY
 	else
 		return 0xff;
 }
 
-WRITE8_MEMBER(a78_xboard_device::write_04xx)
+void a78_xboard_device::write_04xx(offs_t offset, uint8_t data)
 {
 	if (BIT(m_reg, 4) && offset >= 0x50 && offset < 0x60)
-		m_pokey->write(space, offset & 0x0f, data);
+		m_pokey->write(offset & 0x0f, data);
 	else if (BIT(m_reg, 4) && offset >= 0x60 && offset < 0x70)
-		m_xbslot->write_04xx(space, offset - 0x10, data);   // access second POKEY
+		m_xbslot->write_04xx(offset - 0x10, data);   // access second POKEY
 	else if (offset >= 0x70 && offset < 0x80)
 	{
 		m_reg = data;
@@ -194,41 +185,41 @@ WRITE8_MEMBER(a78_xboard_device::write_04xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a78_xm_device::read_10xx)
+uint8_t a78_xm_device::read_10xx(offs_t offset)
 {
 	return m_nvram[offset];
 }
 
-WRITE8_MEMBER(a78_xm_device::write_10xx)
+void a78_xm_device::write_10xx(offs_t offset, uint8_t data)
 {
 	m_nvram[offset] = data;
 }
 
-READ8_MEMBER(a78_xm_device::read_30xx)
+uint8_t a78_xm_device::read_30xx(offs_t offset)
 {
 	return m_rom[offset];
 }
 
-READ8_MEMBER(a78_xm_device::read_04xx)
+uint8_t a78_xm_device::read_04xx(offs_t offset)
 {
 	if (BIT(m_reg, 4) && offset >= 0x50 && offset < 0x60)
-		return m_pokey->read(space, offset & 0x0f);
+		return m_pokey->read(offset & 0x0f);
 	else if (m_ym_enabled && offset >= 0x60 && offset <= 0x61)
-		return m_ym->read(space, offset & 1);
+		return m_ym->read(offset & 1);
 	else if (BIT(m_reg, 4) && offset >= 0x60 && offset < 0x70)
-		return m_xbslot->read_04xx(space, offset - 0x10);   // access second POKEY
+		return m_xbslot->read_04xx(offset - 0x10);   // access second POKEY
 	else
 		return 0xff;
 }
 
-WRITE8_MEMBER(a78_xm_device::write_04xx)
+void a78_xm_device::write_04xx(offs_t offset, uint8_t data)
 {
 	if (BIT(m_reg, 4) && offset >= 0x50 && offset < 0x60)
-		m_pokey->write(space, offset & 0x0f, data);
+		m_pokey->write(offset & 0x0f, data);
 	else if (m_ym_enabled && offset >= 0x60 && offset <= 0x61)
-		m_ym->write(space, offset & 1, data);
+		m_ym->write(offset & 1, data);
 	else if (BIT(m_reg, 4) && offset >= 0x60 && offset < 0x70)
-		m_xbslot->write_04xx(space, offset - 0x10, data);   // access second POKEY
+		m_xbslot->write_04xx(offset - 0x10, data);   // access second POKEY
 	else if (offset >= 0x70 && offset < 0x80)
 	{
 		//printf("regs 0x%X\n", data);

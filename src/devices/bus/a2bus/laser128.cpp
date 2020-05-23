@@ -11,6 +11,9 @@
 #include "emu.h"
 #include "laser128.h"
 
+//#define VERBOSE 1
+#include "logmacro.h"
+
 /***************************************************************************
     PARAMETERS
 ***************************************************************************/
@@ -19,39 +22,33 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type A2BUS_LASER128 = device_creator<a2bus_laser128_device>;
-
-MACHINE_CONFIG_FRAGMENT( a2laser128 )
-MACHINE_CONFIG_END
+DEFINE_DEVICE_TYPE(A2BUS_LASER128, a2bus_laser128_device, "a2laser128", "VTech Laser 128 Internal Device")
 
 /***************************************************************************
     FUNCTION PROTOTYPES
 ***************************************************************************/
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor a2bus_laser128_device::device_mconfig_additions() const
+void a2bus_laser128_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( a2laser128 );
 }
 
 //**************************************************************************
 //  LIVE DEVICE
 //**************************************************************************
 
-a2bus_laser128_device::a2bus_laser128_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+a2bus_laser128_device::a2bus_laser128_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, type, tag, owner, clock),
 	device_a2bus_card_interface(mconfig, *this), m_rom(nullptr), m_slot7_bank(0), m_slot7_ram_bank(0)
 
 {
 }
 
 a2bus_laser128_device::a2bus_laser128_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, A2BUS_LASER128, "VTech Laser 128 Internal Device", tag, owner, clock, "a2laser128", __FILE__),
-	device_a2bus_card_interface(mconfig, *this), m_rom(nullptr), m_slot7_bank(0), m_slot7_ram_bank(0)
+	a2bus_laser128_device(mconfig, A2BUS_LASER128, tag, owner, clock)
 {
 }
 
@@ -61,9 +58,6 @@ a2bus_laser128_device::a2bus_laser128_device(const machine_config &mconfig, cons
 
 void a2bus_laser128_device::device_start()
 {
-	// set_a2bus_device makes m_slot valid
-	set_a2bus_device();
-
 	save_item(NAME(m_slot7_bank));
 	save_item(NAME(m_slot7_ram_bank));
 }
@@ -75,23 +69,23 @@ void a2bus_laser128_device::device_reset()
 	m_slot7_ram_bank = 0;
 }
 
-uint8_t a2bus_laser128_device::read_c0nx(address_space &space, uint8_t offset)
+uint8_t a2bus_laser128_device::read_c0nx(uint8_t offset)
 {
 	return 0x00;
 }
 
-void a2bus_laser128_device::write_c0nx(address_space &space, uint8_t offset, uint8_t data)
+void a2bus_laser128_device::write_c0nx(uint8_t offset, uint8_t data)
 {
 }
 
-uint8_t a2bus_laser128_device::read_cnxx(address_space &space, uint8_t offset)
+uint8_t a2bus_laser128_device::read_cnxx(uint8_t offset)
 {
-	return m_rom[offset + (m_slot * 0x100) + 0x4000];
+	return m_rom[offset + (slotno() * 0x100) + 0x4000];
 }
 
-uint8_t a2bus_laser128_device::read_c800(address_space &space, uint16_t offset)
+uint8_t a2bus_laser128_device::read_c800(uint16_t offset)
 {
-	switch (m_slot)
+	switch (slotno())
 	{
 		case 1:
 			return m_rom[(offset & 0x7ff) + 0x4800];
@@ -107,40 +101,44 @@ uint8_t a2bus_laser128_device::read_c800(address_space &space, uint16_t offset)
 
 		case 7:
 			if (offset < 0x400)
-			{
 				return m_slot7_ram[offset];
-			}
-			return m_rom[(offset & 0x3ff) + 0x6000 + m_slot7_bank];
+			else
+				return m_rom[(offset & 0x3ff) + 0x6000 + m_slot7_bank];
 	}
 
 	return 0xff;
 }
 
-void a2bus_laser128_device::write_c800(address_space &space, uint16_t offset, uint8_t data)
+void a2bus_laser128_device::write_c800(uint16_t offset, uint8_t data)
 {
-	if ((m_slot == 7) && (offset < 0x400))
+	if ((slotno() == 7) && (offset < 0x400))
 	{
 		m_slot7_ram[offset] = data;
 	}
 
 	// UDCREG
-	if ((m_slot == 7) && (offset == 0x7f8))
+	if ((slotno() == 7) && (offset == 0x7f8))
 	{
-//      printf("%02x to UDCREG\n", data);
+		LOG("%02x to UDCREG\n", data);
 
 		m_slot7_ram_bank = (data & 0x8) ? 0x400 : 0;
 		m_slot7_bank = (((data >> 4) & 0x7) * 0x400);
 
-//      printf("\tRAM bank %x, ROM bank %x\n", m_slot7_ram_bank, m_slot7_bank);
+		LOG("\tRAM bank %x, ROM bank %x\n", m_slot7_ram_bank, m_slot7_bank);
 	}
 }
 
 bool a2bus_laser128_device::take_c800()
 {
-	if ((m_slot == 1) || (m_slot == 2) || (m_slot == 5) || (m_slot == 6) || (m_slot == 7))
+	switch (slotno())
 	{
-		return true;
+		case 1:
+		case 2:
+		case 5:
+		case 6:
+		case 7:
+			return true;
+		default:
+			return false;
 	}
-
-	return false;
 }

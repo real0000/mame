@@ -7,21 +7,18 @@
  *
  */
 
+#ifndef MAME_MACHINE_X76F041_H
+#define MAME_MACHINE_X76F041_H
+
 #pragma once
 
-#ifndef __X76F041_H__
-#define __X76F041_H__
-
-
-#define MCFG_X76F041_ADD( _tag ) \
-	MCFG_DEVICE_ADD( _tag, X76F041, 0 )
 
 class x76f041_device : public device_t,
 	public device_nvram_interface
 {
 public:
 	// construction/destruction
-	x76f041_device( const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock );
+	x76f041_device( const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
 	DECLARE_WRITE_LINE_MEMBER( write_cs );
 	DECLARE_WRITE_LINE_MEMBER( write_rst );
@@ -123,6 +120,6 @@ private:
 
 
 // device type definition
-extern const device_type X76F041;
+DECLARE_DEVICE_TYPE(X76F041, x76f041_device)
 
-#endif
+#endif // MAME_MACHINE_X76F041_H

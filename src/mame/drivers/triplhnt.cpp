@@ -16,13 +16,13 @@ Atari Triple Hunt Driver
 
 
 
-DRIVER_INIT_MEMBER(triplhnt_state,triplhnt)
+void triplhnt_state::init_triplhnt()
 {
-	machine().device<nvram_device>("nvram")->set_base(m_cmos, sizeof(m_cmos));
+	subdevice<nvram_device>("nvram")->set_base(m_cmos, sizeof(m_cmos));
 }
 
 
-void triplhnt_state::triplhnt_set_collision(int code)
+void triplhnt_state::set_collision(int code)
 {
 	m_hit_code = code;
 
@@ -30,48 +30,17 @@ void triplhnt_state::triplhnt_set_collision(int code)
 }
 
 
-void triplhnt_state::triplhnt_update_misc(address_space &space, int offset)
+WRITE_LINE_MEMBER(triplhnt_state::coin_lockout_w)
 {
-	uint8_t is_witch_hunt;
-	uint8_t bit = offset >> 1;
+	machine().bookkeeping().coin_lockout_w(0, !state);
+	machine().bookkeeping().coin_lockout_w(1, !state);
+}
 
-	/* BIT0 => UNUSED      */
-	/* BIT1 => LAMP        */
-	/* BIT2 => SCREECH     */
-	/* BIT3 => LOCKOUT     */
-	/* BIT4 => SPRITE ZOOM */
-	/* BIT5 => CMOS WRITE  */
-	/* BIT6 => TAPE CTRL   */
-	/* BIT7 => SPRITE BANK */
 
-	if (offset & 1)
-	{
-		m_misc_flags |= 1 << bit;
-
-		if (bit == 5)
-		{
-			m_cmos[m_cmos_latch] = m_da_latch;
-		}
-	}
-	else
-	{
-		m_misc_flags &= ~(1 << bit);
-	}
-
-	m_sprite_zoom = (m_misc_flags >> 4) & 1;
-	m_sprite_bank = (m_misc_flags >> 7) & 1;
-
-	output().set_led_value(0, m_misc_flags & 0x02);
-
-	machine().bookkeeping().coin_lockout_w(0, !(m_misc_flags & 0x08));
-	machine().bookkeeping().coin_lockout_w(1, !(m_misc_flags & 0x08));
-
-	m_discrete->write(space, TRIPLHNT_SCREECH_EN, m_misc_flags & 0x04); // screech
-	m_discrete->write(space, TRIPLHNT_LAMP_EN, m_misc_flags & 0x02);    // Lamp is used to reset noise
-	m_discrete->write(space, TRIPLHNT_BEAR_EN, m_misc_flags & 0x80);    // bear
-
-	is_witch_hunt = ioport("0C09")->read() == 0x40;
-	bit = ~m_misc_flags & 0x40;
+WRITE_LINE_MEMBER(triplhnt_state::tape_control_w)
+{
+	bool is_witch_hunt = ioport("0C09")->read() == 0x40;
+	bool bit = !state;
 
 	/* if we're not playing the sample yet, start it */
 	if (!m_samples->playing(0))
@@ -85,13 +54,7 @@ void triplhnt_state::triplhnt_update_misc(address_space &space, int offset)
 }
 
 
-WRITE8_MEMBER(triplhnt_state::triplhnt_misc_w)
-{
-	triplhnt_update_misc(space, offset);
-}
-
-
-READ8_MEMBER(triplhnt_state::triplhnt_cmos_r)
+READ8_MEMBER(triplhnt_state::cmos_r)
 {
 	m_cmos_latch = offset;
 
@@ -99,21 +62,21 @@ READ8_MEMBER(triplhnt_state::triplhnt_cmos_r)
 }
 
 
-READ8_MEMBER(triplhnt_state::triplhnt_input_port_4_r)
+READ8_MEMBER(triplhnt_state::input_port_4_r)
 {
 	m_watchdog->watchdog_reset();
 	return ioport("0C0B")->read();
 }
 
 
-READ8_MEMBER(triplhnt_state::triplhnt_misc_r)
+READ8_MEMBER(triplhnt_state::misc_r)
 {
-	triplhnt_update_misc(space, offset);
+	m_latch->write_a0(offset);
 	return ioport("VBLANK")->read() | m_hit_code;
 }
 
 
-READ8_MEMBER(triplhnt_state::triplhnt_da_latch_r)
+READ8_MEMBER(triplhnt_state::da_latch_r)
 {
 	int cross_x = ioport("STICKX")->read();
 	int cross_y = ioport("STICKY")->read();
@@ -126,26 +89,33 @@ READ8_MEMBER(triplhnt_state::triplhnt_da_latch_r)
 }
 
 
-static ADDRESS_MAP_START( triplhnt_map, AS_PROGRAM, 8, triplhnt_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x7fff)
-	AM_RANGE(0x0000, 0x00ff) AM_RAM AM_MIRROR(0x300)
-	AM_RANGE(0x0400, 0x04ff) AM_WRITEONLY AM_SHARE("playfield_ram")
-	AM_RANGE(0x0800, 0x080f) AM_WRITEONLY AM_SHARE("vpos_ram")
-	AM_RANGE(0x0810, 0x081f) AM_WRITEONLY AM_SHARE("hpos_ram")
-	AM_RANGE(0x0820, 0x082f) AM_WRITEONLY AM_SHARE("orga_ram")
-	AM_RANGE(0x0830, 0x083f) AM_WRITEONLY AM_SHARE("code_ram")
-	AM_RANGE(0x0c00, 0x0c00) AM_READ_PORT("0C00")
-	AM_RANGE(0x0c08, 0x0c08) AM_READ_PORT("0C08")
-	AM_RANGE(0x0c09, 0x0c09) AM_READ_PORT("0C09")
-	AM_RANGE(0x0c0a, 0x0c0a) AM_READ_PORT("0C0A")
-	AM_RANGE(0x0c0b, 0x0c0b) AM_READ(triplhnt_input_port_4_r)
-	AM_RANGE(0x0c10, 0x0c1f) AM_READ(triplhnt_da_latch_r)
-	AM_RANGE(0x0c20, 0x0c2f) AM_READ(triplhnt_cmos_r) AM_SHARE("nvram")
-	AM_RANGE(0x0c30, 0x0c3f) AM_READWRITE(triplhnt_misc_r, triplhnt_misc_w)
-	AM_RANGE(0x0c40, 0x0c40) AM_READ_PORT("0C40")
-	AM_RANGE(0x0c48, 0x0c48) AM_READ_PORT("0C48")
-	AM_RANGE(0x7000, 0x7fff) AM_ROM /* program */
-ADDRESS_MAP_END
+void triplhnt_state::machine_start()
+{
+	m_lamp.resolve();
+}
+
+
+void triplhnt_state::triplhnt_map(address_map &map)
+{
+	map.global_mask(0x7fff);
+	map(0x0000, 0x00ff).ram().mirror(0x300);
+	map(0x0400, 0x04ff).writeonly().share("playfield_ram");
+	map(0x0800, 0x080f).writeonly().share("vpos_ram");
+	map(0x0810, 0x081f).writeonly().share("hpos_ram");
+	map(0x0820, 0x082f).writeonly().share("orga_ram");
+	map(0x0830, 0x083f).writeonly().share("code_ram");
+	map(0x0c00, 0x0c00).portr("0C00");
+	map(0x0c08, 0x0c08).portr("0C08");
+	map(0x0c09, 0x0c09).portr("0C09");
+	map(0x0c0a, 0x0c0a).portr("0C0A");
+	map(0x0c0b, 0x0c0b).r(FUNC(triplhnt_state::input_port_4_r));
+	map(0x0c10, 0x0c1f).r(FUNC(triplhnt_state::da_latch_r));
+	map(0x0c20, 0x0c2f).r(FUNC(triplhnt_state::cmos_r)).share("nvram");
+	map(0x0c30, 0x0c3f).r(FUNC(triplhnt_state::misc_r)).w(m_latch, FUNC(f9334_device::write_a0));
+	map(0x0c40, 0x0c40).portr("0C40");
+	map(0x0c48, 0x0c48).portr("0C48");
+	map(0x7000, 0x7fff).rom(); /* program */
+}
 
 
 static INPUT_PORTS_START( triplhnt )
@@ -281,61 +251,71 @@ static const gfx_layout triplhnt_tile_layout =
 };
 
 
-static GFXDECODE_START( triplhnt )
+static GFXDECODE_START( gfx_triplhnt )
 	GFXDECODE_ENTRY( "gfx1", 0, triplhnt_small_sprite_layout, 0, 1 )
 	GFXDECODE_ENTRY( "gfx1", 0, triplhnt_large_sprite_layout, 0, 1 )
 	GFXDECODE_ENTRY( "gfx2", 0, triplhnt_tile_layout, 4, 2 )
 GFXDECODE_END
 
 
-PALETTE_INIT_MEMBER(triplhnt_state, triplhnt)
+void triplhnt_state::triplhnt_palette(palette_device &palette) const
 {
-	palette.set_pen_color(0, rgb_t(0xAF, 0xAF, 0xAF));  /* sprites */
+	palette.set_pen_color(0, rgb_t(0xaf, 0xaf, 0xaf));  // sprites
 	palette.set_pen_color(1, rgb_t(0x00, 0x00, 0x00));
-	palette.set_pen_color(2, rgb_t(0xFF, 0xFF, 0xFF));
+	palette.set_pen_color(2, rgb_t(0xff, 0xff, 0xff));
 	palette.set_pen_color(3, rgb_t(0x50, 0x50, 0x50));
-	palette.set_pen_color(4, rgb_t(0x00, 0x00, 0x00));  /* tiles */
-	palette.set_pen_color(5, rgb_t(0x3F, 0x3F, 0x3F));
+	palette.set_pen_color(4, rgb_t(0x00, 0x00, 0x00));  // tiles
+	palette.set_pen_color(5, rgb_t(0x3f, 0x3f, 0x3f));
 	palette.set_pen_color(6, rgb_t(0x00, 0x00, 0x00));
-	palette.set_pen_color(7, rgb_t(0x3F, 0x3F, 0x3F));
+	palette.set_pen_color(7, rgb_t(0x3f, 0x3f, 0x3f));
 }
 
 
-static MACHINE_CONFIG_START( triplhnt, triplhnt_state )
+void triplhnt_state::triplhnt(machine_config &config)
+{
+	/* basic machine hardware */
+	M6800(config, m_maincpu, 800000);
+	m_maincpu->set_addrmap(AS_PROGRAM, &triplhnt_state::triplhnt_map);
+	m_maincpu->set_vblank_int("screen", FUNC(triplhnt_state::irq0_line_hold));
 
-/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6800, 800000)
-	MCFG_CPU_PROGRAM_MAP(triplhnt_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", triplhnt_state,  irq0_line_hold)
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0); // battery-backed 74C89 at J5
 
-	MCFG_NVRAM_ADD_0FILL("nvram")
+	F9334(config, m_latch); // J7
+	m_latch->q_out_cb<0>().set_nop(); // unused
+	m_latch->q_out_cb<1>().set([this] (int state) { m_lamp = state ? 1 : 0; });
+	m_latch->q_out_cb<1>().append(m_discrete, FUNC(discrete_device::write_line<TRIPLHNT_LAMP_EN>)); // Lamp is used to reset noise
+	m_latch->q_out_cb<2>().set(m_discrete, FUNC(discrete_device::write_line<TRIPLHNT_SCREECH_EN>)); // screech
+	m_latch->q_out_cb<3>().set(FUNC(triplhnt_state::coin_lockout_w));
+	m_latch->q_out_cb<4>().set([this] (int state) { m_sprite_zoom = state; });
+	m_latch->q_out_cb<5>().set([this] (int state) { if (state) m_cmos[m_cmos_latch] = m_da_latch; }); // CMOS write
+	m_latch->q_out_cb<6>().set(FUNC(triplhnt_state::tape_control_w));
+	m_latch->q_out_cb<7>().set([this] (int state) { m_sprite_bank = state; });
+	m_latch->q_out_cb<7>().append(m_discrete, FUNC(discrete_device::write_line<TRIPLHNT_BEAR_EN>)); // bear
 
-	MCFG_WATCHDOG_ADD("watchdog")
+	WATCHDOG_TIMER(config, m_watchdog);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_SIZE(256, 262)
-	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0, 239)
-	MCFG_SCREEN_UPDATE_DRIVER(triplhnt_state, screen_update_triplhnt)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_size(256, 262);
+	screen.set_visarea(0, 255, 0, 239);
+	screen.set_screen_update(FUNC(triplhnt_state::screen_update));
+	screen.set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", triplhnt)
-	MCFG_PALETTE_ADD("palette", 8)
-	MCFG_PALETTE_INIT_OWNER(triplhnt_state, triplhnt)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_triplhnt);
+	PALETTE(config, m_palette, FUNC(triplhnt_state::triplhnt_palette), 8);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("samples", SAMPLES, 0)
-	MCFG_SAMPLES_CHANNELS(2)  /* 2 channels */
-	MCFG_SAMPLES_NAMES(triplhnt_sample_names)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
+	SAMPLES(config, m_samples);
+	m_samples->set_channels(2);  /* 2 channels */
+	m_samples->set_samples_names(triplhnt_sample_names);
+	m_samples->add_route(ALL_OUTPUTS, "mono", 0.20);
 
-	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_DISCRETE_INTF(triplhnt)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
-MACHINE_CONFIG_END
+	DISCRETE(config, m_discrete, triplhnt_discrete);
+	m_discrete->add_route(ALL_OUTPUTS, "mono", 0.90);
+}
 
 
 ROM_START( triplhnt )
@@ -359,4 +339,4 @@ ROM_START( triplhnt )
 ROM_END
 
 
-GAME( 1977, triplhnt, 0, triplhnt, triplhnt, triplhnt_state, triplhnt, 0, "Atari", "Triple Hunt", MACHINE_REQUIRES_ARTWORK )
+GAME( 1977, triplhnt, 0, triplhnt, triplhnt, triplhnt_state, init_triplhnt, 0, "Atari", "Triple Hunt", MACHINE_REQUIRES_ARTWORK | MACHINE_SUPPORTS_SAVE )

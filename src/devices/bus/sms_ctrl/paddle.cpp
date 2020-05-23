@@ -32,11 +32,11 @@ Notes:
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type SMS_PADDLE = device_creator<sms_paddle_device>;
+DEFINE_DEVICE_TYPE(SMS_PADDLE, sms_paddle_device, "sms_paddle", "Sega SMS Paddle")
 
 // time interval not verified
 // Player 2 of Galactic Protector is the most sensible to this timming.
-#define PADDLE_INTERVAL attotime::from_hz(XTAL_10_738635MHz/3/100)
+#define PADDLE_INTERVAL attotime::from_hz(XTAL(10'738'635)/3/100)
 
 
 CUSTOM_INPUT_MEMBER( sms_paddle_device::rldu_pins_r )
@@ -60,11 +60,11 @@ READ_LINE_MEMBER( sms_paddle_device::tr_pin_r )
 
 static INPUT_PORTS_START( sms_paddle )
 	PORT_START("CTRL_PORT")
-	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sms_paddle_device, rldu_pins_r, nullptr) // R,L,D,U
+	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_CUSTOM_MEMBER(sms_paddle_device, rldu_pins_r) // R,L,D,U
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNUSED ) // Vcc
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON1 ) // TL
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNUSED ) // TH
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER( DEVICE_SELF, sms_paddle_device, tr_pin_r ) // TR
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sms_paddle_device, tr_pin_r) // TR
 
 	PORT_START("PADDLE_X") // Paddle knob
 	PORT_BIT( 0xff, 0x80, IPT_PADDLE) PORT_SENSITIVITY(40) PORT_KEYDELTA(20) PORT_CENTERDELTA(0) PORT_MINMAX(0,255)
@@ -91,7 +91,7 @@ ioport_constructor sms_paddle_device::device_input_ports() const
 //-------------------------------------------------
 
 sms_paddle_device::sms_paddle_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, SMS_PADDLE, "Sega SMS Paddle", tag, owner, clock, "sms_paddle", __FILE__),
+	device_t(mconfig, SMS_PADDLE, tag, owner, clock),
 	device_sms_control_port_interface(mconfig, *this),
 	m_paddle_pins(*this, "CTRL_PORT"),
 	m_paddle_x(*this, "PADDLE_X"),

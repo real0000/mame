@@ -12,7 +12,7 @@
 
 
 
-const device_type K056800 = device_creator<k056800_device>;
+DEFINE_DEVICE_TYPE(K056800, k056800_device, "k056800", "K056800 MIRAC")
 
 
 
@@ -21,8 +21,12 @@ const device_type K056800 = device_creator<k056800_device>;
 //-------------------------------------------------
 
 k056800_device::k056800_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-				: device_t(mconfig, K056800, "K056800 MIRAC", tag, owner, clock, "k056800", __FILE__), m_int_pending(false), m_int_enabled(false),
-	m_int_handler(*this)
+	: device_t(mconfig, K056800, tag, owner, clock)
+	, m_int_pending(false)
+	, m_int_enabled(false)
+	, m_host_to_snd_regs{ 0, 0, 0, 0 }
+	, m_snd_to_host_regs{ 0, 0 }
+	, m_int_handler(*this)
 {
 }
 
@@ -59,7 +63,7 @@ void k056800_device::device_reset()
     DEVICE HANDLERS
 *****************************************************************************/
 
-READ8_MEMBER( k056800_device::host_r )
+uint8_t k056800_device::host_r(offs_t offset)
 {
 	uint32_t r = offset & 7;
 	uint8_t data = 0;
@@ -81,7 +85,7 @@ READ8_MEMBER( k056800_device::host_r )
 }
 
 
-WRITE8_MEMBER( k056800_device::host_w )
+void k056800_device::host_w(offs_t offset, uint8_t data)
 {
 	uint32_t r = offset & 7;
 
@@ -119,7 +123,7 @@ WRITE8_MEMBER( k056800_device::host_w )
 }
 
 
-READ8_MEMBER( k056800_device::sound_r )
+uint8_t k056800_device::sound_r(offs_t offset)
 {
 	uint32_t r = offset & 7;
 	uint8_t data = 0;
@@ -138,7 +142,7 @@ READ8_MEMBER( k056800_device::sound_r )
 }
 
 
-WRITE8_MEMBER( k056800_device::sound_w )
+void k056800_device::sound_w(offs_t offset, uint8_t data)
 {
 	uint32_t r = offset & 7;
 

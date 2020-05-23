@@ -30,42 +30,10 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_MM74C922_H
+#define MAME_MACHINE_MM74C922_H
+
 #pragma once
-
-#ifndef __MM74C922__
-#define __MM74C922__
-
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_MM74C922_OSC(_value) \
-	mm74c922_device::static_set_cap_osc(*device, _value);
-
-#define MCFG_MM74C922_DEBOUNCE(_value) \
-	mm74c922_device::static_set_cap_debounce(*device, _value);
-
-#define MCFG_MM74C922_DA_CALLBACK(_write) \
-	devcb = &mm74c922_device::set_da_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_MM74C922_X1_CALLBACK(_read) \
-	devcb = &mm74c922_device::set_x1_rd_callback(*device, DEVCB_##_read);
-
-#define MCFG_MM74C922_X2_CALLBACK(_read) \
-	devcb = &mm74c922_device::set_x2_rd_callback(*device, DEVCB_##_read);
-
-#define MCFG_MM74C922_X3_CALLBACK(_read) \
-	devcb = &mm74c922_device::set_x3_rd_callback(*device, DEVCB_##_read);
-
-#define MCFG_MM74C922_X4_CALLBACK(_read) \
-	devcb = &mm74c922_device::set_x4_rd_callback(*device, DEVCB_##_read);
-
-#define MCFG_MM74C922_X5_CALLBACK(_read) \
-	devcb = &mm74c922_device::set_x5_rd_callback(*device, DEVCB_##_read);
-
 
 
 //**************************************************************************
@@ -80,19 +48,22 @@ public:
 	// construction/destruction
 	mm74c922_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	static void static_set_cap_osc(device_t &device, double value) { downcast<mm74c922_device &>(device).m_cap_osc = value; }
-	static void static_set_cap_debounce(device_t &device, double value) { downcast<mm74c922_device &>(device).m_cap_debounce = value; }
+	void set_cap_osc(double value) { m_cap_osc = value; }
+	void set_cap_debounce(double value) { m_cap_debounce = value; }
 
-	template<class _Object> static devcb_base &set_da_wr_callback(device_t &device, _Object object) { return downcast<mm74c922_device &>(device).m_write_da.set_callback(object); }
-	template<class _Object> static devcb_base &set_x1_rd_callback(device_t &device, _Object object) { return downcast<mm74c922_device &>(device).m_read_x1.set_callback(object); }
-	template<class _Object> static devcb_base &set_x2_rd_callback(device_t &device, _Object object) { return downcast<mm74c922_device &>(device).m_read_x2.set_callback(object); }
-	template<class _Object> static devcb_base &set_x3_rd_callback(device_t &device, _Object object) { return downcast<mm74c922_device &>(device).m_read_x3.set_callback(object); }
-	template<class _Object> static devcb_base &set_x4_rd_callback(device_t &device, _Object object) { return downcast<mm74c922_device &>(device).m_read_x4.set_callback(object); }
-	template<class _Object> static devcb_base &set_x5_rd_callback(device_t &device, _Object object) { return downcast<mm74c922_device &>(device).m_read_x5.set_callback(object); }
+	auto da_wr_callback() { return m_write_da.bind(); }
+	auto x1_rd_callback() { return m_read_x[0].bind(); }
+	auto x2_rd_callback() { return m_read_x[1].bind(); }
+	auto x3_rd_callback() { return m_read_x[2].bind(); }
+	auto x4_rd_callback() { return m_read_x[3].bind(); }
 
 	uint8_t read();
 
+	DECLARE_READ_LINE_MEMBER(da_r) { return m_da; }
+
 protected:
+	mm74c922_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, int max_y);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
@@ -102,36 +73,39 @@ private:
 	void clock_scan_counters();
 	void detect_keypress();
 
-	devcb_write_line   m_write_da;
-	devcb_read8        m_read_x1;
-	devcb_read8        m_read_x2;
-	devcb_read8        m_read_x3;
-	devcb_read8        m_read_x4;
-	devcb_read8        m_read_x5;
+	devcb_write_line m_write_da;
+	devcb_read8::array<4> m_read_x;
 
-	double              m_cap_osc;
-	double              m_cap_debounce;
+	double m_cap_osc;
+	double m_cap_debounce;
 
-	int m_max_y;
+	const int m_max_y;
 
-	int m_inhibit;              // scan counter clock inhibit
+	bool m_inhibit;             // scan counter clock inhibit
 	int m_x;                    // currently scanned column
 	int m_y;                    // latched row
 
-	uint8_t m_data;               // data latch
+	uint8_t m_data;             // data latch
 
-	int m_da;                   // data available flag
-	int m_next_da;              // next value of data available flag
+	bool m_da;                  // data available flag
+	bool m_next_da;             // next value of data available flag
 
 	// timers
 	emu_timer *m_scan_timer;    // keyboard scan timer
 };
 
+// ======================> mm74c923_device
+
+class mm74c923_device :  public mm74c922_device
+{
+public:
+	// construction/destruction
+	mm74c923_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+};
+
 
 // device type definition
-extern const device_type MM74C922;
-extern const device_type MM74C923;
+DECLARE_DEVICE_TYPE(MM74C922, mm74c922_device)
+DECLARE_DEVICE_TYPE(MM74C923, mm74c923_device)
 
-
-
-#endif
+#endif // MAME_MACHINE_MM74C922_H

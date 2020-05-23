@@ -60,12 +60,10 @@ private:
     std::map<unsigned int, unsigned int> m_PunchMap;
     physx::PxMaterial *m_pDefMaterial;
 
-    // since it is hardly to punch over 100 hit, so....
-    //bool m_bAutoFireFlag, m_bAutoFirState;
-	
 	bool m_bAtatatata;
+	float m_AtataDiv;
     float m_PadDeadZone, m_PunchFix;
-    float m_PunchWeight, m_DriverSpeed[2];
+    float m_PunchWeight, m_DriverSpeed[3];
 };
 
 #endif

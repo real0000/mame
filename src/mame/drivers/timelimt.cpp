@@ -10,6 +10,7 @@ driver by Ernesto Corvi
 Notes:
 - Sprite colors are wrong (missing colortable?)
 - driver should probably be merged with suprridr.cpp and thepit.cpp
+- unused color bank for tilemaps? (colors 0x10-0x1f & 0x30-0x3f)
 
 ***************************************************************************/
 
@@ -17,6 +18,7 @@ Notes:
 #include "includes/timelimt.h"
 
 #include "cpu/z80/z80.h"
+#include "machine/74259.h"
 #include "machine/gen_latch.h"
 #include "machine/watchdog.h"
 #include "sound/ay8910.h"
@@ -32,60 +34,59 @@ void timelimt_state::machine_start()
 	save_item(NAME(m_nmi_enabled));
 }
 
-void timelimt_state::machine_reset()
+WRITE_LINE_MEMBER(timelimt_state::nmi_enable_w)
 {
-	m_nmi_enabled = 0;
+	m_nmi_enabled = state;
+	if (!m_nmi_enabled)
+		m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 }
 
-WRITE8_MEMBER(timelimt_state::nmi_enable_w)
+WRITE_LINE_MEMBER(timelimt_state::coin_lockout_w)
 {
-	m_nmi_enabled = data & 1;   /* bit 0 = nmi enable */
-}
-
-WRITE8_MEMBER(timelimt_state::sound_reset_w)
-{
-	if (data & 1)
-		m_audiocpu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+	machine().bookkeeping().coin_lockout_w(0, !state);
 }
 
 /***************************************************************************/
 
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, timelimt_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM     /* rom */
-	AM_RANGE(0x8000, 0x87ff) AM_RAM     /* ram */
-	AM_RANGE(0x8800, 0x8bff) AM_RAM_WRITE(videoram_w) AM_SHARE("videoram") /* video ram */
-	AM_RANGE(0x9000, 0x97ff) AM_RAM_WRITE(bg_videoram_w) AM_SHARE("bg_videoram")/* background ram */
-	AM_RANGE(0x9800, 0x98ff) AM_RAM AM_SHARE("spriteram")   /* sprite ram */
-	AM_RANGE(0xa000, 0xa000) AM_READ_PORT("INPUTS")
-	AM_RANGE(0xa800, 0xa800) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0xb000, 0xb000) AM_READ_PORT("DSW")
-	AM_RANGE(0xb000, 0xb000) AM_WRITE(nmi_enable_w) /* nmi enable */
-	AM_RANGE(0xb003, 0xb003) AM_WRITE(sound_reset_w)/* sound reset ? */
-	AM_RANGE(0xb800, 0xb800) AM_DEVWRITE("soundlatch", generic_latch_8_device, write) /* sound write */
-	AM_RANGE(0xb800, 0xb800) AM_READNOP     /* NMI ack? */
-	AM_RANGE(0xc800, 0xc800) AM_WRITE(scroll_x_lsb_w)
-	AM_RANGE(0xc801, 0xc801) AM_WRITE(scroll_x_msb_w)
-	AM_RANGE(0xc802, 0xc802) AM_WRITE(scroll_y_w)
-	AM_RANGE(0xc803, 0xc803) AM_WRITENOP        /* ???? bit 0 used only */
-	AM_RANGE(0xc804, 0xc804) AM_WRITENOP        /* ???? not used */
-ADDRESS_MAP_END
+void timelimt_state::main_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();     /* rom */
+	map(0x8000, 0x87ff).ram();     /* ram */
+	map(0x8800, 0x8bff).ram().w(FUNC(timelimt_state::videoram_w)).share("videoram"); /* video ram */
+	map(0x9000, 0x97ff).ram().w(FUNC(timelimt_state::bg_videoram_w)).share("bg_videoram");/* background ram */
+	map(0x9800, 0x98ff).ram().share("spriteram");   /* sprite ram */
+	map(0xa000, 0xa000).portr("INPUTS");
+	map(0xa800, 0xa800).portr("SYSTEM");
+	map(0xb000, 0xb000).portr("DSW");
+	map(0xb000, 0xb007).w("mainlatch", FUNC(ls259_device::write_d0));
+	map(0xb800, 0xb800).w("soundlatch", FUNC(generic_latch_8_device::write)); /* sound write */
+	map(0xb800, 0xb800).nopr();     /* NMI ack? */
+	map(0xc800, 0xc800).w(FUNC(timelimt_state::scroll_x_lsb_w));
+	map(0xc801, 0xc801).w(FUNC(timelimt_state::scroll_x_msb_w));
+	map(0xc802, 0xc802).w(FUNC(timelimt_state::scroll_y_w));
+	map(0xc803, 0xc803).nopw();        /* ???? bit 0 used only */
+	map(0xc804, 0xc804).nopw();        /* ???? not used */
+}
 
-static ADDRESS_MAP_START( main_io_map, AS_IO, 8, timelimt_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_DEVREAD("watchdog", watchdog_timer_device, reset_r)
-ADDRESS_MAP_END
+void timelimt_state::main_io_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).r("watchdog", FUNC(watchdog_timer_device::reset_r));
+}
 
-static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, timelimt_state )
-	AM_RANGE(0x0000, 0x1fff) AM_ROM
-	AM_RANGE(0x3800, 0x3bff) AM_RAM
-ADDRESS_MAP_END
+void timelimt_state::sound_map(address_map &map)
+{
+	map(0x0000, 0x1fff).rom();
+	map(0x3800, 0x3bff).ram();
+}
 
-static ADDRESS_MAP_START( sound_io_map, AS_IO, 8, timelimt_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_DEVWRITE("soundlatch", generic_latch_8_device, clear_w)
-	AM_RANGE(0x8c, 0x8d) AM_DEVREADWRITE("ay1", ay8910_device, data_r, address_data_w)
-	AM_RANGE(0x8e, 0x8f) AM_DEVREADWRITE("ay2", ay8910_device, data_r, address_data_w)
-ADDRESS_MAP_END
+void timelimt_state::sound_io_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).w("soundlatch", FUNC(generic_latch_8_device::clear_w));
+	map(0x8c, 0x8d).rw("ay1", FUNC(ay8910_device::data_r), FUNC(ay8910_device::address_data_w));
+	map(0x8e, 0x8f).rw("ay2", FUNC(ay8910_device::data_r), FUNC(ay8910_device::address_data_w));
+}
 
 /***************************************************************************/
 
@@ -102,7 +103,7 @@ static INPUT_PORTS_START( timelimt )
 
 	PORT_START("SYSTEM")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_START1 )
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_START2 )
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_UNKNOWN )   /* probably unused */
@@ -147,7 +148,7 @@ static INPUT_PORTS_START( progress )
 
 	PORT_START("SYSTEM")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_START1 )
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_START2 )
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_UNKNOWN )   /* probably unused */
@@ -205,7 +206,7 @@ static const gfx_layout spritelayout =
 	32*8
 };
 
-static GFXDECODE_START( timelimt )
+static GFXDECODE_START( gfx_timelimt )
 	GFXDECODE_ENTRY( "tiles_1", 0, charlayout,   32, 1 )    /* seems correct */
 	GFXDECODE_ENTRY( "tiles_2", 0, charlayout,    0, 1 )    /* seems correct */
 	GFXDECODE_ENTRY( "sprites", 0, spritelayout, 64, 4 )    /* seems correct */
@@ -215,54 +216,59 @@ GFXDECODE_END
 
 INTERRUPT_GEN_MEMBER(timelimt_state::irq)
 {
-	if ( m_nmi_enabled )
-		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	if (m_nmi_enabled)
+		device.execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }
 
 /***************************************************************************/
 
-static MACHINE_CONFIG_START( timelimt, timelimt_state )
-
+void timelimt_state::timelimt(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, 5000000)   /* 5.000 MHz */
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_CPU_IO_MAP(main_io_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", timelimt_state,  irq)
+	Z80(config, m_maincpu, 5000000);   /* 5.000 MHz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &timelimt_state::main_map);
+	m_maincpu->set_addrmap(AS_IO, &timelimt_state::main_io_map);
+	m_maincpu->set_vblank_int("screen", FUNC(timelimt_state::irq));
 
-	MCFG_CPU_ADD("audiocpu", Z80,18432000/6)    /* 3.072 MHz */
-	MCFG_CPU_PROGRAM_MAP(sound_map)
-	MCFG_CPU_IO_MAP(sound_io_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", timelimt_state,  irq0_line_hold) /* ? */
+	Z80(config, m_audiocpu, 18432000/6);    /* 3.072 MHz */
+	m_audiocpu->set_addrmap(AS_PROGRAM, &timelimt_state::sound_map);
+	m_audiocpu->set_addrmap(AS_IO, &timelimt_state::sound_io_map);
+	m_audiocpu->set_vblank_int("screen", FUNC(timelimt_state::irq0_line_hold)); /* ? */
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(3000))
+	config.set_maximum_quantum(attotime::from_hz(3000));
 
-	MCFG_WATCHDOG_ADD("watchdog")
+	ls259_device &mainlatch(LS259(config, "mainlatch")); // IC15
+	mainlatch.q_out_cb<0>().set(FUNC(timelimt_state::nmi_enable_w));
+	mainlatch.q_out_cb<2>().set(FUNC(timelimt_state::coin_lockout_w));
+	mainlatch.q_out_cb<3>().set_inputline(m_audiocpu, INPUT_LINE_RESET).invert();
+	mainlatch.q_out_cb<6>().set_nop(); // probably flip screen
+	mainlatch.q_out_cb<7>().set_nop(); // probably flip screen
+
+	WATCHDOG_TIMER(config, "watchdog");
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(timelimt_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(32*8, 32*8);
+	screen.set_visarea(0*8, 32*8-1, 2*8, 30*8-1);
+	screen.set_screen_update(FUNC(timelimt_state::screen_update));
+	screen.set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", timelimt)
-	MCFG_PALETTE_ADD("palette", 64+32)
-	MCFG_PALETTE_INIT_OWNER(timelimt_state, timelimt)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_timelimt);
+	PALETTE(config, m_palette, FUNC(timelimt_state::timelimt_palette), 64+32);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	GENERIC_LATCH_8(config, "soundlatch");
 
-	MCFG_SOUND_ADD("ay1", AY8910, 18432000/12)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	AY8910(config, "ay1", 18432000/12).add_route(ALL_OUTPUTS, "mono", 0.25);
 
-	MCFG_SOUND_ADD("ay2", AY8910, 18432000/12)
-	MCFG_AY8910_PORT_A_READ_CB(DEVREAD8("soundlatch", generic_latch_8_device, read))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-MACHINE_CONFIG_END
+	ay8910_device &ay2(AY8910(config, "ay2", 18432000/12));
+	ay2.port_a_read_callback().set("soundlatch", FUNC(generic_latch_8_device::read));
+	ay2.add_route(ALL_OUTPUTS, "mono", 0.25);
+}
 
 /***************************************************************************
 
@@ -290,14 +296,14 @@ ROM_START( timelimt )
 	ROM_LOAD( "tl12",   0x1000, 0x1000, CRC(ce960389) SHA1(57ee52cfa1b5a3832b362b38c8b7aa411dfc782b) )
 
 	ROM_REGION( 0x6000, "sprites", 0 )  /* sprites */
-	ROM_LOAD( "tl3",    0x0000, 0x2000, CRC(01a9fd95) SHA1(cd1078700c97a3539c9d9447c55efbd27540a1b3) )
+	ROM_LOAD( "tl3",    0x4000, 0x2000, CRC(01a9fd95) SHA1(cd1078700c97a3539c9d9447c55efbd27540a1b3) )
 	ROM_LOAD( "tl2",    0x2000, 0x2000, CRC(4693b849) SHA1(fbebedde53599fb1eaedc648bd704b321ab096b5) )
-	ROM_LOAD( "tl1",    0x4000, 0x2000, CRC(c4007caf) SHA1(ae05af3319545d5ca98a046bfc100138a5a3ed96) )
+	ROM_LOAD( "tl1",    0x0000, 0x2000, CRC(c4007caf) SHA1(ae05af3319545d5ca98a046bfc100138a5a3ed96) )
 
-	ROM_REGION( 0x0060, "proms", 0 )
+	ROM_REGION( 0x0060, "proms", 0 ) // N82S123N color PROMs
 	ROM_LOAD( "clr.35", 0x0000, 0x0020, CRC(9c9e6073) SHA1(98496175bf19a8cdb0018705bc1a2193b8a782e1) )
-	ROM_LOAD( "clr.48", 0x0020, 0x0020, BAD_DUMP CRC(a0bcac59) SHA1(e5832831b21981363509b79d89766757bd9273b0) ) /* FIXED BITS (xxxxxx1x) */
-	ROM_LOAD( "clr.57", 0x0040, 0x0020, NO_DUMP )   /* missing sprite color prom? */
+	ROM_LOAD( "clr.48", 0x0020, 0x0020, CRC(a0bcac59) SHA1(e5832831b21981363509b79d89766757bd9273b0) ) /* FIXED BITS (xxxxxx1x) */
+	ROM_LOAD( "clr.57", 0x0040, 0x0020, CRC(3a9f5394) SHA1(0b501f81ce1df722cf7ef982c03e0be337bfe9ee) )
 ROM_END
 
 ROM_START( progress )
@@ -329,5 +335,5 @@ ROM_START( progress )
 	ROM_LOAD( "57.bin", 0x0040, 0x0020, CRC(18455a79) SHA1(e4d64368560e3116a922588129f5f91a4c520f7d) )
 ROM_END
 
-GAME( 1983, timelimt, 0, timelimt, timelimt, driver_device, 0, ROT90, "Chuo Co. Ltd", "Time Limit", MACHINE_IMPERFECT_COLORS | MACHINE_SUPPORTS_SAVE )
-GAME( 1984, progress, 0, timelimt, progress, driver_device, 0, ROT90, "Chuo Co. Ltd", "Progress", MACHINE_SUPPORTS_SAVE )
+GAME( 1983, timelimt, 0, timelimt, timelimt, timelimt_state, empty_init, ROT90, "Chuo Co. Ltd", "Time Limit", MACHINE_SUPPORTS_SAVE )
+GAME( 1984, progress, 0, timelimt, progress, timelimt_state, empty_init, ROT90, "Chuo Co. Ltd", "Progress",   MACHINE_SUPPORTS_SAVE )

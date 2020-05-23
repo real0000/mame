@@ -15,44 +15,42 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type MIDWAY_CHEAP_SQUEAK_DELUXE = device_creator<midway_cheap_squeak_deluxe_device>;
+DEFINE_DEVICE_TYPE(MIDWAY_CHEAP_SQUEAK_DELUXE, midway_cheap_squeak_deluxe_device, "midcsd", "Cheap Squeak Deluxe Sound Board")
 
 //-------------------------------------------------
 //  audio cpu map
 //-------------------------------------------------
 
 // address map determined by PAL; verified
-static ADDRESS_MAP_START( csdeluxe_map, AS_PROGRAM, 16, midway_cheap_squeak_deluxe_device )
-	ADDRESS_MAP_UNMAP_HIGH
-	ADDRESS_MAP_GLOBAL_MASK(0x1ffff)
-	AM_RANGE(0x00000, 0x07fff) AM_ROM
-	AM_RANGE(0x18000, 0x18007) AM_MIRROR(0x3ff8) AM_DEVREADWRITE8("pia", pia6821_device, read_alt, write_alt, 0xff00) // Spy Hunter accesses the MSB
-	AM_RANGE(0x18000, 0x18007) AM_MIRROR(0x3ff8) AM_DEVREADWRITE8("pia", pia6821_device, read_alt, write_alt, 0x00ff) // Turbo Tag access via the LSB
-	AM_RANGE(0x1c000, 0x1cfff) AM_RAM
-ADDRESS_MAP_END
+void midway_cheap_squeak_deluxe_device::csdeluxe_map(address_map &map)
+{
+	map.unmap_value_high();
+	map.global_mask(0x1ffff);
+	map(0x00000, 0x07fff).rom();
+	map(0x18000, 0x18007).mirror(0x3ff8).rw("pia", FUNC(pia6821_device::read_alt), FUNC(pia6821_device::write_alt)).umask16(0xff00); // Spy Hunter accesses the MSB
+	map(0x18000, 0x18007).mirror(0x3ff8).rw("pia", FUNC(pia6821_device::read_alt), FUNC(pia6821_device::write_alt)).umask16(0x00ff); // Turbo Tag access via the LSB
+	map(0x1c000, 0x1cfff).ram();
+}
 
 //-------------------------------------------------
 //  machine configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT(midway_cheap_squeak_deluxe)
-	MCFG_CPU_ADD("cpu", M68000, XTAL_16MHz/2)
-	MCFG_CPU_PROGRAM_MAP(csdeluxe_map)
-
-	MCFG_DEVICE_ADD("pia", PIA6821, 0)
-	MCFG_PIA_WRITEPA_HANDLER(WRITE8(midway_cheap_squeak_deluxe_device, porta_w))
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(midway_cheap_squeak_deluxe_device, portb_w))
-	MCFG_PIA_IRQA_HANDLER(WRITELINE(midway_cheap_squeak_deluxe_device, irq_w))
-	MCFG_PIA_IRQB_HANDLER(WRITELINE(midway_cheap_squeak_deluxe_device, irq_w))
-
-	MCFG_SOUND_ADD("dac", AD7533, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, DEVICE_SELF_OWNER, 1.0)
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
-MACHINE_CONFIG_END
-
-machine_config_constructor midway_cheap_squeak_deluxe_device::device_mconfig_additions() const
+void midway_cheap_squeak_deluxe_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( midway_cheap_squeak_deluxe );
+	M68000(config, m_cpu, DERIVED_CLOCK(1, 2));
+	m_cpu->set_addrmap(AS_PROGRAM, &midway_cheap_squeak_deluxe_device::csdeluxe_map);
+
+	PIA6821(config, m_pia, 0);
+	m_pia->writepa_handler().set(FUNC(midway_cheap_squeak_deluxe_device::porta_w));
+	m_pia->writepb_handler().set(FUNC(midway_cheap_squeak_deluxe_device::portb_w));
+	m_pia->irqa_handler().set(FUNC(midway_cheap_squeak_deluxe_device::irq_w));
+	m_pia->irqb_handler().set(FUNC(midway_cheap_squeak_deluxe_device::irq_w));
+
+	AD7533(config, m_dac, 0).add_route(ALL_OUTPUTS, *this, 1.0);
+	voltage_regulator_device &vref(VOLTAGE_REGULATOR(config, "vref"));
+	vref.add_route(0, "dac", 1.0, DAC_VREF_POS_INPUT);
+	vref.add_route(0, "dac", -1.0, DAC_VREF_NEG_INPUT);
 }
 
 //-------------------------------------------------
@@ -74,7 +72,7 @@ const tiny_rom_entry *midway_cheap_squeak_deluxe_device::device_rom_region() con
 //-------------------------------------------------
 
 midway_cheap_squeak_deluxe_device::midway_cheap_squeak_deluxe_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, MIDWAY_CHEAP_SQUEAK_DELUXE, "Cheap Squeak Deluxe Sound Board", tag, owner, clock, "midcsd", __FILE__),
+	device_t(mconfig, MIDWAY_CHEAP_SQUEAK_DELUXE, tag, owner, clock),
 	device_mixer_interface(mconfig, *this),
 	m_cpu(*this, "cpu"),
 	m_pia(*this, "pia"),
@@ -108,10 +106,19 @@ void midway_cheap_squeak_deluxe_device::device_timer(emu_timer &timer, device_ti
 }
 
 //-------------------------------------------------
+//  suspend_cpu
+//-------------------------------------------------
+
+void midway_cheap_squeak_deluxe_device::suspend_cpu()
+{
+	m_cpu->suspend(SUSPEND_REASON_DISABLE, 1);
+}
+
+//-------------------------------------------------
 //  stat_r - return the status value
 //-------------------------------------------------
 
-READ8_MEMBER( midway_cheap_squeak_deluxe_device::stat_r )
+u8 midway_cheap_squeak_deluxe_device::stat_r()
 {
 	return m_status;
 }
@@ -120,7 +127,7 @@ READ8_MEMBER( midway_cheap_squeak_deluxe_device::stat_r )
 //  sr_w - external 4-bit write to the input latch
 //-------------------------------------------------
 
-WRITE8_MEMBER( midway_cheap_squeak_deluxe_device::sr_w )
+void midway_cheap_squeak_deluxe_device::sr_w(u8 data)
 {
 	m_pia->portb_w(data & 0x0f);
 }
@@ -148,7 +155,7 @@ WRITE_LINE_MEMBER( midway_cheap_squeak_deluxe_device::reset_w )
 //  porta_w - PIA port A writes
 //-------------------------------------------------
 
-WRITE8_MEMBER( midway_cheap_squeak_deluxe_device::porta_w )
+void midway_cheap_squeak_deluxe_device::porta_w(uint8_t data)
 {
 	m_dacval = (data << 2) | (m_dacval & 3);
 	m_dac->write(m_dacval);
@@ -158,7 +165,7 @@ WRITE8_MEMBER( midway_cheap_squeak_deluxe_device::porta_w )
 //  portb_w - PIA port B writes
 //-------------------------------------------------
 
-WRITE8_MEMBER( midway_cheap_squeak_deluxe_device::portb_w )
+void midway_cheap_squeak_deluxe_device::portb_w(uint8_t data)
 {
 	// bit 4-5, status
 	uint8_t z_mask = m_pia->port_b_z_mask();

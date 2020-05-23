@@ -1,31 +1,25 @@
 // license:BSD-3-Clause
+// copyright-holders:James Wallace
 /***************************************************************************
 
     Sony LDP-1450 laserdisc emulation.
 
 ***************************************************************************/
 
-#pragma once
+#ifndef MAME_MACHINE_LDP1450_H
+#define MAME_MACHINE_LDP1450_H
 
-#ifndef __LDP1450DEV_H__
-#define __LDP1450DEV_H__
+#pragma once
 
 #include "laserdsc.h"
 
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_LASERDISC_LDP1450_ADD(_tag, clock) \
-	MCFG_DEVICE_ADD(_tag, SONY_LDP1450, clock)
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
 // device type definition
-extern const device_type SONY_LDP1450;
+DECLARE_DEVICE_TYPE(SONY_LDP1450, sony_ldp1450_device)
 
 // ======================> sony_ldp1450_device
 
@@ -90,15 +84,4 @@ private:
 
 };
 
-
-
-
-
-
-//**************************************************************************
-//  GLOBAL VARIABLES
-//**************************************************************************
-
-
-
-#endif
+#endif // MAME_MACHINE_LDP1450_H

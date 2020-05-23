@@ -2,17 +2,18 @@
 // copyright-holders:Aaron Giles
 /***************************************************************************
 
-    device.c
+    device.cpp
 
     Device interface functions.
 
 ***************************************************************************/
 
 #include "emu.h"
+#include "romload.h"
 #include "speaker.h"
 #include "debug/debugcpu.h"
 
-#include <string.h>
+#include <cstring>
 
 
 //**************************************************************************
@@ -25,9 +26,9 @@ namespace {
 
 struct device_registrations
 {
-	device_type_impl *first = nullptr;
-	device_type_impl *last = nullptr;
-	device_type_impl *unsorted = nullptr;
+	device_type_impl_base *first = nullptr;
+	device_type_impl_base *last = nullptr;
+	device_type_impl_base *unsorted = nullptr;
 };
 
 device_registrations &device_registration_data()
@@ -53,7 +54,7 @@ device_registrar::const_iterator device_registrar::cend() const
 }
 
 
-device_type_impl *device_registrar::register_device(device_type_impl &type)
+device_type_impl_base *device_registrar::register_device(device_type_impl_base &type)
 {
 	device_registrations &data(device_registration_data());
 
@@ -81,37 +82,35 @@ emu::detail::device_registrar const registered_device_types;
 //  from the provided config
 //-------------------------------------------------
 
-device_t::device_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, u32 clock, const char *shortname, const char *source)
-	: m_type(type),
-		m_name(name),
-		m_shortname(shortname),
-		m_searchpath(shortname),
-		m_source(source),
-		m_owner(owner),
-		m_next(nullptr),
+device_t::device_t(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock)
+	: m_type(type)
+	, m_owner(owner)
+	, m_next(nullptr)
 
-		m_configured_clock(clock),
-		m_unscaled_clock(clock),
-		m_clock(clock),
-		m_clock_scale(1.0),
-		m_attoseconds_per_clock((clock == 0) ? 0 : HZ_TO_ATTOSECONDS(clock)),
+	, m_configured_clock(clock)
+	, m_unscaled_clock(clock)
+	, m_clock(clock)
+	, m_clock_scale(1.0)
+	, m_attoseconds_per_clock((clock == 0) ? 0 : HZ_TO_ATTOSECONDS(clock))
 
-		m_machine_config(mconfig),
-		m_input_defaults(nullptr),
-		m_default_bios_tag(""),
+	, m_machine_config(mconfig)
+	, m_input_defaults(nullptr)
+	, m_system_bios(0)
+	, m_default_bios(0)
+	, m_default_bios_tag("")
 
-		m_machine(nullptr),
-		m_save(nullptr),
-		m_basetag(tag),
-		m_config_complete(false),
-		m_started(false),
-		m_auto_finder_list(nullptr)
+	, m_machine(nullptr)
+	, m_save(nullptr)
+	, m_basetag(tag)
+	, m_config_complete(false)
+	, m_started(false)
+	, m_auto_finder_list(nullptr)
 {
 	if (owner != nullptr)
 		m_tag.assign((owner->owner() == nullptr) ? "" : owner->tag()).append(":").append(tag);
 	else
 		m_tag.assign(":");
-	static_set_clock(*this, clock);
+	set_clock(clock);
 }
 
 
@@ -125,21 +124,34 @@ device_t::~device_t()
 
 
 //-------------------------------------------------
+//  searchpath - get the media search path for a
+//  device
+//-------------------------------------------------
+
+std::vector<std::string> device_t::searchpath() const
+{
+	std::vector<std::string> result;
+	device_t const *system(owner());
+	while (system && !dynamic_cast<driver_device const *>(system))
+		system = system->owner();
+	if (system)
+		result = system->searchpath();
+	result.emplace(result.begin(), shortname());
+	return result;
+}
+
+
+//-------------------------------------------------
 //  memregion - return a pointer to the region
 //  info for a given region
 //-------------------------------------------------
 
-memory_region *device_t::memregion(const char *_tag) const
+memory_region *device_t::memregion(std::string _tag) const
 {
 	// build a fully-qualified name and look it up
-	if (_tag)
-	{
-		auto search = machine().memory().regions().find(subtag(_tag).c_str());
-		if (search != machine().memory().regions().end())
-			return search->second.get();
-		else
-			return nullptr;
-	}
+	auto search = machine().memory().regions().find(subtag(std::move(_tag)));
+	if (search != machine().memory().regions().end())
+		return search->second.get();
 	else
 		return nullptr;
 }
@@ -150,17 +162,12 @@ memory_region *device_t::memregion(const char *_tag) const
 //  info for a given share
 //-------------------------------------------------
 
-memory_share *device_t::memshare(const char *_tag) const
+memory_share *device_t::memshare(std::string _tag) const
 {
 	// build a fully-qualified name and look it up
-	if (_tag)
-	{
-		auto search = machine().memory().shares().find(subtag(_tag).c_str());
-		if (search != machine().memory().shares().end())
-			return search->second.get();
-		else
-			return nullptr;
-	}
+	auto search = machine().memory().shares().find(subtag(std::move(_tag)));
+	if (search != machine().memory().shares().end())
+		return search->second.get();
 	else
 		return nullptr;
 }
@@ -171,16 +178,11 @@ memory_share *device_t::memshare(const char *_tag) const
 //  bank info for a given bank
 //-------------------------------------------------
 
-memory_bank *device_t::membank(const char *_tag) const
+memory_bank *device_t::membank(std::string _tag) const
 {
-	if (_tag)
-	{
-		auto search = machine().memory().banks().find(subtag(_tag).c_str());
-		if (search != machine().memory().banks().end())
-			return search->second.get();
-		else
-			return nullptr;
-	}
+	auto search = machine().memory().banks().find(subtag(std::move(_tag)));
+	if (search != machine().memory().banks().end())
+		return search->second.get();
 	else
 		return nullptr;
 }
@@ -191,16 +193,16 @@ memory_bank *device_t::membank(const char *_tag) const
 //  object for a given port name
 //-------------------------------------------------
 
-ioport_port *device_t::ioport(const char *tag) const
+ioport_port *device_t::ioport(std::string tag) const
 {
 	// build a fully-qualified name and look it up
-	return machine().ioport().port(subtag(tag).c_str());
+	return machine().ioport().port(subtag(std::move(tag)).c_str());
 }
 
 
 //-------------------------------------------------
-//  ioport - return a pointer to the I/O port
-//  object for a given port name
+//  parameter - return a pointer to a given
+//  parameter
 //-------------------------------------------------
 
 std::string device_t::parameter(const char *tag) const
@@ -211,21 +213,34 @@ std::string device_t::parameter(const char *tag) const
 
 
 //-------------------------------------------------
-//  static_set_clock - set/change the clock on
+//  add_machine_configuration - add device-
+//  specific machine configuration
+//-------------------------------------------------
+
+void device_t::add_machine_configuration(machine_config &config)
+{
+	assert(&config == &m_machine_config);
+	machine_config::token const tok(config.begin_configuration(*this));
+	device_add_mconfig(config);
+	for (finder_base *autodev = m_auto_finder_list; autodev != nullptr; autodev = autodev->next())
+		autodev->end_configuration();
+}
+
+
+//-------------------------------------------------
+//  set_clock - set/change the clock on
 //  a device
 //-------------------------------------------------
 
-void device_t::static_set_clock(device_t &device, u32 clock)
+void device_t::set_clock(u32 clock)
 {
+	m_configured_clock = clock;
+
 	// derive the clock from our owner if requested
 	if ((clock & 0xff000000) == 0xff000000)
-	{
-		assert(device.m_owner != nullptr);
-		clock = device.m_owner->m_configured_clock * ((clock >> 12) & 0xfff) / ((clock >> 0) & 0xfff);
-	}
-
-	device.m_clock = device.m_unscaled_clock = device.m_configured_clock = clock;
-	device.m_attoseconds_per_clock = (clock == 0) ? 0 : HZ_TO_ATTOSECONDS(clock);
+		calculate_derived_clock();
+	else
+		set_unscaled_clock(clock);
 }
 
 
@@ -236,7 +251,56 @@ void device_t::static_set_clock(device_t &device, u32 clock)
 
 void device_t::config_complete()
 {
-	// first notify the interfaces
+	// resolve default BIOS
+	tiny_rom_entry const *const roms(rom_region());
+	if (roms)
+	{
+		// first pass: try to find default BIOS from ROM region or machine configuration
+		char const *defbios(m_default_bios_tag.empty() ? nullptr : m_default_bios_tag.c_str());
+		bool twopass(false), havebios(false);
+		u8 firstbios(0);
+		for (const tiny_rom_entry *rom = roms; !m_default_bios && !ROMENTRY_ISEND(rom); ++rom)
+		{
+			if (ROMENTRY_ISSYSTEM_BIOS(rom))
+			{
+				if (!havebios)
+				{
+					havebios = true;
+					firstbios = ROM_GETBIOSFLAGS(rom);
+				}
+				if (!defbios)
+					twopass = true;
+				else if (!std::strcmp(rom->name, defbios))
+					m_default_bios = ROM_GETBIOSFLAGS(rom);
+			}
+			else if (!defbios && ROMENTRY_ISDEFAULT_BIOS(rom))
+			{
+				defbios = rom->name;
+			}
+		}
+
+		// second pass is needed if default BIOS came after one or more system BIOSes
+		if (havebios && !m_default_bios)
+		{
+			if (defbios && twopass)
+			{
+				for (const tiny_rom_entry *rom = roms; !m_default_bios && !ROMENTRY_ISEND(rom); ++rom)
+				{
+					if (ROMENTRY_ISSYSTEM_BIOS(rom) && !std::strcmp(rom->name, defbios))
+						m_default_bios = ROM_GETBIOSFLAGS(rom);
+				}
+			}
+
+			// no default BIOS declared but at least one system BIOS declared
+			if (!m_default_bios)
+				m_default_bios = firstbios;
+		}
+
+		// set system BIOS to the default unless something overrides it
+		set_system_bios(m_default_bios);
+	}
+
+	// notify the interfaces
 	for (device_interface &intf : interfaces())
 		intf.interface_config_complete();
 
@@ -255,6 +319,10 @@ void device_t::config_complete()
 
 void device_t::validity_check(validity_checker &valid) const
 {
+	// validate callbacks
+	for (devcb_base const *callback : m_callbacks)
+		callback->validity_check(valid);
+
 	// validate via the interfaces
 	for (device_interface &intf : interfaces())
 		intf.interface_validity_check(valid);
@@ -297,10 +365,21 @@ void device_t::reset()
 
 void device_t::set_unscaled_clock(u32 clock)
 {
+	// do nothing if no actual change
+	if (clock == m_unscaled_clock)
+		return;
+
 	m_unscaled_clock = clock;
 	m_clock = m_unscaled_clock * m_clock_scale;
 	m_attoseconds_per_clock = (m_clock == 0) ? 0 : HZ_TO_ATTOSECONDS(m_clock);
-	notify_clock_changed();
+
+	// recalculate all derived clocks
+	for (device_t &child : subdevices())
+		child.calculate_derived_clock();
+
+	// if the device has already started, make sure it knows about the new clock
+	if (m_started)
+		notify_clock_changed();
 }
 
 
@@ -311,10 +390,36 @@ void device_t::set_unscaled_clock(u32 clock)
 
 void device_t::set_clock_scale(double clockscale)
 {
+	// do nothing if no actual change
+	if (clockscale == m_clock_scale)
+		return;
+
 	m_clock_scale = clockscale;
 	m_clock = m_unscaled_clock * m_clock_scale;
 	m_attoseconds_per_clock = (m_clock == 0) ? 0 : HZ_TO_ATTOSECONDS(m_clock);
-	notify_clock_changed();
+
+	// recalculate all derived clocks
+	for (device_t &child : subdevices())
+		child.calculate_derived_clock();
+
+	// if the device has already started, make sure it knows about the new clock
+	if (m_started)
+		notify_clock_changed();
+}
+
+
+//-------------------------------------------------
+//  calculate_derived_clock - derive the device's
+//  clock from its owner, if so configured
+//-------------------------------------------------
+
+void device_t::calculate_derived_clock()
+{
+	if ((m_configured_clock & 0xff000000) == 0xff000000)
+	{
+		assert(m_owner != nullptr);
+		set_unscaled_clock(m_owner->m_clock * ((m_configured_clock >> 12) & 0xfff) / ((m_configured_clock >> 0) & 0xfff));
+	}
 }
 
 
@@ -323,9 +428,11 @@ void device_t::set_clock_scale(double clockscale)
 //  clock ticks to an attotime
 //-------------------------------------------------
 
-attotime device_t::clocks_to_attotime(u64 numclocks) const
+attotime device_t::clocks_to_attotime(u64 numclocks) const noexcept
 {
-	if (numclocks < m_clock)
+	if (m_clock == 0)
+		return attotime::never;
+	else if (numclocks < m_clock)
 		return attotime(0, numclocks * m_attoseconds_per_clock);
 	else
 	{
@@ -341,9 +448,12 @@ attotime device_t::clocks_to_attotime(u64 numclocks) const
 //  attotime to CPU clock ticks
 //-------------------------------------------------
 
-u64 device_t::attotime_to_clocks(const attotime &duration) const
+u64 device_t::attotime_to_clocks(const attotime &duration) const noexcept
 {
-	return mulu_32x32(duration.seconds(), m_clock) + u64(duration.attoseconds()) / u64(m_attoseconds_per_clock);
+	if (m_clock == 0)
+		return 0;
+	else
+		return mulu_32x32(duration.seconds(), m_clock) + u64(duration.attoseconds()) / u64(m_attoseconds_per_clock);
 }
 
 
@@ -393,8 +503,8 @@ bool device_t::findit(bool isvalidation) const
 		if (isvalidation)
 		{
 			// sanity checking
-			const char *tag = autodev->finder_tag();
-			if (tag == nullptr)
+			char const *const tag = autodev->finder_tag();
+			if (!tag)
 			{
 				osd_printf_error("Finder tag is null!\n");
 				allfound = false;
@@ -413,6 +523,33 @@ bool device_t::findit(bool isvalidation) const
 }
 
 //-------------------------------------------------
+//  resolve_pre_map - find objects that may be used
+//  in memory maps
+//-------------------------------------------------
+
+void device_t::resolve_pre_map()
+{
+	// prepare the logerror buffer
+	if (m_machine->allow_logging())
+		m_string_buffer.reserve(1024);
+}
+
+//-------------------------------------------------
+//  resolve - find objects
+//-------------------------------------------------
+
+void device_t::resolve_post_map()
+{
+	// find all the registered post-map objects
+	if (!findit(false))
+		throw emu_fatalerror("Missing some required objects, unable to proceed");
+
+	// allow implementation to do additional setup
+	device_resolve_objects();
+}
+
+
+//-------------------------------------------------
 //  start - start a device
 //-------------------------------------------------
 
@@ -421,10 +558,6 @@ void device_t::start()
 	// prepare the logerror buffer
 	if (m_machine->allow_logging())
 		m_string_buffer.reserve(1024);
-
-	// find all the registered devices
-	if (!findit(false))
-		throw emu_fatalerror("Missing some required objects, unable to proceed");
 
 	// let the interfaces do their pre-work
 	for (device_interface &intf : interfaces())
@@ -596,15 +729,13 @@ const tiny_rom_entry *device_t::device_rom_region() const
 
 
 //-------------------------------------------------
-//  machine_config - return a pointer to a machine
-//  config constructor describing sub-devices for
-//  this device
+//  device_add_mconfig - add device-specific
+//  machine configuration
 //-------------------------------------------------
 
-machine_config_constructor device_t::device_mconfig_additions() const
+void device_t::device_add_mconfig(machine_config &config)
 {
-	// none by default
-	return nullptr;
+	// do nothing by default
 }
 
 
@@ -640,6 +771,18 @@ void device_t::device_reset()
 //-------------------------------------------------
 
 void device_t::device_reset_after_children()
+{
+	// do nothing by default
+}
+
+
+//-------------------------------------------------
+//  device_resolve_objects - resolve objects that
+//  may be needed for other devices to set
+//  initial conditions at start time
+//-------------------------------------------------
+
+void device_t::device_resolve_objects()
 {
 	// do nothing by default
 }
@@ -728,7 +871,7 @@ device_t *device_t::subdevice_slow(const char *tag) const
 	// we presume the result is a rooted path; also doubled colons mess up our
 	// tree walk, so catch them early
 	assert(fulltag[0] == ':');
-	assert(fulltag.find("::") == -1);
+	assert(fulltag.find("::") == std::string::npos);
 
 	// walk the device list to the final path
 	device_t *curdevice = &mconfig().root_device();
@@ -751,19 +894,19 @@ device_t *device_t::subdevice_slow(const char *tag) const
 //  to our device based on the provided tag
 //-------------------------------------------------
 
-std::string device_t::subtag(const char *tag) const
+std::string device_t::subtag(std::string _tag) const
 {
+	const char *tag = _tag.c_str();
 	std::string result;
-	// if the tag begins with a colon, ignore our path and start from the root
 	if (*tag == ':')
 	{
+		// if the tag begins with a colon, ignore our path and start from the root
 		tag++;
 		result.assign(":");
 	}
-
-	// otherwise, start with our path
 	else
 	{
+		// otherwise, start with our path
 		result.assign(m_tag);
 		if (result != ":")
 			result.append(":");
@@ -814,6 +957,13 @@ finder_base *device_t::register_auto_finder(finder_base &autodev)
 	m_auto_finder_list = &autodev;
 	return old;
 }
+
+
+void device_t::register_callback(devcb_base &callback)
+{
+	m_callbacks.emplace_back(&callback);
+}
+
 
 //**************************************************************************
 //  LIVE DEVICE INTERFACES
@@ -947,7 +1097,7 @@ void device_interface::interface_pre_save()
 //-------------------------------------------------
 //  interface_post_load - called after the loading a
 //  saved state, so that registered variables can
-//  be expaneded as necessary
+//  be expanded as necessary
 //-------------------------------------------------
 
 void device_interface::interface_post_load()

@@ -105,56 +105,22 @@ static const res_net_info battroad_char_net_info =
 
 
 
-static const res_net_decode_info m62_tile_decode_info =
+static const res_net_decode_info m62_decode_info =
 {
 	1,                  /* single PROM per color */
 	0x000, 0x0ff,       /* start/end */
 	/*  R      G      B */
-	{ 0x000, 0x200, 0x400 }, /* offsets */
+	{ 0x000, 0x100, 0x200 }, /* offsets */
 	{     0,     0,     0 }, /* shifts */
 	{  0x0f,  0x0f,  0x0f }  /* masks */
 };
-
-
-static const res_net_decode_info m62_sprite_decode_info =
-{
-	1,                  /* single PROM per color */
-	0x000, 0x0ff,       /* start/end */
-	/*  R      G      B */
-	{ 0x100, 0x300, 0x500 }, /* offsets */
-	{     0,     0,     0 }, /* shifts */
-	{  0x0f,  0x0f,  0x0f }  /* masks */
-};
-
-
-static const res_net_decode_info lotlot_tile_decode_info =
-{
-	1,                  /* single PROM per color */
-	0x000, 0x17f,       /* start/end */
-	/*  R      G      B */
-	{ 0x000, 0x300, 0x600 }, /* offsets */
-	{     0,     0,     0 }, /* shifts */
-	{  0x0f,  0x0f,  0x0f }  /* masks */
-};
-
-
-static const res_net_decode_info lotlot_sprite_decode_info =
-{
-	1,                  /* single PROM per color */
-	0x000, 0x17f,       /* start/end */
-	/*  R      G      B */
-	{ 0x180, 0x480, 0x780 }, /* offsets */
-	{     0,     0,     0 }, /* shifts */
-	{  0x0f,  0x0f,  0x0f }  /* masks */
-};
-
 
 static const res_net_decode_info battroad_char_decode_info =
 {
 	1,                  /* single PROM per color */
 	0x000, 0x01f,       /* start/end */
 	/*  R      G      B */
-	{ 0x600, 0x600, 0x600 }, /* offsets */
+	{ 0x000, 0x000, 0x000 }, /* offsets */
 	{     6,     3,     0 }, /* shifts */
 	{  0x03,  0x07,  0x07 }  /* masks */
 };
@@ -171,112 +137,84 @@ static const res_net_decode_info spelunk2_tile_decode_info =
 };
 
 
-static const res_net_decode_info spelunk2_sprite_decode_info =
+void m62_state::m62_amplify_contrast(bool include_fg)
 {
-	1,                  /* single PROM per color */
-	0x000, 0x0ff,       /* start/end */
-	/*  R      G      B */
-	{ 0x400, 0x500, 0x600 }, /* offsets */
-	{     0,     0,     0 }, /* shifts */
-	{  0x0f,  0x0f,  0x0f }  /* masks */
-};
+	palette_device* pals[3];
 
+	pals[0] = m_chr_palette;
+	pals[1] = m_spr_palette;
 
-void m62_state::m62_amplify_contrast(palette_t *palette, uint32_t numcolors)
-{
+	if (m_fg_palette && include_fg)
+		pals[2] = m_fg_palette;
+	else
+		pals[2] = 0;
+
 	// m62 palette is very dark, so amplify default contrast
 	uint32_t i, ymax=1;
-	if (!numcolors) numcolors = palette->num_colors();
 
-	// find maximum brightness
-	for (i=0;i < numcolors;i++)
+	for (int j = 0;j < 3;j++)
 	{
-		rgb_t rgb = palette->entry_color(i);
-		uint32_t y = 299 * rgb.r() + 587 * rgb.g() + 114 * rgb.b();
-		ymax = std::max(ymax, y);
+		if (pals[j])
+		{
+			// find maximum brightness
+			for (i = 0;i < pals[j]->palette()->num_colors();i++)
+			{
+				rgb_t rgb = pals[j]->palette()->entry_color(i);
+				uint32_t y = 299 * rgb.r() + 587 * rgb.g() + 114 * rgb.b();
+				ymax = std::max(ymax, y);
+			}
+		}
 	}
 
-	palette->set_contrast(255000.0/ymax);
+	for (int j = 0;j < 3;j++)
+	{
+		if (pals[j])
+		{
+			pals[j]->palette()->set_contrast(255000.0 / ymax);
+		}
+	}
 }
 
-PALETTE_INIT_MEMBER(m62_state, m62)
+void m62_state::m62_spr(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
 	std::vector<rgb_t> rgb;
-
-	compute_res_net_all(rgb, color_prom, m62_tile_decode_info, m62_tile_net_info);
+	compute_res_net_all(rgb, m_sprite_color_proms, m62_decode_info, m62_sprite_net_info);
 	palette.set_pen_colors(0x000, rgb);
-
-	compute_res_net_all(rgb, color_prom, m62_sprite_decode_info, m62_sprite_net_info);
-	palette.set_pen_colors(0x100, rgb);
-
-	m62_amplify_contrast(palette.palette(),0);
-
-	/* we'll need this at run time */
-	m_sprite_height_prom = color_prom + 0x600;
 }
 
-
-PALETTE_INIT_MEMBER(m62_state,lotlot)
+void m62_state::m62_chr(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
 	std::vector<rgb_t> rgb;
-
-	compute_res_net_all(rgb, color_prom, lotlot_tile_decode_info, m62_tile_net_info);
+	compute_res_net_all(rgb, m_chr_color_proms, m62_decode_info, m62_tile_net_info);
 	palette.set_pen_colors(0x000, rgb);
+}
 
-	compute_res_net_all(rgb, color_prom, lotlot_sprite_decode_info, m62_sprite_net_info);
-	palette.set_pen_colors(0x180, rgb);
-
-	m62_amplify_contrast(palette.palette(),0);
-
-	/* we'll need this at run time */
-	m_sprite_height_prom = color_prom + 0x900;
+void m62_state::m62_lotlot_fg(palette_device &palette) const
+{
+	std::vector<rgb_t> rgb;
+	compute_res_net_all(rgb, m_fg_color_proms, m62_decode_info, m62_tile_net_info);
+	palette.set_pen_colors(0x000, rgb);
 }
 
 
-PALETTE_INIT_MEMBER(m62_state,battroad)
+void m62_state::m62_battroad_fg(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	std::vector<rgb_t> rgb;
-
-	// m62 palette
-	compute_res_net_all(rgb, color_prom, m62_tile_decode_info, m62_tile_net_info);
-	palette.set_pen_colors(0x000, rgb);
-
-	compute_res_net_all(rgb, color_prom, m62_sprite_decode_info, m62_sprite_net_info);
-	palette.set_pen_colors(0x100, rgb);
-
-	m62_amplify_contrast(palette.palette(),0x200);
-
 	// custom palette for foreground
-	compute_res_net_all(rgb, color_prom, battroad_char_decode_info, battroad_char_net_info);
-	palette.set_pen_colors(0x200, rgb);
-
-	/* we'll need this at run time */
-	m_sprite_height_prom = color_prom + 0x620;
-}
-
-
-PALETTE_INIT_MEMBER(m62_state,spelunk2)
-{
-	const uint8_t *color_prom = memregion("proms")->base();
 	std::vector<rgb_t> rgb;
-
-	compute_res_net_all(rgb, color_prom, spelunk2_tile_decode_info, m62_tile_net_info);
+	compute_res_net_all(rgb, m_fg_color_proms, battroad_char_decode_info, battroad_char_net_info);
 	palette.set_pen_colors(0x000, rgb);
-
-	compute_res_net_all(rgb, color_prom, spelunk2_sprite_decode_info, m62_sprite_net_info);
-	palette.set_pen_colors(0x200, rgb);
-
-	m62_amplify_contrast(palette.palette(),0);
-
-	/* we'll need this at run time */
-	m_sprite_height_prom = color_prom + 0x700;
 }
 
 
-void m62_state::register_savestate(  )
+void m62_state::spelunk2_palette(palette_device &palette) const
+{
+	std::vector<rgb_t> rgb;
+	compute_res_net_all(rgb, m_chr_color_proms, spelunk2_tile_decode_info, m62_tile_net_info);
+	palette.set_pen_colors(0x000, rgb);
+}
+
+
+void m62_state::register_savestate()
 {
 	save_item(NAME(m_flipscreen));
 	save_item(NAME(m_m62_background_hscroll));
@@ -341,7 +279,7 @@ WRITE8_MEMBER(m62_state::m62_textram_w)
 }
 
 
-void m62_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int colormask, int prioritymask, int priority )
+void m62_state::draw_sprites( bitmap_rgb32 &bitmap, const rectangle &cliprect, int colormask, int prioritymask, int priority )
 {
 	int offs;
 
@@ -388,7 +326,7 @@ void m62_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, i
 
 			do
 			{
-				m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
+				m_spr_decode->gfx(0)->transpen(bitmap,cliprect,
 						code + i * incr,col,
 						flipx,flipy,
 						sx,sy + 16 * i,0);
@@ -399,9 +337,9 @@ void m62_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, i
 	}
 }
 
-void m62_state::m62_start( tilemap_get_info_delegate tile_get_info, int rows, int cols, int x1, int y1, int x2, int y2 )
+void m62_state::m62_start(tilemap_get_info_delegate tile_get_info, int rows, int cols, int x1, int y1, int x2, int y2)
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tile_get_info, TILEMAP_SCAN_ROWS,  x1, y1, x2, y2);
+	m_bg_tilemap = &machine().tilemap().create(*m_chr_decode, tile_get_info, TILEMAP_SCAN_ROWS,  x1, y1, x2, y2);
 
 	register_savestate();
 
@@ -412,9 +350,9 @@ void m62_state::m62_start( tilemap_get_info_delegate tile_get_info, int rows, in
 		m_bg_tilemap->set_scroll_cols(cols);
 }
 
-void m62_state::m62_textlayer( tilemap_get_info_delegate tile_get_info, int rows, int cols, int x1, int y1, int x2, int y2 )
+void m62_state::m62_textlayer(tilemap_get_info_delegate tile_get_info, int rows, int cols, int x1, int y1, int x2, int y2)
 {
-	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tile_get_info, TILEMAP_SCAN_ROWS,  x1, y1, x2, y2);
+	m_fg_tilemap = &machine().tilemap().create(*m_fg_decode, tile_get_info, TILEMAP_SCAN_ROWS,  x1, y1, x2, y2);
 
 	if (rows != 0)
 		m_fg_tilemap->set_scroll_rows(rows);
@@ -441,7 +379,7 @@ TILE_GET_INFO_MEMBER(m62_state::get_kungfum_bg_tile_info)
 	{
 		flags |= TILE_FLIPX;
 	}
-	SET_TILE_INFO_MEMBER(0, code | ((color & 0xc0)<< 2), color & 0x1f, flags);
+	tileinfo.set(0, code | ((color & 0xc0)<< 2), color & 0x1f, flags);
 
 	/* is the following right? */
 	if ((tile_index / 64) < 6 || ((color & 0x1f) >> 1) > 0x0c)
@@ -452,10 +390,10 @@ TILE_GET_INFO_MEMBER(m62_state::get_kungfum_bg_tile_info)
 
 VIDEO_START_MEMBER(m62_state,kungfum)
 {
-	m62_start(tilemap_get_info_delegate(FUNC(m62_state::get_kungfum_bg_tile_info),this), 32, 0, 8, 8, 64, 32);
+	m62_start(tilemap_get_info_delegate(*this, FUNC(m62_state::get_kungfum_bg_tile_info)), 32, 0, 8, 8, 64, 32);
 }
 
-uint32_t m62_state::screen_update_kungfum(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t m62_state::screen_update_kungfum(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	int i;
 	for (i = 0; i < 6; i++)
@@ -485,7 +423,7 @@ TILE_GET_INFO_MEMBER(m62_state::get_ldrun_bg_tile_info)
 	{
 		flags |= TILE_FLIPX;
 	}
-	SET_TILE_INFO_MEMBER(0, code | ((color & 0xc0) << 2), color & 0x1f, flags);
+	tileinfo.set(0, code | ((color & 0xc0) << 2), color & 0x1f, flags);
 	if (((color & 0x1f) >> 1) >= 0x0c)
 		tileinfo.group = 1;
 	else
@@ -494,12 +432,12 @@ TILE_GET_INFO_MEMBER(m62_state::get_ldrun_bg_tile_info)
 
 void m62_state::video_start()
 {
-	m62_start(tilemap_get_info_delegate(FUNC(m62_state::get_ldrun_bg_tile_info),this), 1, 1, 8, 8, 64, 32);
-	m_bg_tilemap->set_transmask(0, 0xffff, 0x0000); /* split type 0 is totally transparent in front half */
-	m_bg_tilemap->set_transmask(1, 0x0001, 0xfffe); /* split type 1 has pen 0 transparent in front half */
+	m62_start(tilemap_get_info_delegate(*this, FUNC(m62_state::get_ldrun_bg_tile_info)), 1, 1, 8, 8, 64, 32);
+	m_bg_tilemap->set_transmask(0, 0xffff, 0x0000); // split type 0 is totally transparent in front half
+	m_bg_tilemap->set_transmask(1, 0x0001, 0xfffe); // split type 1 has pen 0 transparent in front half
 }
 
-uint32_t m62_state::screen_update_ldrun(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t m62_state::screen_update_ldrun(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->set_scrollx(0, m_m62_background_hscroll);
 	m_bg_tilemap->set_scrolly(0, m_m62_background_vscroll);
@@ -523,7 +461,7 @@ TILE_GET_INFO_MEMBER(m62_state::get_ldrun2_bg_tile_info)
 	{
 		flags |= TILE_FLIPX;
 	}
-	SET_TILE_INFO_MEMBER(0, code | ((color & 0xc0) << 2), color & 0x1f, flags);
+	tileinfo.set(0, code | ((color & 0xc0) << 2), color & 0x1f, flags);
 	if (((color & 0x1f) >> 1) >= 0x04)
 		tileinfo.group = 1;
 	else
@@ -532,7 +470,7 @@ TILE_GET_INFO_MEMBER(m62_state::get_ldrun2_bg_tile_info)
 
 VIDEO_START_MEMBER(m62_state,ldrun2)
 {
-	m62_start(tilemap_get_info_delegate(FUNC(m62_state::get_ldrun2_bg_tile_info),this), 1, 1, 8, 8, 64, 32);
+	m62_start(tilemap_get_info_delegate(*this, FUNC(m62_state::get_ldrun2_bg_tile_info)), 1, 1, 8, 8, 64, 32);
 	m_bg_tilemap->set_transmask(0, 0xffff, 0x0000); /* split type 0 is totally transparent in front half */
 	m_bg_tilemap->set_transmask(1, 0x0001, 0xfffe); /* split type 1 has pen 0 transparent in front half */
 }
@@ -543,7 +481,7 @@ WRITE8_MEMBER(m62_state::ldrun3_topbottom_mask_w)
 	m_ldrun3_topbottom_mask = data & 1;
 }
 
-uint32_t m62_state::screen_update_ldrun3(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t m62_state::screen_update_ldrun3(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	screen_update_ldrun(screen, bitmap, cliprect);
 
@@ -553,11 +491,11 @@ uint32_t m62_state::screen_update_ldrun3(screen_device &screen, bitmap_ind16 &bi
 
 		my_cliprect.min_y = 0 * 8;
 		my_cliprect.max_y = 1 * 8 - 1;
-		bitmap.fill(m_palette->black_pen(), my_cliprect);
+		bitmap.fill(m_chr_palette->black_pen(), my_cliprect);
 
 		my_cliprect.min_y = 31 * 8;
 		my_cliprect.max_y = 32 * 8 - 1;
-		bitmap.fill(m_palette->black_pen(), my_cliprect);
+		bitmap.fill(m_chr_palette->black_pen(), my_cliprect);
 	}
 
 	return 0;
@@ -576,7 +514,7 @@ TILE_GET_INFO_MEMBER(m62_state::get_battroad_bg_tile_info)
 	{
 		flags |= TILE_FLIPX;
 	}
-	SET_TILE_INFO_MEMBER(0, code | ((color & 0x40) << 3) | ((color & 0x10) << 4), color & 0x0f, flags);
+	tileinfo.set(0, code | ((color & 0x40) << 3) | ((color & 0x10) << 4), color & 0x0f, flags);
 	if (((color & 0x1f) >> 1) >= 0x04)
 		tileinfo.group = 1;
 	else
@@ -589,18 +527,18 @@ TILE_GET_INFO_MEMBER(m62_state::get_battroad_fg_tile_info)
 	int color;
 	code = m_m62_textram[tile_index << 1];
 	color = m_m62_textram[(tile_index << 1) | 1];
-	SET_TILE_INFO_MEMBER(2, code | ((color & 0x40) << 3) | ((color & 0x10) << 4), color & 0x0f, 0);
+	tileinfo.set(0, code | ((color & 0x40) << 3) | ((color & 0x10) << 4), color & 0x0f, 0);
 }
 
 VIDEO_START_MEMBER(m62_state,battroad)
 {
-	m62_start(tilemap_get_info_delegate(FUNC(m62_state::get_battroad_bg_tile_info),this), 1, 1, 8, 8, 64, 32);
-	m62_textlayer(tilemap_get_info_delegate(FUNC(m62_state::get_battroad_fg_tile_info),this), 1, 1, 8, 8, 32, 32);
+	m62_start(tilemap_get_info_delegate(*this, FUNC(m62_state::get_battroad_bg_tile_info)), 1, 1, 8, 8, 64, 32);
+	m62_textlayer(tilemap_get_info_delegate(*this, FUNC(m62_state::get_battroad_fg_tile_info)), 1, 1, 8, 8, 32, 32);
 	m_bg_tilemap->set_transmask(0, 0xffff, 0x0000); /* split type 0 is totally transparent in front half */
 	m_bg_tilemap->set_transmask(1, 0x0001, 0xfffe); /* split type 1 has pen 0 transparent in front half */
 }
 
-uint32_t m62_state::screen_update_battroad(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t m62_state::screen_update_battroad(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->set_scrollx(0, m_m62_background_hscroll);
 	m_bg_tilemap->set_scrolly(0, m_m62_background_vscroll);
@@ -625,15 +563,15 @@ TILE_GET_INFO_MEMBER(m62_state::get_ldrun4_bg_tile_info)
 	int color;
 	code = m_m62_tileram[tile_index << 1];
 	color = m_m62_tileram[(tile_index << 1) | 1];
-	SET_TILE_INFO_MEMBER(0, code | ((color & 0xc0) << 2) | ((color & 0x20) << 5), color & 0x1f, 0);
+	tileinfo.set(0, code | ((color & 0xc0) << 2) | ((color & 0x20) << 5), color & 0x1f, 0);
 }
 
 VIDEO_START_MEMBER(m62_state,ldrun4)
 {
-	m62_start(tilemap_get_info_delegate(FUNC(m62_state::get_ldrun4_bg_tile_info),this), 1, 0, 8, 8, 64, 32);
+	m62_start(tilemap_get_info_delegate(*this, FUNC(m62_state::get_ldrun4_bg_tile_info)), 1, 0, 8, 8, 64, 32);
 }
 
-uint32_t m62_state::screen_update_ldrun4(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t m62_state::screen_update_ldrun4(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->set_scrollx(0, m_m62_background_hscroll - 2);
 
@@ -655,7 +593,7 @@ TILE_GET_INFO_MEMBER(m62_state::get_lotlot_bg_tile_info)
 	{
 		flags |= TILE_FLIPX;
 	}
-	SET_TILE_INFO_MEMBER(0, code | ((color & 0xc0) << 2), color & 0x1f, flags);
+	tileinfo.set(0, code | ((color & 0xc0) << 2), color & 0x1f, flags);
 }
 
 TILE_GET_INFO_MEMBER(m62_state::get_lotlot_fg_tile_info)
@@ -664,16 +602,16 @@ TILE_GET_INFO_MEMBER(m62_state::get_lotlot_fg_tile_info)
 	int color;
 	code = m_m62_textram[tile_index << 1];
 	color = m_m62_textram[(tile_index << 1) | 1];
-	SET_TILE_INFO_MEMBER(2, code | ((color & 0xc0) << 2), color & 0x1f, 0);
+	tileinfo.set(0, code | ((color & 0xc0) << 2), color & 0x1f, 0);
 }
 
 VIDEO_START_MEMBER(m62_state,lotlot)
 {
-	m62_start(tilemap_get_info_delegate(FUNC(m62_state::get_lotlot_bg_tile_info),this), 1, 1, 12, 10, 32, 64);
-	m62_textlayer(tilemap_get_info_delegate(FUNC(m62_state::get_lotlot_fg_tile_info),this), 1, 1, 12, 10, 32, 64);
+	m62_start(tilemap_get_info_delegate(*this, FUNC(m62_state::get_lotlot_bg_tile_info)), 1, 1, 12, 10, 32, 64);
+	m62_textlayer(tilemap_get_info_delegate(*this, FUNC(m62_state::get_lotlot_fg_tile_info)), 1, 1, 12, 10, 32, 64);
 }
 
-uint32_t m62_state::screen_update_lotlot(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t m62_state::screen_update_lotlot(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->set_scrollx(0, m_m62_background_hscroll - 64);
 	m_bg_tilemap->set_scrolly(0, m_m62_background_vscroll + 32);
@@ -713,7 +651,7 @@ TILE_GET_INFO_MEMBER(m62_state::get_kidniki_bg_tile_info)
 	int color;
 	code = m_m62_tileram[tile_index << 1];
 	color = m_m62_tileram[(tile_index << 1) | 1];
-	SET_TILE_INFO_MEMBER(0, code | ((color & 0xe0) << 3) | (m_kidniki_background_bank << 11), color & 0x1f, 0);
+	tileinfo.set(0, code | ((color & 0xe0) << 3) | (m_kidniki_background_bank << 11), color & 0x1f, 0);
 	tileinfo.group = ((color & 0xe0) == 0xe0) ? 1 : 0;
 }
 
@@ -723,21 +661,21 @@ TILE_GET_INFO_MEMBER(m62_state::get_kidniki_fg_tile_info)
 	int color;
 	code = m_m62_textram[tile_index << 1];
 	color = m_m62_textram[(tile_index << 1) | 1];
-	SET_TILE_INFO_MEMBER(2, code | ( ( color & 0xc0 ) << 2 ), color & 0x1f, 0);
+	tileinfo.set(0, code | ( ( color & 0xc0 ) << 2 ), color & 0x1f, 0);
 }
 
 VIDEO_START_MEMBER(m62_state,kidniki)
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(m62_state::get_kidniki_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 32);
-	m_bg_tilemap->set_transmask(0, 0xffff, 0x0000); /* split type 0 is totally transparent in front half */
-	m_bg_tilemap->set_transmask(1, 0x0001, 0xfffe); /* split type 1 has pen 0 transparent in front half */
+	m_bg_tilemap = &machine().tilemap().create(*m_chr_decode, tilemap_get_info_delegate(*this, FUNC(m62_state::get_kidniki_bg_tile_info)), TILEMAP_SCAN_ROWS,  8, 8, 64, 32);
+	m_bg_tilemap->set_transmask(0, 0xffff, 0x0000); // split type 0 is totally transparent in front half
+	m_bg_tilemap->set_transmask(1, 0x0001, 0xfffe); // split type 1 has pen 0 transparent in front half
 
 	register_savestate();
 
-	m62_textlayer(tilemap_get_info_delegate(FUNC(m62_state::get_kidniki_fg_tile_info),this), 1, 1, 12, 8, 32, 64);
+	m62_textlayer(tilemap_get_info_delegate(*this, FUNC(m62_state::get_kidniki_fg_tile_info)), 1, 1, 12, 8, 32, 64);
 }
 
-uint32_t m62_state::screen_update_kidniki(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t m62_state::screen_update_kidniki(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->set_scrollx(0, m_m62_background_hscroll);
 	m_fg_tilemap->set_scrollx(0, -64);
@@ -768,7 +706,7 @@ TILE_GET_INFO_MEMBER(m62_state::get_spelunkr_bg_tile_info)
 	int color;
 	code = m_m62_tileram[tile_index << 1];
 	color = m_m62_tileram[(tile_index << 1) | 1];
-	SET_TILE_INFO_MEMBER(0, code | ((color & 0x10) << 4) | ((color & 0x20) << 6) | ((color & 0xc0) << 3), (color & 0x0f) | (m_spelunkr_palbank << 4), 0);
+	tileinfo.set(0, code | ((color & 0x10) << 4) | ((color & 0x20) << 6) | ((color & 0xc0) << 3), (color & 0x0f) | (m_spelunkr_palbank << 4), 0);
 }
 
 TILE_GET_INFO_MEMBER(m62_state::get_spelunkr_fg_tile_info)
@@ -778,16 +716,16 @@ TILE_GET_INFO_MEMBER(m62_state::get_spelunkr_fg_tile_info)
 	code = m_m62_textram[tile_index << 1];
 	color = m_m62_textram[(tile_index << 1) | 1];
 	if (color & 0xe0) popmessage("fg tilemap %x %x", tile_index, color & 0xe0);
-	SET_TILE_INFO_MEMBER(2, code | ((color & 0x10) << 4), (color & 0x0f) | (m_spelunkr_palbank << 4), 0);
+	tileinfo.set(0, code | ((color & 0x10) << 4), (color & 0x0f) | (m_spelunkr_palbank << 4), 0);
 }
 
 VIDEO_START_MEMBER(m62_state,spelunkr)
 {
-	m62_start(tilemap_get_info_delegate(FUNC(m62_state::get_spelunkr_bg_tile_info),this), 1, 1, 8, 8, 64, 64);
-	m62_textlayer(tilemap_get_info_delegate(FUNC(m62_state::get_spelunkr_fg_tile_info),this), 1, 1, 12, 8, 32, 32);
+	m62_start(tilemap_get_info_delegate(*this, FUNC(m62_state::get_spelunkr_bg_tile_info)), 1, 1, 8, 8, 64, 64);
+	m62_textlayer(tilemap_get_info_delegate(*this, FUNC(m62_state::get_spelunkr_fg_tile_info)), 1, 1, 12, 8, 32, 32);
 }
 
-uint32_t m62_state::screen_update_spelunkr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t m62_state::screen_update_spelunkr(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->set_scrollx(0, m_m62_background_hscroll);
 	m_bg_tilemap->set_scrolly(0, m_m62_background_vscroll + 128);
@@ -820,16 +758,16 @@ TILE_GET_INFO_MEMBER(m62_state::get_spelunk2_bg_tile_info)
 	int color;
 	code = m_m62_tileram[tile_index << 1];
 	color = m_m62_tileram[(tile_index << 1) | 1];
-	SET_TILE_INFO_MEMBER(0, code | ((color & 0xf0) << 4), (color & 0x0f) | (m_spelunkr_palbank << 4), 0 );
+	tileinfo.set(0, code | ((color & 0xf0) << 4), (color & 0x0f) | (m_spelunkr_palbank << 4), 0 );
 }
 
 VIDEO_START_MEMBER(m62_state,spelunk2)
 {
-	m62_start(tilemap_get_info_delegate(FUNC(m62_state::get_spelunk2_bg_tile_info),this), 1, 1, 8, 8, 64, 64);
-	m62_textlayer(tilemap_get_info_delegate(FUNC(m62_state::get_spelunkr_fg_tile_info),this), 1, 1, 12, 8, 32, 32);
+	m62_start(tilemap_get_info_delegate(*this, FUNC(m62_state::get_spelunk2_bg_tile_info)), 1, 1, 8, 8, 64, 64);
+	m62_textlayer(tilemap_get_info_delegate(*this, FUNC(m62_state::get_spelunkr_fg_tile_info)), 1, 1, 12, 8, 32, 32);
 }
 
-uint32_t m62_state::screen_update_spelunk2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t m62_state::screen_update_spelunk2(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->set_scrollx(0, m_m62_background_hscroll - 1);
 	m_bg_tilemap->set_scrolly(0, m_m62_background_vscroll + 128);
@@ -850,7 +788,7 @@ TILE_GET_INFO_MEMBER(m62_state::get_youjyudn_bg_tile_info)
 	int color;
 	code = m_m62_tileram[tile_index << 1];
 	color = m_m62_tileram[(tile_index << 1) | 1];
-	SET_TILE_INFO_MEMBER(0, code | ((color & 0x60) << 3), color & 0x1f, 0);
+	tileinfo.set(0, code | ((color & 0x60) << 3), color & 0x1f, 0);
 	if (((color & 0x1f) >> 1) >= 0x08)
 		tileinfo.group = 1;
 	else
@@ -863,18 +801,18 @@ TILE_GET_INFO_MEMBER(m62_state::get_youjyudn_fg_tile_info)
 	int color;
 	code = m_m62_textram[tile_index << 1];
 	color = m_m62_textram[(tile_index << 1) | 1];
-	SET_TILE_INFO_MEMBER(2, code | ((color & 0xc0) << 2), (color & 0x0f), 0);
+	tileinfo.set(0, code | ((color & 0xc0) << 2), (color & 0x0f), 0);
 }
 
 VIDEO_START_MEMBER(m62_state,youjyudn)
 {
-	m62_start(tilemap_get_info_delegate(FUNC(m62_state::get_youjyudn_bg_tile_info),this), 1, 0, 8, 16, 64, 16);
-	m62_textlayer(tilemap_get_info_delegate(FUNC(m62_state::get_youjyudn_fg_tile_info),this), 1, 1, 12, 8, 32, 32);
-	m_bg_tilemap->set_transmask(0, 0xffff, 0x0000); /* split type 0 is totally transparent in front half */
-	m_bg_tilemap->set_transmask(1, 0x0001, 0xfffe); /* split type 1 has pen 0 transparent in front half */
+	m62_start(tilemap_get_info_delegate(*this, FUNC(m62_state::get_youjyudn_bg_tile_info)), 1, 0, 8, 16, 64, 16);
+	m62_textlayer(tilemap_get_info_delegate(*this, FUNC(m62_state::get_youjyudn_fg_tile_info)), 1, 1, 12, 8, 32, 32);
+	m_bg_tilemap->set_transmask(0, 0xffff, 0x0000); // split type 0 is totally transparent in front half
+	m_bg_tilemap->set_transmask(1, 0x0001, 0xfffe); // split type 1 has pen 0 transparent in front half
 }
 
-uint32_t m62_state::screen_update_youjyudn(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t m62_state::screen_update_youjyudn(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->set_scrollx(0, m_m62_background_hscroll);
 	m_fg_tilemap->set_scrollx(0, -64);
@@ -896,11 +834,9 @@ WRITE8_MEMBER(m62_state::horizon_scrollram_w)
 
 TILE_GET_INFO_MEMBER(m62_state::get_horizon_bg_tile_info)
 {
-	int code;
-	int color;
-	code = m_m62_tileram[tile_index << 1];
-	color = m_m62_tileram[(tile_index << 1) | 1];
-	SET_TILE_INFO_MEMBER(0, code | ((color & 0xc0) << 2) | ((color & 0x20) << 5), color & 0x1f, 0);
+	int const code = m_m62_tileram[tile_index << 1];
+	int const color = m_m62_tileram[(tile_index << 1) | 1];
+	tileinfo.set(0, code | ((color & 0xc0) << 2) | ((color & 0x20) << 5), color & 0x1f, 0);
 
 	if (((color & 0x1f) >> 1) >= 0x08)
 		tileinfo.group = 1;
@@ -910,18 +846,16 @@ TILE_GET_INFO_MEMBER(m62_state::get_horizon_bg_tile_info)
 
 VIDEO_START_MEMBER(m62_state,horizon)
 {
-	m62_start(tilemap_get_info_delegate(FUNC(m62_state::get_horizon_bg_tile_info),this), 32, 0, 8, 8, 64, 32);
-	m_bg_tilemap->set_transmask(0, 0xffff, 0x0000); /* split type 0 is totally transparent in front half */
-	m_bg_tilemap->set_transmask(1, 0x0001, 0xfffe); /* split type 1 has pen 0 transparent in front half */
+	m62_start(tilemap_get_info_delegate(*this, FUNC(m62_state::get_horizon_bg_tile_info)), 32, 0, 8, 8, 64, 32);
+	m_bg_tilemap->set_transmask(0, 0xffff, 0x0000); // split type 0 is totally transparent in front half
+	m_bg_tilemap->set_transmask(1, 0x0001, 0xfffe); // split type 1 has pen 0 transparent in front half
 }
 
-uint32_t m62_state::screen_update_horizon(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t m62_state::screen_update_horizon(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	int i;
-	for (i = 0; i < 32; i++)
-	{
+	for (int i = 0; i < 32; i++)
 		m_bg_tilemap->set_scrollx(i, m_scrollram[i << 1] | (m_scrollram[(i << 1) | 1] << 8));
-	}
+
 	m_bg_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_LAYER1, 0);
 	draw_sprites(bitmap, cliprect, 0x1f, 0x00, 0x00);
 	m_bg_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_LAYER0, 0);

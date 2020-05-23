@@ -20,10 +20,10 @@
 
 TILE_GET_INFO_MEMBER(badlands_state::get_playfield_tile_info)
 {
-	uint16_t data = tilemap.basemem_read(tile_index);
+	uint16_t data = m_playfield_tilemap->basemem_read(tile_index);
 	int code = (data & 0x1fff) + ((data & 0x1000) ? (m_playfield_tile_bank << 12) : 0);
 	int color = (data >> 13) & 0x07;
-	SET_TILE_INFO_MEMBER(0, code, color, 0);
+	tileinfo.set(0, code, color, 0);
 }
 
 
@@ -112,11 +112,11 @@ uint32_t badlands_state::screen_update_badlands(screen_device &screen, bitmap_in
 	// draw and merge the MO
 	bitmap_ind16 &mobitmap = m_mob->bitmap();
 	for (const sparse_dirty_rect *rect = m_mob->first_dirty_rect(cliprect); rect != nullptr; rect = rect->next())
-		for (int y = rect->min_y; y <= rect->max_y; y++)
+		for (int y = rect->top(); y <= rect->bottom(); y++)
 		{
 			uint16_t *mo = &mobitmap.pix16(y);
 			uint16_t *pf = &bitmap.pix16(y);
-			for (int x = rect->min_x; x <= rect->max_x; x++)
+			for (int x = rect->left(); x <= rect->right(); x++)
 				if (mo[x] != 0xffff)
 				{
 					/* not yet verified

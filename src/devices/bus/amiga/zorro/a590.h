@@ -8,43 +8,37 @@
 
 ***************************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_AMIGA_ZORRO_A590_H
+#define MAME_BUS_AMIGA_ZORRO_A590_H
 
-#ifndef __A590_H__
-#define __A590_H__
+#pragma once
 
 #include "zorro.h"
 #include "machine/dmac.h"
-#include "machine/wd33c93.h"
+#include "machine/wd33c9x.h"
 
+
+namespace bus { namespace amiga { namespace zorro {
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-// ======================> dmac_hdc_device
+// ======================> dmac_hdc_device_base
 
-class dmac_hdc_device : public device_t
+class dmac_hdc_device_base : public device_t
 {
-public:
+protected:
 	// construction/destruction
-	dmac_hdc_device(const machine_config &mconfig, device_type type, const char *tag,
-		device_t *owner, uint32_t clock, const char *name, const char *shortname);
+	dmac_hdc_device_base(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
+	// device-level overrides
+	virtual void device_start() override ATTR_COLD;
+	virtual void device_reset() override;
 
 	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	virtual const tiny_rom_entry *device_rom_region() const override;
-
-	DECLARE_READ8_MEMBER( dmac_scsi_r );
-	DECLARE_WRITE8_MEMBER( dmac_scsi_w );
-	DECLARE_WRITE_LINE_MEMBER( dmac_int_w );
-	DECLARE_WRITE_LINE_MEMBER( dmac_cfgout_w ) { cfgout_w(state); }
-	DECLARE_WRITE_LINE_MEMBER( scsi_irq_w );
-
-protected:
-	// device-level overrides
-	virtual void device_start() override;
-	virtual void device_reset() override;
+	virtual void device_add_mconfig(machine_config &config) override ATTR_COLD;
+	virtual const tiny_rom_entry *device_rom_region() const override ATTR_COLD;
 
 	// to slot
 	virtual void cfgout_w(int state) = 0;
@@ -58,15 +52,26 @@ protected:
 	bool m_int6;
 
 	// sub-devices
-	required_device<dmac_device> m_dmac;
-	required_device<wd33c93_device> m_wdc;
+	required_device<amiga_dmac_device> m_dmac;
+	required_device<wd33c93a_device> m_wdc;
 
 	std::vector<uint8_t> m_ram;
+
+private:
+	uint8_t dmac_scsi_r(offs_t offset);
+	void dmac_scsi_w(offs_t offset, uint8_t data);
+	DECLARE_WRITE_LINE_MEMBER( dmac_int_w );
+	DECLARE_WRITE_LINE_MEMBER( dmac_cfgout_w ) { cfgout_w(state); }
+	DECLARE_WRITE_LINE_MEMBER( scsi_irq_w );
+	DECLARE_WRITE_LINE_MEMBER( scsi_drq_w );
+
+	static void scsi_devices(device_slot_interface &device) ATTR_COLD;
+	void wd33c93(device_t *device);
 };
 
 // ======================> a590_device
 
-class a590_device : public dmac_hdc_device, public device_exp_card_interface
+class a590_device : public dmac_hdc_device_base, public device_exp_card_interface
 {
 public:
 	// construction/destruction
@@ -74,11 +79,11 @@ public:
 
 protected:
 	// device-level overrides
-	virtual void device_start() override;
+	virtual void device_start() override ATTR_COLD;
 	virtual void device_reset() override;
 
 	// optional information overrides
-	virtual ioport_constructor device_input_ports() const override;
+	virtual ioport_constructor device_input_ports() const override ATTR_COLD;
 
 	// output to slot
 	virtual void cfgout_w(int state) override { m_slot->cfgout_w(state); }
@@ -97,18 +102,19 @@ private:
 
 // ======================> a2091_device
 
-class a2091_device : public dmac_hdc_device, public device_zorro2_card_interface
+class a2091_device : public dmac_hdc_device_base, public device_zorro2_card_interface
 {
 public:
 	// construction/destruction
 	a2091_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
+protected:
 	// device-level overrides
-	virtual void device_start() override;
+	virtual void device_start() override ATTR_COLD;
 	virtual void device_reset() override;
 
 	// optional information overrides
-	virtual ioport_constructor device_input_ports() const override;
+	virtual ioport_constructor device_input_ports() const override ATTR_COLD;
 
 	// output to slot
 	virtual void cfgout_w(int state) override { m_slot->cfgout_w(state); }
@@ -126,8 +132,10 @@ private:
 	required_ioport m_jp201;
 };
 
-// device type definition
-extern const device_type A590;
-extern const device_type A2091;
+} } } // namespace bus::amiga::zorro
 
-#endif
+// device type definition
+DECLARE_DEVICE_TYPE_NS(ZORRO_A590,  bus::amiga::zorro, a590_device)
+DECLARE_DEVICE_TYPE_NS(ZORRO_A2091, bus::amiga::zorro, a2091_device)
+
+#endif // MAME_BUS_AMIGA_ZORRO_A590_H

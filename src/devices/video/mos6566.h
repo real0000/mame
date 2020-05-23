@@ -77,32 +77,11 @@
 
 ***************************************************************************/
 
+#ifndef MAME_VIDEO_MOS6566_H
+#define MAME_VIDEO_MOS6566_H
+
 #pragma once
 
-#ifndef __MOS6566__
-#define __MOS6566__
-
-
-
-
-//***************************************************************************
-// DEVICE CONFIGURATION MACROS
-//***************************************************************************
-
-#define MCFG_MOS6566_CPU(_tag) \
-	mos6566_device::static_set_cpu_tag(*device, "^" _tag);
-
-#define MCFG_MOS6566_IRQ_CALLBACK(_write) \
-	devcb = &mos6566_device::set_irq_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_MOS6566_BA_CALLBACK(_write) \
-	devcb = &mos6566_device::set_ba_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_MOS6566_AEC_CALLBACK(_write) \
-	devcb = &mos6566_device::set_aec_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_MOS8564_K_CALLBACK(_write) \
-	devcb = &mos6566_device::set_k_wr_callback(*device, DEVCB_##_write);
 
 
 
@@ -110,10 +89,10 @@
 //  MACROS / CONSTANTS
 //**************************************************************************
 
-#define VIC6566_CLOCK           (XTAL_8MHz / 8) // 1000000
-#define VIC6567R56A_CLOCK       (XTAL_8MHz / 8) // 1000000
-#define VIC6567_CLOCK           (XTAL_14_31818MHz / 14) // 1022727
-#define VIC6569_CLOCK           (XTAL_17_734472MHz / 18) // 985248
+#define VIC6566_CLOCK           (XTAL(8'000'000) / 8) // 1000000
+#define VIC6567R56A_CLOCK       (XTAL(8'000'000) / 8) // 1000000
+#define VIC6567_CLOCK           (XTAL(14'318'181) / 14) // 1022727
+#define VIC6569_CLOCK           (XTAL(17'734'472) / 18) // 985248
 
 #define VIC6566_DOTCLOCK        (VIC6566_CLOCK * 8) // 8000000
 #define VIC6567R56A_DOTCLOCK    (VIC6567R56A_CLOCK * 8) // 8000000
@@ -126,10 +105,10 @@
 #define VIC6567_LINES       263
 #define VIC6569_LINES       312
 
-#define VIC6566_VRETRACERATE        ((float)VIC6566_CLOCK / 262 / 64)
-#define VIC6567R56A_VRETRACERATE    ((float)VIC6567R56A_CLOCK / 262 / 64)
-#define VIC6567_VRETRACERATE        ((float)VIC6567_CLOCK / 263 / 65)
-#define VIC6569_VRETRACERATE        ((float)VIC6569_CLOCK / 312 / 63)
+#define VIC6566_VRETRACERATE        (VIC6566_CLOCK / 262 / 64)
+#define VIC6567R56A_VRETRACERATE    (VIC6567R56A_CLOCK / 262 / 64)
+#define VIC6567_VRETRACERATE        (VIC6567_CLOCK / 263 / 65)
+#define VIC6569_VRETRACERATE        (VIC6569_CLOCK / 312 / 63)
 
 #define VIC6566_HRETRACERATE    (VIC6566_CLOCK / VIC6566_CYCLESPERLINE)
 #define VIC6567_HRETRACERATE    (VIC6567_CLOCK / VIC6567_CYCLESPERLINE)
@@ -210,19 +189,18 @@ class mos6566_device :  public device_t,
 {
 public:
 	// construction/destruction
-	mos6566_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source);
 	mos6566_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	static void static_set_cpu_tag(device_t &device, const char *tag) { downcast<mos6566_device &>(device).m_cpu.set_tag(tag); }
-	template<class _Object> static devcb_base &set_irq_wr_callback(device_t &device, _Object object) { return downcast<mos6566_device &>(device).m_write_irq.set_callback(object); }
-	template<class _Object> static devcb_base &set_ba_wr_callback(device_t &device, _Object object) { return downcast<mos6566_device &>(device).m_write_ba.set_callback(object); }
-	template<class _Object> static devcb_base &set_aec_wr_callback(device_t &device, _Object object) { return downcast<mos6566_device &>(device).m_write_aec.set_callback(object); }
-	template<class _Object> static devcb_base &set_k_wr_callback(device_t &device, _Object object) { return downcast<mos6566_device &>(device).m_write_k.set_callback(object); }
+	template <class T> void set_cpu(T &&tag) { m_cpu.set_tag(tag); }
+	auto irq_callback() { return m_write_irq.bind(); }
+	auto ba_callback() { return m_write_ba.bind(); }
+	auto aec_callback() { return m_write_aec.bind(); }
+	auto k_callback() { return m_write_k.bind(); }
 
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 
 	DECLARE_WRITE_LINE_MEMBER( lp_w );
 
@@ -250,16 +228,12 @@ protected:
 		TYPE_8569   // PAL-N VIC-IIe (C128)
 	};
 
+	mos6566_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint32_t variant);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void execute_run() override;
-
-	int m_icount;
-	int m_variant;
-
-	const address_space_config      m_videoram_space_config;
-	const address_space_config      m_colorram_space_config;
 
 	inline void set_interrupt( int mask );
 	inline void clear_interrupt( int mask );
@@ -285,6 +259,15 @@ protected:
 	inline void draw_multi( uint16_t p, uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3 );
 	void draw_graphics();
 	void draw_sprites();
+
+	void mos6566_colorram_map(address_map &map);
+	void mos6566_videoram_map(address_map &map);
+
+	int m_icount;
+	const int m_variant;
+
+	const address_space_config      m_videoram_space_config;
+	const address_space_config      m_colorram_space_config;
 
 	devcb_write_line       m_write_irq;
 	devcb_write_line       m_write_ba;
@@ -374,7 +357,9 @@ class mos6567_device :  public mos6566_device
 public:
 	// construction/destruction
 	mos6567_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	mos6567_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source);
+
+protected:
+	mos6567_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint32_t variant);
 };
 
 
@@ -396,9 +381,10 @@ public:
 	// construction/destruction
 	mos8564_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
+protected:
 	// device_execute_interface overrides
-	virtual uint64_t execute_clocks_to_cycles(uint64_t clocks) const override { return (clocks / 8); }
-	virtual uint64_t execute_cycles_to_clocks(uint64_t cycles) const override { return (cycles * 8); }
+	virtual uint64_t execute_clocks_to_cycles(uint64_t clocks) const noexcept override { return (clocks / 8); }
+	virtual uint64_t execute_cycles_to_clocks(uint64_t cycles) const noexcept override { return (cycles * 8); }
 };
 
 
@@ -409,7 +395,9 @@ class mos6569_device :  public mos6566_device
 public:
 	// construction/destruction
 	mos6569_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	mos6569_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source);
+
+protected:
+	mos6569_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint32_t variant);
 
 	// device-level overrides
 	virtual void execute_run() override;
@@ -434,21 +422,20 @@ public:
 	// construction/destruction
 	mos8566_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
+protected:
 	// device_execute_interface overrides
-	virtual uint64_t execute_clocks_to_cycles(uint64_t clocks) const override { return (clocks / 8); }
-	virtual uint64_t execute_cycles_to_clocks(uint64_t cycles) const override { return (cycles * 8); }
+	virtual uint64_t execute_clocks_to_cycles(uint64_t clocks) const noexcept override { return (clocks / 8); }
+	virtual uint64_t execute_cycles_to_clocks(uint64_t cycles) const noexcept override { return (cycles * 8); }
 };
 
 
 // device type definitions
-extern const device_type MOS6566;
-extern const device_type MOS6567;
-extern const device_type MOS8562;
-extern const device_type MOS8564;
-extern const device_type MOS6569;
-extern const device_type MOS8565;
-extern const device_type MOS8566;
+DECLARE_DEVICE_TYPE(MOS6566, mos6566_device)
+DECLARE_DEVICE_TYPE(MOS6567, mos6567_device)
+DECLARE_DEVICE_TYPE(MOS8562, mos8562_device)
+DECLARE_DEVICE_TYPE(MOS8564, mos8564_device)
+DECLARE_DEVICE_TYPE(MOS6569, mos6569_device)
+DECLARE_DEVICE_TYPE(MOS8565, mos8565_device)
+DECLARE_DEVICE_TYPE(MOS8566, mos8566_device)
 
-
-
-#endif
+#endif // MAME_VIDEO_MOS6566_H

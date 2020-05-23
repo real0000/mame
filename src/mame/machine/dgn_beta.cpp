@@ -35,7 +35,7 @@
 
   2005-11-29
 
-    Major track tracing excersise on scans of bare beta board, reveal where a
+    Major track tracing exercise on scans of bare beta board, reveal where a
     whole bunch of the PIA lines go, especially the IRQs, most of them go back
     to the IRQ line on the main CPU.
 
@@ -46,8 +46,8 @@
   2005-12-08
 
     Fixed density setting on WD2797, so density of read data is now
-    correctlty set as required by OS-9. This was the reason startup
-    script was not being executed as Beta disks have a single denisty
+    correctly set as required by OS-9. This was the reason startup
+    script was not being executed as Beta disks have a single density
     boot track, however the rest of the disk is double density.
     Booted completely to OS-9, including running startup script.
 
@@ -59,7 +59,7 @@
 
 #include <functional>
 
-#include <math.h>
+#include <cmath>
 #include "emu.h"
 #include "debug/debugcon.h"
 #include "cpu/m6809/m6809.h"
@@ -67,7 +67,7 @@
 #include "includes/dgn_beta.h"
 #include "includes/coco.h"
 #include "machine/mos6551.h"
-#include "imagedev/flopdrv.h"
+#include "imagedev/floppy.h"
 
 #include "debugger.h"
 #include "debug/debugcon.h"
@@ -89,36 +89,37 @@
 
 //static int DMA_NMI;               /* DMA cpu has received an NMI */
 
-#define INVALID_KEYROW  -1          /* no ketrow selected */
-#define NO_KEY_PRESSED  0x7F            /* retrurned by hardware if no key pressed */
+#define INVALID_KEYROW  -1          /* no keyrow selected */
+#define NO_KEY_PRESSED  0x7F        /* returned by hardware if no key pressed */
 
 // Info for bank switcher
 struct bank_info_entry
 {
-	write8_delegate func;   // Pointer to write handler
-	offs_t start;       // Offset of start of block
-	offs_t end;     // offset of end of block
+	void (dgn_beta_state::*func)(address_space &, offs_t, u8, u8);  // pointer to write handler
+	char const *name;                                               // write handler name
+	offs_t start;                                                   // offset of start of block
+	offs_t end;                                                     // offset of end of block
 };
 
 static const struct bank_info_entry bank_info[] =
 {
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_b0_w),(dgn_beta_state*)nullptr), 0x0000, 0x0fff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_b1_w),(dgn_beta_state*)nullptr), 0x1000, 0x1fff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_b2_w),(dgn_beta_state*)nullptr), 0x2000, 0x2fff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_b3_w),(dgn_beta_state*)nullptr), 0x3000, 0x3fff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_b4_w),(dgn_beta_state*)nullptr), 0x4000, 0x4fff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_b5_w),(dgn_beta_state*)nullptr), 0x5000, 0x5fff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_b6_w),(dgn_beta_state*)nullptr), 0x6000, 0x6fff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_b7_w),(dgn_beta_state*)nullptr), 0x7000, 0x7fff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_b8_w),(dgn_beta_state*)nullptr), 0x8000, 0x8fff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_b9_w),(dgn_beta_state*)nullptr), 0x9000, 0x9fff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_bA_w),(dgn_beta_state*)nullptr), 0xA000, 0xAfff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_bB_w),(dgn_beta_state*)nullptr), 0xB000, 0xBfff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_bC_w),(dgn_beta_state*)nullptr), 0xC000, 0xCfff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_bD_w),(dgn_beta_state*)nullptr), 0xD000, 0xDfff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_bE_w),(dgn_beta_state*)nullptr), 0xE000, 0xEfff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_bF_w),(dgn_beta_state*)nullptr), 0xF000, 0xFBff },
-	{ write8_delegate(FUNC(dgn_beta_state::dgnbeta_ram_bG_w),(dgn_beta_state*)nullptr), 0xFF00, 0xFfff }
+	{ FUNC(dgn_beta_state::dgnbeta_ram_b0_w), 0x0000, 0x0fff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_b1_w), 0x1000, 0x1fff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_b2_w), 0x2000, 0x2fff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_b3_w), 0x3000, 0x3fff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_b4_w), 0x4000, 0x4fff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_b5_w), 0x5000, 0x5fff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_b6_w), 0x6000, 0x6fff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_b7_w), 0x7000, 0x7fff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_b8_w), 0x8000, 0x8fff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_b9_w), 0x9000, 0x9fff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_bA_w), 0xA000, 0xAfff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_bB_w), 0xB000, 0xBfff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_bC_w), 0xC000, 0xCfff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_bD_w), 0xD000, 0xDfff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_bE_w), 0xE000, 0xEfff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_bF_w), 0xF000, 0xFBff },
+	{ FUNC(dgn_beta_state::dgnbeta_ram_bG_w), 0xFF00, 0xFfff }
 };
 
 #define is_last_page(page)  (((page==LastPage) || (page==LastPage+1)) ? 1 : 0)
@@ -135,21 +136,21 @@ static const struct bank_info_entry bank_info[] =
 // For the purpose of this driver any block that is not ram, and is not a known ROM block,
 // is mapped to the first page of the boot rom, I do not know what happens in the real
 // hardware, however this does allow the boot rom to correctly size the RAM.
-// this should probably be considdered a hack !
+// this should probably be considered a hack !
 //
 
 void dgn_beta_state::UpdateBanks(int first, int last)
 {
 	address_space &space_0 = m_maincpu->space(AS_PROGRAM);
-	address_space &space_1 = machine().device(DMACPU_TAG)->memory().space(AS_PROGRAM);
+	address_space &space_1 = m_dmacpu->space(AS_PROGRAM);
 	int                 Page;
-	uint8_t               *readbank;
+	uint8_t             *readbank;
 	int                 bank_start;
 	int                 bank_end;
 	int                 MapPage;
 	char                page_num[10];
 
-	LOG_BANK_UPDATE(("\n\nUpdating banks %d to %d at PC=$%X\n",first,last,space_0.device().safe_pc()));
+	LOG_BANK_UPDATE(("\n\n%s Updating banks %d to %d\n", machine().describe_context(), first, last));
 	for(Page=first;Page<=last;Page++)
 	{
 		sprintf(page_num,"bank%d",Page+1);
@@ -179,8 +180,7 @@ void dgn_beta_state::UpdateBanks(int first, int last)
 				readbank = &m_ram->pointer()[(MapPage*RamPageSize)-256];
 				logerror("Error RAM in Last page !\n");
 			}
-			write8_delegate func = bank_info[Page].func;
-			if (!func.isnull()) func.late_bind(*this);
+			write8_delegate func(*this, bank_info[Page].func, bank_info[Page].name);
 			space_0.install_write_handler(bank_start, bank_end, func);
 			space_1.install_write_handler(bank_start, bank_end, func);
 		}
@@ -436,16 +436,17 @@ int dgn_beta_state::GetKeyRow(dgn_beta_state *state, int RowNo)
         CB1 I36/39/6845(Horz Sync)
         CB2 Keyboard (out) Low loads input shift reg
 */
-READ8_MEMBER(dgn_beta_state::d_pia0_pa_r)
+uint8_t dgn_beta_state::d_pia0_pa_r()
 {
-	return 0;
+	// The hardware has pullup resistors on port A.
+	return 0xff;
 }
 
-WRITE8_MEMBER(dgn_beta_state::d_pia0_pa_w)
+void dgn_beta_state::d_pia0_pa_w(uint8_t data)
 {
 }
 
-READ8_MEMBER(dgn_beta_state::d_pia0_pb_r)
+uint8_t dgn_beta_state::d_pia0_pb_r()
 {
 	int RetVal;
 	int Idx;
@@ -486,7 +487,7 @@ READ8_MEMBER(dgn_beta_state::d_pia0_pb_r)
 	return RetVal;
 }
 
-WRITE8_MEMBER(dgn_beta_state::d_pia0_pb_w)
+void dgn_beta_state::d_pia0_pb_w(uint8_t data)
 {
 	int InClkState;
 	//int   OutClkState;
@@ -556,12 +557,13 @@ WRITE_LINE_MEMBER(dgn_beta_state::d_pia0_irq_b)
         Baud rate               PB1..PB5 ????
 */
 
-READ8_MEMBER(dgn_beta_state::d_pia1_pa_r)
+uint8_t dgn_beta_state::d_pia1_pa_r()
 {
-	return 0;
+	// The hardware has pullup resistors on port A.
+	return 0xff;
 }
 
-WRITE8_MEMBER(dgn_beta_state::d_pia1_pa_w)
+void dgn_beta_state::d_pia1_pa_w(uint8_t data)
 {
 	int HALT_DMA;
 
@@ -575,7 +577,7 @@ WRITE8_MEMBER(dgn_beta_state::d_pia1_pa_w)
 			HALT_DMA = CLEAR_LINE;
 
 		LOG_HALT(("DMA_CPU HALT=%d\n", HALT_DMA));
-		machine().device(DMACPU_TAG)->execute().set_input_line(INPUT_LINE_HALT, HALT_DMA);
+		m_dmacpu->set_input_line(INPUT_LINE_HALT, HALT_DMA);
 
 		/* CPU un-halted let it run ! */
 		if (HALT_DMA == CLEAR_LINE)
@@ -597,17 +599,22 @@ WRITE8_MEMBER(dgn_beta_state::d_pia1_pa_w)
 
 	m_fdc->set_floppy(floppy);
 
+	if (m_floppy0->get_device()) m_floppy0->get_device()->mon_w(0);
+	if (m_floppy1->get_device()) m_floppy1->get_device()->mon_w(0);
+	if (m_floppy2->get_device()) m_floppy2->get_device()->mon_w(0);
+	if (m_floppy3->get_device()) m_floppy3->get_device()->mon_w(0);
+
 	// not connected: bit 5 = ENP
 	m_fdc->dden_w(BIT(data, 6));
 	LOG_DISK(("Set density %s\n", BIT(data, 6) ? "low" : "high"));
 }
 
-READ8_MEMBER(dgn_beta_state::d_pia1_pb_r)
+uint8_t dgn_beta_state::d_pia1_pb_r()
 {
 	return 0;
 }
 
-WRITE8_MEMBER(dgn_beta_state::d_pia1_pb_w)
+void dgn_beta_state::d_pia1_pb_w(uint8_t data)
 {
 	int HALT_CPU;
 
@@ -627,7 +634,7 @@ WRITE8_MEMBER(dgn_beta_state::d_pia1_pb_w)
 
 		/* CPU un-halted let it run ! */
 		if (HALT_CPU == CLEAR_LINE)
-			machine().device(DMACPU_TAG)->execute().yield();
+			m_dmacpu->yield();
 	}
 }
 
@@ -648,14 +655,15 @@ WRITE_LINE_MEMBER(dgn_beta_state::d_pia1_irq_b)
         DMA CPU NMI PA7
 
         Graphics control PB0..PB7 ???
-        VSYNC intutrupt CB2
+        VSYNC interrupt CB2
 */
-READ8_MEMBER(dgn_beta_state::d_pia2_pa_r)
+uint8_t dgn_beta_state::d_pia2_pa_r()
 {
-	return 0;
+	// The hardware has pullup resistors on port A.
+	return 0xff;
 }
 
-WRITE8_MEMBER(dgn_beta_state::d_pia2_pa_w)
+void dgn_beta_state::d_pia2_pa_w(uint8_t data)
 {
 	int OldTask;
 	int OldEnableMap;
@@ -672,13 +680,13 @@ WRITE8_MEMBER(dgn_beta_state::d_pia2_pa_w)
 		LOG_INTS(("cpu1 NMI : %d\n", NMI));
 		if(!NMI)
 		{
-			machine().device(DMACPU_TAG)->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+			m_dmacpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 			logerror("device_yield()\n");
-			machine().device(DMACPU_TAG)->execute().yield();    /* Let DMA CPU run */
+			m_dmacpu->yield();    /* Let DMA CPU run */
 		}
 		else
 		{
-			machine().device(DMACPU_TAG)->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+			m_dmacpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 		}
 
 		m_DMA_NMI_LAST = NMI;   /* Save it for next time */
@@ -697,7 +705,7 @@ WRITE8_MEMBER(dgn_beta_state::d_pia2_pa_w)
 
 	LOG_TASK(("OldTask=$%02X EnableMapRegs=%d OldEnableMap=%d\n", OldTask, m_EnableMapRegs, OldEnableMap));
 
-	// Maping was enabled or disabled, select apropreate task reg
+	// Mapping was enabled or disabled, select appropriate task reg
 	// and map it in
 	if (m_EnableMapRegs != OldEnableMap)
 	{
@@ -720,12 +728,12 @@ WRITE8_MEMBER(dgn_beta_state::d_pia2_pa_w)
 	LOG_TASK(("TaskReg=$%02X PIATaskReg=$%02X\n", m_TaskReg, m_PIATaskReg));
 }
 
-READ8_MEMBER(dgn_beta_state::d_pia2_pb_r)
+uint8_t dgn_beta_state::d_pia2_pb_r()
 {
 	return 0;
 }
 
-WRITE8_MEMBER(dgn_beta_state::d_pia2_pb_w)
+void dgn_beta_state::d_pia2_pb_w(uint8_t data)
 {
 	/* Update top video address lines */
 	dgnbeta_vid_set_gctrl(data);
@@ -741,18 +749,15 @@ WRITE_LINE_MEMBER(dgn_beta_state::d_pia2_irq_b)
 	cpu0_recalc_irq(state);
 }
 
-/************************************ Recalculate CPU inturrupts ****************************/
+/************************************ Recalculate CPU interrupts ****************************/
 /* CPU 0 */
 void dgn_beta_state::cpu0_recalc_irq(int state)
 {
-	pia6821_device *pia_0 = machine().device<pia6821_device>( PIA_0_TAG );
-	pia6821_device *pia_1 = machine().device<pia6821_device>( PIA_1_TAG );
-	pia6821_device *pia_2 = machine().device<pia6821_device>( PIA_2_TAG );
-	uint8_t pia0_irq_a = pia_0->irq_a_state();
-	uint8_t pia1_irq_a = pia_1->irq_a_state();
-	uint8_t pia1_irq_b = pia_1->irq_b_state();
-	uint8_t pia2_irq_a = pia_2->irq_a_state();
-	uint8_t pia2_irq_b = pia_2->irq_b_state();
+	uint8_t pia0_irq_a = m_pia_0->irq_a_state();
+	uint8_t pia1_irq_a = m_pia_1->irq_a_state();
+	uint8_t pia1_irq_b = m_pia_1->irq_b_state();
+	uint8_t pia2_irq_a = m_pia_2->irq_a_state();
+	uint8_t pia2_irq_b = m_pia_2->irq_b_state();
 	uint8_t IRQ;
 
 	if (pia0_irq_a || pia1_irq_a || pia1_irq_b || pia2_irq_a || pia2_irq_b)
@@ -766,8 +771,7 @@ void dgn_beta_state::cpu0_recalc_irq(int state)
 
 void dgn_beta_state::cpu0_recalc_firq(int state)
 {
-	pia6821_device *pia_0 = machine().device<pia6821_device>( PIA_0_TAG );
-	uint8_t pia0_irq_b = pia_0->irq_b_state();
+	uint8_t pia0_irq_b = m_pia_0->irq_b_state();
 	uint8_t FIRQ;
 
 	if (pia0_irq_b)
@@ -784,7 +788,7 @@ void dgn_beta_state::cpu0_recalc_firq(int state)
 
 void dgn_beta_state::cpu1_recalc_firq(int state)
 {
-	machine().device(DMACPU_TAG)->execute().set_input_line(M6809_FIRQ_LINE, state);
+	m_dmacpu->set_input_line(M6809_FIRQ_LINE, state);
 	LOG_INTS(("cpu1 FIRQ : %d\n",state));
 }
 
@@ -795,13 +799,13 @@ void dgn_beta_state::cpu1_recalc_firq(int state)
 /* The INTRQ line goes through pia2 ca1, in exactly the same way as DRQ from DragonDos does */
 WRITE_LINE_MEMBER( dgn_beta_state::dgnbeta_fdc_intrq_w )
 {
-	device_t *device = machine().device(PIA_2_TAG);
 	LOG_DISK(("dgnbeta_fdc_intrq_w(%d)\n", state));
+
 	if(m_wd2797_written)
-		downcast<pia6821_device *>(device)->ca1_w(state);
+		m_pia_2->ca1_w(state);
 }
 
-/* DRQ is routed through various logic to the FIRQ inturrupt line on *BOTH* CPUs */
+/* DRQ is routed through various logic to the FIRQ interrupt line on *BOTH* CPUs */
 WRITE_LINE_MEMBER( dgn_beta_state::dgnbeta_fdc_drq_w )
 {
 	LOG_DISK(("dgnbeta_fdc_drq_w(%d)\n", state));
@@ -810,13 +814,13 @@ WRITE_LINE_MEMBER( dgn_beta_state::dgnbeta_fdc_drq_w )
 
 READ8_MEMBER( dgn_beta_state::dgnbeta_wd2797_r )
 {
-	return m_fdc->read(space, offset & 0x03);
+	return m_fdc->read(offset & 0x03);
 }
 
 WRITE8_MEMBER( dgn_beta_state::dgnbeta_wd2797_w )
 {
 	m_wd2797_written = 1;
-	m_fdc->write(space, offset & 0x03, data);
+	m_fdc->write(offset & 0x03, data);
 }
 
 /* Scan physical keyboard into Keyboard array */
@@ -853,16 +857,14 @@ void dgn_beta_state::ScanInKeyboard(void)
 #endif
 }
 
-/* VBlank inturrupt */
+/* VBlank interrupt */
 void dgn_beta_state::dgn_beta_frame_interrupt (int data)
 {
-	pia6821_device *pia_2 = machine().device<pia6821_device>( PIA_2_TAG );
-
-	/* Set PIA line, so it recognises inturrupt */
+	/* Set PIA line, so it recognises interrupt */
 	if (!data)
-		pia_2->cb2_w(ASSERT_LINE);
+		m_pia_2->cb2_w(ASSERT_LINE);
 	else
-		pia_2->cb2_w(CLEAR_LINE);
+		m_pia_2->cb2_w(CLEAR_LINE);
 
 //    LOG_VIDEO(("Vblank\n"));
 	ScanInKeyboard();
@@ -871,14 +873,14 @@ void dgn_beta_state::dgn_beta_frame_interrupt (int data)
 #ifdef UNUSED_FUNCTION
 void dgn_beta_state::dgn_beta_line_interrupt (int data)
 {
-//  /* Set PIA line, so it recognises inturrupt */
+//  /* Set PIA line, so it recognises interrupt */
 //  if (data)
 //  {
-//      pia_0_cb1_w(machine, 0,ASSERT_LINE);
+//      m_pia_0->cb1_w(ASSERT_LINE);
 //  }
 //  else
 //  {
-//      pia_0_cb1_w(machine, 0,CLEAR_LINE);
+//      m_pia_0->cb1_w(CLEAR_LINE);
 //  }
 }
 #endif
@@ -887,16 +889,12 @@ void dgn_beta_state::dgn_beta_line_interrupt (int data)
 /********************************* Machine/Driver Initialization ****************************************/
 void dgn_beta_state::machine_reset()
 {
-	pia6821_device *pia_0 = machine().device<pia6821_device>( PIA_0_TAG );
-	pia6821_device *pia_1 = machine().device<pia6821_device>( PIA_1_TAG );
-	pia6821_device *pia_2 = machine().device<pia6821_device>( PIA_2_TAG );
-
 	logerror("dgn_beta_state::machine_reset()\n");
 
 	m_system_rom = memregion(MAINCPU_TAG)->base();
 
 	/* Make sure CPU 1 is started out halted ! */
-	machine().device(DMACPU_TAG)->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+	m_dmacpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 
 	/* Reset to task 0, and map banks disabled, so standard memory map */
 	/* with ram at $0000-$BFFF, ROM at $C000-FBFF, IO at $FC00-$FEFF */
@@ -906,11 +904,6 @@ void dgn_beta_state::machine_reset()
 	m_EnableMapRegs = 0;
 	memset(m_PageRegs, 0, sizeof(m_PageRegs));    /* Reset page registers to 0 */
 	SetDefaultTask();
-
-	/* Set pullups on all PIA port A, to match what hardware does */
-	pia_0->set_port_a_z_mask(0xFF);
-	pia_1->set_port_a_z_mask(0xFF);
-	pia_2->set_port_a_z_mask(0xFF);
 
 	m_d_pia1_pa_last = 0x00;
 	m_d_pia1_pb_last = 0x00;
@@ -951,9 +944,9 @@ void dgn_beta_state::machine_start()
   OS9 Syscalls for disassembly
 ****************************************************************************/
 
-offs_t dgn_beta_state::dgnbeta_dasm_override(device_t &device, std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, int options)
+offs_t dgn_beta_state::dgnbeta_dasm_override(std::ostream &stream, offs_t pc, const util::disasm_interface::data_buffer &opcodes, const util::disasm_interface::data_buffer &params)
 {
-	return coco_state::os9_dasm_override(device, stream, pc, oprom, opram, options);
+	return coco_state::os9_dasm_override(stream, pc, opcodes, params);
 }
 
 void dgn_beta_state::execute_beta_dat_log(int ref, const std::vector<std::string> &params)

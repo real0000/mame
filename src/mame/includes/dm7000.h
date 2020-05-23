@@ -1,23 +1,27 @@
 // license:BSD-3-Clause
 // copyright-holders:Lukasz Markowski
-#ifndef DM7000_H_
-#define DM7000_H_
+#ifndef MAME_INCLUDES_DM7000_H
+#define MAME_INCLUDES_DM7000_H
+
+#pragma once
 
 #include "cpu/powerpc/ppc.h"
 #include "machine/terminal.h"
 
-#define TERMINAL_TAG "terminal"
 
 class dm7000_state : public driver_device
 {
 public:
 	dm7000_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu"),
-		m_terminal(*this, TERMINAL_TAG)
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_terminal(*this, "terminal")
 	{
 	}
 
+	void dm7000(machine_config &config);
+
+private:
 	required_device<ppc4xx_device> m_maincpu;
 	required_device<generic_terminal_device> m_terminal;
 
@@ -28,7 +32,7 @@ public:
 
 	DECLARE_WRITE8_MEMBER ( dm7000_scc0_w );
 	DECLARE_READ8_MEMBER ( dm7000_scc0_r );
-	DECLARE_WRITE8_MEMBER(kbd_put);
+	void kbd_put(u8 data);
 	uint8_t m_scc0_lcr;
 	uint8_t m_scc0_lsr;
 	uint8_t m_term_data;
@@ -53,6 +57,7 @@ public:
 	virtual void machine_reset() override;
 	virtual void video_start() override;
 	uint32_t screen_update_dm7000(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void dm7000_mem(address_map &map);
 };
 
 /* */
@@ -90,4 +95,4 @@ public:
 #define DCRSTB045_DISP_MODE         0x154       /* Display Mode Register */
 #define DCRSTB045_FRAME_BUFR_BASE   0x179       /* Frame Buffers Base Address Register */
 
-#endif /* DM7000_H_ */
+#endif // MAME_INCLUDES_DM7000_H

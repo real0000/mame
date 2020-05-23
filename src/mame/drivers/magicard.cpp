@@ -15,9 +15,11 @@
   * Magic Card (set 3),        Impera, 199?.
   * Magic Card Export 94,      Impera, 1994.
   * Magic Card Jackpot (4.01), Impera, 1998.
-  * Magic Lotto Export (5.03), Impera, 1998.
+  * Magic Lotto Export (5.03), Impera, 2001.
   * Hot Slots (6.00),          Impera, 2002.
-
+  * Quingo Export (5.00),      Impera, 1999.
+  * Bel Slots Export (5.01),   Impera, 1999.
+  * Big Deal Belgien (5.04),   Impera, 2001.
 
 *******************************************************************************
 
@@ -113,11 +115,9 @@
   |   |___________________|                                                                          |
   |__________________________________________________________________________________________________|
 
-
   Xtal 1: 30.000 MHz.
   Xtal 2:  8.000 MHz.
   Xtal 3: 19.660 MHz.
-
 
   A = LT 0030 / LTC695CN / U18708
   B = NEC Japan / D43256BGU-70LL / 0008XD041
@@ -126,7 +126,6 @@
   E = P0030SG / CD40106BCN
   F = 74HCU04D
   G = 74HC74D
-
 
   Silkscreened on the solder side:
 
@@ -138,6 +137,243 @@
   TEL: 0043/7242/27116     V 4.0
   FAX: 0043/7242/27053    -------
 
+*******************************************************************************
+
+  QUINGO EXPORT Version 5.00
+
+  Hardware PCB informations : E179465--A/02 LPL-CPU V4.0/MULTI GAME 8603186
+
+  Eprom type ST M27c4002
+  Version 5.00
+  vnr 27.07.99 Cksum (provided) 79C5
+
+  Eeprom : 24c04A
+
+  PCB Layout:
+   __________________________________________________________________________________________________
+  |                                                                                                  |
+  |                       SERIAL NUMBER                                                              |___
+  |                                                                                                  (A)_|
+  |  __     _____             ___________        _________                                            ___|
+  | |  |   /     \           |9524 GNN   |      |YMZ284-D |                                           ___|
+  | |  |  |BATTERY|          |HM514270AJ8|      |_________|                                           ___|
+  | |A |  |  +3V  |          |___________|                                                            ___|
+  | |  |  |       |                                       __________________         ________     __  ___|
+  | |  |   \_____/            ___________                |                  |       |ULN2803A|   |..| ___|
+  | |__|                     |9524 GNN   |               |  MUSIC           |       |________|   |..| ___|
+  |                          |HM514270AJ8|               |  TR9C1710-11PCA  |                    |..|(J)_|
+  |                          |___________|               |  SA119X/9612     |       _________    |..||
+  |    ___    ___                                        |__________________|      |74HC273N |   |..||
+  |   |   |  |   |                                                                 |_________|   |..||
+  |   |   |  |   |                                                                               |..||
+  |   | B |  | B |                                     _________                    _________    |..||
+  |   |   |  |   |                                    | 74HC04N |                  |74HC245N |   |__||
+  |   |   |  |   |                                    |_________|                  |_________|       |___
+  |   |___|  |___|                                                                                   A___|
+  |                                                                                                   ___|
+  |    _____                  ______________                                                          ___|
+  |   |     |                |              |                                        ________         ___|
+  |   |     |                |  PHILIPS     |     ___    ___________    ________    |ULN2803A|        ___|
+  |   |     | EI79465--A/02  |  SCC66470CAB |    | D |  |PIC16F84-10|  |   E    |   |________|        ___|
+  |   |  C  | LPL-CPU V4.0   |  172632=1/2  |    |___|  |___________|  |________|                     ___|
+  |   |     | MULTI GAME     |  DfD0032I3   |                                       _________         ___|
+  |   |     | 8603186        |              |                                      |74HC273N |        ___|
+  |   |     |                |              |                                      |_________|        ___|
+  |   |     |                |              |                                                         ___|
+  |   |_____|                |______________|                                 _     _________         ___|
+  |                                                                          |G|   |74HC245N |        ___|
+  |                                                                          |_|   |_________|        ___|
+  |   _______   _______                                                                               ___|
+  |  |]     [| |IC21   |                                 ______             ___                       ___|
+  |  |]  E  [| |       |                                |ALTERA|           |___|                __    ___|
+  |  |]  M  [| |       |                                | MAX  |             F      _________  |..|   ___|
+  |  |]  P  [| |QUINGO |     ________________           |      |                   |74HC245N | |..|   ___|
+  |  |]  T  [| | EXPORT|    |                |          |EPM712|                   |_________| |..|   ___|
+  |  |]  Y  [| |       |    |   PHILIPS      |          |8SQC10|                               |..|   ___|
+  |  |]     [| |       |    |  SCC68070CCA84 |          |0-15  |                               |..|   ___|
+  |  |]  S  [| |Version|    |  213140-1      |          |______|      X_TAL's                  |__|   ___|
+  |  |]  O  [| |   5.00|    |  DfD0103V3     |                      _   _   _                         ___|
+  |  |]  C  [| |       |    |                |    ALL RIGHTS       | | | | | |                        ___|
+  |  |]  K  [| |Vnr.:  |    |                |    BY  IMPERA       |1| |2| |3|                        ___|
+  |  |]  E  [| |270799 |    |                |                     |_| |_| |_|                        ___|
+  |  |]  T  [| |       |    |                |                                                        ___|
+  |  |]     [| |       |    |________________|                                                        ___|
+  |  |]_____[| |27C4002|                                                                              ___|
+  |  |_______| |_______|                             ___________                                      ___|
+  |    ___________________                          |RTC2421 A  |   °°°°°                             ___|
+  |   |   :::::::::::::   |                         |___________|    CON5                            Z___|
+  |   |___________________|                                                                          |
+  |__________________________________________________________________________________________________|
+
+  Xtal 1: 30.000 MHz.
+  Xtal 2:  8.000 MHz.
+  Xtal 3: 19.660 MHz.
+
+  A = LT 0030 / LTC695CN / U18708
+  B = NEC Japan / D43256BGU-70LL / 0008XD041
+  C = MX B9819 / 29F1610MC-12C3 / M25685 / TAIWAN
+  D = 24C02C / 24C04 (Serial I2C Bus EEPROM with User-Defined Block Write Protection).
+  E = P0030SG / CD40106BCN
+  F = 74HCU04D
+  G = 74HC74D
+
+*******************************************************************************
+
+  BIG DEAL BELGIEN Version 5.04
+
+  Hardware PCB informations : E179465--A/02 LPL-CPU V4.0/MULTI GAME 8603186
+  Eprom type ST M27c4002
+  Version 5.04
+  vnr 21.05.01 Cksum (provided) C4B7
+
+  Eeprom : 24c04A
+
+  PCB Layout:
+   __________________________________________________________________________________________________
+  |                                                                                                  |
+  |                       SERIAL NUMBER                                                              |___
+  |                                                                                                  (A)_|
+  |  __     _____             ___________        _________                                            ___|
+  | |  |   /     \           |9524 GNN   |      |YMZ284-D |                                           ___|
+  | |  |  |BATTERY|          |HM514270AJ8|      |_________|                                           ___|
+  | |A |  |  +3V  |          |___________|                                                            ___|
+  | |  |  |       |                                       __________________         ________     __  ___|
+  | |  |   \_____/            ___________                |                  |       |ULN2803A|   |..| ___|
+  | |__|                     |9524 GNN   |               |  MUSIC           |       |________|   |..| ___|
+  |                          |HM514270AJ8|               |  TR9C1710-11PCA  |                    |..|(J)_|
+  |                          |___________|               |  SA119X/9612     |       _________    |..||
+  |    ___    ___                                        |__________________|      |74HC273N |   |..||
+  |   |   |  |   |                                                                 |_________|   |..||
+  |   |   |  |   |                                                                               |..||
+  |   | B |  | B |                                     _________                    _________    |..||
+  |   |   |  |   |                                    | 74HC04N |                  |74HC245N |   |__||
+  |   |   |  |   |                                    |_________|                  |_________|       |___
+  |   |___|  |___|                                                                                   A___|
+  |                                                                                                   ___|
+  |    _____                  ______________                                                          ___|
+  |   |     |                |              |                                        ________         ___|
+  |   |     |                |  PHILIPS     |     ___    ___________    ________    |ULN2803A|        ___|
+  |   |     | EI79465--A/02  |  SCC66470CAB |    | D |  |PIC16F84-10|  |   E    |   |________|        ___|
+  |   |  C  | LPL-CPU V4.0   |  172632=1/2  |    |___|  |___________|  |________|                     ___|
+  |   |     | MULTI GAME     |  DfD0032I3   |                                       _________         ___|
+  |   |     | 8603186        |              |                                      |74HC273N |        ___|
+  |   |     |                |              |                                      |_________|        ___|
+  |   |     |                |              |                                                         ___|
+  |   |_____|                |______________|                                 _     _________         ___|
+  |                                                                          |G|   |74HC245N |        ___|
+  |                                                                          |_|   |_________|        ___|
+  |   _______   _______                                                                               ___|
+  |  |]     [| |IC21   |                                 ______             ___                       ___|
+  |  |]  E  [| |       |                                |ALTERA|           |___|                __    ___|
+  |  |]  M  [| |  BIG  |                                | MAX  |             F      _________  |..|   ___|
+  |  |]  P  [| |  DEAL |     ________________           |      |                   |74HC245N | |..|   ___|
+  |  |]  T  [| |BELGIEN|    |                |          |EPM712|                   |_________| |..|   ___|
+  |  |]  Y  [| |       |    |   PHILIPS      |          |8SQC10|                               |..|   ___|
+  |  |]     [| |       |    |  SCC68070CCA84 |          |0-15  |                               |..|   ___|
+  |  |]  S  [| |Version|    |  213140-1      |          |______|      X_TAL's                  |__|   ___|
+  |  |]  O  [| |   5.04|    |  DfD0103V3     |                      _   _   _                         ___|
+  |  |]  C  [| |       |    |                |    ALL RIGHTS       | | | | | |                        ___|
+  |  |]  K  [| |Vnr.:  |    |                |    BY  IMPERA       |1| |2| |3|                        ___|
+  |  |]  E  [| |210501 |    |                |                     |_| |_| |_|                        ___|
+  |  |]  T  [| |       |    |                |                                                        ___|
+  |  |]     [| |       |    |________________|                                                        ___|
+  |  |]_____[| |27C4002|                                                                              ___|
+  |  |_______| |_______|                             ___________                                      ___|
+  |    ___________________                          |RTC2421 A  |   °°°°°                             ___|
+  |   |   :::::::::::::   |                         |___________|    CON5                            Z___|
+  |   |___________________|                                                                          |
+  |__________________________________________________________________________________________________|
+
+  Xtal 1: 30.000 MHz.
+  Xtal 2:  8.000 MHz.
+  Xtal 3: 19.660 MHz.
+
+  A = LT 0030 / LTC695CN / U18708
+  B = NEC Japan / D43256BGU-70LL / 0008XD041
+  C = MX B9819 / 29F1610MC-12C3 / M25685 / TAIWAN
+  D = 24C02C / 24C04 (Serial I2C Bus EEPROM with User-Defined Block Write Protection).
+  E = P0030SG / CD40106BCN
+  F = 74HCU04D
+  G = 74HC74D
+
+*******************************************************************************
+
+  BEL SLOTS EXP. Version 5.01
+
+  Hardware PCB informations : E179465--A/02 LPL-CPU V4.0/MULTI GAME 8603186
+  Eprom type ST M27c4002
+  Version 5.01
+  vnr 01.12.99 Cksum (provided) F718
+
+  Eeprom : 24c04A
+
+  PCB Layout:
+   __________________________________________________________________________________________________
+  |                                                                                                  |
+  |                       SERIAL NUMBER                                                              |___
+  |                                                                                                  (A)_|
+  |  __     _____             ___________        _________                                            ___|
+  | |  |   /     \           |9524 GNN   |      |YMZ284-D |                                           ___|
+  | |  |  |BATTERY|          |HM514270AJ8|      |_________|                                           ___|
+  | |A |  |  +3V  |          |___________|                                                            ___|
+  | |  |  |       |                                       __________________         ________     __  ___|
+  | |  |   \_____/            ___________                |                  |       |ULN2803A|   |..| ___|
+  | |__|                     |9524 GNN   |               |  MUSIC           |       |________|   |..| ___|
+  |                          |HM514270AJ8|               |  TR9C1710-11PCA  |                    |..|(J)_|
+  |                          |___________|               |  SA119X/9612     |       _________    |..||
+  |    ___    ___                                        |__________________|      |74HC273N |   |..||
+  |   |   |  |   |                                                                 |_________|   |..||
+  |   |   |  |   |                                                                               |..||
+  |   | B |  | B |                                     _________                    _________    |..||
+  |   |   |  |   |                                    | 74HC04N |                  |74HC245N |   |__||
+  |   |   |  |   |                                    |_________|                  |_________|       |___
+  |   |___|  |___|                                                                                   A___|
+  |                                                                                                   ___|
+  |    _____                  ______________                                                          ___|
+  |   |     |                |              |                                        ________         ___|
+  |   |     |                |  PHILIPS     |     ___    ___________    ________    |ULN2803A|        ___|
+  |   |     | EI79465--A/02  |  SCC66470CAB |    | D |  |PIC16F84-10|  |   E    |   |________|        ___|
+  |   |  C  | LPL-CPU V4.0   |  172632=1/2  |    |___|  |___________|  |________|                     ___|
+  |   |     | MULTI GAME     |  DfD0032I3   |                                       _________         ___|
+  |   |     | 8603186        |              |                                      |74HC273N |        ___|
+  |   |     |                |              |                                      |_________|        ___|
+  |   |     |                |              |                                                         ___|
+  |   |_____|                |______________|                                 _     _________         ___|
+  |                                                                          |G|   |74HC245N |        ___|
+  |                                                                          |_|   |_________|        ___|
+  |   _______   _______                                                                               ___|
+  |  |]     [| |IC21   |                                 ______             ___                       ___|
+  |  |]  E  [| |       |                                |ALTERA|           |___|                __    ___|
+  |  |]  M  [| |  BEL  |                                | MAX  |             F      _________  |..|   ___|
+  |  |]  P  [| | SLOTS |     ________________           |      |                   |74HC245N | |..|   ___|
+  |  |]  T  [| |  EXP. |    |                |          |EPM712|                   |_________| |..|   ___|
+  |  |]  Y  [| |       |    |   PHILIPS      |          |8SQC10|                               |..|   ___|
+  |  |]     [| |       |    |  SCC68070CCA84 |          |0-15  |                               |..|   ___|
+  |  |]  S  [| |Version|    |  213140-1      |          |______|      X_TAL's                  |__|   ___|
+  |  |]  O  [| |   5.01|    |  DfD0103V3     |                      _   _   _                         ___|
+  |  |]  C  [| |       |    |                |    ALL RIGHTS       | | | | | |                        ___|
+  |  |]  K  [| |Vnr.:  |    |                |    BY  IMPERA       |1| |2| |3|                        ___|
+  |  |]  E  [| |011299 |    |                |                     |_| |_| |_|                        ___|
+  |  |]  T  [| |       |    |                |                                                        ___|
+  |  |]     [| |       |    |________________|                                                        ___|
+  |  |]_____[| |27C4002|                                                                              ___|
+  |  |_______| |_______|                             ___________                                      ___|
+  |    ___________________                          |RTC2421 A  |   °°°°°                             ___|
+  |   |   :::::::::::::   |                         |___________|    CON5                            Z___|
+  |   |___________________|                                                                          |
+  |__________________________________________________________________________________________________|
+
+  Xtal 1: 30.000 MHz.
+  Xtal 2:  8.000 MHz.
+  Xtal 3: 19.660 MHz.
+
+  A = LT 0030 / LTC695CN / U18708
+  B = NEC Japan / D43256BGU-70LL / 0008XD041
+  C = MX B9819 / 29F1610MC-12C3 / M25685 / TAIWAN
+  D = 24C02C / 24C04 (Serial I2C Bus EEPROM with User-Defined Block Write Protection).
+  E = P0030SG / CD40106BCN
+  F = 74HCU04D
+  G = 74HC74D
 
 *******************************************************************************
 
@@ -150,8 +386,6 @@
 
   - Inputs;
 
-  - Unknown sound chip (it's an ADPCM with eight channels);
-
   - Many unknown memory maps;
 
   - Proper memory map and machine driver for magicardj & magicle.
@@ -161,16 +395,18 @@
 *******************************************************************************/
 
 #include "emu.h"
-#include "cpu/m68000/m68000.h"
-#include "sound/ym2413.h"
+#include "machine/scc68070.h"
+#include "sound/ay8910.h"
+#include "sound/saa1099.h"
 #include "video/ramdac.h"
+#include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
 
 
-#define CLOCK_A XTAL_30MHz
-#define CLOCK_B XTAL_8MHz
-#define CLOCK_C XTAL_19_6608MHz
+#define CLOCK_A XTAL(30'000'000)
+#define CLOCK_B XTAL(8'000'000)
+#define CLOCK_C XTAL(19'660'800)
 
 
 class magicard_state : public driver_device
@@ -181,49 +417,23 @@ public:
 		m_magicram(*this, "magicram"),
 		m_magicramb(*this, "magicramb"),
 		m_pcab_vregs(*this, "pcab_vregs"),
-		m_scc68070_ext_irqc_regs(*this, "scc_xirqc_regs"),
-		m_scc68070_iic_regs(*this, "scc_iic_regs"),
-		m_scc68070_uart_regs(*this, "scc_uart_regs"),
-		m_scc68070_timer_regs(*this, "scc_timer_regs"),
-		m_scc68070_int_irqc_regs(*this, "scc_iirqc_regs"),
-		m_scc68070_dma_ch1_regs(*this, "scc_dma1_regs"),
-		m_scc68070_dma_ch2_regs(*this, "scc_dma2_regs"),
-		m_scc68070_mmu_regs(*this, "scc_mmu_regs"),
 		m_maincpu(*this, "maincpu"),
 		m_screen(*this, "screen"),
 		m_palette(*this, "palette")  { }
 
+	void magicard(machine_config &config);
+	void hotslots(machine_config &config);
+
+	void init_magicard();
+
+private:
+	//u16 m_vector;
 	required_shared_ptr<uint16_t> m_magicram;
 	required_shared_ptr<uint16_t> m_magicramb;
 	required_shared_ptr<uint16_t> m_pcab_vregs;
-	required_shared_ptr<uint16_t> m_scc68070_ext_irqc_regs;
-	required_shared_ptr<uint16_t> m_scc68070_iic_regs;
-	required_shared_ptr<uint16_t> m_scc68070_uart_regs;
-	required_shared_ptr<uint16_t> m_scc68070_timer_regs;
-	required_shared_ptr<uint16_t> m_scc68070_int_irqc_regs;
-	required_shared_ptr<uint16_t> m_scc68070_dma_ch1_regs;
-	required_shared_ptr<uint16_t> m_scc68070_dma_ch2_regs;
-	required_shared_ptr<uint16_t> m_scc68070_mmu_regs;
 	DECLARE_READ16_MEMBER(test_r);
 	DECLARE_READ16_MEMBER(philips_66470_r);
 	DECLARE_WRITE16_MEMBER(philips_66470_w);
-	DECLARE_READ16_MEMBER(scc68070_ext_irqc_r);
-	DECLARE_WRITE16_MEMBER(scc68070_ext_irqc_w);
-	DECLARE_READ16_MEMBER(scc68070_iic_r);
-	DECLARE_WRITE16_MEMBER(scc68070_iic_w);
-	DECLARE_READ16_MEMBER(scc68070_uart_r);
-	DECLARE_WRITE16_MEMBER(scc68070_uart_w);
-	DECLARE_READ16_MEMBER(scc68070_timer_r);
-	DECLARE_WRITE16_MEMBER(scc68070_timer_w);
-	DECLARE_READ16_MEMBER(scc68070_int_irqc_r);
-	DECLARE_WRITE16_MEMBER(scc68070_int_irqc_w);
-	DECLARE_READ16_MEMBER(scc68070_dma_ch1_r);
-	DECLARE_WRITE16_MEMBER(scc68070_dma_ch1_w);
-	DECLARE_READ16_MEMBER(scc68070_dma_ch2_r);
-	DECLARE_WRITE16_MEMBER(scc68070_dma_ch2_w);
-	DECLARE_READ16_MEMBER(scc68070_mmu_r);
-	DECLARE_WRITE16_MEMBER(scc68070_mmu_w);
-	DECLARE_DRIVER_INIT(magicard);
 	virtual void machine_reset() override;
 	virtual void video_start() override;
 	uint32_t screen_update_magicard(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
@@ -231,6 +441,9 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<screen_device> m_screen;
 	required_device<palette_device> m_palette;
+	void hotslots_mem(address_map &map);
+	void magicard_mem(address_map &map);
+	void ramdac_map(address_map &map);
 };
 
 
@@ -535,178 +748,44 @@ WRITE16_MEMBER(magicard_state::philips_66470_w)
 //  }
 }
 
-/* scc68070 specific stuff (to be moved) */
-
-READ16_MEMBER(magicard_state::scc68070_ext_irqc_r)
-{
-	return m_scc68070_ext_irqc_regs[offset];
-}
-
-WRITE16_MEMBER(magicard_state::scc68070_ext_irqc_w)
-{
-	data &= mem_mask;
-
-	m_scc68070_ext_irqc_regs[offset] = data;
-}
-
-READ16_MEMBER(magicard_state::scc68070_iic_r)
-{
-	//printf("%04x\n",offset*2);
-
-	switch(offset)
-	{
-		case 0x04/2: return m_scc68070_iic_regs[offset] & 0xef; //iic status register, bit 4 = pending irq
-	}
-
-	return m_scc68070_iic_regs[offset];
-}
-
-WRITE16_MEMBER(magicard_state::scc68070_iic_w)
-{
-	data &= mem_mask;
-
-	m_scc68070_iic_regs[offset] = data;
-}
-
-READ16_MEMBER(magicard_state::scc68070_uart_r)
-{
-	//printf("%02x\n",offset*2);
-
-	switch(offset)
-	{
-		case 0x02/2: return machine().rand(); //uart mode register
-	}
-
-	return m_scc68070_uart_regs[offset];
-}
-
-WRITE16_MEMBER(magicard_state::scc68070_uart_w)
-{
-	data &= mem_mask;
-
-	m_scc68070_uart_regs[offset] = data;
-}
-
-READ16_MEMBER(magicard_state::scc68070_timer_r)
-{
-	return m_scc68070_timer_regs[offset];
-}
-
-WRITE16_MEMBER(magicard_state::scc68070_timer_w)
-{
-	data &= mem_mask;
-
-	m_scc68070_timer_regs[offset] = data;
-}
-
-READ16_MEMBER(magicard_state::scc68070_int_irqc_r)
-{
-	return m_scc68070_int_irqc_regs[offset];
-}
-
-WRITE16_MEMBER(magicard_state::scc68070_int_irqc_w)
-{
-	data &= mem_mask;
-
-	m_scc68070_int_irqc_regs[offset] = data;
-}
-
-READ16_MEMBER(magicard_state::scc68070_dma_ch1_r)
-{
-	return m_scc68070_dma_ch1_regs[offset];
-}
-
-WRITE16_MEMBER(magicard_state::scc68070_dma_ch1_w)
-{
-	data &= mem_mask;
-
-	m_scc68070_dma_ch1_regs[offset] = data;
-}
-
-READ16_MEMBER(magicard_state::scc68070_dma_ch2_r)
-{
-	return m_scc68070_dma_ch2_regs[offset];
-}
-
-WRITE16_MEMBER(magicard_state::scc68070_dma_ch2_w)
-{
-	data &= mem_mask;
-
-	m_scc68070_dma_ch2_regs[offset] = data;
-}
-
-READ16_MEMBER(magicard_state::scc68070_mmu_r)
-{
-	return m_scc68070_mmu_regs[offset];
-}
-
-WRITE16_MEMBER(magicard_state::scc68070_mmu_w)
-{
-	data &= mem_mask;
-
-	m_scc68070_mmu_regs[offset] = data;
-
-	switch(offset)
-	{
-		case 0x0000/2:
-			if(data & 0x80) //throw an error if the (unemulated) MMU is enabled
-				fatalerror("SCC68070: MMU enable bit active\n");
-			break;
-	}
-}
-
 
 /*************************
 *      Memory Maps       *
 *************************/
 
-static ADDRESS_MAP_START( scc68070_mem, AS_PROGRAM, 16, magicard_state )
-	AM_RANGE(0x80001000, 0x8000100f) AM_READWRITE(scc68070_ext_irqc_r,scc68070_ext_irqc_w) AM_SHARE("scc_xirqc_regs") //lir
-	AM_RANGE(0x80002000, 0x8000200f) AM_READWRITE(scc68070_iic_r,scc68070_iic_w) AM_SHARE("scc_iic_regs") //i2c
-	AM_RANGE(0x80002010, 0x8000201f) AM_READWRITE(scc68070_uart_r,scc68070_uart_w) AM_SHARE("scc_uart_regs")
-	AM_RANGE(0x80002020, 0x8000202f) AM_READWRITE(scc68070_timer_r,scc68070_timer_w) AM_SHARE("scc_timer_regs")
-	AM_RANGE(0x80002040, 0x8000204f) AM_READWRITE(scc68070_int_irqc_r,scc68070_int_irqc_w) AM_SHARE("scc_iirqc_regs")
-	AM_RANGE(0x80004000, 0x8000403f) AM_READWRITE(scc68070_dma_ch1_r,scc68070_dma_ch1_w) AM_SHARE("scc_dma1_regs")
-	AM_RANGE(0x80004040, 0x8000407f) AM_READWRITE(scc68070_dma_ch2_r,scc68070_dma_ch2_w) AM_SHARE("scc_dma2_regs")
-	AM_RANGE(0x80008000, 0x8000807f) AM_READWRITE(scc68070_mmu_r,scc68070_mmu_w) AM_SHARE("scc_mmu_regs")
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( magicard_mem, AS_PROGRAM, 16, magicard_state )
-//  ADDRESS_MAP_GLOBAL_MASK(0x1fffff)
-	AM_IMPORT_FROM(scc68070_mem)
-	AM_RANGE(0x00000000, 0x001ffbff) AM_MIRROR(0x00200000) AM_RAM AM_SHARE("magicram")
-	AM_RANGE(0x00600000, 0x007ffbff) AM_RAM AM_SHARE("magicramb")
+void magicard_state::magicard_mem(address_map &map)
+{
+//  map.global_mask(0x1fffff);
+	map(0x00000000, 0x001ffbff).mirror(0x00200000).ram().share("magicram");
+	map(0x00600000, 0x007ffbff).ram().share("magicramb");
 	/* 001ffc00-001ffdff System I/O */
-	AM_RANGE(0x001ffc00, 0x001ffc01) AM_MIRROR(0x7fe00000) AM_READ(test_r)
-	AM_RANGE(0x001ffc40, 0x001ffc41) AM_MIRROR(0x7fe00000) AM_READ(test_r)
-	AM_RANGE(0x001ffd00, 0x001ffd01) AM_MIRROR(0x7fe00000) AM_DEVWRITE8("ramdac", ramdac_device, index_w, 0x00ff)
-	AM_RANGE(0x001ffd02, 0x001ffd03) AM_MIRROR(0x7fe00000) AM_DEVWRITE8("ramdac", ramdac_device, pal_w, 0x00ff)
-	AM_RANGE(0x001ffd04, 0x001ffd05) AM_MIRROR(0x7fe00000) AM_DEVWRITE8("ramdac", ramdac_device, mask_w, 0x00ff)
-	/*not the right sound chip,unknown type,it should be an ADPCM with 8 channels.*/
-	AM_RANGE(0x001ffd40, 0x001ffd43) AM_MIRROR(0x7fe00000) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
-	AM_RANGE(0x001ffd80, 0x001ffd81) AM_MIRROR(0x7fe00000) AM_READ(test_r)
-	AM_RANGE(0x001ffd80, 0x001ffd81) AM_MIRROR(0x7fe00000) AM_WRITENOP //?
-	AM_RANGE(0x001fff80, 0x001fffbf) AM_MIRROR(0x7fe00000) AM_RAM //DRAM I/O, not accessed by this game, CD buffer?
-	AM_RANGE(0x001fffe0, 0x001fffff) AM_MIRROR(0x7fe00000) AM_READWRITE(philips_66470_r,philips_66470_w) AM_SHARE("pcab_vregs") //video registers
-ADDRESS_MAP_END
+	map(0x001ffc00, 0x001ffc01).mirror(0x7fe00000).r(FUNC(magicard_state::test_r));
+	map(0x001ffc40, 0x001ffc41).mirror(0x7fe00000).r(FUNC(magicard_state::test_r));
+	map(0x001ffd01, 0x001ffd01).mirror(0x7fe00000).w("ramdac", FUNC(ramdac_device::index_w));
+	map(0x001ffd03, 0x001ffd03).mirror(0x7fe00000).w("ramdac", FUNC(ramdac_device::pal_w));
+	map(0x001ffd05, 0x001ffd05).mirror(0x7fe00000).w("ramdac", FUNC(ramdac_device::mask_w));
+	map(0x001ffd40, 0x001ffd43).mirror(0x7fe00000).w("saa", FUNC(saa1099_device::write)).umask16(0x00ff);
+	map(0x001ffd80, 0x001ffd81).mirror(0x7fe00000).r(FUNC(magicard_state::test_r));
+	map(0x001ffd80, 0x001ffd81).mirror(0x7fe00000).nopw(); //?
+	map(0x001fff80, 0x001fffbf).mirror(0x7fe00000).ram(); //DRAM I/O, not accessed by this game, CD buffer?
+	map(0x001fffe0, 0x001fffff).mirror(0x7fe00000).rw(FUNC(magicard_state::philips_66470_r), FUNC(magicard_state::philips_66470_w)).share("pcab_vregs"); //video registers
+}
 
-static ADDRESS_MAP_START( hotslots_mem, AS_PROGRAM, 16, magicard_state )
-//  ADDRESS_MAP_GLOBAL_MASK(0x1fffff)
-	AM_IMPORT_FROM(scc68070_mem)
-	AM_RANGE(0x00000000, 0x001ffbff) AM_MIRROR(0x00200000) AM_RAM AM_SHARE("magicram")
-	AM_RANGE(0x00600000, 0x007ffbff) AM_RAM AM_SHARE("magicramb")
-	AM_RANGE(0x001ffc00, 0x001ffc01) AM_MIRROR(0x7fe00000) AM_READ(test_r)
-	AM_RANGE(0x001ffc40, 0x001ffc41) AM_MIRROR(0x7fe00000) AM_READ(test_r)
-	/*not the right sound chip,unknown type,it should be an ADPCM with 8 channels.*/
-	AM_RANGE(0x001ffd40, 0x001ffd43) AM_MIRROR(0x7fe00000) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
-	AM_RANGE(0x001ffd80, 0x001ffd81) AM_MIRROR(0x7fe00000) AM_READ(test_r)
-	AM_RANGE(0x001ffd80, 0x001ffd81) AM_MIRROR(0x7fe00000) AM_WRITENOP //?
-	AM_RANGE(0x001fff80, 0x001fffbf) AM_MIRROR(0x7fe00000) AM_RAM //DRAM I/O, not accessed by this game, CD buffer?
-	AM_RANGE(0x001fffe0, 0x001fffff) AM_MIRROR(0x7fe00000) AM_READWRITE(philips_66470_r,philips_66470_w) AM_SHARE("pcab_vregs") //video registers
-	AM_RANGE(0x00414000, 0x00414001) AM_DEVWRITE8("ramdac", ramdac_device, index_w, 0x00ff)
-	AM_RANGE(0x00414002, 0x00414003) AM_DEVWRITE8("ramdac", ramdac_device, pal_w, 0x00ff)
-	AM_RANGE(0x00414004, 0x00414005) AM_DEVWRITE8("ramdac", ramdac_device, mask_w, 0x00ff)
-ADDRESS_MAP_END
+void magicard_state::hotslots_mem(address_map &map)
+{
+//  map.global_mask(0x1fffff);
+	map(0x00000000, 0x001ffbff).mirror(0x00200000).ram().share("magicram");
+	map(0x00600000, 0x007ffbff).ram().share("magicramb");
+	map(0x001fff80, 0x001fffbf).mirror(0x7fe00000).ram(); //DRAM I/O, not accessed by this game, CD buffer?
+	map(0x001fffe0, 0x001fffff).mirror(0x7fe00000).rw(FUNC(magicard_state::philips_66470_r), FUNC(magicard_state::philips_66470_w)).share("pcab_vregs"); //video registers
+	map(0x00414001, 0x00414001).w("ramdac", FUNC(ramdac_device::index_w));
+	map(0x00414003, 0x00414003).w("ramdac", FUNC(ramdac_device::pal_w));
+	map(0x00414005, 0x00414005).w("ramdac", FUNC(ramdac_device::mask_w));
+	map(0x00414007, 0x00414007).w("ramdac", FUNC(ramdac_device::index_w));
+	map(0x00415003, 0x00415003).r("ramdac", FUNC(ramdac_device::pal_r));
+	map(0x00416001, 0x00416001).w("ssg", FUNC(ymz284_device::data_w));
+	map(0x00417001, 0x00417001).w("ssg", FUNC(ymz284_device::address_w));
+}
 
 /*************************
 *      Input ports       *
@@ -723,13 +802,12 @@ void magicard_state::machine_reset()
 	memcpy (dst, src, 0x80000);
 	memcpy (dst + 0x40000 * 1, src, 0x80000);
 	memcpy (dst + 0x40000 * 2, src, 0x80000);
-	memcpy (dst + 0x40000 * 3, src, 0x80000);
+	memcpy (dst + 0x40000 * 3, src, 0x7fc00);
 	dst = m_magicramb;
 	memcpy (dst, src, 0x80000);
 	memcpy (dst + 0x40000 * 1, src, 0x80000);
 	memcpy (dst + 0x40000 * 2, src, 0x80000);
-	memcpy (dst + 0x40000 * 3, src, 0x80000);
-	m_maincpu->reset();
+	memcpy (dst + 0x40000 * 3, src, 0x7fc00);
 }
 
 
@@ -737,44 +815,57 @@ void magicard_state::machine_reset()
 *    Machine Drivers     *
 *************************/
 
+
 /*Probably there's a mask somewhere if it REALLY uses irqs at all...irq vectors dynamically changes after some time.*/
 INTERRUPT_GEN_MEMBER(magicard_state::magicard_irq)
 {
-	if(machine().input().code_pressed(KEYCODE_Z)) //vblank?
-		device.execute().set_input_line_and_vector(1, HOLD_LINE, 0xe4 / 4);
-	if(machine().input().code_pressed(KEYCODE_X)) //uart irq
-		device.execute().set_input_line_and_vector(1, HOLD_LINE, 0xf0 / 4);
+#if 0
+	if(machine().input().code_pressed(KEYCODE_Z)) { //vblank?
+		m_vector = 0xe4;
+		device.execute().set_input_line(1, HOLD_LINE);
+	}
+	if(machine().input().code_pressed(KEYCODE_X)) { //uart irq
+		m_vector = 0xf0;
+		device.execute().set_input_line(1, HOLD_LINE);
+	}
+#endif
 }
 
-static ADDRESS_MAP_START( ramdac_map, AS_0, 8, magicard_state )
-	AM_RANGE(0x0000, 0x03ff) AM_DEVREADWRITE("ramdac", ramdac_device, ramdac_pal_r, ramdac_rgb666_w)
-ADDRESS_MAP_END
+void magicard_state::ramdac_map(address_map &map)
+{
+	map(0x0000, 0x03ff).rw("ramdac", FUNC(ramdac_device::ramdac_pal_r), FUNC(ramdac_device::ramdac_rgb666_w));
+}
 
 
-static MACHINE_CONFIG_START( magicard, magicard_state )
-	MCFG_CPU_ADD("maincpu", SCC68070, CLOCK_A / 2)    /* SCC-68070 CCA84 datasheet */
-	MCFG_CPU_PROGRAM_MAP(magicard_mem)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", magicard_state, magicard_irq) /* no interrupts? (it erases the vectors..) */
+void magicard_state::magicard(machine_config &config)
+{
+	SCC68070(config, m_maincpu, CLOCK_A);    /* SCC-68070 CCA84 datasheet */
+	m_maincpu->set_addrmap(AS_PROGRAM, &magicard_state::magicard_mem);
+	m_maincpu->set_vblank_int("screen", FUNC(magicard_state::magicard_irq)); /* no interrupts? (it erases the vectors..) */
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(400, 300)
-	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 256-1) //dynamic resolution,TODO
-	MCFG_SCREEN_UPDATE_DRIVER(magicard_state, screen_update_magicard)
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_refresh_hz(50);
+	m_screen->set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	m_screen->set_size(400, 300);
+	m_screen->set_visarea(0, 320-1, 0, 256-1); //dynamic resolution,TODO
+	m_screen->set_screen_update(FUNC(magicard_state::screen_update_magicard));
 
-	MCFG_PALETTE_ADD("palette", 0x100)
-	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette")
+	PALETTE(config, m_palette).set_entries(0x100);
+	ramdac_device &ramdac(RAMDAC(config, "ramdac", 0, m_palette));
+	ramdac.set_addrmap(0, &magicard_state::ramdac_map);
 
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("ymsnd", YM2413, CLOCK_A / 12)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	SPEAKER(config, "mono").front_center();
+	SAA1099(config, "saa", CLOCK_B).add_route(ALL_OUTPUTS, "mono", 1.0);
+}
 
-static MACHINE_CONFIG_DERIVED( hotslots, magicard )
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(hotslots_mem)
-MACHINE_CONFIG_END
+void magicard_state::hotslots(machine_config &config)
+{
+	magicard(config);
+	m_maincpu->set_addrmap(AS_PROGRAM, &magicard_state::hotslots_mem);
+
+	config.device_remove("saa");
+	YMZ284(config, "ssg", 4000000).add_route(ALL_OUTPUTS, "mono", 1.0);
+}
 
 /*************************
 *        Rom Load        *
@@ -823,23 +914,21 @@ ROM_START( magicardj )
 ROM_END
 
 /*
-    Magic Card Export 94
+  Magic Card Export 94
   International Ver. 2.11a
-Vnr.29.07.94    CHECKSUM: A63D
+  Vnr.29.07.94    CHECKSUM: A63D
 
+  1x Philips SCC66470CAB 383610
+  1x Philips SCC68070 CCA84 347141
+  1x ESI1 I9631
+  1x MUSIC TR9C1710-11PCA SA121X/9617
+  1x YAMAHA YM2149F 9614
 
+  XTAL:
 
-1 x Philips SCC66470CAB 383610
-1 x Philips SCC68070 CCA84 347141
-1 x ESI1 I9631
-1 x MUSIC TR9C1710-11PCA SA121X/9617
-1 x YAMAHA YM2149F 9614
-
-XTAL:
-
-Q1: 19.6608 Mhz
-Q2: 30.000 Mhz
-Q3: 3686.400  1Q08/95
+  Q1: 19.6608 Mhz
+  Q2: 30.000 Mhz
+  Q3: 3686.400  1Q08/95
 */
 
 ROM_START( magicarde )
@@ -852,6 +941,37 @@ ROM_START( magicarde )
 	ROM_REGION( 0x0100, "sereeprom", 0 ) /* Serial EPROM */
 	ROM_LOAD("st24c02.ic26",    0x0000, 0x0100, CRC(98287c67) SHA1(ad34e55c1ce4f77c27049dac88050ed3c94af1a0) )
 ROM_END
+
+/*
+  Magic Export.
+  Ver 211A.
+
+  1x Philips SCC66470CAB.
+  1x Philips SCC68070 CCA84.
+  1x MUSIC TR9C1710-11PCA.
+  1x YAMAHA YMZ284-D.
+
+  1x M27C4002 EPROM (dumped).
+  1x 29F1610MC-12 Flash EEPROM (dumped).
+  1x 24LC02 Serial EEPROM (dumped).
+
+  1x Altera MAX EPM712xxxxx (unreadable).
+
+  XTAL: 3x unknown frequency.
+
+*/
+
+ROM_START( magicardf )
+	ROM_REGION( 0x80000, "maincpu", 0 )  // 68070 Code & GFX
+	ROM_LOAD16_WORD_SWAP( "27c4002.ic21", 0x00000, 0x80000, CRC(098258c0) SHA1(5f5dfe376c980ec88e68b324ba912022091e2426) )
+
+	ROM_REGION( 0x200000, "other", 0 )  // Flash EEPROM
+	ROM_LOAD("mx29f1610.ic30",  0x000000, 0x200000, CRC(c8ba9820) SHA1(fcae1e200c718b549b91d1110025595ffd7bdd51) )
+
+	ROM_REGION( 0x0100, "sereeprom", 0 ) // Serial EEPROM
+	ROM_LOAD("24lc02b.ic26",    0x0000, 0x0100, CRC(47c8b137) SHA1(6581e1f4ea65c833fa566c21c76dbe741af488f4) )
+ROM_END
+
 
 ROM_START( magicle )
 	ROM_REGION( 0x80000, "maincpu", 0 ) /* 68070 Code & GFX */
@@ -887,12 +1007,74 @@ ROM_START( hotslots )
 	ROM_LOAD16_WORD_SWAP("hot_slots_24c02.bin",          0x0000,  0x0100,  CRC(fcac71ad) SHA1(1bb31e9a2d847430dc0d011f672cf3726dc6280c) )
 ROM_END
 
+/*
+
+  QUINGO EXPORT Version 5.00
+
+  Hardware PCB informations : E179465--A/02 LPL-CPU V4.0/MULTI GAME 8603186
+  Eprom type ST M27c4002
+  Version 5.00
+  vnr 27.07.99 Cksum (provided) 79C5
+
+  Eeprom : 24c04A
+
+*/
+ROM_START( quingo )
+	ROM_REGION( 0x80000, "maincpu", 0 ) /* 68070 Code & GFX */
+	ROM_LOAD16_WORD_SWAP( "quingo_export_v500_27.07.99.bin", 0x00000, 0x80000, CRC(2cd89fe3) SHA1(bdd256d5114227166aff1c9f84b573e5f00530fd) )
+
+	ROM_REGION( 0x0200, "sereeprom", 0 ) /* Serial EPROM */
+	ROM_LOAD16_WORD_SWAP("quingo_24c04a.bin", 0x0000, 0x0200, BAD_DUMP CRC(d5e82b49) SHA1(7dbdf7d539cbd59a3ac546b6f50861c4958abb3a) ) // all AA & 55
+ROM_END
+
+/*
+
+  BIG DEAL BELGIEN Version 5.04
+
+  Hardware PCB informations : E179465--A/02 LPL-CPU V4.0/MULTI GAME 8603186
+  Eprom type ST M27c4002
+  Version 5.04
+  vnr 21.05.01 Cksum (provided) C4B7
+
+
+  Eeprom : 24c04A
+
+*/
+ROM_START( bigdeal0 )
+	ROM_REGION( 0x80000, "maincpu", 0 ) /* 68070 Code & GFX */
+	ROM_LOAD16_WORD_SWAP( "big_deal_belgien_v504_21.05.01.bin", 0x00000, 0x80000, CRC(3e3484db) SHA1(78bb655deacc57ad041a46de7ef153ce25922a8a) )
+
+	ROM_REGION( 0x0200, "sereeprom", 0 ) /* Serial EPROM */
+	ROM_LOAD16_WORD_SWAP("big_deal_24c04a.bin", 0x0000, 0x0200, BAD_DUMP CRC(d5e82b49) SHA1(7dbdf7d539cbd59a3ac546b6f50861c4958abb3a) ) // all AA & 55
+ROM_END
+
+/*
+
+  BEL SLOTS EXP. Version 5.01
+
+  Hardware PCB informations : E179465--A/02 LPL-CPU V4.0/MULTI GAME 8603186
+  Eprom type ST M27c4002
+  Version 5.01
+  vnr 01.12.99 Cksum (provided) F718
+
+  Eeprom : 24c04A
+
+*/
+ROM_START( belslots )
+	ROM_REGION( 0x80000, "maincpu", 0 ) /* 68070 Code & GFX */
+	ROM_LOAD16_WORD_SWAP( "bel_slots_exp_v501_01.12.99.bin", 0x00000, 0x80000, CRC(bd0b97ff) SHA1(9431359f91fd059c61441f4cb4924500889552a9) )
+
+	ROM_REGION( 0x0200, "sereeprom", 0 ) /* Serial EPROM */
+	ROM_LOAD16_WORD_SWAP("bel_slots_exp_24c04a.bin", 0x0000, 0x0200, BAD_DUMP CRC(d5e82b49) SHA1(7dbdf7d539cbd59a3ac546b6f50861c4958abb3a) ) // all AA & 55
+ROM_END
+
+
 
 /*************************
 *      Driver Init       *
 *************************/
 
-DRIVER_INIT_MEMBER(magicard_state, magicard)
+void magicard_state::init_magicard()
 {
 	//...
 }
@@ -902,12 +1084,16 @@ DRIVER_INIT_MEMBER(magicard_state, magicard)
 *      Game Drivers      *
 *************************/
 
-/*    YEAR  NAME       PARENT    MACHINE   INPUT     STATE           INIT      ROT    COMPANY   FULLNAME                    FLAGS... */
+//    YEAR  NAME       PARENT    MACHINE   INPUT     STATE           INIT           ROT   COMPANY   FULLNAME                     FLAGS
 
-GAME( 199?, magicard,  0,        magicard, magicard, magicard_state, magicard, ROT0, "Impera", "Magic Card (set 1)",        MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
-GAME( 199?, magicarda, magicard, magicard, magicard, magicard_state, magicard, ROT0, "Impera", "Magic Card (set 2)",        MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
-GAME( 199?, magicardb, magicard, magicard, magicard, magicard_state, magicard, ROT0, "Impera", "Magic Card (set 3)",        MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
-GAME( 1994, magicarde, magicard, magicard, magicard, magicard_state, magicard, ROT0, "Impera", "Magic Card Export 94",      MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
-GAME( 1998, magicardj, magicard, magicard, magicard, magicard_state, magicard, ROT0, "Impera", "Magic Card Jackpot (4.01)", MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
-GAME( 2001, magicle,   0,        magicard, magicard, magicard_state, magicard, ROT0, "Impera", "Magic Lotto Export (5.03)", MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
-GAME( 2002, hotslots,  0,        hotslots, magicard, magicard_state, magicard, ROT0, "Impera", "Hot Slots (6.00)",          MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+GAME( 199?, magicard,  0,        magicard, magicard, magicard_state, init_magicard, ROT0, "Impera", "Magic Card (set 1)",        MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+GAME( 199?, magicarda, magicard, magicard, magicard, magicard_state, init_magicard, ROT0, "Impera", "Magic Card (set 2)",        MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+GAME( 199?, magicardb, magicard, magicard, magicard, magicard_state, init_magicard, ROT0, "Impera", "Magic Card (set 3)",        MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+GAME( 1994, magicarde, magicard, magicard, magicard, magicard_state, init_magicard, ROT0, "Impera", "Magic Card Export 94",      MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+GAME( 1994, magicardf, magicard, magicard, magicard, magicard_state, init_magicard, ROT0, "Impera", "Magic Export (V.211A)",     MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+GAME( 1998, magicardj, magicard, magicard, magicard, magicard_state, init_magicard, ROT0, "Impera", "Magic Card Jackpot (4.01)", MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+GAME( 2001, magicle,   0,        magicard, magicard, magicard_state, init_magicard, ROT0, "Impera", "Magic Lotto Export (5.03)", MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+GAME( 2002, hotslots,  0,        hotslots, magicard, magicard_state, init_magicard, ROT0, "Impera", "Hot Slots (6.00)",          MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+GAME( 1999, quingo,    0,        hotslots, magicard, magicard_state, init_magicard, ROT0, "Impera", "Quingo Export (5.00)",      MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+GAME( 1999, belslots,  0,        hotslots, magicard, magicard_state, init_magicard, ROT0, "Impera", "Bel Slots Export (5.01)",   MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+GAME( 2001, bigdeal0,  0,        hotslots, magicard, magicard_state, init_magicard, ROT0, "Impera", "Big Deal Belgien (5.04)",   MACHINE_NO_SOUND | MACHINE_NOT_WORKING )

@@ -16,10 +16,8 @@
 #pragma once
 
 #include "isa.h"
-#include "machine/pc_fdc.h"
-
-#define OMTI_MAX_LUN 1
-#define CDB_SIZE 10
+#include "machine/upd765.h"
+#include "imagedev/floppy.h"
 
 /***************************************************************************
  FUNCTION PROTOTYPES
@@ -37,42 +35,53 @@ public:
 
 	static void set_verbose(int on_off);
 
-	required_device<pc_fdc_interface> m_fdc;
-	required_ioport m_iobase;
-	required_ioport m_biosopts;
-
-	DECLARE_WRITE_LINE_MEMBER( fdc_irq_w );
-	DECLARE_WRITE_LINE_MEMBER( fdc_drq_w );
-	DECLARE_FLOPPY_FORMATS( floppy_formats );
-
 protected:
+	static constexpr unsigned OMTI_MAX_LUN = 1;
+	static constexpr unsigned CDB_SIZE = 10;
+
 	omti8621_device(
 			const machine_config &mconfig,
 			device_type type,
-			const char *name,
 			const char *tag,
 			device_t *owner,
-			uint32_t clock,
-			const char *shortname,
-			const char *source);
+			uint32_t clock);
 
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual const tiny_rom_entry *device_rom_region() const override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual ioport_constructor device_input_ports() const override;
 
 	virtual uint8_t dack_r(int line) override;
 	virtual void dack_w(int line, uint8_t data) override;
+	virtual void dack_line_w(int line, int state) override;
 	virtual void eop_w(int state) override;
 
 	void set_interrupt(enum line_state line_state);
 
+	required_device<upd765a_device> m_fdc;
+	optional_device_array<floppy_connector, 2> m_floppy;
+	required_ioport m_iobase;
+	required_ioport m_biosopts;
+
 	omti_disk_image_device *our_disks[OMTI_MAX_LUN+1];
 
+	std::string cpu_context() const;
+
 private:
+	DECLARE_WRITE_LINE_MEMBER( fdc_irq_w );
+	DECLARE_WRITE_LINE_MEMBER( fdc_drq_w );
+	DECLARE_FLOPPY_FORMATS( floppy_formats );
+
+	void fd_moten_w(uint8_t data);
+	void fd_rate_w(uint8_t data);
+	void fd_extra_w(uint8_t data);
+	uint8_t fd_disk_chg_r();
+
+	void fdc_map(address_map &map);
+
 	uint16_t jumper;
 
 	uint8_t omti_state;
@@ -103,6 +112,8 @@ private:
 	uint32_t alternate_track_address[2];
 
 	emu_timer *m_timer;
+
+	uint8_t m_moten;
 
 	bool m_installed;
 
@@ -141,7 +152,7 @@ public:
 	omti8621_pc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 };
 
-extern const device_type ISA16_OMTI8621;
+DECLARE_DEVICE_TYPE(ISA16_OMTI8621, omti8621_pc_device)
 
 /* ----- omti8621 for apollo device interface ----- */
 
@@ -156,7 +167,7 @@ protected:
 	virtual const tiny_rom_entry *device_rom_region() const override;
 };
 
-extern const device_type ISA16_OMTI8621_APOLLO;
+DECLARE_DEVICE_TYPE(ISA16_OMTI8621_APOLLO, omti8621_apollo_device)
 
 //###############################################################
 

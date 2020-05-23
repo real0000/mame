@@ -1,22 +1,23 @@
 // license:GPL-2.0+
 // copyright-holders:Jarek Burczynski
+#ifndef MAME_SOUND_YMDELTAT_H
+#define MAME_SOUND_YMDELTAT_H
+
 #pragma once
 
-#ifndef __YMDELTAT_H__
-#define __YMDELTAT_H__
 
-#define YM_DELTAT_SHIFT    (16)
-
-#define YM_DELTAT_EMULATION_MODE_NORMAL 0
-#define YM_DELTAT_EMULATION_MODE_YM2610 1
-
-
+typedef uint8_t (*FM_READBYTE)(device_t *device, offs_t offset);
+typedef void (*FM_WRITEBYTE)(device_t *device, offs_t offset, uint8_t data);
 typedef void (*STATUS_CHANGE_HANDLER)(void *chip, uint8_t status_bits);
 
 
 /* DELTA-T (adpcm type B) struct */
-struct YM_DELTAT  {     /* AT: rearranged and tightened structure */
-	uint8_t   *memory;
+struct YM_DELTAT {     /* AT: rearranged and tightened structure */
+	static constexpr int EMULATION_MODE_NORMAL = 0;
+	static constexpr int EMULATION_MODE_YM2610 = 1;
+
+	FM_READBYTE read_byte;
+	FM_WRITEBYTE write_byte;
 	int32_t   *output_pointer;/* pointer of output pointers   */
 	int32_t   *pan;           /* pan : &output_pointer[pan]   */
 	double  freqbase;
@@ -72,16 +73,16 @@ struct YM_DELTAT  {     /* AT: rearranged and tightened structure */
 	uint8_t   reg[16];        /* adpcm registers      */
 	uint8_t   emulation_mode; /* which chip we're emulating */
 	device_t *device;
+
+	/*void BRDY_callback();*/
+
+	uint8_t ADPCM_Read();
+	void ADPCM_Write(int r, int v);
+	void ADPCM_Reset(int panidx, int mode, device_t *dev);
+	void ADPCM_CALC();
+
+	void postload(uint8_t *regs);
+	void savestate(device_t *device);
 };
 
-/*void YM_DELTAT_BRDY_callback(YM_DELTAT *DELTAT);*/
-
-uint8_t YM_DELTAT_ADPCM_Read(YM_DELTAT *DELTAT);
-void YM_DELTAT_ADPCM_Write(YM_DELTAT *DELTAT,int r,int v);
-void YM_DELTAT_ADPCM_Reset(YM_DELTAT *DELTAT,int pan,int emulation_mode, device_t *device);
-void YM_DELTAT_ADPCM_CALC(YM_DELTAT *DELTAT);
-
-void YM_DELTAT_postload(YM_DELTAT *DELTAT,uint8_t *regs);
-void YM_DELTAT_savestate(device_t *device,YM_DELTAT *DELTAT);
-
-#endif /* __YMDELTAT_H__ */
+#endif // MAME_SOUND_YMDELTAT_H

@@ -52,55 +52,20 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_74161_H
+#define MAME_MACHINE_74161_H
+
 #pragma once
-
-#ifndef TTL74161_H
-#define TTL74161_H
-
-
-#define MCFG_7416x_QA_CB(_devcb) \
-	devcb = &ttl7416x_device::set_qa_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_7416x_QB_CB(_devcb) \
-	devcb = &ttl7416x_device::set_qb_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_7416x_QC_CB(_devcb) \
-	devcb = &ttl7416x_device::set_qc_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_7416x_QD_CB(_devcb) \
-	devcb = &ttl7416x_device::set_qd_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_7416x_OUTPUT_CB(_devcb) \
-	devcb = &ttl7416x_device::set_output_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_7416x_TC_CB(_devcb) \
-	devcb = &ttl7416x_device::set_tc_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_74160_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, TTL74160, 0)
-
-#define MCFG_74161_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, TTL74161, 0)
-
-#define MCFG_74162_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, TTL74162, 0)
-
-#define MCFG_74163_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, TTL74163, 0)
 
 class ttl7416x_device : public device_t
 {
 public:
-	// construction/destruction
-	ttl7416x_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, bool synchronous_reset, uint8_t limit);
-
-	// static configuration helpers
-	template<class _Object> static devcb_base &set_qa_cb(device_t &device, _Object object) { return downcast<ttl7416x_device &>(device).m_qa_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_qb_cb(device_t &device, _Object object) { return downcast<ttl7416x_device &>(device).m_qb_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_qc_cb(device_t &device, _Object object) { return downcast<ttl7416x_device &>(device).m_qc_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_qd_cb(device_t &device, _Object object) { return downcast<ttl7416x_device &>(device).m_qd_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_output_cb(device_t &device, _Object object) { return downcast<ttl7416x_device &>(device).m_output_func.set_callback(object); }
-	template<class _Object> static devcb_base &set_tc_cb(device_t &device, _Object object) { return downcast<ttl7416x_device &>(device).m_tc_func.set_callback(object); }
+	auto qa_cb() { return m_qa_func.bind(); }
+	auto qb_cb() { return m_qb_func.bind(); }
+	auto qc_cb() { return m_qc_func.bind(); }
+	auto qd_cb() { return m_qd_func.bind(); }
+	auto out_cb() { return m_output_func.bind(); }
+	auto tc_cb() { return m_tc_func.bind(); }
 
 	// public interfaces
 	DECLARE_WRITE_LINE_MEMBER( clear_w );
@@ -108,7 +73,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( cet_w );
 	DECLARE_WRITE_LINE_MEMBER( cep_w );
 	DECLARE_WRITE_LINE_MEMBER( clock_w );
-	DECLARE_WRITE8_MEMBER( p_w );
+	void p_w(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER( p1_w );
 	DECLARE_WRITE_LINE_MEMBER( p2_w );
 	DECLARE_WRITE_LINE_MEMBER( p3_w );
@@ -117,7 +82,13 @@ public:
 	DECLARE_READ_LINE_MEMBER( output_r );
 	DECLARE_READ_LINE_MEMBER( tc_r );
 
+	void set_cet_pin_value(int value) { m_cetpre = value; }
+	void set_cep_pin_value(int value) { m_ceppre = value; }
+
 protected:
+	// construction/destruction
+	ttl7416x_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, bool synchronous_reset, uint8_t limit);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
@@ -140,12 +111,15 @@ private:
 	uint8_t m_pe;       // pin 9
 	uint8_t m_cet;      // pin 10
 	uint8_t m_cep;      // pin 7
-	uint8_t m_clock;    // pin 2
+	uint8_t m_pclock;   // pin 2
 	uint8_t m_p;        // pins 3-6 from LSB to MSB
+
+	// Preset inputs
+	uint8_t m_cetpre;
+	uint8_t m_ceppre;
 
 	// outputs
 	uint8_t m_out;      // pins 14-11 from LSB to MSB
-	uint8_t m_tc;       // pin 15
 
 	const bool      m_synchronous_reset;
 	const uint8_t   m_limit;
@@ -154,32 +128,31 @@ private:
 class ttl74160_device : public ttl7416x_device
 {
 public:
-	ttl74160_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	ttl74160_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 };
 
 class ttl74161_device : public ttl7416x_device
 {
 public:
-	ttl74161_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	ttl74161_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 };
 
 class ttl74162_device : public ttl7416x_device
 {
 public:
-	ttl74162_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	ttl74162_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 };
 
 class ttl74163_device : public ttl7416x_device
 {
 public:
-	ttl74163_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	ttl74163_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 };
 
 // device type definition
-extern const device_type TTL74160;
-extern const device_type TTL74161;
-extern const device_type TTL74162;
-extern const device_type TTL74163;
+DECLARE_DEVICE_TYPE(TTL74160, ttl74160_device)
+DECLARE_DEVICE_TYPE(TTL74161, ttl74161_device)
+DECLARE_DEVICE_TYPE(TTL74162, ttl74162_device)
+DECLARE_DEVICE_TYPE(TTL74163, ttl74163_device)
 
-
-#endif /* TTL74161_H */
+#endif // MAME_MACHINE_74161_H

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2010-2019 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bx#license-bsd-2-clause
  */
 
@@ -45,6 +45,6 @@ namespace bx
 
 } // namespace bx
 
-#include "endian.inl"
+#include "inline/endian.inl"
 
 #endif // BX_ENDIAN_H_HEADER_GUARD

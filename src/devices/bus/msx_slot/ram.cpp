@@ -4,11 +4,11 @@
 #include "emu.h"
 #include "ram.h"
 
-const device_type MSX_SLOT_RAM = device_creator<msx_slot_ram_device>;
+DEFINE_DEVICE_TYPE(MSX_SLOT_RAM, msx_slot_ram_device, "msx_slot_ram", "MSX Internal RAM")
 
 msx_slot_ram_device::msx_slot_ram_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, MSX_SLOT_RAM, "MSX Internal RAM", tag, owner, clock, "msx_slot_ram", __FILE__)
-	, msx_internal_slot_interface()
+	: device_t(mconfig, MSX_SLOT_RAM, tag, owner, clock)
+	, msx_internal_slot_interface(mconfig, *this)
 {
 }
 
@@ -18,7 +18,7 @@ void msx_slot_ram_device::device_start()
 	save_item(NAME(m_ram));
 }
 
-READ8_MEMBER(msx_slot_ram_device::read)
+uint8_t msx_slot_ram_device::read(offs_t offset)
 {
 	if ( offset >= m_start_address && offset < m_end_address )
 	{
@@ -27,7 +27,7 @@ READ8_MEMBER(msx_slot_ram_device::read)
 	return 0xFF;
 }
 
-WRITE8_MEMBER(msx_slot_ram_device::write)
+void msx_slot_ram_device::write(offs_t offset, uint8_t data)
 {
 	if ( offset >= m_start_address && offset < m_end_address )
 	{

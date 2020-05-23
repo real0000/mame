@@ -9,14 +9,13 @@
 #include "emu.h"
 #include "machine/wd11c00_17.h"
 
+#define VERBOSE 1
+#include "logmacro.h"
 
 
 //**************************************************************************
 //  MACROS / CONSTANTS
 //**************************************************************************
-
-#define LOG 1
-
 
 // status register
 #define STATUS_IRQ      0x20
@@ -37,7 +36,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type WD11C00_17 = device_creator<wd11c00_17_device>;
+DEFINE_DEVICE_TYPE(WD11C00_17, wd11c00_17_device, "wd11c00_17", "Western Digital WD11C00-17")
 
 
 //**************************************************************************
@@ -177,25 +176,25 @@ inline void wd11c00_17_device::select()
 //-------------------------------------------------
 
 wd11c00_17_device::wd11c00_17_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, WD11C00_17, "Western Digital WD11C00-17", tag, owner, clock, "wd11c00_17", __FILE__),
-		m_out_irq5_cb(*this),
-		m_out_drq3_cb(*this),
-		m_out_mr_cb(*this),
-		m_out_busy_cb(*this),
-		m_out_req_cb(*this),
-		m_out_ra3_cb(*this),
-		m_in_rd322_cb(*this),
-		m_in_ramcs_cb(*this),
-		m_out_ramwr_cb(*this),
-		m_in_cs1010_cb(*this),
-		m_out_cs1010_cb(*this),
-		m_status(0),
-		m_ra(0),
-		m_irq5(CLEAR_LINE),
-		m_drq3(CLEAR_LINE),
-		m_busy(1),
-		m_req(0),
-		m_ra3(0)
+	: device_t(mconfig, WD11C00_17, tag, owner, clock)
+	, m_out_irq5_cb(*this)
+	, m_out_drq3_cb(*this)
+	, m_out_mr_cb(*this)
+	, m_out_busy_cb(*this)
+	, m_out_req_cb(*this)
+	, m_out_ra3_cb(*this)
+	, m_in_rd322_cb(*this)
+	, m_in_ramcs_cb(*this)
+	, m_out_ramwr_cb(*this)
+	, m_in_cs1010_cb(*this)
+	, m_out_cs1010_cb(*this)
+	, m_status(0)
+	, m_ra(0)
+	, m_irq5(CLEAR_LINE)
+	, m_drq3(CLEAR_LINE)
+	, m_busy(1)
+	, m_req(0)
+	, m_ra3(0)
 {
 }
 
@@ -239,16 +238,16 @@ void wd11c00_17_device::device_reset()
 //  io_r -
 //-------------------------------------------------
 
-READ8_MEMBER( wd11c00_17_device::io_r )
+uint8_t wd11c00_17_device::io_r(offs_t offset)
 {
 	uint8_t data = 0xff;
 
 	switch (offset)
 	{
 	case 0: // Read Data, Board to Host
-		if (LOG) logerror("%s WD11C00-17 '%s' Read Data %03x:", machine().describe_context(), tag(), m_ra);
+		LOG("%s WD11C00-17 Read Data %03x:", machine().describe_context(), m_ra);
 		data = read_data();
-		if (LOG) logerror("%02x\n", data);
+		LOG("%02x\n", data);
 		break;
 
 	case 1: // Read Board Hardware Status
@@ -272,32 +271,41 @@ READ8_MEMBER( wd11c00_17_device::io_r )
 //  io_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( wd11c00_17_device::io_w )
+void wd11c00_17_device::io_w(offs_t offset, uint8_t data)
 {
 	switch (offset)
 	{
 	case 0: // Write Data, Host to Board
-		if (LOG) logerror("%s WD11C00-17 '%s' Write Data %03x:%02x\n", machine().describe_context(), tag(), m_ra, data);
+		LOG("%s WD11C00-17 Write Data %03x:%02x\n", machine().describe_context(), m_ra, data);
 		write_data(data);
 		break;
 
 	case 1: // Board Software Reset
-		if (LOG) logerror("%s WD11C00-17 '%s' Software Reset\n", machine().describe_context(), tag());
+		LOG("%s WD11C00-17 Software Reset\n", machine().describe_context());
 		software_reset();
 		break;
 
 	case 2: // Board Select
-		if (LOG) logerror("%s WD11C00-17 '%s' Select\n", machine().describe_context(), tag());
+		LOG("%s WD11C00-17 Select\n", machine().describe_context());
 		increment_address(); // HACK
 		select();
 		break;
 
 	case 3: // Set/Reset DMA, IRQ Masks
-		if (LOG) logerror("%s WD11C00-17 '%s' Mask IRQ %u DMA %u\n", machine().describe_context(), tag(), BIT(data, 1), BIT(data, 0));
+		LOG("%s WD11C00-17 Mask IRQ %u DMA %u\n", machine().describe_context(), BIT(data, 1), BIT(data, 0));
 		m_mask = data;
 		check_interrupt();
 		break;
 	}
+}
+
+
+//-------------------------------------------------
+//  dack3_w -
+//-------------------------------------------------
+
+void wd11c00_17_device::dack3_w(int state)
+{
 }
 
 
@@ -325,16 +333,16 @@ void wd11c00_17_device::dack_w(uint8_t data)
 //  read -
 //-------------------------------------------------
 
-READ8_MEMBER( wd11c00_17_device::read )
+uint8_t wd11c00_17_device::read(offs_t offset)
 {
 	uint8_t data = 0;
 
 	switch (offset)
 	{
 	case 0x00:
-		if (LOG) logerror("%s WD11C00-17 '%s' Read RAM %03x:", machine().describe_context(), tag(), m_ra);
+		LOG("%s WD11C00-17 Read RAM %03x:", machine().describe_context(), m_ra);
 		data = read_data();
-		if (LOG) logerror("%02x\n", data);
+		LOG("%02x\n", data);
 		break;
 
 	case 0x20:
@@ -350,12 +358,12 @@ READ8_MEMBER( wd11c00_17_device::read )
 //  write -
 //-------------------------------------------------
 
-WRITE8_MEMBER( wd11c00_17_device::write )
+void wd11c00_17_device::write(offs_t offset, uint8_t data)
 {
 	switch (offset)
 	{
 	case 0x00:
-		if (LOG) logerror("%s WD11C00-17 '%s' Write RAM %03x:%02x\n", machine().describe_context(), tag(), m_ra, data);
+		LOG("%s WD11C00-17 Write RAM %03x:%02x\n", machine().describe_context(), m_ra, data);
 		write_data(data);
 		if (m_ra > 0x400) m_ecc_not_0 = 0; // HACK
 		break;
@@ -366,7 +374,7 @@ WRITE8_MEMBER( wd11c00_17_device::write )
 
 	case 0x60:
 		m_ra = (data & 0x07) << 8;
-		if (LOG) logerror("%s WD11C00-17 '%s' RA %03x\n", machine().describe_context(), tag(), m_ra);
+		LOG("%s WD11C00-17 RA %03x\n", machine().describe_context(), m_ra);
 		check_interrupt();
 		break;
 	}
@@ -377,9 +385,9 @@ WRITE8_MEMBER( wd11c00_17_device::write )
 //  ireq_w -
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( wd11c00_17_device::ireq_w )
+void wd11c00_17_device::ireq_w(int state)
 {
-	if (LOG) logerror("%s WD11C00-17 '%s' IREQ %u\n", machine().describe_context(), tag(), state);
+	LOG("%s WD11C00-17 IREQ %u\n", machine().describe_context(), state);
 
 	if (state) m_status |= STATUS_REQ; else m_status &= ~STATUS_REQ;
 
@@ -406,9 +414,9 @@ WRITE_LINE_MEMBER( wd11c00_17_device::ireq_w )
 //  io_w -
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( wd11c00_17_device::io_w )
+void wd11c00_17_device::io_w(int state)
 {
-	if (LOG) logerror("%s WD11C00-17 '%s' I/O %u\n", machine().describe_context(), tag(), state);
+	LOG("%s WD11C00-17 I/O %u\n", machine().describe_context(), state);
 
 	if (state) m_status |= STATUS_I_O; else m_status &= ~STATUS_I_O;
 }
@@ -418,9 +426,9 @@ WRITE_LINE_MEMBER( wd11c00_17_device::io_w )
 //  cd_w -
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( wd11c00_17_device::cd_w )
+void wd11c00_17_device::cd_w(int state)
 {
-	if (LOG) logerror("%s WD11C00-17 '%s' C/D %u\n", machine().describe_context(), tag(), state);
+	LOG("%s WD11C00-17 C/D %u\n", machine().describe_context(), state);
 
 	if (state) m_status |= STATUS_C_D; else m_status &= ~STATUS_C_D;
 }
@@ -430,9 +438,9 @@ WRITE_LINE_MEMBER( wd11c00_17_device::cd_w )
 //  clct_w -
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( wd11c00_17_device::clct_w )
+void wd11c00_17_device::clct_w(int state)
 {
-	if (LOG) logerror("%s WD11C00-17 '%s' CLCT %u\n", machine().describe_context(), tag(), state);
+	LOG("%s WD11C00-17 CLCT %u\n", machine().describe_context(), state);
 
 	if (state)
 	{
@@ -446,9 +454,9 @@ WRITE_LINE_MEMBER( wd11c00_17_device::clct_w )
 //  mode_w -
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( wd11c00_17_device::mode_w )
+void wd11c00_17_device::mode_w(int state)
 {
-	if (LOG) logerror("%s WD11C00-17 '%s' MODE %u\n", machine().describe_context(), tag(), state);
+	LOG("%s WD11C00-17 MODE %u\n", machine().describe_context(), state);
 
 	m_mode = state;
 	m_ecc_not_0 = state; // HACK
@@ -459,7 +467,7 @@ WRITE_LINE_MEMBER( wd11c00_17_device::mode_w )
 //  busy_r -
 //-------------------------------------------------
 
-READ_LINE_MEMBER( wd11c00_17_device::busy_r )
+int wd11c00_17_device::busy_r()
 {
 	return (m_status & STATUS_BUSY) ? 0 : 1;
 }
@@ -469,7 +477,7 @@ READ_LINE_MEMBER( wd11c00_17_device::busy_r )
 //  ecc_not_0_r -
 //-------------------------------------------------
 
-READ_LINE_MEMBER( wd11c00_17_device::ecc_not_0_r )
+int wd11c00_17_device::ecc_not_0_r()
 {
 	return m_ecc_not_0;
 }

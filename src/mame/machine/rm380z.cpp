@@ -32,7 +32,7 @@ WRITE8_MEMBER( rm380z_state::port_write )
 	switch ( offset )
 	{
 	case 0xFC:      // PORT0
-		//printf("FBFCw[%2.2x] FBFD [%2.2x] FBFE [%2.2x] PC [%4.4x] writenum [%4.4x]\n",data,m_fbfd,m_fbfe,m_maincpu->safe_pc(),writenum);
+		//printf("%s FBFCw[%2.2x] FBFD [%2.2x] FBFE [%2.2x] writenum [%4.4x]\n",machine().describe_context().c_str(),data,m_fbfd,m_fbfe,writenum);
 		m_port0 = data;
 
 		m_cassette->output((m_port0 & 0xEF) ? +1.0 : -1.0); // set 2400hz, bit 4
@@ -49,7 +49,7 @@ WRITE8_MEMBER( rm380z_state::port_write )
 		break;
 
 	case 0xFD:      // screen line counter (?)
-		//printf("FBFC [%2.2x] FBFDw[%2.2x] FBFE [%2.2x] PC [%4.4x] writenum [%4.4x]\n",m_port0,data,m_fbfe,m_maincpu->safe_pc(),writenum);
+		//printf("%s FBFC [%2.2x] FBFDw[%2.2x] FBFE [%2.2x] writenum [%4.4x]\n",machine().describe_context().c_str(),m_port0,data,m_fbfe,writenum);
 
 		m_old_old_fbfd=m_old_fbfd;
 		m_old_fbfd=m_fbfd;
@@ -63,7 +63,7 @@ WRITE8_MEMBER( rm380z_state::port_write )
 
 	// port 1
 	case 0xFE:      // line on screen to write to divided by 2
-		//printf("FBFC [%2.2x] FBFD [%2.2x] FBFEw[%2.2x] PC [%4.4x] writenum [%4.4x]\n",m_port0,m_fbfd,data,m_maincpu->safe_pc(),writenum);
+		//printf("%s FBFC [%2.2x] FBFD [%2.2x] FBFEw[%2.2x] writenum [%4.4x]\n",machine().describe_context().c_str(),m_port0,m_fbfd,data,writenum);
 		m_fbfe=data;
 
 		break;
@@ -89,11 +89,11 @@ READ8_MEMBER( rm380z_state::port_read )
 		data = m_port0_kbd;
 		//if (m_port0_kbd!=0) m_port0_kbd=0;
 		//m_port0_kbd=0;
-		//printf("read of port0 (kbd) from PC [%x]\n",m_maincpu->safe_pc());
+		//printf("%s read of port0 (kbd)\n",machine().describe_context().c_str());
 		break;
 
 	case 0xFD:      // "counter" (?)
-		//printf("%s: Read from counter FBFD\n", machine().describe_context());
+		//printf("%s: Read from counter FBFD\n", machine().describe_context().c_str());
 		data = 0x00;
 		break;
 
@@ -104,11 +104,11 @@ READ8_MEMBER( rm380z_state::port_read )
 			m_port1 |= 0x20;    // bit 5 on
 
 		data = m_port1;
-		//printf("read of port1 from PC [%x]\n",m_maincpu->safe_pc());
+		//printf("%s read of port1\n",machine().describe_context().c_str());
 		break;
 
 	case 0xFF:      // user port
-		//printf("%s: Read from user port\n", machine().describe_context());
+		//printf("%s: Read from user port\n", machine().describe_context().c_str());
 		break;
 
 	default:
@@ -147,7 +147,7 @@ READ8_MEMBER( rm380z_state::rm380z_portlow_r )
 
 WRITE8_MEMBER( rm380z_state::rm380z_portlow_w )
 {
-	//printf("port write [%x] [%x] at PC [%x]\n",offset,data,m_maincpu->safe_pc());
+	//printf("%s port write [%x] [%x]\n",machine().describe_context().c_str(),offset,data);
 }
 
 READ8_MEMBER( rm380z_state::rm380z_porthi_r )
@@ -200,7 +200,7 @@ TIMER_CALLBACK_MEMBER(rm380z_state::static_vblank_timer)
 	}
 }
 
-WRITE8_MEMBER( rm380z_state::keyboard_put )
+void rm380z_state::keyboard_put(u8 data)
 {
 	if (data)
 	{
@@ -238,24 +238,25 @@ WRITE8_MEMBER( rm380z_state::disk_0_control )
 
 void rm380z_state::machine_start()
 {
-	machine().scheduler().timer_pulse(attotime::from_hz(TIMER_SPEED), timer_expired_delegate(FUNC(rm380z_state::static_vblank_timer),this));
+	m_static_vblank_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(rm380z_state::static_vblank_timer), this));
+	m_static_vblank_timer->adjust(attotime::from_hz(TIMER_SPEED), 0, attotime::from_hz(TIMER_SPEED));
 }
 
-DRIVER_INIT_MEMBER( rm380z_state, rm380z )
+void rm380z_state::init_rm380z()
 {
 	m_videomode=RM380Z_VIDEOMODE_80COL;
 	m_old_videomode=m_videomode;
 	m_port0_mask=0xff;
 }
 
-DRIVER_INIT_MEMBER( rm380z_state, rm380z34d )
+void rm380z_state::init_rm380z34d()
 {
 	m_videomode=RM380Z_VIDEOMODE_40COL;
 	m_old_videomode=m_videomode;
 	m_port0_mask=0xdf;      // disable 80 column mode
 }
 
-DRIVER_INIT_MEMBER( rm380z_state, rm380z34e )
+void rm380z_state::init_rm380z34e()
 {
 	m_videomode=RM380Z_VIDEOMODE_40COL;
 	m_old_videomode=m_videomode;
@@ -286,7 +287,7 @@ void rm380z_state::machine_reset()
 	memset(m_vram,0,RM380Z_SCREENSIZE);
 
 	config_memory_map();
-	machine().device("wd1771")->reset();
+	m_fdc->reset();
 
 	init_graphic_chars();
 }
@@ -304,7 +305,7 @@ void rm380z_state::config_memory_map()
 	else
 	{
 		program.install_rom( 0x0000, 0x0FFF, rom );
-		program.install_readwrite_handler(0x1BFC, 0x1BFF,read8_delegate(FUNC(rm380z_state::port_read_1b00), this),write8_delegate(FUNC(rm380z_state::port_write_1b00), this)    );
+		program.install_readwrite_handler(0x1BFC, 0x1BFF, read8_delegate(*this, FUNC(rm380z_state::port_read_1b00)), write8_delegate(*this, FUNC(rm380z_state::port_write_1b00)));
 		program.install_rom( 0x1C00, 0x1DFF, rom + 0x1400 );
 		program.install_ram( 0x4000, 0xDFFF, m_ram_p );
 	}

@@ -5,7 +5,6 @@
   ISA 8 bit IBM PC Music Feature Card
 
   TODO:
-   - YM-2164
    - MIDI
    - IRQ/base address selection
 
@@ -63,7 +62,7 @@ enum
 //  Globals
 //-------------------------------------------------
 
-const device_type ISA8_IBM_MFC = device_creator<isa8_ibm_mfc_device>;
+DEFINE_DEVICE_TYPE(ISA8_IBM_MFC, isa8_ibm_mfc_device, "ibm_mfc", "IBM PC Music Feature Card")
 
 
 //-------------------------------------------------
@@ -113,22 +112,24 @@ void isa8_ibm_mfc_device::update_z80_interrupts(void)
 //  Z80 memory map
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( prg_map, AS_PROGRAM, 8, isa8_ibm_mfc_device )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x8000) AM_RAM // Unknown - tested on startup
-	AM_RANGE(0xbfff, 0xbfff) AM_RAM // Unknown - tested on startup
-	AM_RANGE(0xc000, 0xdfff) AM_RAM
-	AM_RANGE(0xe000, 0xffff) AM_RAM
-ADDRESS_MAP_END
+void isa8_ibm_mfc_device::prg_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0x8000).ram(); // Unknown - tested on startup
+	map(0xbfff, 0xbfff).ram(); // Unknown - tested on startup
+	map(0xc000, 0xdfff).ram();
+	map(0xe000, 0xffff).ram();
+}
 
-static ADDRESS_MAP_START( io_map, AS_IO, 8, isa8_ibm_mfc_device )
-	ADDRESS_MAP_UNMAP_HIGH
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE("ym2151", ym2151_device, read, write)
-	AM_RANGE(0x10, 0x10) AM_DEVREADWRITE("d71051", i8251_device, data_r, data_w)
-	AM_RANGE(0x11, 0x11) AM_DEVREADWRITE("d71051", i8251_device, status_r, control_w)
-	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE("d71055c_1", i8255_device, read, write)
-ADDRESS_MAP_END
+void isa8_ibm_mfc_device::io_map(address_map &map)
+{
+	map.unmap_value_high();
+	map.global_mask(0xff);
+	map(0x00, 0x01).rw(m_ym2151, FUNC(ym2151_device::read), FUNC(ym2151_device::write));
+	map(0x10, 0x10).rw("d71051", FUNC(i8251_device::data_r), FUNC(i8251_device::data_w));
+	map(0x11, 0x11).rw("d71051", FUNC(i8251_device::status_r), FUNC(i8251_device::control_w));
+	map(0x20, 0x23).rw("d71055c_1", FUNC(i8255_device::read), FUNC(i8255_device::write));
+}
 
 
 //-------------------------------------------------
@@ -157,18 +158,18 @@ INPUT_PORTS_END
 //  D71055C PPI (PC)
 //-------------------------------------------------
 
-READ8_MEMBER( isa8_ibm_mfc_device::ppi0_i_a )
+uint8_t isa8_ibm_mfc_device::ppi0_i_a()
 {
 	// Read data from the Z80 PIU
 	return m_d71055c_1->pa_r();
 }
 
-WRITE8_MEMBER( isa8_ibm_mfc_device::ppi0_o_b )
+void isa8_ibm_mfc_device::ppi0_o_b(uint8_t data)
 {
 	// Write data to the Z80 PIU - no action required
 }
 
-WRITE8_MEMBER( isa8_ibm_mfc_device::ppi0_o_c )
+void isa8_ibm_mfc_device::ppi0_o_c(uint8_t data)
 {
 	// PC Port B /OBF (C1) -> Z80 Port B /STB (C2)
 	m_d71055c_1->pc2_w(BIT(data, 1));
@@ -190,7 +191,7 @@ WRITE8_MEMBER( isa8_ibm_mfc_device::ppi0_o_c )
 	m_pc_ppi_c = data;
 }
 
-READ8_MEMBER( isa8_ibm_mfc_device::ppi0_i_c )
+uint8_t isa8_ibm_mfc_device::ppi0_i_c()
 {
 	// Receive data bit 8
 	return BIT(m_z80_ppi_c, 5) << 7;
@@ -200,18 +201,18 @@ READ8_MEMBER( isa8_ibm_mfc_device::ppi0_i_c )
 //  D71055C PPI (Z80)
 //-------------------------------------------------
 
-WRITE8_MEMBER( isa8_ibm_mfc_device::ppi1_o_a )
+void isa8_ibm_mfc_device::ppi1_o_a(uint8_t data)
 {
 	// Write data to the PC PIU - no action required
 }
 
-READ8_MEMBER( isa8_ibm_mfc_device::ppi1_i_b )
+uint8_t isa8_ibm_mfc_device::ppi1_i_b()
 {
 	// Read data from the PC PIU
 	return m_d71055c_0->pb_r();
 }
 
-WRITE8_MEMBER( isa8_ibm_mfc_device::ppi1_o_c )
+void isa8_ibm_mfc_device::ppi1_o_c(uint8_t data)
 {
 	// PortA /OBF (C7) -> PortA /STB (C2)
 	m_d71055c_0->pc4_w(BIT(data, 7));
@@ -269,47 +270,6 @@ WRITE_LINE_MEMBER(isa8_ibm_mfc_device::ibm_mfc_ym_irq)
 
 
 //-------------------------------------------------
-//  Machine config
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( ibm_mfc )
-	MCFG_CPU_ADD("ibm_mfc", Z80, XTAL_11_8MHz / 2)
-	MCFG_CPU_PROGRAM_MAP(prg_map)
-	MCFG_CPU_IO_MAP(io_map)
-
-	MCFG_DEVICE_ADD("d71055c_0", I8255, 0)
-	MCFG_I8255_IN_PORTA_CB(READ8(isa8_ibm_mfc_device, ppi0_i_a))
-	MCFG_I8255_OUT_PORTB_CB(WRITE8(isa8_ibm_mfc_device, ppi0_o_b))
-	MCFG_I8255_IN_PORTC_CB(READ8(isa8_ibm_mfc_device, ppi0_i_c))
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(isa8_ibm_mfc_device, ppi0_o_c))
-
-	MCFG_DEVICE_ADD("d71055c_1", I8255, 0)
-	MCFG_I8255_OUT_PORTA_CB(WRITE8(isa8_ibm_mfc_device, ppi1_o_a))
-	MCFG_I8255_IN_PORTB_CB(READ8(isa8_ibm_mfc_device, ppi1_i_b))
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(isa8_ibm_mfc_device, ppi1_o_c))
-
-	MCFG_DEVICE_ADD("d71051", I8251, 0)
-
-	MCFG_DEVICE_ADD("usart_clock", CLOCK, XTAL_4MHz / 8) // 500KHz
-	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(isa8_ibm_mfc_device, write_usart_clock))
-
-	MCFG_DEVICE_ADD("d8253", PIT8253, 0)
-	MCFG_PIT8253_CLK0(XTAL_4MHz / 8)
-	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(isa8_ibm_mfc_device, d8253_out0))
-	MCFG_PIT8253_CLK1(0)
-	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(isa8_ibm_mfc_device, d8253_out1))
-	MCFG_PIT8253_CLK2(XTAL_4MHz / 2)
-	MCFG_PIT8253_OUT2_HANDLER(DEVWRITELINE("d8253", pit8253_device, write_clk1))
-
-	MCFG_SPEAKER_STANDARD_STEREO("ymleft", "ymright")
-	MCFG_YM2151_ADD("ym2151", XTAL_4MHz)
-	MCFG_YM2151_IRQ_HANDLER(WRITELINE(isa8_ibm_mfc_device, ibm_mfc_ym_irq))
-	MCFG_SOUND_ROUTE(0, "ymleft", 1.00)
-	MCFG_SOUND_ROUTE(1, "ymright", 1.00)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
 //  ISA interface
 //-------------------------------------------------
 
@@ -324,7 +284,7 @@ READ8_MEMBER( isa8_ibm_mfc_device::ibm_mfc_r )
 		case 0x2:
 		case 0x3:
 		{
-			val = m_d71055c_0->read(space, offset);
+			val = m_d71055c_0->read(offset);
 			break;
 		}
 
@@ -356,7 +316,7 @@ WRITE8_MEMBER( isa8_ibm_mfc_device::ibm_mfc_w )
 		case 0x3:
 		{
 			machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(1000));
-			m_d71055c_0->write(space, offset, data);
+			m_d71055c_0->write(offset, data);
 			break;
 		}
 
@@ -365,7 +325,7 @@ WRITE8_MEMBER( isa8_ibm_mfc_device::ibm_mfc_w )
 		case 0x6:
 		case 0x7:
 		{
-			m_d8253->write(space, offset & 3, data);
+			m_d8253->write(offset & 3, data);
 			break;
 		}
 
@@ -410,13 +370,45 @@ ROM_END
 
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor isa8_ibm_mfc_device::device_mconfig_additions() const
+void isa8_ibm_mfc_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( ibm_mfc );
+	Z80(config, m_cpu, XTAL(11'800'000) / 2);
+	m_cpu->set_addrmap(AS_PROGRAM, &isa8_ibm_mfc_device::prg_map);
+	m_cpu->set_addrmap(AS_IO, &isa8_ibm_mfc_device::io_map);
+
+	I8255(config, m_d71055c_0);
+	m_d71055c_0->in_pa_callback().set(FUNC(isa8_ibm_mfc_device::ppi0_i_a));
+	m_d71055c_0->out_pb_callback().set(FUNC(isa8_ibm_mfc_device::ppi0_o_b));
+	m_d71055c_0->in_pc_callback().set(FUNC(isa8_ibm_mfc_device::ppi0_i_c));
+	m_d71055c_0->out_pc_callback().set(FUNC(isa8_ibm_mfc_device::ppi0_o_c));
+
+	I8255(config, m_d71055c_1);
+	m_d71055c_1->out_pa_callback().set(FUNC(isa8_ibm_mfc_device::ppi1_o_a));
+	m_d71055c_1->in_pb_callback().set(FUNC(isa8_ibm_mfc_device::ppi1_i_b));
+	m_d71055c_1->out_pc_callback().set(FUNC(isa8_ibm_mfc_device::ppi1_o_c));
+
+	I8251(config, m_d71051, 0);
+
+	clock_device &usart_clock(CLOCK(config, "usart_clock", XTAL(4'000'000) / 8)); // 500KHz
+	usart_clock.signal_handler().set(FUNC(isa8_ibm_mfc_device::write_usart_clock));
+
+	PIT8253(config, m_d8253);
+	m_d8253->set_clk<0>(XTAL(4'000'000) / 8);
+	m_d8253->out_handler<0>().set(FUNC(isa8_ibm_mfc_device::d8253_out0));
+	m_d8253->set_clk<1>(0);
+	m_d8253->out_handler<1>().set(FUNC(isa8_ibm_mfc_device::d8253_out1));
+	m_d8253->set_clk<2>(XTAL(4'000'000) / 2);
+	m_d8253->out_handler<2>().set(m_d8253, FUNC(pit8253_device::write_clk1));
+
+	SPEAKER(config, "ymleft").front_left();
+	SPEAKER(config, "ymright").front_right();
+	YM2164(config, m_ym2151, XTAL(4'000'000));
+	m_ym2151->irq_handler().set(FUNC(isa8_ibm_mfc_device::ibm_mfc_ym_irq));
+	m_ym2151->add_route(0, "ymleft", 1.00);
+	m_ym2151->add_route(1, "ymright", 1.00);
 }
 
 
@@ -450,14 +442,15 @@ const tiny_rom_entry *isa8_ibm_mfc_device::device_rom_region() const
 //-------------------------------------------------
 
 isa8_ibm_mfc_device::isa8_ibm_mfc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-		device_t(mconfig, ISA8_IBM_MFC, "IBM PC Music Feature Card", tag, owner, clock, "ibm_mfc", __FILE__),
-		device_isa8_card_interface(mconfig, *this), m_tcr(0), m_pc_ppi_c(0), m_z80_ppi_c(0), m_pc_irq_state(0), m_z80_irq_state(0),
-		m_cpu(*this, "ibm_mfc"),
-		m_ym2151(*this, "ym2151"),
-		m_d8253(*this, "d8253"),
-		m_d71051(*this, "d71051"),
-		m_d71055c_0(*this, "d71055c_0"),
-		m_d71055c_1(*this, "d71055c_1")
+	device_t(mconfig, ISA8_IBM_MFC, tag, owner, clock),
+	device_isa8_card_interface(mconfig, *this),
+	m_tcr(0), m_pc_ppi_c(0), m_z80_ppi_c(0), m_pc_irq_state(0), m_z80_irq_state(0),
+	m_cpu(*this, "ibm_mfc"),
+	m_ym2151(*this, "ym2151"),
+	m_d8253(*this, "d8253"),
+	m_d71051(*this, "d71051"),
+	m_d71055c_0(*this, "d71055c_0"),
+	m_d71055c_1(*this, "d71055c_1")
 {
 }
 
@@ -469,7 +462,7 @@ isa8_ibm_mfc_device::isa8_ibm_mfc_device(const machine_config &mconfig, const ch
 void isa8_ibm_mfc_device::device_start()
 {
 	set_isa_device();
-	m_isa->install_device(0x2a20, 0x2a20 + 15, read8_delegate(FUNC(isa8_ibm_mfc_device::ibm_mfc_r), this), write8_delegate(FUNC(isa8_ibm_mfc_device::ibm_mfc_w), this));
+	m_isa->install_device(0x2a20, 0x2a20 + 15, read8_delegate(*this, FUNC(isa8_ibm_mfc_device::ibm_mfc_r)), write8_delegate(*this, FUNC(isa8_ibm_mfc_device::ibm_mfc_w)));
 }
 
 

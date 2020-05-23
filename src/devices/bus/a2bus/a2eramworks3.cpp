@@ -6,6 +6,7 @@
 
     Applied Engineering RamWorks III
 
+    The AE RamWorks patent is US 4601018.
 
 *********************************************************************/
 
@@ -21,22 +22,21 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type A2EAUX_RAMWORKS3 = device_creator<a2eaux_ramworks3_device>;
+DEFINE_DEVICE_TYPE(A2EAUX_RAMWORKS3, a2eaux_ramworks3_device, "a2erwks3", "Applied Engineering RamWorks III")
 
 //**************************************************************************
 //  LIVE DEVICE
 //**************************************************************************
 
 a2eaux_ramworks3_device::a2eaux_ramworks3_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-		device_t(mconfig, A2EAUX_RAMWORKS3, "Applied Engineering RamWorks III", tag, owner, clock, "a2erwks3", __FILE__),
-		device_a2eauxslot_card_interface(mconfig, *this),
-	m_bank(0)
+		a2eaux_ramworks3_device(mconfig, A2EAUX_RAMWORKS3, tag, owner, clock)
 {
 }
 
-a2eaux_ramworks3_device::a2eaux_ramworks3_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-		device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-		device_a2eauxslot_card_interface(mconfig, *this), m_bank(0)
+a2eaux_ramworks3_device::a2eaux_ramworks3_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+		device_t(mconfig, type, tag, owner, clock),
+		device_a2eauxslot_card_interface(mconfig, *this),
+		m_bank(0)
 {
 }
 
@@ -46,7 +46,6 @@ a2eaux_ramworks3_device::a2eaux_ramworks3_device(const machine_config &mconfig, 
 
 void a2eaux_ramworks3_device::device_start()
 {
-	set_a2eauxslot_device();
 	save_item(NAME(m_ram));
 	save_item(NAME(m_bank));
 }
@@ -89,10 +88,10 @@ uint8_t *a2eaux_ramworks3_device::get_auxbank_ptr()
     However, the software will recognize and correctly use a configuration in which
     all of banks 00-7F are populated for a total of 8 megabytes.  So that's what we do.
 */
-void a2eaux_ramworks3_device::write_c07x(address_space &space, uint8_t offset, uint8_t data)
+void a2eaux_ramworks3_device::write_c07x(uint8_t offset, uint8_t data)
 {
-	// write to C073?
-	if (offset == 3)
+	// write to C071/3/5/7?
+	if ((offset & 0x9) == 1)
 	{
 		m_bank = 0x10000 * (data & 0x7f);
 	}

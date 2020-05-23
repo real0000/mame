@@ -23,24 +23,10 @@
 
 **********************************************************************/
 
+#ifndef MAME_SOUND_MOS6581_H
+#define MAME_SOUND_MOS6581_H
+
 #pragma once
-
-#ifndef __MOS6581__
-#define __MOS6581__
-
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_MOS6581_POTX_CALLBACK(_read) \
-	devcb = &mos6581_device::set_potx_rd_callback(*device, DEVCB_##_read);
-
-#define MCFG_MOS6581_POTY_CALLBACK(_read) \
-	devcb = &mos6581_device::set_poty_rd_callback(*device, DEVCB_##_read);
-
 
 
 //**************************************************************************
@@ -51,43 +37,46 @@
 
 struct SID6581_t;
 
-class mos6581_device : public device_t,
-						public device_sound_interface
+class mos6581_device : public device_t, public device_sound_interface
 {
 public:
-	mos6581_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source);
-	mos6581_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~mos6581_device();
-
-	template<class _Object> static devcb_base &set_potx_rd_callback(device_t &device, _Object object) { return downcast<mos6581_device &>(device).m_read_potx.set_callback(object); }
-	template<class _Object> static devcb_base &set_poty_rd_callback(device_t &device, _Object object) { return downcast<mos6581_device &>(device).m_read_poty.set_callback(object); }
-
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
-
+	// used by the actual SID emulator
 	enum
 	{
 		TYPE_6581,
 		TYPE_8580
 	};
 
+	mos6581_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	~mos6581_device();
+
+	auto potx() { return m_read_potx.bind(); }
+	auto poty() { return m_read_poty.bind(); }
+
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
+
 protected:
+	mos6581_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint32_t variant);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+	virtual void device_post_load() override;
 
 	// device_sound_interface overrides
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples) override;
 
+	void save_state(SID6581_t *token);
 private:
 	devcb_read8  m_read_potx;
 	devcb_read8  m_read_poty;
 
 	sound_stream *m_stream;
 
-	int m_variant;
+	int const m_variant;
 
-	SID6581_t *m_token;
+	std::unique_ptr<SID6581_t> m_token;
 };
 
 
@@ -101,8 +90,7 @@ public:
 
 
 // device type definition
-extern const device_type MOS6581;
-extern const device_type MOS8580;
+DECLARE_DEVICE_TYPE(MOS6581, mos6581_device)
+DECLARE_DEVICE_TYPE(MOS8580, mos8580_device)
 
-
-#endif
+#endif // MAME_SOUND_MOS6581_H

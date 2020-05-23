@@ -23,7 +23,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type ADAM_DDP = device_creator<adam_digital_data_pack_device>;
+DEFINE_DEVICE_TYPE(ADAM_DDP, adam_digital_data_pack_device, "adam_ddp", "Adam Digital Data Pack")
 
 
 //-------------------------------------------------
@@ -50,24 +50,13 @@ const tiny_rom_entry *adam_digital_data_pack_device::device_rom_region() const
 //  ADDRESS_MAP( adam_ddp_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( adam_ddp_mem, AS_PROGRAM, 8, adam_digital_data_pack_device )
-	AM_RANGE(0x0000, 0x001f) AM_DEVREADWRITE(M6801_TAG, m6801_cpu_device, m6801_io_r, m6801_io_w)
-	AM_RANGE(0x0080, 0x00ff) AM_RAM
-	AM_RANGE(0x0400, 0x07ff) AM_RAM
-	AM_RANGE(0xf800, 0xffff) AM_ROM AM_REGION(M6801_TAG, 0)
-ADDRESS_MAP_END
-
-
-//-------------------------------------------------
-//  ADDRESS_MAP( adam_ddp_io )
-//-------------------------------------------------
-
-static ADDRESS_MAP_START( adam_ddp_io, AS_IO, 8, adam_digital_data_pack_device )
-	AM_RANGE(M6801_PORT1, M6801_PORT1) AM_WRITE(p1_w)
-	AM_RANGE(M6801_PORT2, M6801_PORT2) AM_READWRITE(p2_r, p2_w)
-	AM_RANGE(M6801_PORT3, M6801_PORT3) AM_NOP // Multiplexed Address/Data
-	AM_RANGE(M6801_PORT4, M6801_PORT4) AM_READ(p4_r) AM_WRITENOP
-ADDRESS_MAP_END
+void adam_digital_data_pack_device::adam_ddp_mem(address_map &map)
+{
+	map(0x0000, 0x001f).m(M6801_TAG, FUNC(m6801_cpu_device::m6801_io));
+	map(0x0080, 0x00ff).ram();
+	map(0x0400, 0x07ff).ram();
+	map(0xf800, 0xffff).rom().region(M6801_TAG, 0);
+}
 
 static const struct CassetteOptions adam_cassette_options =
 {
@@ -76,37 +65,32 @@ static const struct CassetteOptions adam_cassette_options =
 	44100   /* sample frequency */
 };
 
-//-------------------------------------------------
-//  MACHINE_DRIVER( adam_ddp )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( adam_ddp )
-	MCFG_CPU_ADD(M6801_TAG, M6801, XTAL_4MHz)
-	MCFG_CPU_PROGRAM_MAP(adam_ddp_mem)
-	MCFG_CPU_IO_MAP(adam_ddp_io)
-
-	MCFG_CASSETTE_ADD("cassette")
-	MCFG_CASSETTE_FORMATS(coleco_adam_cassette_formats)
-	MCFG_CASSETTE_CREATE_OPTS(&adam_cassette_options)
-	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_MUTED)
-	MCFG_CASSETTE_INTERFACE("adam_cass")
-
-	MCFG_CASSETTE_ADD("cassette2")
-	MCFG_CASSETTE_FORMATS(coleco_adam_cassette_formats)
-	MCFG_CASSETTE_CREATE_OPTS(&adam_cassette_options)
-	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_MUTED)
-	MCFG_CASSETTE_INTERFACE("adam_cass")
-MACHINE_CONFIG_END
-
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor adam_digital_data_pack_device::device_mconfig_additions() const
+void adam_digital_data_pack_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( adam_ddp );
+	M6801(config, m_maincpu, XTAL(4'000'000));
+	m_maincpu->set_addrmap(AS_PROGRAM, &adam_digital_data_pack_device::adam_ddp_mem);
+	m_maincpu->out_p1_cb().set(FUNC(adam_digital_data_pack_device::p1_w));
+	m_maincpu->in_p2_cb().set(FUNC(adam_digital_data_pack_device::p2_r));
+	m_maincpu->out_p2_cb().set(FUNC(adam_digital_data_pack_device::p2_w));
+	// Port 3 = Multiplexed Address/Data
+	m_maincpu->in_p4_cb().set(FUNC(adam_digital_data_pack_device::p4_r));
+
+	CASSETTE(config, m_ddp0);
+	m_ddp0->set_formats(coleco_adam_cassette_formats);
+	m_ddp0->set_create_opts(&adam_cassette_options);
+	m_ddp0->set_default_state(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_MUTED);
+	m_ddp0->set_interface("adam_cass");
+
+	CASSETTE(config, m_ddp1);
+	m_ddp1->set_formats(coleco_adam_cassette_formats);
+	m_ddp1->set_create_opts(&adam_cassette_options);
+	m_ddp1->set_default_state(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_MUTED);
+	m_ddp1->set_interface("adam_cass");
 }
 
 
@@ -120,7 +104,7 @@ machine_config_constructor adam_digital_data_pack_device::device_mconfig_additio
 //-------------------------------------------------
 
 adam_digital_data_pack_device::adam_digital_data_pack_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, ADAM_DDP, "Adam DDP", tag, owner, clock, "adam_ddp", __FILE__),
+	: device_t(mconfig, ADAM_DDP, tag, owner, clock),
 		device_adamnet_card_interface(mconfig, *this),
 		m_maincpu(*this, M6801_TAG),
 		m_ddp0(*this, "cassette"),
@@ -156,7 +140,7 @@ void adam_digital_data_pack_device::adamnet_reset_w(int state)
 //  p1_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( adam_digital_data_pack_device::p1_w )
+void adam_digital_data_pack_device::p1_w(uint8_t data)
 {
 	/*
 
@@ -201,7 +185,7 @@ WRITE8_MEMBER( adam_digital_data_pack_device::p1_w )
 //  p2_r -
 //-------------------------------------------------
 
-READ8_MEMBER( adam_digital_data_pack_device::p2_r )
+uint8_t adam_digital_data_pack_device::p2_r()
 {
 	/*
 
@@ -233,7 +217,7 @@ READ8_MEMBER( adam_digital_data_pack_device::p2_r )
 //  p2_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( adam_digital_data_pack_device::p2_w )
+void adam_digital_data_pack_device::p2_w(uint8_t data)
 {
 	/*
 
@@ -268,7 +252,7 @@ WRITE8_MEMBER( adam_digital_data_pack_device::p2_w )
 //  p4_r -
 //-------------------------------------------------
 
-READ8_MEMBER( adam_digital_data_pack_device::p4_r )
+uint8_t adam_digital_data_pack_device::p4_r()
 {
 	/*
 

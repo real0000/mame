@@ -15,7 +15,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type ISBX_SLOT = device_creator<isbx_slot_device>;
+DEFINE_DEVICE_TYPE(ISBX_SLOT, isbx_slot_device, "isbx_slot", "iSBX bus slot")
 
 
 
@@ -27,8 +27,8 @@ const device_type ISBX_SLOT = device_creator<isbx_slot_device>;
 //  device_isbx_card_interface - constructor
 //-------------------------------------------------
 
-device_isbx_card_interface::device_isbx_card_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig, device)
+device_isbx_card_interface::device_isbx_card_interface(const machine_config &mconfig, device_t &device) :
+	device_interface(device, "isbxbus")
 {
 	m_slot = dynamic_cast<isbx_slot_device *>(device.owner());
 }
@@ -39,12 +39,13 @@ device_isbx_card_interface::device_isbx_card_interface(const machine_config &mco
 //-------------------------------------------------
 
 isbx_slot_device::isbx_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, ISBX_SLOT, "iSBX bus slot", tag, owner, clock, "isbx_slot", __FILE__),
-	device_slot_interface(mconfig, *this),
+	device_t(mconfig, ISBX_SLOT, tag, owner, clock),
+	device_single_card_slot_interface<device_isbx_card_interface>(mconfig, *this),
 	m_write_mintr0(*this),
 	m_write_mintr1(*this),
 	m_write_mdrqt(*this),
-	m_write_mwait(*this), m_card(nullptr)
+	m_write_mwait(*this),
+	m_card(nullptr)
 {
 }
 
@@ -55,7 +56,7 @@ isbx_slot_device::isbx_slot_device(const machine_config &mconfig, const char *ta
 
 void isbx_slot_device::device_start()
 {
-	m_card = dynamic_cast<device_isbx_card_interface *>(get_card_device());
+	m_card = get_card_device();
 
 	// resolve callbacks
 	m_write_mintr0.resolve_safe();
@@ -73,7 +74,8 @@ void isbx_slot_device::device_start()
 #include "compis_fdc.h"
 #include "isbc_218a.h"
 
-SLOT_INTERFACE_START( isbx_cards )
-	SLOT_INTERFACE("fdc", COMPIS_FDC)
-	SLOT_INTERFACE("fdc_218a", ISBC_218A)
-SLOT_INTERFACE_END
+void isbx_cards(device_slot_interface &device)
+{
+	device.option_add("fdc", COMPIS_FDC);
+	device.option_add("fdc_218a", ISBC_218A);
+}

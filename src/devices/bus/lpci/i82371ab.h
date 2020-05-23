@@ -8,15 +8,17 @@
 
 ***************************************************************************/
 
-#ifndef __I82371AB_H__
-#define __I82371AB_H__
+#ifndef MAME_BUS_LPCI_I82371AB_H
+#define MAME_BUS_LPCI_I82371AB_H
+
+#pragma once
 
 #include "pci.h"
 #include "southbridge.h"
 
 // ======================> i82371ab_device
 
-class i82371ab_device :  public southbridge_device,
+class i82371ab_device :  public southbridge_extended_device,
 							public pci_device_interface
 {
 public:
@@ -25,6 +27,8 @@ public:
 
 	virtual uint32_t pci_read(pci_bus_device *pcibus, int function, int offset, uint32_t mem_mask) override;
 	virtual void pci_write(pci_bus_device *pcibus, int function, int offset, uint32_t data, uint32_t mem_mask) override;
+
+	virtual void remap(int space_id, offs_t start, offs_t end) override;
 
 protected:
 	// device-level overrides
@@ -48,6 +52,6 @@ private:
 };
 
 // device type definition
-extern const device_type I82371AB;
+DECLARE_DEVICE_TYPE(I82371AB, i82371ab_device)
 
-#endif /* __I82371AB_H__ */
+#endif // MAME_BUS_LPCI_I82371AB_H

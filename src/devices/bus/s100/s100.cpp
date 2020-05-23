@@ -14,8 +14,8 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type S100_BUS = device_creator<s100_bus_t>;
-const device_type S100_SLOT = device_creator<s100_slot_t>;
+DEFINE_DEVICE_TYPE(S100_BUS,  s100_bus_device,  "s100_bus",  "S100 bus")
+DEFINE_DEVICE_TYPE(S100_SLOT, s100_slot_device, "s100_slot", "S100 slot")
 
 
 
@@ -27,20 +27,27 @@ const device_type S100_SLOT = device_creator<s100_slot_t>;
 //  device_s100_card_interface - constructor
 //-------------------------------------------------
 
-device_s100_card_interface::device_s100_card_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig, device),
+device_s100_card_interface::device_s100_card_interface(const machine_config &mconfig, device_t &device) :
+	device_interface(device, "s100bus"),
 	m_bus(nullptr),
 	m_next(nullptr)
 {
 }
 
+void device_s100_card_interface::interface_pre_start()
+{
+	if (!m_bus)
+		throw device_missing_dependencies();
+}
+
 
 //-------------------------------------------------
-//  s100_slot_t - constructor
+//  s100_slot_device - constructor
 //-------------------------------------------------
-s100_slot_t::s100_slot_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, S100_SLOT, "S100 slot", tag, owner, clock, "s100_slot", __FILE__),
-	device_slot_interface(mconfig, *this), m_bus(nullptr)
+s100_slot_device::s100_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, S100_SLOT, tag, owner, clock),
+	device_single_card_slot_interface<device_s100_card_interface>(mconfig, *this),
+	m_bus(*this, DEVICE_SELF_OWNER)
 {
 }
 
@@ -49,20 +56,20 @@ s100_slot_t::s100_slot_t(const machine_config &mconfig, const char *tag, device_
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void s100_slot_t::device_start()
+void s100_slot_device::device_start()
 {
-	m_bus = machine().device<s100_bus_t>(S100_TAG);
-	device_s100_card_interface *dev = dynamic_cast<device_s100_card_interface *>(get_card_device());
-	if (dev) m_bus->add_card(dev);
+	device_s100_card_interface *const dev = get_card_device();
+	if (dev)
+		m_bus->add_card(dev);
 }
 
 
 //-------------------------------------------------
-//  s100_bus_t - constructor
+//  s100_bus_device - constructor
 //-------------------------------------------------
 
-s100_bus_t::s100_bus_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, S100_BUS, "S100", tag, owner, clock, "s100", __FILE__),
+s100_bus_device::s100_bus_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, S100_BUS, tag, owner, clock),
 	m_write_irq(*this),
 	m_write_nmi(*this),
 	m_write_vi0(*this),
@@ -88,7 +95,7 @@ s100_bus_t::s100_bus_t(const machine_config &mconfig, const char *tag, device_t 
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void s100_bus_t::device_start()
+void s100_bus_device::device_start()
 {
 	// resolve callbacks
 	m_write_irq.resolve_safe();
@@ -115,7 +122,7 @@ void s100_bus_t::device_start()
 //  device_reset - device-specific reset
 //-------------------------------------------------
 
-void s100_bus_t::device_reset()
+void s100_bus_device::device_reset()
 {
 }
 
@@ -124,7 +131,7 @@ void s100_bus_t::device_reset()
 //  add_card - add card
 //-------------------------------------------------
 
-void s100_bus_t::add_card(device_s100_card_interface *card)
+void s100_bus_device::add_card(device_s100_card_interface *card)
 {
 	card->m_bus = this;
 	m_device_list.append(*card);
@@ -135,15 +142,15 @@ void s100_bus_t::add_card(device_s100_card_interface *card)
 //  smemr_r - memory read
 //-------------------------------------------------
 
-READ8_MEMBER( s100_bus_t::smemr_r )
+uint8_t s100_bus_device::smemr_r(offs_t offset)
 {
-	uint8_t data = 0;
+	uint8_t data = 0xff;
 
 	device_s100_card_interface *entry = m_device_list.first();
 
 	while (entry)
 	{
-		data |= entry->s100_smemr_r(space, offset);
+		data &= entry->s100_smemr_r(offset);
 		entry = entry->next();
 	}
 
@@ -155,13 +162,13 @@ READ8_MEMBER( s100_bus_t::smemr_r )
 //  mwrt_w - memory write
 //-------------------------------------------------
 
-WRITE8_MEMBER( s100_bus_t::mwrt_w )
+void s100_bus_device::mwrt_w(offs_t offset, uint8_t data)
 {
 	device_s100_card_interface *entry = m_device_list.first();
 
 	while (entry)
 	{
-		entry->s100_mwrt_w(space, offset, data);
+		entry->s100_mwrt_w(offset, data);
 		entry = entry->next();
 	}
 }
@@ -171,15 +178,15 @@ WRITE8_MEMBER( s100_bus_t::mwrt_w )
 //  sinp_r - I/O read
 //-------------------------------------------------
 
-READ8_MEMBER( s100_bus_t::sinp_r )
+uint8_t s100_bus_device::sinp_r(offs_t offset)
 {
-	uint8_t data = 0;
+	uint8_t data = 0xff;
 
 	device_s100_card_interface *entry = m_device_list.first();
 
 	while (entry)
 	{
-		data |= entry->s100_sinp_r(space, offset);
+		data &= entry->s100_sinp_r(offset);
 		entry = entry->next();
 	}
 
@@ -191,13 +198,13 @@ READ8_MEMBER( s100_bus_t::sinp_r )
 //  sout_w - I/O write
 //-------------------------------------------------
 
-WRITE8_MEMBER( s100_bus_t::sout_w )
+void s100_bus_device::sout_w(offs_t offset, uint8_t data)
 {
 	device_s100_card_interface *entry = m_device_list.first();
 
 	while (entry)
 	{
-		entry->s100_sout_w(space, offset, data);
+		entry->s100_sout_w(offset, data);
 		entry = entry->next();
 	}
 }

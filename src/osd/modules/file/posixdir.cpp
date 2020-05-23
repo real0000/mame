@@ -68,7 +68,7 @@ constexpr char PATHSEPCH = '\\';
 constexpr char PATHSEPCH = '/';
 #endif
 
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__DragonFly__) || defined(EMSCRIPTEN) || defined(__ANDROID__) || defined(WIN32) || defined(SDLMAME_NO64BITIO)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__DragonFly__) || defined(__EMSCRIPTEN__) || defined(__ANDROID__) || defined(WIN32) || defined(SDLMAME_NO64BITIO)
 using sdl_dirent = struct dirent;
 using sdl_stat = struct stat;
 #define sdl_readdir readdir
@@ -158,6 +158,7 @@ const osd::directory::entry *posix_directory::read()
 	case DT_REG:
 		m_entry.type = entry::entry_type::FILE;
 		break;
+	case DT_UNKNOWN:
 	case DT_LNK:
 		if (stat_err)
 			m_entry.type = entry::entry_type::OTHER;

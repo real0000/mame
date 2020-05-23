@@ -1,5 +1,8 @@
 <?xml version="1.0"?>
 <!DOCTYPE softwarelist SYSTEM "softwarelist.dtd">
+<!--
+license:CC0
+-->
 <softwarelist name="pet_rom" description="Commodore PET Function ROMs">
 
 	<software name="arrow">
@@ -33,13 +36,13 @@
 
 		<part name="rom1" interface="pet_9000_rom">
 			<dataarea name="rom" size="0x1000">
-				<rom name="bat4_8$9.bin" size="0x1000" crc="da80481b" sha1="d9ebc8a0b0eab81fcb867b1a89f603bef0fb8509" offset="0" />
+				<rom name="bat4_8-9.bin" size="0x1000" crc="da80481b" sha1="d9ebc8a0b0eab81fcb867b1a89f603bef0fb8509" offset="0" />
 			</dataarea>
 		</part>
 
 		<part name="rom2" interface="pet_a000_rom">
 			<dataarea name="rom" size="0x1000">
-				<rom name="bat4_8$a.bin" size="0x1000" crc="a19433a9" sha1="266c323a1254cdaecbcc9b10e606f1c16ea9ef64" offset="0" />
+				<rom name="bat4_8-a.bin" size="0x1000" crc="a19433a9" sha1="266c323a1254cdaecbcc9b10e606f1c16ea9ef64" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -88,6 +91,18 @@
 		<part name="rom" interface="pet_9000_rom">
 			<dataarea name="rom" size="0x800">
 				<rom name="infopro-9000.bin" size="0x800" crc="60437ebb" sha1="c6758163b6edc09b0f9ed9a9cb3d3470393878eb" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="keychip">
+		<description>KeyChip</description>
+		<year>1981</year>
+		<publisher>WIRT Microsystems</publisher>
+
+		<part name="rom" interface="pet_9000_rom">
+			<dataarea name="rom" size="0x1000">
+				<rom name="keychip-9000.bin" size="0x1000" crc="e7b9d8d2" sha1="5825d25206eb82febc9fb2c8fb669e4301cd1101" offset="0" />
 			</dataarea>
 		</part>
 	</software>

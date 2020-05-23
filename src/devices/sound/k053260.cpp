@@ -55,14 +55,32 @@
 #include "emu.h"
 #include "k053260.h"
 
+#include <algorithm>
+
 #define LOG 0
 
-#define CLOCKS_PER_SAMPLE 32
+static constexpr int CLOCKS_PER_SAMPLE = 64;
 
 
 
 // device type definition
-const device_type K053260 = device_creator<k053260_device>;
+DEFINE_DEVICE_TYPE(K053260, k053260_device, "k053260", "K053260 KDSC")
+    ;
+
+
+// Pan multipliers.  Set according to integer angles in degrees, amusingly.
+// Exact precision hard to know, the floating point-ish output format makes
+// comparisons iffy.  So we used a 1.16 format.
+const int k053260_device::pan_mul[8][2] = {
+    {     0,     0 }, // No sound for pan 0
+    { 65536,     0 }, //  0 degrees
+    { 59870, 26656 }, // 24 degrees
+    { 53684, 37950 }, // 35 degrees
+    { 46341, 46341 }, // 45 degrees
+    { 37950, 53684 }, // 55 degrees
+    { 26656, 59870 }, // 66 degrees
+    {     0, 65536 }  // 90 degrees
+};
 
 
 //**************************************************************************
@@ -73,15 +91,19 @@ const device_type K053260 = device_creator<k053260_device>;
 //  k053260_device - constructor
 //-------------------------------------------------
 
-k053260_device::k053260_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, K053260, "K053260 KDSC", tag, owner, clock, "k053260", __FILE__)
+k053260_device::k053260_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)
+	: device_t(mconfig, K053260, tag, owner, clock)
 	, device_sound_interface(mconfig, *this)
 	, device_rom_interface(mconfig, *this, 21)
+	, m_sh1_cb(*this)
+	, m_sh2_cb(*this)
 	, m_stream(nullptr)
+	, m_timer(nullptr)
 	, m_keyon(0)
 	, m_mode(0)
+	, m_voice{ { *this }, { *this }, { *this }, { *this } }
 {
-	memset(m_portdata, 0, sizeof(m_portdata));
+	std::fill(std::begin(m_portdata), std::end(m_portdata), 0);
 }
 
 
@@ -91,15 +113,32 @@ k053260_device::k053260_device(const machine_config &mconfig, const char *tag, d
 
 void k053260_device::device_start()
 {
+	m_sh1_cb.resolve_safe();
+	m_sh2_cb.resolve_safe();
+
 	m_stream = stream_alloc( 0, 2, clock() / CLOCKS_PER_SAMPLE );
 
 	/* register with the save state system */
 	save_item(NAME(m_portdata));
 	save_item(NAME(m_keyon));
 	save_item(NAME(m_mode));
+	save_item(NAME(m_timer_state));
 
 	for (int i = 0; i < 4; i++)
-		m_voice[i].voice_start(*this, i);
+		m_voice[i].voice_start(i);
+
+	m_timer = timer_alloc(0);
+}
+
+
+//-------------------------------------------------
+//  device_clock_changed
+//-------------------------------------------------
+
+void k053260_device::device_clock_changed()
+{
+	m_stream->set_sample_rate(clock() / CLOCKS_PER_SAMPLE);
+	m_timer->adjust(attotime::from_ticks(16, clock()), 0, attotime::from_ticks(16, clock()));
 }
 
 
@@ -109,6 +148,8 @@ void k053260_device::device_start()
 
 void k053260_device::device_reset()
 {
+	m_timer->adjust(attotime::from_ticks(16, clock()), 0, attotime::from_ticks(16, clock()));
+
 	for (auto & elem : m_voice)
 		elem.voice_reset();
 }
@@ -124,24 +165,35 @@ void k053260_device::rom_bank_updated()
 }
 
 
-READ8_MEMBER( k053260_device::main_read )
+void k053260_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch(m_timer_state) {
+	case 0: m_sh1_cb(ASSERT_LINE); break;
+	case 1: m_sh1_cb(CLEAR_LINE); break;
+	case 2: m_sh2_cb(ASSERT_LINE); break;
+	case 3: m_sh2_cb(CLEAR_LINE); break;
+	}
+	m_timer_state = (m_timer_state+1) & 3;
+}
+
+u8 k053260_device::main_read(offs_t offset)
 {
 	// sub-to-main ports
 	return m_portdata[2 + (offset & 1)];
 }
 
 
-WRITE8_MEMBER( k053260_device::main_write )
+void k053260_device::main_write(offs_t offset, u8 data)
 {
 	// main-to-sub ports
 	m_portdata[offset & 1] = data;
 }
 
 
-READ8_MEMBER( k053260_device::read )
+u8 k053260_device::read(offs_t offset)
 {
 	offset &= 0x3f;
-	uint8_t ret = 0;
+	u8 ret = 0;
 
 	switch (offset)
 	{
@@ -170,7 +222,7 @@ READ8_MEMBER( k053260_device::read )
 }
 
 
-WRITE8_MEMBER( k053260_device::write )
+void k053260_device::write(offs_t offset, u8 data)
 {
 	offset &= 0x3f;
 
@@ -196,7 +248,7 @@ WRITE8_MEMBER( k053260_device::write )
 
 		case 0x28: // key on/off
 		{
-			uint8_t rising_edge = data & ~m_keyon;
+			u8 rising_edge = data & ~m_keyon;
 
 			for (int i = 0; i < 4; i++)
 			{
@@ -250,19 +302,13 @@ WRITE8_MEMBER( k053260_device::write )
 	}
 }
 
-
-static inline int limit( int val, int max, int min )
+static inline int limit(int val, int max, int min)
 {
-	if ( val > max )
-		val = max;
-	else if ( val < min )
-		val = min;
-
-	return val;
+	return std::max(min, std::min(max, val));
 }
 
-#define MAXOUT 0x7fff
-#define MINOUT -0x8000
+static constexpr s32 MAXOUT = 0x7fff;
+static constexpr s32 MINOUT = -0x8000;
 
 //-------------------------------------------------
 //  sound_stream_update - handle a stream update
@@ -282,14 +328,14 @@ void k053260_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 					voice.play(buffer);
 			}
 
-			outputs[0][j] = limit( buffer[0] >> 1, MAXOUT, MINOUT );
-			outputs[1][j] = limit( buffer[1] >> 1, MAXOUT, MINOUT );
+			outputs[0][j] = limit( buffer[0], MAXOUT, MINOUT );
+			outputs[1][j] = limit( buffer[1], MAXOUT, MINOUT );
 		}
 	}
 	else
 	{
-		memset( outputs[0], 0, samples * sizeof(*outputs[0]));
-		memset( outputs[1], 0, samples * sizeof(*outputs[1]));
+		std::fill_n(&outputs[0][0], samples, 0);
+		std::fill_n(&outputs[1][0], samples, 0);
 	}
 }
 
@@ -298,24 +344,22 @@ void k053260_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 //  KDSC_Voice - one of the four voices
 //**************************************************************************
 
-void k053260_device::KDSC_Voice::voice_start(k053260_device &device, int index)
+void k053260_device::KDSC_Voice::voice_start(int index)
 {
-	m_device = &device;
-
 	voice_reset();
 
-	device.save_item(NAME(m_position), index);
-	device.save_item(NAME(m_pan_volume), index);
-	device.save_item(NAME(m_counter), index);
-	device.save_item(NAME(m_output), index);
-	device.save_item(NAME(m_playing), index);
-	device.save_item(NAME(m_start), index);
-	device.save_item(NAME(m_length), index);
-	device.save_item(NAME(m_pitch), index);
-	device.save_item(NAME(m_volume), index);
-	device.save_item(NAME(m_pan), index);
-	device.save_item(NAME(m_loop), index);
-	device.save_item(NAME(m_kadpcm), index);
+	m_device.save_item(NAME(m_position), index);
+	m_device.save_item(NAME(m_pan_volume), index);
+	m_device.save_item(NAME(m_counter), index);
+	m_device.save_item(NAME(m_output), index);
+	m_device.save_item(NAME(m_playing), index);
+	m_device.save_item(NAME(m_start), index);
+	m_device.save_item(NAME(m_length), index);
+	m_device.save_item(NAME(m_pitch), index);
+	m_device.save_item(NAME(m_volume), index);
+	m_device.save_item(NAME(m_pan), index);
+	m_device.save_item(NAME(m_loop), index);
+	m_device.save_item(NAME(m_kadpcm), index);
 }
 
 void k053260_device::KDSC_Voice::voice_reset()
@@ -334,7 +378,7 @@ void k053260_device::KDSC_Voice::voice_reset()
 	update_pan_volume();
 }
 
-void k053260_device::KDSC_Voice::set_register(offs_t offset, uint8_t data)
+void k053260_device::KDSC_Voice::set_register(offs_t offset, u8 data)
 {
 	switch (offset & 0x7)
 	{
@@ -365,13 +409,13 @@ void k053260_device::KDSC_Voice::set_register(offs_t offset, uint8_t data)
 	}
 }
 
-void k053260_device::KDSC_Voice::set_loop_kadpcm(uint8_t data)
+void k053260_device::KDSC_Voice::set_loop_kadpcm(u8 data)
 {
 	m_loop = BIT(data, 0);
 	m_kadpcm = BIT(data, 4);
 }
 
-void k053260_device::KDSC_Voice::set_pan(uint8_t data)
+void k053260_device::KDSC_Voice::set_pan(u8 data)
 {
 	m_pan = data & 0x7;
 	update_pan_volume();
@@ -379,8 +423,8 @@ void k053260_device::KDSC_Voice::set_pan(uint8_t data)
 
 void k053260_device::KDSC_Voice::update_pan_volume()
 {
-	m_pan_volume[0] = m_volume * (8 - m_pan);
-	m_pan_volume[1] = m_volume * m_pan;
+	m_pan_volume[0] = m_volume * pan_mul[m_pan][0];
+	m_pan_volume[1] = m_volume * pan_mul[m_pan][1];
 }
 
 void k053260_device::KDSC_Voice::key_on()
@@ -389,8 +433,8 @@ void k053260_device::KDSC_Voice::key_on()
 	m_counter = 0x1000 - CLOCKS_PER_SAMPLE; // force update on next sound_stream_update
 	m_output = 0;
 	m_playing = true;
-	if (LOG) m_device->logerror("K053260: start = %06x, length = %06x, pitch = %04x, vol = %02x, loop = %s, %s\n",
-					m_start, m_length, m_pitch, m_volume, m_loop ? "yes" : "no", m_kadpcm ? "KADPCM" : "PCM" );
+	if (LOG) m_device.logerror("K053260: start = %06x, length = %06x, pitch = %04x, vol = %02x:%x, loop = %s, %s\n",
+							   m_start, m_length, m_pitch, m_volume, m_pan, m_loop ? "yes" : "no", m_kadpcm ? "KADPCM" : "PCM" );
 }
 
 void k053260_device::KDSC_Voice::key_off()
@@ -408,7 +452,7 @@ void k053260_device::KDSC_Voice::play(stream_sample_t *outputs)
 	{
 		m_counter = m_counter - 0x1000 + m_pitch;
 
-		uint32_t bytepos = ++m_position >> ( m_kadpcm ? 1 : 0 );
+		u32 bytepos = ++m_position >> ( m_kadpcm ? 1 : 0 );
 		/*
 		Yes, _pre_increment. Playback must start 1 byte position after the
 		start address written to the register, or else ADPCM sounds will
@@ -432,12 +476,12 @@ void k053260_device::KDSC_Voice::play(stream_sample_t *outputs)
 			}
 		}
 
-		uint8_t romdata = m_device->read_byte(m_start + bytepos);
+		u8 romdata = m_device.read_byte(m_start + bytepos);
 
 		if (m_kadpcm)
 		{
 			if (m_position & 1) romdata >>= 4; // decode low nybble, then high nybble
-			static const int8_t kadpcm_table[] = {0,1,2,4,8,16,32,64,-128,-64,-32,-16,-8,-4,-2,-1};
+			static const s8 kadpcm_table[] = {0,1,2,4,8,16,32,64,-128,-64,-32,-16,-8,-4,-2,-1};
 			m_output += kadpcm_table[romdata & 0xf];
 		}
 		else
@@ -446,15 +490,15 @@ void k053260_device::KDSC_Voice::play(stream_sample_t *outputs)
 		}
 	}
 
-	outputs[0] += m_output * m_pan_volume[0];
-	outputs[1] += m_output * m_pan_volume[1];
+	outputs[0] += (m_output * m_pan_volume[0]) >> 15;
+	outputs[1] += (m_output * m_pan_volume[1]) >> 15;
 }
 
-uint8_t k053260_device::KDSC_Voice::read_rom()
+u8 k053260_device::KDSC_Voice::read_rom()
 {
-	uint32_t offs = m_start + m_position;
+	u32 offs = m_start + m_position;
 
 	m_position = (m_position + 1) & 0xffff;
 
-	return m_device->read_byte(offs);
+	return m_device.read_byte(offs);
 }

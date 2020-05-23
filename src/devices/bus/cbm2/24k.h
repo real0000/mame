@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_CBM2_24K_H
+#define MAME_BUS_CBM2_24K_H
 
-#ifndef __CBM2_24K_CARTRIDGE__
-#define __CBM2_24K_CARTRIDGE__
+#pragma once
 
 #include "exp.h"
 
@@ -33,15 +33,15 @@ protected:
 	virtual void device_start() override;
 
 	// device_cbm2_expansion_card_interface overrides
-	virtual uint8_t cbm2_bd_r(address_space &space, offs_t offset, uint8_t data, int csbank1, int csbank2, int csbank3) override;
-	virtual void cbm2_bd_w(address_space &space, offs_t offset, uint8_t data, int csbank1, int csbank2, int csbank3) override;
+	virtual uint8_t cbm2_bd_r(offs_t offset, uint8_t data, int csbank1, int csbank2, int csbank3) override;
+	virtual void cbm2_bd_w(offs_t offset, uint8_t data, int csbank1, int csbank2, int csbank3) override;
 
 	optional_shared_ptr<uint8_t> m_ram;
 };
 
 
 // device type definition
-extern const device_type CBM2_24K;
+DECLARE_DEVICE_TYPE(CBM2_24K, cbm2_24k_cartridge_device)
 
 
-#endif
+#endif // MAME_BUS_CBM2_24K_H

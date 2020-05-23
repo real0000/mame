@@ -1,18 +1,17 @@
 // license:BSD-3-Clause
 // copyright-holders:Mark McDougall, David Haywood
 
-#ifndef MAME_VIDEO_STFIGHT_VIDEO_H
-#define MAME_VIDEO_STFIGHT_VIDEO_H
+#ifndef MAME_VIDEO_STFIGHT_DEV_H
+#define MAME_VIDEO_STFIGHT_DEV_H
 
 #pragma once
 
+#include "emupal.h"
+#include "tilemap.h"
 
 
-extern const device_type STFIGHT_VIDEO;
 
-#define MCFG_STFIGHT_VIDEO_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, STFIGHT_VIDEO, 0)
-
+DECLARE_DEVICE_TYPE(STFIGHT_VIDEO, stfight_video_device)
 
 class stfight_video_device :  public device_t
 {
@@ -21,14 +20,14 @@ public:
 	stfight_video_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 
-	DECLARE_WRITE8_MEMBER(stfight_text_char_w);
-	DECLARE_WRITE8_MEMBER(stfight_sprite_bank_w);
-	DECLARE_WRITE8_MEMBER(stfight_vh_latch_w);
-
-	uint32_t screen_update_stfight(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void stfight_text_char_w(offs_t offset, uint8_t data);
+	void stfight_sprite_bank_w(uint8_t data);
+	void stfight_vh_latch_w(offs_t offset, uint8_t data);
 
 protected:
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	uint32_t screen_update_stfight(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
@@ -73,4 +72,4 @@ private:
 	void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 };
 
-#endif // MAME_VIDEO_STFIGHT_VIDEO_H
+#endif // MAME_VIDEO_STFIGHT_DEV_H

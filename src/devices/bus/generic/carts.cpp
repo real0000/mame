@@ -9,15 +9,24 @@
 
 #include "emu.h"
 #include "carts.h"
+#include "rom.h"
+#include "ram.h"
 
-SLOT_INTERFACE_START(generic_plain_slot)
-	SLOT_INTERFACE_INTERNAL("rom", GENERIC_ROM_PLAIN)
-SLOT_INTERFACE_END
 
-SLOT_INTERFACE_START(generic_linear_slot)
-	SLOT_INTERFACE_INTERNAL("rom", GENERIC_ROM_LINEAR)
-SLOT_INTERFACE_END
+device_slot_interface &generic_plain_slot(device_slot_interface &device)
+{
+	device.option_add_internal("rom", GENERIC_ROM_PLAIN);
+	return device;
+}
 
-SLOT_INTERFACE_START(generic_romram_plain_slot)
-	SLOT_INTERFACE_INTERNAL("rom", GENERIC_ROMRAM_PLAIN)
-SLOT_INTERFACE_END
+device_slot_interface &generic_linear_slot(device_slot_interface &device)
+{
+	device.option_add_internal("rom", GENERIC_ROM_LINEAR);
+	return device;
+}
+
+device_slot_interface &generic_romram_plain_slot(device_slot_interface &device)
+{
+	device.option_add_internal("rom", GENERIC_ROMRAM_PLAIN);
+	return device;
+}

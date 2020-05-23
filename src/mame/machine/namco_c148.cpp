@@ -9,7 +9,7 @@
     Based off implementation from K.Wilkins and Phil Stroffolino
 
     TODO:
-    - hookup C116 device, @see mame/includes/namcoic.h
+    - hookup C116 device, @see mame/machine/namcoic.h
 
 =============================================================================
 Interrupt Controller C148          1C0000-1FFFFF  R/W  D00-D02
@@ -45,7 +45,7 @@ Interrupt Controller C148          1C0000-1FFFFF  R/W  D00-D02
 #include "namco_c148.h"
 
 #define VERBOSE         0
-#define LOG(x) do { if (VERBOSE) printf x; } while (0)
+#include "logmacro.h"
 
 
 
@@ -54,7 +54,7 @@ Interrupt Controller C148          1C0000-1FFFFF  R/W  D00-D02
 //**************************************************************************
 
 // device type definition
-const device_type NAMCO_C148 = device_creator<namco_c148_device>;
+DEFINE_DEVICE_TYPE(NAMCO_C148, namco_c148_device, "namco_c148", "Namco C148 Interrupt Controller")
 
 
 //**************************************************************************
@@ -65,36 +65,48 @@ const device_type NAMCO_C148 = device_creator<namco_c148_device>;
 //  namco_c148_device - constructor
 //-------------------------------------------------
 
-namco_c148_device::namco_c148_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, NAMCO_C148, "Namco C148 Interrupt Controller", tag, owner, clock, "namco_c148", __FILE__),
+namco_c148_device::namco_c148_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, NAMCO_C148, tag, owner, clock),
 	m_out_ext1_cb(*this),
 	m_out_ext2_cb(*this),
-	m_hostcpu_tag(nullptr),
-	m_linked_c148_tag(nullptr)
+	m_hostcpu(*this, finder_base::DUMMY_TAG),
+	m_linked_c148(*this, finder_base::DUMMY_TAG)
 {
 }
 
 // (*) denotes master CPU only
-DEVICE_ADDRESS_MAP_START( map, 16, namco_c148_device )
-	AM_RANGE(0x04000, 0x05fff) AM_READWRITE8(bus_ctrl_r, bus_ctrl_w, 0x00ff)
-	AM_RANGE(0x06000, 0x07fff) AM_READWRITE8(cpu_irq_level_r,cpu_irq_level_w,0x00ff) // CPUIRQ lv
-	AM_RANGE(0x08000, 0x09fff) AM_READWRITE8(ex_irq_level_r,ex_irq_level_w,0x00ff) // EXIRQ lv
-	AM_RANGE(0x0a000, 0x0bfff) AM_READWRITE8(pos_irq_level_r,pos_irq_level_w,0x00ff) // POSIRQ lv
-	AM_RANGE(0x0c000, 0x0dfff) AM_READWRITE8(sci_irq_level_r,sci_irq_level_w,0x00ff) // SCIRQ lv
-	AM_RANGE(0x0e000, 0x0ffff) AM_READWRITE8(vblank_irq_level_r,vblank_irq_level_w,0x00ff) // VBlank IRQ lv
+void namco_c148_device::map(address_map &map)
+{
+	map(0x04000, 0x05fff).rw(FUNC(namco_c148_device::bus_ctrl_r), FUNC(namco_c148_device::bus_ctrl_w)).umask16(0x00ff);
+	map(0x06000, 0x07fff).rw(FUNC(namco_c148_device::cpu_irq_level_r), FUNC(namco_c148_device::cpu_irq_level_w)).umask16(0x00ff); // CPUIRQ lv
+	map(0x08000, 0x09fff).rw(FUNC(namco_c148_device::ex_irq_level_r), FUNC(namco_c148_device::ex_irq_level_w)).umask16(0x00ff); // EXIRQ lv
+	map(0x0a000, 0x0bfff).rw(FUNC(namco_c148_device::pos_irq_level_r), FUNC(namco_c148_device::pos_irq_level_w)).umask16(0x00ff); // POSIRQ lv
+	map(0x0c000, 0x0dfff).rw(FUNC(namco_c148_device::sci_irq_level_r), FUNC(namco_c148_device::sci_irq_level_w)).umask16(0x00ff); // SCIRQ lv
+	map(0x0e000, 0x0ffff).rw(FUNC(namco_c148_device::vblank_irq_level_r), FUNC(namco_c148_device::vblank_irq_level_w)).umask16(0x00ff); // VBlank IRQ lv
 
-	AM_RANGE(0x10000, 0x11fff) AM_WRITE(cpu_irq_assert_w)
-	AM_RANGE(0x16000, 0x17fff) AM_READWRITE(cpu_irq_ack_r, cpu_irq_ack_w) // CPUIRQ ack
-	AM_RANGE(0x18000, 0x19fff) AM_READWRITE(ex_irq_ack_r, ex_irq_ack_w) // EXIRQ ack
-	AM_RANGE(0x1a000, 0x1bfff) AM_READWRITE(pos_irq_ack_r, pos_irq_ack_w) // POSIRQ ack
-	AM_RANGE(0x1c000, 0x1dfff) AM_READWRITE(sci_irq_ack_r, sci_irq_ack_w) // SCIRQ ack
-	AM_RANGE(0x1e000, 0x1ffff) AM_READWRITE(vblank_irq_ack_r, vblank_irq_ack_w) // VBlank IRQ ack
-	AM_RANGE(0x20000, 0x21fff) AM_READ8(ext_r,0x00ff) // EEPROM ready status (*)
-	AM_RANGE(0x22000, 0x23fff) AM_READNOP AM_WRITE8(ext1_w,0x00ff) // sound CPU reset (*)
-	AM_RANGE(0x24000, 0x25fff) AM_WRITE8(ext2_w,0x00ff) // slave & i/o reset (*)
-	AM_RANGE(0x26000, 0x27fff) AM_NOP // watchdog
-ADDRESS_MAP_END
+	map(0x10000, 0x11fff).w(FUNC(namco_c148_device::cpu_irq_assert_w));
+	map(0x16000, 0x17fff).rw(FUNC(namco_c148_device::cpu_irq_ack_r), FUNC(namco_c148_device::cpu_irq_ack_w)); // CPUIRQ ack
+	map(0x18000, 0x19fff).rw(FUNC(namco_c148_device::ex_irq_ack_r), FUNC(namco_c148_device::ex_irq_ack_w)); // EXIRQ ack
+	map(0x1a000, 0x1bfff).rw(FUNC(namco_c148_device::pos_irq_ack_r), FUNC(namco_c148_device::pos_irq_ack_w)); // POSIRQ ack
+	map(0x1c000, 0x1dfff).rw(FUNC(namco_c148_device::sci_irq_ack_r), FUNC(namco_c148_device::sci_irq_ack_w)); // SCIRQ ack
+	map(0x1e000, 0x1ffff).rw(FUNC(namco_c148_device::vblank_irq_ack_r), FUNC(namco_c148_device::vblank_irq_ack_w)); // VBlank IRQ ack
+	map(0x20000, 0x21fff).r(FUNC(namco_c148_device::ext_r)).umask16(0x00ff); // EEPROM ready status (*)
+	map(0x22000, 0x23fff).nopr().w(FUNC(namco_c148_device::ext1_w)).umask16(0x00ff); // sound CPU reset (*)
+	map(0x24000, 0x25fff).w(FUNC(namco_c148_device::ext2_w)).umask16(0x00ff); // slave & i/o reset (*)
+	map(0x26000, 0x27fff).noprw(); // watchdog
+}
 
+
+
+//-------------------------------------------------
+//  device_validity_check - device-specific checks
+//-------------------------------------------------
+
+void namco_c148_device::device_validity_check(validity_checker &valid) const
+{
+	if ((m_linked_c148.finder_tag() != finder_base::DUMMY_TAG) && !m_linked_c148)
+		osd_printf_error("Linked C148 configured but not found.\n");
+}
 
 
 //-------------------------------------------------
@@ -103,10 +115,6 @@ ADDRESS_MAP_END
 
 void namco_c148_device::device_start()
 {
-	m_hostcpu = machine().device<cpu_device>(m_hostcpu_tag);
-	m_linked_c148 = machine().device<namco_c148_device>(m_linked_c148_tag);
-	assert(m_hostcpu != nullptr);
-
 	m_out_ext1_cb.resolve_safe();
 	m_out_ext2_cb.resolve_safe();
 
@@ -154,11 +162,11 @@ inline void namco_c148_device::flush_irq_acks()
 		m_hostcpu->set_input_line(i,CLEAR_LINE);
 }
 
-WRITE8_MEMBER( namco_c148_device::pos_irq_level_w )     { m_irqlevel.pos = data & 7;    flush_irq_acks(); if(data != 0) { LOG(("%s: pos IRQ level = %02x\n",this->tag(),data)); }   }
-WRITE8_MEMBER( namco_c148_device::vblank_irq_level_w )  { m_irqlevel.vblank = data & 7; flush_irq_acks(); LOG(("%s: vblank IRQ level = %02x\n",this->tag(),data));  }
-WRITE8_MEMBER( namco_c148_device::cpu_irq_level_w )     { m_irqlevel.cpu = data & 7;    flush_irq_acks(); LOG(("%s: cpu IRQ level = %02x\n",this->tag(),data)); }
-WRITE8_MEMBER( namco_c148_device::ex_irq_level_w )      { m_irqlevel.ex = data & 7;     flush_irq_acks(); LOG(("%s: ex IRQ level = %02x\n",this->tag(),data));  }
-WRITE8_MEMBER( namco_c148_device::sci_irq_level_w )     { m_irqlevel.sci = data & 7;    flush_irq_acks(); LOG(("%s: sci IRQ level = %02x\n",this->tag(),data)); }
+WRITE8_MEMBER( namco_c148_device::pos_irq_level_w )     { m_irqlevel.pos = data & 7;    flush_irq_acks(); if(data != 0) { LOG("%s: pos IRQ level = %02x\n",data); }   }
+WRITE8_MEMBER( namco_c148_device::vblank_irq_level_w )  { m_irqlevel.vblank = data & 7; flush_irq_acks(); LOG("%s: vblank IRQ level = %02x\n",data);  }
+WRITE8_MEMBER( namco_c148_device::cpu_irq_level_w )     { m_irqlevel.cpu = data & 7;    flush_irq_acks(); LOG("%s: cpu IRQ level = %02x\n",data); }
+WRITE8_MEMBER( namco_c148_device::ex_irq_level_w )      { m_irqlevel.ex = data & 7;     flush_irq_acks(); LOG("%s: ex IRQ level = %02x\n",data);  }
+WRITE8_MEMBER( namco_c148_device::sci_irq_level_w )     { m_irqlevel.sci = data & 7;    flush_irq_acks(); LOG("%s: sci IRQ level = %02x\n",data); }
 
 READ16_MEMBER( namco_c148_device::vblank_irq_ack_r )    { m_hostcpu->set_input_line(m_irqlevel.vblank, CLEAR_LINE); return 0; }
 READ16_MEMBER( namco_c148_device::pos_irq_ack_r )       { m_hostcpu->set_input_line(m_irqlevel.pos, CLEAR_LINE);    return 0; }

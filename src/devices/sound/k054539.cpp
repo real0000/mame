@@ -12,26 +12,27 @@
 #include "emu.h"
 #include "k054539.h"
 
-const device_type K054539 = device_creator<k054539_device>;
+//#define VERBOSE 1
+#include "logmacro.h"
 
-#define VERBOSE 0
-#define LOG(x) do { if (VERBOSE) logerror x; } while (0)
+
+DEFINE_DEVICE_TYPE(K054539, k054539_device, "k054539", "K054539 ADPCM")
 
 k054539_device::k054539_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, K054539, "K054539 ADPCM", tag, owner, clock, "k054539", __FILE__),
-		device_sound_interface(mconfig, *this),
-		flags(0),
-		ram(nullptr),
-		reverb_pos(0),
-		cur_ptr(0),
-		cur_limit(0),
-		cur_zone(nullptr),
-		m_rom(*this, DEVICE_SELF),
-		rom_mask(0),
-		stream(nullptr),
-		m_timer(nullptr),
-		m_timer_state(0),
-		m_timer_handler(*this)
+	: device_t(mconfig, K054539, tag, owner, clock)
+	, device_sound_interface(mconfig, *this)
+	, device_rom_interface(mconfig, *this, 24)
+	, flags(0)
+	, ram(nullptr)
+	, reverb_pos(0)
+	, cur_ptr(0)
+	, cur_limit(0)
+	, rom_addr(0)
+	, stream(nullptr)
+	, m_timer(nullptr)
+	, m_timer_state(0)
+	, m_timer_handler(*this)
+	, m_apan_cb(*this)
 {
 }
 
@@ -167,7 +168,7 @@ void k054539_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 				int rdelta = (base1[6] | (base1[7] << 8)) >> 3;
 				rdelta = (rdelta + reverb_pos) & 0x3fff;
 
-				int cur_pos = (base1[0x0c] | (base1[0x0d] << 8) | (base1[0x0e] << 16)) & rom_mask;
+				int cur_pos = (base1[0x0c] | (base1[0x0d] << 8) | (base1[0x0e] << 16));
 
 				int fdelta, pdelta;
 				if(base2[0] & 0x20) {
@@ -199,10 +200,10 @@ void k054539_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 						cur_pos += pdelta;
 
 						cur_pval = cur_val;
-						cur_val = (int16_t)(m_rom[cur_pos] << 8);
+						cur_val = (int16_t)(read_byte(cur_pos) << 8);
 						if(cur_val == (int16_t)0x8000 && (base2[1] & 1)) {
-							cur_pos = (base1[0x08] | (base1[0x09] << 8) | (base1[0x0a] << 16)) & rom_mask;
-							cur_val = (int16_t)(m_rom[cur_pos] << 8);
+							cur_pos = (base1[0x08] | (base1[0x09] << 8) | (base1[0x0a] << 16));
+							cur_val = (int16_t)(read_byte(cur_pos) << 8);
 						}
 						if(cur_val == (int16_t)0x8000) {
 							keyoff(ch);
@@ -222,10 +223,10 @@ void k054539_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 						cur_pos += pdelta;
 
 						cur_pval = cur_val;
-						cur_val = (int16_t)(m_rom[cur_pos] | m_rom[cur_pos+1]<<8);
+						cur_val = (int16_t)(read_byte(cur_pos) | read_byte(cur_pos+1)<<8);
 						if(cur_val == (int16_t)0x8000 && (base2[1] & 1)) {
-							cur_pos = (base1[0x08] | (base1[0x09] << 8) | (base1[0x0a] << 16)) & rom_mask;
-							cur_val = (int16_t)(m_rom[cur_pos] | m_rom[cur_pos+1]<<8);
+							cur_pos = (base1[0x08] | (base1[0x09] << 8) | (base1[0x0a] << 16));
+							cur_val = (int16_t)(read_byte(cur_pos) | read_byte(cur_pos+1)<<8);
 						}
 						if(cur_val == (int16_t)0x8000) {
 							keyoff(ch);
@@ -250,10 +251,10 @@ void k054539_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 						cur_pos += pdelta;
 
 						cur_pval = cur_val;
-						cur_val = m_rom[cur_pos>>1];
+						cur_val = read_byte(cur_pos>>1);
 						if(cur_val == 0x88 && (base2[1] & 1)) {
-							cur_pos = ((base1[0x08] | (base1[0x09] << 8) | (base1[0x0a] << 16)) & rom_mask) << 1;
-							cur_val = m_rom[cur_pos>>1];
+							cur_pos = (base1[0x08] | (base1[0x09] << 8) | (base1[0x0a] << 16)) << 1;
+							cur_val = read_byte(cur_pos>>1);
 						}
 						if(cur_val == 0x88) {
 							keyoff(ch);
@@ -278,7 +279,7 @@ void k054539_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 					break;
 				}
 				default:
-					LOG(("Unknown sample type %x for channel %d\n", base2[0] & 0xc, ch));
+					LOG("Unknown sample type %x for channel %d\n", base2[0] & 0xc, ch);
 					break;
 				}
 				lval += cur_val * lvol;
@@ -320,13 +321,6 @@ void k054539_device::init_chip()
 	cur_ptr = 0;
 	memset(ram.get(), 0, 0x4000);
 
-	rom_mask = 0xffffffffU;
-	for(int i=0; i<32; i++)
-		if((1U<<i) >= m_rom.bytes()) {
-			rom_mask = (1U<<i) - 1;
-			break;
-		}
-
 	stream = stream_alloc(0, 2, clock() / 384);
 
 	save_item(NAME(voltab));
@@ -336,15 +330,16 @@ void k054539_device::init_chip()
 	save_item(NAME(flags));
 
 	save_item(NAME(regs));
-	save_pointer(NAME(ram.get()), 0x4000);
+	save_pointer(NAME(ram), 0x4000);
 	save_item(NAME(reverb_pos));
 	save_item(NAME(cur_ptr));
 	save_item(NAME(cur_limit));
+	save_item(NAME(rom_addr));
 
 	save_item(NAME(m_timer_state));
 }
 
-WRITE8_MEMBER(k054539_device::write)
+void k054539_device::write(offs_t offset, u8 data)
 {
 	if(0) {
 		int voice, reg;
@@ -435,18 +430,16 @@ WRITE8_MEMBER(k054539_device::write)
 		break;
 
 		case 0x22d:
-			if(regs[0x22e] == 0x80)
-				cur_zone[cur_ptr] = data;
+			if(rom_addr == 0x80)
+				ram[cur_ptr] = data;
 			cur_ptr++;
 			if(cur_ptr == cur_limit)
 				cur_ptr = 0;
 		break;
 
 		case 0x22e:
-			cur_zone =
-				data == 0x80 ? ram.get() :
-				&m_rom[0x20000*data];
-			cur_limit = data == 0x80 ? 0x4000 : 0x20000;
+			rom_addr = data;
+			cur_limit = rom_addr == 0x80 ? 0x4000 : 0x20000;
 			cur_ptr = 0;
 		break;
 
@@ -481,17 +474,15 @@ WRITE8_MEMBER(k054539_device::write)
 
 void k054539_device::device_post_load()
 {
-	int data = regs[0x22e];
-	cur_zone = data == 0x80 ? ram.get() : &m_rom[0x20000*data];
-	cur_limit = data == 0x80 ? 0x4000 : 0x20000;
+	cur_limit = rom_addr == 0x80 ? 0x4000 : 0x20000;
 }
 
-READ8_MEMBER(k054539_device::read)
+u8 k054539_device::read(offs_t offset)
 {
 	switch(offset) {
 	case 0x22d:
 		if(regs[0x22f] & 0x10) {
-			uint8_t res = cur_zone[cur_ptr];
+			uint8_t res = (rom_addr == 0x80) ? ram[cur_ptr] : read_byte((0x20000*rom_addr)+cur_ptr);
 			cur_ptr++;
 			if(cur_ptr == cur_limit)
 				cur_ptr = 0;
@@ -501,7 +492,7 @@ READ8_MEMBER(k054539_device::read)
 	case 0x22c:
 		break;
 	default:
-		LOG(("K054539 read %03x\n", offset));
+		LOG("K054539 read %03x\n", offset);
 		break;
 	}
 	return regs[offset];
@@ -513,7 +504,7 @@ void k054539_device::device_start()
 
 	// resolve / bind callbacks
 	m_timer_handler.resolve_safe();
-	m_apan_cb.bind_relative_to(*owner());
+	m_apan_cb.resolve();
 
 	for (auto & elem : gain)
 		elem = 1.0;
@@ -545,7 +536,26 @@ void k054539_device::device_start()
 	init_chip();
 }
 
+void k054539_device::device_clock_changed()
+{
+	stream->set_sample_rate(clock() / 384);
+}
+
 void k054539_device::device_reset()
 {
+	regs[0x22c] = 0;
+	regs[0x22f] = 0;
+	memset(ram.get(), 0, 0x4000);
 	m_timer->enable(false);
 }
+
+
+//-------------------------------------------------
+//  rom_bank_updated - the rom bank has changed
+//-------------------------------------------------
+
+void k054539_device::rom_bank_updated()
+{
+	stream->update();
+}
+

@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_COMX35_EPROM_H
+#define MAME_BUS_COMX35_EPROM_H
 
-#ifndef __COMX_EPR__
-#define __COMX_EPR__
+#pragma once
 
 #include "exp.h"
 
@@ -37,8 +37,8 @@ protected:
 	virtual void device_reset() override;
 
 	// device_comx_expansion_card_interface overrides
-	virtual uint8_t comx_mrd_r(address_space &space, offs_t offset, int *extrom) override;
-	virtual void comx_io_w(address_space &space, offs_t offset, uint8_t data) override;
+	virtual uint8_t comx_mrd_r(offs_t offset, int *extrom) override;
+	virtual void comx_io_w(offs_t offset, uint8_t data) override;
 
 private:
 	required_memory_region m_rom;
@@ -49,7 +49,7 @@ private:
 
 
 // device type definition
-extern const device_type COMX_EPR;
+DECLARE_DEVICE_TYPE(COMX_EPR, comx_epr_device)
 
 
-#endif
+#endif // MAME_BUS_COMX35_EPROM_H

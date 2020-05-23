@@ -42,6 +42,7 @@ WRITE8_MEMBER( liberatr_state::bitmap_w )
 
 	m_bitmapram[offset] = data;
 
+	offset += 3;
 	x = (offset & 0x3f) << 2;
 	y = offset >> 6;
 
@@ -52,7 +53,6 @@ WRITE8_MEMBER( liberatr_state::bitmap_w )
 	m_videoram[(y << 8) | x | 2] = data;
 	m_videoram[(y << 8) | x | 3] = data;
 }
-
 
 
 /********************************************************************************************
@@ -216,6 +216,8 @@ void liberatr_state::video_start()
 	// for each planet in the planet ROMs
 	init_planet(m_planets[0], &memregion("gfx1")->base()[0x2000]);
 	init_planet(m_planets[1], &memregion("gfx1")->base()[0x0000]);
+
+	save_item(NAME(m_planet_select));
 }
 
 
@@ -249,7 +251,7 @@ void liberatr_state::draw_planet(bitmap_rgb32 &bitmap, pen_t *pens)
 {
 	uint8_t latitude;
 
-	uint8_t *buffer = m_planets[(*m_planet_select >> 4) & 0x01].frames[*m_planet_frame];
+	uint8_t *buffer = m_planets[m_planet_select].frames[*m_planet_frame];
 
 	/* for each latitude */
 	for (latitude = 0; latitude < 0x80; latitude++)

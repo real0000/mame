@@ -45,89 +45,87 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type NES_NROM = device_creator<nes_nrom_device>;
-const device_type NES_NROM368 = device_creator<nes_nrom368_device>;
-const device_type NES_FCBASIC = device_creator<nes_fcbasic_device>;
-const device_type NES_AXROM = device_creator<nes_axrom_device>;
-const device_type NES_BXROM = device_creator<nes_bxrom_device>;
-const device_type NES_CNROM = device_creator<nes_cnrom_device>;
-const device_type NES_CPROM = device_creator<nes_cprom_device>;
-const device_type NES_GXROM = device_creator<nes_gxrom_device>;
-const device_type NES_UXROM = device_creator<nes_uxrom_device>;
-const device_type NES_UXROM_CC = device_creator<nes_uxrom_cc_device>;
-const device_type NES_UN1ROM = device_creator<nes_un1rom_device>;
-const device_type NES_NOCHR = device_creator<nes_nochr_device>;
+DEFINE_DEVICE_TYPE(NES_NROM,     nes_nrom_device,     "nes_nrom",     "NES Cart NROM PCB")
+DEFINE_DEVICE_TYPE(NES_NROM368,  nes_nrom368_device,  "nes_nrom368",  "NES Cart NROM-368 PCB")
+DEFINE_DEVICE_TYPE(NES_FCBASIC,  nes_fcbasic_device,  "nes_fcbasic",  "NES Cart Famicom BASIC PCB")
+DEFINE_DEVICE_TYPE(NES_AXROM,    nes_axrom_device,    "nes_axrom",    "NES Cart AxROM PCB")
+DEFINE_DEVICE_TYPE(NES_BXROM,    nes_bxrom_device,    "nes_bxrom",    "NES Cart BxROM PCB")
+DEFINE_DEVICE_TYPE(NES_CNROM,    nes_cnrom_device,    "nes_cnrom",    "NES Cart CNROM PCB")
+DEFINE_DEVICE_TYPE(NES_CPROM,    nes_cprom_device,    "nes_cprom",    "NES Cart CPROM PCB")
+DEFINE_DEVICE_TYPE(NES_GXROM,    nes_gxrom_device,    "nes_gxrom",    "NES Cart GxROM PCB")
+DEFINE_DEVICE_TYPE(NES_UXROM,    nes_uxrom_device,    "nes_uxrom",    "NES Cart UxROM PCB")
+DEFINE_DEVICE_TYPE(NES_UXROM_CC, nes_uxrom_cc_device, "nes_uxrom_cc", "NES Cart UNROM M5 (Crazy Climber) PCB")
+DEFINE_DEVICE_TYPE(NES_UN1ROM,   nes_un1rom_device,   "nes_un1rom",   "NES Cart UN1ROM PCB")
+DEFINE_DEVICE_TYPE(NES_NOCHR,    nes_nochr_device,    "nes_nochr",    "NES Cart NoCash NOCHR PCB")
 
 
-nes_nrom_device::nes_nrom_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-						device_nes_cart_interface( mconfig, *this )
+nes_nrom_device::nes_nrom_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock), device_nes_cart_interface(mconfig, *this)
 {
 }
 
 nes_nrom_device::nes_nrom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, NES_NROM, "NES Cart NROM PCB", tag, owner, clock, "nes_nrom", __FILE__),
-						device_nes_cart_interface( mconfig, *this )
+	: nes_nrom_device(mconfig, NES_NROM, tag, owner, clock)
 {
 }
 
 nes_nrom368_device::nes_nrom368_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_NROM368, "NES Cart NROM-368 PCB", tag, owner, clock, "nes_nrom368", __FILE__)
+	: nes_nrom_device(mconfig, NES_NROM368, tag, owner, clock)
 {
 }
 
 nes_fcbasic_device::nes_fcbasic_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_FCBASIC, "NES Cart Famicom BASIC PCB", tag, owner, clock, "nes_fcbasic", __FILE__)
+	: nes_nrom_device(mconfig, NES_FCBASIC, tag, owner, clock)
 {
 }
 
 nes_axrom_device::nes_axrom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_AXROM, "NES Cart AxROM PCB", tag, owner, clock, "nes_axrom", __FILE__)
+	: nes_nrom_device(mconfig, NES_AXROM, tag, owner, clock)
 {
 }
 
 nes_bxrom_device::nes_bxrom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_BXROM, "NES Cart BxROM PCB", tag, owner, clock, "nes_bxrom", __FILE__)
+	: nes_nrom_device(mconfig, NES_BXROM, tag, owner, clock)
 {
 }
 
-nes_cnrom_device::nes_cnrom_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: nes_nrom_device(mconfig, type, name, tag, owner, clock, shortname, source), m_chr_open_bus(0)
-				{
+nes_cnrom_device::nes_cnrom_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: nes_nrom_device(mconfig, type, tag, owner, clock), m_chr_open_bus(0)
+{
 }
 
 nes_cnrom_device::nes_cnrom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_CNROM, "NES Cart CNROM PCB", tag, owner, clock, "nes_cnrom", __FILE__), m_chr_open_bus(0)
-				{
+	: nes_cnrom_device(mconfig, NES_CNROM, tag, owner, clock)
+{
 }
 
 nes_cprom_device::nes_cprom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_CPROM, "NES Cart CPROM PCB", tag, owner, clock, "nes_cprom", __FILE__)
+	: nes_nrom_device(mconfig, NES_CPROM, tag, owner, clock)
 {
 }
 
 nes_gxrom_device::nes_gxrom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_GXROM, "NES Cart GxROM PCB", tag, owner, clock, "nes_gxrom", __FILE__)
+	: nes_nrom_device(mconfig, NES_GXROM, tag, owner, clock)
 {
 }
 
 nes_uxrom_device::nes_uxrom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_UXROM, "NES Cart UxROM PCB", tag, owner, clock, "nes_uxrom", __FILE__)
+	: nes_nrom_device(mconfig, NES_UXROM, tag, owner, clock)
 {
 }
 
 nes_uxrom_cc_device::nes_uxrom_cc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_UXROM_CC, "NES Cart UNROM M5 PCB (Crazy Climber)", tag, owner, clock, "nes_uxrom_cc", __FILE__)
+	: nes_nrom_device(mconfig, NES_UXROM_CC, tag, owner, clock)
 {
 }
 
 nes_un1rom_device::nes_un1rom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_UN1ROM, "NES Cart UN1ROM PCB", tag, owner, clock, "nes_un1rom", __FILE__)
+	: nes_nrom_device(mconfig, NES_UN1ROM, tag, owner, clock)
 {
 }
 
 nes_nochr_device::nes_nochr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_NOCHR, "NES Cart NoCash NOCHR PCB", tag, owner, clock, "nes_nochr", __FILE__)
+	: nes_nrom_device(mconfig, NES_NOCHR, tag, owner, clock)
 {
 }
 
@@ -147,9 +145,6 @@ void nes_nrom_device::common_start()
 	save_item(NAME(m_nt_src));
 	save_item(NAME(m_nt_orig));
 	save_item(NAME(m_nt_writable));
-
-	// open bus
-	save_item(NAME(m_open_bus));
 }
 
 void nes_nrom_device::pcb_reset()
@@ -293,23 +288,23 @@ void nes_un1rom_device::pcb_reset()
 
  -------------------------------------------------*/
 
-READ8_MEMBER(nes_nrom368_device::read_l)
+uint8_t nes_nrom368_device::read_l(offs_t offset)
 {
 	LOG_MMC(("nrom368 read_l, offset: %04x\n", offset));
 	offset += 0x100;
 	if (offset >= 0x800)
 		return m_prg[offset - 0x800];
 	else
-		return m_open_bus;
+		return get_open_bus();
 }
 
-READ8_MEMBER(nes_nrom368_device::read_m)
+uint8_t nes_nrom368_device::read_m(offs_t offset)
 {
 	LOG_MMC(("nrom368 read_m, offset: %04x\n", offset));
 	return m_prg[0x1800 + (offset & 0x1fff)];
 }
 
-READ8_MEMBER(nes_nrom368_device::read_h)
+uint8_t nes_nrom368_device::read_h(offs_t offset)
 {
 	LOG_MMC(("nrom368 read_h, offset: %04x\n", offset));
 	return m_prg[0x3800 + (offset & 0x7fff)];
@@ -336,7 +331,7 @@ READ8_MEMBER(nes_nrom368_device::read_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_axrom_device::write_h)
+void nes_axrom_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("axrom write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -357,7 +352,7 @@ WRITE8_MEMBER(nes_axrom_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_bxrom_device::write_h)
+void nes_bxrom_device::write_h(offs_t offset, uint8_t data)
 {
 	/* This portion of the mapper is nearly identical to Mapper 7, except no one-screen mirroring */
 	/* Deadly Towers is really a BxROM game - the demo screens look wrong using mapper 7. */
@@ -393,7 +388,7 @@ WRITE8_MEMBER(nes_bxrom_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_cnrom_device::write_h)
+void nes_cnrom_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("cxrom write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -414,7 +409,7 @@ WRITE8_MEMBER(nes_cnrom_device::write_h)
 		chr8(data, CHRROM);
 }
 
-READ8_MEMBER(nes_cnrom_device::chr_r)
+uint8_t nes_cnrom_device::chr_r(offs_t offset)
 {
 	int bank = offset >> 10;
 
@@ -423,7 +418,7 @@ READ8_MEMBER(nes_cnrom_device::chr_r)
 	// give actual VROM content or open bus values.
 	// For most boards, chr_open_bus remains always zero.
 	if (m_chr_open_bus)
-		return m_open_bus;
+		return get_open_bus();
 
 	return m_chr_access[bank][offset & 0x3ff];
 }
@@ -443,7 +438,7 @@ READ8_MEMBER(nes_cnrom_device::chr_r)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_cprom_device::write_h)
+void nes_cprom_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("cprom write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -464,7 +459,7 @@ WRITE8_MEMBER(nes_cprom_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_gxrom_device::write_h)
+void nes_gxrom_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("gxrom write_h, offset %04x, data: %02x\n", offset, data));
 
@@ -490,7 +485,7 @@ WRITE8_MEMBER(nes_gxrom_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_uxrom_device::write_h)
+void nes_uxrom_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("uxrom write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -516,7 +511,7 @@ WRITE8_MEMBER(nes_uxrom_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_uxrom_cc_device::write_h)
+void nes_uxrom_cc_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("uxrom_cc write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -537,7 +532,7 @@ WRITE8_MEMBER(nes_uxrom_cc_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_un1rom_device::write_h)
+void nes_un1rom_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("un1rom write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -560,7 +555,7 @@ WRITE8_MEMBER(nes_un1rom_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_nochr_device::chr_w)
+void nes_nochr_device::chr_w(offs_t offset, uint8_t data)
 {
 	int mirr = get_mirroring();
 	if (mirr == PPU_MIRROR_HIGH)
@@ -571,7 +566,7 @@ WRITE8_MEMBER(nes_nochr_device::chr_w)
 		m_ciram[offset & 0x7ff] = data; // not sure here, since there is no software to test...
 }
 
-READ8_MEMBER(nes_nochr_device::chr_r)
+uint8_t nes_nochr_device::chr_r(offs_t offset)
 {
 	int mirr = get_mirroring();
 	if (mirr == PPU_MIRROR_HIGH)

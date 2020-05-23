@@ -1,32 +1,35 @@
 // license:BSD-3-Clause
 // copyright-holders:Olivier Galibert
-#ifndef __JVS13551_H__
-#define __JVS13551_H__
+#ifndef MAME_MACHINE_JVS13551_H
+#define MAME_MACHINE_JVS13551_H
+
+#pragma once
 
 #include "machine/jvsdev.h"
 
-#define MCFG_SEGA_837_13551_DEVICE_ADD(_tag, _host, tilt, d0, d1, a0, a1, a2, a3, a4, a5, a6, a7, out) \
-	MCFG_JVS_DEVICE_ADD(_tag, SEGA_837_13551, _host) \
-	sega_837_13551::static_set_port_tag(*device, 0, tilt);  \
-	sega_837_13551::static_set_port_tag(*device, 1, d0); \
-	sega_837_13551::static_set_port_tag(*device, 2, d1); \
-	sega_837_13551::static_set_port_tag(*device, 3, a0); \
-	sega_837_13551::static_set_port_tag(*device, 4, a1); \
-	sega_837_13551::static_set_port_tag(*device, 5, a2); \
-	sega_837_13551::static_set_port_tag(*device, 6, a3); \
-	sega_837_13551::static_set_port_tag(*device, 7, a4); \
-	sega_837_13551::static_set_port_tag(*device, 8, a5); \
-	sega_837_13551::static_set_port_tag(*device, 9, a6); \
-	sega_837_13551::static_set_port_tag(*device, 10, a7); \
-	sega_837_13551::static_set_port_tag(*device, 11, out);
 
 class jvs_host;
 
-class sega_837_13551 : public jvs_device
+class sega_837_13551_device : public jvs_device
 {
 public:
-	sega_837_13551(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	static void static_set_port_tag(device_t &device, int port, const char *tag);
+	template <typename T>
+	sega_837_13551_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock, T &&jvs_host_tag)
+		: sega_837_13551_device(mconfig, tag, owner, clock)
+	{
+		host.set_tag(std::forward<T>(jvs_host_tag));
+	}
+
+	sega_837_13551_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+	template <uint8_t Which, typename T>
+	void set_port_tag(T &&port_tag) { port[Which].set_tag(std::forward<T>(port_tag)); }
+	template <uint8_t First = 0U, typename T, typename... U>
+	void set_port_tags(T &&first_tag, U &&... other_tags)
+	{
+		set_port_tag<First>(std::forward<T>(first_tag));
+		set_port_tags<First + 1>(std::forward<U>(other_tags)...);
+	}
 
 	virtual const tiny_rom_entry *device_rom_region() const override;
 
@@ -35,9 +38,12 @@ public:
 	void inc_coin(int coin);
 
 protected:
+	template <uint8_t First> void set_port_tags() { }
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual ioport_constructor device_input_ports() const override;
 
 	// JVS device overrides
@@ -54,11 +60,10 @@ protected:
 	virtual bool swoutputs(uint8_t id, uint8_t val) override;
 
 private:
-	const char *port_tag[12];
-	ioport_port *port[12];
+	optional_ioport_array<12> port;
 	uint16_t coin_counter[2];
 };
 
-extern const device_type SEGA_837_13551;
+DECLARE_DEVICE_TYPE(SEGA_837_13551, sega_837_13551_device)
 
-#endif
+#endif // MAME_MACHINE_JVS13551_H

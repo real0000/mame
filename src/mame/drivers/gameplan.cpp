@@ -68,9 +68,9 @@ Notes:
 TODO:
 - The board has, instead of a watchdog, a timed reset that has to be disabled
   on startup. The disable line is tied to CA2 of VIA2, but I don't see writes
-  to that pin in the log. Missing support in machine/6522via.c?
+  to that pin in the log. Missing support in machine/6522via.cpp?
 - Kaos needs a kludge to avoid a deadlock (see the via_irq() function below).
-  I don't know if this is a shortcoming of the driver or of 6522via.c.
+  I don't know if this is a shortcoming of the driver or of 6522via.cpp.
 - Investigate and document the 8910 dip switches
 - Fix the input ports of Kaos
 
@@ -91,7 +91,7 @@ TODO:
  *
  *************************************/
 
-WRITE8_MEMBER(gameplan_state::io_select_w)
+void gameplan_state::io_select_w(uint8_t data)
 {
 	switch (data)
 	{
@@ -105,7 +105,7 @@ WRITE8_MEMBER(gameplan_state::io_select_w)
 }
 
 
-READ8_MEMBER(gameplan_state::io_port_r)
+uint8_t gameplan_state::io_port_r()
 {
 	static const char *const portnames[] = { "IN0", "IN1", "IN2", "IN3", "DSW0", "DSW1" };
 
@@ -138,7 +138,7 @@ WRITE_LINE_MEMBER(gameplan_state::audio_reset_w)
 }
 
 
-WRITE8_MEMBER(gameplan_state::audio_cmd_w)
+void gameplan_state::audio_cmd_w(uint8_t data)
 {
 	m_riot->porta_in_set(data, 0x7f);
 }
@@ -165,12 +165,6 @@ WRITE_LINE_MEMBER(gameplan_state::r6532_irq)
 }
 
 
-WRITE8_MEMBER(gameplan_state::r6532_soundlatch_w)
-{
-	address_space &progspace = m_maincpu->space(AS_PROGRAM);
-	m_soundlatch->write(progspace, 0, data);
-}
-
 
 /*************************************
  *
@@ -178,13 +172,14 @@ WRITE8_MEMBER(gameplan_state::r6532_soundlatch_w)
  *
  *************************************/
 
-static ADDRESS_MAP_START( gameplan_main_map, AS_PROGRAM, 8, gameplan_state )
-	AM_RANGE(0x0000, 0x03ff) AM_MIRROR(0x1c00) AM_RAM
-	AM_RANGE(0x2000, 0x200f) AM_MIRROR(0x07f0) AM_DEVREADWRITE("via6522_0", via6522_device, read, write)    /* VIA 1 */
-	AM_RANGE(0x2800, 0x280f) AM_MIRROR(0x07f0) AM_DEVREADWRITE("via6522_1", via6522_device, read, write)    /* VIA 2 */
-	AM_RANGE(0x3000, 0x300f) AM_MIRROR(0x07f0) AM_DEVREADWRITE("via6522_2", via6522_device, read, write)    /* VIA 3 */
-	AM_RANGE(0x8000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void gameplan_state::gameplan_main_map(address_map &map)
+{
+	map(0x0000, 0x03ff).mirror(0x1c00).ram();
+	map(0x2000, 0x200f).mirror(0x07f0).m(m_via_0, FUNC(via6522_device::map));    /* VIA 1 */
+	map(0x2800, 0x280f).mirror(0x07f0).m(m_via_1, FUNC(via6522_device::map));    /* VIA 2 */
+	map(0x3000, 0x300f).mirror(0x07f0).m(m_via_2, FUNC(via6522_device::map));    /* VIA 3 */
+	map(0x8000, 0xffff).rom();
+}
 
 
 
@@ -194,25 +189,27 @@ ADDRESS_MAP_END
  *
  *************************************/
 
-static ADDRESS_MAP_START( gameplan_audio_map, AS_PROGRAM, 8, gameplan_state )
-	AM_RANGE(0x0000, 0x007f) AM_MIRROR(0x1780) AM_RAM  /* 6532 internal RAM */
-	AM_RANGE(0x0800, 0x081f) AM_MIRROR(0x17e0) AM_DEVREADWRITE("riot", riot6532_device, read, write)
-	AM_RANGE(0xa000, 0xa000) AM_MIRROR(0x1ffc) AM_DEVWRITE("aysnd", ay8910_device, address_w)
-	AM_RANGE(0xa001, 0xa001) AM_MIRROR(0x1ffc) AM_DEVREAD("aysnd", ay8910_device, data_r)
-	AM_RANGE(0xa002, 0xa002) AM_MIRROR(0x1ffc) AM_DEVWRITE("aysnd", ay8910_device, data_w)
-	AM_RANGE(0xe000, 0xe7ff) AM_MIRROR(0x1800) AM_ROM
-ADDRESS_MAP_END
+void gameplan_state::gameplan_audio_map(address_map &map)
+{
+	map(0x0000, 0x007f).mirror(0x1780).ram();  /* 6532 internal RAM */
+	map(0x0800, 0x081f).mirror(0x17e0).rw(m_riot, FUNC(riot6532_device::read), FUNC(riot6532_device::write));
+	map(0xa000, 0xa000).mirror(0x1ffc).w("aysnd", FUNC(ay8910_device::address_w));
+	map(0xa001, 0xa001).mirror(0x1ffc).r("aysnd", FUNC(ay8910_device::data_r));
+	map(0xa002, 0xa002).mirror(0x1ffc).w("aysnd", FUNC(ay8910_device::data_w));
+	map(0xe000, 0xe7ff).mirror(0x1800).rom();
+}
 
 
 /* same as Gameplan, but larger ROM */
-static ADDRESS_MAP_START( leprechn_audio_map, AS_PROGRAM, 8, gameplan_state )
-	AM_RANGE(0x0000, 0x007f) AM_MIRROR(0x1780) AM_RAM  /* 6532 internal RAM */
-	AM_RANGE(0x0800, 0x081f) AM_MIRROR(0x17e0) AM_DEVREADWRITE("riot", riot6532_device, read, write)
-	AM_RANGE(0xa000, 0xa000) AM_MIRROR(0x1ffc) AM_DEVWRITE("aysnd", ay8910_device, address_w)
-	AM_RANGE(0xa001, 0xa001) AM_MIRROR(0x1ffc) AM_DEVREAD("aysnd", ay8910_device, data_r)
-	AM_RANGE(0xa002, 0xa002) AM_MIRROR(0x1ffc) AM_DEVWRITE("aysnd", ay8910_device, data_w)
-	AM_RANGE(0xe000, 0xefff) AM_MIRROR(0x1000) AM_ROM
-ADDRESS_MAP_END
+void gameplan_state::leprechn_audio_map(address_map &map)
+{
+	map(0x0000, 0x007f).mirror(0x1780).ram();  /* 6532 internal RAM */
+	map(0x0800, 0x081f).mirror(0x17e0).rw(m_riot, FUNC(riot6532_device::read), FUNC(riot6532_device::write));
+	map(0xa000, 0xa000).mirror(0x1ffc).w("aysnd", FUNC(ay8910_device::address_w));
+	map(0xa001, 0xa001).mirror(0x1ffc).r("aysnd", FUNC(ay8910_device::data_r));
+	map(0xa002, 0xa002).mirror(0x1ffc).w("aysnd", FUNC(ay8910_device::data_w));
+	map(0xe000, 0xefff).mirror(0x1000).rom();
+}
 
 
 
@@ -956,71 +953,65 @@ MACHINE_RESET_MEMBER(gameplan_state,gameplan)
 	m_video_data = 0;
 }
 
-static MACHINE_CONFIG_START( gameplan, gameplan_state )
+void gameplan_state::gameplan(machine_config &config)
+{
+	M6502(config, m_maincpu, GAMEPLAN_MAIN_CPU_CLOCK);
+	m_maincpu->set_addrmap(AS_PROGRAM, &gameplan_state::gameplan_main_map);
 
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6502, GAMEPLAN_MAIN_CPU_CLOCK)
-	MCFG_CPU_PROGRAM_MAP(gameplan_main_map)
+	M6502(config, m_audiocpu, GAMEPLAN_AUDIO_CPU_CLOCK);
+	m_audiocpu->set_addrmap(AS_PROGRAM, &gameplan_state::gameplan_audio_map);
 
-	MCFG_CPU_ADD("audiocpu", M6502, GAMEPLAN_AUDIO_CPU_CLOCK)
-	MCFG_CPU_PROGRAM_MAP(gameplan_audio_map)
-
-	MCFG_DEVICE_ADD("riot", RIOT6532, GAMEPLAN_AUDIO_CPU_CLOCK)
-	MCFG_RIOT6532_OUT_PB_CB(WRITE8(gameplan_state, r6532_soundlatch_w))
-	MCFG_RIOT6532_IRQ_CB(WRITELINE(gameplan_state, r6532_irq))
-
-	MCFG_MACHINE_START_OVERRIDE(gameplan_state,gameplan)
-	MCFG_MACHINE_RESET_OVERRIDE(gameplan_state,gameplan)
+	RIOT6532(config, m_riot, GAMEPLAN_AUDIO_CPU_CLOCK);
+	m_riot->out_pb_callback().set(m_soundlatch, FUNC(generic_latch_8_device::write));
+	m_riot->irq_callback().set(FUNC(gameplan_state::r6532_irq));
 
 	/* video hardware */
-	MCFG_FRAGMENT_ADD(gameplan_video)
+	gameplan_video(config);
 
 	/* audio hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	GENERIC_LATCH_8(config, m_soundlatch, 0);
 
-	MCFG_SOUND_ADD("aysnd", AY8910, GAMEPLAN_AY8910_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW2"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW3"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.33)
+	ay8910_device &aysnd(AY8910(config, "aysnd", GAMEPLAN_AY8910_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW2");
+	aysnd.port_b_read_callback().set_ioport("DSW3");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.33);
 
 	/* via */
-	MCFG_DEVICE_ADD("via6522_0", VIA6522, 0)
-	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(gameplan_state, video_data_w))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(gameplan_state, gameplan_video_command_w))
-	MCFG_VIA6522_CA2_HANDLER(WRITELINE(gameplan_state, video_command_trigger_w))
-	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(gameplan_state, via_irq))
+	VIA6522(config, m_via_0, GAMEPLAN_MAIN_CPU_CLOCK);
+	m_via_0->writepa_handler().set(FUNC(gameplan_state::video_data_w));
+	m_via_0->writepb_handler().set(FUNC(gameplan_state::gameplan_video_command_w));
+	m_via_0->ca2_handler().set(FUNC(gameplan_state::video_command_trigger_w));
+	m_via_0->irq_handler().set(FUNC(gameplan_state::via_irq));
 
-	MCFG_DEVICE_ADD("via6522_1", VIA6522, 0)
-	MCFG_VIA6522_READPA_HANDLER(READ8(gameplan_state, io_port_r))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(gameplan_state, io_select_w))
-	MCFG_VIA6522_CB2_HANDLER(WRITELINE(gameplan_state, coin_w))
+	VIA6522(config, m_via_1, GAMEPLAN_MAIN_CPU_CLOCK);
+	m_via_1->readpa_handler().set(FUNC(gameplan_state::io_port_r));
+	m_via_1->writepb_handler().set(FUNC(gameplan_state::io_select_w));
+	m_via_1->cb2_handler().set(FUNC(gameplan_state::coin_w));
 
-	MCFG_DEVICE_ADD("via6522_2", VIA6522, 0)
-	MCFG_VIA6522_READPB_HANDLER(DEVREAD8("soundlatch", generic_latch_8_device, read))
-	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(gameplan_state, audio_cmd_w))
-	MCFG_VIA6522_CA2_HANDLER(WRITELINE(gameplan_state, audio_trigger_w))
-	MCFG_VIA6522_CB2_HANDLER(WRITELINE(gameplan_state, audio_reset_w))
-MACHINE_CONFIG_END
+	VIA6522(config, m_via_2, GAMEPLAN_MAIN_CPU_CLOCK);
+	m_via_2->readpb_handler().set(m_soundlatch, FUNC(generic_latch_8_device::read));
+	m_via_2->writepa_handler().set(FUNC(gameplan_state::audio_cmd_w));
+	m_via_2->ca2_handler().set(FUNC(gameplan_state::audio_trigger_w));
+	m_via_2->cb2_handler().set(FUNC(gameplan_state::audio_reset_w));
+}
 
-
-static MACHINE_CONFIG_DERIVED( leprechn, gameplan )
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CLOCK(LEPRECHAUN_MAIN_CPU_CLOCK)
+void gameplan_state::leprechn(machine_config &config)
+{
+	gameplan(config);
+	m_maincpu->set_clock(LEPRECHAUN_MAIN_CPU_CLOCK);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("audiocpu")
-	MCFG_CPU_PROGRAM_MAP(leprechn_audio_map)
+	m_audiocpu->set_addrmap(AS_PROGRAM, &gameplan_state::leprechn_audio_map);
 
 	/* video hardware */
-	MCFG_FRAGMENT_ADD(leprechn_video)
+	leprechn_video(config);
 
 	/* via */
-	MCFG_DEVICE_MODIFY("via6522_0")
-	MCFG_VIA6522_READPB_HANDLER(READ8(gameplan_state, leprechn_videoram_r))
-	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(gameplan_state, leprechn_video_command_w))
-MACHINE_CONFIG_END
+	m_via_0->readpb_handler().set(FUNC(gameplan_state::leprechn_videoram_r));
+	m_via_0->writepb_handler().set(FUNC(gameplan_state::leprechn_video_command_w));
+}
 
 
 
@@ -1058,6 +1049,21 @@ ROM_START( megatack )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )
 	ROM_LOAD( "megatsnd.e1",  0xe000, 0x0800, CRC(0c186bdb) SHA1(233af9481a3979971f2d5aa75ec8df4333aa5e0d) )
+ROM_END
+
+ROM_START( megatacka ) // original Centuri PCB
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "meg-e2.bin",  0xc000, 0x0800, CRC(9664c7b1) SHA1(356e7f5f3b2a9b829fac53e7bf9193278b4de2ed) )
+	ROM_LOAD( "meg-f2.bin",  0xc800, 0x0800, CRC(67c42523) SHA1(f9fc88cdea05a2d0e89e3ba9b545bf3476b37d2d) )
+	ROM_LOAD( "meg-g2.bin",  0xd000, 0x0800, CRC(71f36604) SHA1(043988126343b6224e8e1d6c0dbba6b6b08fe493) )
+	ROM_LOAD( "meg-j2.bin",  0xd800, 0x0800, CRC(4ddcc145) SHA1(3a6d42a58c388eaaf6561351fa98936d98975e0b) )
+	ROM_LOAD( "meg-j1.bin",  0xe000, 0x0800, CRC(911d5d9a) SHA1(92bfe0f69a6e563363df59ebee745d7b3cfc0141) )
+	ROM_LOAD( "meg-g1.bin",  0xe800, 0x0800, CRC(22a51c9b) SHA1(556e09216ed85eaf3870f85515c273c7eb1ab13a) )
+	ROM_LOAD( "meg-f1.bin",  0xf000, 0x0800, CRC(2ffa51ac) SHA1(7c5d8295c5e71a9918a02d203139b024bd3bf8f4) )
+	ROM_LOAD( "meg-e1.bin",  0xf800, 0x0800, CRC(01dbe4ad) SHA1(af72778ae112f24a92fb3007bb456331c3896b50) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )
+	ROM_LOAD( "megatsnd.e1",  0xe000, 0x0800, CRC(0c186bdb) SHA1(233af9481a3979971f2d5aa75ec8df4333aa5e0d) ) // missing for this board, using the one from the parent
 ROM_END
 
 ROM_START( challeng )
@@ -1160,11 +1166,12 @@ ROM_END
  *
  *************************************/
 
-GAME( 1980, killcom,  0,        gameplan, killcom, driver_device,  0, ROT0,   "Game Plan (Centuri license)", "Killer Comet", MACHINE_SUPPORTS_SAVE )
-GAME( 1980, megatack, 0,        gameplan, megatack, driver_device, 0, ROT0,   "Game Plan (Centuri license)", "Megatack", MACHINE_SUPPORTS_SAVE )
-GAME( 1981, challeng, 0,        gameplan, challeng, driver_device, 0, ROT0,   "Game Plan (Centuri license)", "Challenger", MACHINE_SUPPORTS_SAVE )
-GAME( 1981, kaos,     0,        gameplan, kaos, driver_device,     0, ROT270, "Game Plan", "Kaos", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, leprechn, 0,        leprechn, leprechn, driver_device, 0, ROT0,   "Tong Electronic", "Leprechaun", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, potogold, leprechn, leprechn, potogold, driver_device, 0, ROT0,   "Tong Electronic (Game Plan license)", "Pot of Gold", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, leprechp, leprechn, leprechn, potogold, driver_device, 0, ROT0,   "Tong Electronic (Pacific Polytechnical license)", "Leprechaun (Pacific)", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, piratetr, 0,        leprechn, piratetr, driver_device, 0, ROT0,   "Tong Electronic", "Pirate Treasure", MACHINE_SUPPORTS_SAVE )
+GAME( 1980, killcom,   0,        gameplan, killcom,  gameplan_state, empty_init, ROT0,   "Game Plan (Centuri license)",                     "Killer Comet",         MACHINE_SUPPORTS_SAVE )
+GAME( 1980, megatack,  0,        gameplan, megatack, gameplan_state, empty_init, ROT0,   "Game Plan (Centuri license)",                     "Megatack (set 1)",     MACHINE_SUPPORTS_SAVE )
+GAME( 1980, megatacka, megatack, gameplan, megatack, gameplan_state, empty_init, ROT0,   "Game Plan (Centuri license)",                     "Megatack (set 2)",     MACHINE_SUPPORTS_SAVE )
+GAME( 1981, challeng,  0,        gameplan, challeng, gameplan_state, empty_init, ROT0,   "Game Plan (Centuri license)",                     "Challenger",           MACHINE_SUPPORTS_SAVE )
+GAME( 1981, kaos,      0,        gameplan, kaos,     gameplan_state, empty_init, ROT270, "Game Plan",                                       "Kaos",                 MACHINE_SUPPORTS_SAVE )
+GAME( 1982, leprechn,  0,        leprechn, leprechn, gameplan_state, empty_init, ROT0,   "Tong Electronic",                                 "Leprechaun",           MACHINE_SUPPORTS_SAVE )
+GAME( 1982, potogold,  leprechn, leprechn, potogold, gameplan_state, empty_init, ROT0,   "Tong Electronic (Game Plan license)",             "Pot of Gold",          MACHINE_SUPPORTS_SAVE )
+GAME( 1982, leprechp,  leprechn, leprechn, potogold, gameplan_state, empty_init, ROT0,   "Tong Electronic (Pacific Polytechnical license)", "Leprechaun (Pacific)", MACHINE_SUPPORTS_SAVE )
+GAME( 1982, piratetr,  0,        leprechn, piratetr, gameplan_state, empty_init, ROT0,   "Tong Electronic",                                 "Pirate Treasure",      MACHINE_SUPPORTS_SAVE )

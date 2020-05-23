@@ -1,5 +1,5 @@
 // license:BSD-3-Clause
-// copyright-holders:Fabio Priuli,Acho A. Tang, R. Belmont
+// copyright-holders:Fabio Priuli, Acho A. Tang, R. Belmont
 /*
 Konami 007121
 ------
@@ -46,6 +46,7 @@ control registers
 000:          scroll x (low 8 bits)
 001: -------x scroll x (high bit)
      ------x- enable rowscroll? (combatsc)
+     -----x-- unknown (flak attack)
      ----x--- this probably selects an alternate screen layout used in combat
               school where tilemap #2 is overlayed on front and doesn't scroll.
               The 32 lines of the front layer can be individually turned on or
@@ -114,15 +115,16 @@ control registers
 #include "emu.h"
 #include "k007121.h"
 #include "konami_helper.h"
+#include "tilemap.h"
 
 #define VERBOSE 0
 #define LOG(x) do { if (VERBOSE) logerror x; } while (0)
 
 
-const device_type K007121 = device_creator<k007121_device>;
+DEFINE_DEVICE_TYPE(K007121, k007121_device, "k007121", "K007121 Sprite/Tilemap Controller")
 
 k007121_device::k007121_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, K007121, "K007121 Sprite/Tilemap Controller", tag, owner, clock, "k007121", __FILE__)
+	: device_t(mconfig, K007121, tag, owner, clock)
 	, m_flipscreen(0)
 	, m_palette(*this, finder_base::DUMMY_TAG)
 {
@@ -144,11 +146,9 @@ void k007121_device::device_start()
 
 void k007121_device::device_reset()
 {
-	int i;
-
 	m_flipscreen = 0;
 
-	for (i = 0; i < 8; i++)
+	for (int i = 0; i < 8; i++)
 		m_ctrlram[i] = 0;
 }
 
@@ -157,7 +157,7 @@ void k007121_device::device_reset()
     DEVICE HANDLERS
 *****************************************************************************/
 
-READ8_MEMBER( k007121_device::ctrlram_r )
+uint8_t k007121_device::ctrlram_r(offs_t offset)
 {
 	assert(offset < 8);
 
@@ -165,7 +165,7 @@ READ8_MEMBER( k007121_device::ctrlram_r )
 }
 
 
-WRITE8_MEMBER( k007121_device::ctrl_w )
+void k007121_device::ctrl_w(offs_t offset, uint8_t data)
 {
 	assert(offset < 8);
 
@@ -174,7 +174,7 @@ WRITE8_MEMBER( k007121_device::ctrl_w )
 	case 6:
 		/* palette bank change */
 		if ((m_ctrlram[offset] & 0x30) != (data & 0x30))
-			space.machine().tilemap().mark_all_dirty();
+			machine().tilemap().mark_all_dirty();
 		break;
 	case 7:
 		m_flipscreen = data & 0x08;
@@ -206,67 +206,38 @@ WRITE8_MEMBER( k007121_device::ctrl_w )
  *   4  | ----xxx- | sprite size 000=16x16 001=16x8 010=8x16 011=8x8 100=32x32
  *   4  | -------x | x position (high bit)
  *
- * Flack Attack uses a different, "wider" layout with 32 bytes per sprite,
- * mapped as follows, and the priority order is reversed. Maybe it is a
- * compatibility mode with an older custom IC. It is not known how this
- * alternate layout is selected.
- *
- * 0 -> e
- * 1 -> f
- * 2 -> 6
- * 3 -> 4
- * 4 -> 8
- *
  */
 
-void k007121_device::sprites_draw( bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx, palette_device &palette,
+void k007121_device::sprites_draw( bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx, device_palette_interface &palette,
 							const uint8_t *source, int base_color, int global_x_offset, int bank_base, bitmap_ind8 &priority_bitmap, uint32_t pri_mask, bool is_flakatck )
 {
 	//  gfx_element *gfx = gfxs[chip];
 	int flipscreen = m_flipscreen;
-	int i, num, inc, offs[5];
+	int i, num, inc;
 
-	if (is_flakatck)
-	{
-		num = 0x40;
-		inc = -0x20;
-		source += 0x3f * 0x20;
-		offs[0] = 0x0e;
-		offs[1] = 0x0f;
-		offs[2] = 0x06;
-		offs[3] = 0x04;
-		offs[4] = 0x08;
-	}
-	else    /* all others */
-	{
-		/* TODO: sprite limit is supposed to be per-line! (check MT #00185) */
-		num = 0x40;
-		//num = (k007121->ctrlram[0x03] & 0x40) ? 0x80 : 0x40; /* WRONG!!! (needed by combatsc)  */
 
-		inc = 5;
-		offs[0] = 0x00;
-		offs[1] = 0x01;
-		offs[2] = 0x02;
-		offs[3] = 0x03;
-		offs[4] = 0x04;
-		/* when using priority buffer, draw front to back */
-		if (pri_mask != -1)
-		{
-			source += (num - 1)*inc;
-			inc = -inc;
-		}
+	// TODO: sprite limit is supposed to be per-line! (check MT #00185)
+	num = 0x40;
+	//num = (k007121->ctrlram[0x03] & 0x40) ? 0x80 : 0x40; /* WRONG!!! (needed by combatsc)  */
+
+	inc = 5;
+	/* when using priority buffer, draw front to back */
+	if (pri_mask != -1)
+	{
+		source += (num - 1)*inc;
+		inc = -inc;
 	}
 
 	for (i = 0; i < num; i++)
 	{
-		int number = source[offs[0]];               /* sprite number */
-		int sprite_bank = source[offs[1]] & 0x0f;   /* sprite bank */
-		int sx = source[offs[3]];                   /* vertical position */
-		int sy = source[offs[2]];                   /* horizontal position */
-		int attr = source[offs[4]];             /* attributes */
-		int xflip = source[offs[4]] & 0x10;     /* flip x */
-		int yflip = source[offs[4]] & 0x20;     /* flip y */
-		int color = base_color + ((source[offs[1]] & 0xf0) >> 4);
+		int number = source[0];               /* sprite number */
+		int sprite_bank = source[1] & 0x0f;   /* sprite bank */
+		int sx = source[3];                   /* vertical position */
+		int sy = source[2];                   /* horizontal position */
+		int attr = source[4];             /* attributes */
+		int xflip = source[4] & 0x10;     /* flip x */
+		int yflip = source[4] & 0x20;     /* flip y */
+		int color = base_color + ((source[1] & 0xf0) >> 4);
 		int width, height;
 		int transparent_mask;
 		static const int x_offset[4] = {0x0,0x1,0x4,0x5};
@@ -282,78 +253,66 @@ void k007121_device::sprites_draw( bitmap_ind16 &bitmap, const rectangle &clipre
 
 		/* Flak Attack doesn't use a lookup PROM, it maps the color code directly */
 		/* to a palette entry */
+		// TODO: check if it's true or callback-ize this one and remove the per-game hack.
 		if (is_flakatck)
 			transparent_mask = 1 << 0;
 		else
 			transparent_mask = palette.transpen_mask(*gfx, color, 0);
 
-		if (!is_flakatck || source[0x00])   /* Flak Attack needs this */
-		{
-			number += bank_base;
+		number += bank_base;
 
-			switch (attr & 0xe)
-			{
-				case 0x06: width = height = 1; break;
-				case 0x04: width = 1; height = 2; number &= (~2); break;
-				case 0x02: width = 2; height = 1; number &= (~1); break;
-				case 0x00: width = height = 2; number &= (~3); break;
-				case 0x08: width = height = 4; number &= (~3); break;
-				default: width = 1; height = 1;
+		switch (attr & 0xe)
+		{
+			case 0x06: width = height = 1; break;
+			case 0x04: width = 1; height = 2; number &= (~2); break;
+			case 0x02: width = 2; height = 1; number &= (~1); break;
+			case 0x00: width = height = 2; number &= (~3); break;
+			case 0x08: width = height = 4; number &= (~3); break;
+			default: width = 1; height = 1;
 //                  logerror("Unknown sprite size %02x\n", attr & 0xe);
 //                  popmessage("Unknown sprite size %02x\n", attr & 0xe);
-			}
+		}
 
-			for (y = 0; y < height; y++)
+		for (y = 0; y < height; y++)
+		{
+			for (x = 0; x < width; x++)
 			{
-				for (x = 0; x < width; x++)
+				ex = xflip ? (width - 1 - x) : x;
+				ey = yflip ? (height - 1 - y) : y;
+
+				if (flipscreen)
 				{
-					ex = xflip ? (width - 1 - x) : x;
-					ey = yflip ? (height - 1 - y) : y;
-
-					if (flipscreen)
-					{
-						flipx = !xflip;
-						flipy = !yflip;
-						destx = 248 - (sx + x * 8);
-						desty = 248 - (sy + y * 8);
-					}
-					else
-					{
-						flipx = xflip;
-						flipy = yflip;
-						destx = global_x_offset + sx + x * 8;
-						desty = sy + y * 8;
-					}
-
-					if (pri_mask != -1)
-						gfx->prio_transmask(bitmap,cliprect,
-							number + x_offset[ex] + y_offset[ey],
-							color,
-							flipx,flipy,
-							destx,desty,
-							priority_bitmap,pri_mask,
-							transparent_mask);
-					else
-						gfx->transmask(bitmap,cliprect,
-							number + x_offset[ex] + y_offset[ey],
-							color,
-							flipx,flipy,
-							destx,desty,
-							transparent_mask);
+					flipx = !xflip;
+					flipy = !yflip;
+					destx = 248 - (sx + x * 8);
+					desty = 248 - (sy + y * 8);
 				}
+				else
+				{
+					flipx = xflip;
+					flipy = yflip;
+					destx = global_x_offset + sx + x * 8;
+					desty = sy + y * 8;
+				}
+
+				if (pri_mask != -1)
+					gfx->prio_transmask(bitmap,cliprect,
+						number + x_offset[ex] + y_offset[ey],
+						color,
+						flipx,flipy,
+						destx,desty,
+						priority_bitmap,pri_mask,
+						transparent_mask);
+				else
+					gfx->transmask(bitmap,cliprect,
+						number + x_offset[ex] + y_offset[ey],
+						color,
+						flipx,flipy,
+						destx,desty,
+						transparent_mask);
 			}
 		}
 
 		source += inc;
 	}
-}
-
-//-------------------------------------------------
-//  static_set_palette_tag: Set the tag of the
-//  palette device
-//-------------------------------------------------
-
-void k007121_device::static_set_palette_tag(device_t &device, const char *tag)
-{
-	downcast<k007121_device &>(device).m_palette.set_tag(tag);
 }

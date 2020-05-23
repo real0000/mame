@@ -153,73 +153,116 @@ Notes:
 
 #include "emu.h"
 #include "cpu/e132xs/e132xs.h"
+#include "sound/ks0164.h"
 #include "machine/nvram.h"
+#include "emupal.h"
 #include "screen.h"
+#include "speaker.h"
 
 
 class dgpix_state : public driver_device
 {
 public:
-	dgpix_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	dgpix_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
+		m_flash(*this, "flash"),
 		m_maincpu(*this, "maincpu"),
-		m_vblank(*this, "VBLANK") { }
+		m_sound(*this, "ks0164"),
+		m_vblank(*this, "VBLANK")
+	{ }
 
-	required_device<cpu_device> m_maincpu;
-	required_ioport m_vblank;
+	void dgpix(machine_config &config);
 
-	std::unique_ptr<uint32_t[]> m_vram;
-	int m_vbuffer;
-	int m_flash_roms;
-	int m_old_vbuf;
-	uint32_t m_flash_cmd;
-	int32_t m_first_offset;
+	void init_elfin();
+	void init_jumpjump();
+	void init_xfiles();
+	void init_xfilesk();
+	void init_kdynastg();
+	void init_fmaniac3();
 
-	DECLARE_READ32_MEMBER(flash_r);
-	DECLARE_WRITE32_MEMBER(flash_w);
-	DECLARE_WRITE32_MEMBER(vram_w);
-	DECLARE_READ32_MEMBER(vram_r);
-	DECLARE_WRITE32_MEMBER(vbuffer_w);
-	DECLARE_WRITE32_MEMBER(coin_w);
-	DECLARE_READ32_MEMBER(vblank_r);
-
-	DECLARE_DRIVER_INIT(elfin);
-	DECLARE_DRIVER_INIT(jumpjump);
-	DECLARE_DRIVER_INIT(xfiles);
-	DECLARE_DRIVER_INIT(xfilesk);
-	DECLARE_DRIVER_INIT(kdynastg);
-	DECLARE_DRIVER_INIT(fmaniac3);
-
+protected:
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
 	virtual void video_start() override;
 
-	uint32_t screen_update_dgpix(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+private:
+	required_memory_region m_flash;
+
+	required_device<cpu_device> m_maincpu;
+	required_device<ks0164_device> m_sound;
+	required_ioport m_vblank;
+
+	std::unique_ptr<u16[]> m_vram;
+	int m_vbuffer;
+	int m_flash_roms;
+	int m_old_vbuf;
+	u32 m_flash_cmd;
+	s32 m_first_offset;
+
+	u32 flash_r(offs_t offset);
+	void flash_w(offs_t offset, u32 data, u32 mem_mask = ~0);
+	void vram_w(offs_t offset, u16 data, u16 mem_mask = ~0);
+	u16 vram_r(offs_t offset);
+	void vbuffer_w(u32 data);
+	void coin_w(u32 data);
+	u32 vblank_r();
+
+	u32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void mem_map(address_map &map);
+	void io_map(address_map &map);
+
+	void mpu401_data_w(offs_t, u32 data, u32 mem_mask);
+	void mpu401_ctrl_w(offs_t, u32 data, u32 mem_mask);
+	u32 mpu401_data_r(offs_t, u32 mem_mask);
+	u32 mpu401_status_r();
 };
 
-
-READ32_MEMBER(dgpix_state::flash_r)
+void dgpix_state::mpu401_data_w(offs_t, u32 data, u32 mem_mask)
 {
-	uint32_t *ROM = (uint32_t *)memregion("flash")->base();
+	if(ACCESSING_BITS_0_7)
+		m_sound->mpu401_data_w(data);
+}
 
-	if(offset >= (0x2000000 - m_flash_roms * 0x400000) / 4)
+void dgpix_state::mpu401_ctrl_w(offs_t, u32 data, u32 mem_mask)
+{
+	if(ACCESSING_BITS_0_7)
+		m_sound->mpu401_ctrl_w(data);
+}
+
+u32 dgpix_state::mpu401_data_r(offs_t, u32 mem_mask)
+{
+	if(ACCESSING_BITS_0_7)
+		return m_sound->mpu401_data_r();
+	return 0;
+}
+
+u32 dgpix_state::mpu401_status_r()
+{
+	return m_sound->mpu401_status_r();
+}
+
+u32 dgpix_state::flash_r(offs_t offset)
+{
+	u32 *ROM = (u32 *)m_flash->base();
+
+	if (offset >= (0x2000000 - m_flash_roms * 0x400000) / 4)
 	{
-		if(m_flash_cmd == 0x90900000)
+		if (m_flash_cmd == 0x90900000)
 		{
 			//read maker ID and chip ID
 			return 0x00890014;
 		}
-		else if(m_flash_cmd == 0x00700000)
+		else if (m_flash_cmd == 0x00700000)
 		{
 			//read status
 			return 0x80<<16;
 		}
-		else if(m_flash_cmd == 0x70700000)
+		else if (m_flash_cmd == 0x70700000)
 		{
 			//read status and ?
 			return 0x82<<16;
 		}
-		else if(m_flash_cmd == 0xe8e80000)
+		else if (m_flash_cmd == 0xe8e80000)
 		{
 			//read status ?
 			return 0x80<<16;
@@ -229,15 +272,15 @@ READ32_MEMBER(dgpix_state::flash_r)
 	return ROM[offset];
 }
 
-WRITE32_MEMBER(dgpix_state::flash_w)
+void dgpix_state::flash_w(offs_t offset, u32 data, u32 mem_mask)
 {
-	if(m_flash_cmd == 0x20200000)
+	if (m_flash_cmd == 0x20200000)
 	{
 		// erase game settings
-		if(data == 0xd0d00000)
+		if (data == 0xd0d00000)
 		{
 			// point to game settings
-			uint8_t *rom = (uint8_t *)memregion("flash")->base() + offset*4;
+			u8 *rom = (u8 *)m_flash->base() + offset*4;
 
 			// erase one block
 			memset(rom, 0xff, 0x10000);
@@ -245,9 +288,9 @@ WRITE32_MEMBER(dgpix_state::flash_w)
 			m_flash_cmd = 0;
 		}
 	}
-	else if(m_flash_cmd == 0x0f0f0000)
+	else if (m_flash_cmd == 0x0f0f0000)
 	{
-		if(data == 0xd0d00000 && offset == m_first_offset)
+		if (data == 0xd0d00000 && offset == m_first_offset)
 		{
 			// finished
 			m_flash_cmd = 0;
@@ -255,11 +298,11 @@ WRITE32_MEMBER(dgpix_state::flash_w)
 		}
 		else
 		{
-			uint16_t *rom = (uint16_t *)memregion("flash")->base();
+			u16 *rom = (u16 *)m_flash->base();
 
 			// write game settings
 
-			if(ACCESSING_BITS_0_15)
+			if (ACCESSING_BITS_0_15)
 				rom[BYTE_XOR_BE(offset*2 + 1)] = data & 0xffff;
 			else
 				rom[BYTE_XOR_BE(offset*2 + 0)] = (data & 0xffff0000) >> 16;
@@ -269,38 +312,27 @@ WRITE32_MEMBER(dgpix_state::flash_w)
 	{
 		m_flash_cmd = data;
 
-		if(m_flash_cmd == 0x0f0f0000 && m_first_offset == -1)
+		if (m_flash_cmd == 0x0f0f0000 && m_first_offset == -1)
 		{
 			m_first_offset = offset;
 		}
 	}
 }
 
-WRITE32_MEMBER(dgpix_state::vram_w)
+void dgpix_state::vram_w(offs_t offset, u16 data, u16 mem_mask)
 {
-	uint32_t *dest = &m_vram[offset+(0x40000/4)*m_vbuffer];
-
-	if (mem_mask == 0xffffffff)
-	{
-		if (~data & 0x80000000)
-			*dest = (*dest & 0x0000ffff) | (data & 0xffff0000);
-
-		if (~data & 0x00008000)
-			*dest = (*dest & 0xffff0000) | (data & 0x0000ffff);
-	}
-	else if (((mem_mask == 0xffff0000) && (~data & 0x80000000)) ||
-				((mem_mask == 0x0000ffff) && (~data & 0x00008000)))
-		COMBINE_DATA(dest);
+	if ((mem_mask == 0xffff) && (~data & 0x8000))
+		COMBINE_DATA(&m_vram[offset + (0x40000 / 2) * m_vbuffer]);
 }
 
-READ32_MEMBER(dgpix_state::vram_r)
+u16 dgpix_state::vram_r(offs_t offset)
 {
-	return m_vram[offset+(0x40000/4)*m_vbuffer];
+	return m_vram[offset + (0x40000 / 2) * m_vbuffer];
 }
 
-WRITE32_MEMBER(dgpix_state::vbuffer_w)
+void dgpix_state::vbuffer_w(u32 data)
 {
-	if(m_old_vbuf == 3 && (data & 3) == 2)
+	if (m_old_vbuf == 3 && (data & 3) == 2)
 	{
 		m_vbuffer ^= 1;
 	}
@@ -308,38 +340,38 @@ WRITE32_MEMBER(dgpix_state::vbuffer_w)
 	m_old_vbuf = data & 3;
 }
 
-WRITE32_MEMBER(dgpix_state::coin_w)
+void dgpix_state::coin_w(u32 data)
 {
 	machine().bookkeeping().coin_counter_w(0, data & 1);
 	machine().bookkeeping().coin_counter_w(1, data & 2);
 }
 
-READ32_MEMBER(dgpix_state::vblank_r)
+u32 dgpix_state::vblank_r()
 {
 	/* burn a bunch of cycles because this is polled frequently during busy loops */
-	space.device().execute().eat_cycles(100);
+	m_maincpu->eat_cycles(100);
 	return m_vblank->read();
 }
 
-static ADDRESS_MAP_START( cpu_map, AS_PROGRAM, 32, dgpix_state )
-	AM_RANGE(0x00000000, 0x007fffff) AM_RAM
-	AM_RANGE(0x40000000, 0x4003ffff) AM_READWRITE(vram_r, vram_w)
-	AM_RANGE(0xe0000000, 0xe1ffffff) AM_READWRITE(flash_r, flash_w)
-	AM_RANGE(0xe2000000, 0xe3ffffff) AM_READWRITE(flash_r, flash_w)
-	AM_RANGE(0xffc00000, 0xffffffff) AM_ROM AM_REGION("flash", 0x1c00000) AM_SHARE("nvram")
-ADDRESS_MAP_END
+void dgpix_state::mem_map(address_map &map)
+{
+	map(0x00000000, 0x007fffff).ram();
+	map(0x40000000, 0x4003ffff).rw(FUNC(dgpix_state::vram_r), FUNC(dgpix_state::vram_w));
+	map(0xe0000000, 0xe1ffffff).rw(FUNC(dgpix_state::flash_r), FUNC(dgpix_state::flash_w));
+	map(0xe2000000, 0xe3ffffff).rw(FUNC(dgpix_state::flash_r), FUNC(dgpix_state::flash_w));
+	map(0xffc00000, 0xffffffff).rom().region("flash", 0x1c00000).share("nvram");
+}
 
-static ADDRESS_MAP_START( io_map, AS_IO, 32, dgpix_state )
-	AM_RANGE(0x0200, 0x0203) AM_READNOP // used to sync with the protecion PIC? tested bits 0 and 1
-	AM_RANGE(0x0400, 0x0403) AM_READWRITE(vblank_r, vbuffer_w)
-	AM_RANGE(0x0a10, 0x0a13) AM_READ_PORT("INPUTS")
-	AM_RANGE(0x0200, 0x0203) AM_WRITE(coin_w)
-	AM_RANGE(0x0c00, 0x0c03) AM_WRITENOP // writes only: 1, 0, 1 at startup
-	AM_RANGE(0x0c80, 0x0c83) AM_WRITENOP // sound commands / latches
-	AM_RANGE(0x0c80, 0x0c83) AM_READNOP //read at startup -> cmp 0xFE
-	AM_RANGE(0x0c84, 0x0c87) AM_READNOP // sound status, checks bit 0x40 and 0x80
-ADDRESS_MAP_END
-
+void dgpix_state::io_map(address_map &map)
+{
+	map(0x0200, 0x0203).nopr(); // used to sync with the protecion PIC? tested bits 0 and 1
+	map(0x0400, 0x0403).rw(FUNC(dgpix_state::vblank_r), FUNC(dgpix_state::vbuffer_w));
+	map(0x0a10, 0x0a13).portr("INPUTS");
+	map(0x0200, 0x0203).w(FUNC(dgpix_state::coin_w));
+	map(0x0c00, 0x0c03).nopw(); // writes only: 1, 0, 1 at startup
+	map(0x0c80, 0x0c83).rw(FUNC(dgpix_state::mpu401_data_r), FUNC(dgpix_state::mpu401_data_w));
+	map(0x0c84, 0x0c87).rw(FUNC(dgpix_state::mpu401_status_r), FUNC(dgpix_state::mpu401_ctrl_w));
+}
 
 static INPUT_PORTS_START( dgpix )
 	PORT_START("VBLANK")
@@ -377,28 +409,22 @@ INPUT_PORTS_END
 
 void dgpix_state::video_start()
 {
-	m_vram = std::make_unique<uint32_t[]>(0x40000*2/4);
+	m_vram = std::make_unique<u16[]>(0x40000);
 
-	save_pointer(NAME(m_vram.get()), 0x40000*2/4);
+	save_pointer(NAME(m_vram), 0x40000);
 }
 
-uint32_t dgpix_state::screen_update_dgpix(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+u32 dgpix_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	int y;
-
-	for (y = 0; y < 240; y++)
+	for (int y = cliprect.top(); y <= cliprect.bottom(); y++)
 	{
-		int x;
-		uint32_t *src = &m_vram[(m_vbuffer ? 0 : 0x10000) | (y << 8)];
-		uint16_t *dest = &bitmap.pix16(y);
+		int x = cliprect.left();
+		u16 *src = &m_vram[(m_vbuffer ? 0 : 0x20000) | (y << 9) | x];
+		u16 *dest = &bitmap.pix16(y, x);
 
-		for (x = 0; x < 320; x += 2)
+		for (; x <= cliprect.right(); x++)
 		{
-			dest[0] = (*src >> 16) & 0x7fff;
-			dest[1] = (*src >>  0) & 0x7fff;
-
-			src++;
-			dest += 2;
+			*dest++ = *src++ & 0x7fff;
 		}
 	}
 
@@ -422,33 +448,32 @@ void dgpix_state::machine_reset()
 }
 
 
-static MACHINE_CONFIG_START( dgpix, dgpix_state )
-	MCFG_CPU_ADD("maincpu", E132XT, 20000000*4) /* 4x internal multiplier */
-	MCFG_CPU_PROGRAM_MAP(cpu_map)
-	MCFG_CPU_IO_MAP(io_map)
+void dgpix_state::dgpix(machine_config &config)
+{
+	E132XT(config, m_maincpu, 20000000*4); /* 4x internal multiplier */
+	m_maincpu->set_addrmap(AS_PROGRAM, &dgpix_state::mem_map);
+	m_maincpu->set_addrmap(AS_IO, &dgpix_state::io_map);
 
-/*
-    unknown 16bit sound cpu, embedded inside the KS0164 sound chip
-    running at 16.9MHz
-*/
-
-	MCFG_NVRAM_ADD_NO_FILL("nvram")
+	NVRAM(config, "nvram", nvram_device::DEFAULT_NONE);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
-	MCFG_SCREEN_SIZE(512, 256)
-	MCFG_SCREEN_VISIBLE_AREA(0, 319, 0, 239)
-	MCFG_SCREEN_UPDATE_DRIVER(dgpix_state, screen_update_dgpix)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500) /* not accurate */);
+	screen.set_size(512, 256);
+	screen.set_visarea(0, 319, 0, 239);
+	screen.set_screen_update(FUNC(dgpix_state::screen_update));
+	screen.set_palette("palette");
 
-	MCFG_PALETTE_ADD_BBBBBGGGGGRRRRR("palette")
+	PALETTE(config, "palette", palette_device::BGR_555);
 
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
 
-	/* sound hardware */
-	// KS0164 sound chip
-MACHINE_CONFIG_END
+	KS0164(config, m_sound, 16.9344_MHz_XTAL);
+	m_sound->add_route(0, "lspeaker", 1.0);
+	m_sound->add_route(1, "rspeaker", 1.0);
+}
 
 
 /*
@@ -466,7 +491,7 @@ ROM_START( elfin )
 	ROM_LOAD16_WORD_SWAP( "flash.u8", 0x1800000, 0x400000, CRC(eb56d7ca) SHA1(7c1cfcc68579cf3bdd9707da7d745a410223b8d9) )
 	ROM_LOAD16_WORD_SWAP( "flash.u9", 0x1c00000, 0x400000, CRC(cbf64ef4) SHA1(1a231872ee14e6d718c3f8888185ede7483e79dd) ) /* game settings & highscores are saved in here */
 
-	ROM_REGION( 0x400000, "cpu1", 0 ) /* sound rom */
+	ROM_REGION( 0x400000, "ks0164", 0 ) /* sound rom */
 	ROM_LOAD16_WORD_SWAP( "flash.u10", 0x000000, 0x400000, CRC(d378fe55) SHA1(5cc7bc5ae258cd48816857793a262e7c6c330795) )
 
 	ROM_REGION( 0x1000, "cpu2", ROMREGION_ERASEFF ) /* PIC */
@@ -488,7 +513,7 @@ ROM_START( jumpjump )
 	ROM_LOAD16_WORD_SWAP( "jumpjump.u8", 0x1800000, 0x400000, CRC(210dfd8b) SHA1(a1aee4ec8c01832e77d2e4e334a62c246d7e3635) )
 	ROM_LOAD16_WORD_SWAP( "jumpjump.u9", 0x1c00000, 0x400000, CRC(16d1e352) SHA1(3c43974fb8d90b0c84472dd9f2167eb983142095) )
 
-	ROM_REGION( 0x400000, "cpu1", 0 ) /* sound rom */
+	ROM_REGION( 0x400000, "ks0164", 0 ) /* sound rom */
 	ROM_LOAD16_WORD_SWAP( "jumpjump.u10", 0x000000, 0x400000, CRC(2152ecce) SHA1(522d389952a07fa0830ca8aaa6de3aacf834e32e) )
 
 	ROM_REGION( 0x1000, "cpu2", ROMREGION_ERASEFF ) /* PIC */
@@ -513,7 +538,7 @@ ROM_START( xfiles )
 	ROM_LOAD16_WORD_SWAP( "flash.u8",  0x1800000, 0x400000, CRC(231ad82a) SHA1(a1cc5c4122605e564d51137f1dca2afa82616202) )
 	ROM_LOAD16_WORD_SWAP( "flash.u9",  0x1c00000, 0x400000, CRC(d68994b7) SHA1(c1752d6795f7aaa6beef73643327205a1c32f0f5) )
 
-	ROM_REGION( 0x400000, "cpu1", 0 ) /* sound rom */
+	ROM_REGION( 0x400000, "ks0164", 0 ) /* sound rom */
 	ROM_LOAD16_WORD_SWAP( "flash.u10", 0x0000000, 0x400000, CRC(1af33cda) SHA1(9bbcfb07a4a5bcff3efc1c7bcc51bc16c47ca9e6) )
 
 	ROM_REGION( 0x1000, "cpu2", 0 ) /* PIC */
@@ -546,7 +571,7 @@ ROM_START( xfilesk )
 	ROM_LOAD16_WORD_SWAP( "u8.bin",  0x1800000, 0x400000, CRC(3b2c2bc1) SHA1(1c07fb5bd8a8c9b5fb169e6400fef845f3aee7aa) )
 	ROM_LOAD16_WORD_SWAP( "u9.bin",  0x1c00000, 0x400000, CRC(6ecdd1eb) SHA1(e26c9711e589865cc75ec693d382758fa52528b8) )
 
-	ROM_REGION( 0x400000, "cpu1", 0 ) /* sound rom */
+	ROM_REGION( 0x400000, "ks0164", 0 ) /* sound rom */
 	ROM_LOAD16_WORD_SWAP( "u10.bin", 0x0000000, 0x400000, CRC(f2ef1eb9) SHA1(d033d140fce6716d7d78509aa5387829f0a1404c) )
 
 	ROM_REGION( 0x1000, "cpu2", 0 ) /* PIC */
@@ -570,7 +595,7 @@ ROM_START( kdynastg )
 	ROM_LOAD16_WORD_SWAP( "flash.u8",  0x1800000, 0x400000, CRC(1016b61c) SHA1(eab4934e1f41cc26259e5187a94ceebd45888a94) )
 	ROM_LOAD16_WORD_SWAP( "flash.u9",  0x1c00000, 0x400000, CRC(093d9243) SHA1(2a643acc7144193aaa3606a84b0c67aadb4c543b) )
 
-	ROM_REGION( 0x400000, "cpu1", 0 ) /* sound rom */
+	ROM_REGION( 0x400000, "ks0164", 0 ) /* sound rom */
 	ROM_LOAD16_WORD_SWAP( "flash.u10", 0x0000000, 0x400000, CRC(3f103cb1) SHA1(2ff9bd73f3005f09d872018b81c915b01d6703f5) )
 
 	ROM_REGION( 0x1000, "cpu2", 0 ) /* PIC */
@@ -594,7 +619,7 @@ ROM_START( fmaniac3 )
 	ROM_LOAD16_WORD_SWAP( "flash.u8", 0x1800000, 0x400000, CRC(dc08a224) SHA1(4d14145eb84ad13674296f81e90b9d60403fa0de) )
 	ROM_LOAD16_WORD_SWAP( "flash.u9", 0x1c00000, 0x400000, CRC(c1fee95f) SHA1(0ed5ed9fa18e7da9242a6df2c210c46de25a2281) )
 
-	ROM_REGION( 0x400000, "cpu1", 0 ) /* sound rom */
+	ROM_REGION( 0x400000, "ks0164", 0 ) /* sound rom */
 	ROM_LOAD16_WORD_SWAP( "flash.u10", 0x000000, 0x400000, CRC(dfeb91a0) SHA1(a4a79073c3f6135957ea8a4a66a9c71a3a39893c) )
 
 	ROM_REGION( 0x1000, "cpu2", ROMREGION_ERASEFF ) /* PIC */
@@ -603,9 +628,9 @@ ROM_END
 
 
 
-DRIVER_INIT_MEMBER(dgpix_state,elfin)
+void dgpix_state::init_elfin()
 {
-	uint8_t *rom = (uint8_t *)memregion("flash")->base() + 0x1c00000;
+	u8 *rom = (u8 *)m_flash->base() + 0x1c00000;
 
 	rom[BYTE4_XOR_BE(0x3a9e94)] = 3;
 	rom[BYTE4_XOR_BE(0x3a9e95)] = 0;
@@ -617,9 +642,9 @@ DRIVER_INIT_MEMBER(dgpix_state,elfin)
 	m_flash_roms = 2;
 }
 
-DRIVER_INIT_MEMBER(dgpix_state,jumpjump)
+void dgpix_state::init_jumpjump()
 {
-	uint8_t *rom = (uint8_t *)memregion("flash")->base() + 0x1c00000;
+	u8 *rom = (u8 *)m_flash->base() + 0x1c00000;
 
 	rom[BYTE4_XOR_BE(0x3a829a)] = 3;
 	rom[BYTE4_XOR_BE(0x3a829b)] = 0;
@@ -631,9 +656,9 @@ DRIVER_INIT_MEMBER(dgpix_state,jumpjump)
 	m_flash_roms = 2;
 }
 
-DRIVER_INIT_MEMBER(dgpix_state,xfiles)
+void dgpix_state::init_xfiles()
 {
-	uint8_t *rom = (uint8_t *)memregion("flash")->base() + 0x1c00000;
+	u8 *rom = (u8 *)m_flash->base() + 0x1c00000;
 
 	rom[BYTE4_XOR_BE(0x3a9a2a)] = 3;
 	rom[BYTE4_XOR_BE(0x3a9a2b)] = 0;
@@ -645,9 +670,9 @@ DRIVER_INIT_MEMBER(dgpix_state,xfiles)
 	m_flash_roms = 2;
 }
 
-DRIVER_INIT_MEMBER(dgpix_state,xfilesk)
+void dgpix_state::init_xfilesk()
 {
-	uint8_t *rom = (uint8_t *)memregion("flash")->base() + 0x1c00000;
+	u8 *rom = (u8 *)m_flash->base() + 0x1c00000;
 
 	rom[BYTE4_XOR_BE(0x3aa92e)] = 3;
 	rom[BYTE4_XOR_BE(0x3aa92f)] = 0;
@@ -662,9 +687,9 @@ DRIVER_INIT_MEMBER(dgpix_state,xfilesk)
 	m_flash_roms = 2;
 }
 
-DRIVER_INIT_MEMBER(dgpix_state,kdynastg)
+void dgpix_state::init_kdynastg()
 {
-	uint8_t *rom = (uint8_t *)memregion("flash")->base() + 0x1c00000;
+	u8 *rom = (u8 *)m_flash->base() + 0x1c00000;
 
 	rom[BYTE4_XOR_BE(0x3aaa10)] = 3; // 129f0 - nopped call
 	rom[BYTE4_XOR_BE(0x3aaa11)] = 0;
@@ -682,14 +707,14 @@ DRIVER_INIT_MEMBER(dgpix_state,kdynastg)
 	m_flash_roms = 4;
 }
 
-DRIVER_INIT_MEMBER(dgpix_state,fmaniac3)
+void dgpix_state::init_fmaniac3()
 {
 	m_flash_roms = 2;
 }
 
-GAME( 1999, elfin,          0, dgpix, dgpix, dgpix_state, elfin,    ROT0, "dgPIX Entertainment Inc.", "Elfin",                             MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1999, jumpjump,       0, dgpix, dgpix, dgpix_state, jumpjump, ROT0, "dgPIX Entertainment Inc.", "Jump Jump",                         MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1999, xfiles,         0, dgpix, dgpix, dgpix_state, xfiles,   ROT0, "dgPIX Entertainment Inc.", "The X-Files",                       MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1999, xfilesk,   xfiles, dgpix, dgpix, dgpix_state, xfilesk,  ROT0, "dgPIX Entertainment Inc.", "The X-Files (Censored, Korea)",     MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1999, kdynastg,       0, dgpix, dgpix, dgpix_state, kdynastg, ROT0, "EZ Graphics",              "King of Dynast Gear (version 1.8)", MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 2002, fmaniac3,       0, dgpix, dgpix, dgpix_state, fmaniac3, ROT0, "Saero Entertainment",      "Fishing Maniac 3",                  MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1999, elfin,    0,      dgpix, dgpix, dgpix_state, init_elfin,    ROT0, "dgPIX Entertainment Inc.", "Elfin",                             MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1999, jumpjump, 0,      dgpix, dgpix, dgpix_state, init_jumpjump, ROT0, "dgPIX Entertainment Inc.", "Jump Jump",                         MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1999, xfiles,   0,      dgpix, dgpix, dgpix_state, init_xfiles,   ROT0, "dgPIX Entertainment Inc.", "The X-Files",                       MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1999, xfilesk,  xfiles, dgpix, dgpix, dgpix_state, init_xfilesk,  ROT0, "dgPIX Entertainment Inc.", "The X-Files (Censored, Korea)",     MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1999, kdynastg, 0,      dgpix, dgpix, dgpix_state, init_kdynastg, ROT0, "EZ Graphics",              "King of Dynast Gear (version 1.8)", MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 2002, fmaniac3, 0,      dgpix, dgpix, dgpix_state, init_fmaniac3, ROT0, "Saero Entertainment",      "Fishing Maniac 3",                  MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )

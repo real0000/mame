@@ -7,6 +7,7 @@
     More data at :
         http://www.nostalcomp.cz/pdfka/savia84.pdf
         http://www.nostalcomp.cz/savia.php
+        (use archive.org)
 
     05/02/2011 Skeleton driver.
     11/10/2011 Found a new rom. Working [Robbbert]
@@ -23,14 +24,12 @@
     Here is a test program. Copy the text and Paste into the emulator.
     -1800^3E^55^D3^F9^76^XX1800^
 
-    ToDo:
-    - Make better artwork
-
 ****************************************************************************/
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "machine/i8255.h"
+#include "video/pwm.h"
 #include "savia84.lh"
 
 
@@ -38,36 +37,47 @@ class savia84_state : public driver_device
 {
 public:
 	savia84_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_ppi8255(*this, "ppi8255")
-	{ }
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_ppi8255(*this, "ppi8255")
+		, m_display(*this, "display")
+		, m_io_keyboard(*this, "X%u", 0U)
+		{ }
 
+	void savia84(machine_config &config);
+
+private:
+	uint8_t savia84_8255_portc_r();
+	void savia84_8255_porta_w(uint8_t data);
+	void savia84_8255_portb_w(uint8_t data);
+	void savia84_8255_portc_w(uint8_t data);
+
+	void io_map(address_map &map);
+	void mem_map(address_map &map);
+
+	uint8_t m_digit;
+	uint8_t m_seg;
+	void machine_start() override;
 	required_device<cpu_device> m_maincpu;
 	required_device<i8255_device> m_ppi8255;
-	DECLARE_READ8_MEMBER(savia84_8255_portc_r);
-	DECLARE_WRITE8_MEMBER(savia84_8255_porta_w);
-	DECLARE_WRITE8_MEMBER(savia84_8255_portb_w);
-	DECLARE_WRITE8_MEMBER(savia84_8255_portc_w);
-	uint8_t m_kbd;
-	uint8_t m_segment;
-	uint8_t m_digit;
-	uint8_t m_digit_last;
-	virtual void machine_reset() override;
+	required_device<pwm_display_device> m_display;
+	required_ioport_array<9> m_io_keyboard;
 };
 
-static ADDRESS_MAP_START( savia84_mem, AS_PROGRAM, 8, savia84_state )
-	ADDRESS_MAP_UNMAP_HIGH
-	ADDRESS_MAP_GLOBAL_MASK(0x7fff) // A15 not connected at the CPU
-	AM_RANGE(0x0000, 0x07ff) AM_ROM
-	AM_RANGE(0x1800, 0x1fff) AM_RAM
-ADDRESS_MAP_END
+void savia84_state::mem_map(address_map &map)
+{
+	map.unmap_value_high();
+	map.global_mask(0x7fff); // A15 not connected at the CPU
+	map(0x0000, 0x07ff).rom();
+	map(0x1800, 0x1fff).ram();
+}
 
-static ADDRESS_MAP_START( savia84_io, AS_IO, 8, savia84_state )
-	ADDRESS_MAP_UNMAP_HIGH
-	ADDRESS_MAP_GLOBAL_MASK(0x07)
-	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE("ppi8255", i8255_device, read, write) // ports F8-FB
-ADDRESS_MAP_END
+void savia84_state::io_map(address_map &map)
+{
+	map.unmap_value_high();
+	map.global_mask(0x07);
+	map(0x00, 0x03).rw(m_ppi8255, FUNC(i8255_device::read), FUNC(i8255_device::write)); // ports F8-FB
+}
 
 /* Input ports */
 static INPUT_PORTS_START( savia84 )
@@ -123,19 +133,13 @@ static INPUT_PORTS_START( savia84 )
 INPUT_PORTS_END
 
 
-void savia84_state::machine_reset()
+void savia84_state::savia84_8255_porta_w(uint8_t data) // OUT F8 - output segments on the selected digit
 {
-	m_digit_last = 0;
+	m_seg = ~data;
+	m_display->matrix(1 << m_digit, m_seg);
 }
 
-WRITE8_MEMBER( savia84_state::savia84_8255_porta_w ) // OUT F8 - output segments on the selected digit
-{
-	m_segment = ~data & 0x7f;
-	if (m_digit && (m_digit != m_digit_last)) output().set_digit_value(m_digit, m_segment);
-	m_digit_last = m_digit;
-}
-
-WRITE8_MEMBER( savia84_state::savia84_8255_portb_w ) // OUT F9 - light the 8 leds down the left side
+void savia84_state::savia84_8255_portb_w(uint8_t data) // OUT F9 - light the 8 leds down the left side
 {
 	char ledname[8];
 	for (int i = 0; i < 8; i++)
@@ -145,50 +149,49 @@ WRITE8_MEMBER( savia84_state::savia84_8255_portb_w ) // OUT F9 - light the 8 led
 	}
 }
 
-WRITE8_MEMBER( savia84_state::savia84_8255_portc_w ) // OUT FA - set keyboard scanning row; set digit to display
+void savia84_state::savia84_8255_portc_w(uint8_t data) // OUT FA - set keyboard scanning row; set digit to display
 {
-	m_digit = 0;
-	m_kbd = data & 15;
-	if (m_kbd == 0)
-		m_digit = 1;
-	else
-	if ((m_kbd > 1) && (m_kbd < 9))
-		m_digit = m_kbd;
+	m_digit = data & 15;
+	m_display->matrix(1 << m_digit, m_seg);
 }
 
-READ8_MEMBER( savia84_state::savia84_8255_portc_r ) // IN FA - read keyboard
+uint8_t savia84_state::savia84_8255_portc_r() // IN FA - read keyboard
 {
-	if (m_kbd < 9)
-	{
-		char kbdrow[6];
-		sprintf(kbdrow,"X%d",m_kbd);
-		return ioport(kbdrow)->read();
-	}
+	if (m_digit < 9)
+		return m_io_keyboard[m_digit]->read();
 	else
 		return 0xff;
 }
 
-static MACHINE_CONFIG_START( savia84, savia84_state )
+void savia84_state::machine_start()
+{
+	save_item(NAME(m_digit));
+	save_item(NAME(m_seg));
+}
+
+void savia84_state::savia84(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu",Z80, XTAL_4MHz / 2)
-	MCFG_CPU_PROGRAM_MAP(savia84_mem)
-	MCFG_CPU_IO_MAP(savia84_io)
+	Z80(config, m_maincpu, XTAL(4'000'000) / 2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &savia84_state::mem_map);
+	m_maincpu->set_addrmap(AS_IO, &savia84_state::io_map);
 
 	/* video hardware */
-	MCFG_DEFAULT_LAYOUT(layout_savia84)
+	config.set_default_layout(layout_savia84);
+	PWM_DISPLAY(config, m_display).set_size(9, 7);
+	m_display->set_segmask(0x1fd, 0x7f);
 
 	/* Devices */
-	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
-	MCFG_I8255_OUT_PORTA_CB(WRITE8(savia84_state, savia84_8255_porta_w))
-	MCFG_I8255_OUT_PORTB_CB(WRITE8(savia84_state, savia84_8255_portb_w))
-	MCFG_I8255_IN_PORTC_CB(READ8(savia84_state, savia84_8255_portc_r))
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(savia84_state, savia84_8255_portc_w))
-
-MACHINE_CONFIG_END
+	I8255(config, m_ppi8255);
+	m_ppi8255->out_pa_callback().set(FUNC(savia84_state::savia84_8255_porta_w));
+	m_ppi8255->out_pb_callback().set(FUNC(savia84_state::savia84_8255_portb_w));
+	m_ppi8255->in_pc_callback().set(FUNC(savia84_state::savia84_8255_portc_r));
+	m_ppi8255->out_pc_callback().set(FUNC(savia84_state::savia84_8255_portc_w));
+}
 
 /* ROM definition */
 ROM_START( savia84 )
-	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
+	ROM_REGION( 0x0800, "maincpu", 0 )
 	ROM_LOAD("savia84.bin", 0x0000, 0x0800, CRC(fa8f1fcf) SHA1(b08404469ed988d96c0413416b6a66f3e5b997a3))
 
 	// Note - the below is a bad dump and does not work
@@ -197,5 +200,5 @@ ROM_END
 
 /* Driver */
 
-/*    YEAR  NAME    PARENT  COMPAT   MACHINE    INPUT    INIT    COMPANY     FULLNAME       FLAGS */
-COMP( 1984, savia84,  0,       0,    savia84,   savia84, driver_device, 0,     "JT Hyan", "Savia 84", MACHINE_NO_SOUND_HW)
+//    YEAR  NAME     PARENT  COMPAT  MACHINE  INPUT    CLASS          INIT        COMPANY      FULLNAME    FLAGS
+COMP( 1984, savia84, 0,      0,      savia84, savia84, savia84_state, empty_init, "J.T. Hyan", "Savia 84", MACHINE_NO_SOUND_HW)

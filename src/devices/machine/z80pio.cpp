@@ -16,7 +16,6 @@
 
 #include "emu.h"
 #include "z80pio.h"
-#include "cpu/z80/z80daisy.h"
 
 
 //**************************************************************************
@@ -32,14 +31,14 @@
 //**************************************************************************
 
 // device type definition
-const device_type Z80PIO = device_creator<z80pio_device>;
+DEFINE_DEVICE_TYPE(Z80PIO, z80pio_device, "z80pio", "Z80 PIO")
 
 //-------------------------------------------------
 //  z80pio_device - constructor
 //-------------------------------------------------
 
 z80pio_device::z80pio_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, Z80PIO, "Z80 PIO", tag, owner, clock, "z80pio", __FILE__),
+	device_t(mconfig, Z80PIO, tag, owner, clock),
 	device_z80daisy_interface(mconfig, *this),
 	m_out_int_cb(*this),
 	m_in_pa_cb(*this),
@@ -187,7 +186,7 @@ void z80pio_device::z80daisy_irq_reti()
 //  read - register read
 //-------------------------------------------------
 
-READ8_MEMBER( z80pio_device::read )
+u8 z80pio_device::read(offs_t offset)
 {
 	int index = BIT(offset, 0);
 	return BIT(offset, 1) ? control_read() : data_read(index);
@@ -197,7 +196,7 @@ READ8_MEMBER( z80pio_device::read )
 //  write - register write
 //-------------------------------------------------
 
-WRITE8_MEMBER( z80pio_device::write )
+void z80pio_device::write(offs_t offset, u8 data)
 {
 	int index = BIT(offset, 0);
 	BIT(offset, 1) ? control_write(index, data) : data_write(index, data);
@@ -207,7 +206,7 @@ WRITE8_MEMBER( z80pio_device::write )
 //  read_alt - register read
 //-------------------------------------------------
 
-READ8_MEMBER( z80pio_device::read_alt )
+u8 z80pio_device::read_alt(offs_t offset)
 {
 	int index = BIT(offset, 1);
 	return BIT(offset, 0) ? control_read() : data_read(index);
@@ -217,7 +216,7 @@ READ8_MEMBER( z80pio_device::read_alt )
 //  write_alt - register write
 //-------------------------------------------------
 
-WRITE8_MEMBER( z80pio_device::write_alt )
+void z80pio_device::write_alt(offs_t offset, u8 data)
 {
 	int index = BIT(offset, 1);
 	BIT(offset, 0) ? control_write(index, data) : data_write(index, data);

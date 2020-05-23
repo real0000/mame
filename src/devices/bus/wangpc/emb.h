@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_WANGPC_EMB_H
+#define MAME_BUS_WANGPC_EMB_H
 
-#ifndef __WANGPC_EMB__
-#define __WANGPC_EMB__
+#pragma once
 
 #include "wangpc.h"
 
@@ -34,10 +34,10 @@ protected:
 	virtual void device_reset() override;
 
 	// device_wangpcbus_card_interface overrides
-	virtual uint16_t wangpcbus_mrdc_r(address_space &space, offs_t offset, uint16_t mem_mask) override;
-	virtual void wangpcbus_amwc_w(address_space &space, offs_t offset, uint16_t mem_mask, uint16_t data) override;
-	virtual uint16_t wangpcbus_iorc_r(address_space &space, offs_t offset, uint16_t mem_mask) override;
-	virtual void wangpcbus_aiowc_w(address_space &space, offs_t offset, uint16_t mem_mask, uint16_t data) override;
+	virtual uint16_t wangpcbus_mrdc_r(offs_t offset, uint16_t mem_mask) override;
+	virtual void wangpcbus_amwc_w(offs_t offset, uint16_t mem_mask, uint16_t data) override;
+	virtual uint16_t wangpcbus_iorc_r(offs_t offset, uint16_t mem_mask) override;
+	virtual void wangpcbus_aiowc_w(offs_t offset, uint16_t mem_mask, uint16_t data) override;
 
 private:
 	optional_shared_ptr<uint16_t> m_ram;
@@ -48,7 +48,6 @@ private:
 
 
 // device type definition
-extern const device_type WANGPC_EMB;
+DECLARE_DEVICE_TYPE(WANGPC_EMB, wangpc_emb_device)
 
-
-#endif
+#endif // MAME_BUS_WANGPC_EMB_H

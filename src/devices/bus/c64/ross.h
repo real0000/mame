@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_C64_ROSS_H
+#define MAME_BUS_C64_ROSS_H
 
-#ifndef __ROSS__
-#define __ROSS__
+#pragma once
 
 
 #include "exp.h"
@@ -35,8 +35,8 @@ protected:
 	virtual void device_reset() override;
 
 	// device_c64_expansion_card_interface overrides
-	virtual uint8_t c64_cd_r(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2) override;
-	virtual void c64_cd_w(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2) override;
+	virtual uint8_t c64_cd_r(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2) override;
+	virtual void c64_cd_w(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2) override;
 
 private:
 	uint8_t m_bank;
@@ -44,8 +44,7 @@ private:
 
 
 // device type definition
-extern const device_type C64_ROSS;
+DECLARE_DEVICE_TYPE(C64_ROSS, c64_ross_cartridge_device)
 
 
-
-#endif
+#endif // MAME_BUS_C64_ROSS_H

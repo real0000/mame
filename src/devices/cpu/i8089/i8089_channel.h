@@ -8,23 +8,10 @@
 
 ***************************************************************************/
 
+#ifndef MAME_CPU_I8080_I8089_CHANNEL_H
+#define MAME_CPU_I8080_I8089_CHANNEL_H
+
 #pragma once
-
-#ifndef __I8089_CHANNEL_H__
-#define __I8089_CHANNEL_H__
-
-#include "i8089.h"
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_I8089_CHANNEL_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, I8089_CHANNEL, 0)
-
-#define MCFG_I8089_CHANNEL_SINTR(_sintr) \
-	downcast<i8089_channel *>(device)->set_sintr_callback(DEVCB_##_sintr);
 
 
 //**************************************************************************
@@ -34,13 +21,13 @@
 // forward declaration
 class i8089_device;
 
-class i8089_channel : public device_t
+class i8089_channel_device : public device_t
 {
 public:
 	// construction/destruction
-	i8089_channel(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	i8089_channel_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _sintr> void set_sintr_callback(_sintr sintr) { m_write_sintr.set_callback(sintr); }
+	auto sintr() { return m_write_sintr.bind(); }
 
 	// set register
 	void set_reg(int reg, uint32_t value, int tag = -1);
@@ -159,7 +146,7 @@ private:
 	void ori_ri(int r, int16_t i);
 	void ori_mi(int m, int16_t i, int o);
 	void setb(int m, int b, int o);
-	void sintr();
+	void do_sintr();
 	void tsl(int m, int8_t i, int8_t d, int o);
 	void wid(int s, int d);
 	void xfer();
@@ -185,7 +172,7 @@ private:
 	bool m_xfer_pending;
 	uint16_t m_dma_value;
 	int m_dma_state;
-	bool m_drq;
+	bool m_drq, m_store_hi, m_load_hi;
 
 	// dma state
 	enum
@@ -217,7 +204,6 @@ private:
 
 
 // device type definition
-extern const device_type I8089_CHANNEL;
+DECLARE_DEVICE_TYPE(I8089_CHANNEL, i8089_channel_device)
 
-
-#endif  /* __I8089_CHANNEL_H__ */
+#endif // MAME_CPU_I8080_I8089_CHANNEL_H

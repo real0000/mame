@@ -1,9 +1,5 @@
 // license:GPL-2.0+
 // copyright-holders:Couriersud
-/*
- * dynlib.c
- *
- */
 
 #include "pdynlib.h"
 
@@ -25,7 +21,7 @@ CHAR *astring_from_utf8(const char *utf8string)
 
 	// convert UTF-16 to "ANSI code page" string
 	char_count = WideCharToMultiByte(CP_ACP, 0, wstring, -1, nullptr, 0, nullptr, nullptr);
-	result = palloc_array<CHAR>(char_count);
+	result = new CHAR[char_count];
 	if (result != nullptr)
 		WideCharToMultiByte(CP_ACP, 0, wstring, -1, result, char_count, nullptr, nullptr);
 
@@ -39,7 +35,7 @@ WCHAR *wstring_from_utf8(const char *utf8string)
 
 	// convert MAME string (UTF-8) to UTF-16
 	char_count = MultiByteToWideChar(CP_UTF8, 0, utf8string, -1, nullptr, 0);
-	result = palloc_array<WCHAR>(char_count);
+	result = new WCHAR[char_count];
 	if (result != nullptr)
 		MultiByteToWideChar(CP_UTF8, 0, utf8string, -1, result, char_count);
 
@@ -58,8 +54,8 @@ WCHAR *wstring_from_utf8(const char *utf8string)
 #endif
 
 namespace plib {
-dynlib::dynlib(const pstring libname)
-: m_isLoaded(false), m_lib(nullptr)
+dynlib::dynlib(const pstring &libname)
+: m_lib(nullptr)
 {
 #ifdef _WIN32
 	//fprintf(stderr, "win: loading <%s>\n", libname.c_str());
@@ -69,10 +65,12 @@ dynlib::dynlib(const pstring libname)
 	else
 		m_lib = GetModuleHandle(nullptr);
 	if (m_lib != nullptr)
-		m_isLoaded = true;
+		set_loaded(true);
 	//else
 	//  fprintf(stderr, "win: library <%s> not found!\n", libname.c_str());
-	pfree_array(buffer);
+	delete [] buffer;
+#elif defined(__EMSCRIPTEN__)
+	//no-op
 #else
 	//printf("loading <%s>\n", libname.c_str());
 	if (libname != "")
@@ -80,15 +78,17 @@ dynlib::dynlib(const pstring libname)
 	else
 		m_lib = dlopen(nullptr, RTLD_LAZY);
 	if (m_lib != nullptr)
-		m_isLoaded = true;
+		set_loaded(true);
 	//else
 	//  printf("library <%s> not found: %s\n", libname.c_str(), dlerror());
 #endif
 	}
 
-dynlib::dynlib(const pstring path, const pstring libname)
-: m_isLoaded(false), m_lib(nullptr)
+dynlib::dynlib(const pstring &path, const pstring &libname)
+: m_lib(nullptr)
 {
+	// FIXME: implement path search
+	plib::unused_var(path);
 	//  printf("win: loading <%s>\n", libname.c_str());
 #ifdef _WIN32
 	TCHAR *buffer = tstring_from_utf8(libname.c_str());
@@ -97,12 +97,14 @@ dynlib::dynlib(const pstring path, const pstring libname)
 	else
 		m_lib = GetModuleHandle(nullptr);
 	if (m_lib != nullptr)
-		m_isLoaded = true;
+		set_loaded(true);
 	else
 	{
 		//printf("win: library <%s> not found!\n", libname.c_str());
 	}
-	pfree_array(buffer);
+	delete [] buffer;
+#elif defined(__EMSCRIPTEN__)
+	//no-op
 #else
 	//printf("loading <%s>\n", libname.c_str());
 	if (libname != "")
@@ -110,7 +112,7 @@ dynlib::dynlib(const pstring path, const pstring libname)
 	else
 		m_lib = dlopen(nullptr, RTLD_LAZY);
 	if (m_lib != nullptr)
-		m_isLoaded = true;
+		set_loaded(true);
 	else
 	{
 		//printf("library <%s> not found!\n", libname.c_str());
@@ -130,12 +132,7 @@ dynlib::~dynlib()
 	}
 }
 
-bool dynlib::isLoaded() const
-{
-	return m_isLoaded;
-}
-
-void *dynlib::getsym_p(const pstring name)
+void *dynlib::getsym_p(const pstring &name) const noexcept
 {
 #ifdef _WIN32
 	return (void *) GetProcAddress((HMODULE) m_lib, name.c_str());
@@ -144,4 +141,4 @@ void *dynlib::getsym_p(const pstring name)
 #endif
 }
 
-}
+} // namespace plib

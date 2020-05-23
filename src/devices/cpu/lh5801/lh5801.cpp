@@ -9,19 +9,21 @@
  *   - Fixed the flags in the ROL/ROR/SHL/SHR opcodes.
  *   - Fixed decimal add/sub opcodes.
  *
- * based on info found on an artikel for the tandy trs80 pc2
- * and on "PC1500 Technical reference manual"
+ * Based on info found in an article for the Tandy TRS-80 PC2
+ * and in the PC1500 Technical Reference Manual.
  *
  *****************************************************************************/
 
 #include "emu.h"
-#include "debugger.h"
-
 #include "lh5801.h"
+#include "5801dasm.h"
+
+#include "debugger.h"
 
 #define VERBOSE 0
 
-#define LOG(x)  do { if (VERBOSE) logerror x; } while (0)
+#include "logmacro.h"
+
 
 enum
 {
@@ -62,17 +64,24 @@ enum
 #define H 0x10
 
 
-const device_type LH5801 = device_creator<lh5801_cpu_device>;
+DEFINE_DEVICE_TYPE(LH5801, lh5801_cpu_device, "lh5801", "Sharp LH5801")
 
 
 lh5801_cpu_device::lh5801_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, LH5801, "LH5801", tag, owner, clock, "lh5801", __FILE__)
+	: cpu_device(mconfig, LH5801, tag, owner, clock)
 	, m_program_config("program", ENDIANNESS_LITTLE, 8, 16, 0)
 	, m_io_config("io", ENDIANNESS_LITTLE, 8, 16, 0)
 	, m_in_func(*this)
 {
 }
 
+device_memory_interface::space_config_vector lh5801_cpu_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_IO,      &m_io_config)
+	};
+}
 
 /***************************************************************
  * include the opcode macros, functions and tables
@@ -83,7 +92,7 @@ void lh5801_cpu_device::device_start()
 {
 	m_program = &space(AS_PROGRAM);
 	m_io = &space(AS_IO);
-	m_direct = &m_program->direct();
+	m_cache = m_program->cache<0, 0, ENDIANNESS_LITTLE>();
 
 	m_in_func.resolve_safe(0);
 
@@ -140,7 +149,7 @@ void lh5801_cpu_device::device_start()
 	state_add(STATE_GENPCBASE, "CURPC", m_p.w.l).noshow();
 	state_add(STATE_GENFLAGS, "GENFLAGS", m_t).noshow().formatstr("%8s");
 
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 }
 
 void lh5801_cpu_device::state_string_export(const device_state_entry &entry, std::string &str) const
@@ -163,9 +172,9 @@ void lh5801_cpu_device::state_string_export(const device_state_entry &entry, std
 
 void lh5801_cpu_device::device_reset()
 {
-	P = (m_program->read_byte(0xfffe)<<8) | m_program->read_byte(0xffff);
+	P = (m_program->read_byte(0xfffe) << 8) | m_program->read_byte(0xffff);
 
-	m_idle=0;
+	m_idle = 0;
 
 	memset(m_ir_flipflop, 0, sizeof(m_ir_flipflop));
 	memset(m_lines_status, 0, sizeof(m_lines_status));
@@ -179,27 +188,27 @@ void lh5801_cpu_device::check_irq()
 		//NMI interrupt
 		m_ir_flipflop[0] = 0;
 		lh5801_push(m_t);
-		m_t&=~IE;
+		m_t &= ~IE;
 		lh5801_push_word(P);
-		P = (m_program->read_byte(0xfffc)<<8) | m_program->read_byte(0xfffd);
+		P = (m_program->read_byte(0xfffc) << 8) | m_program->read_byte(0xfffd);
 	}
 	else if (m_ir_flipflop[1] && (m_t & IE))
 	{
-		//counter interrupt (counter not yet implemented)
+		// Counter interrupt (counter not yet implemented)
 		m_ir_flipflop[1] = 0;
 		lh5801_push(m_t);
-		m_t&=~IE;
+		m_t &= ~IE;
 		lh5801_push_word(P);
-		P = (m_program->read_byte(0xfffa)<<8) | m_program->read_byte(0xfffb);
+		P = (m_program->read_byte(0xfffa) << 8) | m_program->read_byte(0xfffb);
 	}
 	else if (m_ir_flipflop[2] && (m_t & IE))
 	{
-		//MI interrupt
+		// MI interrupt
 		m_ir_flipflop[2] = 0;
 		lh5801_push(m_t);
-		m_t&=~IE;
+		m_t &= ~IE;
 		lh5801_push_word(P);
-		P = (m_program->read_byte(0xfff8)<<8) | m_program->read_byte(0xfff9);
+		P = (m_program->read_byte(0xfff8) << 8) | m_program->read_byte(0xfff9);
 	}
 }
 
@@ -216,7 +225,7 @@ void lh5801_cpu_device::execute_run()
 		{
 			m_oldpc = P;
 
-			debugger_instruction_hook(this, P);
+			debugger_instruction_hook(P);
 			lh5801_instruction();
 		}
 
@@ -225,7 +234,7 @@ void lh5801_cpu_device::execute_run()
 
 void lh5801_cpu_device::execute_set_input(int irqline, int state)
 {
-	switch( irqline)
+	switch (irqline)
 	{
 		case LH5801_LINE_MI:
 			if (m_lines_status[0] == CLEAR_LINE && state == ASSERT_LINE)
@@ -248,8 +257,7 @@ void lh5801_cpu_device::execute_set_input(int irqline, int state)
 	}
 }
 
-offs_t lh5801_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> lh5801_cpu_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( lh5801 );
-	return CPU_DISASSEMBLE_NAME(lh5801)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<lh5801_disassembler>();
 }

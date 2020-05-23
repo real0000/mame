@@ -26,34 +26,33 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type GENERIC_ROM_PLAIN  = device_creator<generic_rom_plain_device>;
-const device_type GENERIC_ROM_LINEAR = device_creator<generic_rom_linear_device>;
-const device_type GENERIC_ROMRAM_PLAIN = device_creator<generic_romram_plain_device>;
+DEFINE_DEVICE_TYPE(GENERIC_ROM_PLAIN,    generic_rom_plain_device,    "generic_rom_plain",    "Generic ROM (plain mapping)")
+DEFINE_DEVICE_TYPE(GENERIC_ROM_LINEAR,   generic_rom_linear_device,   "generic_rom_linear",   "Generic ROM (linear mapping)")
+DEFINE_DEVICE_TYPE(GENERIC_ROMRAM_PLAIN, generic_romram_plain_device, "generic_romram_plain", "Generic ROM + RAM (plain mapping)")
 
 
-generic_rom_device::generic_rom_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-						device_generic_cart_interface(mconfig, *this)
+generic_rom_device::generic_rom_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock), device_generic_cart_interface(mconfig, *this)
 {
 }
 
-generic_rom_plain_device::generic_rom_plain_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: generic_rom_device(mconfig, type, name, tag, owner, clock, shortname, source)
+generic_rom_plain_device::generic_rom_plain_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: generic_rom_device(mconfig, type, tag, owner, clock)
 {
 }
 
 generic_rom_plain_device::generic_rom_plain_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: generic_rom_device(mconfig, GENERIC_ROM_PLAIN, "Generic ROM (plain mapping)", tag, owner, clock, "generic_rom_plain", __FILE__)
+	: generic_rom_plain_device(mconfig, GENERIC_ROM_PLAIN, tag, owner, clock)
 {
 }
 
 generic_rom_linear_device::generic_rom_linear_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: generic_rom_device(mconfig, GENERIC_ROM_LINEAR, "Generic ROM (linear mapping)", tag, owner, clock, "generic_rom_linear", __FILE__)
+	: generic_rom_device(mconfig, GENERIC_ROM_LINEAR, tag, owner, clock)
 {
 }
 
 generic_romram_plain_device::generic_romram_plain_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: generic_rom_plain_device(mconfig, GENERIC_ROMRAM_PLAIN, "Generic ROM + RAM (plain mapping)", tag, owner, clock, "generic_romram_plain", __FILE__)
+	: generic_rom_plain_device(mconfig, GENERIC_ROMRAM_PLAIN, tag, owner, clock)
 {
 }
 
@@ -62,7 +61,7 @@ generic_romram_plain_device::generic_romram_plain_device(const machine_config &m
  mapper specific handlers
  -------------------------------------------------*/
 
-READ8_MEMBER(generic_rom_plain_device::read_rom)
+uint8_t generic_rom_plain_device::read_rom(offs_t offset)
 {
 	if (offset < m_rom_size)
 		return m_rom[offset];
@@ -70,7 +69,7 @@ READ8_MEMBER(generic_rom_plain_device::read_rom)
 		return 0xff;
 }
 
-READ16_MEMBER(generic_rom_plain_device::read16_rom)
+uint16_t generic_rom_plain_device::read16_rom(offs_t offset, uint16_t mem_mask)
 {
 	uint16_t *ROM = (uint16_t *)m_rom;
 	if (offset < m_rom_size/2)
@@ -79,7 +78,7 @@ READ16_MEMBER(generic_rom_plain_device::read16_rom)
 		return 0xffff;
 }
 
-READ32_MEMBER(generic_rom_plain_device::read32_rom)
+uint32_t generic_rom_plain_device::read32_rom(offs_t offset, uint32_t mem_mask)
 {
 	uint32_t *ROM = (uint32_t *)m_rom;
 	if (offset < m_rom_size/4)
@@ -89,25 +88,25 @@ READ32_MEMBER(generic_rom_plain_device::read32_rom)
 }
 
 
-READ8_MEMBER(generic_rom_linear_device::read_rom)
+uint8_t generic_rom_linear_device::read_rom(offs_t offset)
 {
 	return m_rom[offset % m_rom_size];
 }
 
-READ16_MEMBER(generic_rom_linear_device::read16_rom)
+uint16_t generic_rom_linear_device::read16_rom(offs_t offset, uint16_t mem_mask)
 {
 	uint16_t *ROM = (uint16_t *)m_rom;
 	return ROM[offset % (m_rom_size/2)];
 }
 
-READ32_MEMBER(generic_rom_linear_device::read32_rom)
+uint32_t generic_rom_linear_device::read32_rom(offs_t offset, uint32_t mem_mask)
 {
 	uint32_t *ROM = (uint32_t *)m_rom;
 	return ROM[offset % (m_rom_size/4)];
 }
 
 
-READ8_MEMBER(generic_romram_plain_device::read_ram)
+uint8_t generic_romram_plain_device::read_ram(offs_t offset)
 {
 	if (offset < m_ram.size())
 		return m_ram[offset];
@@ -115,7 +114,7 @@ READ8_MEMBER(generic_romram_plain_device::read_ram)
 		return 0xff;
 }
 
-WRITE8_MEMBER(generic_romram_plain_device::write_ram)
+void generic_romram_plain_device::write_ram(offs_t offset, uint8_t data)
 {
 	if (offset < m_ram.size())
 		m_ram[offset] = data;

@@ -7,9 +7,10 @@
 #include "emu.h"
 #include "segapcm.h"
 
+#include <algorithm>
 
 // device type definition
-const device_type SEGAPCM = device_creator<segapcm_device>;
+DEFINE_DEVICE_TYPE(SEGAPCM, segapcm_device, "segapcm", "Sega PCM")
 
 
 //-------------------------------------------------
@@ -17,14 +18,13 @@ const device_type SEGAPCM = device_creator<segapcm_device>;
 //-------------------------------------------------
 
 segapcm_device::segapcm_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, SEGAPCM, "Sega PCM", tag, owner, clock, "segapcm", __FILE__),
-		device_sound_interface(mconfig, *this),
-		device_rom_interface(mconfig, *this, 21),
-		m_ram(nullptr),
-		m_bank(0),
-		m_bankshift(0),
-		m_bankmask(0),
-		m_stream(nullptr)
+	: device_t(mconfig, SEGAPCM, tag, owner, clock)
+	, device_sound_interface(mconfig, *this)
+	, device_rom_interface(mconfig, *this, 21)
+	, m_ram(nullptr)
+	, m_bankshift(12)
+	, m_bankmask(0x70)
+	, m_stream(nullptr)
 {
 }
 
@@ -35,25 +35,26 @@ segapcm_device::segapcm_device(const machine_config &mconfig, const char *tag, d
 
 void segapcm_device::device_start()
 {
-	int mask;
-
 	m_ram = std::make_unique<uint8_t[]>(0x800);
 
-	memset(m_ram.get(), 0xff, 0x800);
-
-	m_bankshift = (uint8_t) m_bank;
-	mask = m_bank >> 16;
-	if (!mask)
-		mask = BANK_MASK7 >> 16;
-
-	m_bankmask = mask & (0x1fffff >> m_bankshift);
+	std::fill(&m_ram[0], &m_ram[0x800], 0xff);
 
 	m_stream = stream_alloc(0, 2, clock() / 128);
 
 	save_item(NAME(m_low));
-	save_pointer(NAME(m_ram.get()), 0x800);
+	save_pointer(NAME(m_ram), 0x800);
 }
 
+
+//-------------------------------------------------
+//  device_clock_changed - called if the clock
+//  changes
+//-------------------------------------------------
+
+void segapcm_device::device_clock_changed()
+{
+	m_stream->set_sample_rate(clock() / 128);
+}
 
 
 //-------------------------------------------------
@@ -145,14 +146,14 @@ void segapcm_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 }
 
 
-WRITE8_MEMBER( segapcm_device::sega_pcm_w )
+void segapcm_device::write(offs_t offset, uint8_t data)
 {
 	m_stream->update();
 	m_ram[offset & 0x07ff] = data;
 }
 
 
-READ8_MEMBER( segapcm_device::sega_pcm_r )
+uint8_t segapcm_device::read(offs_t offset)
 {
 	m_stream->update();
 	return m_ram[offset & 0x07ff];

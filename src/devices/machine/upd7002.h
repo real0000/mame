@@ -10,19 +10,10 @@
  *
  ****************************************************************************/
 
-#ifndef UPD7002_H_
-#define UPD7002_H_
+#ifndef MAME_MACHINE_UPD7002_H
+#define MAME_MACHINE_UPD7002_H
 
-/***************************************************************************
-    TYPE DEFINITIONS
-***************************************************************************/
-
-typedef device_delegate<int (int channel_number)> upd7002_get_analogue_delegate;
-#define UPD7002_GET_ANALOGUE(name)  int name(int channel_number)
-
-typedef device_delegate<void (int data)> upd7002_eoc_delegate;
-#define UPD7002_EOC(name)   void name(int data)
-
+#pragma once
 
 /***************************************************************************
     MACROS
@@ -31,15 +22,17 @@ typedef device_delegate<void (int data)> upd7002_eoc_delegate;
 class upd7002_device : public device_t
 {
 public:
+	typedef device_delegate<int (int channel_number)> get_analogue_delegate;
+	typedef device_delegate<void (int data)> eoc_delegate;
+
 	upd7002_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~upd7002_device() {}
 
-	static void set_get_analogue_callback(device_t &device, upd7002_get_analogue_delegate callback) { downcast<upd7002_device &>(device).m_get_analogue_cb = callback; }
-	static void set_eoc_callback(device_t &device, upd7002_eoc_delegate callback) { downcast<upd7002_device &>(device).m_eoc_cb = callback; }
+	template <typename... T> void set_get_analogue_callback(T &&... args) { m_get_analogue_cb.set(std::forward<T>(args)...); }
+	template <typename... T> void set_eoc_callback(T &&... args) { m_eoc_cb.set(std::forward<T>(args)...); }
 
-	DECLARE_READ8_MEMBER(eoc_r);
-	DECLARE_READ8_MEMBER(read);
-	DECLARE_WRITE8_MEMBER(write);
+	DECLARE_READ_LINE_MEMBER(eoc_r);
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 
 protected:
 	// device-level overrides
@@ -81,8 +74,8 @@ private:
 	only then at the end of the second conversion will the conversion complete function run */
 	int m_conversion_counter;
 
-	upd7002_get_analogue_delegate m_get_analogue_cb;
-	upd7002_eoc_delegate          m_eoc_cb;
+	get_analogue_delegate m_get_analogue_cb;
+	eoc_delegate          m_eoc_cb;
 
 	enum
 	{
@@ -90,17 +83,6 @@ private:
 	};
 };
 
-extern const device_type UPD7002;
+DECLARE_DEVICE_TYPE(UPD7002, upd7002_device)
 
-
-/***************************************************************************
-    DEVICE CONFIGURATION MACROS
-***************************************************************************/
-
-#define MCFG_UPD7002_GET_ANALOGUE_CB(_class, _method) \
-	upd7002_device::set_get_analogue_callback(*device, upd7002_get_analogue_delegate(&_class::_method, #_class "::" #_method, downcast<_class *>(owner)));
-
-#define MCFG_UPD7002_EOC_CB(_class, _method) \
-	upd7002_device::set_eoc_callback(*device, upd7002_eoc_delegate(&_class::_method, #_class "::" #_method, downcast<_class *>(owner)));
-
-#endif /* UPD7002_H_ */
+#endif // MAME_MACHINE_UPD7002_H

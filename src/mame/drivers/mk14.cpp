@@ -26,9 +26,8 @@ Example program: ("organ" from p82 of the manual)
 Pressing keys will produces different tones.
 
 
-ToDo:
+TODO:
 - VDU optional attachment (we are missing the chargen rom)
-- The original version of the bios is missing (we have version 2)
 
 *********************************************************************************************************************************/
 
@@ -39,8 +38,8 @@ ToDo:
 #include "machine/ins8154.h"
 #include "sound/dac.h"
 #include "sound/volt_reg.h"
-#include "sound/wave.h"
 #include "speaker.h"
+#include "video/pwm.h"
 
 #include "mk14.lh"
 
@@ -51,22 +50,27 @@ public:
 	mk14_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag)
 		, m_maincpu(*this, "maincpu")
-		, m_keyboard(*this, "X.%u", 0)
 		, m_cass(*this, "cassette")
 		, m_dac(*this, "dac")
-	{ }
+		, m_display(*this, "display")
+		, m_io_keyboard(*this, "X%u", 0U)
+		{ }
 
+	void mk14(machine_config &config);
+
+private:
 	DECLARE_READ8_MEMBER(keyboard_r);
 	DECLARE_WRITE8_MEMBER(display_w);
-	DECLARE_WRITE8_MEMBER(port_a_w);
+	void port_a_w(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER(cass_w);
 	DECLARE_READ_LINE_MEMBER(cass_r);
-private:
-	virtual void machine_reset() override;
-	required_device<cpu_device> m_maincpu;
-	required_ioport_array<8> m_keyboard;
+	void mem_map(address_map &map);
+
+	required_device<scmp_device> m_maincpu;
 	required_device<cassette_image_device> m_cass;
 	required_device<dac_bit_interface> m_dac;
+	required_device<pwm_display_device> m_display;
+	required_ioport_array<8> m_io_keyboard;
 };
 
 /*
@@ -90,7 +94,7 @@ F00-FFF  256 bytes RAM (Standard) / VDU RAM  Decoded by 1111
 READ8_MEMBER( mk14_state::keyboard_r )
 {
 	if (offset < 8)
-		return m_keyboard[offset]->read();
+		return m_io_keyboard[offset]->read();
 	else
 		return 0xff;
 }
@@ -98,70 +102,71 @@ READ8_MEMBER( mk14_state::keyboard_r )
 WRITE8_MEMBER( mk14_state::display_w )
 {
 	if (offset < 8 )
-		output().set_digit_value(offset, data);
+		m_display->matrix(1<<offset, data);
 	else
 	{
 		//logerror("write %02x to %02x\n",data,offset);
 	}
 }
 
-static ADDRESS_MAP_START(mk14_mem, AS_PROGRAM, 8, mk14_state)
-	ADDRESS_MAP_UNMAP_HIGH
-	ADDRESS_MAP_GLOBAL_MASK(0x0fff)
-	AM_RANGE(0x000, 0x1ff) AM_MIRROR(0x600) AM_ROM // ROM
-	AM_RANGE(0x800, 0x87f) AM_MIRROR(0x600) AM_DEVREADWRITE("ic8", ins8154_device, ins8154_r, ins8154_w) // I/O
-	AM_RANGE(0x880, 0x8ff) AM_MIRROR(0x600) AM_RAM // 128 I/O chip RAM
-	AM_RANGE(0x900, 0x9ff) AM_MIRROR(0x400) AM_READWRITE(keyboard_r, display_w)
-	AM_RANGE(0xb00, 0xbff) AM_RAM // VDU RAM
-	AM_RANGE(0xf00, 0xfff) AM_RAM // Standard RAM
-ADDRESS_MAP_END
+void mk14_state::mem_map(address_map &map)
+{
+	map.unmap_value_high();
+	map.global_mask(0x0fff);
+	map(0x000, 0x1ff).mirror(0x600).rom(); // ROM
+	map(0x800, 0x87f).mirror(0x600).rw("ic8", FUNC(ins8154_device::read_io), FUNC(ins8154_device::write_io)); // I/O
+	map(0x880, 0x8ff).mirror(0x600).rw("ic8", FUNC(ins8154_device::read_ram), FUNC(ins8154_device::write_ram)); // 128 bytes I/O chip RAM
+	map(0x900, 0x9ff).mirror(0x400).rw(FUNC(mk14_state::keyboard_r), FUNC(mk14_state::display_w));
+	map(0xb00, 0xbff).ram(); // VDU RAM
+	map(0xf00, 0xfff).ram(); // Standard RAM
+}
 
 
 /* Input ports */
 static INPUT_PORTS_START( mk14 )
-	PORT_START("X.0")
+	PORT_START("X0")
 		PORT_BIT(0x0F, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("A")    PORT_CODE(KEYCODE_A)      PORT_CHAR('A')
 		PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("8")    PORT_CODE(KEYCODE_8)      PORT_CHAR('8')
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("0")    PORT_CODE(KEYCODE_0)      PORT_CHAR('0')
-	PORT_START("X.1")
+	PORT_START("X1")
 		PORT_BIT(0x0F, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("B")    PORT_CODE(KEYCODE_B)      PORT_CHAR('B')
 		PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("9")    PORT_CODE(KEYCODE_9)      PORT_CHAR('9')
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("1")    PORT_CODE(KEYCODE_1)      PORT_CHAR('1')
-	PORT_START("X.2")
+	PORT_START("X2")
 		PORT_BIT(0x0F, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("C")    PORT_CODE(KEYCODE_C)      PORT_CHAR('C')
 		PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("GO")   PORT_CODE(KEYCODE_X)      PORT_CHAR('X')
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("2")    PORT_CODE(KEYCODE_2)      PORT_CHAR('2')
-	PORT_START("X.3")
+	PORT_START("X3")
 		PORT_BIT(0x0F, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("D")    PORT_CODE(KEYCODE_D)      PORT_CHAR('D')
 		PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("MEM")  PORT_CODE(KEYCODE_UP)     PORT_CHAR('^')
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("3")    PORT_CODE(KEYCODE_3)      PORT_CHAR('3')
-	PORT_START("X.4")
+	PORT_START("X4")
 		PORT_BIT(0x0F, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("AB")   PORT_CODE(KEYCODE_MINUS)  PORT_CHAR('-')
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("4")    PORT_CODE(KEYCODE_4)      PORT_CHAR('4')
-	PORT_START("X.5")
+	PORT_START("X5")
 		PORT_BIT(0x0F, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("5")    PORT_CODE(KEYCODE_5)      PORT_CHAR('5')
-	PORT_START("X.6")
+	PORT_START("X6")
 		PORT_BIT(0x0F, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("E")    PORT_CODE(KEYCODE_E)      PORT_CHAR('E')
 		PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("6")    PORT_CODE(KEYCODE_6)      PORT_CHAR('6')
-	PORT_START("X.7")
+	PORT_START("X7")
 		PORT_BIT(0x0F, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("F")    PORT_CODE(KEYCODE_F)      PORT_CHAR('F')
 		PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("TERM") PORT_CODE(KEYCODE_EQUALS) PORT_CHAR('=')
@@ -169,7 +174,7 @@ static INPUT_PORTS_START( mk14 )
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("7")    PORT_CODE(KEYCODE_7)      PORT_CHAR('7')
 INPUT_PORTS_END
 
-WRITE8_MEMBER( mk14_state::port_a_w )
+void mk14_state::port_a_w(uint8_t data)
 {
 }
 
@@ -184,46 +189,55 @@ READ_LINE_MEMBER( mk14_state::cass_r )
 	return (m_cass->input() > 0.03) ? 1 : 0;
 }
 
-void mk14_state::machine_reset()
+void mk14_state::mk14(machine_config &config)
 {
-}
-
-static MACHINE_CONFIG_START( mk14, mk14_state )
 	/* basic machine hardware */
 	// IC1 1SP-8A/600 (8060) SC/MP Microprocessor
-	MCFG_CPU_ADD("maincpu", INS8060, XTAL_4_433619MHz)
-	MCFG_SCMP_CONFIG(WRITELINE(mk14_state, cass_w), NOOP, READLINE(mk14_state, cass_r), NOOP, READLINE(mk14_state, cass_r), NOOP)
-	MCFG_CPU_PROGRAM_MAP(mk14_mem)
+	INS8060(config, m_maincpu, 4.433619_MHz_XTAL);
+	m_maincpu->flag_out().set(FUNC(mk14_state::cass_w));
+	m_maincpu->s_out().set_nop();
+	m_maincpu->s_in().set(FUNC(mk14_state::cass_r));
+	m_maincpu->sense_a().set_constant(0);
+	m_maincpu->sense_b().set(FUNC(mk14_state::cass_r));
+	m_maincpu->halt().set_nop();
+	m_maincpu->set_addrmap(AS_PROGRAM, &mk14_state::mem_map);
 
 	/* video hardware */
-	MCFG_DEFAULT_LAYOUT(layout_mk14)
+	config.set_default_layout(layout_mk14);
+	PWM_DISPLAY(config, m_display).set_size(8, 8);
+	m_display->set_segmask(0xff, 0xff);
 
 	// sound
-	MCFG_SPEAKER_STANDARD_MONO("speaker")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.05)
-	MCFG_SOUND_ADD("dac", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25)
-	MCFG_SOUND_ADD("dac8", ZN425E, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5) // Ferranti ZN425E
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "dac8", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac8", -1.0, DAC_VREF_NEG_INPUT)
+	SPEAKER(config, "speaker").front_center();
+	DAC_1BIT(config, m_dac, 0).add_route(ALL_OUTPUTS, "speaker", 0.25);
+	ZN425E(config, "dac8", 0).add_route(ALL_OUTPUTS, "speaker", 0.5); // Ferranti ZN425E
+	voltage_regulator_device &vref(VOLTAGE_REGULATOR(config, "vref", 0));
+	vref.add_route(0, "dac", 1.0, DAC_VREF_POS_INPUT);
+	vref.add_route(0, "dac8", 1.0, DAC_VREF_POS_INPUT);
+	vref.add_route(0, "dac8", -1.0, DAC_VREF_NEG_INPUT);
 
 	/* devices */
-	MCFG_DEVICE_ADD("ic8", INS8154, 0)
-	MCFG_INS8154_OUT_A_CB(WRITE8(mk14_state, port_a_w))
-	MCFG_INS8154_OUT_B_CB(DEVWRITE8("dac8", dac_byte_interface, write))
+	ins8154_device &ic8(INS8154(config, "ic8"));
+	ic8.out_a().set(FUNC(mk14_state::port_a_w));
+	ic8.out_b().set("dac8", FUNC(dac_byte_interface::data_w));
 
-	MCFG_CASSETTE_ADD( "cassette" )
-MACHINE_CONFIG_END
+	CASSETTE(config, m_cass);
+	m_cass->set_default_state(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED);
+	m_cass->add_route(ALL_OUTPUTS, "speaker", 0.05);
+}
 
 /* ROM definition */
 ROM_START( mk14 )
 	ROM_REGION( 0x200, "maincpu", 0 )
 	// IC2,3 74S571 512 x 4 bit ROM
-	ROM_LOAD( "scios.bin", 0x0000, 0x0200, CRC(8b667daa) SHA1(802dc637ce5391a2a6627f76f919b12a869b56ef)) // V2 bios, V1 is missing
+	ROM_DEFAULT_BIOS("v2")
+	ROM_SYSTEM_BIOS(0, "v2", "SCIOS V2")
+	ROMX_LOAD( "scios_v2.bin", 0x0000, 0x0200, CRC(8b667daa) SHA1(802dc637ce5391a2a6627f76f919b12a869b56ef), ROM_BIOS(0))
+	ROM_SYSTEM_BIOS(1, "v1", "SCIOS V1")
+	ROMX_LOAD( "scios_v1.bin", 0x0000, 0x0200, CRC(3d2477e7) SHA1(795829a2025e24d87a413e245d72a284f872e0db), ROM_BIOS(1))
 ROM_END
 
 /* Driver */
 
-/*    YEAR  NAME   PARENT  COMPAT   MACHINE    INPUT  CLASS        INIT    COMPANY             FULLNAME  FLAGS */
-COMP( 1977, mk14,  0,       0,      mk14,      mk14, driver_device, 0, "Science of Cambridge", "MK-14", 0 )
+//    YEAR  NAME  PARENT  COMPAT  MACHINE  INPUT  CLASS       INIT        COMPANY                 FULLNAME  FLAGS
+COMP( 1977, mk14, 0,      0,      mk14,    mk14,  mk14_state, empty_init, "Science of Cambridge", "MK-14", MACHINE_SUPPORTS_SAVE )

@@ -6,11 +6,10 @@
 
 **********************************************************************/
 
+#ifndef MAME_VIDEO_MSM6255_H
+#define MAME_VIDEO_MSM6255_H
+
 #pragma once
-
-#ifndef __MSM6255__
-#define __MSM6255__
-
 
 
 
@@ -28,13 +27,7 @@ public:
 	// construction/destruction
 	msm6255_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	virtual DECLARE_ADDRESS_MAP(map, 8);
-
-	DECLARE_READ8_MEMBER( ir_r );
-	DECLARE_WRITE8_MEMBER( ir_w );
-
-	DECLARE_READ8_MEMBER( dr_r );
-	DECLARE_WRITE8_MEMBER( dr_w );
+	virtual void map(address_map &map);
 
 	uint32_t screen_update(screen_device &device, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
@@ -44,7 +37,7 @@ protected:
 	virtual void device_reset() override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 private:
 	// registers
@@ -68,6 +61,14 @@ private:
 	void update_graphics(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void update_text(bitmap_ind16 &bitmap, const rectangle &cliprect);
 
+	uint8_t ir_r();
+	void ir_w(uint8_t data);
+
+	uint8_t dr_r();
+	void dr_w(uint8_t data);
+
+	void msm6255(address_map &map);
+
 	const address_space_config m_space_config;
 
 	uint8_t m_ir;                     // instruction register
@@ -87,8 +88,6 @@ private:
 
 
 // device type definition
-extern const device_type MSM6255;
+DECLARE_DEVICE_TYPE(MSM6255, msm6255_device)
 
-
-
-#endif
+#endif // MAME_VIDEO_MSM6255_H

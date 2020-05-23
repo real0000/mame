@@ -28,7 +28,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type SUPERPET = device_creator<superpet_device>;
+DEFINE_DEVICE_TYPE(SUPERPET, superpet_device, "pet_superpet", "Commodore SuperPET")
 
 
 //-------------------------------------------------
@@ -60,42 +60,33 @@ const tiny_rom_entry *superpet_device::device_rom_region() const
 //  ADDRESS_MAP( superpet_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( superpet_mem, AS_PROGRAM, 8, superpet_device )
-	AM_RANGE(0x0000, 0xffff) AM_READWRITE(read, write)
-ADDRESS_MAP_END
-
-
-//-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( superpet )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( superpet )
-	MCFG_CPU_ADD(M6809_TAG, M6809, XTAL_16MHz/16)
-	MCFG_CPU_PROGRAM_MAP(superpet_mem)
-
-	MCFG_MOS6702_ADD(MOS6702_TAG, XTAL_16MHz/16)
-
-	MCFG_DEVICE_ADD(MOS6551_TAG, MOS6551, 0)
-	MCFG_MOS6551_XTAL(XTAL_1_8432MHz)
-	MCFG_MOS6551_IRQ_HANDLER(WRITELINE(superpet_device, acia_irq_w))
-	MCFG_MOS6551_TXD_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
-
-	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, nullptr)
-	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(MOS6551_TAG, mos6551_device, write_rxd))
-	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(MOS6551_TAG, mos6551_device, write_dcd))
-	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(MOS6551_TAG, mos6551_device, write_dsr))
-	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(MOS6551_TAG, mos6551_device, write_cts))
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor superpet_device::device_mconfig_additions() const
+void superpet_device::superpet_mem(address_map &map)
 {
-	return MACHINE_CONFIG_NAME( superpet );
+	map(0x0000, 0xffff).rw(FUNC(superpet_device::read), FUNC(superpet_device::write));
+}
+
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void superpet_device::device_add_mconfig(machine_config &config)
+{
+	MC6809E(config, m_maincpu, 16_MHz_XTAL / 16);
+	m_maincpu->set_addrmap(AS_PROGRAM, &superpet_device::superpet_mem);
+
+	MOS6702(config, m_dongle, 16_MHz_XTAL / 16);
+
+	MOS6551(config, m_acia, 0);
+	m_acia->set_xtal(1.8432_MHz_XTAL);
+	m_acia->irq_handler().set(FUNC(superpet_device::acia_irq_w));
+	m_acia->txd_handler().set(RS232_TAG, FUNC(rs232_port_device::write_txd));
+
+	rs232_port_device &rs232(RS232_PORT(config, RS232_TAG, default_rs232_devices, nullptr));
+	rs232.rxd_handler().set(m_acia, FUNC(mos6551_device::write_rxd));
+	rs232.dcd_handler().set(m_acia, FUNC(mos6551_device::write_dcd));
+	rs232.dsr_handler().set(m_acia, FUNC(mos6551_device::write_dsr));
+	rs232.cts_handler().set(m_acia, FUNC(mos6551_device::write_cts));
 }
 
 
@@ -144,14 +135,14 @@ inline void superpet_device::update_cpu()
 	if (cpu)
 	{
 		// 6502 active
-		m_maincpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 		m_maincpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 	}
 	else
 	{
 		// 6809 active
-		m_maincpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
 		m_maincpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
 	}
 }
 
@@ -176,7 +167,7 @@ inline bool superpet_device::is_ram_writable()
 //-------------------------------------------------
 
 superpet_device::superpet_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, SUPERPET, "SuperPET", tag, owner, clock, "pet_superpet", __FILE__),
+	device_t(mconfig, SUPERPET, tag, owner, clock),
 	device_pet_expansion_card_interface(mconfig, *this),
 	m_maincpu(*this, M6809_TAG),
 	m_acia(*this, MOS6551_TAG),
@@ -234,7 +225,7 @@ void superpet_device::device_reset()
 //  pet_norom_r - NO ROM read
 //-------------------------------------------------
 
-int superpet_device::pet_norom_r(address_space &space, offs_t offset, int sel)
+int superpet_device::pet_norom_r(offs_t offset, int sel)
 {
 	return BIT(m_system, 0);
 }
@@ -244,9 +235,9 @@ int superpet_device::pet_norom_r(address_space &space, offs_t offset, int sel)
 //  pet_bd_r - buffered data read
 //-------------------------------------------------
 
-uint8_t superpet_device::pet_bd_r(address_space &space, offs_t offset, uint8_t data, int &sel)
+uint8_t superpet_device::pet_bd_r(offs_t offset, uint8_t data, int &sel)
 {
-	int norom = pet_norom_r(space, offset, sel);
+	int norom = pet_norom_r(offset, sel);
 
 	switch (sel)
 	{
@@ -286,14 +277,14 @@ uint8_t superpet_device::pet_bd_r(address_space &space, offs_t offset, uint8_t d
 	case 0xefe1:
 	case 0xefe2:
 	case 0xefe3:
-		data = m_dongle->read(space, offset & 0x03);
+		data = m_dongle->read(offset & 0x03);
 		break;
 
 	case 0xeff0:
 	case 0xeff1:
 	case 0xeff2:
 	case 0xeff3:
-		data = m_acia->read(space, offset & 0x03);
+		data = m_acia->read(offset & 0x03);
 		break;
 	}
 
@@ -305,7 +296,7 @@ uint8_t superpet_device::pet_bd_r(address_space &space, offs_t offset, uint8_t d
 //  pet_bd_w - buffered data write
 //-------------------------------------------------
 
-void superpet_device::pet_bd_w(address_space &space, offs_t offset, uint8_t data, int &sel)
+void superpet_device::pet_bd_w(offs_t offset, uint8_t data, int &sel)
 {
 	switch (sel)
 	{
@@ -323,7 +314,7 @@ void superpet_device::pet_bd_w(address_space &space, offs_t offset, uint8_t data
 	case 0xefe1:
 	case 0xefe2:
 	case 0xefe3:
-		m_dongle->write(space, offset & 0x03, data);
+		m_dongle->write(offset & 0x03, data);
 		printf("6702 %u %02x\n", offset & 0x03, data);
 		break;
 
@@ -331,7 +322,7 @@ void superpet_device::pet_bd_w(address_space &space, offs_t offset, uint8_t data
 	case 0xeff1:
 	case 0xeff2:
 	case 0xeff3:
-		m_acia->write(space, offset & 0x03, data);
+		m_acia->write(offset & 0x03, data);
 		break;
 
 	case 0xeff8:

@@ -1,121 +1,248 @@
 // license:BSD-3-Clause
 // copyright-holders:David Haywood, Luca Elia, MetalliC
 /* emulation of Altera Cyclone EPIC12 FPGA programmed as a blitter */
+#ifndef MAME_VIDEO_EPIC12_H
+#define MAME_VIDEO_EPIC12_H
 
-#define MCFG_EPIC12_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, EPIC12, 0)
+#pragma once
 
-#define MCFG_EPIC12_SET_MAINRAMSIZE( _rgn ) \
-	epic12_device::set_mainramsize(*device, _rgn);
+#define DEBUG_VRAM_VIEWER 0 // VRAM viewer for debug
 
-
-extern uint8_t epic12_device_colrtable[0x20][0x40];
-extern uint8_t epic12_device_colrtable_rev[0x20][0x40];
-extern uint8_t epic12_device_colrtable_add[0x20][0x20];
-extern uint64_t epic12_device_blit_delay;
-
-struct _clr_t
-{
-	uint8_t b,g,r,t;
-};
-
-typedef struct _clr_t clr_t;
-
-union colour_t
-{
-	clr_t trgb;
-	uint32_t u32;
-};
-
-typedef void (*epic12_device_blitfunction)(bitmap_rgb32 *,
-						const rectangle *,
-						uint32_t *, /* gfx */
-						int , /* src_x */
-						int , /* src_y */
-						const int , /* dst_x_start */
-						const int , /* dst_y_start */
-						int , /* dimx */
-						int , /* dimy */
-						const int , /* flipy */
-						const uint8_t , /* s_alpha */
-						const uint8_t , /* d_alpha */
-						//int , /* tint */
-						const clr_t * );
-
-
-class epic12_device : public device_t,
-	public device_video_interface
+class epic12_device : public device_t, public device_video_interface
 {
 public:
-	epic12_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	epic12_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock);
 
-	void set_rambase(uint16_t* rambase) { m_ram16 = rambase; }
+	template <typename T> void set_cpu(T &&maintag) { m_maincpu.set_tag(std::forward<T>(maintag)); }
+	auto port_r_callback() { return m_port_r_cb.bind(); }
+	void set_rambase(u16* rambase) { m_ram16 = rambase; }
 	void set_delay_scale(int delay_scale) { m_delay_scale = delay_scale; }
 	void set_is_unsafe(int is_unsafe) { m_is_unsafe = is_unsafe; }
-	void set_cpu_device(cpu_device* maincpu) { m_maincpu = maincpu; }
 
-	inline uint16_t READ_NEXT_WORD(offs_t *addr);
+	inline u16 READ_NEXT_WORD(offs_t *addr);
 
-	static void set_mainramsize(device_t &device, int ramsize)
+	void set_mainramsize(size_t ramsize)
 	{
-		epic12_device &dev = downcast<epic12_device &>(device);
-		dev.m_main_ramsize = ramsize;
-		dev.m_main_rammask = ramsize-1;
+		m_main_ramsize = ramsize;
+		m_main_rammask = ramsize - 1;
 	}
 
 	static void *blit_request_callback(void *param, int threadid);
 
-	DECLARE_READ64_MEMBER( fpga_r );
-	DECLARE_WRITE64_MEMBER( fpga_w );
+	u64 fpga_r();
+	void fpga_w(offs_t offset, u64 data, u64 mem_mask = ~0);
 
 	void draw_screen(bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
-	uint16_t* m_ram16;
-	uint32_t m_gfx_addr;
-	uint32_t m_gfx_scroll_0_x, m_gfx_scroll_0_y;
-	uint32_t m_gfx_scroll_1_x, m_gfx_scroll_1_y;
+	u16* m_ram16;
+	u32 m_gfx_addr;
+	u32 m_gfx_scroll_0_x, m_gfx_scroll_0_y;
+	u32 m_gfx_scroll_1_x, m_gfx_scroll_1_y;
 
 	int m_gfx_size;
 	std::unique_ptr<bitmap_rgb32> m_bitmaps;
 	rectangle m_clip;
 
-	uint16_t* m_use_ram;
-	int m_main_ramsize; // type D has double the main ram
-	int m_main_rammask;
+	u16* m_use_ram;
+	size_t m_main_ramsize; // type D has double the main ram
+	size_t m_main_rammask;
 
 	int m_is_unsafe;
 	int m_delay_scale;
-	cpu_device* m_maincpu;
 
 	void install_handlers(int addr1, int addr2);
 
 	// thread safe mode, with no delays & shadow ram copy
 	DECLARE_READ32_MEMBER(blitter_r);
 	DECLARE_WRITE32_MEMBER(blitter_w);
-	uint32_t m_gfx_addr_shadowcopy;
-	uint32_t m_gfx_scroll_0_x_shadowcopy, m_gfx_scroll_0_y_shadowcopy;
-	uint32_t m_gfx_scroll_1_x_shadowcopy, m_gfx_scroll_1_y_shadowcopy;
-	std::unique_ptr<uint16_t[]> m_ram16_copy;
+	u32 m_gfx_addr_shadowcopy;
+	u32 m_gfx_scroll_0_x_shadowcopy, m_gfx_scroll_0_y_shadowcopy;
+	u32 m_gfx_scroll_1_x_shadowcopy, m_gfx_scroll_1_y_shadowcopy;
+	std::unique_ptr<u16[]> m_ram16_copy;
 	inline void gfx_upload_shadow_copy(address_space &space, offs_t *addr);
 	inline void gfx_create_shadow_copy(address_space &space);
-	inline uint16_t COPY_NEXT_WORD(address_space &space, offs_t *addr);
+	inline u16 COPY_NEXT_WORD(address_space &space, offs_t *addr);
 	inline void gfx_draw_shadow_copy(address_space &space, offs_t *addr);
 	inline void gfx_upload(offs_t *addr);
 	inline void gfx_draw(offs_t *addr);
 	void gfx_exec(void);
-	DECLARE_READ32_MEMBER( gfx_ready_r );
-	DECLARE_WRITE32_MEMBER( gfx_exec_w );
+	u32 gfx_ready_r();
+	DECLARE_WRITE32_MEMBER(gfx_exec_w);
 
 	// for thread unsafe mode with blitter delays, no shadow copy of RAM
 	DECLARE_READ32_MEMBER(blitter_r_unsafe);
 	DECLARE_WRITE32_MEMBER(blitter_w_unsafe);
-	READ32_MEMBER( gfx_ready_r_unsafe );
-	WRITE32_MEMBER( gfx_exec_w_unsafe );
+	u32 gfx_ready_r_unsafe();
+	void gfx_exec_w_unsafe(offs_t offset, u32 data, u32 mem_mask = ~0);
 	void gfx_exec_unsafe(void);
 	static void *blit_request_callback_unsafe(void *param, int threadid);
 
+protected:
+	struct clr_t
+	{
+		// clr_t to r5g5b5
+		u32 to_pen() const
+		{
+			// --t- ---- rrrr r--- gggg g--- bbbb b---  format
+			return (r << (16 + 3)) | (g << (8 + 3)) | (b << 3);
+
+			// --t- ---- ---r rrrr ---g gggg ---b bbbb  format
+			//return (r << 16) | (g << 8) | b;
+		}
+
+
+		void add_with_clr_mul_fixed(const clr_t &clr0, u8 mulfixed_val, const clr_t &mulfixed_clr0)
+		{
+			r = colrtable_add[clr0.r][colrtable[mulfixed_clr0.r][mulfixed_val]];
+			g = colrtable_add[clr0.g][colrtable[mulfixed_clr0.g][mulfixed_val]];
+			b = colrtable_add[clr0.b][colrtable[mulfixed_clr0.b][mulfixed_val]];
+		}
+
+		void add_with_clr_mul_3param(const clr_t &clr0, const clr_t &clr1, const clr_t &clr2)
+		{
+			r = colrtable_add[clr0.r][colrtable[clr2.r][clr1.r]];
+			g = colrtable_add[clr0.g][colrtable[clr2.g][clr1.g]];
+			b = colrtable_add[clr0.b][colrtable[clr2.b][clr1.b]];
+		}
+
+		void add_with_clr_square(const clr_t &clr0, const clr_t &clr1)
+		{
+			r = colrtable_add[clr0.r][colrtable[clr1.r][clr1.r]];
+			g = colrtable_add[clr0.r][colrtable[clr1.g][clr1.g]];
+			b = colrtable_add[clr0.r][colrtable[clr1.b][clr1.b]];
+		}
+
+		void add_with_clr_mul_fixed_rev(const clr_t &clr0, u8 val, const clr_t &clr1)
+		{
+			r = colrtable_add[clr0.r][colrtable_rev[val][clr1.r]];
+			g = colrtable_add[clr0.g][colrtable_rev[val][clr1.g]];
+			b = colrtable_add[clr0.b][colrtable_rev[val][clr1.b]];
+		}
+
+		void add_with_clr_mul_rev_3param(const clr_t &clr0, const clr_t &clr1, const clr_t &clr2)
+		{
+			r = colrtable_add[clr0.r][colrtable_rev[clr2.r][clr1.r]];
+			g = colrtable_add[clr0.g][colrtable_rev[clr2.g][clr1.g]];
+			b = colrtable_add[clr0.b][colrtable_rev[clr2.b][clr1.b]];
+		}
+
+		void add_with_clr_mul_rev_square(const clr_t &clr0, const clr_t &clr1)
+		{
+			r = colrtable_add[clr0.r][colrtable_rev[(clr1.r)][(clr1.r)]];
+			g = colrtable_add[clr0.g][colrtable_rev[(clr1.g)][(clr1.g)]];
+			b = colrtable_add[clr0.b][colrtable_rev[(clr1.b)][(clr1.b)]];
+		}
+
+
+		void add(const clr_t &clr0, const clr_t &clr1)
+		{
+			//r = clr0.r + clr1.r;
+			//g = clr0.g + clr1.g;
+			//b = clr0.b + clr1.b;
+
+			// use pre-clamped lookup table
+			r =  colrtable_add[clr0.r][clr1.r];
+			g =  colrtable_add[clr0.g][clr1.g];
+			b =  colrtable_add[clr0.b][clr1.b];
+		}
+
+
+		void mul(const clr_t &clr1)
+		{
+			r = colrtable[r][clr1.r];
+			g = colrtable[g][clr1.g];
+			b = colrtable[b][clr1.b];
+		}
+
+		void square(const clr_t &clr1)
+		{
+			r = colrtable[clr1.r][clr1.r];
+			g = colrtable[clr1.g][clr1.g];
+			b = colrtable[clr1.b][clr1.b];
+		}
+
+		void mul_3param(const clr_t &clr1, const clr_t &clr2)
+		{
+			r = colrtable[clr2.r][clr1.r];
+			g = colrtable[clr2.g][clr1.g];
+			b = colrtable[clr2.b][clr1.b];
+		}
+
+		void mul_rev(const clr_t &clr1)
+		{
+			r = colrtable_rev[r][clr1.r];
+			g = colrtable_rev[g][clr1.g];
+			b = colrtable_rev[b][clr1.b];
+		}
+
+		void mul_rev_square(const clr_t &clr1)
+		{
+			r = colrtable_rev[clr1.r][clr1.r];
+			g = colrtable_rev[clr1.g][clr1.g];
+			b = colrtable_rev[clr1.b][clr1.b];
+		}
+
+
+		void mul_rev_3param(const clr_t &clr1, const clr_t &clr2)
+		{
+			r = colrtable_rev[clr2.r][clr1.r];
+			g = colrtable_rev[clr2.g][clr1.g];
+			b = colrtable_rev[clr2.b][clr1.b];
+		}
+
+		void mul_fixed(u8 val, const clr_t &clr0)
+		{
+			r = colrtable[val][clr0.r];
+			g = colrtable[val][clr0.g];
+			b = colrtable[val][clr0.b];
+		}
+
+		void mul_fixed_rev(u8 val, const clr_t &clr0)
+		{
+			r = colrtable_rev[val][clr0.r];
+			g = colrtable_rev[val][clr0.g];
+			b = colrtable_rev[val][clr0.b];
+		}
+
+		void copy(const clr_t &clr0)
+		{
+			r = clr0.r;
+			g = clr0.g;
+			b = clr0.b;
+		}
+
+#ifdef LSB_FIRST
+		u8 b, g, r, t;
+#else
+		u8 t, r, g, b;
+#endif
+	};
+
+	union colour_t
+	{
+		clr_t trgb;
+		u32 data;
+	};
+
+	typedef void (*blitfunction)(
+			bitmap_rgb32 *,
+			const rectangle *,
+			u32 *gfx,
+			int src_x,
+			int src_y,
+			const int dst_x_start,
+			const int dst_y_start,
+			int dimx,
+			int dimy,
+			const bool flipy,
+			const u8 s_alpha,
+			const u8 d_alpha,
+			//int tint,
+			const clr_t *);
+
+
 #define BLIT_FUNCTION static void
-#define BLIT_PARAMS bitmap_rgb32 *bitmap, const rectangle *clip, uint32_t *gfx, int src_x, int src_y, const int dst_x_start, const int dst_y_start, int dimx, int dimy, const int flipy, const uint8_t s_alpha, const uint8_t d_alpha, const clr_t *tint_clr
+#define BLIT_PARAMS bitmap_rgb32 *bitmap, const rectangle *clip, u32 *gfx, int src_x, int src_y, const int dst_x_start, const int dst_y_start, int dimx, int dimy, const bool flipy, const u8 s_alpha, const u8 d_alpha, const clr_t *tint_clr
 
 	BLIT_FUNCTION draw_sprite_f0_ti0_plain(BLIT_PARAMS);
 	BLIT_FUNCTION draw_sprite_f0_ti0_tr1_s0_d0(BLIT_PARAMS);
@@ -650,9 +777,7 @@ public:
 	BLIT_FUNCTION draw_sprite_f1_ti0_tr1_simple(BLIT_PARAMS);
 	BLIT_FUNCTION draw_sprite_f1_ti0_tr0_simple(BLIT_PARAMS);
 
-
-
-	static inline void pen_to_clr(uint32_t pen, clr_t *clr)
+	static inline void pen_to_clr(u32 pen, clr_t *clr)
 	{
 	// --t- ---- rrrr r--- gggg g--- bbbb b---  format
 		clr->r = (pen >> (16+3));// & 0x1f;
@@ -666,149 +791,13 @@ public:
 
 	};
 
-
 	// convert separate r,g,b biases (0..80..ff) to clr_t (-1f..0..1f)
-	static inline void tint_to_clr(uint8_t r, uint8_t g, uint8_t b, clr_t *clr)
+	void tint_to_clr(u8 r, u8 g, u8 b, clr_t *clr)
 	{
 		clr->r  =   r>>2;
 		clr->g  =   g>>2;
 		clr->b  =   b>>2;
 	};
-
-	// clr_t to r5g5b5
-	static inline uint32_t clr_to_pen(const clr_t *clr)
-	{
-	// --t- ---- rrrr r--- gggg g--- bbbb b---  format
-		return (clr->r << (16+3)) | (clr->g << (8+3)) | (clr->b << 3);
-
-	// --t- ---- ---r rrrr ---g gggg ---b bbbb  format
-	//  return (clr->r << (16)) | (clr->g << (8)) | (clr->b);
-	};
-
-
-	static inline void clr_add_with_clr_mul_fixed(clr_t *clr, const clr_t *clr0, const uint8_t mulfixed_val, const clr_t *mulfixed_clr0)
-	{
-		clr->r = epic12_device_colrtable_add[clr0->r][epic12_device_colrtable[(mulfixed_clr0->r)][mulfixed_val]];
-		clr->g = epic12_device_colrtable_add[clr0->g][epic12_device_colrtable[(mulfixed_clr0->g)][mulfixed_val]];
-		clr->b = epic12_device_colrtable_add[clr0->b][epic12_device_colrtable[(mulfixed_clr0->b)][mulfixed_val]];
-	}
-
-	static inline  void clr_add_with_clr_mul_3param(clr_t *clr, const clr_t *clr0, const clr_t *clr1, const clr_t *clr2)
-	{
-		clr->r = epic12_device_colrtable_add[clr0->r][epic12_device_colrtable[(clr2->r)][(clr1->r)]];
-		clr->g = epic12_device_colrtable_add[clr0->g][epic12_device_colrtable[(clr2->g)][(clr1->g)]];
-		clr->b = epic12_device_colrtable_add[clr0->b][epic12_device_colrtable[(clr2->b)][(clr1->b)]];
-	}
-
-	static inline  void clr_add_with_clr_square(clr_t *clr, const clr_t *clr0, const clr_t *clr1)
-	{
-		clr->r = epic12_device_colrtable_add[clr0->r][epic12_device_colrtable[(clr1->r)][(clr1->r)]];
-		clr->g = epic12_device_colrtable_add[clr0->r][epic12_device_colrtable[(clr1->g)][(clr1->g)]];
-		clr->b = epic12_device_colrtable_add[clr0->r][epic12_device_colrtable[(clr1->b)][(clr1->b)]];
-	}
-
-	static inline  void clr_add_with_clr_mul_fixed_rev(clr_t *clr, const clr_t *clr0, const uint8_t val, const clr_t *clr1)
-	{
-		clr->r =  epic12_device_colrtable_add[clr0->r][epic12_device_colrtable_rev[val][(clr1->r)]];
-		clr->g =  epic12_device_colrtable_add[clr0->g][epic12_device_colrtable_rev[val][(clr1->g)]];
-		clr->b =  epic12_device_colrtable_add[clr0->b][epic12_device_colrtable_rev[val][(clr1->b)]];
-	}
-
-	static inline  void clr_add_with_clr_mul_rev_3param(clr_t *clr, const clr_t *clr0, const clr_t *clr1, const clr_t *clr2)
-	{
-		clr->r =  epic12_device_colrtable_add[clr0->r][epic12_device_colrtable_rev[(clr2->r)][(clr1->r)]];
-		clr->g =  epic12_device_colrtable_add[clr0->g][epic12_device_colrtable_rev[(clr2->g)][(clr1->g)]];
-		clr->b =  epic12_device_colrtable_add[clr0->b][epic12_device_colrtable_rev[(clr2->b)][(clr1->b)]];
-	}
-
-	static inline  void clr_add_with_clr_mul_rev_square(clr_t *clr, const clr_t *clr0, const clr_t *clr1)
-	{
-		clr->r =  epic12_device_colrtable_add[clr0->r][epic12_device_colrtable_rev[(clr1->r)][(clr1->r)]];
-		clr->g =  epic12_device_colrtable_add[clr0->g][epic12_device_colrtable_rev[(clr1->g)][(clr1->g)]];
-		clr->b =  epic12_device_colrtable_add[clr0->b][epic12_device_colrtable_rev[(clr1->b)][(clr1->b)]];
-	}
-
-
-	static inline  void clr_add(clr_t *clr, const clr_t *clr0, const clr_t *clr1)
-	{
-	/*
-	    clr->r = clr0->r + clr1->r;
-	    clr->g = clr0->g + clr1->g;
-	    clr->b = clr0->b + clr1->b;
-	*/
-		// use pre-clamped lookup table
-		clr->r =  epic12_device_colrtable_add[clr0->r][clr1->r];
-		clr->g =  epic12_device_colrtable_add[clr0->g][clr1->g];
-		clr->b =  epic12_device_colrtable_add[clr0->b][clr1->b];
-
-	}
-
-
-	static inline void clr_mul(clr_t *clr0, const clr_t *clr1)
-	{
-		clr0->r = epic12_device_colrtable[(clr0->r)][(clr1->r)];
-		clr0->g = epic12_device_colrtable[(clr0->g)][(clr1->g)];
-		clr0->b = epic12_device_colrtable[(clr0->b)][(clr1->b)];
-	}
-
-	static inline void clr_square(clr_t *clr0, const clr_t *clr1)
-	{
-		clr0->r = epic12_device_colrtable[(clr1->r)][(clr1->r)];
-		clr0->g = epic12_device_colrtable[(clr1->g)][(clr1->g)];
-		clr0->b = epic12_device_colrtable[(clr1->b)][(clr1->b)];
-	}
-
-	static inline void clr_mul_3param(clr_t *clr0, const clr_t *clr1, const clr_t *clr2)
-	{
-		clr0->r = epic12_device_colrtable[(clr2->r)][(clr1->r)];
-		clr0->g = epic12_device_colrtable[(clr2->g)][(clr1->g)];
-		clr0->b = epic12_device_colrtable[(clr2->b)][(clr1->b)];
-	}
-
-	static inline void clr_mul_rev(clr_t *clr0, const clr_t *clr1)
-	{
-		clr0->r = epic12_device_colrtable_rev[(clr0->r)][(clr1->r)];
-		clr0->g = epic12_device_colrtable_rev[(clr0->g)][(clr1->g)];
-		clr0->b = epic12_device_colrtable_rev[(clr0->b)][(clr1->b)];
-	}
-
-	static inline void clr_mul_rev_square(clr_t *clr0, const clr_t *clr1)
-	{
-		clr0->r = epic12_device_colrtable_rev[(clr1->r)][(clr1->r)];
-		clr0->g = epic12_device_colrtable_rev[(clr1->g)][(clr1->g)];
-		clr0->b = epic12_device_colrtable_rev[(clr1->b)][(clr1->b)];
-	}
-
-
-	static inline void clr_mul_rev_3param(clr_t *clr0, const clr_t *clr1, const clr_t *clr2)
-	{
-		clr0->r = epic12_device_colrtable_rev[(clr2->r)][(clr1->r)];
-		clr0->g = epic12_device_colrtable_rev[(clr2->g)][(clr1->g)];
-		clr0->b = epic12_device_colrtable_rev[(clr2->b)][(clr1->b)];
-	}
-
-	static inline void clr_mul_fixed(clr_t *clr, const uint8_t val, const clr_t *clr0)
-	{
-		clr->r = epic12_device_colrtable[val][(clr0->r)];
-		clr->g = epic12_device_colrtable[val][(clr0->g)];
-		clr->b = epic12_device_colrtable[val][(clr0->b)];
-	}
-
-	static inline void clr_mul_fixed_rev(clr_t *clr, const uint8_t val, const clr_t *clr0)
-	{
-		clr->r = epic12_device_colrtable_rev[val][(clr0->r)];
-		clr->g = epic12_device_colrtable_rev[val][(clr0->g)];
-		clr->b = epic12_device_colrtable_rev[val][(clr0->b)];
-	}
-
-	static inline void clr_copy(clr_t *clr, const clr_t *clr0)
-	{
-		clr->r = clr0->r;
-		clr->g = clr0->g;
-		clr->b = clr0->b;
-	}
-
-
 
 	// (1|s|d) * s_factor * s + (1|s|d) * d_factor * d
 	// 0: +alpha
@@ -820,10 +809,10 @@ public:
 	// 6: -dest
 	// 7: *
 
-
-protected:
 	virtual void device_start() override;
 	virtual void device_reset() override;
+
+	TIMER_CALLBACK_MEMBER(blitter_delay_callback);
 
 	osd_work_queue *m_work_queue;
 	osd_work_item *m_blitter_request;
@@ -832,9 +821,37 @@ protected:
 	emu_timer *m_blitter_delay_timer;
 	int m_blitter_busy;
 
-	TIMER_CALLBACK_MEMBER( blitter_delay_callback );
+	// debug vram viewer
+#ifdef DEBUG_VRAM_VIEWER
+	bool m_debug_vram_view_en;
+	int m_prev_screen_width;
+	int m_prev_screen_height;
+	rectangle m_prev_screen_visarea;
+	int m_curr_screen_width;
+	int m_curr_screen_height;
+	rectangle m_curr_screen_visarea;
+#endif
+
+	static u8 colrtable[0x20][0x40];
+	static u8 colrtable_rev[0x20][0x40];
+	static u8 colrtable_add[0x20][0x20];
+	static u64 blit_delay;
+
+	static const blitfunction f0_ti1_tr1_blit_funcs[64];
+	static const blitfunction f0_ti1_tr0_blit_funcs[64];
+	static const blitfunction f1_ti1_tr1_blit_funcs[64];
+	static const blitfunction f1_ti1_tr0_blit_funcs[64];
+	static const blitfunction f0_ti0_tr1_blit_funcs[64];
+	static const blitfunction f0_ti0_tr0_blit_funcs[64];
+	static const blitfunction f1_ti0_tr1_blit_funcs[64];
+	static const blitfunction f1_ti0_tr0_blit_funcs[64];
+
+	// internal states
+	required_device<cpu_device> m_maincpu;
+	devcb_read32 m_port_r_cb;
 };
 
 
+DECLARE_DEVICE_TYPE(EPIC12, epic12_device)
 
-extern const device_type EPIC12;
+#endif // MAME_VIDEO_EPIC12_H

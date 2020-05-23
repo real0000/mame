@@ -92,12 +92,13 @@ static const char *const zaxxon_sample_names[] =
 };
 
 
-MACHINE_CONFIG_FRAGMENT( zaxxon_samples )
-	MCFG_SOUND_ADD("samples", SAMPLES, 0)
-	MCFG_SAMPLES_CHANNELS(12)
-	MCFG_SAMPLES_NAMES(zaxxon_sample_names)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25)
-MACHINE_CONFIG_END
+void zaxxon_state::zaxxon_samples(machine_config &config)
+{
+	SAMPLES(config, m_samples);
+	m_samples->set_channels(12);
+	m_samples->set_samples_names(zaxxon_sample_names);
+	m_samples->add_route(ALL_OUTPUTS, "speaker", 0.25);
+}
 
 
 
@@ -107,7 +108,7 @@ MACHINE_CONFIG_END
  *
  *************************************/
 
-WRITE8_MEMBER(zaxxon_state::zaxxon_sound_a_w)
+void zaxxon_state::zaxxon_sound_a_w(uint8_t data)
 {
 	uint8_t diff = data ^ m_sound_state[0];
 	m_sound_state[0] = data;
@@ -141,7 +142,7 @@ WRITE8_MEMBER(zaxxon_state::zaxxon_sound_a_w)
 }
 
 
-WRITE8_MEMBER(zaxxon_state::zaxxon_sound_b_w)
+void zaxxon_state::zaxxon_sound_b_w(uint8_t data)
 {
 	uint8_t diff = data ^ m_sound_state[1];
 	m_sound_state[1] = data;
@@ -157,7 +158,7 @@ WRITE8_MEMBER(zaxxon_state::zaxxon_sound_b_w)
 }
 
 
-WRITE8_MEMBER(zaxxon_state::zaxxon_sound_c_w)
+void zaxxon_state::zaxxon_sound_c_w(uint8_t data)
 {
 	uint8_t diff = data ^ m_sound_state[2];
 	m_sound_state[2] = data;
@@ -192,12 +193,13 @@ static const char *const congo_sample_names[] =
 };
 
 
-MACHINE_CONFIG_FRAGMENT( congo_samples )
-	MCFG_SOUND_ADD("samples", SAMPLES, 0)
-	MCFG_SAMPLES_CHANNELS(5)
-	MCFG_SAMPLES_NAMES(congo_sample_names)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25)
-MACHINE_CONFIG_END
+void zaxxon_state::congo_samples(machine_config &config)
+{
+	SAMPLES(config, m_samples);
+	m_samples->set_channels(5);
+	m_samples->set_samples_names(congo_sample_names);
+	m_samples->add_route(ALL_OUTPUTS, "speaker", 0.25);
+}
 
 
 
@@ -207,7 +209,7 @@ MACHINE_CONFIG_END
  *
  *************************************/
 
-WRITE8_MEMBER(zaxxon_state::congo_sound_b_w)
+void zaxxon_state::congo_sound_b_w(uint8_t data)
 {
 	uint8_t diff = data ^ m_sound_state[1];
 	m_sound_state[1] = data;
@@ -219,7 +221,7 @@ WRITE8_MEMBER(zaxxon_state::congo_sound_b_w)
 }
 
 
-WRITE8_MEMBER(zaxxon_state::congo_sound_c_w)
+void zaxxon_state::congo_sound_c_w(uint8_t data)
 {
 	uint8_t diff = data ^ m_sound_state[2];
 	m_sound_state[2] = data;

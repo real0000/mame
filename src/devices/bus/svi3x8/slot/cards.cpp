@@ -9,21 +9,31 @@
 #include "emu.h"
 #include "cards.h"
 
-SLOT_INTERFACE_START( svi_slot_cards )
-	SLOT_INTERFACE("sv801", SV801)
-	SLOT_INTERFACE("sv802", SV802)
-	SLOT_INTERFACE("sv803", SV803)
-	SLOT_INTERFACE("sv805", SV805)
-	SLOT_INTERFACE("sv806", SV806)
-	SLOT_INTERFACE("sv807", SV807)
-SLOT_INTERFACE_END
+#include "sv801.h"
+#include "sv802.h"
+#include "sv803.h"
+#include "sv805.h"
+#include "sv806.h"
+#include "sv807.h"
+
+
+void svi_slot_cards(device_slot_interface &device)
+{
+	device.option_add("sv801", SV801);
+	device.option_add("sv802", SV802);
+	device.option_add("sv803", SV803);
+	device.option_add("sv805", SV805);
+	device.option_add("sv806", SV806);
+	device.option_add("sv807", SV807);
+}
 
 // The single slot expander doesn't support the disk controller, since
 // it requires its own power supply to power the disk drives
-SLOT_INTERFACE_START( sv602_slot_cards )
-	SLOT_INTERFACE("sv802", SV802)
-	SLOT_INTERFACE("sv803", SV803)
-	SLOT_INTERFACE("sv805", SV805)
-	SLOT_INTERFACE("sv806", SV806)
-	SLOT_INTERFACE("sv807", SV807)
-SLOT_INTERFACE_END
+void sv602_slot_cards(device_slot_interface &device)
+{
+	device.option_add("sv802", SV802);
+	device.option_add("sv803", SV803);
+	device.option_add("sv805", SV805);
+	device.option_add("sv806", SV806);
+	device.option_add("sv807", SV807);
+}

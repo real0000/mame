@@ -2,10 +2,10 @@
 // copyright-holders:Aaron Giles
 /*** T-11: Portable DEC T-11 emulator ******************************************/
 
-#pragma once
+#ifndef MAME_CPU_T11_T11_H
+#define MAME_CPU_T11_T11_H
 
-#ifndef __T11_H__
-#define __T11_H__
+#pragma once
 
 
 enum
@@ -18,58 +18,65 @@ enum
 #define T11_IRQ2        2      /* IRQ2 */
 #define T11_IRQ3        3      /* IRQ3 */
 
-#define T11_RESERVED    0x000   /* Reserved vector */
-#define T11_TIMEOUT     0x004   /* Time-out/system error vector */
-#define T11_ILLINST     0x008   /* Illegal and reserved instruction vector */
-#define T11_BPT         0x00C   /* BPT instruction vector */
-#define T11_IOT         0x010   /* IOT instruction vector */
-#define T11_PWRFAIL     0x014   /* Power fail vector */
-#define T11_EMT         0x018   /* EMT instruction vector */
-#define T11_TRAP        0x01C   /* TRAP instruction vector */
-
-
-#define MCFG_T11_INITIAL_MODE(_mode) \
-	t11_device::set_initial_mode(*device, _mode);
-
-#define MCFG_T11_RESET(_devcb) \
-	devcb = &t11_device::set_out_reset_func(*device, DEVCB_##_devcb);
 
 class t11_device :  public cpu_device
 {
 public:
+	enum
+	{
+		CP0_LINE = 0,           // -AI4 (at PI time)
+		CP1_LINE = 1,           // -AI3 (at PI time)
+		CP2_LINE = 2,           // -AI2 (at PI time)
+		CP3_LINE = 3,           // -AI1 (at PI time)
+		VEC_LINE = 4,           // -AI5 (at PI time)
+		PF_LINE = 5,            // -AI6 (at PI time)
+		HLT_LINE = 6            // -AI7 (at PI time)
+	};
+
 	// construction/destruction
 	t11_device(const machine_config &mconfig, const char *_tag, device_t *_owner, uint32_t _clock);
-	t11_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
 
-	// static configuration helpers
-	static void set_initial_mode(device_t &device, const uint16_t mode) { downcast<t11_device &>(device).c_initial_mode = mode; }
-	template<class _Object> static devcb_base &set_out_reset_func(device_t &device, _Object object) { return downcast<t11_device &>(device).m_out_reset_func.set_callback(object); }
+	// configuration helpers
+	void set_initial_mode(const uint16_t mode) { c_initial_mode = mode; }
+	auto out_reset() { return m_out_reset_func.bind(); }
+	auto in_iack() { return m_in_iack_func.bind(); }
 
 protected:
+	enum
+	{
+		T11_RESERVED    = 000,  // Reserved vector
+		T11_TIMEOUT     = 004,  // Time-out/system error vector
+		T11_ILLINST     = 010,  // Illegal and reserved instruction vector
+		T11_BPT         = 014,  // BPT instruction vector
+		T11_IOT         = 020,  // IOT instruction vector
+		T11_PWRFAIL     = 024,  // Power fail vector
+		T11_EMT         = 030,  // EMT instruction vector
+		T11_TRAP        = 034   // TRAP instruction vector
+	};
+
+	t11_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 12; }
-	virtual uint32_t execute_max_cycles() const override { return 110; }
-	virtual uint32_t execute_input_lines() const override { return 4; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 12; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 114; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 7; }
+	virtual bool execute_input_edge_triggered(int inputnum) const noexcept override { return inputnum == PF_LINE || inputnum == HLT_LINE; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
-	virtual uint32_t execute_default_irq_vector() const override { return -1; };
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : nullptr; }
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 2; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 6; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-protected:
 	address_space_config m_program_config;
 
 	uint16_t c_initial_mode;
@@ -77,13 +84,20 @@ protected:
 	PAIR                m_ppc;    /* previous program counter */
 	PAIR                m_reg[8];
 	PAIR                m_psw;
-	uint16_t              m_initial_pc;
-	uint8_t               m_wait_state;
-	uint8_t               m_irq_state;
+	uint16_t            m_initial_pc;
+	uint8_t             m_wait_state;
+	uint8_t             m_cp_state;
+	bool                m_vec_active;
+	bool                m_pf_active;
+	bool                m_hlt_active;
+	bool                m_power_fail;
+	bool                m_ext_halt;
 	int                 m_icount;
 	address_space *m_program;
-	direct_read_data *m_direct;
-	devcb_write_line   m_out_reset_func;
+	memory_access_cache<1, 0, ENDIANNESS_LITTLE> *m_cache;
+
+	devcb_write_line    m_out_reset_func;
+	devcb_read8         m_in_iack_func;
 
 	inline int ROPCODE();
 	inline int RBYTE(int addr);
@@ -93,6 +107,7 @@ protected:
 	inline void PUSH(int val);
 	inline int POP();
 	void t11_check_irqs();
+	void take_interrupt(uint8_t vector);
 
 	typedef void ( t11_device::*opcode_func )(uint16_t op);
 	static const opcode_func s_opcode_table[65536 >> 3];
@@ -1153,8 +1168,7 @@ protected:
 };
 
 
-extern const device_type T11;
-extern const device_type K1801VM2;
+DECLARE_DEVICE_TYPE(T11,      t11_device)
+DECLARE_DEVICE_TYPE(K1801VM2, k1801vm2_device)
 
-
-#endif /* __T11_H__ */
+#endif // MAME_CPU_T11_T11_H

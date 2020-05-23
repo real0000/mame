@@ -21,25 +21,22 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type CGENIE_PRINTER = device_creator<cgenie_printer_device>;
+DEFINE_DEVICE_TYPE(CGENIE_PRINTER, cgenie_printer_device, "cgenie_printer", "Printer Interface EG2012")
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( cgenie_printer )
-	MCFG_CENTRONICS_ADD("centronics", centronics_devices, "printer")
-	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(cgenie_printer_device, busy_w))
-	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(cgenie_printer_device, perror_w))
-	MCFG_CENTRONICS_SELECT_HANDLER(WRITELINE(cgenie_printer_device, select_w))
-	MCFG_CENTRONICS_FAULT_HANDLER(WRITELINE(cgenie_printer_device, fault_w))
-	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("latch", "centronics")
-MACHINE_CONFIG_END
-
-machine_config_constructor cgenie_printer_device::device_mconfig_additions() const
+void cgenie_printer_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( cgenie_printer );
+	CENTRONICS(config, m_centronics, centronics_devices, "printer");
+	m_centronics->busy_handler().set(FUNC(cgenie_printer_device::busy_w));
+	m_centronics->perror_handler().set(FUNC(cgenie_printer_device::perror_w));
+	m_centronics->select_handler().set(FUNC(cgenie_printer_device::select_w));
+	m_centronics->fault_handler().set(FUNC(cgenie_printer_device::fault_w));
+
+	OUTPUT_LATCH(config, m_latch);
+	m_centronics->set_output_latch(*m_latch);
 }
 
 
@@ -52,8 +49,8 @@ machine_config_constructor cgenie_printer_device::device_mconfig_additions() con
 //-------------------------------------------------
 
 cgenie_printer_device::cgenie_printer_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, CGENIE_PRINTER, "Printer Interface EG2012", tag, owner, clock, "cgenie_printer", __FILE__),
-	device_parallel_interface(mconfig, *this),
+	device_t(mconfig, CGENIE_PRINTER, tag, owner, clock),
+	device_cg_parallel_interface(mconfig, *this),
 	m_centronics(*this, "centronics"),
 	m_latch(*this, "latch"),
 	m_centronics_busy(0),

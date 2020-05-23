@@ -52,6 +52,8 @@
 // core state/playback options
 #define OPTION_STATE                "state"
 #define OPTION_AUTOSAVE             "autosave"
+#define OPTION_REWIND               "rewind"
+#define OPTION_REWIND_CAPACITY      "rewind_capacity"
 #define OPTION_PLAYBACK             "playback"
 #define OPTION_RECORD               "record"
 #define OPTION_RECORD_TIMECODE      "record_timecode"
@@ -74,6 +76,7 @@
 #define OPTION_SLEEP                "sleep"
 #define OPTION_SPEED                "speed"
 #define OPTION_REFRESHSPEED         "refreshspeed"
+#define OPTION_LOWLATENCY           "lowlatency"
 
 // core render options
 #define OPTION_KEEPASPECT           "keepaspect"
@@ -96,11 +99,8 @@
 
 // core artwork options
 #define OPTION_ARTWORK_CROP         "artwork_crop"
-#define OPTION_USE_BACKDROPS        "use_backdrops"
-#define OPTION_USE_OVERLAYS         "use_overlays"
-#define OPTION_USE_BEZELS           "use_bezels"
-#define OPTION_USE_CPANELS          "use_cpanels"
-#define OPTION_USE_MARQUEES         "use_marquees"
+#define OPTION_FALLBACK_ARTWORK     "fallback_artwork"
+#define OPTION_OVERRIDE_ARTWORK     "override_artwork"
 
 // core screen options
 #define OPTION_BRIGHTNESS           "brightness"
@@ -167,12 +167,14 @@
 #define OPTION_UI_FONT              "uifont"
 #define OPTION_UI                   "ui"
 #define OPTION_RAMSIZE              "ramsize"
+#define OPTION_NVRAM_SAVE           "nvram_save"
 
 // core comm options
 #define OPTION_COMM_LOCAL_HOST      "comm_localhost"
 #define OPTION_COMM_LOCAL_PORT      "comm_localport"
 #define OPTION_COMM_REMOTE_HOST     "comm_remotehost"
 #define OPTION_COMM_REMOTE_PORT     "comm_remoteport"
+#define OPTION_COMM_FRAME_SYNC      "comm_framesync"
 
 #define OPTION_CONFIRM_QUIT         "confirm_quit"
 #define OPTION_UI_MOUSE             "ui_mouse"
@@ -196,8 +198,78 @@
 //  TYPE DEFINITIONS
 //**************************************************************************
 
+class game_driver;
+class device_slot_interface;
+class emu_options;
+
+class slot_option
+{
+public:
+	slot_option(emu_options &host, const char *default_value);
+	slot_option(const slot_option &that) = delete;
+	slot_option(slot_option &&that) = default;
+
+	// accessors
+	const std::string &value() const;
+	std::string specified_value() const;
+	const std::string &bios() const { return m_specified_bios; }
+	const std::string &default_card_software() const { return m_default_card_software; }
+	bool specified() const { return m_specified; }
+	core_options::entry::shared_ptr option_entry() const { return m_entry.lock(); }
+
+	// seters
+	void specify(const std::string &text, bool peg_priority = true);
+	void specify(std::string &&text, bool peg_priority = true);
+	void set_bios(std::string &&text);
+	void set_default_card_software(std::string &&s);
+
+	// instantiates an option entry (don't call outside of emuopts.cpp)
+	core_options::entry::shared_ptr setup_option_entry(const char *name);
+
+private:
+	void possibly_changed(const std::string &old_value);
+
+	emu_options &                   m_host;
+	bool                            m_specified;
+	std::string                     m_specified_value;
+	std::string                     m_specified_bios;
+	std::string                     m_default_card_software;
+	std::string                     m_default_value;
+	core_options::entry::weak_ptr   m_entry;
+};
+
+
+class image_option
+{
+public:
+	image_option(emu_options &host, const std::string &canonical_instance_name);
+	image_option(const image_option &that) = delete;
+	image_option(image_option &&that) = default;
+
+	// accessors
+	const std::string &canonical_instance_name() const { return m_canonical_instance_name; }
+	const std::string &value() const { return m_value; }
+	core_options::entry::shared_ptr option_entry() const { return m_entry.lock(); }
+
+	// mutators
+	void specify(const std::string &value, bool peg_priority = true);
+	void specify(std::string &&value, bool peg_priority = true);
+
+	// instantiates an option entry (don't call outside of emuopts.cpp)
+	core_options::entry::shared_ptr setup_option_entry(std::vector<std::string> &&names);
+
+private:
+	emu_options &                   m_host;
+	std::string                     m_canonical_instance_name;
+	std::string                     m_value;
+	core_options::entry::weak_ptr   m_entry;
+};
+
+
 class emu_options : public core_options
 {
+	friend class slot_option;
+	friend class image_option;
 public:
 	enum ui_option
 	{
@@ -205,12 +277,27 @@ public:
 		UI_SIMPLE
 	};
 
+	enum class option_support
+	{
+		FULL,                   // full option support
+		GENERAL_AND_SYSTEM,     // support for general options and system (no softlist)
+		GENERAL_ONLY            // only support for general options
+	};
+
 	// construction/destruction
-	emu_options();
+	emu_options(option_support support = option_support::FULL);
+	~emu_options();
+
+	// mutation
+	void set_system_name(const std::string &new_system_name);
+	void set_system_name(std::string &&new_system_name);
+	void set_software(std::string &&new_software);
 
 	// core options
-	const char *system_name() const { return value(OPTION_SYSTEMNAME); }
-	const char *software_name() const { return value(OPTION_SOFTWARENAME); }
+	const game_driver *system() const { return m_system; }
+	const char *system_name() const;
+	const std::string &attempted_system_name() const { return m_attempted_system_name; }
+	const std::string &software_name() const { return m_software_name; }
 
 	// core configuration options
 	bool read_config() const { return bool_value(OPTION_READCONFIG); }
@@ -244,6 +331,8 @@ public:
 	// core state/playback options
 	const char *state() const { return value(OPTION_STATE); }
 	bool autosave() const { return bool_value(OPTION_AUTOSAVE); }
+	int rewind() const { return bool_value(OPTION_REWIND); }
+	int rewind_capacity() const { return int_value(OPTION_REWIND_CAPACITY); }
 	const char *playback() const { return value(OPTION_PLAYBACK); }
 	const char *record() const { return value(OPTION_RECORD); }
 	bool record_timecode() const { return bool_value(OPTION_RECORD_TIMECODE); }
@@ -266,6 +355,7 @@ public:
 	bool sleep() const { return m_sleep; }
 	float speed() const { return float_value(OPTION_SPEED); }
 	bool refresh_speed() const { return m_refresh_speed; }
+	bool low_latency() const { return bool_value(OPTION_LOWLATENCY); }
 
 	// core render options
 	bool keep_aspect() const { return bool_value(OPTION_KEEPASPECT); }
@@ -288,11 +378,8 @@ public:
 
 	// core artwork options
 	bool artwork_crop() const { return bool_value(OPTION_ARTWORK_CROP); }
-	bool use_backdrops() const { return bool_value(OPTION_USE_BACKDROPS); }
-	bool use_overlays() const { return bool_value(OPTION_USE_OVERLAYS); }
-	bool use_bezels() const { return bool_value(OPTION_USE_BEZELS); }
-	bool use_cpanels() const { return bool_value(OPTION_USE_CPANELS); }
-	bool use_marquees() const { return bool_value(OPTION_USE_MARQUEES); }
+	const char *fallback_artwork() const { return value(OPTION_FALLBACK_ARTWORK); }
+	const char *override_artwork() const { return value(OPTION_OVERRIDE_ARTWORK); }
 
 	// core screen options
 	float brightness() const { return float_value(OPTION_BRIGHTNESS); }
@@ -357,12 +444,14 @@ public:
 	const char *ui_font() const { return value(OPTION_UI_FONT); }
 	ui_option ui() const { return m_ui; }
 	const char *ram_size() const { return value(OPTION_RAMSIZE); }
+	bool nvram_save() const { return bool_value(OPTION_NVRAM_SAVE); }
 
 	// core comm options
 	const char *comm_localhost() const { return value(OPTION_COMM_LOCAL_HOST); }
 	const char *comm_localport() const { return value(OPTION_COMM_LOCAL_PORT); }
 	const char *comm_remotehost() const { return value(OPTION_COMM_REMOTE_HOST); }
 	const char *comm_remoteport() const { return value(OPTION_COMM_REMOTE_PORT); }
+	bool comm_framesync() const { return bool_value(OPTION_COMM_FRAME_SYNC); }
 
 
 	bool confirm_quit() const { return bool_value(OPTION_CONFIRM_QUIT); }
@@ -381,26 +470,67 @@ public:
 
 	const char *language() const { return value(OPTION_LANGUAGE); }
 
-	// Web server specific optopns
+	// Web server specific options
 	bool  http() const { return bool_value(OPTION_HTTP); }
 	short http_port() const { return int_value(OPTION_HTTP_PORT); }
 	const char *http_root() const { return value(OPTION_HTTP_ROOT); }
 
-	std::string main_value(const char *option) const;
-	std::string sub_value(const char *name, const char *subname) const;
+	// slots and devices - the values for these are stored outside of the core_options
+	// structure
+	const ::slot_option &slot_option(const std::string &device_name) const;
+	::slot_option &slot_option(const std::string &device_name);
+	const ::slot_option *find_slot_option(const std::string &device_name) const;
+	::slot_option *find_slot_option(const std::string &device_name);
+	bool has_slot_option(const std::string &device_name) const { return find_slot_option(device_name) ? true : false; }
+	const ::image_option &image_option(const std::string &device_name) const;
+	::image_option &image_option(const std::string &device_name);
+	bool has_image_option(const std::string &device_name) const { return m_image_options.find(device_name) != m_image_options.end(); }
 
 protected:
-	virtual void value_changed(const std::string &name, const std::string &value) override;
+	virtual void command_argument_processed() override;
 
 private:
-	static const options_entry s_option_entries[];
+	struct software_options
+	{
+		std::unordered_map<std::string, std::string>    slot;
+		std::unordered_map<std::string, std::string>    image;
+	};
 
-	// cached options
-	int m_coin_impulse;
-	bool m_joystick_contradictory;
-	bool m_sleep;
-	bool m_refresh_speed;
-	ui_option m_ui;
+	// slot/image/softlist calculus
+	software_options evaluate_initial_softlist_options(const std::string &software_identifier);
+	void update_slot_and_image_options();
+	bool add_and_remove_slot_options();
+	bool add_and_remove_image_options();
+	void reevaluate_default_card_software();
+	std::string get_default_card_software(device_slot_interface &slot);
+
+	// static list of options entries
+	static const options_entry                          s_option_entries[];
+
+	// the basics
+	option_support                                      m_support;
+	const game_driver *                                 m_system;
+
+	// slots and devices
+	std::unordered_map<std::string, ::slot_option>      m_slot_options;
+	std::unordered_map<std::string, ::image_option>     m_image_options_canonical;
+	std::unordered_map<std::string, ::image_option *>   m_image_options;
+
+	// cached options, for scenarios where parsing core_options is too slow
+	int                                                 m_coin_impulse;
+	bool                                                m_joystick_contradictory;
+	bool                                                m_sleep;
+	bool                                                m_refresh_speed;
+	ui_option                                           m_ui;
+
+	// special option; the system name we tried to specify
+	std::string                                         m_attempted_system_name;
+
+	// special option; the software set name that we did specify
+	std::string                                         m_software_name;
 };
+
+// takes an existing emu_options and adds system specific options
+void osd_setup_osd_specific_emu_options(emu_options &opts);
 
 #endif  // MAME_EMU_EMUOPTS_H

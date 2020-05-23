@@ -6,32 +6,11 @@
 
 **********************************************************************/
 
+#ifndef MAME_BUS_ADAMNET_ADAMNET_H
+#define MAME_BUS_ADAMNET_ADAMNET_H
+
 #pragma once
 
-#ifndef __ADAMNET__
-#define __ADAMNET__
-
-
-
-
-//**************************************************************************
-//  CONSTANTS
-//**************************************************************************
-
-#define ADAMNET_TAG     "adamnet"
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_ADAMNET_BUS_ADD() \
-	MCFG_DEVICE_ADD(ADAMNET_TAG, ADAMNET, 0)
-
-#define MCFG_ADAMNET_SLOT_ADD(_tag, _slot_intf, _def_slot) \
-	MCFG_DEVICE_ADD(_tag, ADAMNET_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
 
 
 
@@ -88,43 +67,58 @@ private:
 // ======================> adamnet_slot_device
 
 class adamnet_slot_device : public device_t,
-							public device_slot_interface
+							public device_single_card_slot_interface<device_adamnet_card_interface>
 {
 public:
+	// configuration
+	template <typename T> void set_bus(T &&tag) { m_bus.set_tag(std::forward<T>(tag)); }
+
 	// construction/destruction
+	template <typename T, typename U>
+	adamnet_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, T &&bus, U &&opts, char const *dflt)
+		: adamnet_slot_device(mconfig, tag, owner, (uint32_t)0)
+	{
+		set_bus(std::forward<T>(bus));
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
 	adamnet_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
+protected:
 	// device-level overrides
 	virtual void device_start() override;
 
-protected:
 	// configuration
-	adamnet_device  *m_bus;
+	required_device<adamnet_device> m_bus;
 };
 
 
 // ======================> device_adamnet_card_interface
 
-class device_adamnet_card_interface : public device_slot_card_interface
+class device_adamnet_card_interface : public device_interface
 {
+	friend class adamnet_device;
+
 public:
 	// construction/destruction
-	device_adamnet_card_interface(const machine_config &mconfig, device_t &device);
 	virtual ~device_adamnet_card_interface();
 
 	virtual void adamnet_reset_w(int state) = 0;
+
+protected:
+	device_adamnet_card_interface(const machine_config &mconfig, device_t &device);
 
 	adamnet_device  *m_bus;
 };
 
 
 // device type definitions
-extern const device_type ADAMNET;
-extern const device_type ADAMNET_SLOT;
+DECLARE_DEVICE_TYPE(ADAMNET,      adamnet_device)
+DECLARE_DEVICE_TYPE(ADAMNET_SLOT, adamnet_slot_device)
 
 
-SLOT_INTERFACE_EXTERN( adamnet_devices );
+void adamnet_devices(device_slot_interface &device);
 
-
-
-#endif
+#endif // MAME_BUS_ADAMNET_ADAMNET_H

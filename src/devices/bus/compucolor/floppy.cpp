@@ -15,17 +15,18 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type COMPUCOLOR_FLOPPY_PORT = device_creator<compucolor_floppy_port_device>;
-const device_type COMPUCOLOR_FLOPPY = device_creator<compucolor_floppy_device>;
+DEFINE_DEVICE_TYPE(COMPUCOLOR_FLOPPY_PORT, compucolor_floppy_port_device, "compclr_flp_port", "Compucolor Floppy Port")
+DEFINE_DEVICE_TYPE(COMPUCOLOR_FLOPPY,      compucolor_floppy_device,      "compclr_flp",      "Compucolor floppy")
 
 
 //-------------------------------------------------
 //  SLOT_INTERFACE( compucolor_floppy_port_devices )
 //-------------------------------------------------
 
-SLOT_INTERFACE_START( compucolor_floppy_port_devices )
-	SLOT_INTERFACE("floppy", COMPUCOLOR_FLOPPY)
-SLOT_INTERFACE_END
+void compucolor_floppy_port_devices(device_slot_interface &device)
+{
+	device.option_add("floppy", COMPUCOLOR_FLOPPY);
+}
 
 
 //-------------------------------------------------
@@ -41,28 +42,19 @@ FLOPPY_FORMATS_END
 //  SLOT_INTERFACE( compucolor_floppies )
 //-------------------------------------------------
 
-static SLOT_INTERFACE_START( compucolor_floppies )
-	SLOT_INTERFACE_INTERNAL( "525sssd", FLOPPY_525_SSSD )
-SLOT_INTERFACE_END
-
-
-//-------------------------------------------------
-//  MACHINE_DRIVER( compucolor_floppy )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( compucolor_floppy )
-	MCFG_FLOPPY_DRIVE_ADD("floppy", compucolor_floppies, "525sssd", compucolor_floppy_device::floppy_formats)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor compucolor_floppy_device::device_mconfig_additions() const
+static void compucolor_floppies(device_slot_interface &device)
 {
-	return MACHINE_CONFIG_NAME( compucolor_floppy );
+	device.option_add_internal("525sssd", FLOPPY_525_SSSD);
+}
+
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void compucolor_floppy_device::device_add_mconfig(machine_config &config)
+{
+	FLOPPY_CONNECTOR(config, m_floppy, compucolor_floppies, "525sssd", compucolor_floppy_device::floppy_formats);
 }
 
 
@@ -86,7 +78,7 @@ device_compucolor_floppy_port_interface::device_compucolor_floppy_port_interface
 //-------------------------------------------------
 
 compucolor_floppy_port_device::compucolor_floppy_port_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: rs232_port_device(mconfig, COMPUCOLOR_FLOPPY_PORT, "Compucolor Floppy Port", tag, owner, clock, "compclr_flp_port", __FILE__), m_dev(nullptr)
+	: rs232_port_device(mconfig, COMPUCOLOR_FLOPPY_PORT, tag, owner, clock), m_dev(nullptr)
 {
 }
 
@@ -96,13 +88,13 @@ compucolor_floppy_port_device::compucolor_floppy_port_device(const machine_confi
 //-------------------------------------------------
 
 compucolor_floppy_device::compucolor_floppy_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, COMPUCOLOR_FLOPPY, "Compucolor floppy", tag, owner, clock, "compclr_flp", __FILE__),
-		device_compucolor_floppy_port_interface(mconfig, *this),
-		m_floppy(*this, "floppy:525sssd"),
-		m_rw(1),
-		m_stp(0),
-		m_sel(1),
-		m_period(attotime::from_hz(9600*8))
+	: device_t(mconfig, COMPUCOLOR_FLOPPY, tag, owner, clock)
+	, device_compucolor_floppy_port_interface(mconfig, *this)
+	, m_floppy(*this, "floppy")
+	, m_rw(1)
+	, m_stp(0)
+	, m_sel(1)
+	, m_period(attotime::from_hz(9600*8))
 {
 	m_owner = dynamic_cast<compucolor_floppy_port_device *>(this->owner());
 }
@@ -192,19 +184,23 @@ void compucolor_floppy_device::stepper_w(uint8_t data)
 {
 	if (!m_sel)
 	{
+		floppy_image_device *floppy = m_floppy->get_device();
+		if (floppy == nullptr)
+			return;
+
 		if ((m_stp == 1 && data == 4) || (m_stp == 2 && data == 1) || (m_stp == 4 && data == 2))
 		{
 			// step in
-			m_floppy->dir_w(1);
-			m_floppy->stp_w(0);
-			m_floppy->stp_w(1);
+			floppy->dir_w(1);
+			floppy->stp_w(0);
+			floppy->stp_w(1);
 		}
 		else if ((m_stp == 1 && data == 2) || (m_stp == 2 && data == 4) || (m_stp == 4 && data == 1))
 		{
 			// step out
-			m_floppy->dir_w(0);
-			m_floppy->stp_w(0);
-			m_floppy->stp_w(1);
+			floppy->dir_w(0);
+			floppy->stp_w(0);
+			floppy->stp_w(1);
 		}
 	}
 
@@ -218,7 +214,9 @@ void compucolor_floppy_device::stepper_w(uint8_t data)
 
 void compucolor_floppy_device::select_w(int state)
 {
-	m_floppy->mon_w(state);
+	floppy_image_device *floppy = m_floppy->get_device();
+	if (floppy != nullptr)
+		floppy->mon_w(state);
 
 	if (!m_sel && state)
 	{
@@ -235,8 +233,10 @@ void compucolor_floppy_device::select_w(int state)
 
 bool compucolor_floppy_device::read_bit()
 {
+	floppy_image_device *floppy = m_floppy->get_device();
+
 	attotime when = machine().time();
-	attotime edge = m_floppy->get_next_transition(when);
+	attotime edge = (floppy == nullptr) ? attotime::never : floppy->get_next_transition(when);
 	attotime next = when + m_period;
 
 	return (edge.is_never() || edge >= next) ? 0 : 1;

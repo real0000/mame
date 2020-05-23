@@ -12,26 +12,18 @@
 
 **********************************************************************/
 
-#ifndef __R10788_H__
-#define __R10788_H__
+#ifndef MAME_MACHINE_R10788_H
+#define MAME_MACHINE_R10788_H
+
+#pragma once
 
 #include "device.h"
 
-/*************************************
- *
- *  Device configuration macros
- *
- *************************************/
-
-/* Set the writer used to update a display digit */
-#define MCFG_R10788_UPDATE(_devcb) \
-	r10788_device::set_update(*device, DEVCB_##_devcb);
 
 class r10788_device : public device_t
 {
 public:
 	r10788_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~r10788_device() {}
 
 	enum {
 		KTR = 0xc,  //!< Transfer Keyboard Return
@@ -44,10 +36,11 @@ public:
 		KER = 0x6   //!< Reset Keyboard Error
 	};
 
-	DECLARE_READ8_MEMBER ( io_r );
-	DECLARE_WRITE8_MEMBER( io_w );
+	uint8_t io_r(offs_t offset);
+	void io_w(offs_t offset, uint8_t data);
 
-	template<class _Object> static devcb_base &set_update(device_t &device, _Object object) { return downcast<r10788_device &>(device).m_display.set_callback(object); }
+	auto update_cb() { return m_display.bind(); } /* Set the writer used to update a display digit */
+
 protected:
 	// device-level overrides
 	virtual void device_start() override;
@@ -71,6 +64,6 @@ private:
 	emu_timer*   m_timer;               //!< timer running at clock / 18 / 36
 };
 
-extern const device_type R10788;
+DECLARE_DEVICE_TYPE(R10788, r10788_device)
 
-#endif /* __R10788_H__ */
+#endif // MAME_MACHINE_R10788_H

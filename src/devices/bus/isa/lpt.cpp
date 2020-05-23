@@ -10,23 +10,19 @@
 #include "lpt.h"
 #include "machine/pc_lpt.h"
 
-const device_type ISA8_LPT = device_creator<isa8_lpt_device>;
+DEFINE_DEVICE_TYPE(ISA8_LPT, isa8_lpt_device, "isa_lpt", "Printer Adapter")
 
 isa8_lpt_device::isa8_lpt_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, ISA8_LPT, "Printer Adapter", tag, owner, clock, "isa_lpt", __FILE__),
+	device_t(mconfig, ISA8_LPT, tag, owner, clock),
 	device_isa8_card_interface(mconfig, *this),
 	m_is_primary(false)
 {
 }
 
-static MACHINE_CONFIG_FRAGMENT( lpt_config )
-	MCFG_DEVICE_ADD("lpt", PC_LPT, 0)
-	MCFG_PC_LPT_IRQ_HANDLER(WRITELINE(isa8_lpt_device, pc_cpu_line))
-MACHINE_CONFIG_END
-
-machine_config_constructor isa8_lpt_device::device_mconfig_additions() const
+void isa8_lpt_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( lpt_config );
+	pc_lpt_device &lpt(PC_LPT(config, "lpt"));
+	lpt.irq_handler().set(FUNC(isa8_lpt_device::pc_cpu_line));
 }
 
 static INPUT_PORTS_START( lpt_dsw )
@@ -49,14 +45,11 @@ void isa8_lpt_device::device_start()
 void isa8_lpt_device::device_reset()
 {
 	m_is_primary = (ioport("DSW")->read() & 1) ? false : true;
+	pc_lpt_device &lpt(*subdevice<pc_lpt_device>("lpt"));
 	if (m_is_primary)
-	{
-		m_isa->install_device(0x0378, 0x037b, read8_delegate(FUNC(pc_lpt_device::read), subdevice<pc_lpt_device>("lpt")), write8_delegate(FUNC(pc_lpt_device::write), subdevice<pc_lpt_device>("lpt")));
-	}
+		m_isa->install_device(0x0378, 0x037b, read8sm_delegate(lpt, FUNC(pc_lpt_device::read)), write8sm_delegate(lpt, FUNC(pc_lpt_device::write)));
 	else
-	{
-		m_isa->install_device(0x0278, 0x027b, read8_delegate(FUNC(pc_lpt_device::read), subdevice<pc_lpt_device>("lpt")), write8_delegate(FUNC(pc_lpt_device::write), subdevice<pc_lpt_device>("lpt")));
-	}
+		m_isa->install_device(0x0278, 0x027b, read8sm_delegate(lpt, FUNC(pc_lpt_device::read)), write8sm_delegate(lpt, FUNC(pc_lpt_device::write)));
 }
 
 WRITE_LINE_MEMBER(isa8_lpt_device::pc_cpu_line)

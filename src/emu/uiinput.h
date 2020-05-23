@@ -23,25 +23,23 @@
     TYPE DEFINITIONS
 ***************************************************************************/
 
-class render_target;
-
-enum ui_event_type
-{
-	UI_EVENT_NONE,
-	UI_EVENT_MOUSE_MOVE,
-	UI_EVENT_MOUSE_LEAVE,
-	UI_EVENT_MOUSE_DOWN,
-	UI_EVENT_MOUSE_UP,
-	UI_EVENT_MOUSE_RDOWN,
-	UI_EVENT_MOUSE_RUP,
-	UI_EVENT_MOUSE_DOUBLE_CLICK,
-	UI_EVENT_MOUSE_WHEEL,
-	UI_EVENT_CHAR
-};
-
 struct ui_event
 {
-	ui_event_type       event_type;
+	enum type
+	{
+		NONE,
+		MOUSE_MOVE,
+		MOUSE_LEAVE,
+		MOUSE_DOWN,
+		MOUSE_UP,
+		MOUSE_RDOWN,
+		MOUSE_RUP,
+		MOUSE_DOUBLE_CLICK,
+		MOUSE_WHEEL,
+		IME_CHAR
+	};
+
+	type                event_type;
 	render_target *     target;
 	s32                 mouse_x;
 	s32                 mouse_y;
@@ -67,6 +65,9 @@ public:
 	/* pops an event off of the queue */
 	bool pop_event(ui_event *event);
 
+	/* check the next event type without removing it */
+	ui_event::type peek_event_type() const { return (m_events_start != m_events_end) ? m_events[m_events_start].event_type : ui_event::NONE; }
+
 	/* clears all outstanding events */
 	void reset();
 
@@ -76,6 +77,10 @@ public:
 
 	/* return true if a key down for the given user interface sequence is detected */
 	bool pressed(int code);
+
+	// enable/disable UI key presses
+	bool presses_enabled() const { return m_presses_enabled; }
+	void set_presses_enabled(bool enabled) { m_presses_enabled = enabled; }
 
 	/* return true if a key down for the given user interface sequence is detected, or if
 	autorepeat at the given speed is triggered */
@@ -103,6 +108,7 @@ private:
 	running_machine &   m_machine;                  // reference to our machine
 
 	/* pressed states; retrieved with ui_input_pressed() */
+	bool                        m_presses_enabled;
 	osd_ticks_t                 m_next_repeat[IPT_COUNT];
 	u8                          m_seqpressed[IPT_COUNT];
 
@@ -119,4 +125,4 @@ private:
 	int                         m_events_end;
 };
 
-#endif  /* MAME_EMU_UIINPUT_H */
+#endif // MAME_EMU_UIINPUT_H

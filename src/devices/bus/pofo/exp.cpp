@@ -15,7 +15,7 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type PORTFOLIO_EXPANSION_SLOT = device_creator<portfolio_expansion_slot_t>;
+DEFINE_DEVICE_TYPE(PORTFOLIO_EXPANSION_SLOT, portfolio_expansion_slot_device, "portfolio_expansion_slot", "Atari Portfolio expansion port")
 
 
 
@@ -28,9 +28,9 @@ const device_type PORTFOLIO_EXPANSION_SLOT = device_creator<portfolio_expansion_
 //-------------------------------------------------
 
 device_portfolio_expansion_slot_interface::device_portfolio_expansion_slot_interface(const machine_config &mconfig, device_t &device) :
-	device_slot_card_interface(mconfig,device)
+	device_interface(device, "pofoexp")
 {
-	m_slot = dynamic_cast<portfolio_expansion_slot_t *>(device.owner());
+	m_slot = dynamic_cast<portfolio_expansion_slot_device *>(device.owner());
 }
 
 WRITE_LINE_MEMBER( device_portfolio_expansion_slot_interface::eint_w ) { m_slot->eint_w(state); }
@@ -44,12 +44,12 @@ WRITE_LINE_MEMBER( device_portfolio_expansion_slot_interface::wake_w ) { m_slot-
 //**************************************************************************
 
 //-------------------------------------------------
-//  portfolio_expansion_slot_t - constructor
+//  portfolio_expansion_slot_device - constructor
 //-------------------------------------------------
 
-portfolio_expansion_slot_t::portfolio_expansion_slot_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, PORTFOLIO_EXPANSION_SLOT, "Atari Portfolio expansion port", tag, owner, clock, "portfolio_expansion_slot", __FILE__),
-	device_slot_interface(mconfig, *this),
+portfolio_expansion_slot_device::portfolio_expansion_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, PORTFOLIO_EXPANSION_SLOT, tag, owner, clock),
+	device_single_card_slot_interface<device_portfolio_expansion_slot_interface>(mconfig, *this),
 	m_write_eint(*this),
 	m_write_nmio(*this),
 	m_write_wake(*this),
@@ -62,9 +62,9 @@ portfolio_expansion_slot_t::portfolio_expansion_slot_t(const machine_config &mco
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void portfolio_expansion_slot_t::device_start()
+void portfolio_expansion_slot_device::device_start()
 {
-	m_card = dynamic_cast<device_portfolio_expansion_slot_interface *>(get_card_device());
+	m_card = get_card_device();
 
 	// resolve callbacks
 	m_write_eint.resolve_safe();
@@ -77,7 +77,7 @@ void portfolio_expansion_slot_t::device_start()
 //  device_reset - device-specific reset
 //-------------------------------------------------
 
-void portfolio_expansion_slot_t::device_reset()
+void portfolio_expansion_slot_device::device_reset()
 {
 	if (m_card != nullptr)
 	{
@@ -96,9 +96,10 @@ void portfolio_expansion_slot_t::device_reset()
 #include "hpc102.h"
 #include "hpc104.h"
 
-SLOT_INTERFACE_START( portfolio_expansion_cards )
-	SLOT_INTERFACE("lpt", HPC101)
-	SLOT_INTERFACE("uart", HPC102)
-	SLOT_INTERFACE("ram", HPC104)
-	SLOT_INTERFACE("ram2", HPC104_2)
-SLOT_INTERFACE_END
+void portfolio_expansion_cards(device_slot_interface &device)
+{
+	device.option_add("lpt",  POFO_HPC101);
+	device.option_add("uart", POFO_HPC102);
+	device.option_add("ram",  POFO_HPC104);
+	device.option_add("ram2", POFO_HPC104_2);
+}

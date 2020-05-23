@@ -1,33 +1,41 @@
 // license:BSD-3-Clause
 // copyright-holders:Takahiro Nogi
 
-#include "machine/gen_latch.h"
 #include "machine/tmp68301.h"
 #include "screen.h"
+#include "audio/nichisnd.h"
+#include "machine/nb1413m3.h"
+#include "emupal.h"
 
 #define VRAM_MAX    3
 
 class niyanpai_state : public driver_device
 {
 public:
+	niyanpai_state(const machine_config &mconfig, device_type type, const char *tag)
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
+
+	void musobana(machine_config &config);
+	void zokumahj(machine_config &config);
+	void mhhonban(machine_config &config);
+	void niyanpai(machine_config &config);
+
+	void init_niyanpai();
+
+	DECLARE_READ_LINE_MEMBER(musobana_outcoin_flag_r);
+
+private:
 	enum
 	{
 		TIMER_BLITTER
 	};
 
-	niyanpai_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_maincpu(*this, "maincpu"),
-		m_tmp68301(*this, "tmp68301"),
-		m_screen(*this, "screen"),
-		m_palette(*this, "palette"),
-		m_soundlatch(*this, "soundlatch") { }
-
-	required_device<cpu_device> m_maincpu;
-	required_device<tmp68301_device> m_tmp68301;
+	required_device<tmp68301_device> m_maincpu;
 	required_device<screen_device> m_screen;
 	required_device<palette_device> m_palette;
-	required_device<generic_latch_8_device> m_soundlatch;
 
 	// common
 	int m_scrollx[VRAM_MAX];
@@ -61,8 +69,6 @@ public:
 	uint8_t m_motor_on;
 
 	// common
-	DECLARE_WRITE8_MEMBER(soundbank_w);
-	DECLARE_WRITE8_MEMBER(soundlatch_clear_w);
 	DECLARE_READ16_MEMBER(dipsw_r);
 	DECLARE_READ16_MEMBER(palette_r);
 	DECLARE_WRITE16_MEMBER(palette_w);
@@ -78,15 +84,12 @@ public:
 	DECLARE_WRITE8_MEMBER(clutsel_0_w);
 	DECLARE_WRITE8_MEMBER(clutsel_1_w);
 	DECLARE_WRITE8_MEMBER(clutsel_2_w);
-	DECLARE_WRITE16_MEMBER(tmp68301_parallel_port_w);
+	void tmp68301_parallel_port_w(uint16_t data);
 
 	// musobana and derived machine configs
 	DECLARE_READ16_MEMBER(musobana_inputport_0_r);
 	DECLARE_WRITE16_MEMBER(musobana_inputport_w);
 
-	DECLARE_CUSTOM_INPUT_MEMBER(musobana_outcoin_flag_r);
-
-	DECLARE_DRIVER_INIT(niyanpai);
 	virtual void video_start() override;
 	DECLARE_MACHINE_START(musobana);
 
@@ -99,8 +102,12 @@ public:
 	void update_pixel(int vram, int x, int y);
 	void gfxdraw(int vram);
 
-	INTERRUPT_GEN_MEMBER(interrupt);
+	DECLARE_WRITE_LINE_MEMBER(vblank_irq);
 
-protected:
+	void mhhonban_map(address_map &map);
+	void musobana_map(address_map &map);
+	void niyanpai_map(address_map &map);
+	void zokumahj_map(address_map &map);
+
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 };

@@ -40,43 +40,33 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_AM2847_H
+#define MAME_MACHINE_AM2847_H
+
 #pragma once
-
-#ifndef AM2847_H
-#define AM2847_H
-
-
-#define MCFG_AM2847_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, AM2847, 0)
-
-#define MCFG_AM2849_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, AM2849, 0)
-
-#define MCFG_TMS3409_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, TMS3409, 0)
 
 class am2847_base_device : public device_t
 {
 public:
-	am2847_base_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, size_t size);
-
 	DECLARE_WRITE_LINE_MEMBER( in_a_w );
 	DECLARE_WRITE_LINE_MEMBER( in_b_w );
 	DECLARE_WRITE_LINE_MEMBER( in_c_w );
 	DECLARE_WRITE_LINE_MEMBER( in_d_w );
-	void in_w(uint8_t data); // Or if you prefer...
+	void in_w(uint8_t data);
 
 	DECLARE_WRITE_LINE_MEMBER( rc_a_w );
 	DECLARE_WRITE_LINE_MEMBER( rc_b_w );
 	DECLARE_WRITE_LINE_MEMBER( rc_c_w );
 	DECLARE_WRITE_LINE_MEMBER( rc_d_w );
-	void rc_w(uint8_t data); // Or if you prefer...
+	void rc_w(uint8_t data);
 
 	DECLARE_WRITE_LINE_MEMBER( cp_w );
 
 	uint8_t out_r() const { return m_out; }
 
 protected:
+	am2847_base_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, size_t size);
+
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
@@ -126,8 +116,8 @@ public:
 };
 
 // device type definition
-extern const device_type AM2847;
-extern const device_type AM2849;
-extern const device_type TMS3409;
+DECLARE_DEVICE_TYPE(AM2847,  am2847_device)
+DECLARE_DEVICE_TYPE(AM2849,  am2849_device)
+DECLARE_DEVICE_TYPE(TMS3409, tms3409_device)
 
-#endif // AM2847_H
+#endif // MAME_MACHINE_AM2847_H

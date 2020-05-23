@@ -1,12 +1,11 @@
 // license:BSD-3-Clause
-// copyright-holders:Bryan McPhail
-/* arm.c
-
+// copyright-holders:Bryan McPhail, Phil Stroffolino
+/*
     ARM 2/3/6 Emulation (26 bit address bus)
 
     Todo:
-      Timing - Currently very approximated, nothing relies on proper timing so far.
-      IRQ timing not yet correct (again, nothing is affected by this so far).
+      - Timing - Currently very approximated, nothing relies on proper timing so far.
+      - IRQ timing not yet correct (again, nothing is affected by this so far).
 
     Recent changes (2005):
       Fixed software interrupts
@@ -18,11 +17,9 @@
 */
 
 #include "emu.h"
-#include "debugger.h"
 #include "arm.h"
-
-CPU_DISASSEMBLE( arm );
-CPU_DISASSEMBLE( arm_be );
+#include "debugger.h"
+#include "armdasm.h"
 
 #define ARM_DEBUG_CORE 0
 #define ARM_DEBUG_COPRO 0
@@ -224,32 +221,35 @@ enum
 
 /***************************************************************************/
 
-const device_type ARM = device_creator<arm_cpu_device>;
-const device_type ARM_BE = device_creator<arm_be_cpu_device>;
+DEFINE_DEVICE_TYPE(ARM,    arm_cpu_device,    "arm_le", "ARM (little)")
+DEFINE_DEVICE_TYPE(ARM_BE, arm_be_cpu_device, "arm_be", "ARM (big)")
 
+
+device_memory_interface::space_config_vector arm_cpu_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
+}
 
 arm_cpu_device::arm_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, ARM, "ARM", tag, owner, clock, "arm", __FILE__)
-	, m_program_config("program", ENDIANNESS_LITTLE, 32, 26, 0)
-	, m_endian(ENDIANNESS_LITTLE)
-	, m_copro_type(ARM_COPRO_TYPE_UNKNOWN_CP15)
+	: arm_cpu_device(mconfig, ARM, tag, owner, clock, ENDIANNESS_LITTLE)
 {
-	memset(m_sArmRegister, 0x00, sizeof(m_sArmRegister));
 }
 
 
-arm_cpu_device::arm_cpu_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source, endianness_t endianness)
-	: cpu_device(mconfig, type, name, tag, owner, clock, shortname, source)
+arm_cpu_device::arm_cpu_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, endianness_t endianness)
+	: cpu_device(mconfig, type, tag, owner, clock)
 	, m_program_config("program", endianness, 32, 26, 0)
 	, m_endian(endianness)
-	, m_copro_type(ARM_COPRO_TYPE_UNKNOWN_CP15)
+	, m_copro_type(copro_type::UNKNOWN_CP15)
 {
-	memset(m_sArmRegister, 0x00, sizeof(m_sArmRegister));
+	std::fill(std::begin(m_sArmRegister), std::end(m_sArmRegister), 0);
 }
 
 
 arm_be_cpu_device::arm_be_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: arm_cpu_device(mconfig, ARM_BE, "ARM (big endian)", tag, owner, clock, "arm_be", __FILE__, ENDIANNESS_BIG)
+	: arm_cpu_device(mconfig, ARM_BE, tag, owner, clock, ENDIANNESS_BIG)
 {
 }
 
@@ -336,16 +336,14 @@ void arm_cpu_device::device_reset()
 
 void arm_cpu_device::execute_run()
 {
-	uint32_t pc;
-	uint32_t insn;
-
 	do
 	{
-		debugger_instruction_hook(this, R15 & ADDRESS_MASK);
+		arm_check_irq_state();
+		debugger_instruction_hook(R15 & ADDRESS_MASK);
 
 		/* load instruction */
-		pc = R15;
-		insn = m_direct->read_dword( pc & ADDRESS_MASK );
+		uint32_t pc = R15;
+		uint32_t insn = m_pr32( pc & ADDRESS_MASK );
 
 		switch (insn >> INSN_COND_SHIFT)
 		{
@@ -420,7 +418,7 @@ void arm_cpu_device::execute_run()
 		}
 		else if ((insn & 0x0f000000u) == 0x0e000000u)   /* Coprocessor */
 		{
-			if (m_copro_type == ARM_COPRO_TYPE_VL86C020)
+			if (m_copro_type == copro_type::VL86C020)
 				HandleCoProVL86C020(insn);
 			else
 				HandleCoPro(insn);
@@ -442,9 +440,6 @@ void arm_cpu_device::execute_run()
 			m_icount -= S_CYCLE;
 			R15 += 4;
 		}
-
-		arm_check_irq_state();
-
 	} while( m_icount > 0 );
 } /* arm_execute */
 
@@ -468,7 +463,7 @@ void arm_cpu_device::arm_check_irq_state()
 		R15 = eARM_MODE_FIQ;    /* Set FIQ mode so PC is saved to correct R14 bank */
 		SetRegister( 14, pc );    /* save PC */
 		R15 = (pc&PSR_MASK)|(pc&IRQ_MASK)|0x1c|eARM_MODE_FIQ|I_MASK|F_MASK; /* Mask both IRQ & FIRQ, set PC=0x1c */
-		m_pendingFiq=0;
+		standard_irq_callback(ARM_FIRQ_LINE);
 		return;
 	}
 
@@ -477,7 +472,7 @@ void arm_cpu_device::arm_check_irq_state()
 		R15 = eARM_MODE_IRQ;    /* Set IRQ mode so PC is saved to correct R14 bank */
 		SetRegister( 14, pc );    /* save PC */
 		R15 = (pc&PSR_MASK)|(pc&IRQ_MASK)|0x18|eARM_MODE_IRQ|I_MASK|(pc&F_MASK); /* Mask only IRQ, set PC=0x18 */
-		m_pendingIrq=0;
+		standard_irq_callback(ARM_IRQ_LINE);
 		return;
 	}
 }
@@ -488,28 +483,27 @@ void arm_cpu_device::execute_set_input(int irqline, int state)
 	switch (irqline)
 	{
 	case ARM_IRQ_LINE: /* IRQ */
-		if (state && (R15&0x3)!=eARM_MODE_IRQ) /* Don't allow nested IRQs */
-			m_pendingIrq=1;
-		else
-			m_pendingIrq=0;
+		m_pendingIrq = state ? 1 : 0;
 		break;
 
 	case ARM_FIRQ_LINE: /* FIRQ */
-		if (state && (R15&0x3)!=eARM_MODE_FIQ) /* Don't allow nested FIRQs */
-			m_pendingFiq=1;
-		else
-			m_pendingFiq=0;
+		m_pendingFiq = state ? 1 : 0;
 		break;
 	}
-
-	arm_check_irq_state();
 }
 
 
 void arm_cpu_device::device_start()
 {
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+
+	if(m_program->endianness() == ENDIANNESS_LITTLE) {
+		auto cache = m_program->cache<2, 0, ENDIANNESS_LITTLE>();
+		m_pr32 = [cache](offs_t address) -> u32 { return cache->read_dword(address); };
+	} else {
+		auto cache = m_program->cache<2, 0, ENDIANNESS_BIG>();
+		m_pr32 = [cache](offs_t address) -> u32 { return cache->read_dword(address); };
+	}
 
 	save_item(NAME(m_sArmRegister));
 	save_item(NAME(m_coproRegister));
@@ -549,13 +543,13 @@ void arm_cpu_device::device_start()
 	state_add(STATE_GENPCBASE, "CURPC", m_sArmRegister[15]).mask(ADDRESS_MASK).formatstr("%8s").noshow();
 	state_add(STATE_GENFLAGS, "GENFLAGS", m_sArmRegister[15]).formatstr("%11s").noshow();
 
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 }
 
 
 void arm_cpu_device::state_string_export(const device_state_entry &entry, std::string &str) const
 {
-	static const char *s[4] = { "USER", "FIRQ", "IRQ ", "SVC " };
+	static char const *const s[4] = { "USER", "FIRQ", "IRQ ", "SVC " };
 
 	switch (entry.index())
 	{
@@ -679,7 +673,7 @@ void arm_cpu_device::HandleMemSingle( uint32_t insn )
 
 				In other cases, 4 is subracted from R15 here to account for pipelining.
 				*/
-				if (m_copro_type == ARM_COPRO_TYPE_VL86C020 || (cpu_read32(rnv)&3)==0)
+				if (m_copro_type == copro_type::VL86C020 || (cpu_read32(rnv)&3)==0)
 					R15 -= 4;
 
 				m_icount -= S_CYCLE + N_CYCLE;
@@ -1559,15 +1553,7 @@ void arm_cpu_device::HandleCoPro( uint32_t insn )
 }
 
 
-offs_t arm_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> arm_cpu_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( arm );
-	return CPU_DISASSEMBLE_NAME(arm)(this, stream, pc, oprom, opram, options);
-}
-
-
-offs_t arm_be_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
-{
-	extern CPU_DISASSEMBLE( arm_be );
-	return CPU_DISASSEMBLE_NAME(arm_be)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<arm_disassembler>();
 }

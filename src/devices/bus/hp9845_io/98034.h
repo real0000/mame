@@ -8,34 +8,38 @@
 
 *********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_HP9845_IO_98034_H
+#define MAME_BUS_HP9845_IO_98034_H
 
-#ifndef _98034_H_
-#define _98034_H_
+#pragma once
 
 #include "hp9845_io.h"
 #include "cpu/nanoprocessor/nanoprocessor.h"
 #include "bus/ieee488/ieee488.h"
 
-class hp98034_io_card : public hp9845_io_card_device
+class hp98034_io_card_device : public device_t, public device_hp9845_io_interface
 {
 public:
 	// construction/destruction
-	hp98034_io_card(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual ~hp98034_io_card();
+	hp98034_io_card_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	virtual ~hp98034_io_card_device();
+
+protected:
+	virtual void device_start() override;
+	virtual void device_reset() override;
 
 	// device-level overrides
 	virtual ioport_constructor device_input_ports() const override;
-	virtual void device_start() override;
-	virtual void device_reset() override;
 	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	virtual DECLARE_READ16_MEMBER(reg_r) override;
 	virtual DECLARE_WRITE16_MEMBER(reg_w) override;
 
-	DECLARE_WRITE8_MEMBER(dc_w);
-	DECLARE_READ8_MEMBER(dc_r);
+private:
+	void dc_w(uint8_t data);
+	uint8_t dc_r();
+	uint8_t int_ack_r();
 
 	DECLARE_WRITE8_MEMBER(hpib_data_w);
 	DECLARE_WRITE8_MEMBER(hpib_ctrl_w);
@@ -47,11 +51,11 @@ public:
 	DECLARE_WRITE8_MEMBER(mode_reg_clear_w);
 	DECLARE_READ8_MEMBER(switch_r);
 
-	IRQ_CALLBACK_MEMBER(irq_callback);
+	void np_io_map(address_map &map);
+	void np_program_map(address_map &map);
 
 	DECLARE_WRITE_LINE_MEMBER(ieee488_ctrl_w);
 
-private:
 	required_device<hp_nanoprocessor_device> m_cpu;
 	required_ioport m_sw1;
 	required_device<ieee488_device> m_ieee488;
@@ -64,22 +68,23 @@ private:
 	uint8_t m_odr;  // Output Data Register
 	bool m_force_flg;
 	uint8_t m_mode_reg;
+	bool m_flg;
 
 	// 488 bus state
 	bool m_clr_hpib;
 	uint8_t m_ctrl_out;
 	uint8_t m_data_out;
 
-	void update_dc(void);
-	void update_flg(void);
-	void update_np_irq(void);
-	void update_data_out(void);
-	void update_ctrl_out(void);
-	void update_clr_hpib(void);
+	void update_dc();
+	bool update_flg();
+	void update_np_irq();
+	void update_data_out();
+	void update_ctrl_out();
+	void update_clr_hpib();
 
 };
 
 // device type definition
-extern const device_type HP98034_IO_CARD;
+DECLARE_DEVICE_TYPE(HP98034_IO_CARD, hp98034_io_card_device)
 
-#endif /* _98034_H_ */
+#endif // MAME_BUS_HP9845_IO_98034_H

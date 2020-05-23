@@ -34,12 +34,11 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type NES_JOYPAD = device_creator<nes_joypad_device>;
-const device_type NES_FCPAD_P2 = device_creator<nes_fcpad2_device>;
-const device_type NES_CCPAD_LEFT = device_creator<nes_ccpadl_device>;
-const device_type NES_CCPAD_RIGHT = device_creator<nes_ccpadr_device>;
-const device_type NES_ARCSTICK = device_creator<nes_arcstick_device>;
-
+DEFINE_DEVICE_TYPE(NES_JOYPAD,      nes_joypad_device,   "nes_joypad",   "Nintendo NES / FC Control Pad")
+DEFINE_DEVICE_TYPE(NES_FCPAD_P2,    nes_fcpad2_device,   "nes_fcpad2",   "Nintendo Family Computer P2 Pad")
+DEFINE_DEVICE_TYPE(NES_CCPAD_LEFT,  nes_ccpadl_device,   "nes_ccpadl",   "FC Crazy Climber Left Pad")
+DEFINE_DEVICE_TYPE(NES_CCPAD_RIGHT, nes_ccpadr_device,   "nes_ccpadr",   "FC Crazy Climber Right Pad")
+DEFINE_DEVICE_TYPE(NES_ARCSTICK,    nes_arcstick_device, "nes_arcstick", "Nintendo Family Computer Arcade Stick")
 
 static INPUT_PORTS_START( nes_joypad )
 	PORT_START("JOYPAD")
@@ -142,28 +141,23 @@ ioport_constructor nes_arcstick_device::device_input_ports() const
 	return INPUT_PORTS_NAME( nes_arcstick );
 }
 
-
-
-static SLOT_INTERFACE_START( arcstick_daisy )
-	SLOT_INTERFACE("arcstick", NES_ARCSTICK)
-SLOT_INTERFACE_END
-
-static MACHINE_CONFIG_FRAGMENT( arcstick )
-	// expansion port to allow daisy chaining
-	MCFG_FC_EXPANSION_PORT_ADD("subexp", arcstick_daisy, nullptr)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor nes_arcstick_device::device_mconfig_additions() const
+static void arcstick_daisy(device_slot_interface &device)
 {
-	return MACHINE_CONFIG_NAME( arcstick );
+	device.option_add("arcstick", NES_ARCSTICK);
 }
 
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void nes_arcstick_device::device_add_mconfig(machine_config &config)
+{
+	// expansion port to allow daisy chaining
+	NES_CONTROL_PORT(config, m_daisychain, arcstick_daisy, nullptr);
+	if (m_port != nullptr)
+		m_daisychain->set_screen_tag(m_port->m_screen);
+}
 
 
 //**************************************************************************
@@ -174,39 +168,37 @@ machine_config_constructor nes_arcstick_device::device_mconfig_additions() const
 //  nes_joypad_device - constructor
 //-------------------------------------------------
 
-nes_joypad_device::nes_joypad_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-					device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-					device_nes_control_port_interface(mconfig, *this),
-					m_joypad(*this, "JOYPAD"), m_latch(0)
+nes_joypad_device::nes_joypad_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, type, tag, owner, clock),
+	device_nes_control_port_interface(mconfig, *this),
+	m_joypad(*this, "JOYPAD"), m_latch(0)
 {
 }
 
 nes_joypad_device::nes_joypad_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-					device_t(mconfig, NES_JOYPAD, "Nintendo NES / FC Control Pad", tag, owner, clock, "nes_joypad", __FILE__),
-					device_nes_control_port_interface(mconfig, *this),
-					m_joypad(*this, "JOYPAD"), m_latch(0)
+	nes_joypad_device(mconfig, NES_JOYPAD, tag, owner, clock)
 {
 }
 
 nes_fcpad2_device::nes_fcpad2_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-					nes_joypad_device(mconfig, NES_FCPAD_P2, "Nintendo Family Computer P2 Pad", tag, owner, clock, "nes_fcpad2", __FILE__)
+	nes_joypad_device(mconfig, NES_FCPAD_P2, tag, owner, clock)
 {
 }
 
 nes_ccpadl_device::nes_ccpadl_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-					nes_joypad_device(mconfig, NES_CCPAD_LEFT, "FC Crazy Climber Left Pad", tag, owner, clock, "nes_ccpadl", __FILE__)
+	nes_joypad_device(mconfig, NES_CCPAD_LEFT, tag, owner, clock)
 {
 }
 
 nes_ccpadr_device::nes_ccpadr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-					nes_joypad_device(mconfig, NES_CCPAD_RIGHT, "FC Crazy Climber Right Pad", tag, owner, clock, "nes_ccpadr", __FILE__)
+	nes_joypad_device(mconfig, NES_CCPAD_RIGHT, tag, owner, clock)
 {
 }
 
 nes_arcstick_device::nes_arcstick_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-						nes_joypad_device(mconfig, NES_ARCSTICK, "Nintendo Family Computer Arcade Stick", tag, owner, clock, "nes_arcstick", __FILE__),
-						m_daisychain(*this, "subexp"),
-						m_cfg(*this, "CONFIG")
+	nes_joypad_device(mconfig, NES_ARCSTICK, tag, owner, clock),
+	m_daisychain(*this, "subexp"),
+	m_cfg(*this, "CONFIG")
 {
 }
 

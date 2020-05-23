@@ -32,12 +32,9 @@
 #include "emu.h"
 #include "machine/r10696.h"
 
-#define VERBOSE 1
-#if VERBOSE
-#define LOG(x) logerror x
-#else
-#define LOG(x)
-#endif
+//#define VERBOSE 1
+#include "logmacro.h"
+
 
 /*************************************
  *
@@ -45,12 +42,12 @@
  *
  *************************************/
 
-const device_type R10696 = device_creator<r10696_device>;
+DEFINE_DEVICE_TYPE(R10696, r10696_device, "r10696", "Rockwell 10696 GPIO")
 
 r10696_device::r10696_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, R10696, "Rockwell 10696", tag, owner, clock, "r10696", __FILE__),
-		m_io_a(0), m_io_b(0), m_io_c(0),
-		m_iord(*this), m_iowr(*this)
+	: device_t(mconfig, R10696, tag, owner, clock)
+	, m_io_a(0), m_io_b(0), m_io_c(0)
+	, m_iord(*this), m_iowr(*this)
 {
 }
 
@@ -83,7 +80,7 @@ void r10696_device::device_reset()
  *
  *************************************/
 
-WRITE8_MEMBER( r10696_device::io_w )
+void r10696_device::io_w(offs_t offset, uint8_t data)
 {
 	assert(offset < 16);
 	const uint8_t io_a = m_io_a;
@@ -131,7 +128,7 @@ WRITE8_MEMBER( r10696_device::io_w )
 }
 
 
-READ8_MEMBER( r10696_device::io_r )
+uint8_t r10696_device::io_r(offs_t offset)
 {
 	assert(offset < 16);
 	uint8_t io_a, io_b, io_c;

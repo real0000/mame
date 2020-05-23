@@ -6,14 +6,12 @@
 
 ***************************************************************************/
 
+#ifndef MAME_BUS_CGENIE_EXPANSION_CARTS_H
+#define MAME_BUS_CGENIE_EXPANSION_CARTS_H
+
 #pragma once
 
-#ifndef __CGENIE_EXPANSION_CARTS_H__
-#define __CGENIE_EXPANSION_CARTS_H__
 
+void cg_exp_slot_carts(device_slot_interface &device);
 
-#include "floppy.h"
-
-SLOT_INTERFACE_EXTERN( expansion_slot_carts );
-
-#endif // __CGENIE_EXPANSION_CARTS_H__
+#endif // MAME_BUS_CGENIE_EXPANSION_CARTS_H

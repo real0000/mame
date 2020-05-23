@@ -21,8 +21,7 @@
 #include "emu.h"
 #include "bootleg.h"
 
-#include "cpu/m6502/m6502.h"
-#include "video/ppu2c0x.h"      // this has to be included so that IRQ functions can access PPU_BOTTOM_VISIBLE_SCANLINE
+#include "video/ppu2c0x.h"      // this has to be included so that IRQ functions can access ppu2c0x_device::BOTTOM_VISIBLE_SCANLINE
 #include "screen.h"
 
 
@@ -39,131 +38,131 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type NES_AX5705 = device_creator<nes_ax5705_device>;
-const device_type NES_SC127 = device_creator<nes_sc127_device>;
-const device_type NES_MARIOBABY = device_creator<nes_mbaby_device>;
-const device_type NES_ASN = device_creator<nes_asn_device>;
-const device_type NES_SMB3PIRATE = device_creator<nes_smb3p_device>;
-const device_type NES_BTL_DNINJA = device_creator<nes_btl_dn_device>;
-const device_type NES_WHIRLWIND_2706 = device_creator<nes_whirl2706_device>;
-const device_type NES_SMB2J = device_creator<nes_smb2j_device>;
-const device_type NES_SMB2JA = device_creator<nes_smb2ja_device>;
-const device_type NES_SMB2JB = device_creator<nes_smb2jb_device>;
-const device_type NES_09034A = device_creator<nes_09034a_device>;
-const device_type NES_TOBIDASE = device_creator<nes_tobidase_device>;
-const device_type NES_LH32 = device_creator<nes_lh32_device>;
-const device_type NES_LH10 = device_creator<nes_lh10_device>;
-const device_type NES_LH53 = device_creator<nes_lh53_device>;
-const device_type NES_2708 = device_creator<nes_2708_device>;
-const device_type NES_AC08 = device_creator<nes_ac08_device>;
-const device_type NES_UNL_BB = device_creator<nes_unl_bb_device>;
-const device_type NES_MMALEE = device_creator<nes_mmalee_device>;
-const device_type NES_SHUIGUAN = device_creator<nes_shuiguan_device>;
-const device_type NES_RT01 = device_creator<nes_rt01_device>;
+DEFINE_DEVICE_TYPE(NES_AX5705,         nes_ax5705_device,    "nes_ax5705",    "NES Cart AX5705 PCB")
+DEFINE_DEVICE_TYPE(NES_SC127,          nes_sc127_device,     "nes_sc127",     "NES Cart SC-127 PCB")
+DEFINE_DEVICE_TYPE(NES_MARIOBABY,      nes_mbaby_device,     "nes_mbaby",     "NES Cart Mario Baby Bootleg PCB")
+DEFINE_DEVICE_TYPE(NES_ASN,            nes_asn_device,       "nes_asn",       "NES Cart Ai Senshi Nicol Bootleg PCB")
+DEFINE_DEVICE_TYPE(NES_SMB3PIRATE,     nes_smb3p_device,     "nes_smb3p",     "NES Cart Super Mario Bros. 3 Pirate PCB")
+DEFINE_DEVICE_TYPE(NES_BTL_DNINJA,     nes_btl_dn_device,    "nes_btl_dn",    "NES Cart DragonNinja Pirate PCB")
+DEFINE_DEVICE_TYPE(NES_WHIRLWIND_2706, nes_whirl2706_device, "nes_whirl2706", "NES Cart Whilwind 2706 PCB")
+DEFINE_DEVICE_TYPE(NES_SMB2J,          nes_smb2j_device,     "nes_smb2j",     "NES Cart Super Mario Bros. 2 Jpn PCB")
+DEFINE_DEVICE_TYPE(NES_SMB2JA,         nes_smb2ja_device,    "nes_smb2ja",    "NES Cart Super Mario Bros. 2 Jpn (Alt) PCB")
+DEFINE_DEVICE_TYPE(NES_SMB2JB,         nes_smb2jb_device,    "nes_smb2jb",    "NES Cart Super Mario Bros. 2 Jpn (Alt 2) PCB")
+DEFINE_DEVICE_TYPE(NES_09034A,         nes_09034a_device,    "nes_09034a",    "NES Cart 09-034A PCB")
+DEFINE_DEVICE_TYPE(NES_TOBIDASE,       nes_tobidase_device,  "nes_tobidase",  "NES Cart Tobidase Daisakusen Pirate PCB")
+DEFINE_DEVICE_TYPE(NES_LH32,           nes_lh32_device,      "nes_lh32",      "NES Cart LH-32 Pirate PCB")
+DEFINE_DEVICE_TYPE(NES_LH10,           nes_lh10_device,      "nes_lh10",      "NES Cart LH-10 Pirate PCB")
+DEFINE_DEVICE_TYPE(NES_LH53,           nes_lh53_device,      "nes_lh53",      "NES Cart LH-53 Pirate PCB")
+DEFINE_DEVICE_TYPE(NES_2708,           nes_2708_device,      "nes_2708",      "NES Cart BTL-2708 Pirate PCB")
+DEFINE_DEVICE_TYPE(NES_AC08,           nes_ac08_device,      "nes_ac08",      "NES Cart AC08 Pirate PCB")
+DEFINE_DEVICE_TYPE(NES_UNL_BB,         nes_unl_bb_device,    "nes_unl_bb",    "NES Cart FDS+CHR Pirate PCB")
+DEFINE_DEVICE_TYPE(NES_MMALEE,         nes_mmalee_device,    "nes_mmalee",    "NES Cart Super Mario Bros. Malee 2 Pirate PCB")
+DEFINE_DEVICE_TYPE(NES_SHUIGUAN,       nes_shuiguan_device,  "nes_shuiguan",  "NES Cart Shui Guan Pipe Pirate PCB")
+DEFINE_DEVICE_TYPE(NES_RT01,           nes_rt01_device,      "nes_rt01",      "NES Cart RT-01 PCB")
 
 
 nes_ax5705_device::nes_ax5705_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_AX5705, "NES Cart AX5705 PCB", tag, owner, clock, "nes_ax5705", __FILE__)
+	: nes_nrom_device(mconfig, NES_AX5705, tag, owner, clock)
 {
 }
 
 nes_sc127_device::nes_sc127_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_SC127, "NES Cart SC-127 PCB", tag, owner, clock, "nes_sc127", __FILE__), m_irq_count(0), m_irq_enable(0)
-				{
+	: nes_nrom_device(mconfig, NES_SC127, tag, owner, clock), m_irq_count(0), m_irq_enable(0)
+{
 }
 
 nes_mbaby_device::nes_mbaby_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_MARIOBABY, "NES Cart Mario Baby Bootleg PCB", tag, owner, clock, "nes_mbaby", __FILE__), m_latch(0), m_irq_enable(0), irq_timer(nullptr)
-				{
+	: nes_nrom_device(mconfig, NES_MARIOBABY, tag, owner, clock), m_latch(0), m_irq_enable(0), irq_timer(nullptr)
+{
 }
 
 nes_asn_device::nes_asn_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_ASN, "NES Cart Ai Senshi Nicol Bootleg PCB", tag, owner, clock, "nes_asn", __FILE__), m_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_ASN, tag, owner, clock), m_latch(0)
+{
 }
 
 nes_smb3p_device::nes_smb3p_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_SMB3PIRATE, "NES Cart Super Mario Bros. 3 Pirate PCB", tag, owner, clock, "nes_smb3p", __FILE__), m_irq_count(0), m_irq_enable(0), irq_timer(nullptr)
-				{
+	: nes_nrom_device(mconfig, NES_SMB3PIRATE, tag, owner, clock), m_irq_count(0), m_irq_enable(0), irq_timer(nullptr)
+{
 }
 
 nes_btl_dn_device::nes_btl_dn_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_BTL_DNINJA, "NES Cart DragonNinja Pirate PCB", tag, owner, clock, "nes_btl_dn", __FILE__), m_irq_count(0)
-				{
+	: nes_nrom_device(mconfig, NES_BTL_DNINJA, tag, owner, clock), m_irq_count(0)
+{
 }
 
 nes_whirl2706_device::nes_whirl2706_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_WHIRLWIND_2706, "NES Cart Whirlwind 2706 PCB", tag, owner, clock, "nes_whirl2706", __FILE__), m_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_WHIRLWIND_2706, tag, owner, clock), m_latch(0)
+{
 }
 
 nes_smb2j_device::nes_smb2j_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_SMB2J, "NES Cart Super Mario Bros. 2 Jpn PCB", tag, owner, clock, "nes_smb2j", __FILE__), m_irq_count(0), m_irq_enable(0), irq_timer(nullptr)
-				{
+	: nes_nrom_device(mconfig, NES_SMB2J, tag, owner, clock), m_irq_count(0), m_irq_enable(0), irq_timer(nullptr)
+{
 }
 
 nes_smb2ja_device::nes_smb2ja_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_SMB2JA, "NES Cart Super Mario Bros. 2 Jpn (Alt) PCB", tag, owner, clock, "nes_smb2ja", __FILE__), m_irq_count(0), m_irq_enable(0), irq_timer(nullptr)
-				{
+	: nes_nrom_device(mconfig, NES_SMB2JA, tag, owner, clock), m_irq_count(0), m_irq_enable(0), irq_timer(nullptr)
+{
 }
 
 nes_smb2jb_device::nes_smb2jb_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_SMB2JB, "NES Cart Super Mario Bros. 2 Jpn (Alt 2) PCB", tag, owner, clock, "nes_smb2jb", __FILE__), m_irq_count(0), m_irq_enable(0), irq_timer(nullptr)
-				{
+	: nes_nrom_device(mconfig, NES_SMB2JB, tag, owner, clock), m_irq_count(0), m_irq_enable(0), irq_timer(nullptr)
+{
 }
 
 nes_09034a_device::nes_09034a_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_09034A, "NES Cart 09-034A PCB", tag, owner, clock, "nes_09034a", __FILE__), m_reg(0)
-				{
+	: nes_nrom_device(mconfig, NES_09034A, tag, owner, clock), m_reg(0)
+{
 }
 
 nes_tobidase_device::nes_tobidase_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_TOBIDASE, "NES Cart Tobidase Daisakusen Pirate PCB", tag, owner, clock, "nes_tobidase", __FILE__), m_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_TOBIDASE, tag, owner, clock), m_latch(0)
+{
 }
 
 nes_lh32_device::nes_lh32_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_LH32, "NES Cart LH-32 Pirate PCB", tag, owner, clock, "nes_lh32", __FILE__), m_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_LH32, tag, owner, clock), m_latch(0)
+{
 }
 
 nes_lh10_device::nes_lh10_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_LH10, "NES Cart LH-10 Pirate PCB", tag, owner, clock, "nes_lh10", __FILE__), m_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_LH10, tag, owner, clock), m_latch(0)
+{
 }
 
 nes_lh53_device::nes_lh53_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_LH53, "NES Cart LH-53 Pirate PCB", tag, owner, clock, "nes_lh53", __FILE__), m_irq_count(0), m_irq_enable(0), m_reg(0), irq_timer(nullptr)
-				{
+	: nes_nrom_device(mconfig, NES_LH53, tag, owner, clock), m_irq_count(0), m_irq_enable(0), m_reg(0), irq_timer(nullptr)
+{
 }
 
 nes_2708_device::nes_2708_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_2708, "NES Cart BTL-2708 Pirate PCB", tag, owner, clock, "nes_2708", __FILE__)
+	: nes_nrom_device(mconfig, NES_2708, tag, owner, clock)
 {
 }
 
 nes_ac08_device::nes_ac08_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_AC08, "NES Cart AC08 Pirate PCB", tag, owner, clock, "nes_ac08", __FILE__), m_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_AC08, tag, owner, clock), m_latch(0)
+{
 }
 
 nes_unl_bb_device::nes_unl_bb_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_UNL_BB, "NES Cart FDS+CHR Pirate PCB", tag, owner, clock, "nes_unl_bb", __FILE__)
+	: nes_nrom_device(mconfig, NES_UNL_BB, tag, owner, clock)
 {
 }
 
 nes_mmalee_device::nes_mmalee_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_MMALEE, "NES Cart Super Mario Bros. Malee 2 Pirate PCB", tag, owner, clock, "nes_mmalee", __FILE__)
+	: nes_nrom_device(mconfig, NES_MMALEE, tag, owner, clock)
 {
 }
 
 nes_shuiguan_device::nes_shuiguan_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_SHUIGUAN, "NES Cart Shui Guan Pipe Pirate PCB", tag, owner, clock, "nes_shuiguan", __FILE__), m_irq_count(0), m_irq_enable(0), irq_timer(nullptr)
+	: nes_nrom_device(mconfig, NES_SHUIGUAN, tag, owner, clock), m_irq_count(0), m_irq_enable(0), irq_timer(nullptr)
 {
 }
 
 nes_rt01_device::nes_rt01_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_RT01, "NES Cart RT-01 PCB", tag, owner, clock, "nes_rt01", __FILE__)
+	: nes_nrom_device(mconfig, NES_RT01, tag, owner, clock)
 {
 }
 
@@ -214,7 +213,7 @@ void nes_mbaby_device::device_start()
 	common_start();
 	irq_timer = timer_alloc(TIMER_IRQ);
 	irq_timer->reset();
-	timer_freq = machine().device<cpu_device>("maincpu")->cycles_to_attotime(24576);
+	timer_freq = clocks_to_attotime(24576);
 
 	save_item(NAME(m_irq_enable));
 	save_item(NAME(m_latch));
@@ -249,7 +248,7 @@ void nes_smb3p_device::device_start()
 {
 	common_start();
 	irq_timer = timer_alloc(TIMER_IRQ);
-	irq_timer->adjust(attotime::zero, 0, machine().device<cpu_device>("maincpu")->cycles_to_attotime(1));
+	irq_timer->adjust(attotime::zero, 0, clocks_to_attotime(1));
 
 	save_item(NAME(m_irq_enable));
 	save_item(NAME(m_irq_count));
@@ -303,7 +302,7 @@ void nes_smb2j_device::device_start()
 {
 	common_start();
 	irq_timer = timer_alloc(TIMER_IRQ);
-	irq_timer->adjust(attotime::zero, 0, machine().device<cpu_device>("maincpu")->cycles_to_attotime(1));
+	irq_timer->adjust(attotime::zero, 0, clocks_to_attotime(1));
 
 	save_item(NAME(m_irq_enable));
 	save_item(NAME(m_irq_count));
@@ -326,7 +325,7 @@ void nes_smb2ja_device::device_start()
 {
 	common_start();
 	irq_timer = timer_alloc(TIMER_IRQ);
-	irq_timer->adjust(attotime::zero, 0, machine().device<cpu_device>("maincpu")->cycles_to_attotime(1));
+	irq_timer->adjust(attotime::zero, 0, clocks_to_attotime(1));
 
 	save_item(NAME(m_irq_enable));
 	save_item(NAME(m_irq_count));
@@ -349,7 +348,7 @@ void nes_smb2jb_device::device_start()
 {
 	common_start();
 	irq_timer = timer_alloc(TIMER_IRQ);
-	irq_timer->adjust(attotime::zero, 0, machine().device<cpu_device>("maincpu")->cycles_to_attotime(1));
+	irq_timer->adjust(attotime::zero, 0, clocks_to_attotime(1));
 
 	save_item(NAME(m_irq_enable));
 	save_item(NAME(m_irq_count));
@@ -435,7 +434,7 @@ void nes_lh53_device::device_start()
 {
 	common_start();
 	irq_timer = timer_alloc(TIMER_IRQ);
-	irq_timer->adjust(attotime::zero, 0, machine().device<cpu_device>("maincpu")->cycles_to_attotime(1));
+	irq_timer->adjust(attotime::zero, 0, clocks_to_attotime(1));
 
 	save_item(NAME(m_irq_enable));
 	save_item(NAME(m_irq_count));
@@ -516,7 +515,7 @@ void nes_shuiguan_device::device_start()
 	common_start();
 	irq_timer = timer_alloc(TIMER_IRQ);
 	// always running and checking for IRQ every 114 cycles? or resetting every frame?
-	irq_timer->adjust(attotime::zero, 0, machine().device<cpu_device>("maincpu")->cycles_to_attotime(114));
+	irq_timer->adjust(attotime::zero, 0, clocks_to_attotime(114));
 
 	save_item(NAME(m_irq_enable));
 	save_item(NAME(m_irq_count));
@@ -571,7 +570,7 @@ void nes_ax5705_device::set_prg()
 	prg8_ab(m_mmc_prg_bank[1]);
 }
 
-WRITE8_MEMBER(nes_ax5705_device::write_h)
+void nes_ax5705_device::write_h(offs_t offset, uint8_t data)
 {
 	uint8_t bank;
 	LOG_MMC(("ax5705 write_h, offset: %04x, data: %02x\n", offset, data));
@@ -640,21 +639,20 @@ WRITE8_MEMBER(nes_ax5705_device::write_h)
 
 void nes_sc127_device::hblank_irq(int scanline, int vblank, int blanked)
 {
-	if (scanline < PPU_BOTTOM_VISIBLE_SCANLINE && m_irq_enable)
+	if (scanline < ppu2c0x_device::BOTTOM_VISIBLE_SCANLINE && m_irq_enable)
 	{
 		m_irq_count--;
 
 		if (!blanked && (m_irq_count == 0))
 		{
-			LOG_MMC(("irq fired, scanline: %d (MAME %d, beam pos: %d)\n", scanline,
-						machine().first_screen()->vpos(), machine().first_screen()->hpos()));
-			m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+			LOG_MMC(("irq fired, scanline: %d\n", scanline));
+			hold_irq_line();
 			m_irq_enable = 0;
 		}
 	}
 }
 
-WRITE8_MEMBER(nes_sc127_device::write_h)
+void nes_sc127_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("sc127 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -712,12 +710,12 @@ void nes_mbaby_device::device_timer(emu_timer &timer, device_timer_id id, int pa
 {
 	if (id == TIMER_IRQ)
 	{
-		m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+		hold_irq_line();
 		irq_timer->adjust(attotime::never);
 	}
 }
 
-WRITE8_MEMBER(nes_mbaby_device::write_h)
+void nes_mbaby_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("Mario Baby write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -748,7 +746,7 @@ WRITE8_MEMBER(nes_mbaby_device::write_h)
 	}
 }
 
-READ8_MEMBER(nes_mbaby_device::read_m)
+uint8_t nes_mbaby_device::read_m(offs_t offset)
 {
 	LOG_MMC(("Mario Baby read_m, offset: %04x\n", offset));
 	return m_prg[(m_latch * 0x2000) + (offset & 0x1fff)];
@@ -766,7 +764,7 @@ READ8_MEMBER(nes_mbaby_device::read_m)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_asn_device::write_h)
+void nes_asn_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("Ai Senshi Nicol write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -777,7 +775,7 @@ WRITE8_MEMBER(nes_asn_device::write_h)
 		m_latch = data;
 }
 
-READ8_MEMBER(nes_asn_device::read_m)
+uint8_t nes_asn_device::read_m(offs_t offset)
 {
 	LOG_MMC(("Ai Senshi Nicol read_m, offset: %04x\n", offset));
 	return m_prg[((m_latch * 0x2000) + (offset & 0x1fff)) & (m_prg_size - 1)];
@@ -804,7 +802,7 @@ void nes_smb3p_device::device_timer(emu_timer &timer, device_timer_id id, int pa
 		{
 			if (m_irq_count == 0xffff)
 			{
-				m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+				hold_irq_line();
 				m_irq_enable = 0;
 			}
 			else
@@ -813,7 +811,7 @@ void nes_smb3p_device::device_timer(emu_timer &timer, device_timer_id id, int pa
 	}
 }
 
-WRITE8_MEMBER(nes_smb3p_device::write_h)
+void nes_smb3p_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("btl_smb3_w, offset: %04x, data: %02x\n", offset, data));
 	switch (offset & 0x0f)
@@ -878,10 +876,10 @@ void nes_btl_dn_device::hblank_irq(int scanline, int vblank, int blanked )
 		return;
 
 	m_irq_count = 0;
-	m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+	hold_irq_line();
 }
 
-WRITE8_MEMBER(nes_btl_dn_device::write_h)
+void nes_btl_dn_device::write_h(offs_t offset, uint8_t data)
 {
 	uint8_t bank;
 	LOG_MMC(("btl_dn write_h, offset: %04x, data: %02x\n", offset, data));
@@ -935,13 +933,13 @@ WRITE8_MEMBER(nes_btl_dn_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_whirl2706_device::write_h)
+void nes_whirl2706_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("whirl2706 write_h, offset: %04x, data: %02x\n", offset, data));
 	m_latch = data;
 }
 
-READ8_MEMBER(nes_whirl2706_device::read_m)
+uint8_t nes_whirl2706_device::read_m(offs_t offset)
 {
 	LOG_MMC(("whirl2706 read_m, offset: %04x\n", offset));
 	return m_prg[(m_latch * 0x2000 + (offset & 0x1fff)) & (m_prg_size - 1)];
@@ -967,7 +965,7 @@ void nes_smb2j_device::device_timer(emu_timer &timer, device_timer_id id, int pa
 		{
 			if (m_irq_count == 0xfff)
 			{
-				m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+				hold_irq_line();
 				m_irq_enable = 0;
 				m_irq_count = 0;
 			}
@@ -977,7 +975,7 @@ void nes_smb2j_device::device_timer(emu_timer &timer, device_timer_id id, int pa
 	}
 }
 
-WRITE8_MEMBER(nes_smb2j_device::write_l)
+void nes_smb2j_device::write_l(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("smb2j write_l, offset: %04x, data: %02x\n", offset, data));
 	offset += 0x100;
@@ -986,7 +984,7 @@ WRITE8_MEMBER(nes_smb2j_device::write_l)
 		m_irq_enable = data & 3;    // maybe also m_irq_count = 0?!?
 }
 
-WRITE8_MEMBER(nes_smb2j_device::write_h)
+void nes_smb2j_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("smb2j write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -994,7 +992,7 @@ WRITE8_MEMBER(nes_smb2j_device::write_h)
 		m_irq_enable = data & 3;
 }
 
-WRITE8_MEMBER(nes_smb2j_device::write_ex)
+void nes_smb2j_device::write_ex(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("smb2j write_ex, offset: %04x, data: %02x\n", offset, data));
 
@@ -1012,7 +1010,7 @@ WRITE8_MEMBER(nes_smb2j_device::write_ex)
 	}
 }
 
-READ8_MEMBER(nes_smb2j_device::read_l)
+uint8_t nes_smb2j_device::read_l(offs_t offset)
 {
 	LOG_MMC(("smb2j read_l, offset: %04x\n", offset));
 	offset += 0x100;
@@ -1020,10 +1018,10 @@ READ8_MEMBER(nes_smb2j_device::read_l)
 	if (offset >= 0x1000)
 		return m_prg[0x10000 + (offset & 0x0fff)];
 
-	return m_open_bus;   // open bus
+	return get_open_bus();   // open bus
 }
 
-READ8_MEMBER(nes_smb2j_device::read_m)
+uint8_t nes_smb2j_device::read_m(offs_t offset)
 {
 	LOG_MMC(("smb2j read_m, offset: %04x\n", offset));
 	return m_prg[0x4000 + offset];
@@ -1049,7 +1047,7 @@ void nes_smb2ja_device::device_timer(emu_timer &timer, device_timer_id id, int p
 		{
 			if (m_irq_count == 0xfff)
 			{
-				m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+				hold_irq_line();
 				m_irq_enable = 0;
 				m_irq_count = 0;
 			}
@@ -1059,7 +1057,7 @@ void nes_smb2ja_device::device_timer(emu_timer &timer, device_timer_id id, int p
 	}
 }
 
-WRITE8_MEMBER(nes_smb2ja_device::write_h)
+void nes_smb2ja_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("smb2ja write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -1078,7 +1076,7 @@ WRITE8_MEMBER(nes_smb2ja_device::write_h)
 	}
 }
 
-READ8_MEMBER(nes_smb2ja_device::read_m)
+uint8_t nes_smb2ja_device::read_m(offs_t offset)
 {
 	LOG_MMC(("smb2ja read_m, offset: %04x\n", offset));
 	return m_prg[(0xfe * 0x2000 + (offset & 0x1fff)) & (m_prg_size - 1)];
@@ -1106,7 +1104,7 @@ void nes_smb2jb_device::device_timer(emu_timer &timer, device_timer_id id, int p
 		{
 			if (m_irq_count == 0xfff)
 			{
-				m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+				hold_irq_line();
 				m_irq_enable = 0;
 				m_irq_count = 0;
 			}
@@ -1116,7 +1114,7 @@ void nes_smb2jb_device::device_timer(emu_timer &timer, device_timer_id id, int p
 	}
 }
 
-WRITE8_MEMBER(nes_smb2jb_device::write_l)
+void nes_smb2jb_device::write_l(offs_t offset, uint8_t data)
 {
 	uint8_t prg;
 	LOG_MMC(("smb2jb write_l, offset: %04x, data: %02x\n", offset, data));
@@ -1136,14 +1134,14 @@ WRITE8_MEMBER(nes_smb2jb_device::write_l)
 	}
 }
 
-READ8_MEMBER(nes_smb2jb_device::read_m)
+uint8_t nes_smb2jb_device::read_m(offs_t offset)
 {
 	LOG_MMC(("smb2jb read_m, offset: %04x\n", offset));
 	return m_prg[((0x0f * 0x2000) + (offset & 0x1fff)) & (m_prg_size - 1)];
 }
 
 /* This goes to 0x4020-0x403f & 0x40a0-0x40bf */
-WRITE8_MEMBER(nes_smb2jb_device::write_ex)
+void nes_smb2jb_device::write_ex(offs_t offset, uint8_t data)
 {
 	uint8_t prg;
 	LOG_MMC(("smb2jb write_ex, offset: %04x, data: %02x\n", offset, data));
@@ -1171,7 +1169,7 @@ WRITE8_MEMBER(nes_smb2jb_device::write_ex)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_09034a_device::write_ex)
+void nes_09034a_device::write_ex(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("09-034a write_ex, offset: %04x, data: %02x\n", offset, data));
 
@@ -1179,7 +1177,7 @@ WRITE8_MEMBER(nes_09034a_device::write_ex)
 		m_reg = data & 1;
 }
 
-READ8_MEMBER(nes_09034a_device::read_m)
+uint8_t nes_09034a_device::read_m(offs_t offset)
 {
 	LOG_MMC(("09-034a read_m, offset: %04x\n", offset));
 	// in 0x6000-0x7fff is mapped the 2nd PRG chip which starts after 32K (hence the +4)
@@ -1200,7 +1198,7 @@ READ8_MEMBER(nes_09034a_device::read_m)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_tobidase_device::write_l)
+void nes_tobidase_device::write_l(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("tobidase write_h, offset: %04x, data: %02x\n", offset, data));
 	offset += 0x4100;
@@ -1209,7 +1207,7 @@ WRITE8_MEMBER(nes_tobidase_device::write_l)
 		m_latch = data & 0x0f;
 }
 
-READ8_MEMBER(nes_tobidase_device::read_m)
+uint8_t nes_tobidase_device::read_m(offs_t offset)
 {
 	LOG_MMC(("tobidase read_m, offset: %04x\n", offset));
 	if (m_latch >= 0x0c)
@@ -1231,13 +1229,13 @@ READ8_MEMBER(nes_tobidase_device::read_m)
 
 -------------------------------------------------*/
 
-READ8_MEMBER(nes_lh32_device::read_m)
+uint8_t nes_lh32_device::read_m(offs_t offset)
 {
 	LOG_MMC(("lh32 read_m, offset: %04x\n", offset));
 	return m_prg[(m_latch * 0x2000) + (offset & 0x1fff)];
 }
 
-READ8_MEMBER(nes_lh32_device::read_h)
+uint8_t nes_lh32_device::read_h(offs_t offset)
 {
 //  LOG_MMC(("lh32 read_h, offset: %04x\n", offset));
 
@@ -1247,7 +1245,7 @@ READ8_MEMBER(nes_lh32_device::read_h)
 	return hi_access_rom(offset);
 }
 
-WRITE8_MEMBER(nes_lh32_device::write_m)
+void nes_lh32_device::write_m(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("lh32 write_m, offset: %04x, data: %02x\n", offset, data));
 
@@ -1258,7 +1256,7 @@ WRITE8_MEMBER(nes_lh32_device::write_m)
 	}
 }
 
-WRITE8_MEMBER(nes_lh32_device::write_h)
+void nes_lh32_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("lh32 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -1287,13 +1285,13 @@ void nes_lh10_device::update_prg()
 	prg8_ab(m_reg[7]);
 }
 
-READ8_MEMBER(nes_lh10_device::read_m)
+uint8_t nes_lh10_device::read_m(offs_t offset)
 {
 	LOG_MMC(("lh10 read_m, offset: %04x\n", offset));
 	return m_prg[(0x0e * 0x2000) + (offset & 0x1fff)];
 }
 
-READ8_MEMBER(nes_lh10_device::read_h)
+uint8_t nes_lh10_device::read_h(offs_t offset)
 {
 //  LOG_MMC(("lh10 read_h, offset: %04x\n", offset));
 
@@ -1303,7 +1301,7 @@ READ8_MEMBER(nes_lh10_device::read_h)
 	return hi_access_rom(offset);
 }
 
-WRITE8_MEMBER(nes_lh10_device::write_h)
+void nes_lh10_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("lh10 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -1350,19 +1348,19 @@ void nes_lh53_device::device_timer(emu_timer &timer, device_timer_id id, int par
 			if (m_irq_count > 7560)//value from FCEUMM...
 			{
 				m_irq_count = 0;
-				m_maincpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+				set_irq_line(ASSERT_LINE);
 			}
 		}
 	}
 }
 
-READ8_MEMBER(nes_lh53_device::read_m)
+uint8_t nes_lh53_device::read_m(offs_t offset)
 {
 	LOG_MMC(("lh53 read_m, offset: %04x\n", offset));
 	return m_prg[(m_reg * 0x2000) + (offset & 0x1fff)];
 }
 
-READ8_MEMBER(nes_lh53_device::read_h)
+uint8_t nes_lh53_device::read_h(offs_t offset)
 {
 //  LOG_MMC(("lh53 read_h, offset: %04x\n", offset));
 
@@ -1372,7 +1370,7 @@ READ8_MEMBER(nes_lh53_device::read_h)
 	return hi_access_rom(offset);
 }
 
-WRITE8_MEMBER(nes_lh53_device::write_h)
+void nes_lh53_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("lh53 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -1387,7 +1385,7 @@ WRITE8_MEMBER(nes_lh53_device::write_h)
 				m_irq_enable = BIT(data, 1);
 				m_irq_count = 0;
 				if (!m_irq_enable)
-					m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+					set_irq_line(CLEAR_LINE);
 				break;
 			case 0x7000:
 				m_reg = data & 0x0f;
@@ -1414,7 +1412,7 @@ WRITE8_MEMBER(nes_lh53_device::write_h)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(nes_2708_device::read_m)
+uint8_t nes_2708_device::read_m(offs_t offset)
 {
 	LOG_MMC(("btl-2708 read_m, offset: %04x\n", offset));
 	if (!m_reg[1])
@@ -1423,14 +1421,14 @@ READ8_MEMBER(nes_2708_device::read_m)
 		return m_prg[(m_reg[0] * 0x2000) + (offset & 0x1fff)];
 }
 
-WRITE8_MEMBER(nes_2708_device::write_m)
+void nes_2708_device::write_m(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("btl-2708 write_m, offset: %04x, data: %02x\n", offset, data));
 //  if (!m_reg[1])
 		m_prgram[offset] = data;    // lower 8K of WRAM
 }
 
-READ8_MEMBER(nes_2708_device::read_h)
+uint8_t nes_2708_device::read_h(offs_t offset)
 {
 //  LOG_MMC(("btl-2708 read_h, offset: %04x\n", offset));
 
@@ -1440,7 +1438,7 @@ READ8_MEMBER(nes_2708_device::read_h)
 	return hi_access_rom(offset);
 }
 
-WRITE8_MEMBER(nes_2708_device::write_h)
+void nes_2708_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("btl-2708 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -1477,20 +1475,20 @@ WRITE8_MEMBER(nes_2708_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_ac08_device::write_ex)
+void nes_ac08_device::write_ex(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("AC-08 write_ex, offset: %04x, data: %02x\n", offset, data));
 	if (offset == 5)    // $4025
 		set_nt_mirroring(!BIT(data, 3) ? PPU_MIRROR_VERT : PPU_MIRROR_HORZ);
 }
 
-READ8_MEMBER(nes_ac08_device::read_m)
+uint8_t nes_ac08_device::read_m(offs_t offset)
 {
 	LOG_MMC(("AC-08 read_m, offset: %04x\n", offset));
 	return m_prg[(m_latch * 0x2000) + (offset & 0x1fff)];
 }
 
-WRITE8_MEMBER(nes_ac08_device::write_h)
+void nes_ac08_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("AC-08 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -1513,13 +1511,13 @@ WRITE8_MEMBER(nes_ac08_device::write_h)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(nes_unl_bb_device::read_m)
+uint8_t nes_unl_bb_device::read_m(offs_t offset)
 {
 	LOG_MMC(("unl-bb read_m, offset: %04x\n", offset));
 	return m_prg[(((m_reg[0] & 3 & m_prg_mask) * 0x2000) + (offset & 0x1fff))];
 }
 
-WRITE8_MEMBER(nes_unl_bb_device::write_h)
+void nes_unl_bb_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("unl-bb write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -1551,7 +1549,7 @@ WRITE8_MEMBER(nes_unl_bb_device::write_h)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(nes_mmalee_device::read_m)
+uint8_t nes_mmalee_device::read_m(offs_t offset)
 {
 	LOG_MMC(("mmalee read_m, offset: %04x\n", offset));
 
@@ -1563,7 +1561,7 @@ READ8_MEMBER(nes_mmalee_device::read_m)
 	return ((offset + 0x6000) & 0xff00) >> 8;
 }
 
-WRITE8_MEMBER(nes_mmalee_device::write_m)
+void nes_mmalee_device::write_m(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("mmalee write_m, offset: %04x, data: %02x\n", offset, data));
 
@@ -1592,11 +1590,11 @@ void nes_shuiguan_device::device_timer(emu_timer &timer, device_timer_id id, int
 		m_irq_count &= 0xff;
 
 		if (m_irq_enable && !m_irq_count)
-			m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+			hold_irq_line();
 	}
 }
 
-WRITE8_MEMBER(nes_shuiguan_device::write_h)
+void nes_shuiguan_device::write_h(offs_t offset, uint8_t data)
 {
 	int bank;
 	LOG_MMC(("shuiguan write_h, offset: %04x, data: %02x\n", offset, data));
@@ -1648,7 +1646,7 @@ WRITE8_MEMBER(nes_shuiguan_device::write_h)
 	}
 }
 
-READ8_MEMBER(nes_shuiguan_device::read_m)
+uint8_t nes_shuiguan_device::read_m(offs_t offset)
 {
 	// always first bank??
 	LOG_MMC(("shuiguan read_m, offset: %04x\n", offset));
@@ -1672,7 +1670,7 @@ READ8_MEMBER(nes_shuiguan_device::read_m)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(nes_rt01_device::read_h)
+uint8_t nes_rt01_device::read_h(offs_t offset)
 {
 //  LOG_MMC(("rt01 read_h, offset: %04x\n", offset));
 

@@ -6,16 +6,20 @@
 
                     driver by   Luca Elia (l.elia@tin.it)
 
-Main CPU    :   Z80 (LH0080B @ 6MHz) + i8751 (Intel C8751H-88, protection)
 
-Sound CPU   :   65C02 (R65C02P2 @ 2MHz)
+Board       :   DE-0298-1
 
-Sound Chips :   YM2203C
+Main CPU    :   Z80 (LH0080B @ 6MHz) + i8751 (Intel C8751H-88 @ 8MHz, protection)
+
+Sound CPU   :   65C02 (R65C02P2 @ 1.5MHz)
+
+Sound Chips :   YM2203C (@ 3MHz)
 
 Video Chips :   L7B0073 DATA EAST MXC 06 8746
                 L7A0072 DATA EAST BAC 06 VAE8713
 
-Board       :   DE-0298-1
+XTAL        :   12.000MHz, 8.000MHz
+
 
 Notes:
 
@@ -24,13 +28,15 @@ Notes:
 
 - One ROM (FI-1) is not used.
 
+NOTE: There is manual for Run Deep which is (c) 1988 by World Games. Is Cream Co., Ltd
+      the legitimate license and World Games the US distributors?
+
 ***************************************************************************/
 
 #include "emu.h"
 #include "includes/thedeep.h"
 
-#include "cpu/m6502/m65c02.h"
-#include "cpu/mcs51/mcs51.h"
+#include "cpu/m6502/r65c02.h"
 #include "cpu/z80/z80.h"
 #include "sound/2203intf.h"
 #include "screen.h"
@@ -39,7 +45,7 @@ Notes:
 
 /***************************************************************************
 
-                            Main CPU + MCU simulation
+                            Main CPU
 
 ***************************************************************************/
 
@@ -47,129 +53,74 @@ Notes:
 WRITE8_MEMBER(thedeep_state::nmi_w)
 {
 	m_nmi_enable = data;
-}
-
-WRITE8_MEMBER(thedeep_state::sound_w)
-{
-	m_soundlatch->write(space, 0, data);
-	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	if (!m_nmi_enable)
+		m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 }
 
 void thedeep_state::machine_start()
 {
 	membank("bank1")->configure_entries(0, 4, memregion("maincpu")->base() + 0x10000, 0x4000);
+
 	save_item(NAME(m_nmi_enable));
-	save_item(NAME(m_protection_command));
-	save_item(NAME(m_protection_data));
-	save_item(NAME(m_protection_index));
-	save_item(NAME(m_protection_irq));
-	save_item(NAME(m_mcu_p3_reg));
-}
-
-void thedeep_state::machine_reset()
-{
-	membank("bank1")->set_entry(0);
-	m_scroll[0] = 0;
-	m_scroll[1] = 0;
-	m_scroll[2] = 0;
-	m_scroll[3] = 0;
-	m_protection_command = 0;
-	m_protection_index = -1;
-	m_protection_irq = 0;
-}
-
-WRITE8_MEMBER(thedeep_state::protection_w)
-{
-	m_protection_command = data;
-	switch (m_protection_command)
-	{
-		case 0x11:
-			flip_screen_set(1);
-		break;
-
-		case 0x20:
-			flip_screen_set(0);
-		break;
-
-		case 0x30:
-		case 0x31:
-		case 0x32:
-		case 0x33:
-			membank("bank1")->set_entry(m_protection_command & 3);
-		break;
-
-		case 0x59:
-		{
-			if (m_protection_index < 0)
-				m_protection_index = 0;
-
-			if ( m_protection_index < 0x19b )
-// d000-d00c:   hl += a * b
-// d00d-d029:   input a (e.g. $39) output hl (e.g. h=$03 l=$09).
-//              Replace trainling 0's with space ($10). 00 -> '  '
-// d02a-d039:   input a (e.g. $39) output hl (e.g. h=$03 l=$09).
-//              Replace trainling 0's with space ($10). 00 -> ' 0'
-// d03a-d046:   input a (e.g. $39) output hl (e.g. h=$03 l=$09). 00 -> '00'
-// d047-d086:   a /= e (e can be 0!)
-// d087-d0a4:   print ASCII string from HL to IX (sub $30 to every char)
-// d0a4-d0be:   print any string from HL to IX
-// d0bf-d109:   print ASCII string from HL to IX. Color is in c. (e.g. "game over")
-// d10a-d11f:   print 2 digit decimal number in hl to ix, color c. change ix
-// d120-d157:   update score: add 3 BCD bytes at ix to those at iy, then clear those at ix
-// d158-d165:   print digit: (IX+0) <- H; (IX+1) <-L. ix+=40
-// d166-d174:   hl = (hl + 2*a)
-// d175-d181:   hl *= e (e must be non zero)
-// d182-d19a:   hl /= de
-				m_protection_data = memregion("mcu")->base()[0x185+m_protection_index++];
-			else
-				m_protection_data = 0xc9;
-
-			m_protection_irq  = 1;
-		}
-		break;
-
-		default:
-			logerror( "pc %04x: protection_command %02x\n", space.device().safe_pc(),m_protection_command);
-	}
-}
-
-READ8_MEMBER(thedeep_state::e004_r)
-{
-	return m_protection_irq ? 1 : 0;
+	save_item(NAME(m_maincpu_to_mcu));
+	save_item(NAME(m_mcu_to_maincpu));
+	save_item(NAME(m_mcu_p2));
+	save_item(NAME(m_mcu_p3));
+	save_item(NAME(m_coin_result));
 }
 
 READ8_MEMBER(thedeep_state::protection_r)
 {
-	m_protection_irq = 0;
-	return m_protection_data;
+	m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+	return m_mcu_to_maincpu;
+}
+
+WRITE8_MEMBER(thedeep_state::protection_w)
+{
+	m_maincpu_to_mcu = data;
+	m_mcu->set_input_line(MCS51_INT0_LINE, ASSERT_LINE);
+}
+
+READ8_MEMBER(thedeep_state::e004_r)
+{
+	// 7654321-  unused?
+	// -------0  coin status from mcu ready
+
+	uint8_t data = m_coin_result;
+
+	m_coin_result = 0;
+
+	return data;
 }
 
 WRITE8_MEMBER(thedeep_state::e100_w)
 {
 	if (data != 1)
-		logerror("pc %04x: e100 = %02x\n", space.device().safe_pc(),data);
+		logerror("pc %04x: e100 = %02x\n", m_maincpu->pc(),data);
 }
 
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, thedeep_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")    // ROM (banked)
-	AM_RANGE(0xc000, 0xcfff) AM_RAM
-	AM_RANGE(0xd000, 0xdfff) AM_RAM                             // RAM (MCU data copied here)
-	AM_RANGE(0xe000, 0xe000) AM_READWRITE(protection_r, protection_w)   // To MCU
-	AM_RANGE(0xe004, 0xe004) AM_READWRITE(e004_r, nmi_w)    //
-	AM_RANGE(0xe008, 0xe008) AM_READ_PORT("e008")           // P1 (Inputs)
-	AM_RANGE(0xe009, 0xe009) AM_READ_PORT("e009")           // P2
-	AM_RANGE(0xe00a, 0xe00a) AM_READ_PORT("e00a")           // DSW1
-	AM_RANGE(0xe00b, 0xe00b) AM_READ_PORT("e00b")           // DSW2
-	AM_RANGE(0xe00c, 0xe00c) AM_WRITE(sound_w)  // To Sound CPU
-	AM_RANGE(0xe100, 0xe100) AM_WRITE(e100_w)   // ?
-	AM_RANGE(0xe210, 0xe213) AM_WRITEONLY AM_SHARE("scroll")    // Scroll
-	AM_RANGE(0xe400, 0xe7ff) AM_RAM AM_SHARE("spriteram")   // Sprites
-	AM_RANGE(0xe800, 0xefff) AM_RAM_WRITE(vram_1_w) AM_SHARE("vram_1")  // Text Layer
-	AM_RANGE(0xf000, 0xf7ff) AM_RAM_WRITE(vram_0_w) AM_SHARE("vram_0")  // Background Layer
-	AM_RANGE(0xf800, 0xf83f) AM_RAM AM_SHARE("scroll2") // Column Scroll
-	AM_RANGE(0xf840, 0xffff) AM_RAM
-ADDRESS_MAP_END
+void thedeep_state::main_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0xbfff).bankr("bank1");    // ROM (banked)
+	map(0xc000, 0xcfff).ram();
+	map(0xd000, 0xdfff).ram();                             // RAM (MCU data copied here)
+	map(0xe000, 0xe000).rw(FUNC(thedeep_state::protection_r), FUNC(thedeep_state::protection_w));
+	map(0xe004, 0xe004).rw(FUNC(thedeep_state::e004_r), FUNC(thedeep_state::nmi_w));
+	map(0xe008, 0xe008).portr("e008");           // P1 (Inputs)
+	map(0xe009, 0xe009).portr("e009");           // P2
+	map(0xe00a, 0xe00a).portr("e00a");           // DSW1
+	map(0xe00b, 0xe00b).portr("e00b");           // DSW2
+	map(0xe00c, 0xe00c).w(m_soundlatch, FUNC(generic_latch_8_device::write));  // To Sound CPU
+	map(0xe100, 0xe100).w(FUNC(thedeep_state::e100_w));   // ?
+	map(0xe200, 0xe207).w(m_tilegen, FUNC(deco_bac06_device::pf_control0_8bit_w));
+	map(0xe210, 0xe217).w(m_tilegen, FUNC(deco_bac06_device::pf_control1_8bit_swap_w));
+	map(0xe400, 0xe7ff).ram().share(m_spriteram);   // Sprites
+	map(0xe800, 0xefff).ram().w(FUNC(thedeep_state::textram_w)).share(m_textram);  // Text Layer
+	map(0xf000, 0xf7ff).rw(m_tilegen, FUNC(deco_bac06_device::pf_data_8bit_swap_r), FUNC(deco_bac06_device::pf_data_8bit_swap_w));  // Background Layer
+	map(0xf800, 0xf83f).rw(m_tilegen, FUNC(deco_bac06_device::pf_colscroll_8bit_swap_r), FUNC(deco_bac06_device::pf_colscroll_8bit_swap_w));
+	map(0xf840, 0xffff).ram();
+}
 
 
 /***************************************************************************
@@ -178,12 +129,13 @@ ADDRESS_MAP_END
 
 ***************************************************************************/
 
-static ADDRESS_MAP_START( audio_map, AS_PROGRAM, 8, thedeep_state )
-	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x0800, 0x0801) AM_DEVWRITE("ymsnd", ym2203_device, write)  //
-	AM_RANGE(0x3000, 0x3000) AM_DEVREAD("soundlatch", generic_latch_8_device, read) // From Main CPU
-	AM_RANGE(0x8000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void thedeep_state::audio_map(address_map &map)
+{
+	map(0x0000, 0x07ff).ram();
+	map(0x0800, 0x0801).w("ymsnd", FUNC(ym2203_device::write));  //
+	map(0x3000, 0x3000).r(m_soundlatch, FUNC(generic_latch_8_device::read)); // From Main CPU
+	map(0x8000, 0xffff).rom();
+}
 
 
 /***************************************************************************
@@ -192,62 +144,61 @@ ADDRESS_MAP_END
 
 ***************************************************************************/
 
-WRITE8_MEMBER(thedeep_state::p1_w)
+uint8_t thedeep_state::mcu_p0_r()
 {
-	flip_screen_set((data & 1) ^ 1);
-	membank("bank1")->set_entry((data & 6) >> 1);
-	logerror("P1 %02x\n",data);
+	// 7654----  unused
+	// ----3---  coin2
+	// -----2--  coin1
+	// ------1-  service coin
+	// -------0  coin inserted
+
+	int coin_inserted = ((m_coins->read() & 0x0e) == 0x0e) ? 1 : 0;
+
+	return (m_coins->read() & 0x0e) | coin_inserted;
 }
 
-READ8_MEMBER(thedeep_state::from_main_r)
+void thedeep_state::mcu_p1_w(uint8_t data)
 {
-	static uint8_t res;
+	// 76543---  unused
+	// -----21-  bank
+	// -------0  flip screen
 
-	res = 0x11;
+	membank("bank1")->set_entry((data >> 1) & 0x03);
 
-	logerror("From Main read = %02x\n",res);
-	return 0x20;
+	flip_screen_set(!BIT(data, 0));
+	m_tilegen->set_flip_screen(!BIT(data, 0));
+	m_spritegen->set_flip_screen(!BIT(data, 0));
 }
 
-WRITE8_MEMBER(thedeep_state::to_main_w)
+uint8_t thedeep_state::mcu_p2_r()
 {
-	// ...
+	return m_maincpu_to_mcu;
 }
 
-WRITE8_MEMBER(thedeep_state::p3_w)
+void thedeep_state::mcu_p2_w(uint8_t data)
 {
-	/* bit 0 0->1 transition IRQ0 to main */
-	if((!(m_mcu_p3_reg & 0x01)) && data & 0x01)
-		m_maincpu->set_input_line(0, HOLD_LINE);
+	m_mcu_p2 = data;
+}
 
-	/* bit 6 0->1 transition INT1 IRQ ACK */
-	if((!(m_mcu_p3_reg & 0x40)) && data & 0x40)
-		m_mcu->set_input_line(MCS51_INT1_LINE, CLEAR_LINE);
+void thedeep_state::mcu_p3_w(uint8_t data)
+{
+	if (BIT(m_mcu_p3, 0) == 1 && BIT(data, 0) == 0)
+		m_maincpu->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
 
-	/* bit 7 0->1 transition INT0 IRQ ACK */
-	if((!(m_mcu_p3_reg & 0x80)) && data & 0x80)
+	if (BIT(m_mcu_p3, 1) == 1 && BIT(data, 1) == 0)
 		m_mcu->set_input_line(MCS51_INT0_LINE, CLEAR_LINE);
 
-	m_mcu_p3_reg = data;
-	logerror("P3 %02x\n",data);
+	if (BIT(m_mcu_p3, 4) == 1 && BIT(data, 4) == 0)
+		m_coin_result = 1;
+
+	if (BIT(m_mcu_p3, 6) == 1 && BIT(data, 6) == 0)
+		m_mcu_to_maincpu = m_mcu_p2;
+
+	if (BIT(m_mcu_p3, 7) == 1 && BIT(data, 7) == 0)
+		m_mcu->set_port_forced_input(2, m_maincpu_to_mcu);
+
+	m_mcu_p3 = data;
 }
-
-READ8_MEMBER(thedeep_state::p0_r)
-{
-	uint8_t coin_mux;
-
-	coin_mux = ((ioport("COINS")->read() & 0x0e) == 0x0e); // bit 0 is hard-wired to ALL three coin latches
-
-	return (ioport("COINS")->read() & 0xfe) | (coin_mux & 1);
-}
-
-static ADDRESS_MAP_START( mcu_io_map, AS_IO, 8, thedeep_state )
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(MCS51_PORT_P0,MCS51_PORT_P0) AM_READ(p0_r)
-	AM_RANGE(MCS51_PORT_P1,MCS51_PORT_P1) AM_WRITE(p1_w)
-	AM_RANGE(MCS51_PORT_P2,MCS51_PORT_P2) AM_READWRITE(from_main_r,to_main_w)
-	AM_RANGE(MCS51_PORT_P3,MCS51_PORT_P3) AM_WRITE(p3_w)
-ADDRESS_MAP_END
 
 
 /***************************************************************************
@@ -276,6 +227,12 @@ static INPUT_PORTS_START( thedeep )
 	PORT_BIT(  0x20, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2)
 	PORT_BIT(  0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT(  0x80, IP_ACTIVE_LOW, IPT_START2  )
+
+	PORT_START("COINS")
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_CUSTOM) // any coin input active
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_SERVICE1)
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_COIN1)
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_COIN2)
 
 	PORT_START("e00a")
 	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("SW1:1,2")
@@ -319,18 +276,6 @@ static INPUT_PORTS_START( thedeep )
 	PORT_DIPSETTING(    0x10, "80k 100k" )
 	PORT_DIPUNUSED_DIPLOC( 0x40, 0x40, "SW2:7" ) /* Listed as "Unused" in the manual */
 	PORT_SERVICE_DIPLOC(  0x80, IP_ACTIVE_LOW, "SW2:8" )
-
-	PORT_START("MCU")   // Read by the mcu
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_COIN1 ) PORT_IMPULSE(1)
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_COIN2 ) PORT_IMPULSE(1)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_SERVICE1 ) PORT_IMPULSE(1)
-
-	PORT_START("COINS")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) // mux of bits 1-2-3
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SERVICE1 )
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN1 )
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_COIN2 )
-	PORT_BIT( 0xf0, IP_ACTIVE_LOW, IPT_UNUSED )
 INPUT_PORTS_END
 
 
@@ -362,7 +307,7 @@ static const gfx_layout layout_16x16x4 =
 	16*16
 };
 
-static GFXDECODE_START( thedeep )
+static GFXDECODE_START( gfx_thedeep )
 	GFXDECODE_ENTRY( "sprites", 0, layout_16x16x4,  0x080,  8 ) // [0] Sprites
 	GFXDECODE_ENTRY( "bg_gfx", 0, layout_16x16x4,   0x100, 16 ) // [1] Background Layer
 	GFXDECODE_ENTRY( "text", 0, layout_8x8x2,   0x000, 16 ) // [2] Text Layer
@@ -378,84 +323,69 @@ GFXDECODE_END
 
 TIMER_DEVICE_CALLBACK_MEMBER(thedeep_state::interrupt)
 {
-	int scanline = param;
+	if (param == 0 && m_nmi_enable)
+		m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 
-	if (scanline == 124) // TODO: clean this
-	{
-		if (m_protection_command != 0x59)
-		{
-			int coins = ioport("MCU")->read();
-			if      (coins & 1) m_protection_data = 1;
-			else if (coins & 2) m_protection_data = 2;
-			else if (coins & 4) m_protection_data = 3;
-			else                m_protection_data = 0;
+	// actual scanline unknown, but can't happen at the same time as the nmi
+	if (param == 127)
+		m_mcu->set_input_line(MCS51_INT1_LINE, ASSERT_LINE);
 
-			if (m_protection_data)
-				m_protection_irq = 1;
-		}
-		if (m_protection_irq)
-			m_maincpu->set_input_line(0, HOLD_LINE);
-	}
-	else if(scanline == 0)
-	{
-		if (m_nmi_enable)
-		{
-			m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
-			m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-		}
-	}
+	if (param == 128)
+		m_mcu->set_input_line(MCS51_INT1_LINE, CLEAR_LINE);
 }
 
-INTERRUPT_GEN_MEMBER(thedeep_state::mcu_irq)
+void thedeep_state::thedeep(machine_config &config)
 {
-	m_mcu->set_input_line(MCS51_INT1_LINE, ASSERT_LINE);
-}
-
-static MACHINE_CONFIG_START( thedeep, thedeep_state )
-
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, XTAL_12MHz/2)      /* verified on pcb */
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", thedeep_state, interrupt, "screen", 0, 1)
+	Z80(config, m_maincpu, 12_MHz_XTAL / 2); /* verified on pcb */
+	m_maincpu->set_addrmap(AS_PROGRAM, &thedeep_state::main_map);
 
-	MCFG_CPU_ADD("audiocpu", M65C02, XTAL_12MHz/8)      /* verified on pcb */
-	MCFG_CPU_PROGRAM_MAP(audio_map)
+	TIMER(config, "scantimer", 0).configure_scanline(FUNC(thedeep_state::interrupt), "screen", 0, 1);
+
+	R65C02(config, m_audiocpu, 12_MHz_XTAL / 8); /* verified on pcb */
+	m_audiocpu->set_addrmap(AS_PROGRAM, &thedeep_state::audio_map);
 	/* IRQ by YM2203, NMI by when sound latch written by main cpu */
 
-	/* MCU is a i8751 running at 8Mhz (8mhz xtal)*/
-	MCFG_CPU_ADD("mcu", I8751, XTAL_8MHz)
-	MCFG_CPU_IO_MAP(mcu_io_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", thedeep_state, mcu_irq) // unknown source, but presumably vblank
-	MCFG_DEVICE_DISABLE()
+	// needs a tight sync with the mcu
+	config.set_perfect_quantum(m_maincpu);
 
+	// Intel C8751H-88 @ 8 MHz
+	I8751(config, m_mcu, 8_MHz_XTAL);
+	m_mcu->port_in_cb<0>().set(FUNC(thedeep_state::mcu_p0_r));
+	m_mcu->port_out_cb<1>().set(FUNC(thedeep_state::mcu_p1_w));
+	m_mcu->port_in_cb<2>().set(FUNC(thedeep_state::mcu_p2_r));
+	m_mcu->port_out_cb<2>().set(FUNC(thedeep_state::mcu_p2_w));
+	m_mcu->port_out_cb<3>().set(FUNC(thedeep_state::mcu_p3_w));
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(0x100, 0xf8)
-	MCFG_SCREEN_VISIBLE_AREA(0, 0x100-1, 0, 0xf8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(thedeep_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(0x100, 0xf8);
+	screen.set_visarea(0, 0x100-1, 0, 0xf8-1);
+	screen.set_screen_update(FUNC(thedeep_state::screen_update));
+	screen.set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", thedeep)
-	MCFG_PALETTE_ADD("palette", 512)
-	MCFG_PALETTE_INIT_OWNER(thedeep_state, thedeep)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_thedeep);
+	PALETTE(config, m_palette, FUNC(thedeep_state::thedeep_palette), 512);
 
-	MCFG_DEVICE_ADD("spritegen", DECO_MXC06, 0)
-	MCFG_DECO_MXC06_GFX_REGION(0)
-	MCFG_DECO_MXC06_GFXDECODE("gfxdecode")
-	MCFG_DECO_MXC06_RAMSIZE(0x400)
+	DECO_MXC06(config, m_spritegen, 0);
+
+	DECO_BAC06(config, m_tilegen, 0);
+	m_tilegen->set_gfx_region_wide(1, 1, 0);
+	m_tilegen->set_gfxdecode_tag(m_gfxdecode);
+	m_tilegen->set_thedeep_kludge();  // TODO: this game wants TILE_FLIPX always set. Investigate why.
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set_inputline(m_audiocpu, INPUT_LINE_NMI);
 
-	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4)  /* verified on pcb */
-	MCFG_YM2203_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	ym2203_device &ym(YM2203(config, "ymsnd", XTAL(12'000'000)/4)); /* verified on pcb */
+	ym.irq_handler().set_inputline("audiocpu", 0);
+	ym.add_route(ALL_OUTPUTS, "mono", 1.0);
+}
 
 
 
@@ -465,24 +395,6 @@ MACHINE_CONFIG_END
 
 ***************************************************************************/
 
-/***************************************************************************
-
-Here are the proms for The Deep!
-NOTE: This game is Vertical.
-I couldn't test this board so I don't know the manufacturer, sorry.
-1 Z80
-1 R6502
-1 YM 2203
-1 OSC 12 Mhz
-1 OSC 8 Mhz
-1 MPU 8751 (which is read-protected)
-
-If you need more info or if this package doesn't
-Work, mail me.
-
-..............CaBBe!...................................
-
-***************************************************************************/
 
 ROM_START( thedeep )
 	ROM_REGION( 0x20000, "maincpu", 0 )     /* Z80 Code */
@@ -548,5 +460,5 @@ ROM_START( rundeep )
 	ROM_LOAD( "fi-3", 0x400, 0x200, CRC(f61a9686) SHA1(24082f60b72268d240ceca6999bdf18872625cd2) )
 ROM_END
 
-GAME( 1987, thedeep, 0,      thedeep, thedeep, driver_device, 0, ROT270, "Wood Place Inc.", "The Deep (Japan)", MACHINE_SUPPORTS_SAVE )
-GAME( 1988, rundeep, thedeep,thedeep, thedeep, driver_device, 0, ROT270, "bootleg (Cream)", "Run Deep", MACHINE_SUPPORTS_SAVE )
+GAME( 1987, thedeep, 0,       thedeep, thedeep, thedeep_state, empty_init, ROT270, "Woodplace Inc.",  "The Deep (Japan)", MACHINE_SUPPORTS_SAVE )
+GAME( 1988, rundeep, thedeep, thedeep, thedeep, thedeep_state, empty_init, ROT270, "Cream Co., Ltd.", "Run Deep",         MACHINE_SUPPORTS_SAVE )

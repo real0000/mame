@@ -9,22 +9,30 @@
  *****************************************************************************/
 
 #include "emu.h"
-#include "debugger.h"
 #include "scmp.h"
+#include "scmpdasm.h"
 
-#define VERBOSE 0
+#include "debugger.h"
 
-#define LOG(x) do { if (VERBOSE) logerror x; } while (0)
+//#define VERBOSE 1
+#include "logmacro.h"
 
 
-const device_type SCMP = device_creator<scmp_device>;
-const device_type INS8060 = device_creator<ins8060_device>;
+DEFINE_DEVICE_TYPE(SCMP,    scmp_device,    "ins8050", "National Semiconductor INS 8050 SC/MP")
+DEFINE_DEVICE_TYPE(INS8060, ins8060_device, "ins8060", "National Semiconductor INS 8060 SC/MP II")
 
 
 scmp_device::scmp_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, SCMP, "INS 8050 SC/MP", tag, owner, clock, "ins8050", __FILE__)
-	, m_program_config("program", ENDIANNESS_LITTLE, 8, 16, 0), m_AC(0), m_ER(0), m_SR(0), m_program(nullptr), m_direct(nullptr), m_icount(0)
-		, m_flag_out_func(*this)
+	: scmp_device(mconfig, SCMP, tag, owner, clock)
+{
+}
+
+
+scmp_device::scmp_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: cpu_device(mconfig, type, tag, owner, clock)
+	, m_program_config("program", ENDIANNESS_LITTLE, 8, 16, 0)
+	, m_AC(0), m_ER(0), m_SR(0), m_program(nullptr), m_cache(nullptr), m_icount(0)
+	, m_flag_out_func(*this)
 	, m_sout_func(*this)
 	, m_sin_func(*this)
 	, m_sensea_func(*this)
@@ -33,30 +41,23 @@ scmp_device::scmp_device(const machine_config &mconfig, const char *tag, device_
 {
 }
 
-
-scmp_device::scmp_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-	: cpu_device(mconfig, type, name, tag, owner, clock, shortname, source)
-	, m_program_config("program", ENDIANNESS_LITTLE, 8, 16, 0), m_AC(0), m_ER(0), m_SR(0), m_program(nullptr), m_direct(nullptr), m_icount(0)
-		, m_flag_out_func(*this)
-	, m_sout_func(*this)
-	, m_sin_func(*this)
-	, m_sensea_func(*this)
-	, m_senseb_func(*this)
-	, m_halt_func(*this)
+device_memory_interface::space_config_vector scmp_device::memory_space_config() const
 {
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
 }
 
 
 ins8060_device::ins8060_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: scmp_device(mconfig, INS8060, "INS 8060 SC/MP II", tag, owner, clock, "ins8060", __FILE__)
+	: scmp_device(mconfig, INS8060, tag, owner, clock)
 {
 }
 
 
-offs_t scmp_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> scmp_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( scmp );
-	return CPU_DISASSEMBLE_NAME(scmp)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<scmp_disassembler>();
 }
 
 
@@ -69,14 +70,14 @@ uint8_t scmp_device::ROP()
 {
 	uint16_t pc = m_PC.w.l;
 	m_PC.w.l = ADD12(m_PC.w.l,1);
-	return m_direct->read_byte( pc);
+	return m_cache->read_byte( pc);
 }
 
 uint8_t scmp_device::ARG()
 {
 	uint16_t pc = m_PC.w.l;
 	m_PC.w.l = ADD12(m_PC.w.l,1);
-	return m_direct->read_byte(pc);
+	return m_cache->read_byte(pc);
 }
 
 uint8_t scmp_device::RM(uint32_t a)
@@ -91,20 +92,17 @@ void scmp_device::WM(uint32_t a, uint8_t v)
 
 void scmp_device::illegal(uint8_t opcode)
 {
-#if VERBOSE
-	uint16_t pc = m_PC.w.l;
-	LOG(("SC/MP illegal instruction %04X $%02X\n", pc-1, opcode));
-#endif
+	uint16_t const pc = m_PC.w.l;
+	LOG("SC/MP illegal instruction %04X $%02X\n", pc-1, opcode);
 }
 
 PAIR *scmp_device::GET_PTR_REG(int num)
 {
 	switch(num) {
-		case 1: return &m_P1;
-		case 2: return &m_P2;
-		case 3: return &m_P3;
-		default :
-				return &m_PC;
+	case 1: return &m_P1;
+	case 2: return &m_P2;
+	case 3: return &m_P3;
+	default: return &m_PC;
 	}
 }
 
@@ -314,7 +312,7 @@ void scmp_device::execute_one(int opcode)
 						m_AC = 0xff;
 						break;
 			// Others are illegal
-			default :   m_icount -= 1;
+			default :   m_icount -= 5;
 						illegal (opcode);
 						break;
 		}
@@ -446,7 +444,7 @@ void scmp_device::execute_one(int opcode)
 						m_icount -= 5;
 						break;
 			// Others are illegal
-			default :   m_icount -= 1;
+			default :   m_icount -= 5;
 						illegal (opcode);
 						break;
 		}
@@ -457,6 +455,7 @@ void scmp_device::execute_one(int opcode)
 /***************************************************************************
     COMMON EXECUTION
 ***************************************************************************/
+
 void scmp_device::take_interrupt()
 {
 	uint16_t tmp = ADD12(m_PC.w.l,-1); // We fix PC so at return it goes to current location
@@ -477,7 +476,7 @@ void scmp_device::execute_run()
 		if ((m_SR & 0x08) && (m_sensea_func())) {
 			take_interrupt();
 		}
-		debugger_instruction_hook(this, m_PC.d);
+		debugger_instruction_hook(m_PC.d);
 		execute_one(ROP());
 
 	} while (m_icount > 0);
@@ -504,7 +503,7 @@ void scmp_device::device_start()
 	}
 
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_cache = m_program->cache<0, 0, ENDIANNESS_LITTLE>();
 
 	/* resolve callbacks */
 	m_flag_out_func.resolve_safe();
@@ -522,7 +521,7 @@ void scmp_device::device_start()
 	save_item(NAME(m_ER));
 	save_item(NAME(m_SR));
 
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 }
 
 

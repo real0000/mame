@@ -1,4 +1,4 @@
-// license:GPL-2.0+
+// license:BSD-3-Clause
 // copyright-holders:Dirk Best
 /***************************************************************************
 
@@ -17,24 +17,18 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type CR511B = device_creator<cr511b_device>;
+DEFINE_DEVICE_TYPE(CR511B, cr511b_device, "cr511b", "CR-511-B CD-ROM drive")
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( cr511b )
-	MCFG_CDROM_ADD("cdrom")
-	MCFG_CDROM_INTERFACE("cdrom")
-	MCFG_SOUND_ADD("cdda", CDDA, 0)
-	MCFG_SOUND_ROUTE(0, ":lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(1, ":rspeaker", 1.0)
-MACHINE_CONFIG_END
-
-machine_config_constructor cr511b_device::device_mconfig_additions() const
+void cr511b_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( cr511b );
+	CDROM(config, m_cdrom).set_interface("cdrom");
+	CDDA(config, m_cdda);
+	m_cdda->add_route(0, ":lspeaker", 1.0);
+	m_cdda->add_route(1, ":rspeaker", 1.0);
 }
 
 
@@ -47,7 +41,7 @@ machine_config_constructor cr511b_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 cr511b_device::cr511b_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, CR511B, "CR-511-B CD-ROM drive", tag, owner, clock, "cr511b", __FILE__),
+	device_t(mconfig, CR511B, tag, owner, clock),
 	m_cdrom(*this, "cdrom"),
 	m_cdda(*this, "cdda"),
 	m_stch_handler(*this),
@@ -102,12 +96,12 @@ void cr511b_device::device_timer(emu_timer &timer, device_timer_id tid, int para
 //  IMPLEMENTATION
 //**************************************************************************
 
-READ8_MEMBER( cr511b_device::read )
+uint8_t cr511b_device::read()
 {
 	return 0xff;
 }
 
-WRITE8_MEMBER ( cr511b_device::write )
+void cr511b_device::write(uint8_t data)
 {
 }
 

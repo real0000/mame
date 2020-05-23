@@ -143,15 +143,14 @@ void gb_state::gb_init_regs()
 	SIODATA = 0x00;
 	SIOCONT = 0x7E;
 
-	gb_io_w(m_maincpu->space(AS_PROGRAM), 0x05, 0x00);       /* TIMECNT */
-	gb_io_w(m_maincpu->space(AS_PROGRAM), 0x06, 0x00);       /* TIMEMOD */
+	gb_io_w(0x05, 0x00);       /* TIMECNT */
+	gb_io_w(0x06, 0x00);       /* TIMEMOD */
 }
 
 
 void gb_state::gb_init()
 {
-	address_space &space = m_maincpu->space(AS_PROGRAM);
-	m_apu->sound_w(space, 0x16, 0x00);       /* Initialize sound hardware */
+	m_apu->sound_w(0x16, 0x00);       /* Initialize sound hardware */
 
 	m_divcount = 8;
 	m_internal_serial_clock = 0;
@@ -190,17 +189,13 @@ MACHINE_START_MEMBER(gb_state,sgb)
 
 	save_gb_base();
 	save_sgb_only();
-
-	if (m_cartslot && m_cartslot->get_sgb_hack()) {
-		dynamic_cast<sgb_ppu_device*>(m_ppu.target())->set_sgb_hack(true);
-	}
 }
 
 void gb_state::machine_reset()
 {
 	gb_init();
 
-	/* Enable BIOS rom */
+	// Enable BIOS ROM
 	m_bios_disable = false;
 }
 
@@ -228,7 +223,7 @@ MACHINE_RESET_MEMBER(gb_state,sgb)
 }
 
 
-WRITE8_MEMBER(gb_state::gb_io_w)
+void gb_state::gb_io_w(offs_t offset, uint8_t data)
 {
 	static const uint8_t timer_shifts[4] = {10, 4, 6, 8};
 
@@ -317,44 +312,44 @@ WRITE8_MEMBER(gb_state::gb_io2_w)
 		m_bios_disable = true;
 	}
 	else
-		m_ppu->video_w(space, offset, data);
+		m_ppu->video_w(offset, data);
 }
 
 #ifdef MAME_DEBUG
 static const char *const sgbcmds[32] =
 {
-	"PAL01   ",
-	"PAL23   ",
-	"PAL03   ",
-	"PAL12   ",
-	"ATTR_BLK",
-	"ATTR_LIN",
-	"ATTR_DIV",
-	"ATTR_CHR",
-	"SOUND   ",
-	"SOU_TRN ",
-	"PAL_SET ",
-	"PAL_TRN ",
-	"ATRC_EN ",
-	"TEST_EN ",
-	"ICON_EN ",
-	"DATA_SND",
-	"DATA_TRN",
-	"MLT_REG ",
-	"JUMP    ",
-	"CHR_TRN ",
-	"PCT_TRN ",
-	"ATTR_TRN",
-	"ATTR_SET",
-	"MASK_EN ",
-	"OBJ_TRN ",
-	"????????",
-	"????????",
-	"????????",
-	"????????",
-	"????????",
-	"????????",
-	"????????"
+	/* 0x00 */ "PAL01   ",
+	/* 0x01 */ "PAL23   ",
+	/* 0x02 */ "PAL03   ",
+	/* 0x03 */ "PAL12   ",
+	/* 0x04 */ "ATTR_BLK",
+	/* 0x05 */ "ATTR_LIN",
+	/* 0x06 */ "ATTR_DIV",
+	/* 0x07 */ "ATTR_CHR",
+	/* 0x08 */ "SOUND   ",
+	/* 0x09 */ "SOU_TRN ",
+	/* 0x0A */ "PAL_SET ",
+	/* 0x0B */ "PAL_TRN ",
+	/* 0x0C */ "ATRC_EN ",
+	/* 0x0D */ "TEST_EN ",
+	/* 0x0E */ "ICON_EN ",
+	/* 0x0F */ "DATA_SND",
+	/* 0x10 */ "DATA_TRN",
+	/* 0x11 */ "MLT_REG ",
+	/* 0x12 */ "JUMP    ",
+	/* 0x13 */ "CHR_TRN ",
+	/* 0x14 */ "PCT_TRN ",
+	/* 0x15 */ "ATTR_TRN",
+	/* 0x16 */ "ATTR_SET",
+	/* 0x17 */ "MASK_EN ",
+	/* 0x18 */ "OBJ_TRN ",
+	/* 0x19 */ "PAL_PRI ",
+	/* 0x1A */ "????????",
+	/* 0x1B */ "????????",
+	/* 0x1C */ "????????",
+	/* 0x1D */ "????????",
+	/* 0x1E */ "????????",
+	/* 0x1F */ "????????"
 };
 #endif
 
@@ -467,7 +462,7 @@ WRITE8_MEMBER(gb_state::sgb_io_w)
 			return;
 		default:
 			/* we didn't handle the write, so pass it to the GB handler */
-			gb_io_w(space, offset, data);
+			gb_io_w(offset, data);
 			return;
 	}
 
@@ -570,7 +565,7 @@ void gb_state::gb_timer_increment()
 }
 
 // This gets called while the cpu is executing instructions to keep the timer state in sync
-WRITE8_MEMBER(gb_state::gb_timer_callback)
+void gb_state::gb_timer_callback(uint8_t data)
 {
 	uint16_t old_gb_divcount = m_divcount;
 	uint16_t old_internal_serial_clock = m_internal_serial_clock;
@@ -610,7 +605,7 @@ WRITE8_MEMBER(gb_state::gb_timer_callback)
 
 WRITE8_MEMBER(gb_state::gbc_io_w)
 {
-	gb_io_w(space, offset, data);
+	gb_io_w(offset, data);
 
 	// On CGB the internal serial transfer clock is selectable
 	if (offset == 0x02)
@@ -642,7 +637,7 @@ WRITE8_MEMBER(gb_state::gbc_io2_w)
 		default:
 			break;
 	}
-	m_ppu->video_w(space, offset, data);
+	m_ppu->video_w(offset, data);
 }
 
 READ8_MEMBER(gb_state::gbc_io2_r)
@@ -658,7 +653,7 @@ READ8_MEMBER(gb_state::gbc_io2_r)
 	default:
 		break;
 	}
-	return m_ppu->video_r(space, offset);
+	return m_ppu->video_r(offset);
 }
 
 /****************************************************************************
@@ -667,15 +662,15 @@ READ8_MEMBER(gb_state::gbc_io2_r)
 
  ****************************************************************************/
 
-MACHINE_START_MEMBER(megaduck_state,megaduck)
+void megaduck_state::machine_start()
 {
-	save_gb_base();
+	gb_state::machine_start();
 }
 
-MACHINE_RESET_MEMBER(megaduck_state,megaduck)
+void megaduck_state::machine_reset()
 {
-	/* We may have to add some more stuff here, if not then it can be merged back into gb */
-	gb_init();
+	// We may have to add some more stuff here, if not then it can be merged back into gb
+	gb_state::machine_reset();
 
 	m_bios_disable = true;
 }
@@ -724,23 +719,23 @@ READ8_MEMBER(megaduck_state::megaduck_video_r)
 	{
 		offset ^= 0x0C;
 	}
-	data = m_ppu->video_r(space, offset);
+	data = m_ppu->video_r(offset);
 	if (offset)
 		return data;
-	return BITSWAP8(data,7,0,5,4,6,3,2,1);
+	return bitswap<8>(data,7,0,5,4,6,3,2,1);
 }
 
 WRITE8_MEMBER(megaduck_state::megaduck_video_w)
 {
 	if (!offset)
 	{
-		data = BITSWAP8(data,7,3,5,4,2,1,0,6);
+		data = bitswap<8>(data,7,3,5,4,2,1,0,6);
 	}
 	if ((offset & 0x0C) && ((offset & 0x0C) ^ 0x0C))
 	{
 		offset ^= 0x0C;
 	}
-	m_ppu->video_w(space, offset, data);
+	m_ppu->video_w(offset, data);
 }
 
 /* Map megaduck audio offset to game boy audio offsets */
@@ -751,14 +746,14 @@ static const uint8_t megaduck_sound_offsets[16] = { 0, 2, 1, 3, 4, 6, 5, 7, 8, 9
 WRITE8_MEMBER(megaduck_state::megaduck_sound_w1)
 {
 	if ((offset == 0x01) || (offset == 0x07))
-		m_apu->sound_w(space, megaduck_sound_offsets[offset], ((data & 0x0f)<<4) | ((data & 0xf0)>>4));
+		m_apu->sound_w(megaduck_sound_offsets[offset], ((data & 0x0f)<<4) | ((data & 0xf0)>>4));
 	else
-		m_apu->sound_w(space, megaduck_sound_offsets[offset], data);
+		m_apu->sound_w(megaduck_sound_offsets[offset], data);
 }
 
 READ8_MEMBER(megaduck_state::megaduck_sound_r1)
 {
-	uint8_t data = m_apu->sound_r(space, megaduck_sound_offsets[offset]);
+	uint8_t data = m_apu->sound_r(megaduck_sound_offsets[offset]);
 	if ((offset == 0x01) || (offset == 0x07))
 		return ((data & 0x0f)<<4) | ((data & 0xf0)>>4);
 	else
@@ -768,14 +763,14 @@ READ8_MEMBER(megaduck_state::megaduck_sound_r1)
 WRITE8_MEMBER(megaduck_state::megaduck_sound_w2)
 {
 	if ((offset == 0x01) || (offset == 0x02))
-		m_apu->sound_w(space, 0x10 + megaduck_sound_offsets[offset], ((data & 0x0f)<<4) | ((data & 0xf0)>>4));
+		m_apu->sound_w(0x10 + megaduck_sound_offsets[offset], ((data & 0x0f)<<4) | ((data & 0xf0)>>4));
 	else
-		m_apu->sound_w(space, 0x10 + megaduck_sound_offsets[offset], data);
+		m_apu->sound_w(0x10 + megaduck_sound_offsets[offset], data);
 }
 
 READ8_MEMBER(megaduck_state::megaduck_sound_r2)
 {
-	uint8_t data = m_apu->sound_r(space, 0x10 + megaduck_sound_offsets[offset]);
+	uint8_t data = m_apu->sound_r(0x10 + megaduck_sound_offsets[offset]);
 	if ((offset == 0x01) || (offset == 0x02))
 		return ((data & 0x0f)<<4) | ((data & 0xf0)>>4);
 	else

@@ -24,11 +24,13 @@
 //  hd63484_device - constructor
 //-------------------------------------------------
 
-hd63484_device::hd63484_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, HD63484, "HD63484 CRTC", tag, owner, clock, "hd63484", __FILE__),
+hd63484_device::hd63484_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, HD63484, tag, owner, clock),
 	device_memory_interface(mconfig, *this),
 	device_video_interface(mconfig, *this),
+	m_display_cb(*this),
 	m_auto_configure_screen(true),
+	m_external_skew(0),
 	m_ar(0),
 	m_sr(0),
 	m_fifo_ptr(-1),
@@ -331,7 +333,7 @@ enum
 -------------------------------------------------*/
 
 // devices
-const device_type HD63484 = device_creator<hd63484_device>;
+DEFINE_DEVICE_TYPE(HD63484, hd63484_device, "hd63484", "Hitachi HD63484 ACRTC")
 
 
 ROM_START( hd63484 )
@@ -344,9 +346,11 @@ ROM_END
 //  any address spaces owned by this device
 //-------------------------------------------------
 
-const address_space_config *hd63484_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector hd63484_device::memory_space_config() const
 {
-	return (spacenum == AS_0) ? &m_space_config : nullptr;
+	return space_config_vector {
+		std::make_pair(0, &m_space_config)
+	};
 }
 
 
@@ -365,7 +369,7 @@ const tiny_rom_entry *hd63484_device::device_rom_region() const
 
 inline uint16_t hd63484_device::readword(offs_t address)
 {
-	return space().read_word(address << 1);
+	return space().read_word(address);
 }
 
 
@@ -375,7 +379,7 @@ inline uint16_t hd63484_device::readword(offs_t address)
 
 inline void hd63484_device::writeword(offs_t address, uint16_t data)
 {
-	space().write_word(address << 1, data);
+	space().write_word(address, data);
 }
 
 
@@ -523,13 +527,14 @@ inline void hd63484_device::recompute_parameters()
 	int ppw = 16 / get_bpp();
 	int ppmc = ppw * (1 << gai) / acm;  // TODO: GAI > 3
 	int vbstart = m_vds + m_sp[1];
+	int hbend = (m_hsw + m_hds + m_external_skew) * ppmc;
 	if (BIT(m_dcr, 13)) vbstart += m_sp[0];
 	if (BIT(m_dcr, 11)) vbstart += m_sp[2];
 
-	rectangle visarea = m_screen->visible_area();
-	visarea.set((m_hsw + m_hds) * ppmc, (m_hsw + m_hds + m_hdw) * ppmc - 1, m_vds, vbstart - 1);
-	attoseconds_t frame_period = m_screen->frame_period().attoseconds(); // TODO: use clock() to calculate the frame_period
-	m_screen->configure(m_hc * ppmc, m_vc, visarea, frame_period);
+	rectangle visarea = screen().visible_area();
+	visarea.set(hbend, hbend + (m_hdw * ppmc) - 1, m_vds, vbstart - 1);
+	attoseconds_t frame_period = screen().frame_period().attoseconds(); // TODO: use clock() to calculate the frame_period
+	screen().configure(m_hc * ppmc, m_vc, visarea, frame_period);
 }
 
 
@@ -1783,7 +1788,7 @@ uint16_t hd63484_device::video_registers_r(int offset)
 			break;
 
 		case 0x80:
-			res = m_screen->vpos() & 0xfff; // Raster Count
+			res = screen().vpos() & 0xfff; // Raster Count
 			break;
 
 		default:
@@ -1825,6 +1830,7 @@ void hd63484_device::video_registers_w(int offset)
 			break;
 
 		case 0x04:
+			logerror("OMR: %04x\n", vreg_data);
 			m_omr = vreg_data;
 			break;
 
@@ -1908,97 +1914,109 @@ void hd63484_device::video_registers_w(int offset)
 	}
 }
 
-READ16_MEMBER( hd63484_device::status_r )
+uint16_t hd63484_device::read16(offs_t offset)
 {
-	// kothello is coded so that upper byte of this should be 0xff (tests with jc opcode). Maybe it's just unconnected?
-	return m_sr | 0xff00;
-}
-
-READ16_MEMBER( hd63484_device::data_r )
-{
-	uint16_t res;
-
-	if(m_ar == 0) // FIFO read
+	if (BIT(offset, 0))
 	{
-		uint8_t data;
+		// Read control register
+		uint16_t res;
 
-		dequeue_r(&data);
-		res = (data & 0xff) << 8;
-		dequeue_r(&data);
-		res |= data & 0xff;
+		if(m_ar == 0) // FIFO read
+		{
+			uint8_t data;
+
+			dequeue_r(&data);
+			res = (data & 0xff) << 8;
+			dequeue_r(&data);
+			res |= data & 0xff;
+		}
+		else
+			res = video_registers_r(m_ar);
+
+		inc_ar(2);
+
+		return res;
 	}
 	else
-		res = video_registers_r(m_ar);
-
-	inc_ar(2);
-
-	return res;
+	{
+		// Read status register
+		// kothello is coded so that upper byte of this should be 0xff (tests with jc opcode). Maybe it's just open bus?
+		return m_sr | 0xff00;
+	}
 }
 
-WRITE16_MEMBER( hd63484_device::address_w )
+void hd63484_device::write16(offs_t offset, uint16_t data)
 {
-	if(ACCESSING_BITS_0_7)
-		m_ar = data & 0xfe;
-}
-
-WRITE16_MEMBER( hd63484_device::data_w )
-{
-	if(ACCESSING_BITS_8_15)
+	if (BIT(offset, 0))
+	{
+		// Write control register
 		m_vreg[m_ar] = (data & 0xff00) >> 8;
-
-	if(ACCESSING_BITS_0_7)
 		m_vreg[m_ar+1] = (data & 0xff);
 
-	video_registers_w(m_ar);
+		video_registers_w(m_ar);
 
-	inc_ar(2);
-}
-
-READ8_MEMBER( hd63484_device::status_r )
-{
-	return m_sr;
-}
-
-WRITE8_MEMBER( hd63484_device::address_w )
-{
-	m_ar = data;
-}
-
-READ8_MEMBER( hd63484_device::data_r )
-{
-	uint8_t res = 0xff;
-
-	if(m_ar < 2) // FIFO read
-		dequeue_r(&res);
-	else
-		res = video_registers_r(m_ar & 0xfe) >> (m_ar & 1 ? 0 : 8);
-
-	inc_ar(1);
-
-	return res;
-}
-
-WRITE8_MEMBER( hd63484_device::data_w )
-{
-	m_vreg[m_ar] = data;
-
-	if(m_ar < 2) // FIFO write
-	{
-		queue_w(data);
-		if (m_ar & 1)
-			process_fifo();
-
-		m_ar ^= 1;
+		inc_ar(2);
 	}
 	else
-		video_registers_w(m_ar & 0xfe);
+	{
+		// Write address register
+		m_ar = data & 0xfe;
+	}
+}
 
-	inc_ar(1);
+uint8_t hd63484_device::read8(offs_t offset)
+{
+	if (BIT(offset, 0))
+	{
+		// Read control register
+		uint8_t res = 0xff;
+
+		if(m_ar < 2) // FIFO read
+			dequeue_r(&res);
+		else
+			res = video_registers_r(m_ar & 0xfe) >> (m_ar & 1 ? 0 : 8);
+
+		inc_ar(1);
+
+		return res;
+	}
+	else
+	{
+		// Read status register
+		return m_sr;
+	}
+}
+
+void hd63484_device::write8(offs_t offset, uint8_t data)
+{
+	if (BIT(offset, 0))
+	{
+		// Write control register
+		m_vreg[m_ar] = data;
+
+		if(m_ar < 2) // FIFO write
+		{
+			queue_w(data);
+			if (m_ar & 1)
+				process_fifo();
+
+			m_ar ^= 1;
+		}
+		else
+			video_registers_w(m_ar & 0xfe);
+
+		inc_ar(1);
+	}
+	else
+	{
+		// Write address register
+		m_ar = data;
+	}
 }
 
 void hd63484_device::device_start()
 {
-	m_display_cb.bind_relative_to(*owner());
+	m_display_cb.resolve();
 
 	register_save_state();
 }
@@ -2050,12 +2068,12 @@ void hd63484_device::draw_graphics_line(bitmap_ind16 &bitmap, const rectangle &c
 	int bpp = get_bpp();
 	int ppw = 16 / bpp;
 	uint32_t mask = (1 << bpp) - 1;
-	uint32_t base_offs = m_sar[layer_n] + (y - vs) * m_mwr[layer_n];
-	uint32_t wind_offs = m_sar[3] + (y - m_vws) * m_mwr[3];
+	uint32_t base_offs = m_sar[layer_n] + (y - vs) * m_mwr[layer_n] + m_external_skew;
+	uint32_t wind_offs = m_sar[3] + (y - m_vws) * m_mwr[3] + m_external_skew;
 	int step = (m_omr & 0x08) ? 2 : 1;
 	int gai = (m_omr>>4) & 0x07;
 	int ppmc = ppw * (1 << gai) / step;  // TODO: GAI > 3
-	int ws = m_hsw + m_hws;
+	int ws = m_hsw + m_hws + m_external_skew;
 
 	if (m_omr & 0x08)
 	{

@@ -15,30 +15,18 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type C64_16KB = device_creator<c64_16kb_cartridge_device>;
+DEFINE_DEVICE_TYPE(C64_16KB, c64_16kb_cartridge_device, "c64_16kb", "C64 16KB EPROM cartridge")
 
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( c64_16kb )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( c64_16kb )
-	MCFG_GENERIC_CARTSLOT_ADD("roml", generic_linear_slot, nullptr)
-	MCFG_GENERIC_EXTENSIONS("rom,bin,80")
-
-	MCFG_GENERIC_CARTSLOT_ADD("romh", generic_linear_slot, nullptr)
-	MCFG_GENERIC_EXTENSIONS("rom,bin,a0,e0")
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor c64_16kb_cartridge_device::device_mconfig_additions() const
+void c64_16kb_cartridge_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( c64_16kb );
+	GENERIC_CARTSLOT(config, m_low, generic_linear_slot, nullptr, "rom,bin,80");
+
+	GENERIC_CARTSLOT(config, m_high, generic_linear_slot, nullptr, "rom,bin,a0,e0");
 }
 
 
@@ -75,7 +63,7 @@ ioport_constructor c64_16kb_cartridge_device::device_input_ports() const
 //-------------------------------------------------
 
 c64_16kb_cartridge_device::c64_16kb_cartridge_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, C64_16KB, "C64 16KB EPROM cartridge", tag, owner, clock, "c64_16kb", __FILE__),
+	device_t(mconfig, C64_16KB, tag, owner, clock),
 	device_c64_expansion_card_interface(mconfig, *this),
 	m_sw1(*this, "SW1"),
 	m_low(*this, "roml"),
@@ -110,15 +98,15 @@ void c64_16kb_cartridge_device::device_reset()
 //  c64_cd_r - cartridge data read
 //-------------------------------------------------
 
-uint8_t c64_16kb_cartridge_device::c64_cd_r(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
+uint8_t c64_16kb_cartridge_device::c64_cd_r(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2)
 {
 	if (!roml)
 	{
-		data = m_low->read_rom(space, offset & 0x1fff);
+		data = m_low->read_rom(offset & 0x1fff);
 	}
 	else if (!romh)
 	{
-		data = m_high->read_rom(space, offset & 0x1fff);
+		data = m_high->read_rom(offset & 0x1fff);
 	}
 
 	return data;

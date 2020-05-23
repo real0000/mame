@@ -26,7 +26,7 @@
 TILE_GET_INFO_MEMBER(tecmo_state::get_bg_tile_info)
 {
 	uint8_t attr = m_bgvideoram[tile_index+0x200];
-	SET_TILE_INFO_MEMBER(3,
+	tileinfo.set(3,
 			m_bgvideoram[tile_index] + ((attr & 0x07) << 8),
 			attr >> 4,
 			0);
@@ -35,7 +35,7 @@ TILE_GET_INFO_MEMBER(tecmo_state::get_bg_tile_info)
 TILE_GET_INFO_MEMBER(tecmo_state::get_fg_tile_info)
 {
 	uint8_t attr = m_fgvideoram[tile_index+0x200];
-	SET_TILE_INFO_MEMBER(2,
+	tileinfo.set(2,
 			m_fgvideoram[tile_index] + ((attr & 0x07) << 8),
 			attr >> 4,
 			0);
@@ -44,7 +44,7 @@ TILE_GET_INFO_MEMBER(tecmo_state::get_fg_tile_info)
 TILE_GET_INFO_MEMBER(tecmo_state::gemini_get_bg_tile_info)
 {
 	uint8_t attr = m_bgvideoram[tile_index+0x200];
-	SET_TILE_INFO_MEMBER(3,
+	tileinfo.set(3,
 			m_bgvideoram[tile_index] + ((attr & 0x70) << 4),
 			attr & 0x0f,
 			0);
@@ -53,7 +53,7 @@ TILE_GET_INFO_MEMBER(tecmo_state::gemini_get_bg_tile_info)
 TILE_GET_INFO_MEMBER(tecmo_state::gemini_get_fg_tile_info)
 {
 	uint8_t attr = m_fgvideoram[tile_index+0x200];
-	SET_TILE_INFO_MEMBER(2,
+	tileinfo.set(2,
 			m_fgvideoram[tile_index] + ((attr & 0x70) << 4),
 			attr & 0x0f,
 			0);
@@ -62,7 +62,7 @@ TILE_GET_INFO_MEMBER(tecmo_state::gemini_get_fg_tile_info)
 TILE_GET_INFO_MEMBER(tecmo_state::get_tx_tile_info)
 {
 	uint8_t attr = m_txvideoram[tile_index+0x400];
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 			m_txvideoram[tile_index] + ((attr & 0x03) << 8),
 			attr >> 4,
 			0);
@@ -80,15 +80,15 @@ void tecmo_state::video_start()
 {
 	if (m_video_type == 2)  /* gemini */
 	{
-		m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(tecmo_state::gemini_get_bg_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,16);
-		m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(tecmo_state::gemini_get_fg_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,16);
+		m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(tecmo_state::gemini_get_bg_tile_info)), TILEMAP_SCAN_ROWS, 16,16, 32,16);
+		m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(tecmo_state::gemini_get_fg_tile_info)), TILEMAP_SCAN_ROWS, 16,16, 32,16);
 	}
 	else    /* rygar, silkworm */
 	{
-		m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(tecmo_state::get_bg_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,16);
-		m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(tecmo_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,16);
+		m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(tecmo_state::get_bg_tile_info)), TILEMAP_SCAN_ROWS, 16,16, 32,16);
+		m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(tecmo_state::get_fg_tile_info)), TILEMAP_SCAN_ROWS, 16,16, 32,16);
 	}
-	m_tx_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(tecmo_state::get_tx_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8,32,32);
+	m_tx_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(tecmo_state::get_tx_tile_info)), TILEMAP_SCAN_ROWS,  8, 8, 32,32);
 
 	m_bg_tilemap->set_transparent_pen(0);
 	m_fg_tilemap->set_transparent_pen(0);
@@ -96,9 +96,6 @@ void tecmo_state::video_start()
 
 	m_bg_tilemap->set_scrolldx(-48,256+48);
 	m_fg_tilemap->set_scrolldx(-48,256+48);
-
-	save_item(NAME(m_fgscroll));
-	save_item(NAME(m_bgscroll));
 }
 
 
@@ -168,7 +165,7 @@ uint32_t tecmo_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap,
 	m_fg_tilemap->draw(screen, bitmap, cliprect, 0,2);
 	m_tx_tilemap->draw(screen, bitmap, cliprect, 0,4);
 
-	m_sprgen->draw_sprites_8bit(screen,bitmap,m_gfxdecode,cliprect, m_spriteram, m_spriteram.bytes(), m_video_type, flip_screen());
+	m_sprgen->draw_sprites_8bit(screen,bitmap,m_gfxdecode->gfx(1),cliprect, m_spriteram, m_spriteram.bytes(), m_video_type, flip_screen());
 
 	return 0;
 }

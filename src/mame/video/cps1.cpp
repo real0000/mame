@@ -66,12 +66,13 @@ Final Fight (USA 900613)                                           89624B-3   S2
 Final Fight (Japan)                                                ?          S222B            ?     ?            CPS-B-04  DL-0411-10005
 Final Fight (Japan 900112)                                         89625B-1   S222B            LWIO  88622-C-5    CPS-B-01  DL-0411-10001  None
 Final Fight (Japan 900305)                                         88622B-3   S222B            LWIO  88622-C-5    CPS-B-02  DL-0411-10002  None
+Final Fight (Japan 900405)                                         88622B-2   S222B            LWIO  88622-C-5    CPS-B-03  DL-0411-10003  None
 Final Fight (Japan 900613)                                         89625B-1   S222B            LWIO  88622-C-5    CPS-B-05  DL-0411-10006  None
 
 1941: Counter Attack (World)                                 1990  89624B-3   YI24B            IOB1  88622-C-5    CPS-B-05  DL-0411-10006  None
 1941: Counter Attack (World 900227)                                89624B-3   YI24B            IOB1  88622-C-5    CPS-B-05  DL-0411-10006  None
 1941: Counter Attack (USA 900227)                                  89624B-3   YI24B            IOB1  88622-C-5    CPS-B-05  DL-0411-10006  None
-1941: Counter Attack (Japan)                                       89625B-1   YI22B            LWIO? 88622-C-5    CPS-B-05  DL-0411-10006  None
+1941: Counter Attack (Japan)                                       89625B-1   YI22B            LWIO  88622-C-5    CPS-B-05  DL-0411-10006  None
 
 Mercs (World 900302)                                         1990  89624B-3   O224B            IOB1  90628-C-1    CPS-B-12  DL-0411-10007  C628
 Mercs (USA 900302)                                                 89624B-3   O224B            IOB1  90628-C-1/2  CPS-B-12  DL-0411-10007  C628
@@ -88,6 +89,7 @@ Magic Sword: Heroic Fantasy (Japan 900623)                         89625B-1   MS
 
 Carrier Air Wing (World 901009)                              1990  89624B-3   CA24B            IOB1  88622-C-5    CPS-B-16  DL-0411-10011  None
 Carrier Air Wing (World 901012)                                    89624B-3   CA24B            IOB1  88622-C-5    CPS-B-16  DL-0411-10011  None
+Carrier Air Wing (USA 901130)                                      89625B-1   CA22B            IOB1  88622-C-5    CPS-B-05  DL-0411-10006  None
 Carrier Air Wing (USA 901012)                                      89624B-3   CA24B            IOB1  88622-C-5    CPS-B-16  DL-0411-10011  None
 U.S. Navy (Japan 901012)                                           89625B-1   CA22B            IOB1  88622-C-5    CPS-B-16  DL-0411-10011  None
 
@@ -96,9 +98,11 @@ Nemo (World 901130)                                                89624B-3   NM
 Nemo (Japan 901120)                                                89625B-1   NM22B            ?     ?            CPS-B-15  DL-0411-10010
 
 Street Fighter II: The World Warrior (World 910129)          1991  90629B-2   STF29            IOB1  90632C-1     CPS-B-17  DL-0411-10012  C632
+Street Fighter II: The World Warrior (World 910204)#               90629B-2   STF29            IOB1  90632C-1     CPS-B-17  DL-0411-10012  C632
 Street Fighter II: The World Warrior (World 910214)                90629B-2   STF29            IOB1  90632C-1     CPS-B-17  DL-0411-10012  C632
 Street Fighter II: The World Warrior (World 910228)                90629B-3   STF29            IOB2  90632C-1     CPS-B-18  DL-0411-10013  C632B
 Street Fighter II: The World Warrior (World 910318)                90629B-3   STF29            IOB1  90632C-1     CPS-B-05  DL-0411-10006  C632
+Street Fighter II: The World Warrior (World 910411)                90629B-3   STF29            IOB1  90632C-1     CPS-B-15  DL-0411-10010  C632
 Street Fighter II: The World Warrior (World 910522)                90629B-3   STF29            IOB1  90632C-1     CPS-B-11  DL-0411-10004  C632
 Street Fighter II: The World Warrior (USA 910206)                  90629B-2   STF29            IOB1  90632C-1     CPS-B-17  DL-0411-10012  C632
 Street Fighter II: The World Warrior (USA 910214)                  90629B-3   STF29            IOB1  90632C-1     CPS-B-17  DL-0411-10012  C632
@@ -107,13 +111,16 @@ Street Fighter II: The World Warrior (USA 910306)                  90629B-3   ST
 Street Fighter II: The World Warrior (USA 910318)                  90629B-3   STF29            IOB1  90632C-1     CPS-B-05  DL-0411-10006  C632
 Street Fighter II: The World Warrior (USA 910411)                  90629B-3   STF29            IOB1  90632C-1     CPS-B-15  DL-0411-10010  C632
 Street Fighter II: The World Warrior (USA 910522, Rev. G)          90629B-3   STF29            IOB1  90632C-1     CPS-B-11  DL-0411-10004  C632
+Street Fighter II: The World Warrior (USA 910522, Rev. H)          90629B-3   STF29            IOB1  90632C-1     CPS-B-13  DL-0411-10008  C632
 Street Fighter II: The World Warrior (USA 910522, Rev. I)          90629B-3   STF29            IOB1  90632C-1     CPS-B-14  DL-0411-10009  C632
 Street Fighter II: The World Warrior (USA 911101)                  90629B-3   STF29            IOB1  90632C-1     CPS-B-17  DL-0411-10012  C632
+Street Fighter II: The World Warrior (USA 920312)                  90629B-2   STF29            IOB1  90632C-1     CPS-B-17  DL-0411-10012  C632
 Street Fighter II: The World Warrior (Japan 910214)                90629B-2   STF29            IOB1  90632C-1     CPS-B-17  DL-0411-10012  C632
 Street Fighter II: The World Warrior (Japan 910306)                90629B-3   STF29            IOB1  90632C-1     CPS-B-12  DL-0411-10007  C632
 Street Fighter II: The World Warrior (Japan 910411)                90629B-3   STF29            IOB1  90632C-1     CPS-B-15  DL-0411-10010  C632
 Street Fighter II: The World Warrior (Japan 910522)                90629B-3   STF29            IOB1  90632C-1     CPS-B-13  DL-0411-10008  C632
-Street Fighter II: The World Warrior (Japan 911210)                90629B-?   STF29            IOB1  ?            CPS-B-13  DL-0411-10008  C632
+Street Fighter II: The World Warrior (Japan 911210, CPS-B-13)      90629B-?   STF29            IOB1  ?            CPS-B-13  DL-0411-10008  C632
+Street Fighter II: The World Warrior (Japan 911210, CPS-B-17)      90629B-3   STF29            IOB1  90632C-1     CPS-B-17  DL-0411-10012  C632
 Street Fighter II: The World Warrior (Japan 920312)                90629B-2   STF29            IOB1  90632C-1     CPS-B-17  DL-0411-10012  C632
 
 Three Wonders* (World 910513)                                1991  89624B-3   RT24B            IOB1  90630C-4     CPS-B-21  DL-0921-10014          IOC1
@@ -122,16 +129,17 @@ Three Wonders* (USA 910520)                                        89624B-3   RT
 Wonder 3* (Japan 910520)                                           89625B-1   RT22B            IOB1  90630C-4     CPS-B-21  DL-0921-10014          IOC1
 
 The King of Dragons* (World 910711)                          1991  90629B-3   KD29B            IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632    IOC1
+The King of Dragons* (World 910731)                                90629B-3   KD29B            IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632    IOC1
 The King of Dragons* (World 910805)                                90629B-3   KD29B            IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632    IOC1
 The King of Dragons* (USA 910910)                                  90629B-3   KD29B            IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632    IOC1
 The King of Dragons* (Japan 910805, B-Board 89625B-1)              89625B-1   KD22B            IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632    IOC1
 The King of Dragons* (Japan 910805, B-Board 90629B-3)              90629B-3   KD29B            IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632    IOC1
 
 Captain Commando* (World 911014)                             1991  91635B-2   CC63B    CCPRG   IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632    IOC1
-Captain Commando* (World 911202)                                   91635B-2   CC63B    CCPRG1  IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632B   IOC1
+Captain Commando* (World 911202)                                   91635B-2   CC63B    CCPRG1  IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632^   IOC1
 Captain Commando* (USA 910928)                                     91635B-2   CC63B    CCPRG1  IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632    IOC1
 Captain Commando* (Japan 910928)                                   91634B-2   CC63B    CCPRG   IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632    IOC1
-Captain Commando* (Japan 911202)                                   91634B-2   CC63B    CCPRG1  IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632B   IOC1
+Captain Commando* (Japan 911202)                                   91634B-2   CC63B    CCPRG1  IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632^   IOC1
 
 Knights of the Round* (World 911127)                         1991  91635B-2   KR63B    BPRG1   IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632    IOC1
 Knights of the Round* (USA 911127)                                 91635B-2   KR63B    BPRG1   IOB1  90631C-5     CPS-B-21  DL-0921-10014  C632    IOC1
@@ -143,6 +151,7 @@ Street Fighter II': Champion Edition (World 920513)                91635B-2   S9
 Street Fighter II': Champion Edition (USA 920313)                  91635B-2   S9263B   BPRG1   IOB1  92631C-6     CPS-B-21  DL-0921-10014  C632    IOC1
 Street Fighter II': Champion Edition (USA 920513)                  91635B-2   S9263B   BPRG1   IOB1  92631C-6     CPS-B-21  DL-0921-10014  C632    IOC1
 Street Fighter II': Champion Edition (USA 920803)                  91635B-2   S9263B   BPRG1   IOB1  92631C-6     CPS-B-21  DL-0921-10014  C632    IOC1
+Street Fighter II': Champion Edition (Taiwan 920313)               91635B-2   S9263B   BPRG1   IOB1  92631C-6     CPS-B-21  DL-0921-10014  C632    IOC1
 Street Fighter II': Champion Edition (Japan 920322)                91634B-2   S9263B   BPRG1   IOB1  92631C-6     CPS-B-21  DL-0921-10014  C632    IOC1
 Street Fighter II': Champion Edition (Japan 920513)                91634B-2   S9263B   BPRG1   IOB1  92631C-6     CPS-B-21  DL-0921-10014  C632    IOC1
 Street Fighter II': Champion Edition (Japan 920803)                91634B-2   S9263B   BPRG1   IOB1  92631C-6     CPS-B-21  DL-0921-10014  C632    IOC1
@@ -172,6 +181,7 @@ Street Fighter II' Turbo: Hyper Fighting (Japan 921209)            91634B-2   S9
 
 Cadillacs and Dinosaurs* (World 930201)                      1993  91635B-2   CD63B    BPRG1   IOB1  92641C-1     CPS-B-21  DL-0921-10014          IOC1
 Cadillacs and Dinosaurs* (USA 930201)                              91635B-2   CD63B    BPRG1   IOB1  92641C-1     CPS-B-21  DL-0921-10014          IOC1
+Cadillacs and Dinosaurs* (Asia TW 930223)                          91635B-2   CD63B    BPRG1   IOB1  92641C-1     CPS-B-21  DL-0921-10014          IOC1
 Cadillacs: Kyouryuu Shin Seiki* (Japan 930201)                     91634B-2   CD63B    BPRG1   IOB1  92641C-1     CPS-B-21  DL-0921-10014          IOC1
 
 The Punisher* (World 930422)                                 1993  91635B-2   PS63B    BPRG1   IOB1  92641C-1     CPS-B-21  DL-0921-10014          IOC1
@@ -205,13 +215,20 @@ Ganbare! Marine Kun (Japan 2K0411)                           2000  91634B-2   GB
 
 @the original number (CPS-B-01) was scratched out and "04" stamped over it.
 *denotes Suicide Battery
+^c632b chips seen, but all variants of the game read the same c board io ports so the fusemap must be the same, perhaps incorrectly marked?
+#sf2 world 910204: sf2ea is official set on 90629B-2 b-board, sf2en on 89625B-1 b-board is most likely an unofficial conversion (see notes in drivers\cps1.cpp)
 
-The C628/C632 PALs on some C-boards probably handle the extra inputs (6 buttons/third player).
+The C628/C632 PALs on some C-boards handle the io for games with more than 3 buttons or more than 2 players.
 
 You can set the suicide CPS-B-21 chips to their default layer register and priority bit values
 if you pull pins 45 and 46 high (floating the pins seems to work, too). The default is the same
 values as Street Fighter 2 CE/Turbo.
 
+The Pang! 3 B-board (94916-10) is unique to that game, presumably designed by Mitchell rather than Capcom.
+It uses a Mach215 pld security chip to encrypt main code and is the only non-qsound game to use an eeprom instead of dip switches.
+It is designed to allow operation with either a standard or CPS1.5/qsound A-board, in the latter case the full standard sound hardware (z80, ym, oki, audio amp etc.) can be populated on the B-board itself,
+(although to date, no example of the B-board with sound h/w populated has been found, perhaps it was never used?)
+Exact-copy bootleg B-boards exist and are quite common, bizarrely the bootleggers often crudely cut off the front/unused analog audio section of the pcb!
 
 
 CPS-A Registers
@@ -456,7 +473,7 @@ The games seem to use them to mark platforms, kill zones and no-go areas.
 /*                     CPSB ID    multiply protection      unknown      ctrl     priority masks   palctrl    layer enable masks  */
 #define CPS_B_01      -1, 0x0000,          __not_applicable__,          0x26,{0x28,0x2a,0x2c,0x2e},0x30, {0x02,0x04,0x08,0x30,0x30}
 #define CPS_B_02     0x20,0x0002,          __not_applicable__,          0x2c,{0x2a,0x28,0x26,0x24},0x22, {0x02,0x04,0x08,0x00,0x00}
-#define CPS_B_03      -1, 0x0000,          __not_applicable__,          0x30,{0x2e,0x2c,0x2a,0x28},0x26, {0x20,0x10,0x08,0x00,0x00}
+#define CPS_B_03     0x24,0x0003,          __not_applicable__,          0x30,{0x2e,0x2c,0x2a,0x28},0x26, {0x20,0x10,0x08,0x00,0x00}
 #define CPS_B_04     0x20,0x0004,          __not_applicable__,          0x2e,{0x26,0x30,0x28,0x32},0x2a, {0x02,0x04,0x08,0x00,0x00}
 #define CPS_B_05     0x20,0x0005,          __not_applicable__,          0x28,{0x2a,0x2c,0x2e,0x30},0x32, {0x02,0x08,0x20,0x14,0x14}
 #define CPS_B_11     0x32,0x0401,          __not_applicable__,          0x26,{0x28,0x2a,0x2c,0x2e},0x30, {0x08,0x10,0x20,0x00,0x00}
@@ -482,6 +499,7 @@ The games seem to use them to mark platforms, kill zones and no-go areas.
 #define CPS_B_21_QS5 0x1e,0x0c02,  -1,  -1,  -1,  -1,  0x0c, -1,  -1,   0x2a,{0x2c,0x2e,0x30,0x32},0x1c, {0x04,0x08,0x10,0x00,0x00}
 #define HACK_B_1      -1,   -1,    -1,  -1,  -1,  -1,   -1,  -1,  -1,   0x14,{0x12,0x10,0x0e,0x0c},0x0a, {0x0e,0x0e,0x0e,0x30,0x30}
 #define HACK_B_2      -1,   -1,   0x0e,0x0c,0x0a,0x08, 0x06,0x04,0x02,  0x28,{0x26,0x24,0x22,0x20},0x22, {0x20,0x04,0x08,0x12,0x12}
+#define HACK_B_3     0x20,0x0004,          __not_applicable__,          0x30,{0x26, -1, 0x28,0x32},0x2a, {0x02,0x04,0x08,0x00,0x00} // varthb2, writes to priority mask 2 have been patched out
 
 /*
 CPS_B_21_DEF is CPS-B-21 at default settings (no battery)
@@ -676,7 +694,31 @@ static const struct gfx_range mapper_TK22B_table[] =
 };
 
 
-#define mapper_WL24B    { 0x8000, 0x8000, 0, 0 }, mapper_WL24B_table
+#define mapper_TK24B1    { 0x8000, 0x8000, 0, 0 }, mapper_TK24B1_table
+static const struct gfx_range mapper_TK24B1_table[] =
+{
+	// verified from PAL dump:
+	// bank 0 = pin 16 (ROMs 1,3,5,7)
+	// bank 1 = pin 19 (ROMs 2,4,6,8)
+	// pins 12,14 duplicate bank 0 allowing to populate the 8-bit ROM sockets
+	// instead of the 16-bit ones:
+	// pin 12 = sprites 0000-3fff
+	// pin 14 = scroll1 6000-7fff, sprites 4000-5fff
+
+	/* type            start   end     bank */
+	{ GFXTYPE_SPRITES, 0x0000, 0x5fff, 0 },
+	{ GFXTYPE_SCROLL1, 0x6000, 0x7fff, 0 },
+
+	{ GFXTYPE_SCROLL2, 0x4000, 0x7fff, 1 },
+	{ GFXTYPE_SCROLL3, 0x0000, 0x3fff, 1 },
+	{ 0 }
+};
+
+
+// WL22B and WL24B are equivalent, but since we have dumps of both PALs we will
+// document both.
+
+#define mapper_WL24B    { 0x8000, 0x4000, 0, 0 }, mapper_WL24B_table
 static const struct gfx_range mapper_WL24B_table[] =
 {
 	// verified from PAL dump:
@@ -693,6 +735,29 @@ static const struct gfx_range mapper_WL24B_table[] =
 	{ 0 }
 };
 
+#define mapper_WL22B    { 0x4000, 0x4000, 0x4000, 0 }, mapper_WL22B_table
+static const struct gfx_range mapper_WL22B_table[] =
+{
+	// verified from PAL dump
+	// bank 0 = pin 19 (ROMs 1,5, 9,13,17,24,32,38)
+	// bank 1 = pin 16 (ROMs 2,6,10,14,18,25,33,39)
+	// bank 2 = pin 14 (ROMs 3,7,11,15,19,21,26,28)
+	// pin 12 is never enabled
+
+	/* type            start   end     bank */
+	{ GFXTYPE_SPRITES, 0x0000, 0x3fff, 0 },
+
+	{ GFXTYPE_SPRITES, 0x4000, 0x4fff, 1 },
+	{ GFXTYPE_SCROLL3, 0x5000, 0x6fff, 1 },
+	{ GFXTYPE_SCROLL1, 0x7000, 0x7fff, 1 },
+
+	{ GFXTYPE_SCROLL2, 0x0000, 0x3fff, 2 },
+	{ 0 }
+};
+
+
+// S222B and S224B are equivalent, but since we have dumps of both PALs we will
+// document both.
 
 #define mapper_S224B    { 0x8000, 0, 0, 0 }, mapper_S224B_table
 static const struct gfx_range mapper_S224B_table[] =
@@ -718,6 +783,28 @@ static const struct gfx_range mapper_S224B_table[] =
 	{ 0 }
 };
 
+#define mapper_S222B    { 0x4000, 0x4000, 0, 0 }, mapper_S222B_table
+static const struct gfx_range mapper_S222B_table[] =
+{
+	// verified from PAL dump:
+	// bank 0 = pin 19 (ROMs 1,5, 9,13,17,24,32,38)
+	// bank 1 = pin 16 (ROMs 2,6,10,14,18,25,33,39)
+	// pin 18 gives an alternate single bank mapping identical to S224B pin 16,
+	// todo: confirm what pin 18 connects to on 88622B-2/3 and 89625B-1 b-boards.
+
+	/* type            start   end     bank */
+	{ GFXTYPE_SPRITES, 0x0000, 0x3fff, 0 },
+
+	{ GFXTYPE_SPRITES, 0x4000, 0x43ff, 1 },
+	{ GFXTYPE_SCROLL1, 0x4400, 0x4bff, 1 },
+	{ GFXTYPE_SCROLL3, 0x4c00, 0x5fff, 1 },
+	{ GFXTYPE_SCROLL2, 0x6000, 0x7fff, 1 },
+	{ 0 }
+};
+
+
+// YI22B and YI24B are equivalent, but since we have dumps of both PALs we will
+// document both.
 
 #define mapper_YI24B    { 0x8000, 0, 0, 0 }, mapper_YI24B_table
 static const struct gfx_range mapper_YI24B_table[] =
@@ -739,6 +826,24 @@ static const struct gfx_range mapper_YI24B_table[] =
 	{ GFXTYPE_SCROLL3, 0x2000, 0x3fff, 0 },
 	{ GFXTYPE_SCROLL1, 0x4000, 0x47ff, 0 },
 	{ GFXTYPE_SCROLL2, 0x4800, 0x7fff, 0 },
+	{ 0 }
+};
+
+#define mapper_YI22B    { 0x4000, 0x4000, 0, 0 }, mapper_YI22B_table
+static const struct gfx_range mapper_YI22B_table[] =
+{
+	// verified from PAL dump:
+	// bank 0 = pin 19 (ROMs 1,5, 9,13,17,24,32,38)
+	// bank 1 = pin 16 (ROMs 2,6,10,14,18,25,33,39)
+	// pin 18 gives an alternate single bank mapping identical to YI24B pin 16,
+	// todo: confirm what pin 18 connects to on 89625B-1 b-board.
+
+	/* type            start   end     bank */
+	{ GFXTYPE_SPRITES, 0x0000, 0x1fff, 0 },
+	{ GFXTYPE_SCROLL3, 0x2000, 0x3fff, 0 },
+
+	{ GFXTYPE_SCROLL1, 0x4000, 0x47ff, 1 },
+	{ GFXTYPE_SCROLL2, 0x4800, 0x7fff, 1 },
 	{ 0 }
 };
 
@@ -815,6 +920,9 @@ static const struct gfx_range mapper_O224B_table[] =
 };
 
 
+// MS24B and MS22B are equivalent, but since we could dump both PALs we are
+// documenting both.
+
 #define mapper_MS24B    { 0x8000, 0, 0, 0 }, mapper_MS24B_table
 static const struct gfx_range mapper_MS24B_table[] =
 {
@@ -834,15 +942,60 @@ static const struct gfx_range mapper_MS24B_table[] =
 	{ 0 }
 };
 
+#define mapper_MS22B    { 0x4000, 0x4000, 0, 0 }, mapper_MS22B_table
+static const struct gfx_range mapper_MS22B_table[] =
+{
+	// verified from PAL dump:
+	// bank 0 = pin 19 (ROMs 1,5, 9,13,17,24,32,38)
+	// bank 1 = pin 16 (ROMs 2,6,10,14,18,25,33,39)
+	// pin 12 and pin 14 are never enabled
+
+	/* type            start   end     bank */
+	{ GFXTYPE_SPRITES, 0x0000, 0x3fff, 0 },
+
+	{ GFXTYPE_SCROLL1, 0x4000, 0x4fff, 1 },
+	{ GFXTYPE_SCROLL2, 0x5000, 0x6fff, 1 },
+	{ GFXTYPE_SCROLL3, 0x7000, 0x7fff, 1 },
+	{ 0 }
+};
+
+
+// CK24B and CK22B are equivalent, but since we could dump both PALs we are
+// documenting both.
 
 #define mapper_CK24B    { 0x8000, 0, 0, 0 }, mapper_CK24B_table
 static const struct gfx_range mapper_CK24B_table[] =
 {
+	// verified from PAL dump:
+	// bank 0 = pin 16 (ROMs 1,3,5,7)
+	// pins 12,14 allow to populate the 8-bit ROM sockets instead of the 16-bit ones:
+	// pin 12 (ROMs 10,12,14,16,20,22,24,26) = sprites 0000-2fff, scroll1 3000-3fff
+	// pin 14 (ROMs 11,13,15,17,21,23,25,27) = scroll2 4000-6fff, scroll3 7000-7fff
+
 	/* type            start   end     bank */
 	{ GFXTYPE_SPRITES, 0x0000, 0x2fff, 0 },
 	{ GFXTYPE_SCROLL1, 0x3000, 0x3fff, 0 },
 	{ GFXTYPE_SCROLL2, 0x4000, 0x6fff, 0 },
 	{ GFXTYPE_SCROLL3, 0x7000, 0x7fff, 0 },
+	{ 0 }
+};
+
+#define mapper_CK22B    { 0x4000, 0x4000, 0, 0 }, mapper_CK22B_table
+static const struct gfx_range mapper_CK22B_table[] =
+{
+	// verified from PAL dump:
+	// bank 0 = pin 19 (ROMs 1,5, 9,13,17,24,32,38)
+	// bank 1 = pin 16 (ROMs 2,6,10,14,18,25,33,39)
+	// pin 12 and pin 14 are never enabled
+	// pin 18 gives an alternate single bank mapping identical to CK24B pin 16,
+	// todo: confirm what pin 18 connects to on 89625B-1 b-board.
+
+	/* type            start   end     bank */
+	{ GFXTYPE_SPRITES, 0x0000, 0x2fff, 0 },
+	{ GFXTYPE_SCROLL1, 0x3000, 0x3fff, 0 },
+
+	{ GFXTYPE_SCROLL2, 0x4000, 0x6fff, 1 },
+	{ GFXTYPE_SCROLL3, 0x7000, 0x7fff, 1 },
 	{ 0 }
 };
 
@@ -995,6 +1148,9 @@ static const struct gfx_range mapper_RT22B_table[] =
 };
 
 
+// KD29B and KD22B are equivalent, but since we could dump both PALs we are
+// documenting both.
+
 #define mapper_KD29B    { 0x8000, 0x8000, 0, 0 }, mapper_KD29B_table
 static const struct gfx_range mapper_KD29B_table[] =
 {
@@ -1010,6 +1166,28 @@ static const struct gfx_range mapper_KD29B_table[] =
 	{ GFXTYPE_SCROLL2, 0x9000, 0xbfff, 1 },
 	{ GFXTYPE_SCROLL1, 0xc000, 0xd7ff, 1 },
 	{ GFXTYPE_SCROLL3, 0xd800, 0xffff, 1 },
+	{ 0 }
+};
+
+#define mapper_KD22B    { 0x4000, 0x4000, 0x4000, 0x4000 }, mapper_KD22B_table
+static const struct gfx_range mapper_KD22B_table[] =
+{
+	// verified from PAL dump:
+	// bank 0 = pin 19 (ROMs 1,5, 9,13,17,24,32,38)
+	// bank 1 = pin 16 (ROMs 2,6,10,14,18,25,33,39)
+	// bank 2 = pin 14 (ROMs 3,7,11,15,19,21,26,28)
+	// bank 3 = pin 12 (ROMS 4,8,12,16,20,22,27,29)
+
+	/* type            start   end     bank */
+	{ GFXTYPE_SPRITES, 0x0000, 0x3fff, 0 },
+
+	{ GFXTYPE_SPRITES, 0x4000, 0x7fff, 1 },
+
+	{ GFXTYPE_SPRITES, 0x8000, 0x8fff, 2 },
+	{ GFXTYPE_SCROLL2, 0x9000, 0xbfff, 2 },
+
+	{ GFXTYPE_SCROLL1, 0xc000, 0xd7ff, 3 },
+	{ GFXTYPE_SCROLL3, 0xd800, 0xffff, 3 },
 	{ 0 }
 };
 
@@ -1053,17 +1231,39 @@ static const struct gfx_range mapper_KR63B_table[] =
 	{ 0 }
 };
 
+#define mapper_KR22B    { 0x4000, 0x4000, 0x4000, 0x4000 }, mapper_KR22B_table
+static const struct gfx_range mapper_KR22B_table[] =
+{
+	// verified from PAL dump:
+	// bank 0 = pin 19 (ROMs 1,5, 9,13,17,24,32,38)
+	// bank 1 = pin 16 (ROMs 2,6,10,14,18,25,33,39)
+	// bank 2 = pin 14 (ROMs 3,7,11,15,19,21,26,28)
+	// bank 3 = pin 12 (ROMS 4,8,12,16,20,22,27,29)
+
+	/* type            start   end     bank */
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x0000, 0x3fff, 0 },
+
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x4000, 0x7fff, 1 },
+
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x8000, 0x87ff, 2 },
+	{ GFXTYPE_SCROLL1,                   0x8800, 0x97ff, 2 },
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x9800, 0xbfff, 2 },
+
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0xc000, 0xcfff, 3 },
+	{ GFXTYPE_SCROLL3,                   0xd000, 0xffff, 3 },
+	{ 0 }
+};
+
 
 #define mapper_S9263B   { 0x8000, 0x8000, 0x8000, 0 }, mapper_S9263B_table
 static const struct gfx_range mapper_S9263B_table[] =
 {
 	// verified from PAL dump:
-	// FIXME there is some problem with this dump since pin 14 is never enabled
-	// instead of being the same as pin 15 as expected
 	// bank0 = pin 19 (ROMs 1,3) & pin 18 (ROMs 2,4)
 	// bank1 = pin 17 (ROMs 5,7) & pin 16 (ROMs 6,8)
 	// bank2 = pin 15 (ROMs 10,12) & pin 14 (ROMs 11,13)
-	// pins 12 and 13 are the same as 14 and 15
+	// pins 12,13 are unused, however pin 13 does have logic which
+	// is fed back internally to form the final output for pins 14,15
 
 	/* type            start    end      bank */
 	{ GFXTYPE_SPRITES, 0x00000, 0x07fff, 0 },
@@ -1078,8 +1278,8 @@ static const struct gfx_range mapper_S9263B_table[] =
 };
 
 
-// VA22B and VA63B are equivalent, but since we could dump both PALs we are
-// documenting both.
+// VA22B, VA24B and VA63B are equivalent, but since we could dump all PALs we are
+// documenting all.
 
 #define mapper_VA22B    { 0x4000, 0x4000, 0, 0 }, mapper_VA22B_table
 static const struct gfx_range mapper_VA22B_table[] =
@@ -1107,17 +1307,41 @@ static const struct gfx_range mapper_VA63B_table[] =
 	{ 0 }
 };
 
-
-#define mapper_Q522B    { 0x8000, 0, 0, 0 }, mapper_Q522B_table
-static const struct gfx_range mapper_Q522B_table[] =
+#define mapper_VA24B    { 0x8000, 0, 0, 0 }, mapper_VA24B_table
+static const struct gfx_range mapper_VA24B_table[] =
 {
-	/* type                              start   end     bank */
-	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x0000, 0x6fff, 0 },
-	{ GFXTYPE_SCROLL3,                   0x7000, 0x77ff, 0 },
-	{ GFXTYPE_SCROLL1,                   0x7800, 0x7fff, 0 },
+	// verified from PAL dump:
+	// bank 0 = pin 16 (ROMs 1,3,5,7)
+	// pins 12,14 allow to populate the 8-bit ROM sockets instead of the 16-bit ones:
+	// pin 12 (ROMs 10,12,14,16,20,22,24,26) = sprites/scroll1/scroll2/scroll3 0000-3fff
+	// pin 14 (ROMs 11,13,15,17,21,23,25,27) = sprites/scroll1/scroll2/scroll3 4000-7fff
+
+	/* type                                                                  start    end      bank */
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL1 | GFXTYPE_SCROLL2 | GFXTYPE_SCROLL3, 0x00000, 0x07fff, 0 },
 	{ 0 }
 };
 
+
+#define mapper_Q522B    { 0x4000, 0x4000, 0, 0 }, mapper_Q522B_table
+static const struct gfx_range mapper_Q522B_table[] =
+{
+	// verified from PAL dump:
+	// bank 0 = pin 19 (ROMs 1,5, 9,13,17,24,32,38)
+	// bank 1 = pin 16 (ROMs 2,6,10,14,18,25,33,39)
+	// pin 12 and pin 14 are never enabled
+
+	/* type                              start    end      bank */
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x00000, 0x03fff, 0 },
+
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x04000, 0x06fff, 1 },
+	{ GFXTYPE_SCROLL3,                   0x07000, 0x077ff, 1 },
+	{ GFXTYPE_SCROLL1,                   0x07800, 0x07fff, 1 },
+	{ 0 }
+};
+
+
+// TK263B, CD63B, PS63B (wof, dino, punisher) are equivalent, can be swapped on real pcb without issue
+// MB63B (slammast) can substitute any of the above but NOT vice-versa
 
 #define mapper_TK263B   { 0x8000, 0x8000, 0, 0 }, mapper_TK263B_table
 static const struct gfx_range mapper_TK263B_table[] =
@@ -1137,12 +1361,14 @@ static const struct gfx_range mapper_TK263B_table[] =
 #define mapper_CD63B    { 0x8000, 0x8000, 0, 0 }, mapper_CD63B_table
 static const struct gfx_range mapper_CD63B_table[] =
 {
-	/* type                              start   end     bank */
-	{ GFXTYPE_SCROLL1,                   0x0000, 0x0fff, 0 },
-	{ GFXTYPE_SPRITES,                   0x1000, 0x7fff, 0 },
+	// verified from PAL dump:
+	// bank0 = pin 19 (ROMs 1,3) & pin 18 (ROMs 2,4)
+	// bank1 = pin 17 (ROMs 5,7) & pin 16 (ROMs 6,8)
+	// pins 12,13,14,15 are never enabled
 
-	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x8000, 0xdfff, 1 },
-	{ GFXTYPE_SCROLL3,                   0xe000, 0xffff, 1 },
+	/* type                                                                  start    end      bank */
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL1 | GFXTYPE_SCROLL2 | GFXTYPE_SCROLL3, 0x00000, 0x07fff, 0 },
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL1 | GFXTYPE_SCROLL2 | GFXTYPE_SCROLL3, 0x08000, 0x0ffff, 1 },
 	{ 0 }
 };
 
@@ -1150,12 +1376,14 @@ static const struct gfx_range mapper_CD63B_table[] =
 #define mapper_PS63B    { 0x8000, 0x8000, 0, 0 }, mapper_PS63B_table
 static const struct gfx_range mapper_PS63B_table[] =
 {
-	/* type                              start   end     bank */
-	{ GFXTYPE_SCROLL1,                   0x0000, 0x0fff, 0 },
-	{ GFXTYPE_SPRITES,                   0x1000, 0x7fff, 0 },
+	// verified from PAL dump:
+	// bank0 = pin 19 (ROMs 1,3) & pin 18 (ROMs 2,4)
+	// bank1 = pin 17 (ROMs 5,7) & pin 16 (ROMs 6,8)
+	// pins 12,13,14,15 are always enabled
 
-	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x8000, 0xdbff, 1 },
-	{ GFXTYPE_SCROLL3,                   0xdc00, 0xffff, 1 },
+	/* type                                                                  start    end      bank */
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL1 | GFXTYPE_SCROLL2 | GFXTYPE_SCROLL3, 0x00000, 0x07fff, 0 },
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL1 | GFXTYPE_SCROLL2 | GFXTYPE_SCROLL3, 0x08000, 0x0ffff, 1 },
 	{ 0 }
 };
 
@@ -1163,14 +1391,16 @@ static const struct gfx_range mapper_PS63B_table[] =
 #define mapper_MB63B    { 0x8000, 0x8000, 0x8000, 0 }, mapper_MB63B_table
 static const struct gfx_range mapper_MB63B_table[] =
 {
-	/* type                              start    end      bank */
-	{ GFXTYPE_SCROLL1,                   0x00000, 0x00fff, 0 },
-	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x01000, 0x07fff, 0 },
+	// verified from PAL dump:
+	// bank0 = pin 19 (ROMs 1,3) & pin 18 (ROMs 2,4)
+	// bank1 = pin 17 (ROMs 5,7) & pin 16 (ROMs 6,8)
+	// bank2 = pin 15 (ROMs 10,12) & pin 14 (ROMs 11,13)
+	// pins 12,13 are never enabled
 
-	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x08000, 0x0ffff, 1 },
-
-	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x10000, 0x167ff, 2 },
-	{ GFXTYPE_SCROLL3,                   0x16800, 0x17fff, 2 },
+	/* type                                                                  start    end      bank */
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL1 | GFXTYPE_SCROLL2 | GFXTYPE_SCROLL3, 0x00000, 0x07fff, 0 },
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL1 | GFXTYPE_SCROLL2 | GFXTYPE_SCROLL3, 0x08000, 0x0ffff, 1 },
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL1 | GFXTYPE_SCROLL2 | GFXTYPE_SCROLL3, 0x10000, 0x17fff, 2 },
 	{ 0 }
 };
 
@@ -1190,26 +1420,32 @@ static const struct gfx_range mapper_QD22B_table[] =
 };
 
 
-#define mapper_QAD63B   { 0x8000, 0, 0, 0 }, mapper_QAD63B_table
+#define mapper_QAD63B    { 0x8000, 0, 0, 0 }, mapper_QAD63B_table
 static const struct gfx_range mapper_QAD63B_table[] =
 {
-	/* type                              start   end     bank */
-	{ GFXTYPE_SCROLL1,                   0x0000, 0x07ff, 0 },
-	{ GFXTYPE_SCROLL3,                   0x0800, 0x1fff, 0 },
-	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x2000, 0x7fff, 0 },
+	// verified from PAL dump:
+	// bank0 = pin 19 (ROMs 1,3) & pin 18 (ROMs 2,4)
+	// pins 12,13,14,15,16,17 are always enabled
+
+	/* type                                                                  start    end      bank */
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL1 | GFXTYPE_SCROLL2 | GFXTYPE_SCROLL3, 0x00000, 0x07fff, 0 },
 	{ 0 }
 };
 
 
-#define mapper_TN2292   { 0x8000, 0x8000, 0, 0 }, mapper_TN2292_table
+#define mapper_TN2292    { 0x8000, 0x8000, 0x8000, 0 }, mapper_TN2292_table
 static const struct gfx_range mapper_TN2292_table[] =
 {
-	/* type                              start   end     bank */
-	{ GFXTYPE_SCROLL1,                   0x0000, 0x0fff, 0 },
-	{ GFXTYPE_SCROLL3,                   0x1000, 0x3fff, 0 },
-	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x4000, 0x7fff, 0 },
+	// verified from PAL dump:
+	// bank 0 = pin 19 (ROMs 5,6,7,8)
+	// bank 1 = pin 14 (ROMs 14,15,16,17)
+	// bank 2 = pin 12 (ROMS 24,25,26,27)  these sockets are empty
+	// doesn't use a22-a20 to determine gfx type
 
-	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x8000, 0xffff, 1 },
+	/* type                                                                                  start    end      bank */
+	{ GFXTYPE_STARS | GFXTYPE_SPRITES | GFXTYPE_SCROLL1 | GFXTYPE_SCROLL2 | GFXTYPE_SCROLL3, 0x00000, 0x07fff, 0 },
+	{ GFXTYPE_STARS | GFXTYPE_SPRITES | GFXTYPE_SCROLL1 | GFXTYPE_SCROLL2 | GFXTYPE_SCROLL3, 0x08000, 0x0ffff, 1 },
+	{ GFXTYPE_STARS | GFXTYPE_SPRITES | GFXTYPE_SCROLL1 | GFXTYPE_SCROLL2 | GFXTYPE_SCROLL3, 0x10000, 0x17fff, 2 },
 	{ 0 }
 };
 
@@ -1232,6 +1468,38 @@ static const struct gfx_range mapper_RCM63B_table[] =
 };
 
 
+#define mapper_GBPR2    { 0x8000, 0x8000, 0, 0 }, mapper_GBPR2_table
+static const struct gfx_range mapper_GBPR2_table[] =
+{
+	// verified from PAL dump:
+	// bank0 = pin 19 (ROMs 1,3) & pin 18 (ROMs 2,4)
+	// bank1 = pin 17 (ROMs 5,7) & pin 16 (ROMs 6,8)
+	// pins 12,13,14,15 are never enabled
+
+	/* type            start   end     bank */
+	{ GFXTYPE_SPRITES, 0x0000, 0x3fff, 0 },
+	{ GFXTYPE_SCROLL1, 0x4000, 0x7fff, 0 },
+
+	{ GFXTYPE_SCROLL2, 0x8000, 0xbfff, 1 },
+	{ GFXTYPE_SCROLL3, 0xc000, 0xffff, 1 },
+	{ 0 }
+};
+
+
+#define mapper_gulunpa   { 0x8000, 0, 0, 0 }, mapper_gulunpa_table
+static const struct gfx_range mapper_gulunpa_table[] =
+{
+	/* type                              start   end     bank */
+	// TODO: guesswork
+	{ GFXTYPE_SCROLL1,                   0x0000, 0x7fff, 0 },
+	{ GFXTYPE_SCROLL3,                   0x4000, 0x5fff, 0 },
+	{ GFXTYPE_SCROLL2,                   0x2000, 0x3fff, 0 },
+	{ GFXTYPE_SPRITES,                   0x6000, 0x7fff, 0 },
+	{ 0 }
+};
+
+
+/* unverified, no dump */
 #define mapper_PKB10B   { 0x8000, 0, 0, 0 }, mapper_PKB10B_table
 static const struct gfx_range mapper_PKB10B_table[] =
 {
@@ -1243,19 +1511,25 @@ static const struct gfx_range mapper_PKB10B_table[] =
 };
 
 
-#define mapper_pang3    { 0x8000, 0x8000, 0, 0 }, mapper_pang3_table
-static const struct gfx_range mapper_pang3_table[] =
+#define mapper_CP1B1F    { 0x10000, 0, 0, 0 }, mapper_CP1B1F_table
+static const struct gfx_range mapper_CP1B1F_table[] =
 {
-	/* type                              start   end     bank */
-	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x0000, 0x7fff, 0 },
+	// verified from PAL dump:
+	// bank0 = pin 16 (ROMs 1,7 /ce)
+	//       = pin 15 (ROMs 1,7 /oe)
+	//       = pin 13 (ROMs 1,7 a19)
+	// Unlike other games which switch between 2 pairs of roms to form the full 64-bit gfx bus,
+	//  this unique B board stores the 2x 32-bit halves in the same rom pair and switches between them with the a19 line.
+	// An a20 line is available on pin 14 for 32MBit roms but is unused (this would be bank1 if used).
+	// pins 17,18,19 are rom /ce lines to other 3 pairs of unpopulated roms.
 
-	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL2, 0x8000, 0x9fff, 1 },
-	{ GFXTYPE_SCROLL1,                   0xa000, 0xbfff, 1 },
-	{ GFXTYPE_SCROLL3,                   0xc000, 0xffff, 1 },
+	/* type                                                                  start   end     bank */
+	{ GFXTYPE_SPRITES | GFXTYPE_SCROLL1 | GFXTYPE_SCROLL2 | GFXTYPE_SCROLL3, 0x0000, 0xffff, 0 },
 	{ 0 }
 };
 
 
+/* unverified, no dump */
 #define mapper_sfzch    { 0x20000, 0, 0, 0 }, mapper_sfzch_table
 static const struct gfx_range mapper_sfzch_table[] =
 {
@@ -1369,16 +1643,19 @@ pin 19  = B7;  Combinatorial output
 !B0 =  I0 &  I9;
 
 */
-// wrong, need to figure this out from the PAL
 
 #define mapper_KNM10B    { 0x8000, 0x8000, 0x8000, 0 }, mapper_KNM10B_table
 static const struct gfx_range mapper_KNM10B_table[] =
 {
-	/* type             start    end      bank */
+	// verified from PAL dump:
+	// bank0 = pin 19 (ROMs 1,3) & pin 18 (ROMs 2,4)
+	// bank1 = pin 17 (ROMs 5,7) & pin 16 (ROMs 6,8)
+	// bank2 = pin 15 (ROMs 10,12) & pin 14 (ROMs 11,13)
 
+	/* type             start    end      bank */
 	{ GFXTYPE_SPRITES , 0x00000, 0x07fff, 0 },
 	{ GFXTYPE_SPRITES , 0x08000, 0x0ffff, 1 },
-	{ GFXTYPE_SPRITES , 0x10000, 0x17fff, 2 },
+	{ GFXTYPE_SPRITES , 0x10000, 0x10fff, 2 },
 	{ GFXTYPE_SCROLL2 , 0x04000, 0x07fff, 2 },
 	{ GFXTYPE_SCROLL1,  0x01000, 0x01fff, 2 },
 	{ GFXTYPE_SCROLL3 , 0x02000, 0x03fff, 2 },
@@ -1397,6 +1674,7 @@ static const struct gfx_range mapper_pokonyan_table[] =
 	{ 0 }
 };
 
+// a game without an entry here defaults to cps2 mapper (eg. some games in fcrash.cpp)
 static const struct CPS1config cps1_config_table[]=
 {
 	/* name         CPSB          gfx mapper   in2  in3  out2   kludge */
@@ -1415,17 +1693,17 @@ static const struct CPS1config cps1_config_table[]=
 	{"daimakair",   CPS_B_21_DEF, mapper_DAM63B },  // equivalent to DM620, also CPS_B_21_DEF is equivalent to CPS_B_01
 	{"strider",     CPS_B_01,     mapper_ST24M1 },
 	{"striderua",   CPS_B_01,     mapper_ST24M1 },  // wrong, this set uses ST24B2, still not dumped
-	{"strideruc",   CPS_B_17,     mapper_ST24M1 },  // wrong?
+	{"strideruc",   CPS_B_17,     mapper_ST24M1 },  // wrong, this set uses a custom pal or gal, not dumped
 	{"striderj",    CPS_B_01,     mapper_ST22B },   // equivalent to ST24M1
 	{"striderjr",   CPS_B_21_DEF, mapper_ST24M1 },  // wrong, this set uses STH63B, still not dumped
-	{"dynwar",      CPS_B_02,     mapper_TK22B },   // wrong, this set uses TK24B1, dumped but equations still not added
+	{"dynwar",      CPS_B_02,     mapper_TK24B1 },
 	{"dynwara",     CPS_B_02,     mapper_TK22B },
 	{"dynwarj",     CPS_B_02,     mapper_TK22B },
 	{"dynwarjr",    CPS_B_21_DEF, mapper_TK22B },   // wrong, this set uses TK163B, still not dumped
 	{"willow",      CPS_B_03,     mapper_WL24B },
 	{"willowu",     CPS_B_03,     mapper_WL24B },
 	{"willowuo",    CPS_B_03,     mapper_WL24B },
-	{"willowj",     CPS_B_03,     mapper_WL24B },   // wrong, this set uses WL22B, still not dumped
+	{"willowj",     CPS_B_03,     mapper_WL22B },   // equivalent to WL24B
 	{"ffight",      CPS_B_04,     mapper_S224B },
 	{"ffighta",     CPS_B_04,     mapper_S224B },
 	{"ffightu",     CPS_B_04,     mapper_S224B },
@@ -1433,15 +1711,16 @@ static const struct CPS1config cps1_config_table[]=
 	{"ffightua",    CPS_B_01,     mapper_S224B },
 	{"ffightub",    CPS_B_03,     mapper_S224B },   // had 04 handwritten on the CPS_B chip, but clearly isn't.
 	{"ffightuc",    CPS_B_05,     mapper_S224B },
-	{"ffightj",     CPS_B_04,     mapper_S224B },   // wrong, this set uses S222B
-	{"ffightj1",    CPS_B_01,     mapper_S224B },   // wrong, this set uses S222B
-	{"ffightj2",    CPS_B_02,     mapper_S224B },   // wrong, this set uses S222B
-	{"ffightj3",    CPS_B_05,     mapper_S224B },   // wrong, this set uses S222B
+	{"ffightj",     CPS_B_04,     mapper_S222B },   // equivalent to S224B
+	{"ffightj1",    CPS_B_01,     mapper_S222B },   // equivalent to S224B
+	{"ffightj2",    CPS_B_02,     mapper_S222B },   // equivalent to S224B
+	{"ffightj3",    CPS_B_03,     mapper_S222B },   // equivalent to S224B
+	{"ffightj4",    CPS_B_05,     mapper_S222B },   // equivalent to S224B
 	{"ffightjh",    CPS_B_01,     mapper_S224B },   // wrong, ffightjh hack doesn't even use the S222B PAL, since replaced with a GAL.
 	{"1941",        CPS_B_05,     mapper_YI24B },
 	{"1941r1",      CPS_B_05,     mapper_YI24B },
 	{"1941u",       CPS_B_05,     mapper_YI24B },
-	{"1941j",       CPS_B_05,     mapper_YI24B },   // wrong, this set uses YI22B, still not dumped
+	{"1941j",       CPS_B_05,     mapper_YI22B },   // equivalent to YI24B
 	{"unsquad",     CPS_B_11,     mapper_AR24B },
 	{"area88",      CPS_B_11,     mapper_AR22B },   // equivalent to AR24B
 	{"area88r",     CPS_B_21_DEF, mapper_AR22B },   // wrong, this set uses ARA63B, still not dumped
@@ -1452,22 +1731,26 @@ static const struct CPS1config cps1_config_table[]=
 	{"msword",      CPS_B_13,     mapper_MS24B },
 	{"mswordr1",    CPS_B_13,     mapper_MS24B },
 	{"mswordu",     CPS_B_13,     mapper_MS24B },
-	{"mswordj",     CPS_B_13,     mapper_MS24B },   // wrong, this set uses MS22B, dumped but equations still not added
+	{"mswordj",     CPS_B_13,     mapper_MS22B },   // equivalent to MS24B
 	{"mtwins",      CPS_B_14,     mapper_CK24B },
-	{"chikij",      CPS_B_14,     mapper_CK24B },   // wrong, this set uses CK22B, dumped but equations still not added
+	{"chikij",      CPS_B_14,     mapper_CK22B },   // equivalent to CK24B
 	{"nemo",        CPS_B_15,     mapper_NM24B },
 	{"nemor1",      CPS_B_15,     mapper_NM24B },
 	{"nemoj",       CPS_B_15,     mapper_NM24B },   // wrong, this set uses NM22B, still not dumped
 	{"cawing",      CPS_B_16,     mapper_CA24B },
 	{"cawingr1",    CPS_B_16,     mapper_CA24B },
-	{"cawingu",     CPS_B_16,     mapper_CA24B },
+	{"cawingu",     CPS_B_05,     mapper_CA22B },   // equivalent to CA24B
+	{"cawingur1",   CPS_B_16,     mapper_CA24B },
 	{"cawingj",     CPS_B_16,     mapper_CA22B },   // equivalent to CA24B
 	{"cawingbl",    CPS_B_16,     mapper_CA22B },   // equivalent to CA24B
 	{"sf2",         CPS_B_11,     mapper_STF29,  0x36 },
+	{"sf2ea",       CPS_B_17,     mapper_STF29,  0x36 },
 	{"sf2eb",       CPS_B_17,     mapper_STF29,  0x36 },
 	{"sf2ed",       CPS_B_05,     mapper_STF29,  0x36 },
 	{"sf2ee",       CPS_B_18,     mapper_STF29,  0x3c },
+	{"sf2ef",       CPS_B_15,     mapper_STF29,  0x36 },
 	{"sf2em",       CPS_B_17,     mapper_STF29,  0x36 },
+	{"sf2en",       CPS_B_17,     mapper_STF29,  0x36 },  // wrong, this set uses a custom gal, not dumped
 	{"sf2ebbl",     CPS_B_17,     mapper_STF29,  0x36, 0, 0, 1  },
 	{"sf2ebbl2",    CPS_B_17,     mapper_STF29,  0x36, 0, 0, 1  },
 	{"sf2ebbl3",    CPS_B_17,     mapper_STF29,  0x36, 0, 0, 1  },
@@ -1480,16 +1763,21 @@ static const struct CPS1config cps1_config_table[]=
 	{"sf2ue",       CPS_B_18,     mapper_STF29,  0x3c },
 	{"sf2uf",       CPS_B_15,     mapper_STF29,  0x36 },
 	{"sf2ug",       CPS_B_11,     mapper_STF29,  0x36 },
+	{"sf2uh",       CPS_B_13,     mapper_STF29,  0x36 },
 	{"sf2ui",       CPS_B_14,     mapper_STF29,  0x36 },
 	{"sf2uk",       CPS_B_17,     mapper_STF29,  0x36 },
+	{"sf2um",       CPS_B_17,     mapper_STF29,  0x36 },
 	{"sf2j",        CPS_B_13,     mapper_STF29,  0x36 },
+	{"sf2j17",      CPS_B_17,     mapper_STF29,  0x36 },
 	{"sf2ja",       CPS_B_17,     mapper_STF29,  0x36 },
 	{"sf2jc",       CPS_B_12,     mapper_STF29,  0x36 },
 	{"sf2jf",       CPS_B_15,     mapper_STF29,  0x36 },
 	{"sf2jh",       CPS_B_13,     mapper_STF29,  0x36 },
 	{"sf2jl",       CPS_B_17,     mapper_STF29,  0x36 },
 	{"sf2qp1",      CPS_B_17,     mapper_STF29,  0x36 },
+	{"sf2qp2",      CPS_B_14,     mapper_STF29,  0x36 },
 	{"sf2thndr",    CPS_B_17,     mapper_STF29,  0x36 },
+	{"sf2thndr2",   CPS_B_17,     mapper_STF29,  0x36 },
 
 	/* from here onwards the CPS-B board has suicide battery and multiply protection */
 
@@ -1501,9 +1789,10 @@ static const struct CPS1config cps1_config_table[]=
 	{"3wondersh",   HACK_B_2,     mapper_RT24B },  // one port is changed from 3wonders, and no protection
 	{"kod",         CPS_B_21_BT2, mapper_KD29B,  0x36, 0, 0x34 },
 	{"kodr1",       CPS_B_21_BT2, mapper_KD29B,  0x36, 0, 0x34 },
+	{"kodr2",       CPS_B_21_BT2, mapper_KD29B,  0x36, 0, 0x34 },
 	{"kodu",        CPS_B_21_BT2, mapper_KD29B,  0x36, 0, 0x34 },
 	{"kodj",        CPS_B_21_BT2, mapper_KD29B,  0x36, 0, 0x34 },
-	{"kodja",       CPS_B_21_BT2, mapper_KD29B,  0x36, 0, 0x34 },   // wrong, this set uses KD22B, still not dumped
+	{"kodja",       CPS_B_21_BT2, mapper_KD22B,  0x36, 0, 0x34 },
 	{"kodb",        CPS_B_21_BT2, mapper_KD29B,  0x36, 0, 0x34 },   /* bootleg, doesn't use multiply protection */
 	{"captcomm",    CPS_B_21_BT3, mapper_CC63B,  0x36, 0x38, 0x34 },
 	{"captcommr1",  CPS_B_21_BT3, mapper_CC63B,  0x36, 0x38, 0x34 },
@@ -1511,17 +1800,21 @@ static const struct CPS1config cps1_config_table[]=
 	{"captcommj",   CPS_B_21_BT3, mapper_CC63B,  0x36, 0x38, 0x34 },
 	{"captcommjr1", CPS_B_21_BT3, mapper_CC63B,  0x36, 0x38, 0x34 },
 	{"captcommb",   CPS_B_21_BT3, mapper_CC63B,  0x36, 0x38, 0x34, 3 },
+	{"captcommb2",  CPS_B_21_BT4, mapper_CC63B },  // junk around health bar with default cps2 mapper, uses BT4(knights) config
 	{"knights",     CPS_B_21_BT4, mapper_KR63B,  0x36, 0, 0x34 },
 	{"knightsu",    CPS_B_21_BT4, mapper_KR63B,  0x36, 0, 0x34 },
 	{"knightsj",    CPS_B_21_BT4, mapper_KR63B,  0x36, 0, 0x34 },
-	{"knightsja",   CPS_B_21_BT4, mapper_KR63B,  0x36, 0, 0x34 },   // wrong, this set uses KR22B, still not dumped
+	{"knightsja",   CPS_B_21_BT4, mapper_KR22B,  0x36, 0, 0x34 },
+	{"knightsb2",   CPS_B_21_BT4, mapper_KR63B,  0x36, 0, 0x34 },   // wrong, knightsb bootleg doesn't use the KR63B PAL
 	//{"knightsb",    CPS_B_21_BT4, mapper_KR63B,  0x36, 0, 0x34 },   // wrong, knightsb bootleg doesn't use the KR63B PAL
-	{"pokonyan",       CPS_B_21_DEF, mapper_pokonyan, 0x36 },
+	{"knightsb3",   CPS_B_21_BT4, mapper_KR63B },
+	{"pokonyan",    CPS_B_21_DEF, mapper_pokonyan, 0x36 },   // wrong, this set uses an unknown PAL, still not dumped
 	{"sf2ce",       CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2ceea",     CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2ceua",     CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2ceub",     CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2ceuc",     CPS_B_21_DEF, mapper_S9263B, 0x36 },
+	{"sf2cet",      CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2ceja",     CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2cejb",     CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2cejc",     CPS_B_21_DEF, mapper_S9263B, 0x36 },
@@ -1530,6 +1823,7 @@ static const struct CPS1config cps1_config_table[]=
 	{"sf2rb2",      CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2rb3",      CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2red",      CPS_B_21_DEF, mapper_S9263B, 0x36 },
+	{"sf2redp2",    CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2v004",     CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2acc",      CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2ceblp",    CPS_B_21_DEF, mapper_S9263B, 0x36 },
@@ -1538,7 +1832,9 @@ static const struct CPS1config cps1_config_table[]=
 	{"sf2accp2",    CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2amf",      CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 }, // probably wrong but this set is not completely dumped anyway
 	{"sf2amf2",     CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
+	{"sf2amf3",     CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
 	{"sf2dkot2",    CPS_B_21_DEF, mapper_S9263B, 0x36 },
+	{"sf2level",    HACK_B_1,     mapper_S9263B, 0,    0, 0, 2 },
 	{"sf2m1",       CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2m2",       CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
 	{"sf2m3",       HACK_B_1,     mapper_S9263B, 0,    0, 0, 2 },
@@ -1555,25 +1851,38 @@ static const struct CPS1config cps1_config_table[]=
 	{"sf2mdt",      CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
 	{"sf2mdta",     CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
 	{"sf2mdtb",     CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
-	{"sf2b",        CPS_B_17,     mapper_STF29,  0x36, 0, 0, 1  },
-	{"varth",       CPS_B_04,     mapper_VA63B },   /* CPSB test has been patched out (60=0008) register is also written to, possibly leftover from development */  // wrong, this set uses VA24B, dumped but equations still not added
+	{"sf2ceb",      CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
+	{"sf2b",        CPS_B_17,     mapper_STF29,  0x36, 0, 0, 1 },
+	{"sf2b2",       CPS_B_17,     mapper_STF29,  0x36, 0, 0, 1 },
+	{"sf2ceupl",    HACK_B_1,     mapper_S9263B, 0x36, 0, 0, 1 },
+	{"sf2rules",    HACK_B_1,     mapper_S9263B, 0x36, 0, 0, 2 },
+	{"sf2ceds6",    HACK_B_1,     mapper_S9263B, 0,    0, 0, 2 },
+	{"sf2cems6a",   HACK_B_1,     mapper_S9263B, 0,    0, 0, 2 },
+	{"sf2cems6b",   HACK_B_1,     mapper_S9263B, 0,    0, 0, 2 },
+	{"sf2cems6c",   HACK_B_1,     mapper_S9263B, 0,    0, 0, 2 },
+	{"sf2re",       HACK_B_1,     mapper_S9263B, 0,    0, 0, 2 },
+	{"varth",       CPS_B_04,     mapper_VA24B },   /* CPSB test has been patched out (60=0008) register is also written to, possibly leftover from development */
 	{"varthb",      CPS_B_04,     mapper_VA63B, 0, 0, 0, 0x0F },
-	{"varthr1",     CPS_B_04,     mapper_VA63B },   /* CPSB test has been patched out (60=0008) register is also written to, possibly leftover from development */  // wrong, this set uses VA24B, dumped but equations still not added
+	{"varthb2",     HACK_B_3,     mapper_sfzch, 0, 0, 0, 0x80 },  // unknown gal, other varth mappers don't work (game looks for sprites in >0x8000 unmapped region)
+	{"varthr1",     CPS_B_04,     mapper_VA24B },   /* CPSB test has been patched out (60=0008) register is also written to, possibly leftover from development */
 	{"varthu",      CPS_B_04,     mapper_VA63B },   /* CPSB test has been patched out (60=0008) register is also written to, possibly leftover from development */
 	{"varthj",      CPS_B_21_BT5, mapper_VA22B },   /* CPSB test has been patched out (72=0001) register is also written to, possibly leftover from development */
 	{"varthjr",     CPS_B_21_BT5, mapper_VA63B },   /* CPSB test has been patched out (72=0001) register is also written to, possibly leftover from development */
-	{"cworld2j",    CPS_B_21_BT6, mapper_Q522B,  0x36, 0, 0x34 },   /* (ports 36, 34 probably leftover input code from another game) */
-	{"cworld2ja",   CPS_B_21_DEF, mapper_Q522B }, // patched set, no battery, could be desuicided // wrong, this set uses Q529B, still not dumped
-	{"cworld2jb",   CPS_B_21_BT6, mapper_Q522B,  0x36, 0, 0x34 }, // wrong, this set uses Q563B, still not dumped
+	{"cworld2j",    CPS_B_21_BT6, mapper_Q522B,  0x36, 0, 0x34 },  // ports 36, 34 probably leftover input code from another game
+	{"cworld2ja",   CPS_B_21_DEF, mapper_Q522B },                  // wrong, this set uses Q529B, still not dumped     patched set, no battery, could be desuicided
+	{"cworld2jb",   CPS_B_21_BT6, mapper_Q522B,  0x36, 0, 0x34 },  // wrong, this set uses Q563B, still not dumped
 	{"wof",         CPS_B_21_QS1, mapper_TK263B },
-	{"wofr1",       CPS_B_21_DEF, mapper_TK263B },  // patched set coming from a desuicided board?
+	{"wofr1",       CPS_B_21_DEF, mapper_TK263B },
 	{"wofa",        CPS_B_21_DEF, mapper_TK263B },  // patched set coming from a desuicided board?
 	{"wofu",        CPS_B_21_QS1, mapper_TK263B },
 	{"wofj",        CPS_B_21_QS1, mapper_TK263B },
 	{"wofhfh",      CPS_B_21_DEF, mapper_TK263B, 0x36 },    /* Chinese bootleg */
+	{"wofpic",      CPS_B_21_DEF, mapper_TK263B, 0x36 },
+	{"wofr1bl",     CPS_B_21_DEF, mapper_TK263B, 0x36 },
 	{"dino",        CPS_B_21_QS2, mapper_CD63B },   /* layer enable never used */
 	{"dinou",       CPS_B_21_QS2, mapper_CD63B },   /* layer enable never used */
 	{"dinoj",       CPS_B_21_QS2, mapper_CD63B },   /* layer enable never used */
+	{"dinoa",       CPS_B_21_QS2, mapper_CD63B },   /* layer enable never used */
 	{"dinopic",     CPS_B_21_QS2, mapper_CD63B },   /* layer enable never used */
 	{"dinopic2",    CPS_B_21_QS2, mapper_CD63B },   /* layer enable never used */
 	{"dinohunt",    CPS_B_21_DEF, mapper_CD63B },   /* Chinese bootleg */
@@ -1588,6 +1897,7 @@ static const struct CPS1config cps1_config_table[]=
 	{"slammast",    CPS_B_21_QS4, mapper_MB63B },
 	{"slammastu",   CPS_B_21_QS4, mapper_MB63B },
 	{"slampic",     CPS_B_21_QS4, mapper_MB63B },
+	{"slampic2",    CPS_B_21_QS4, mapper_sfzch },  // default cps2 mapper breaks scroll layers
 	{"mbomberj",    CPS_B_21_QS4, mapper_MB63B },
 	{"mbombrd",     CPS_B_21_QS5, mapper_MB63B },
 	{"mbombrdj",    CPS_B_21_QS5, mapper_MB63B },
@@ -1600,12 +1910,15 @@ static const struct CPS1config cps1_config_table[]=
 	{"megaman",     CPS_B_21_DEF, mapper_RCM63B },
 	{"megamana",    CPS_B_21_DEF, mapper_RCM63B },
 	{"rockmanj",    CPS_B_21_DEF, mapper_RCM63B },
-	{"pnickj",      CPS_B_21_DEF, mapper_PKB10B },
-	{"pang3",       CPS_B_21_DEF, mapper_pang3 },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */   // should use one of these three CP1B1F,CP1B8K,CP1B9KA
-	{"pang3r1",     CPS_B_21_DEF, mapper_pang3 },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */   // should use one of these three CP1B1F,CP1B8K,CP1B9K
-	{"pang3j",      CPS_B_21_DEF, mapper_pang3 },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */   // should use one of these three CP1B1F,CP1B8K,CP1B9K
-	{"pang3b",      CPS_B_21_DEF, mapper_pang3 },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */   // should use one of these three CP1B1F,CP1B8K,CP1B9K
-	{"ganbare",     CPS_B_21_DEF, mapper_sfzch },   // wrong, this set uses GBPR2, dumped but equations still not added
+	{"pnickj",      CPS_B_21_DEF, mapper_PKB10B },   // PKB10B unverified, no dump
+	{"pang3",       CPS_B_21_DEF, mapper_CP1B1F },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */
+	{"pang3r1",     CPS_B_21_DEF, mapper_CP1B1F },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */
+	{"pang3j",      CPS_B_21_DEF, mapper_CP1B1F },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */
+	{"pang3b",      CPS_B_21_DEF, mapper_CP1B1F },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */
+	{"pang3b2",     CPS_B_21_DEF, mapper_CP1B1F },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */
+	{"pang3b3",     CPS_B_17,     mapper_CP1B1F },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */
+	{"ganbare",     CPS_B_21_DEF, mapper_GBPR2 },
+	{"gulunpa",     CPS_B_21_DEF, mapper_gulunpa }, // wrong
 
 	/* CPS Changer */
 
@@ -1620,7 +1933,7 @@ static const struct CPS1config cps1_config_table[]=
 
 	/* CPS1 board + extra support boards */
 
-	{"kenseim",     CPS_B_21_DEF, mapper_KNM10B },  // wrong, need to convert equations from PAL
+	{"kenseim",     CPS_B_21_DEF, mapper_KNM10B },
 
 	{nullptr}     /* End of table */
 };
@@ -1781,10 +2094,12 @@ READ16_MEMBER(cps_state::cps1_cps_b_r)
 		return (m_cps_b_regs[m_game_config->mult_factor1 / 2] *
 				m_cps_b_regs[m_game_config->mult_factor2 / 2]) >> 16;
 
-	if (offset == m_game_config->in2_addr / 2)  /* Extra input ports (on C-board) */
+	/* Extra input ports (on C-board) */
+	if (m_game_config->in2_addr != 0 && offset == m_game_config->in2_addr / 2)
 		return ioport("IN2")->read();
 
-	if (offset == m_game_config->in3_addr / 2)  /* Player 4 controls (on C-board) ("Captain Commando") */
+	/* Player 4 controls (on C-board) ("Captain Commando") */
+	if (m_game_config->in3_addr != 0 && offset == m_game_config->in3_addr / 2)
 		return ioport("IN3")->read();
 
 	if (m_cps_version == 2)
@@ -1830,16 +2145,16 @@ WRITE16_MEMBER(cps_state::cps1_cps_b_w)
 
 
 	// additional outputs on C-board
-	if (offset == m_game_config->out2_addr / 2)
+	if (m_game_config->out2_addr != 0 && offset == m_game_config->out2_addr / 2)
 	{
 		if (ACCESSING_BITS_0_7)
 		{
 			if (m_game_config->cpsb_value == 0x0402)    // Mercs (CN2 connector)
 			{
 				machine().bookkeeping().coin_lockout_w(2, ~data & 0x01);
-				output().set_led_value(0, data & 0x02);
-				output().set_led_value(1, data & 0x04);
-				output().set_led_value(2, data & 0x08);
+				m_led_cboard[0] = BIT(data, 1);
+				m_led_cboard[1] = BIT(data, 2);
+				m_led_cboard[2] = BIT(data, 3);
 			}
 			else    // kod, captcomm, knights
 			{
@@ -1869,7 +2184,7 @@ WRITE16_MEMBER(cps_state::cps1_cps_b_w)
 }
 
 
-void cps_state::unshuffle( uint64_t *buf, int len )
+void cps2_state::unshuffle( uint64_t *buf, int len )
 {
 	int i;
 	uint64_t t;
@@ -1893,7 +2208,7 @@ void cps_state::unshuffle( uint64_t *buf, int len )
 }
 
 
-void cps_state::cps2_gfx_decode()
+void cps2_state::cps2_gfx_decode()
 {
 	const int banksize = 0x200000;
 	int size = memregion("gfx")->bytes();
@@ -1904,19 +2219,17 @@ void cps_state::cps2_gfx_decode()
 }
 
 
-DRIVER_INIT_MEMBER(cps_state,cps1)
+void cps_state::init_cps1()
 {
 	m_scanline1 = 0;
 	m_scanline2 = 0;
 	m_scancalls = 0;
 	m_last_sprite_offset = 0;
-	m_pri_ctrl = 0;
-	m_objram_bank = 0;
 }
 
 
 
-DRIVER_INIT_MEMBER(cps_state,cps2_video)
+void cps2_state::init_cps2_video()
 {
 	cps2_gfx_decode();
 
@@ -1987,6 +2300,13 @@ void cps_state::cps1_get_video_base()
 		scroll1xoff = -0x08;
 		scroll2xoff = -0x0b;
 		scroll3xoff = -0x0c;
+	}
+	else
+	if (m_game_config->bootleg_kludge == 0x80)
+	{
+		scroll1xoff = -0x0c;
+		scroll2xoff = -0x0e;
+		scroll3xoff = -0x10;
 	}
 	else
 	if (m_game_config->bootleg_kludge == 0x88) // 3wondersb
@@ -2154,14 +2474,14 @@ TILE_GET_INFO_MEMBER(cps_state::get_tile0_info)
 	     should alternate between the left and right side of the 16x16 tiles */
 	gfxset = (tile_index & 0x20) >> 5;
 
-	SET_TILE_INFO_MEMBER(gfxset,
+	tileinfo.set(gfxset,
 			code,
 			(attr & 0x1f) + 0x20,
 			TILE_FLIPYX((attr & 0x60) >> 5));
 	tileinfo.group = (attr & 0x0180) >> 7;
 
 	// for out of range tiles, switch to fully transparent data
-	// (but still call SET_TILE_INFO_MEMBER, otherwise problems might occur on boot e.g. unsquad)
+	// (but still call tileinfo.set, otherwise problems might occur on boot e.g. unsquad)
 	if (code == -1)
 		tileinfo.pen_data = m_empty_tile;
 }
@@ -2173,7 +2493,7 @@ TILE_GET_INFO_MEMBER(cps_state::get_tile1_info)
 
 	code = gfxrom_bank_mapper(GFXTYPE_SCROLL2, code);
 
-	SET_TILE_INFO_MEMBER(2,
+	tileinfo.set(2,
 			code,
 			(attr & 0x1f) + 0x40,
 			TILE_FLIPYX((attr & 0x60) >> 5));
@@ -2191,14 +2511,14 @@ TILE_GET_INFO_MEMBER(cps_state::get_tile2_info)
 
 	code = gfxrom_bank_mapper(GFXTYPE_SCROLL3, code);
 
-	SET_TILE_INFO_MEMBER(3,
+	tileinfo.set(3,
 			code,
 			(attr & 0x1f) + 0x60,
 			TILE_FLIPYX((attr & 0x60) >> 5));
 	tileinfo.group = (attr & 0x0180) >> 7;
 
 	// for out of range tiles, switch to fully transparent data
-	// (but still call SET_TILE_INFO_MEMBER, otherwise problems might occur on boot e.g. unsquad)
+	// (but still call tileinfo.set, otherwise problems might occur on boot e.g. unsquad)
 	if (code == -1)
 		tileinfo.pen_data = m_empty_tile;
 }
@@ -2225,25 +2545,22 @@ void cps_state::cps1_update_transmasks()
 	}
 }
 
-VIDEO_START_MEMBER(cps_state,cps)
+void cps_state::video_start()
 {
-	int i;
-
 	MACHINE_RESET_CALL_MEMBER(cps);
 
 	/* Put in some const */
 	m_scroll_size    = 0x4000;  /* scroll1, scroll2, scroll3 */
 	m_obj_size       = 0x0800;
-	m_cps2_obj_size  = 0x2000;
 	m_other_size     = 0x0800;
 	m_palette_align  = 0x0400;  /* minimum alignment is a single palette page (512 colors). Verified on pcb. */
 	m_palette_size   = cps1_palette_entries * 32; /* Size of palette RAM */
 	m_stars_rom_size = 0x2000;  /* first 0x4000 of gfx ROM are used, but 0x0000-0x1fff is == 0x2000-0x3fff */
 
 	/* create tilemaps */
-	m_bg_tilemap[0] = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(cps_state::get_tile0_info),this), tilemap_mapper_delegate(FUNC(cps_state::tilemap0_scan),this),  8,  8, 64, 64);
-	m_bg_tilemap[1] = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(cps_state::get_tile1_info),this), tilemap_mapper_delegate(FUNC(cps_state::tilemap1_scan),this), 16, 16, 64, 64);
-	m_bg_tilemap[2] = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(cps_state::get_tile2_info),this), tilemap_mapper_delegate(FUNC(cps_state::tilemap2_scan),this), 32, 32, 64, 64);
+	m_bg_tilemap[0] = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(cps_state::get_tile0_info)), tilemap_mapper_delegate(*this, FUNC(cps_state::tilemap0_scan)),  8,  8, 64, 64);
+	m_bg_tilemap[1] = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(cps_state::get_tile1_info)), tilemap_mapper_delegate(*this, FUNC(cps_state::tilemap1_scan)), 16, 16, 64, 64);
+	m_bg_tilemap[2] = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(cps_state::get_tile2_info)), tilemap_mapper_delegate(*this, FUNC(cps_state::tilemap2_scan)), 32, 32, 64, 64);
 
 	/* create empty tiles */
 	memset(m_empty_tile, 0x0f, sizeof(m_empty_tile));
@@ -2251,24 +2568,12 @@ VIDEO_START_MEMBER(cps_state,cps)
 	/* front masks will change at runtime to handle sprite occluding */
 	cps1_update_transmasks();
 
-	for (i = 0; i < cps1_palette_entries * 16; i++)
-		m_palette->set_pen_color(i, rgb_t(0,0,0));
-
 	m_buffered_obj = make_unique_clear<uint16_t[]>(m_obj_size / 2);
-
-	if (m_cps_version == 2)
-		m_cps2_buffered_obj = make_unique_clear<uint16_t[]>(m_cps2_obj_size / 2);
 
 	/* clear RAM regions */
 	memset(m_gfxram, 0, m_gfxram.bytes());   /* Clear GFX RAM */
 	memset(m_cps_a_regs, 0, 0x40);   /* Clear CPS-A registers */
 	memset(m_cps_b_regs, 0, 0x40);   /* Clear CPS-B registers */
-
-	if (m_cps_version == 2)
-	{
-		memset(m_objram1, 0, m_cps2_obj_size);
-		memset(m_objram2, 0, m_cps2_obj_size);
-	}
 
 	/* Put in some defaults */
 	m_cps_a_regs[CPS1_OBJ_BASE]     = 0x9200;
@@ -2278,7 +2583,8 @@ VIDEO_START_MEMBER(cps_state,cps)
 	m_cps_a_regs[CPS1_OTHER_BASE]   = 0x9100;
 
 	/* This should never be hit, since game_config is set in machine_reset */
-	assert_always(m_game_config, "state_game_config hasn't been set up yet");
+	if (!m_game_config)
+		throw emu_fatalerror("cps_state::video_start: m_game_config hasn't been set up yet");
 
 
 	/* Set up old base */
@@ -2289,6 +2595,8 @@ VIDEO_START_MEMBER(cps_state,cps)
 	m_other = nullptr;
 	cps1_get_video_base();   /* Calculate base pointers */
 	cps1_get_video_base();   /* Calculate old base pointers */
+
+	m_screen->register_screen_bitmap(m_dummy_bitmap);
 
 	/* state save register */
 	save_item(NAME(m_scanline1));
@@ -2309,29 +2617,26 @@ VIDEO_START_MEMBER(cps_state,cps)
 	save_item(NAME(m_stars_enabled));
 #endif
 	save_item(NAME(m_last_sprite_offset));
-	save_item(NAME(m_pri_ctrl));
-	save_item(NAME(m_objram_bank));
 
-	save_pointer(NAME(m_buffered_obj.get()), m_obj_size / 2);
-	if (m_cps_version == 2)
-	{
-		save_item(NAME(m_cps2_last_sprite_offset));
-		save_pointer(NAME(m_cps2_buffered_obj.get()), m_cps2_obj_size / 2);
-	}
+	save_pointer(NAME(m_buffered_obj), m_obj_size / 2);
 
 	machine().save().register_postload(save_prepost_delegate(FUNC(cps_state::cps1_get_video_base), this));
 }
 
-VIDEO_START_MEMBER(cps_state,cps1)
+void cps2_state::video_start()
 {
-	m_cps_version = 1;
-	VIDEO_START_CALL_MEMBER(cps);
-}
+	cps_state::video_start();
 
-VIDEO_START_MEMBER(cps_state,cps2)
-{
-	m_cps_version = 2;
-	VIDEO_START_CALL_MEMBER(cps);
+	m_cps2_obj_size = 0x2000;
+	m_cps2_buffered_obj = make_unique_clear<uint16_t[]>(m_cps2_obj_size / 2);
+
+	memset(m_objram1, 0, m_cps2_obj_size);
+	memset(m_objram2, 0, m_cps2_obj_size);
+
+	save_item(NAME(m_cps2_last_sprite_offset));
+	save_pointer(NAME(m_cps2_buffered_obj), m_cps2_obj_size / 2);
+	save_item(NAME(m_pri_ctrl));
+	save_item(NAME(m_objram_bank));
 }
 
 /***************************************************************************
@@ -2371,7 +2676,7 @@ void cps_state::cps1_build_palette( const uint16_t* const palette_base )
 				g = ((palette >> 4) & 0x0f) * 0x11 * bright / 0x2d;
 				b = ((palette >> 0) & 0x0f) * 0x11 * bright / 0x2d;
 
-				m_palette->set_pen_color (0x200 * page + offset, rgb_t(r, g, b));
+				m_palette->set_pen_color(0x200 * page + offset, rgb_t(r, g, b));
 			}
 		}
 		else
@@ -2419,7 +2724,7 @@ void cps_state::cps1_build_palette( const uint16_t* const palette_base )
 
 ***************************************************************************/
 
-void cps_state::cps1_find_last_sprite()    /* Find the offset of last sprite */
+void cps_state::find_last_sprite()    /* Find the offset of last sprite */
 {
 	int offset = 0;
 	/* Locate the end of table marker */
@@ -2478,7 +2783,7 @@ void cps_state::cps1_render_sprites( screen_device &screen, bitmap_ind16 &bitmap
 	uint16_t *base = m_buffered_obj.get();
 
 	/* some sf2 hacks draw the sprites in reverse order */
-	if ((m_game_config->bootleg_kludge == 1) || (m_game_config->bootleg_kludge == 2) || (m_game_config->bootleg_kludge == 3))
+	if ((m_game_config->bootleg_kludge == 1) || (m_game_config->bootleg_kludge == 2) || (m_game_config->bootleg_kludge == 3) || (m_game_config->bootleg_kludge == 0x80))
 	{
 		base += m_last_sprite_offset;
 		baseadd = -4;
@@ -2610,13 +2915,13 @@ void cps_state::cps1_render_sprites( screen_device &screen, bitmap_ind16 &bitmap
 
 
 
-WRITE16_MEMBER(cps_state::cps2_objram_bank_w)
+WRITE16_MEMBER(cps2_state::cps2_objram_bank_w)
 {
 	if (ACCESSING_BITS_0_7)
 		m_objram_bank = data & 1;
 }
 
-READ16_MEMBER(cps_state::cps2_objram1_r)
+READ16_MEMBER(cps2_state::cps2_objram1_r)
 {
 	if (m_objram_bank & 1)
 		return m_objram2[offset];
@@ -2624,7 +2929,7 @@ READ16_MEMBER(cps_state::cps2_objram1_r)
 		return m_objram1[offset];
 }
 
-READ16_MEMBER(cps_state::cps2_objram2_r)
+READ16_MEMBER(cps2_state::cps2_objram2_r)
 {
 	if (m_objram_bank & 1)
 		return m_objram1[offset];
@@ -2632,7 +2937,7 @@ READ16_MEMBER(cps_state::cps2_objram2_r)
 		return m_objram2[offset];
 }
 
-WRITE16_MEMBER(cps_state::cps2_objram1_w)
+WRITE16_MEMBER(cps2_state::cps2_objram1_w)
 {
 	if (m_objram_bank & 1)
 		COMBINE_DATA(&m_objram2[offset]);
@@ -2640,7 +2945,7 @@ WRITE16_MEMBER(cps_state::cps2_objram1_w)
 		COMBINE_DATA(&m_objram1[offset]);
 }
 
-WRITE16_MEMBER(cps_state::cps2_objram2_w)
+WRITE16_MEMBER(cps2_state::cps2_objram2_w)
 {
 	if (m_objram_bank & 1)
 		COMBINE_DATA(&m_objram1[offset]);
@@ -2648,7 +2953,7 @@ WRITE16_MEMBER(cps_state::cps2_objram2_w)
 		COMBINE_DATA(&m_objram2[offset]);
 }
 
-uint16_t *cps_state::cps2_objbase()
+uint16_t *cps2_state::cps2_objbase()
 {
 	int baseptr;
 	baseptr = 0x7000;
@@ -2665,8 +2970,10 @@ uint16_t *cps_state::cps2_objbase()
 }
 
 
-void cps_state::cps2_find_last_sprite()    /* Find the offset of last sprite */
+void cps2_state::find_last_sprite()    /* Find the offset of last sprite */
 {
+	cps_state::find_last_sprite();
+
 	int offset = 0;
 	uint16_t *base = m_cps2_buffered_obj.get();
 
@@ -2686,7 +2993,7 @@ void cps_state::cps2_find_last_sprite()    /* Find the offset of last sprite */
 	m_cps2_last_sprite_offset = m_cps2_obj_size / 2 - 4;
 }
 
-void cps_state::cps2_render_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int *primasks )
+void cps2_state::cps2_render_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int *primasks )
 {
 #define DRAWSPRITE(CODE,COLOR,FLIPX,FLIPY,SX,SY)                                    \
 {                                                                                   \
@@ -2915,7 +3222,6 @@ void cps_state::cps1_render_layer( screen_device &screen, bitmap_ind16 &bitmap, 
 
 void cps_state::cps1_render_high_layer( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int layer )
 {
-	bitmap_ind16 dummy_bitmap;
 	switch (layer)
 	{
 		case 0:
@@ -2924,7 +3230,7 @@ void cps_state::cps1_render_high_layer( screen_device &screen, bitmap_ind16 &bit
 		case 1:
 		case 2:
 		case 3:
-			m_bg_tilemap[layer - 1]->draw(screen, dummy_bitmap, cliprect, TILEMAP_DRAW_LAYER0, 1);
+			m_bg_tilemap[layer - 1]->draw(screen, m_dummy_bitmap, cliprect, TILEMAP_DRAW_LAYER0, 1);
 			break;
 	}
 }
@@ -2936,23 +3242,110 @@ void cps_state::cps1_render_high_layer( screen_device &screen, bitmap_ind16 &bit
 
 ***************************************************************************/
 
+void cps_state::render_layers(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+{
+	/* Draw layers (0 = sprites, 1-3 = tilemaps) */
+	int layercontrol = m_cps_b_regs[m_game_config->layer_control / 2];
+	int l0 = (layercontrol >> 0x06) & 03;
+	int l1 = (layercontrol >> 0x08) & 03;
+	int l2 = (layercontrol >> 0x0a) & 03;
+	int l3 = (layercontrol >> 0x0c) & 03;
+	screen.priority().fill(0, cliprect);
+
+	if (BIT(m_game_config->bootleg_kludge, 7))
+		cps1_build_palette(cps1_base(CPS1_PALETTE_BASE, m_palette_align));
+
+	cps1_render_layer(screen, bitmap, cliprect, l0, 0);
+
+	if (l1 == 0)
+		cps1_render_high_layer(screen, bitmap, cliprect, l0); /* prepare mask for sprites */
+
+	cps1_render_layer(screen, bitmap, cliprect, l1, 0);
+
+	if (l2 == 0)
+		cps1_render_high_layer(screen, bitmap, cliprect, l1); /* prepare mask for sprites */
+
+	cps1_render_layer(screen, bitmap, cliprect, l2, 0);
+
+	if (l3 == 0)
+		cps1_render_high_layer(screen, bitmap, cliprect, l2); /* prepare mask for sprites */
+
+	cps1_render_layer(screen, bitmap, cliprect, l3, 0);
+}
+
+void cps2_state::render_layers(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+{
+	/* Draw layers (0 = sprites, 1-3 = tilemaps) */
+	int layercontrol = m_cps_b_regs[m_game_config->layer_control / 2];
+	int l0 = (layercontrol >> 0x06) & 03;
+	int l1 = (layercontrol >> 0x08) & 03;
+	int l2 = (layercontrol >> 0x0a) & 03;
+	int l3 = (layercontrol >> 0x0c) & 03;
+	screen.priority().fill(0, cliprect);
+
+	int primasks[8], i;
+	int l0pri = (m_pri_ctrl >> 4 * l0) & 0x0f;
+	int l1pri = (m_pri_ctrl >> 4 * l1) & 0x0f;
+	int l2pri = (m_pri_ctrl >> 4 * l2) & 0x0f;
+	int l3pri = (m_pri_ctrl >> 4 * l3) & 0x0f;
+
+#if 0
+if (    (m_output[CPS2_OBJ_BASE /2] != 0x7080 && m_output[CPS2_OBJ_BASE /2] != 0x7000) ||
+		m_output[CPS2_OBJ_UK1 /2] != 0x807d ||
+		(m_output[CPS2_OBJ_UK2 /2] != 0x0000 && m_output[CPS2_OBJ_UK2 /2] != 0x1101 && m_output[CPS2_OBJ_UK2 /2] != 0x0001))
+	popmessage("base %04x uk1 %04x uk2 %04x",
+			m_output[CPS2_OBJ_BASE /2],
+			m_output[CPS2_OBJ_UK1 /2],
+			m_output[CPS2_OBJ_UK2 /2]);
+
+if (0 && machine().input().code_pressed(KEYCODE_Z))
+	popmessage("order: %d (%d) %d (%d) %d (%d) %d (%d)",l0,l0pri,l1,l1pri,l2,l2pri,l3,l3pri);
+#endif
+
+	/* take out the CPS1 sprites layer */
+	if (l0 == 0) { l0 = l1; l1 = 0; l0pri = l1pri; }
+	if (l1 == 0) { l1 = l2; l2 = 0; l1pri = l2pri; }
+	if (l2 == 0) { l2 = l3; l3 = 0; l2pri = l3pri; }
+
+	{
+		int mask0 = 0xaa;
+		int mask1 = 0xcc;
+		if (l0pri > l1pri) mask0 &= ~0x88;
+		if (l0pri > l2pri) mask0 &= ~0xa0;
+		if (l1pri > l2pri) mask1 &= ~0xc0;
+
+		primasks[0] = 0xff;
+		for (i = 1; i < 8; i++)
+		{
+			if (i <= l0pri && i <= l1pri && i <= l2pri)
+			{
+				primasks[i] = 0xfe;
+				continue;
+			}
+			primasks[i] = 0;
+			if (i <= l0pri) primasks[i] |= mask0;
+			if (i <= l1pri) primasks[i] |= mask1;
+			if (i <= l2pri) primasks[i] |= 0xf0;
+		}
+	}
+
+	cps1_render_layer(screen, bitmap, cliprect, l0, 1);
+	cps1_render_layer(screen, bitmap, cliprect, l1, 2);
+	cps1_render_layer(screen, bitmap, cliprect, l2, 4);
+	cps2_render_sprites(screen, bitmap, cliprect, primasks);
+}
+
 uint32_t cps_state::screen_update_cps1(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	int layercontrol, l0, l1, l2, l3;
 	int videocontrol = m_cps_a_regs[CPS1_VIDEOCONTROL];
 
 	flip_screen_set(videocontrol & 0x8000);
-
-	layercontrol = m_cps_b_regs[m_game_config->layer_control / 2];
 
 	/* Get video memory base registers */
 	cps1_get_video_base();
 
 	/* Find the offset of the last sprite in the sprite table */
-	cps1_find_last_sprite();
-
-	if (m_cps_version == 2)
-		cps2_find_last_sprite();
+	find_last_sprite();
 
 	cps1_update_transmasks();
 
@@ -2989,8 +3382,8 @@ uint32_t cps_state::screen_update_cps1(screen_device &screen, bitmap_ind16 &bitm
 	}
 	else
 	{
-		// CPS2 apparently always force the background to black. Several games would
-		// should a blue screen during boot if we used the same code as CPS1.
+		// CPS2 apparently always forces the background to black. Several games would
+		// show a blue screen during boot if we used the same code as CPS1.
 		// Maybe Capcom changed the background handling due to the problems that
 		// it caused on several monitors (because the background extended into the
 		// blanking area instead of going black, causing the monitor to clip).
@@ -3002,94 +3395,12 @@ uint32_t cps_state::screen_update_cps1(screen_device &screen, bitmap_ind16 &bitm
 		cps1_render_stars(screen, bitmap, cliprect);
 	}
 
-	/* Draw layers (0 = sprites, 1-3 = tilemaps) */
-	l0 = (layercontrol >> 0x06) & 03;
-	l1 = (layercontrol >> 0x08) & 03;
-	l2 = (layercontrol >> 0x0a) & 03;
-	l3 = (layercontrol >> 0x0c) & 03;
-	screen.priority().fill(0, cliprect);
-
-	if (m_cps_version == 1)
-	{
-		if (BIT(m_game_config->bootleg_kludge, 7))
-			cps1_build_palette(cps1_base(CPS1_PALETTE_BASE, m_palette_align));
-
-		cps1_render_layer(screen, bitmap, cliprect, l0, 0);
-
-		if (l1 == 0)
-			cps1_render_high_layer(screen, bitmap, cliprect, l0); /* prepare mask for sprites */
-
-		cps1_render_layer(screen, bitmap, cliprect, l1, 0);
-
-		if (l2 == 0)
-			cps1_render_high_layer(screen, bitmap, cliprect, l1); /* prepare mask for sprites */
-
-		cps1_render_layer(screen, bitmap, cliprect, l2, 0);
-
-		if (l3 == 0)
-			cps1_render_high_layer(screen, bitmap, cliprect, l2); /* prepare mask for sprites */
-
-		cps1_render_layer(screen, bitmap, cliprect, l3, 0);
-	}
-	else
-	{
-		int l0pri, l1pri, l2pri, l3pri;
-		int primasks[8], i;
-		l0pri = (m_pri_ctrl >> 4 * l0) & 0x0f;
-		l1pri = (m_pri_ctrl >> 4 * l1) & 0x0f;
-		l2pri = (m_pri_ctrl >> 4 * l2) & 0x0f;
-		l3pri = (m_pri_ctrl >> 4 * l3) & 0x0f;
-
-#if 0
-if (    (m_output[CPS2_OBJ_BASE /2] != 0x7080 && m_output[CPS2_OBJ_BASE /2] != 0x7000) ||
-		m_output[CPS2_OBJ_UK1 /2] != 0x807d ||
-		(m_output[CPS2_OBJ_UK2 /2] != 0x0000 && m_output[CPS2_OBJ_UK2 /2] != 0x1101 && m_output[CPS2_OBJ_UK2 /2] != 0x0001))
-	popmessage("base %04x uk1 %04x uk2 %04x",
-			m_output[CPS2_OBJ_BASE /2],
-			m_output[CPS2_OBJ_UK1 /2],
-			m_output[CPS2_OBJ_UK2 /2]);
-
-if (0 && machine().input().code_pressed(KEYCODE_Z))
-	popmessage("order: %d (%d) %d (%d) %d (%d) %d (%d)",l0,l0pri,l1,l1pri,l2,l2pri,l3,l3pri);
-#endif
-
-		/* take out the CPS1 sprites layer */
-		if (l0 == 0) { l0 = l1; l1 = 0; l0pri = l1pri; }
-		if (l1 == 0) { l1 = l2; l2 = 0; l1pri = l2pri; }
-		if (l2 == 0) { l2 = l3; l3 = 0; l2pri = l3pri; }
-
-		{
-			int mask0 = 0xaa;
-			int mask1 = 0xcc;
-			if (l0pri > l1pri) mask0 &= ~0x88;
-			if (l0pri > l2pri) mask0 &= ~0xa0;
-			if (l1pri > l2pri) mask1 &= ~0xc0;
-
-			primasks[0] = 0xff;
-			for (i = 1; i < 8; i++)
-			{
-				if (i <= l0pri && i <= l1pri && i <= l2pri)
-				{
-					primasks[i] = 0xfe;
-					continue;
-				}
-				primasks[i] = 0;
-				if (i <= l0pri) primasks[i] |= mask0;
-				if (i <= l1pri) primasks[i] |= mask1;
-				if (i <= l2pri) primasks[i] |= 0xf0;
-			}
-		}
-
-		cps1_render_layer(screen, bitmap, cliprect, l0, 1);
-		cps1_render_layer(screen, bitmap, cliprect, l1, 2);
-		cps1_render_layer(screen, bitmap, cliprect, l2, 4);
-		cps2_render_sprites(screen, bitmap, cliprect, primasks);
-	}
+	render_layers(screen, bitmap, cliprect);
 
 	return 0;
 }
 
-void cps_state::screen_eof_cps1(screen_device &screen, bool state)
+WRITE_LINE_MEMBER(cps_state::screen_vblank_cps1)
 {
 	// rising edge
 	if (state)
@@ -3105,12 +3416,19 @@ void cps_state::screen_eof_cps1(screen_device &screen, bool state)
 	}
 }
 
-void cps_state::cps2_set_sprite_priorities()
+
+uint32_t cps2_state::screen_update_cps2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+{
+	cps2_set_sprite_priorities();
+	return screen_update_cps1(screen, bitmap, cliprect);
+}
+
+void cps2_state::cps2_set_sprite_priorities()
 {
 	m_pri_ctrl = m_output[CPS2_OBJ_PRI /2];
 }
 
-void cps_state::cps2_objram_latch()
+void cps2_state::cps2_objram_latch()
 {
 	cps2_set_sprite_priorities();
 	memcpy(m_cps2_buffered_obj.get(), cps2_objbase(), m_cps2_obj_size);

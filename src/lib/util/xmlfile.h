@@ -45,18 +45,22 @@ enum
 /* extended error information from parsing */
 struct parse_error
 {
-	const char *            error_message;
-	int                     error_line;
-	int                     error_column;
+	parse_error() = default;
+
+	const char *            error_message = nullptr;
+	int                     error_line = 0;
+	int                     error_column = 0;
 };
 
 
 // parsing options
 struct parse_options
 {
-	parse_error *       error;
-	void                (*init_parser)(XML_ParserStruct *parser);
-	uint32_t            flags;
+	parse_options() = default;
+
+	parse_error *       error = nullptr;
+	void                (*init_parser)(XML_ParserStruct *parser) = nullptr;
+	uint32_t            flags = 0;
 };
 
 
@@ -71,25 +75,6 @@ public:
 		HEX_DOLLAR,
 		HEX_C
 	};
-
-
-
-	/* ----- XML file objects ----- */
-
-	// create a new empty xml file object
-	static data_node *file_create();
-
-	// parse an XML file into its nodes */
-	static data_node *file_read(util::core_file &file, parse_options const *opts);
-
-	/* parse an XML string into its nodes */
-	static data_node *string_read(const char *string, parse_options const *opts);
-
-	// write an XML tree to a file
-	void file_write(util::core_file &file) const;
-
-	// free an XML file object
-	void file_free();
 
 
 	/* ----- XML node management ----- */
@@ -137,9 +122,11 @@ public:
 	// either return an existing child node or create one if it doesn't exist
 	data_node *get_or_add_child(const char *name, const char *value);
 
+	// recursively copy as child of another node
+	data_node *copy_into(data_node &parent) const;
+
 	// delete a node and its children
 	void delete_node();
-
 
 
 	/* ----- XML attribute management ----- */
@@ -176,6 +163,13 @@ public:
 	int                     line;           /* line number for this node's start */
 
 
+protected:
+	data_node();
+	~data_node();
+
+	void write_recursive(int indent, util::core_file &file) const;
+
+
 private:
 	// a node representing an attribute
 	struct attribute_node
@@ -187,9 +181,7 @@ private:
 	};
 
 
-	data_node();
 	data_node(data_node *parent, const char *name, const char *value);
-	~data_node();
 
 	data_node(data_node const &) = delete;
 	data_node(data_node &&) = delete;
@@ -204,7 +196,7 @@ private:
 	attribute_node *get_attribute(const char *attribute);
 	attribute_node const *get_attribute(const char *attribute) const;
 
-	void write_recursive(int indent, util::core_file &file) const;
+	void free_children();
 
 
 	data_node *                 m_next;
@@ -213,6 +205,33 @@ private:
 	std::string                 m_value;
 	data_node *                 m_parent;
 	std::list<attribute_node>   m_attributes;
+};
+
+
+// a node representing the root of a document
+class file : public data_node
+{
+public:
+	using ptr = std::unique_ptr<file>;
+
+
+	~file();
+
+	// create a new, empty XML file
+	static ptr create();
+
+	// parse an XML file into its nodes
+	static ptr read(util::core_file &file, parse_options const *opts);
+
+	// parse an XML string into its nodes
+	static ptr string_read(const char *string, parse_options const *opts);
+
+	// write an XML tree to a file
+	void write(util::core_file &file) const;
+
+
+private:
+	file();
 };
 
 

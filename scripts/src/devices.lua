@@ -39,9 +39,9 @@ function devicesProject(_target, _subtarget)
 		MAME_DIR .. "3rdparty",
 		GEN_DIR  .. "emu",
 		GEN_DIR  .. "emu/layout",
+		ext_includedir("asio"),
 		ext_includedir("expat"),
 		ext_includedir("flac"),
-		MAME_DIR .. "3rdparty/asio/include",
 	}
 
 	dofile(path.join("src", "cpu.lua"))
@@ -53,6 +53,8 @@ function devicesProject(_target, _subtarget)
 	dofile(path.join("src", "machine.lua"))
 
 	dofile(path.join("src", "bus.lua"))
+
+	pchsource(MAME_DIR .. "src/devices/machine/timer.cpp")
 
 if #disasm_files > 0 then
 	project ("dasm")
@@ -69,8 +71,8 @@ if #disasm_files > 0 then
 		MAME_DIR .. "src/lib",
 		MAME_DIR .. "src/lib/util",
 		MAME_DIR .. "3rdparty",
-		MAME_DIR .. "3rdparty/asio/include",
 		GEN_DIR  .. "emu",
+		ext_includedir("asio"),
 		ext_includedir("expat"),
 	}
 
@@ -78,16 +80,20 @@ if #disasm_files > 0 then
 		disasm_files
 	}
 
+	for key,value in pairs(disasm_files) do
+		if string.endswith(value, ".cpp") then
+			--print("calling pchsource with " .. value)
+			pchsource(value)
+			break
+		end
+	end
+
 	if #disasm_dependency > 0 then
-		dependency {
-			disasm_dependency[1]
-		}
+		dependency(disasm_dependency)
 	end
 
 	if #disasm_custombuildtask > 0 then
-		custombuildtask {
-			disasm_custombuildtask[1]
-		}
+		custombuildtask(disasm_custombuildtask)
 	end
 end
 

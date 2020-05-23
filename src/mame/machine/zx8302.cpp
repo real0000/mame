@@ -19,9 +19,11 @@
 */
 
 #include "emu.h"
-#include <time.h>
-#include "machine/microdrv.h"
 #include "zx8302.h"
+
+#include "imagedev/microdrv.h"
+
+#include <ctime>
 
 
 
@@ -41,7 +43,7 @@ static const int RTC_BASE_ADJUST = 283996800;
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type ZX8302 = device_creator<zx8302_device>;
+DEFINE_DEVICE_TYPE(ZX8302, zx8302_device, "zx8302", "Sinclair ZX8302")
 
 //**************************************************************************
 //  INLINE HELPERS
@@ -128,7 +130,7 @@ inline void zx8302_device::transmit_ipc_data()
 //-------------------------------------------------
 
 zx8302_device::zx8302_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, ZX8302, "Sinclair ZX8302", tag, owner, clock, "zx8302", __FILE__),
+	: device_t(mconfig, ZX8302, tag, owner, clock),
 		device_serial_interface(mconfig, *this),
 		m_rtc_clock(0),
 		m_out_ipl1l_cb(*this),
@@ -236,7 +238,6 @@ void zx8302_device::device_timer(emu_timer &timer, device_timer_id id, int param
 		break;
 
 	default:
-		device_serial_interface::device_timer(timer, id, param, ptr);
 		break;
 	}
 }
@@ -310,7 +311,7 @@ void zx8302_device::rcv_complete()
 //  rtc_r - real time clock read
 //-------------------------------------------------
 
-READ8_MEMBER( zx8302_device::rtc_r )
+uint8_t zx8302_device::rtc_r(offs_t offset)
 {
 	uint8_t data = 0;
 
@@ -338,7 +339,7 @@ READ8_MEMBER( zx8302_device::rtc_r )
 //  rtc_w - real time clock write
 //-------------------------------------------------
 
-WRITE8_MEMBER( zx8302_device::rtc_w )
+void zx8302_device::rtc_w(uint8_t data)
 {
 	if (LOG) logerror("ZX8302 '%s' Set Real Time Clock: %02x\n", tag(), data);
 }
@@ -348,7 +349,7 @@ WRITE8_MEMBER( zx8302_device::rtc_w )
 //  control_w - serial transmit clock
 //-------------------------------------------------
 
-WRITE8_MEMBER( zx8302_device::control_w )
+void zx8302_device::control_w(uint8_t data)
 {
 	if (LOG) logerror("ZX8302 '%s' Transmit Control: %02x\n", tag(), data);
 
@@ -368,7 +369,7 @@ WRITE8_MEMBER( zx8302_device::control_w )
 //  mdv_track_r - microdrive track data
 //-------------------------------------------------
 
-READ8_MEMBER( zx8302_device::mdv_track_r )
+uint8_t zx8302_device::mdv_track_r()
 {
 	if (LOG) logerror("ZX8302 '%s' Microdrive Track %u: %02x\n", tag(), m_track, m_mdv_data[m_track]);
 
@@ -384,7 +385,7 @@ READ8_MEMBER( zx8302_device::mdv_track_r )
 //  status_r - status register
 //-------------------------------------------------
 
-READ8_MEMBER( zx8302_device::status_r )
+uint8_t zx8302_device::status_r()
 {
 	/*
 
@@ -442,7 +443,7 @@ READ8_MEMBER( zx8302_device::status_r )
 // At startup the IPC sits in a loop waiting for the comdata bit to go
 // high, the main CPU does this by writing 0x01 to output register.
 
-WRITE8_MEMBER( zx8302_device::ipc_command_w )
+void zx8302_device::ipc_command_w(uint8_t data)
 {
 	if (LOG) logerror("ZX8302 '%s' IPC Command: %02x\n", tag(), data);
 
@@ -457,7 +458,7 @@ WRITE8_MEMBER( zx8302_device::ipc_command_w )
 //  mdv_control_w - microdrive control
 //-------------------------------------------------
 
-WRITE8_MEMBER( zx8302_device::mdv_control_w )
+void zx8302_device::mdv_control_w(uint8_t data)
 {
 	/*
 
@@ -492,7 +493,7 @@ WRITE8_MEMBER( zx8302_device::mdv_control_w )
 //  irq_status_r - interrupt status
 //-------------------------------------------------
 
-READ8_MEMBER( zx8302_device::irq_status_r )
+uint8_t zx8302_device::irq_status_r()
 {
 	if (LOG) logerror("ZX8302 '%s' Interrupt Status: %02x\n", tag(), m_irq);
 
@@ -504,7 +505,7 @@ READ8_MEMBER( zx8302_device::irq_status_r )
 //  irq_acknowledge_w - interrupt acknowledge
 //-------------------------------------------------
 
-WRITE8_MEMBER( zx8302_device::irq_acknowledge_w )
+void zx8302_device::irq_acknowledge_w(uint8_t data)
 {
 	if (LOG) logerror("ZX8302 '%s' Interrupt Acknowledge: %02x\n", tag(), data);
 
@@ -521,7 +522,7 @@ WRITE8_MEMBER( zx8302_device::irq_acknowledge_w )
 //  data_w - transmit buffer
 //-------------------------------------------------
 
-WRITE8_MEMBER( zx8302_device::data_w )
+void zx8302_device::data_w(uint8_t data)
 {
 	if (LOG) logerror("ZX8302 '%s' Data Register: %02x\n", tag(), data);
 

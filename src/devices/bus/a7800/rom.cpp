@@ -27,131 +27,131 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type A78_ROM = device_creator<a78_rom_device>;
-const device_type A78_ROM_SG = device_creator<a78_rom_sg_device>;
-const device_type A78_ROM_POKEY = device_creator<a78_rom_pokey_device>;
-const device_type A78_ROM_SG_POKEY = device_creator<a78_rom_sg_pokey_device>;
-const device_type A78_ROM_SG_RAM = device_creator<a78_rom_sg_ram_device>;
-const device_type A78_ROM_SG9 = device_creator<a78_rom_sg9_device>;
-const device_type A78_ROM_MRAM = device_creator<a78_rom_mram_device>;
-const device_type A78_ROM_ABSOLUTE = device_creator<a78_rom_abs_device>;
-const device_type A78_ROM_ACTIVISION = device_creator<a78_rom_act_device>;
+DEFINE_DEVICE_TYPE(A78_ROM,             a78_rom_device,             "a78_rom",      "Atari 7800 ROM Carts w/no Bankswitch")
+DEFINE_DEVICE_TYPE(A78_ROM_SG,          a78_rom_sg_device,          "a78_rom_sg",   "Atari 7800 ROM Carts w/SuperGame Bankswitch")
+DEFINE_DEVICE_TYPE(A78_ROM_POKEY,       a78_rom_pokey_device,       "a78_rom_pok",  "Atari 7800 ROM Carts w/no Bankswitch + POKEY")
+DEFINE_DEVICE_TYPE(A78_ROM_SG_POKEY,    a78_rom_sg_pokey_device,    "a78_rom_sgp",  "Atari 7800 ROM Carts w/SuperGame Bankswitch + POKEY")
+DEFINE_DEVICE_TYPE(A78_ROM_SG_RAM,      a78_rom_sg_ram_device,      "a78_rom_sgr",  "Atari 7800 ROM Carts w/SuperGame Bankswitch + RAM")
+DEFINE_DEVICE_TYPE(A78_ROM_MRAM,        a78_rom_mram_device,        "a78_rom_mram", "Atari 7800 ROM Carts + Mirror RAM")
+DEFINE_DEVICE_TYPE(A78_ROM_SG9,         a78_rom_sg9_device,         "a78_rom_sg9",  "Atari 7800 ROM Carts w/SuperGame 9Banks")
+DEFINE_DEVICE_TYPE(A78_ROM_ABSOLUTE,    a78_rom_abs_device,         "a78_rom_abs",  "Atari 7800 ROM Carts w/Absolute Bankswitch")
+DEFINE_DEVICE_TYPE(A78_ROM_ACTIVISION,  a78_rom_act_device,         "a78_rom_act",  "Atari 7800 ROM Carts w/Activision Bankswitch")
+
+DEFINE_DEVICE_TYPE(A78_ROM_P450,        a78_rom_p450_device,        "a78_p450_t0",  "Atari 7800 ROM Carts w/POKEY @ 0x0450")
+DEFINE_DEVICE_TYPE(A78_ROM_P450_POKEY,  a78_rom_p450_pokey_device,  "a78_p450_t1",  "Atari 7800 ROM Carts w/no Bankswitch + POKEY + POKEY @ 0x0450")
+DEFINE_DEVICE_TYPE(A78_ROM_P450_SG_RAM, a78_rom_p450_sg_ram_device, "a78_p450_t6",  "Atari 7800 ROM Carts w/SuperGame Bankswitch + RAM + POKEY @ 0x0450")
+DEFINE_DEVICE_TYPE(A78_ROM_P450_SG9,    a78_rom_p450_sg9_device,    "a78_p450_ta",  "Atari 7800 ROM Carts w/SuperGame 9Banks + POKEY @ 0x0450")
 
 
-const device_type A78_ROM_P450 = device_creator<a78_rom_p450_device>;
-const device_type A78_ROM_P450_POKEY = device_creator<a78_rom_p450_pokey_device>;
-const device_type A78_ROM_P450_SG_RAM = device_creator<a78_rom_p450_sg_ram_device>;
-const device_type A78_ROM_P450_SG9 = device_creator<a78_rom_p450_sg9_device>;
-
-
-a78_rom_device::a78_rom_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-						device_a78_cart_interface( mconfig, *this )
+a78_rom_device::a78_rom_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock)
+	, device_a78_cart_interface( mconfig, *this )
 {
 }
 
 a78_rom_device::a78_rom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, A78_ROM, "Atari 7800 ROM Carts w/no Bankswitch", tag, owner, clock, "a78_rom", __FILE__),
-						device_a78_cart_interface( mconfig, *this )
+	: a78_rom_device(mconfig, A78_ROM, tag, owner, clock)
 {
 }
 
-a78_rom_pokey_device::a78_rom_pokey_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: a78_rom_device(mconfig, type, name, tag, owner, clock, shortname, source),
-						m_pokey(*this, "pokey")
+a78_rom_pokey_device::a78_rom_pokey_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: a78_rom_device(mconfig, type, tag, owner, clock)
+	, m_pokey(*this, "pokey")
 {
 }
 
 a78_rom_pokey_device::a78_rom_pokey_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a78_rom_device(mconfig, A78_ROM_POKEY, "Atari 7800 ROM Carts w/no Bankswitch + POKEY", tag, owner, clock, "a78_rom_pok", __FILE__),
-						m_pokey(*this, "pokey")
+	: a78_rom_pokey_device(mconfig, A78_ROM_POKEY, tag, owner, clock)
 {
 }
 
 
-a78_rom_mram_device::a78_rom_mram_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: a78_rom_device(mconfig, type, name, tag, owner, clock, shortname, source)
+a78_rom_mram_device::a78_rom_mram_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: a78_rom_device(mconfig, type, tag, owner, clock)
 {
 }
 
 a78_rom_mram_device::a78_rom_mram_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a78_rom_device(mconfig, A78_ROM_MRAM, "Atari 7800 ROM Carts + Mirror RAM", tag, owner, clock, "a78_rom_mram", __FILE__)
+	: a78_rom_mram_device(mconfig, A78_ROM_MRAM, tag, owner, clock)
 {
 }
 
-a78_rom_sg_device::a78_rom_sg_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: a78_rom_device(mconfig, type, name, tag, owner, clock, shortname, source), m_bank(0)
-				{
+a78_rom_sg_device::a78_rom_sg_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: a78_rom_device(mconfig, type, tag, owner, clock)
+	, m_bank(0)
+{
 }
 
 a78_rom_sg_device::a78_rom_sg_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a78_rom_device(mconfig, A78_ROM_SG, "Atari 7800 ROM Carts w/SuperGame Bankswitch", tag, owner, clock, "a78_rom_sg", __FILE__), m_bank(0)
-				{
+	: a78_rom_sg_device(mconfig, A78_ROM_SG, tag, owner, clock)
+{
 }
 
 a78_rom_sg_pokey_device::a78_rom_sg_pokey_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a78_rom_sg_device(mconfig, A78_ROM_SG_POKEY, "Atari 7800 ROM Carts w/SuperGame Bankswitch + POKEY", tag, owner, clock, "a78_rom_sgp", __FILE__),
-						m_pokey(*this, "pokey")
+	: a78_rom_sg_device(mconfig, A78_ROM_SG_POKEY, tag, owner, clock)
+	, m_pokey(*this, "pokey")
 {
 }
 
 
-a78_rom_sg_ram_device::a78_rom_sg_ram_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: a78_rom_sg_device(mconfig, type, name, tag, owner, clock, shortname, source)
+a78_rom_sg_ram_device::a78_rom_sg_ram_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: a78_rom_sg_device(mconfig, type, tag, owner, clock)
 {
 }
 
 a78_rom_sg_ram_device::a78_rom_sg_ram_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a78_rom_sg_device(mconfig, A78_ROM_SG_RAM, "Atari 7800 ROM Carts w/SuperGame Bankswitch + RAM", tag, owner, clock, "a78_rom_sgr", __FILE__)
+	: a78_rom_sg_ram_device(mconfig, A78_ROM_SG_RAM, tag, owner, clock)
 {
 }
 
 
-a78_rom_sg9_device::a78_rom_sg9_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: a78_rom_sg_device(mconfig, type, name, tag, owner, clock, shortname, source)
+a78_rom_sg9_device::a78_rom_sg9_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: a78_rom_sg_device(mconfig, type, tag, owner, clock)
 {
 }
 
 a78_rom_sg9_device::a78_rom_sg9_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a78_rom_sg_device(mconfig, A78_ROM_SG9, "Atari 7800 ROM Carts w/SuperGame 9Banks", tag, owner, clock, "a78_rom_sg9", __FILE__)
+	: a78_rom_sg9_device(mconfig, A78_ROM_SG9, tag, owner, clock)
 {
 }
 
 
 a78_rom_abs_device::a78_rom_abs_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a78_rom_device(mconfig, A78_ROM_ABSOLUTE, "Atari 7800 ROM Carts w/Absolute Bankswitch", tag, owner, clock, "a78_rom_abs", __FILE__), m_bank(0)
-				{
+	: a78_rom_device(mconfig, A78_ROM_ABSOLUTE, tag, owner, clock)
+	, m_bank(0)
+{
 }
 
 
 a78_rom_act_device::a78_rom_act_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a78_rom_device(mconfig, A78_ROM_ACTIVISION, "Atari 7800 ROM Carts w/Activision Bankswitch", tag, owner, clock, "a78_rom_act", __FILE__), m_bank(0)
-				{
+	: a78_rom_device(mconfig, A78_ROM_ACTIVISION, tag, owner, clock)
+	, m_bank(0)
+{
 }
 
 
 
 a78_rom_p450_device::a78_rom_p450_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a78_rom_device(mconfig, A78_ROM_P450, "Atari 7800 ROM Carts w/POKEY @ 0x0450", tag, owner, clock, "a78_p450_t0", __FILE__),
-						m_pokey450(*this, "pokey450")
+	: a78_rom_device(mconfig, A78_ROM_P450, tag, owner, clock)
+	, m_pokey450(*this, "pokey450")
 {
 }
 
 a78_rom_p450_pokey_device::a78_rom_p450_pokey_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a78_rom_pokey_device(mconfig, A78_ROM_P450_POKEY, "Atari 7800 ROM Carts w/no Bankswitch + POKEY + POKEY @ 0x0450", tag, owner, clock, "a78_p450_t1", __FILE__),
-						m_pokey450(*this, "pokey450")
+	: a78_rom_pokey_device(mconfig, A78_ROM_P450_POKEY, tag, owner, clock)
+	, m_pokey450(*this, "pokey450")
 {
 }
 
 a78_rom_p450_sg_ram_device::a78_rom_p450_sg_ram_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a78_rom_sg_ram_device(mconfig, A78_ROM_P450_SG_RAM, "Atari 7800 ROM Carts w/SuperGame Bankswitch + RAM + POKEY @ 0x0450", tag, owner, clock, "a78_p450_t6", __FILE__),
-						m_pokey450(*this, "pokey450")
+	: a78_rom_sg_ram_device(mconfig, A78_ROM_P450_SG_RAM, tag, owner, clock)
+	, m_pokey450(*this, "pokey450")
 {
 }
 
 a78_rom_p450_sg9_device::a78_rom_p450_sg9_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a78_rom_sg9_device(mconfig, A78_ROM_P450_SG9, "Atari 7800 ROM Carts w/SuperGame 9Banks + POKEY @ 0x0450", tag, owner, clock, "a78_p450_ta", __FILE__),
-						m_pokey450(*this, "pokey450")
+	: a78_rom_sg9_device(mconfig, A78_ROM_P450_SG9, tag, owner, clock)
+	, m_pokey450(*this, "pokey450")
 {
 }
 
@@ -195,31 +195,6 @@ void a78_rom_act_device::device_reset()
 	m_bank = 0;
 }
 
-// TO DO: do we need a PAL variant?!?
-static MACHINE_CONFIG_FRAGMENT( a78_pokey )
-	MCFG_SPEAKER_STANDARD_MONO("addon")
-
-	MCFG_SOUND_ADD("pokey", POKEY, XTAL_14_31818MHz/8)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "addon", 1.00)
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_FRAGMENT( a78_pokey450 )
-	MCFG_SPEAKER_STANDARD_MONO("pokey_450")
-
-	MCFG_SOUND_ADD("pokey450", POKEY, XTAL_14_31818MHz/8)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "pokey_450", 1.00)
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_FRAGMENT( a78_2pokeys )
-	MCFG_SPEAKER_STANDARD_MONO("addon")
-
-	MCFG_SOUND_ADD("pokey", POKEY, XTAL_14_31818MHz/8)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "addon", 1.00)
-
-	MCFG_SOUND_ADD("pokey450", POKEY, XTAL_14_31818MHz/8)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "addon", 1.00)
-MACHINE_CONFIG_END
-
 
 /*-------------------------------------------------
  mapper specific handlers
@@ -233,7 +208,7 @@ MACHINE_CONFIG_END
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a78_rom_device::read_40xx)
+uint8_t a78_rom_device::read_40xx(offs_t offset)
 {
 	if (offset + 0x4000 < m_base_rom)
 		return 0xff;
@@ -251,10 +226,10 @@ READ8_MEMBER(a78_rom_device::read_40xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a78_rom_pokey_device::read_40xx)
+uint8_t a78_rom_pokey_device::read_40xx(offs_t offset)
 {
 	if (offset < 0x4000)
-		return m_pokey->read(space, offset & 0x0f);
+		return m_pokey->read(offset & 0x0f);
 
 	if (offset + 0x4000 < m_base_rom)
 		return 0xff;
@@ -262,15 +237,18 @@ READ8_MEMBER(a78_rom_pokey_device::read_40xx)
 		return m_rom[offset + 0x4000 - m_base_rom];
 }
 
-WRITE8_MEMBER(a78_rom_pokey_device::write_40xx)
+void a78_rom_pokey_device::write_40xx(offs_t offset, uint8_t data)
 {
 	if (offset < 0x4000)
-		m_pokey->write(space, offset & 0x0f, data);
+		m_pokey->write(offset & 0x0f, data);
 }
 
-machine_config_constructor a78_rom_pokey_device::device_mconfig_additions() const
+// TO DO: do we need a PAL variant?!?
+void a78_rom_pokey_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( a78_pokey );
+	SPEAKER(config, "addon").front_center();
+
+	POKEY(config, m_pokey, XTAL(14'318'181)/8).add_route(ALL_OUTPUTS, "addon", 1.00);
 }
 
 /*-------------------------------------------------
@@ -286,7 +264,7 @@ machine_config_constructor a78_rom_pokey_device::device_mconfig_additions() cons
  -------------------------------------------------*/
 
 
-READ8_MEMBER(a78_rom_mram_device::read_40xx)
+uint8_t a78_rom_mram_device::read_40xx(offs_t offset)
 {
 	if (offset < 0x4000)
 		return m_ram[offset & 0xfeff];
@@ -296,7 +274,7 @@ READ8_MEMBER(a78_rom_mram_device::read_40xx)
 		return m_rom[offset + 0x4000 - m_base_rom];
 }
 
-WRITE8_MEMBER(a78_rom_mram_device::write_40xx)
+void a78_rom_mram_device::write_40xx(offs_t offset, uint8_t data)
 {
 	if (offset < 0x4000)
 		m_ram[offset&0xfeff] = data;
@@ -320,7 +298,7 @@ WRITE8_MEMBER(a78_rom_mram_device::write_40xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a78_rom_sg_device::read_40xx)
+uint8_t a78_rom_sg_device::read_40xx(offs_t offset)
 {
 	if (offset < 0x4000)
 		return m_rom[(offset & 0x3fff) + ((m_bank_mask - 1) * 0x4000)]; // second to last bank (is this always ok?!?)
@@ -330,7 +308,7 @@ READ8_MEMBER(a78_rom_sg_device::read_40xx)
 		return m_rom[(offset & 0x3fff) + (m_bank_mask * 0x4000)];   // last bank
 }
 
-WRITE8_MEMBER(a78_rom_sg_device::write_40xx)
+void a78_rom_sg_device::write_40xx(offs_t offset, uint8_t data)
 {
 	if (offset >= 0x4000 && offset < 0x8000)
 		m_bank = data & m_bank_mask;
@@ -346,27 +324,29 @@ WRITE8_MEMBER(a78_rom_sg_device::write_40xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a78_rom_sg_pokey_device::read_40xx)
+uint8_t a78_rom_sg_pokey_device::read_40xx(offs_t offset)
 {
 	if (offset < 0x4000)
-		return m_pokey->read(space, offset & 0x0f);
+		return m_pokey->read(offset & 0x0f);
 	else if (offset < 0x8000)
 		return m_rom[(offset & 0x3fff) + (m_bank * 0x4000)];
 	else
 		return m_rom[(offset & 0x3fff) + (m_bank_mask * 0x4000)];   // last bank
 }
 
-WRITE8_MEMBER(a78_rom_sg_pokey_device::write_40xx)
+void a78_rom_sg_pokey_device::write_40xx(offs_t offset, uint8_t data)
 {
 	if (offset < 0x4000)
-		m_pokey->write(space, offset & 0x0f, data);
+		m_pokey->write(offset & 0x0f, data);
 	else if (offset < 0x8000)
 		m_bank = data & m_bank_mask;
 }
 
-machine_config_constructor a78_rom_sg_pokey_device::device_mconfig_additions() const
+void a78_rom_sg_pokey_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( a78_pokey );
+	SPEAKER(config, "addon").front_center();
+
+	POKEY(config, m_pokey, XTAL(14'318'181)/8).add_route(ALL_OUTPUTS, "addon", 1.00);
 }
 
 
@@ -381,7 +361,7 @@ machine_config_constructor a78_rom_sg_pokey_device::device_mconfig_additions() c
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a78_rom_sg_ram_device::read_40xx)
+uint8_t a78_rom_sg_ram_device::read_40xx(offs_t offset)
 {
 	if (offset < 0x4000)
 		return m_ram[offset];
@@ -391,7 +371,7 @@ READ8_MEMBER(a78_rom_sg_ram_device::read_40xx)
 		return m_rom[(offset & 0x3fff) + (m_bank_mask * 0x4000)];   // last bank
 }
 
-WRITE8_MEMBER(a78_rom_sg_ram_device::write_40xx)
+void a78_rom_sg_ram_device::write_40xx(offs_t offset, uint8_t data)
 {
 	if (offset < 0x4000)
 		m_ram[offset] = data;
@@ -412,7 +392,7 @@ WRITE8_MEMBER(a78_rom_sg_ram_device::write_40xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a78_rom_sg9_device::read_40xx)
+uint8_t a78_rom_sg9_device::read_40xx(offs_t offset)
 {
 	if (offset < 0x4000)
 		return m_rom[(offset & 0x3fff)];
@@ -422,7 +402,7 @@ READ8_MEMBER(a78_rom_sg9_device::read_40xx)
 		return m_rom[(offset & 0x3fff) + ((m_bank_mask + 1) * 0x4000)]; // last bank
 }
 
-WRITE8_MEMBER(a78_rom_sg9_device::write_40xx)
+void a78_rom_sg9_device::write_40xx(offs_t offset, uint8_t data)
 {
 	if (offset >= 0x4000 && offset < 0x8000)
 		m_bank = (data & m_bank_mask) + 1;
@@ -439,7 +419,7 @@ WRITE8_MEMBER(a78_rom_sg9_device::write_40xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a78_rom_abs_device::read_40xx)
+uint8_t a78_rom_abs_device::read_40xx(offs_t offset)
 {
 	if (offset < 0x4000)
 		return m_rom[(offset & 0x3fff) + (m_bank * 0x4000)];
@@ -450,7 +430,7 @@ READ8_MEMBER(a78_rom_abs_device::read_40xx)
 	}
 }
 
-WRITE8_MEMBER(a78_rom_abs_device::write_40xx)
+void a78_rom_abs_device::write_40xx(offs_t offset, uint8_t data)
 {
 	if (offset == 0x4000)
 	{
@@ -477,7 +457,7 @@ WRITE8_MEMBER(a78_rom_abs_device::write_40xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a78_rom_act_device::read_40xx)
+uint8_t a78_rom_act_device::read_40xx(offs_t offset)
 {
 	uint8_t data = 0xff;
 	uint16_t addr = offset & 0x1fff;
@@ -508,7 +488,7 @@ READ8_MEMBER(a78_rom_act_device::read_40xx)
 	return data;
 }
 
-WRITE8_MEMBER(a78_rom_act_device::write_40xx)
+void a78_rom_act_device::write_40xx(offs_t offset, uint8_t data)
 {
 	if (offset >= 0xbf80 && offset <= 0xbf8f)
 		m_bank = offset & 7;
@@ -517,22 +497,33 @@ WRITE8_MEMBER(a78_rom_act_device::write_40xx)
 
 // Machine configs for PCB variants with a POKEY at $0450
 
-machine_config_constructor a78_rom_p450_device::device_mconfig_additions() const
+void a78_rom_p450_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( a78_pokey450 );
+	SPEAKER(config, "pokey_450").front_center();
+
+	POKEY(config, m_pokey450, XTAL(14'318'181)/8).add_route(ALL_OUTPUTS, "pokey_450", 1.00);
 }
 
-machine_config_constructor a78_rom_p450_pokey_device::device_mconfig_additions() const
+void a78_rom_p450_pokey_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( a78_2pokeys );
+	SPEAKER(config, "addon").front_center();
+
+	POKEY(config, m_pokey, XTAL(14'318'181)/8).add_route(ALL_OUTPUTS, "addon", 1.00);
+
+	POKEY(config, m_pokey450, XTAL(14'318'181)/8).add_route(ALL_OUTPUTS, "addon", 1.00);
 }
 
-machine_config_constructor a78_rom_p450_sg_ram_device::device_mconfig_additions() const
+
+void a78_rom_p450_sg_ram_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( a78_pokey450 );
+	SPEAKER(config, "pokey_450").front_center();
+
+	POKEY(config, m_pokey450, XTAL(14'318'181)/8).add_route(ALL_OUTPUTS, "pokey_450", 1.00);
 }
 
-machine_config_constructor a78_rom_p450_sg9_device::device_mconfig_additions() const
+void a78_rom_p450_sg9_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( a78_pokey450 );
+	SPEAKER(config, "pokey_450").front_center();
+
+	POKEY(config, m_pokey450, XTAL(14'318'181)/8).add_route(ALL_OUTPUTS, "pokey_450", 1.00);
 }

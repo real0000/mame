@@ -29,24 +29,10 @@
 
 **********************************************************************/
 
+#ifndef MAME_VIDEO_ZX8301_H
+#define MAME_VIDEO_ZX8301_H
+
 #pragma once
-
-#ifndef __ZX8301__
-#define __ZX8301__
-
-
-
-
-///*************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-///*************************************************************************
-
-#define MCFG_ZX8301_CPU(_tag) \
-	zx8301_device::static_set_cpu_tag(*device, "^" _tag);
-
-#define MCFG_ZX8301_VSYNC_CALLBACK(_write) \
-	devcb = &zx8301_device::set_vsync_wr_callback(*device, DEVCB_##_write);
-
 
 
 ///*************************************************************************
@@ -61,24 +47,30 @@ class zx8301_device :   public device_t,
 {
 public:
 	// construction/destruction
+	template <typename T> zx8301_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock, T &&cpu_tag)
+		: zx8301_device(mconfig, tag, owner, clock)
+	{
+		m_cpu.set_tag(std::forward<T>(cpu_tag));
+	}
+
 	zx8301_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_vsync_wr_callback(device_t &device, _Object object) { return downcast<zx8301_device &>(device).m_write_vsync.set_callback(object); }
-	static void static_set_cpu_tag(device_t &device, const char *tag) { downcast<zx8301_device &>(device).m_cpu.set_tag(tag); }
+	auto vsync_wr_callback() { return m_write_vsync.bind(); }
 
-	DECLARE_WRITE8_MEMBER( control_w );
-	DECLARE_READ8_MEMBER( data_r );
-	DECLARE_WRITE8_MEMBER( data_w );
+	void control_w(uint8_t data);
+	uint8_t data_r(offs_t offset);
+	void data_w(offs_t offset, uint8_t data);
 
 	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
+	void zx8301(address_map &map);
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
 	// device_config_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	// address space configurations
 	const address_space_config      m_space_config;
@@ -115,8 +107,8 @@ private:
 
 
 // device type definition
-extern const device_type ZX8301;
+DECLARE_DEVICE_TYPE(ZX8301, zx8301_device)
 
 
 
-#endif
+#endif // MAME_VIDEO_ZX8301_H

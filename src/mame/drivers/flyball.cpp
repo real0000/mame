@@ -20,15 +20,32 @@ TODO:
 
 #include "emu.h"
 #include "cpu/m6502/m6502.h"
+#include "machine/74259.h"
+#include "emupal.h"
 #include "screen.h"
+#include "tilemap.h"
 
-#define MASTER_CLOCK    XTAL_12_096MHz
-#define PIXEL_CLOCK     (MASTER_CLOCK / 2)
+static constexpr XTAL MASTER_CLOCK  = 12.096_MHz_XTAL;
+static constexpr XTAL PIXEL_CLOCK   = MASTER_CLOCK / 2;
 
 
 class flyball_state : public driver_device
 {
 public:
+	flyball_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"),
+		m_outlatch(*this, "outlatch"),
+		m_playfield_ram(*this, "playfield_ram"),
+		m_lamp(*this, "lamp0")
+	{ }
+
+	void flyball(machine_config &config);
+
+private:
 	enum
 	{
 		TIMER_POT_ASSERT,
@@ -36,22 +53,45 @@ public:
 		TIMER_QUARTER
 	};
 
-	flyball_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu"),
-		m_gfxdecode(*this, "gfxdecode"),
-		m_screen(*this, "screen"),
-		m_palette(*this, "palette"),
-		m_playfield_ram(*this, "playfield_ram") { }
+	DECLARE_READ8_MEMBER(input_r);
+	DECLARE_READ8_MEMBER(scanline_r);
+	DECLARE_READ8_MEMBER(potsense_r);
+	DECLARE_WRITE8_MEMBER(potmask_w);
+	DECLARE_WRITE8_MEMBER(pitcher_pic_w);
+	DECLARE_WRITE8_MEMBER(ball_vert_w);
+	DECLARE_WRITE8_MEMBER(ball_horz_w);
+	DECLARE_WRITE8_MEMBER(pitcher_vert_w);
+	DECLARE_WRITE8_MEMBER(pitcher_horz_w);
+	DECLARE_WRITE8_MEMBER(misc_w);
+	DECLARE_WRITE_LINE_MEMBER(lamp_w);
+
+	TILEMAP_MAPPER_MEMBER(get_memory_offset);
+	TILE_GET_INFO_MEMBER(get_tile_info);
+
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+	virtual void video_start() override;
+	void flyball_palette(palette_device &palette) const;
+
+	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+	TIMER_CALLBACK_MEMBER(joystick_callback);
+	TIMER_CALLBACK_MEMBER(quarter_callback);
+
+	void flyball_map(address_map &map);
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<screen_device> m_screen;
 	required_device<palette_device> m_palette;
+	required_device<f9334_device> m_outlatch;
 
 	/* memory pointers */
 	required_shared_ptr<uint8_t> m_playfield_ram;
+
+	output_finder<> m_lamp;
 
 	/* video-related */
 	tilemap_t  *m_tmap;
@@ -65,35 +105,9 @@ public:
 	uint8_t    m_potmask;
 	uint8_t    m_potsense;
 
+	emu_timer *m_pot_assert_timer[64];
 	emu_timer *m_pot_clear_timer;
 	emu_timer *m_quarter_timer;
-
-	DECLARE_READ8_MEMBER(input_r);
-	DECLARE_READ8_MEMBER(scanline_r);
-	DECLARE_READ8_MEMBER(potsense_r);
-	DECLARE_WRITE8_MEMBER(potmask_w);
-	DECLARE_WRITE8_MEMBER(pitcher_pic_w);
-	DECLARE_WRITE8_MEMBER(ball_vert_w);
-	DECLARE_WRITE8_MEMBER(ball_horz_w);
-	DECLARE_WRITE8_MEMBER(pitcher_vert_w);
-	DECLARE_WRITE8_MEMBER(pitcher_horz_w);
-	DECLARE_WRITE8_MEMBER(misc_w);
-
-	TILEMAP_MAPPER_MEMBER(get_memory_offset);
-	TILE_GET_INFO_MEMBER(get_tile_info);
-
-	virtual void machine_start() override;
-	virtual void machine_reset() override;
-	virtual void video_start() override;
-	DECLARE_PALETTE_INIT(flyball);
-
-	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-
-	TIMER_CALLBACK_MEMBER(joystick_callback);
-	TIMER_CALLBACK_MEMBER(quarter_callback);
-
-protected:
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 };
 
 
@@ -121,13 +135,13 @@ TILE_GET_INFO_MEMBER(flyball_state::get_tile_info)
 	if ((flags & TILE_FLIPX) && (flags & TILE_FLIPY))
 		code += 64;
 
-	SET_TILE_INFO_MEMBER(0, code, 0, flags);
+	tileinfo.set(0, code, 0, flags);
 }
 
 
 void flyball_state::video_start()
 {
-	m_tmap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(flyball_state::get_tile_info),this), tilemap_mapper_delegate(FUNC(flyball_state::get_memory_offset),this), 8, 16, 32, 16);
+	m_tmap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(flyball_state::get_tile_info)), tilemap_mapper_delegate(*this, FUNC(flyball_state::get_memory_offset)), 8, 16, 32, 16);
 }
 
 
@@ -172,7 +186,7 @@ void flyball_state::device_timer(emu_timer &timer, device_timer_id id, int param
 		break;
 
 	default:
-		assert_always(false, "Unknown id in flyball_state::device_timer");
+		throw emu_fatalerror("Unknown id in flyball_state::device_timer");
 	}
 }
 
@@ -206,7 +220,7 @@ TIMER_CALLBACK_MEMBER(flyball_state::quarter_callback)
 
 	for (i = 0; i < 64; i++)
 		if (potsense[i] != 0)
-			timer_set(m_screen->time_until_pos(scanline + i), TIMER_POT_ASSERT, potsense[i]);
+			m_pot_assert_timer[potsense[i]]->adjust(m_screen->time_until_pos(scanline + i), potsense[i]);
 
 	scanline += 0x40;
 	scanline &= 0xff;
@@ -272,29 +286,13 @@ WRITE8_MEMBER(flyball_state::pitcher_horz_w)
 
 WRITE8_MEMBER(flyball_state::misc_w)
 {
-	int bit = ~data & 1;
+	// address and data lines passed through inverting buffers
+	m_outlatch->write_d0(~offset, ~data);
+}
 
-	switch (offset)
-	{
-	case 0:
-		output().set_led_value(0, bit);
-		break;
-	case 1:
-		/* crowd very loud */
-		break;
-	case 2:
-		/* footstep off-on */
-		break;
-	case 3:
-		/* crowd off-on */
-		break;
-	case 4:
-		/* crowd soft-loud */
-		break;
-	case 5:
-		/* bat hit */
-		break;
-	}
+WRITE_LINE_MEMBER(flyball_state::lamp_w)
+{
+	m_lamp = state ? 1 : 0;
 }
 
 
@@ -304,23 +302,24 @@ WRITE8_MEMBER(flyball_state::misc_w)
  *
  *************************************/
 
-static ADDRESS_MAP_START( flyball_map, AS_PROGRAM, 8, flyball_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x1fff)
-	AM_RANGE(0x0000, 0x00ff) AM_MIRROR(0x100) AM_RAM
-	AM_RANGE(0x0800, 0x0800) AM_NOP
-	AM_RANGE(0x0801, 0x0801) AM_WRITE(pitcher_pic_w)
-	AM_RANGE(0x0802, 0x0802) AM_READ(scanline_r)
-	AM_RANGE(0x0803, 0x0803) AM_READ(potsense_r)
-	AM_RANGE(0x0804, 0x0804) AM_WRITE(ball_vert_w)
-	AM_RANGE(0x0805, 0x0805) AM_WRITE(ball_horz_w)
-	AM_RANGE(0x0806, 0x0806) AM_WRITE(pitcher_vert_w)
-	AM_RANGE(0x0807, 0x0807) AM_WRITE(pitcher_horz_w)
-	AM_RANGE(0x0900, 0x0900) AM_WRITE(potmask_w)
-	AM_RANGE(0x0a00, 0x0a07) AM_WRITE(misc_w)
-	AM_RANGE(0x0b00, 0x0b00) AM_READ(input_r)
-	AM_RANGE(0x0d00, 0x0eff) AM_WRITEONLY AM_SHARE("playfield_ram")
-	AM_RANGE(0x1000, 0x1fff) AM_ROM AM_REGION("maincpu", 0)
-ADDRESS_MAP_END
+void flyball_state::flyball_map(address_map &map)
+{
+	map.global_mask(0x1fff);
+	map(0x0000, 0x00ff).mirror(0x100).ram();
+	map(0x0800, 0x0800).noprw();
+	map(0x0801, 0x0801).w(FUNC(flyball_state::pitcher_pic_w));
+	map(0x0802, 0x0802).r(FUNC(flyball_state::scanline_r));
+	map(0x0803, 0x0803).r(FUNC(flyball_state::potsense_r));
+	map(0x0804, 0x0804).w(FUNC(flyball_state::ball_vert_w));
+	map(0x0805, 0x0805).w(FUNC(flyball_state::ball_horz_w));
+	map(0x0806, 0x0806).w(FUNC(flyball_state::pitcher_vert_w));
+	map(0x0807, 0x0807).w(FUNC(flyball_state::pitcher_horz_w));
+	map(0x0900, 0x0900).w(FUNC(flyball_state::potmask_w));
+	map(0x0a00, 0x0a07).w(FUNC(flyball_state::misc_w));
+	map(0x0b00, 0x0b00).r(FUNC(flyball_state::input_r));
+	map(0x0d00, 0x0eff).writeonly().share("playfield_ram");
+	map(0x1000, 0x1fff).rom().region("maincpu", 0);
+}
 
 
 /*************************************
@@ -401,17 +400,17 @@ static const gfx_layout flyball_sprites_layout =
 	0x100     /* increment */
 };
 
-static GFXDECODE_START( flyball )
+static GFXDECODE_START( gfx_flyball )
 	GFXDECODE_ENTRY( "gfx1", 0, flyball_tiles_layout, 0, 2 )
 	GFXDECODE_ENTRY( "gfx2", 0, flyball_sprites_layout, 2, 2 )
 GFXDECODE_END
 
 
-PALETTE_INIT_MEMBER(flyball_state, flyball)
+void flyball_state::flyball_palette(palette_device &palette) const
 {
-	palette.set_pen_color(0, rgb_t(0x3F, 0x3F, 0x3F));  /* tiles, ball */
-	palette.set_pen_color(1, rgb_t(0xFF, 0xFF, 0xFF));
-	palette.set_pen_color(2, rgb_t(0xFF ,0xFF, 0xFF));  /* sprites */
+	palette.set_pen_color(0, rgb_t(0x3f, 0x3f, 0x3f));  // tiles, ball
+	palette.set_pen_color(1, rgb_t(0xff, 0xff, 0xff));
+	palette.set_pen_color(2, rgb_t(0xff ,0xff, 0xff));  // sprites
 	palette.set_pen_color(3, rgb_t(0x00, 0x00, 0x00));
 }
 
@@ -432,8 +431,11 @@ void flyball_state::machine_start()
 		buf[i ^ 0x1ff] = ROM[i];
 	memcpy(ROM, &buf[0], len);
 
+	for (int i = 0; i < 64; i++)
+		m_pot_assert_timer[i] = timer_alloc(TIMER_POT_ASSERT);
 	m_pot_clear_timer = timer_alloc(TIMER_POT_CLEAR);
 	m_quarter_timer = timer_alloc(TIMER_QUARTER);
+	m_lamp.resolve();
 
 	save_item(NAME(m_pitcher_vert));
 	save_item(NAME(m_pitcher_horz));
@@ -458,27 +460,34 @@ void flyball_state::machine_reset()
 }
 
 
-static MACHINE_CONFIG_START( flyball, flyball_state )
-
+void flyball_state::flyball(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6502, MASTER_CLOCK/16)
-	MCFG_CPU_PROGRAM_MAP(flyball_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", flyball_state, nmi_line_pulse)
+	M6502(config, m_maincpu, MASTER_CLOCK/16);
+	m_maincpu->set_addrmap(AS_PROGRAM, &flyball_state::flyball_map);
+
+	F9334(config, m_outlatch); // F7
+	m_outlatch->q_out_cb<2>().set_nop(); // bat hit
+	m_outlatch->q_out_cb<3>().set_nop(); // crowd soft-loud
+	m_outlatch->q_out_cb<4>().set_nop(); // crowd off-on
+	m_outlatch->q_out_cb<5>().set_nop(); // footstep off-on
+	m_outlatch->q_out_cb<6>().set_nop(); // crowd very loud
+	m_outlatch->q_out_cb<7>().set(FUNC(flyball_state::lamp_w)); // 1 player lamp
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_SIZE(256, 262)
-	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0, 239)
-	MCFG_SCREEN_UPDATE_DRIVER(flyball_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_refresh_hz(60);
+	m_screen->set_size(256, 262);
+	m_screen->set_visarea(0, 255, 0, 239);
+	m_screen->set_screen_update(FUNC(flyball_state::screen_update));
+	m_screen->set_palette(m_palette);
+	m_screen->screen_vblank().set_inputline(m_maincpu, INPUT_LINE_NMI);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", flyball)
-	MCFG_PALETTE_ADD("palette", 4)
-	MCFG_PALETTE_INIT_OWNER(flyball_state, flyball)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_flyball);
+	PALETTE(config, m_palette, FUNC(flyball_state::flyball_palette), 4);
 
 	/* sound hardware */
-MACHINE_CONFIG_END
+}
 
 
 /*************************************
@@ -538,5 +547,5 @@ ROM_END
  *
  *************************************/
 
-GAME( 1976, flyball,  0,       flyball, flyball, driver_device, 0, 0, "Atari", "Flyball (rev 2)", MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1976, flyball1, flyball, flyball, flyball, driver_device, 0, 0, "Atari", "Flyball (rev 1)", MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1976, flyball,  0,       flyball, flyball, flyball_state, empty_init, 0, "Atari", "Flyball (rev 2)", MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1976, flyball1, flyball, flyball, flyball, flyball_state, empty_init, 0, "Atari", "Flyball (rev 1)", MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )

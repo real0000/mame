@@ -13,15 +13,13 @@
 WRITE8_MEMBER(renegade_state::bg_videoram_w)
 {
 	m_bg_videoram[offset] = data;
-	offset = offset % (64 * 16);
-	m_bg_tilemap->mark_tile_dirty(offset);
+	m_bg_tilemap->mark_tile_dirty(offset & 0x3ff);
 }
 
 WRITE8_MEMBER(renegade_state::fg_videoram_w)
 {
 	m_fg_videoram[offset] = data;
-	offset = offset % (32 * 32);
-	m_fg_tilemap->mark_tile_dirty(offset);
+	m_fg_tilemap->mark_tile_dirty(offset & 0x3ff);
 }
 
 WRITE8_MEMBER(renegade_state::flipscreen_w)
@@ -43,7 +41,7 @@ TILE_GET_INFO_MEMBER(renegade_state::get_bg_tilemap_info)
 {
 	const uint8_t *source = &m_bg_videoram[tile_index];
 	uint8_t attributes = source[0x400]; /* CCC??BBB */
-	SET_TILE_INFO_MEMBER(1 + (attributes & 0x7),
+	tileinfo.set(1 + (attributes & 0x7),
 		source[0],
 		attributes >> 5,
 		0);
@@ -53,16 +51,16 @@ TILE_GET_INFO_MEMBER(renegade_state::get_fg_tilemap_info)
 {
 	const uint8_t *source = &m_fg_videoram[tile_index];
 	uint8_t attributes = source[0x400];
-	SET_TILE_INFO_MEMBER(0,
-		(attributes & 3) * 256 + source[0],
+	tileinfo.set(0,
+		((attributes & 3) << 8) | source[0],
 		attributes >> 6,
 		0);
 }
 
 void renegade_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(renegade_state::get_bg_tilemap_info),this), TILEMAP_SCAN_ROWS,      16, 16, 64, 16);
-	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(renegade_state::get_fg_tilemap_info),this), TILEMAP_SCAN_ROWS,   8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(renegade_state::get_bg_tilemap_info)), TILEMAP_SCAN_ROWS, 16, 16, 64, 16);
+	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(renegade_state::get_fg_tilemap_info)), TILEMAP_SCAN_ROWS,  8,  8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 	m_bg_tilemap->set_scrolldx(256, 0);
@@ -77,9 +75,10 @@ void renegade_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 
 	while (source < finish)
 	{
-		int sy = 240 - source[0];
+		// 224 matches reference (stage 1 boss in kuniokun is aligned with the train door)
+		int sy = 224 - source[0];
 
-		if (sy >= 16)
+		//if (sy >= 0)
 		{
 			int attributes = source[1]; /* SFCCBBBB */
 			int sx = source[3];
@@ -90,19 +89,21 @@ void renegade_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 
 			if (sx > 248)
 				sx -= 256;
+			// wrap-around (stage 2 bike tires)
+			if (sy < 0)
+				sy += 256;
 
 			if (flip_screen())
 			{
 				sx = 240 - sx;
-				sy = 240 - sy;
+				sy = 224 - sy;
 				xflip = !xflip;
 			}
 
 			if (attributes & 0x80) /* big sprite */
 			{
-				sprite_number &= ~1;
 				m_gfxdecode->gfx(sprite_bank)->transpen(bitmap,cliprect,
-					sprite_number + 1,
+					sprite_number | 1,
 					color,
 					xflip, flip_screen(),
 					sx, sy + (flip_screen() ? -16 : 16), 0);

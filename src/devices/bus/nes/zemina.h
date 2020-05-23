@@ -20,12 +20,12 @@ public:
 
 	// device-level overrides
 	virtual void device_start() override;
-	virtual DECLARE_WRITE8_MEMBER(write_h) override;
+	virtual void write_h(offs_t offset, uint8_t data) override;
 
 	virtual void pcb_reset() override;
 };
 
 // device type definition
-extern const device_type NES_ZEMINA;
+DECLARE_DEVICE_TYPE(NES_ZEMINA, nes_zemina_device)
 
-#endif /* MAME_BUS_NES_ZEMINA_H */
+#endif // MAME_BUS_NES_ZEMINA_H

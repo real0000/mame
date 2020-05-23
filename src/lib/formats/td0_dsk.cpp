@@ -14,8 +14,8 @@
  * Edited and translated to English by Kenji RIKITAKE
  */
 
-#include <string.h>
-#include <assert.h>
+#include <cstring>
+#include <cassert>
 #include "pool.h"
 #include "flopimg.h"
 
@@ -908,6 +908,10 @@ bool td0_format::load(io_generic *io, uint32_t form_factor, floppy_image *image)
 				else
 					return false; // single side 3.5?
 			}
+			break;
+		case 5:
+			if (form_factor != floppy_image::FF_8)
+				return false;   // 8" drive form factor is expected
 			break;
 	}
 

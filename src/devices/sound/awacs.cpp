@@ -14,7 +14,8 @@
 #include "awacs.h"
 
 // device type definition
-const device_type AWACS = device_creator<awacs_device>;
+DEFINE_DEVICE_TYPE(AWACS, awacs_device, "awacs", "AWACS")
+
 
 //**************************************************************************
 //  LIVE DEVICE
@@ -25,8 +26,12 @@ const device_type AWACS = device_creator<awacs_device>;
 //-------------------------------------------------
 
 awacs_device::awacs_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, AWACS, "AWACS", tag, owner, clock, "awacs", __FILE__),
-		device_sound_interface(mconfig, *this), m_stream(nullptr), m_play_ptr(0), m_buffer_size(0), m_buffer_num(0), m_playback_enable(false), m_dma_space(nullptr), m_dma_offset_0(0), m_dma_offset_1(0), m_timer(nullptr)
+	: device_t(mconfig, AWACS, tag, owner, clock)
+	, device_sound_interface(mconfig, *this)
+	, m_stream(nullptr)
+	, m_play_ptr(0), m_buffer_size(0), m_buffer_num(0), m_playback_enable(false)
+	, m_dma_space(nullptr), m_dma_offset_0(0), m_dma_offset_1(0)
+	, m_timer(nullptr)
 {
 }
 
@@ -122,7 +127,7 @@ void awacs_device::sound_stream_update(sound_stream &stream, stream_sample_t **i
 //  read - read from the chip's registers and internal RAM
 //-------------------------------------------------
 
-READ8_MEMBER( awacs_device::read )
+uint8_t awacs_device::read(offs_t offset)
 {
 	return m_regs[offset];
 }
@@ -131,7 +136,7 @@ READ8_MEMBER( awacs_device::read )
 //  write - write to the chip's registers and internal RAM
 //-------------------------------------------------
 
-WRITE8_MEMBER( awacs_device::write )
+void awacs_device::write(offs_t offset, uint8_t data)
 {
 	switch (offset)
 	{

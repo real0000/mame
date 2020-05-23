@@ -187,6 +187,30 @@ end
 
 --------------------------------------------------
 --
+--@src/lib/formats/agat840k_hle_dsk.h,FORMATS["AGAT840K_HLE_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["AGAT840K_HLE_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/agat840k_hle_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/agat840k_hle_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
+--@src/lib/formats/aim_dsk.h,FORMATS["AIM_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["AIM_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/aim_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/aim_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
 --@src/lib/formats/ami_dsk.h,FORMATS["AMI_DSK"] = true
 --------------------------------------------------
 
@@ -679,6 +703,30 @@ end
 
 --------------------------------------------------
 --
+--@src/lib/formats/ds9_dsk.h,FORMATS["DS9_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["DS9_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/ds9_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/ds9_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
+--@src/lib/formats/sdf_dsk.h,FORMATS["SDF_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["SDF_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/sdf_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/sdf_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
 --@src/lib/formats/ep64_dsk.h,FORMATS["EP64_DSK"] = true
 --------------------------------------------------
 
@@ -698,6 +746,18 @@ if (FORMATS["DMV_DSK"]~=null  or _OPTIONS["with-tools"]) then
 	files {
 		MAME_DIR.. "src/lib/formats/dmv_dsk.cpp",
 		MAME_DIR.. "src/lib/formats/dmv_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
+--@src/lib/formats/dvk_mx_dsk.h,FORMATS["DVK_MX_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["DVK_MX_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/dvk_mx_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/dvk_mx_dsk.h",
 	}
 end
 
@@ -770,6 +830,18 @@ if (FORMATS["FLEX_DSK"]~=null  or _OPTIONS["with-tools"]) then
 	files {
 		MAME_DIR.. "src/lib/formats/flex_dsk.cpp",
 		MAME_DIR.. "src/lib/formats/flex_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
+--@src/lib/formats/uniflex_dsk.h,FORMATS["UNIFLEX_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["UNIFLEX_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/uniflex_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/uniflex_dsk.h",
 	}
 end
 
@@ -859,6 +931,18 @@ end
 
 --------------------------------------------------
 --
+--@src/lib/formats/h8_cas.h,FORMATS["H8_CAS"] = true
+--------------------------------------------------
+
+if (FORMATS["H8_CAS"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/h8_cas.cpp",
+		MAME_DIR.. "src/lib/formats/h8_cas.h",
+	}
+end
+
+--------------------------------------------------
+--
 --@src/lib/formats/hector_minidisc.h,FORMATS["HECTOR_MINIDISC"] = true
 --------------------------------------------------
 
@@ -895,6 +979,54 @@ end
 
 --------------------------------------------------
 --
+--@src/lib/formats/hti_tape.h,FORMATS["HTI_TAP"] = true
+--------------------------------------------------
+
+if (FORMATS["HTI_TAP"]~=null or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/hti_tape.cpp",
+		MAME_DIR.. "src/lib/formats/hti_tape.h",
+	}
+end
+
+--------------------------------------------------
+--
+--@src/lib/formats/hpi_dsk.h,FORMATS["HPI_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["HPI_DSK"]~=null or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/hpi_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/hpi_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
+--@src/lib/formats/hp_ipc_dsk.h,FORMATS["HP_IPC_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["HP_IPC_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/hp_ipc_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/hp_ipc_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
+--@src/lib/formats/img_dsk.h,FORMATS["IMG_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["IMG_DSK"]~=null or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/img_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/img_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
 --@src/lib/formats/iq151_dsk.h,FORMATS["IQ151_DSK"] = true
 --------------------------------------------------
 
@@ -919,6 +1051,18 @@ end
 
 --------------------------------------------------
 --
+--@src/lib/formats/juku_dsk.h,FORMATS["JUKU_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["JUKU_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/juku_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/juku_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
 --@src/lib/formats/jvc_dsk.h,FORMATS["JVC_DSK"] = true
 --------------------------------------------------
 
@@ -926,6 +1070,30 @@ if (FORMATS["JVC_DSK"]~=null  or _OPTIONS["with-tools"]) then
 	files {
 		MAME_DIR.. "src/lib/formats/jvc_dsk.cpp",
 		MAME_DIR.. "src/lib/formats/jvc_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
+--@src/lib/formats/os9_dsk.h,FORMATS["OS9_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["OS9_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/os9_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/os9_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
+--@src/lib/formats/jfd_dsk.h,FORMATS["JFD_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["JFD_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/jfd_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/jfd_dsk.h",
 	}
 end
 
@@ -1075,6 +1243,18 @@ end
 
 --------------------------------------------------
 --
+--@src/lib/formats/mtx_dsk.h,FORMATS["MTX_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["MTX_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/mtx_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/mtx_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
 --@src/lib/formats/mz_cas.h,FORMATS["MZ_CAS"] = true
 --------------------------------------------------
 
@@ -1147,6 +1327,18 @@ end
 
 --------------------------------------------------
 --
+--@src/lib/formats/opd_dsk.h,FORMATS["OPD_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["OPD_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/opd_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/opd_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
 --@src/lib/formats/orao_cas.h,FORMATS["ORAO_CAS"] = true
 --------------------------------------------------
 
@@ -1178,6 +1370,18 @@ if (FORMATS["ORIC_TAP"]~=null  or _OPTIONS["with-tools"]) then
 	files {
 		MAME_DIR.. "src/lib/formats/oric_tap.cpp",
 		MAME_DIR.. "src/lib/formats/oric_tap.h",
+	}
+end
+
+--------------------------------------------------
+--
+--@src/lib/formats/ibmxdf_dsk.h,FORMATS["IBMXDF_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["IBMXDF_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/ibmxdf_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/ibmxdf_dsk.h",
 	}
 end
 
@@ -1274,6 +1478,30 @@ if (FORMATS["PMD_CAS"]~=null  or _OPTIONS["with-tools"]) then
 	files {
 		MAME_DIR.. "src/lib/formats/pmd_cas.cpp",
 		MAME_DIR.. "src/lib/formats/pmd_cas.h",
+	}
+end
+
+--------------------------------------------------
+--
+--@src/lib/formats/poly_dsk.h,FORMATS["POLY_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["POLY_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/poly_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/poly_dsk.h",
+	}
+end
+
+--------------------------------------------------
+--
+--@src/lib/formats/ppg_dsk.h,FORMATS["PPG_DSK"] = true
+--------------------------------------------------
+
+if (FORMATS["PPG_DSK"]~=null  or _OPTIONS["with-tools"]) then
+	files {
+		MAME_DIR.. "src/lib/formats/ppg_dsk.cpp",
+		MAME_DIR.. "src/lib/formats/ppg_dsk.h",
 	}
 end
 

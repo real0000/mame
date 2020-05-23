@@ -6,21 +6,10 @@
 
 **********************************************************************/
 
+#ifndef MAME_VIDEO_UPD7227_H
+#define MAME_VIDEO_UPD7227_H
+
 #pragma once
-
-#ifndef __UPD7227__
-#define __UPD7227__
-
-
-
-
-///*************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-///*************************************************************************
-
-#define MCFG_UPD7227_ADD(_tag, _sx, _sy) \
-	MCFG_DEVICE_ADD(_tag, UPD7227, 0) \
-	upd7227_device::static_set_offsets(*device, _sx, _sy);
 
 
 
@@ -30,15 +19,16 @@
 
 // ======================> upd7227_device
 
-class upd7227_device :  public device_t,
-						public device_memory_interface
+class upd7227_device : public device_t, public device_memory_interface
 {
 public:
 	// construction/destruction
-	upd7227_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	upd7227_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
+	upd7227_device(const machine_config &mconfig, const char *tag, device_t *owner, int sx, int sy) : upd7227_device(mconfig, tag, owner, 0)
+	{ set_offsets(sx, sy); }
 
 	// inline configuration helpers
-	static void static_set_offsets(device_t &device, int sx, int sy);
+	void set_offsets(int sx, int sy) { m_sx = sx; m_sy = sy; }
 
 	DECLARE_WRITE_LINE_MEMBER( cs_w );
 	DECLARE_WRITE_LINE_MEMBER( cd_w );
@@ -54,7 +44,7 @@ protected:
 	virtual void device_reset() override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	address_space_config        m_space_config;
 
@@ -83,12 +73,12 @@ private:
 	int m_sck;
 	int m_si;
 	int m_so;
+
+	void upd7227_map(address_map &map);
 };
 
 
 // device type definition
-extern const device_type UPD7227;
+DECLARE_DEVICE_TYPE(UPD7227, upd7227_device)
 
-
-
-#endif
+#endif // MAME_VIDEO_UPD7227_H

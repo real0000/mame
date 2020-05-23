@@ -2,7 +2,17 @@
 // copyright-holders:Fabio Priuli
 /***************************************************************************
 
-    Konami IC 056230 (LANC)
+Konami IC 056230 (LANC)
+
+Device Notes:
+-The custom IC itself
+-64k shared ram
+-LS161 4-bit binary counter
+-PAL(056787) for racinfrc's sub board and plygonet.cpp
+-PAL(056787A) for zr107.cpp, gticlub.cpp and thunderh's I/O board
+-HYC2485S RS485 transceiver
+
+TODO: nearly everything
 
 ***************************************************************************/
 
@@ -15,14 +25,14 @@
 //**************************************************************************
 
 // device type definition
-const device_type K056230 = device_creator<k056230_device>;
+DEFINE_DEVICE_TYPE(K056230, k056230_device, "k056230", "K056230 LANC")
 
 //-------------------------------------------------
 //  k056230_device - constructor
 //-------------------------------------------------
 
 k056230_device::k056230_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, K056230, "K056230 LANC", tag, owner, clock, "k056230", __FILE__)
+	: device_t(mconfig, K056230, tag, owner, clock)
 	, m_is_thunderh(0)
 	, m_cpu(*this, finder_base::DUMMY_TAG)
 {
@@ -39,7 +49,7 @@ void k056230_device::device_start()
 }
 
 
-READ8_MEMBER(k056230_device::read)
+uint8_t k056230_device::read(offs_t offset)
 {
 	switch (offset)
 	{
@@ -49,7 +59,7 @@ READ8_MEMBER(k056230_device::read)
 		}
 	}
 
-//  osd_printf_debug("k056230_r: %d at %08X\n", offset, space.device().safe_pc());
+//  logerror("k056230_r: %d %s\n", offset, machine().describe_context());
 
 	return 0;
 }
@@ -61,7 +71,7 @@ TIMER_CALLBACK_MEMBER(k056230_device::network_irq_clear)
 }
 
 
-WRITE8_MEMBER(k056230_device::write)
+void k056230_device::write(offs_t offset, uint8_t data)
 {
 	switch(offset)
 	{
@@ -91,17 +101,17 @@ WRITE8_MEMBER(k056230_device::write)
 			break;
 		}
 	}
-//  osd_printf_debug("k056230_w: %d, %02X at %08X\n", offset, data, space.device().safe_pc());
+//  logerror("k056230_w: %d, %02X at %08X\n", offset, data, machine().describe_context());
 }
 
-READ32_MEMBER(k056230_device::lanc_ram_r)
+uint32_t k056230_device::lanc_ram_r(offs_t offset, uint32_t mem_mask)
 {
-	//osd_printf_debug("LANC_RAM_r: %08X, %08X at %08X\n", offset, mem_mask, space.device().safe_pc());
+	//logerror("LANC_RAM_r: %08X, %08X %s\n", offset, mem_mask, machine().describe_context());
 	return m_ram[offset & 0x7ff];
 }
 
-WRITE32_MEMBER(k056230_device::lanc_ram_w)
+void k056230_device::lanc_ram_w(offs_t offset, uint32_t data, uint32_t mem_mask)
 {
-	//osd_printf_debug("LANC_RAM_w: %08X, %08X, %08X at %08X\n", data, offset, mem_mask, space.device().safe_pc());
+	//logerror("LANC_RAM_w: %08X, %08X, %08X %s\n", data, offset, mem_mask, machine().describe_context());
 	COMBINE_DATA(m_ram + (offset & 0x7ff));
 }

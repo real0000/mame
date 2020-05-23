@@ -18,45 +18,43 @@
  *
  *************************************/
 
-PALETTE_INIT_MEMBER(equites_state,equites)
+void equites_state::equites_palette(palette_device &palette) const
 {
 	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
 
-	for (i = 0; i < 256; i++)
+	for (int i = 0; i < 256; i++)
 		palette.set_indirect_color(i, rgb_t(pal4bit(color_prom[i]), pal4bit(color_prom[i + 0x100]), pal4bit(color_prom[i + 0x200])));
 
 	// point to the CLUT
 	color_prom += 0x380;
 
-	for (i = 0; i < 256; i++)
+	for (int i = 0; i < 256; i++)
 		palette.set_pen_indirect(i, i);
 
-	for (i = 0; i < 0x80; i++)
+	for (int i = 0; i < 0x80; i++)
 		palette.set_pen_indirect(i + 0x100, color_prom[i]);
 }
 
-PALETTE_INIT_MEMBER(equites_state,splndrbt)
+void splndrbt_state::splndrbt_palette(palette_device &palette) const
 {
 	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
 
-	for (i = 0; i < 0x100; i++)
+	for (int i = 0; i < 0x100; i++)
 		palette.set_indirect_color(i, rgb_t(pal4bit(color_prom[i]), pal4bit(color_prom[i + 0x100]), pal4bit(color_prom[i + 0x200])));
 
-	for (i = 0; i < 0x100; i++)
+	for (int i = 0; i < 0x100; i++)
 		palette.set_pen_indirect(i, i);
 
 	// point to the bg CLUT
 	color_prom += 0x300;
 
-	for (i = 0; i < 0x80; i++)
+	for (int i = 0; i < 0x80; i++)
 		palette.set_pen_indirect(i + 0x100, color_prom[i] + 0x10);
 
 	// point to the sprite CLUT
 	color_prom += 0x100;
 
-	for (i = 0; i < 0x100; i++)
+	for (int i = 0; i < 0x100; i++)
 		palette.set_pen_indirect(i + 0x180, color_prom[i]);
 }
 
@@ -73,17 +71,17 @@ TILE_GET_INFO_MEMBER(equites_state::equites_fg_info)
 	int tile = m_fg_videoram[2 * tile_index];
 	int color = m_fg_videoram[2 * tile_index + 1] & 0x1f;
 
-	SET_TILE_INFO_MEMBER(0, tile, color, 0);
+	tileinfo.set(0, tile, color, 0);
 	if (color & 0x10)
 		tileinfo.flags |= TILE_FORCE_LAYER0;
 }
 
-TILE_GET_INFO_MEMBER(equites_state::splndrbt_fg_info)
+TILE_GET_INFO_MEMBER(splndrbt_state::splndrbt_fg_info)
 {
 	int tile = m_fg_videoram[2 * tile_index] + (m_fg_char_bank << 8);
 	int color = m_fg_videoram[2 * tile_index + 1] & 0x3f;
 
-	SET_TILE_INFO_MEMBER(0, tile, color, 0);
+	tileinfo.set(0, tile, color, 0);
 	if (color & 0x10)
 		tileinfo.flags |= TILE_FORCE_LAYER0;
 }
@@ -95,17 +93,17 @@ TILE_GET_INFO_MEMBER(equites_state::equites_bg_info)
 	int color = (data & 0xf000) >> 12;
 	int fxy = (data & 0x0600) >> 9;
 
-	SET_TILE_INFO_MEMBER(1, tile, color, TILE_FLIPXY(fxy));
+	tileinfo.set(1, tile, color, TILE_FLIPXY(fxy));
 }
 
-TILE_GET_INFO_MEMBER(equites_state::splndrbt_bg_info)
+TILE_GET_INFO_MEMBER(splndrbt_state::splndrbt_bg_info)
 {
 	int data = m_bg_videoram[tile_index];
 	int tile = data & 0x1ff;
 	int color = (data & 0xf800) >> 11;
 	int fxy = (data & 0x0600) >> 9;
 
-	SET_TILE_INFO_MEMBER(1, tile, color, TILE_FLIPXY(fxy));
+	tileinfo.set(1, tile, color, TILE_FLIPXY(fxy));
 	tileinfo.group = color;
 }
 
@@ -120,28 +118,28 @@ TILE_GET_INFO_MEMBER(equites_state::splndrbt_bg_info)
 VIDEO_START_MEMBER(equites_state,equites)
 {
 	m_fg_videoram = std::make_unique<uint8_t[]>(0x800);
-	save_pointer(NAME(m_fg_videoram.get()), 0x800);
+	save_pointer(NAME(m_fg_videoram), 0x800);
 
-	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(equites_state::equites_fg_info),this), TILEMAP_SCAN_COLS,  8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(equites_state::equites_fg_info)), TILEMAP_SCAN_COLS,  8, 8, 32, 32);
 	m_fg_tilemap->set_transparent_pen(0);
 
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(equites_state::equites_bg_info),this), TILEMAP_SCAN_ROWS, 16, 16, 16, 16);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(equites_state::equites_bg_info)), TILEMAP_SCAN_ROWS, 16, 16, 16, 16);
 	m_bg_tilemap->set_transparent_pen(0);
 	m_bg_tilemap->set_scrolldx(0, -10);
 }
 
-VIDEO_START_MEMBER(equites_state,splndrbt)
+VIDEO_START_MEMBER(splndrbt_state,splndrbt)
 {
 	assert(m_screen->format() == BITMAP_FORMAT_IND16);
 
 	m_fg_videoram = std::make_unique<uint8_t[]>(0x800);
-	save_pointer(NAME(m_fg_videoram.get()), 0x800);
+	save_pointer(NAME(m_fg_videoram), 0x800);
 
-	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(equites_state::splndrbt_fg_info),this), TILEMAP_SCAN_COLS,  8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(splndrbt_state::splndrbt_fg_info)), TILEMAP_SCAN_COLS,  8, 8, 32, 32);
 	m_fg_tilemap->set_transparent_pen(0);
 	m_fg_tilemap->set_scrolldx(8, -8);
 
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(equites_state::splndrbt_bg_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(splndrbt_state::splndrbt_bg_info)), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 	m_bg_tilemap->configure_groups(*m_gfxdecode->gfx(1), 0x10);
 }
 
@@ -187,36 +185,24 @@ WRITE16_MEMBER(equites_state::equites_scrollreg_w)
 		m_bg_tilemap->set_scrollx(0, data >> 8);
 }
 
-WRITE16_MEMBER(equites_state::splndrbt_selchar_w)
+WRITE_LINE_MEMBER(splndrbt_state::splndrbt_selchar_w)
 {
-	// data bit is A16 (offset)
-	data = (offset == 0) ? 0 : 1;
-
 	// select active char map
-	if (m_fg_char_bank != data)
-	{
-		m_fg_char_bank = data;
-		m_fg_tilemap->mark_all_dirty();
-	}
+	m_fg_char_bank = (state == 0) ? 0 : 1;
+	m_fg_tilemap->mark_all_dirty();
 }
 
-WRITE16_MEMBER(equites_state::equites_flipw_w)
+WRITE_LINE_MEMBER(equites_state::flip_screen_w)
 {
-	// data bit is A16 (offset)
-	flip_screen_set(offset != 0);
+	flip_screen_set(state);
 }
 
-WRITE8_MEMBER(equites_state::equites_flipb_w)
-{
-	flip_screen_set(data);
-}
-
-WRITE16_MEMBER(equites_state::splndrbt_bg_scrollx_w)
+WRITE16_MEMBER(splndrbt_state::splndrbt_bg_scrollx_w)
 {
 	COMBINE_DATA(&m_splndrbt_bg_scrollx);
 }
 
-WRITE16_MEMBER(equites_state::splndrbt_bg_scrolly_w)
+WRITE16_MEMBER(splndrbt_state::splndrbt_bg_scrolly_w)
 {
 	COMBINE_DATA(&m_splndrbt_bg_scrolly);
 }
@@ -300,7 +286,7 @@ Also, note that sprites are 30x30, not 32x32.
 03020303 03030303 03030303 03030303
 */
 
-void equites_state::splndrbt_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
+void splndrbt_state::splndrbt_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	const uint8_t * const xrom = memregion("user2")->base();
 	const uint8_t * const yrom = xrom + 0x100;
@@ -350,13 +336,13 @@ void equites_state::splndrbt_draw_sprites(bitmap_ind16 &bitmap, const rectangle 
 			{
 				int const y = yhalf ? sy + 1 + yy : sy - yy;
 
-				if (y >= cliprect.min_y && y <= cliprect.max_y)
+				if (y >= cliprect.top() && y <= cliprect.bottom())
 				{
 					for (x = 0; x <= (scalex << 1); ++x)
 					{
 						int bx = (sx + x) & 0xff;
 
-						if (bx >= cliprect.min_x && bx <= cliprect.max_x)
+						if (bx >= cliprect.left() && bx <= cliprect.right())
 						{
 							int xx = scalex ? (x * 29 + scalex) / (scalex << 1) + 1 : 16;   // FIXME This is wrong. Should use the PROM.
 							int const offset = (fx ? (31 - xx) : xx) + ((fy ^ yhalf) ? (16 + line) : (15 - line)) * gfx->rowbytes();
@@ -374,7 +360,7 @@ void equites_state::splndrbt_draw_sprites(bitmap_ind16 &bitmap, const rectangle 
 }
 
 
-void equites_state::splndrbt_copy_bg(bitmap_ind16 &dst_bitmap, const rectangle &cliprect)
+void splndrbt_state::splndrbt_copy_bg(bitmap_ind16 &dst_bitmap, const rectangle &cliprect)
 {
 	bitmap_ind16 &src_bitmap = m_bg_tilemap->pixmap();
 	bitmap_ind8 &flags_bitmap = m_bg_tilemap->flagsmap();
@@ -394,7 +380,7 @@ void equites_state::splndrbt_copy_bg(bitmap_ind16 &dst_bitmap, const rectangle &
 
 	for (dst_y = 32; dst_y < 256-32; ++dst_y)
 	{
-		if (dst_y >= cliprect.min_y && dst_y <= cliprect.max_y)
+		if (dst_y >= cliprect.top() && dst_y <= cliprect.bottom())
 		{
 			const uint8_t * const romline = &xrom[(dst_y ^ dinvert) << 5];
 			const uint16_t * const src_line = &src_bitmap.pix16((src_y + scroll_y) & 0x1ff);
@@ -441,7 +427,7 @@ uint32_t equites_state::screen_update_equites(screen_device &screen, bitmap_ind1
 	return 0;
 }
 
-uint32_t equites_state::screen_update_splndrbt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t splndrbt_state::screen_update_splndrbt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	bitmap.fill(m_bgcolor, cliprect);
 

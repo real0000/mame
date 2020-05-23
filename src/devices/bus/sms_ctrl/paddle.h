@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_SMS_CTRL_PADDLE_H
+#define MAME_BUS_SMS_CTRL_PADDLE_H
 
-#ifndef __SMS_PADDLE__
-#define __SMS_PADDLE__
+#pragma once
 
 
 #include "smsctrl.h"
@@ -53,7 +53,6 @@ private:
 
 
 // device type definition
-extern const device_type SMS_PADDLE;
+DECLARE_DEVICE_TYPE(SMS_PADDLE, sms_paddle_device)
 
-
-#endif
+#endif // MAME_BUS_SMS_CTRL_PADDLE_H

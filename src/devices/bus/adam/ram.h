@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_ADAM_RAM_H
+#define MAME_BUS_ADAM_RAM_H
 
-#ifndef __ADAM_RAM__
-#define __ADAM_RAM__
+#pragma once
 
 #include "exp.h"
 
@@ -33,8 +33,8 @@ protected:
 	virtual void device_start() override;
 
 	// device_adam_expansion_slot_card_interface overrides
-	virtual uint8_t adam_bd_r(address_space &space, offs_t offset, uint8_t data, int bmreq, int biorq, int aux_rom_cs, int cas1, int cas2) override;
-	virtual void adam_bd_w(address_space &space, offs_t offset, uint8_t data, int bmreq, int biorq, int aux_rom_cs, int cas1, int cas2) override;
+	virtual uint8_t adam_bd_r(offs_t offset, uint8_t data, int bmreq, int biorq, int aux_rom_cs, int cas1, int cas2) override;
+	virtual void adam_bd_w(offs_t offset, uint8_t data, int bmreq, int biorq, int aux_rom_cs, int cas1, int cas2) override;
 
 private:
 	optional_shared_ptr<uint8_t> m_ram;
@@ -42,8 +42,6 @@ private:
 
 
 // device type definition
-extern const device_type ADAM_RAM;
+DECLARE_DEVICE_TYPE(ADAM_RAM, adam_ram_expansion_device)
 
-
-
-#endif
+#endif // MAME_BUS_ADAM_RAM_H

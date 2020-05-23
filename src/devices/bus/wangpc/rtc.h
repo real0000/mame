@@ -6,16 +6,16 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_WANGPC_RTC_H
+#define MAME_BUS_WANGPC_RTC_H
 
-#ifndef __WANGPC_RTC__
-#define __WANGPC_RTC__
+#pragma once
 
 #include "wangpc.h"
 #include "cpu/z80/z80.h"
 #include "machine/am9517a.h"
 #include "machine/z80ctc.h"
-#include "machine/z80dart.h"
+#include "machine/z80sio.h"
 
 
 
@@ -32,34 +32,34 @@ public:
 	// construction/destruction
 	wangpc_rtc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// optional information overrides
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	virtual ioport_constructor device_input_ports() const override;
-
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+	virtual ioport_constructor device_input_ports() const override;
 
 	// device_wangpcbus_card_interface overrides
-	virtual uint16_t wangpcbus_mrdc_r(address_space &space, offs_t offset, uint16_t mem_mask) override;
-	virtual void wangpcbus_amwc_w(address_space &space, offs_t offset, uint16_t mem_mask, uint16_t data) override;
-	virtual uint16_t wangpcbus_iorc_r(address_space &space, offs_t offset, uint16_t mem_mask) override;
-	virtual void wangpcbus_aiowc_w(address_space &space, offs_t offset, uint16_t mem_mask, uint16_t data) override;
+	virtual uint16_t wangpcbus_mrdc_r(offs_t offset, uint16_t mem_mask) override;
+	virtual void wangpcbus_amwc_w(offs_t offset, uint16_t mem_mask, uint16_t data) override;
+	virtual uint16_t wangpcbus_iorc_r(offs_t offset, uint16_t mem_mask) override;
+	virtual void wangpcbus_aiowc_w(offs_t offset, uint16_t mem_mask, uint16_t data) override;
 
 private:
-	required_device<cpu_device> m_maincpu;
+	required_device<z80_device> m_maincpu;
 	required_device<am9517a_device> m_dmac;
 	required_device<z80ctc_device> m_ctc0;
 	required_device<z80ctc_device> m_ctc1;
-	required_device<z80dart_device> m_sio;
+	required_device<z80sio_device> m_sio;
 	optional_shared_ptr<uint8_t> m_char_ram;
+
+	void wangpc_rtc_io(address_map &map);
+	void wangpc_rtc_mem(address_map &map);
 };
 
 
 // device type definition
-extern const device_type WANGPC_RTC;
+DECLARE_DEVICE_TYPE(WANGPC_RTC, wangpc_rtc_device)
 
-
-#endif
+#endif // MAME_BUS_WANGPC_RTC_H

@@ -5,10 +5,17 @@
     Atari Sprint hardware
 
 *************************************************************************/
+#ifndef MAME_INCLUDES_SPRINT2_H
+#define MAME_INCLUDES_SPRINT2_H
 
+#pragma once
+
+#include "machine/74259.h"
 #include "machine/watchdog.h"
 #include "sound/discrete.h"
+#include "emupal.h"
 #include "screen.h"
+#include "tilemap.h"
 
 /* Discrete Sound Input Nodes */
 #define SPRINT2_SKIDSND1_EN        NODE_01
@@ -28,17 +35,29 @@
 class sprint2_state : public driver_device
 {
 public:
-	sprint2_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	sprint2_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_video_ram(*this, "video_ram"),
 		m_maincpu(*this, "maincpu"),
 		m_watchdog(*this, "watchdog"),
+		m_outlatch(*this, "outlatch"),
 		m_discrete(*this, "discrete"),
 		m_gfxdecode(*this, "gfxdecode"),
 		m_screen(*this, "screen"),
-		m_palette(*this, "palette") { }
+		m_palette(*this, "palette")
+	{ }
 
-	int m_attract;
+	void sprint1(machine_config &config);
+	void sprint2(machine_config &config);
+	void dominos4(machine_config &config);
+	void dominos(machine_config &config);
+
+	void init_sprint1();
+	void init_sprint2();
+	void init_dominos();
+	void init_dominos4();
+
+private:
 	int m_steering[2];
 	int m_gear[2];
 	int m_game;
@@ -57,29 +76,19 @@ public:
 	DECLARE_WRITE8_MEMBER(sprint2_steering_reset1_w);
 	DECLARE_WRITE8_MEMBER(sprint2_steering_reset2_w);
 	DECLARE_WRITE8_MEMBER(sprint2_wram_w);
-	DECLARE_WRITE8_MEMBER(sprint2_lamp1_w);
-	DECLARE_WRITE8_MEMBER(sprint2_lamp2_w);
-	DECLARE_WRITE8_MEMBER(dominos4_lamp3_w);
-	DECLARE_WRITE8_MEMBER(dominos4_lamp4_w);
+	DECLARE_WRITE8_MEMBER(output_latch_w);
 	DECLARE_READ8_MEMBER(sprint2_collision1_r);
 	DECLARE_READ8_MEMBER(sprint2_collision2_r);
 	DECLARE_WRITE8_MEMBER(sprint2_collision_reset1_w);
 	DECLARE_WRITE8_MEMBER(sprint2_collision_reset2_w);
 	DECLARE_WRITE8_MEMBER(sprint2_video_ram_w);
-	DECLARE_WRITE8_MEMBER(sprint2_attract_w);
 	DECLARE_WRITE8_MEMBER(sprint2_noise_reset_w);
-	DECLARE_WRITE8_MEMBER(sprint2_skid1_w);
-	DECLARE_WRITE8_MEMBER(sprint2_skid2_w);
-	DECLARE_DRIVER_INIT(sprint1);
-	DECLARE_DRIVER_INIT(sprint2);
-	DECLARE_DRIVER_INIT(dominos);
-	DECLARE_DRIVER_INIT(dominos4);
 	TILE_GET_INFO_MEMBER(get_tile_info);
 	virtual void video_start() override;
-	DECLARE_PALETTE_INIT(sprint2);
+	void sprint2_palette(palette_device &palette) const;
 	uint32_t screen_update_sprint2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void screen_eof_sprint2(screen_device &screen, bool state);
-	INTERRUPT_GEN_MEMBER(sprint2);
+	DECLARE_WRITE_LINE_MEMBER(screen_vblank_sprint2);
+	INTERRUPT_GEN_MEMBER(sprint2_irq);
 	uint8_t collision_check(rectangle& rect);
 	inline int get_sprite_code(uint8_t *video_ram, int n);
 	inline int get_sprite_x(uint8_t *video_ram, int n);
@@ -87,13 +96,18 @@ public:
 	int service_mode();
 	required_device<cpu_device> m_maincpu;
 	required_device<watchdog_timer_device> m_watchdog;
-	required_device<discrete_device> m_discrete;
+	required_device<f9334_device> m_outlatch;
+	required_device<discrete_sound_device> m_discrete;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<screen_device> m_screen;
 	required_device<palette_device> m_palette;
+
+	void sprint2_map(address_map &map);
 };
 
 /*----------- defined in audio/sprint2.c -----------*/
-DISCRETE_SOUND_EXTERN( sprint2 );
-DISCRETE_SOUND_EXTERN( sprint1 );
-DISCRETE_SOUND_EXTERN( dominos );
+DISCRETE_SOUND_EXTERN( sprint2_discrete );
+DISCRETE_SOUND_EXTERN( sprint1_discrete );
+DISCRETE_SOUND_EXTERN( dominos_discrete );
+
+#endif // MAME_INCLUDES_SPRINT2_H

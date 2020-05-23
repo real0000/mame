@@ -42,7 +42,7 @@
 #define CLOCK_DIVIDER 32
 
 // device type definition
-const device_type K005289 = device_creator<k005289_device>;
+DEFINE_DEVICE_TYPE(K005289, k005289_device, "k005289", "K005289 SCC")
 
 
 //**************************************************************************
@@ -54,14 +54,14 @@ const device_type K005289 = device_creator<k005289_device>;
 //-------------------------------------------------
 
 k005289_device::k005289_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, K005289, "K005289 SCC", tag, owner, clock, "k005289", __FILE__),
-		device_sound_interface(mconfig, *this),
-	m_sound_prom(*this, DEVICE_SELF),
-	m_stream(nullptr),
-	m_rate(0),
-	m_mixer_table(nullptr),
-	m_mixer_lookup(nullptr),
-	m_mixer_buffer(nullptr)
+	: device_t(mconfig, K005289, tag, owner, clock)
+	, device_sound_interface(mconfig, *this)
+	, m_sound_prom(*this, DEVICE_SELF)
+	, m_stream(nullptr)
+	, m_rate(0)
+	, m_mixer_table(nullptr)
+	, m_mixer_lookup(nullptr)
+	, m_mixer_buffer(nullptr)
 {
 }
 
@@ -194,7 +194,7 @@ void k005289_device::make_mixer_table(int voices)
 }
 
 
-WRITE8_MEMBER( k005289_device::k005289_control_A_w )
+void k005289_device::control_A_w(uint8_t data)
 {
 	m_stream->update();
 
@@ -203,7 +203,7 @@ WRITE8_MEMBER( k005289_device::k005289_control_A_w )
 }
 
 
-WRITE8_MEMBER( k005289_device::k005289_control_B_w )
+void k005289_device::control_B_w(uint8_t data)
 {
 	m_stream->update();
 
@@ -212,19 +212,19 @@ WRITE8_MEMBER( k005289_device::k005289_control_B_w )
 }
 
 
-WRITE8_MEMBER( k005289_device::ld1_w )
+void k005289_device::ld1_w(offs_t offset, uint8_t data)
 {
 	m_freq_latch[0] = 0xfff - offset;
 }
 
 
-WRITE8_MEMBER( k005289_device::ld2_w )
+void k005289_device::ld2_w(offs_t offset, uint8_t data)
 {
 	m_freq_latch[1] = 0xfff - offset;
 }
 
 
-WRITE8_MEMBER( k005289_device::tg1_w )
+void k005289_device::tg1_w(uint8_t data)
 {
 	m_stream->update();
 
@@ -232,7 +232,7 @@ WRITE8_MEMBER( k005289_device::tg1_w )
 }
 
 
-WRITE8_MEMBER( k005289_device::tg2_w )
+void k005289_device::tg2_w(uint8_t data)
 {
 	m_stream->update();
 

@@ -14,22 +14,20 @@
 //  EXPANSION SLOT DEVICE
 //**************************************************************************
 
-const device_type APRICOT_EXPANSION_SLOT = device_creator<apricot_expansion_slot_device>;
+DEFINE_DEVICE_TYPE(APRICOT_EXPANSION_SLOT, apricot_expansion_slot_device, "apricot_exp_slot", "Apricot Expansion Slot")
 
 //-------------------------------------------------
 //  apricot_expansion_slot_device - constructor
 //-------------------------------------------------
 
 apricot_expansion_slot_device::apricot_expansion_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, APRICOT_EXPANSION_SLOT, "Apricot Expansion Slot", tag, owner, clock, "apricot_exp_slot", __FILE__),
-	device_slot_interface(mconfig, *this)
+	apricot_expansion_slot_device(mconfig, APRICOT_EXPANSION_SLOT, tag, owner, clock)
 {
 }
 
-apricot_expansion_slot_device::apricot_expansion_slot_device(const machine_config &mconfig, device_type type, const char *name,
-	const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-	device_slot_interface(mconfig, *this)
+apricot_expansion_slot_device::apricot_expansion_slot_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, type, tag, owner, clock),
+	device_single_card_slot_interface<device_apricot_expansion_card_interface>(mconfig, *this)
 {
 }
 
@@ -39,7 +37,7 @@ apricot_expansion_slot_device::apricot_expansion_slot_device(const machine_confi
 
 void apricot_expansion_slot_device::device_start()
 {
-	device_apricot_expansion_card_interface *dev = dynamic_cast<device_apricot_expansion_card_interface *>(get_card_device());
+	device_apricot_expansion_card_interface *dev = get_card_device();
 
 	if (dev)
 	{
@@ -53,24 +51,24 @@ void apricot_expansion_slot_device::device_start()
 //  EXPANSION BUS DEVICE
 //**************************************************************************
 
-const device_type APRICOT_EXPANSION_BUS = device_creator<apricot_expansion_bus_device>;
+DEFINE_DEVICE_TYPE(APRICOT_EXPANSION_BUS, apricot_expansion_bus_device, "apricot_exp_bus", "Apricot Expansion Bus")
 
 //-------------------------------------------------
 //  apricot_expansion_bus_device - constructor
 //-------------------------------------------------
 
 apricot_expansion_bus_device::apricot_expansion_bus_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, APRICOT_EXPANSION_BUS, "Apricot Expansion Bus", tag, owner, clock, "apricot_exp_bus", __FILE__),
-	m_program(nullptr),
-	m_io(nullptr),
-	m_program_iop(nullptr),
-	m_io_iop(nullptr),
+	device_t(mconfig, APRICOT_EXPANSION_BUS, tag, owner, clock),
+	m_program(*this, finder_base::DUMMY_TAG, -1),
+	m_io(*this, finder_base::DUMMY_TAG, -1),
+	m_program_iop(*this, finder_base::DUMMY_TAG, -1),
+	m_io_iop(*this, finder_base::DUMMY_TAG, -1),
 	m_dma1_handler(*this),
 	m_dma2_handler(*this),
 	m_ext1_handler(*this),
 	m_ext2_handler(*this),
 	m_int2_handler(*this),
-	m_int3_handler(*this), m_cpu_tag(nullptr), m_iop_tag(nullptr)
+	m_int3_handler(*this)
 {
 }
 
@@ -99,21 +97,6 @@ void apricot_expansion_bus_device::device_start()
 }
 
 //-------------------------------------------------
-//  device_reset - device-specific reset
-//-------------------------------------------------
-
-void apricot_expansion_bus_device::device_reset()
-{
-	cpu_device *cpu = m_owner->subdevice<cpu_device>(m_cpu_tag);
-	m_program = &cpu->space(AS_PROGRAM);
-	m_io = &cpu->space(AS_IO);
-
-	cpu_device *iop = m_owner->subdevice<cpu_device>(m_iop_tag);
-	m_program_iop = &iop->space(AS_PROGRAM);
-	m_io_iop = &iop->space(AS_IO);
-}
-
-//-------------------------------------------------
 //  add_card - add new card to our bus
 //-------------------------------------------------
 
@@ -121,26 +104,6 @@ void apricot_expansion_bus_device::add_card(device_apricot_expansion_card_interf
 {
 	card->set_bus_device(this);
 	m_dev.append(*card);
-}
-
-//-------------------------------------------------
-//  set_cpu_tag - set cpu we are attached to
-//-------------------------------------------------
-
-void apricot_expansion_bus_device::set_cpu_tag(device_t &device, device_t *owner, const char *tag)
-{
-	apricot_expansion_bus_device &bus = dynamic_cast<apricot_expansion_bus_device &>(device);
-	bus.m_cpu_tag = tag;
-}
-
-//-------------------------------------------------
-//  set_iop_tag - set iop we are attached to
-//-------------------------------------------------
-
-void apricot_expansion_bus_device::set_iop_tag(device_t &device, device_t *owner, const char *tag)
-{
-	apricot_expansion_bus_device &bus = dynamic_cast<apricot_expansion_bus_device &>(device);
-	bus.m_iop_tag = tag;
 }
 
 // callbacks from slot device to the host
@@ -173,9 +136,9 @@ void apricot_expansion_bus_device::install_ram(offs_t addrstart, offs_t addrend,
 //-------------------------------------------------
 
 device_apricot_expansion_card_interface::device_apricot_expansion_card_interface(const machine_config &mconfig, device_t &device) :
-	device_slot_card_interface(mconfig, device),
-	m_next(nullptr),
-	m_bus(nullptr)
+	device_interface(device, "apricotexp"),
+	m_bus(nullptr),
+	m_next(nullptr)
 {
 }
 

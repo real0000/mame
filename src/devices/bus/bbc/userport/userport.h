@@ -25,79 +25,83 @@
 
 **********************************************************************/
 
+#ifndef MAME_BUS_BBC_USERPORT_USERPORT_H
+#define MAME_BUS_BBC_USERPORT_USERPORT_H
+
 #pragma once
 
-#ifndef __BBC_USERPORT_SLOT__
-#define __BBC_USERPORT_SLOT__
 
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-class bbc_userport_device;
 
-// ======================> device_bbc_userport_interface
+// ======================> bbc_userport_slot_device
 
-class device_bbc_userport_interface : public device_slot_card_interface
+class device_bbc_userport_interface;
+
+class bbc_userport_slot_device : public device_t, public device_single_card_slot_interface<device_bbc_userport_interface>
 {
 public:
 	// construction/destruction
-	device_bbc_userport_interface(const machine_config &mconfig, device_t &device);
-	virtual ~device_bbc_userport_interface();
+	template <typename T>
+	bbc_userport_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, T &&slot_options, const char *default_option)
+		: bbc_userport_slot_device(mconfig, tag, owner)
+	{
+		option_reset();
+		slot_options(*this);
+		set_default_option(default_option);
+		set_fixed(false);
+	}
 
-	virtual uint8_t read_portb() { return 0xff; };
-	virtual uint8_t read_cb1() { return 0xff; };
-	virtual uint8_t read_cb2() { return 0xff; };
+	bbc_userport_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, uint32_t clock = 0);
+
+	// callbacks
+	auto cb1_handler() { return m_cb1_handler.bind(); }
+	auto cb2_handler() { return m_cb2_handler.bind(); }
+
+	DECLARE_WRITE_LINE_MEMBER(cb1_w) { m_cb1_handler(state); }
+	DECLARE_WRITE_LINE_MEMBER(cb2_w) { m_cb2_handler(state); }
+
+	uint8_t pb_r();
+	void pb_w(uint8_t data);
 
 protected:
-	bbc_userport_device *m_slot;
-};
-
-// ======================> bbc_userport_device
-
-class bbc_userport_device : public device_t,
-	public device_slot_interface
-{
-public:
-	// construction/destruction
-	bbc_userport_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual ~bbc_userport_device() {}
-
-	uint8_t read_portb();
-	uint8_t read_cb1();
-	uint8_t read_cb2();
-
 	// device-level overrides
 	virtual void device_start() override;
 
-protected:
 	device_bbc_userport_interface *m_device;
+
+private:
+	devcb_write_line m_cb1_handler;
+	devcb_write_line m_cb2_handler;
 };
 
+
+// ======================> device_bbc_userport_interface
+
+class device_bbc_userport_interface : public device_interface
+{
+public:
+	// construction/destruction
+	virtual ~device_bbc_userport_interface();
+
+	virtual uint8_t pb_r() { return 0xff; }
+	virtual void pb_w(uint8_t data) { }
+
+protected:
+	device_bbc_userport_interface(const machine_config &mconfig, device_t &device);
+
+	bbc_userport_slot_device *m_slot;
+};
+
+
 // device type definition
-extern const device_type BBC_USERPORT_SLOT;
+DECLARE_DEVICE_TYPE(BBC_USERPORT_SLOT, bbc_userport_slot_device)
 
 
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_BBC_USERPORT_SLOT_ADD(_tag, _slot_intf, _def_slot) \
-	MCFG_DEVICE_ADD(_tag, BBC_USERPORT_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
-
-#define MCFG_BBC_USERPORT_PB_HANDLER(_devcb) \
-	devcb = &bbc_userport_device::set_pb_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_BBC_USERPORT_CB1_HANDLER(_devcb) \
-	devcb = &bbc_userport_device::set_cb1_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_BBC_USERPORT_CB2_HANDLER(_devcb) \
-	devcb = &bbc_userport_device::set_cb2_handler(*device, DEVCB_##_devcb);
+void bbc_userport_devices(device_slot_interface &device);
 
 
-SLOT_INTERFACE_EXTERN( bbc_userport_devices );
-
-
-#endif
+#endif // MAME_BUS_BBC_USERPORT_USERPORT_H

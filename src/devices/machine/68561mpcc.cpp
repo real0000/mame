@@ -1,4 +1,5 @@
-// license:BSD-3-Clause copyright-holders: Joakim Larsson Edstrom
+// license:BSD-3-Clause
+// copyright-holders: Joakim Larsson Edstrom
 /***************************************************************************
 
     MPCC Multi-Protocol Communications Controller emulation
@@ -76,28 +77,26 @@ FEATURES
 
 #ifdef _MSC_VER
 #define FUNCNAME __func__
-#define LLFORMAT "%I64d"
 #else
 #define FUNCNAME __PRETTY_FUNCTION__
-#define LLFORMAT "%lld"
 #endif
 
 //**************************************************************************
 //  DEVICE DEFINITIONS
 //**************************************************************************
 // device type definition
-const device_type MPCC       = device_creator<mpcc_device>;
-const device_type MPCC68560  = device_creator<mpcc68560_device>;
-const device_type MPCC68560A = device_creator<mpcc68560A_device>;
-const device_type MPCC68561  = device_creator<mpcc68561_device>;
-const device_type MPCC68561A = device_creator<mpcc68561A_device>;
+DEFINE_DEVICE_TYPE(MPCC,       mpcc_device,       "mpcc",       "Rockwell MPCC")
+DEFINE_DEVICE_TYPE(MPCC68560,  mpcc68560_device,  "mpcc68560",  "MPCC 68560")
+DEFINE_DEVICE_TYPE(MPCC68560A, mpcc68560a_device, "mpcc68560a", "MPCC 68560A")
+DEFINE_DEVICE_TYPE(MPCC68561,  mpcc68561_device,  "mpcc68561",  "MPCC 68561")
+DEFINE_DEVICE_TYPE(MPCC68561A, mpcc68561a_device, "mpcc68561a", "MPCC 68561A")
 
 //**************************************************************************
 //  LIVE DEVICE
 //**************************************************************************
 
-mpcc_device::mpcc_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+mpcc_device::mpcc_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint32_t variant)
+	: device_t(mconfig, type, tag, owner, clock),
 	  device_serial_interface(mconfig, *this),
 	  m_irq(CLEAR_LINE),
 	  m_variant(variant),
@@ -141,27 +140,27 @@ mpcc_device::mpcc_device(const machine_config &mconfig, device_type type, const 
 }
 
 mpcc_device::mpcc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mpcc_device(mconfig, MPCC, "Rockwell MPCC", tag, owner, clock, TYPE_MPCC, "mpcc", __FILE__)
+	: mpcc_device(mconfig, MPCC, tag, owner, clock, TYPE_MPCC)
 {
 }
 
 mpcc68560_device::mpcc68560_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mpcc_device(mconfig, MPCC68560, "MPCC 68560", tag, owner, clock, TYPE_MPCC68560, "mpcc68560", __FILE__)
+	: mpcc_device(mconfig, MPCC68560, tag, owner, clock, TYPE_MPCC68560)
 {
 }
 
-mpcc68560A_device::mpcc68560A_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mpcc_device(mconfig, MPCC68560A, "MPCC 68560A", tag, owner, clock, TYPE_MPCC68560A, "mpcc68560a", __FILE__)
+mpcc68560a_device::mpcc68560a_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: mpcc_device(mconfig, MPCC68560A, tag, owner, clock, TYPE_MPCC68560A)
 {
 }
 
 mpcc68561_device::mpcc68561_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mpcc_device(mconfig, MPCC68561, "MPCC 68561", tag, owner, clock, TYPE_MPCC68561, "mpcc68561", __FILE__)
+	: mpcc_device(mconfig, MPCC68561, tag, owner, clock, TYPE_MPCC68561)
 {
 }
 
-mpcc68561A_device::mpcc68561A_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: mpcc_device(mconfig, MPCC68561A, "MPCC 68561A", tag, owner, clock, TYPE_MPCC68561A, "mpcc68561a", __FILE__)
+mpcc68561a_device::mpcc68561a_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: mpcc_device(mconfig, MPCC68561A, tag, owner, clock, TYPE_MPCC68561A)
 {
 }
 
@@ -205,8 +204,6 @@ void mpcc_device::device_start()
 	save_item(NAME(m_ccr));
 	save_item(NAME(m_ecr));
 	LOG(" - MPCC variant %02x\n", m_variant);
-
-	device_serial_interface::register_save_state(machine().save(), this);
 }
 
 //-------------------------------------------------
@@ -259,11 +256,6 @@ void mpcc_device::device_reset()
 /*
  * Serial device implementation
  */
-void mpcc_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
-{
-	device_serial_interface::device_timer(timer, id, param, ptr);
-}
-
 WRITE_LINE_MEMBER(mpcc_device::cts_w)
 {
 	if (state == CLEAR_LINE)
@@ -471,7 +463,7 @@ void mpcc_device::update_serial()
 	stop_bits_t stop_bits = get_stop_bits();
 	parity_t    parity    = get_parity();
 
-	LOGSETUP(" %s() %s Setting data frame %d+%d%c%s\n", FUNCNAME, m_owner->tag(), 1,
+	LOGSETUP(" %s() %s Setting data frame %d+%d%c%s\n", FUNCNAME, owner()->tag(), 1,
 		 data_bits, parity == PARITY_NONE ? 'N' : parity == PARITY_EVEN ? 'E' : 'O',
 		stop_bits == STOP_BITS_1 ? "1" : (stop_bits == STOP_BITS_2 ? "2" : "1.5"));
 
@@ -554,7 +546,7 @@ void mpcc_device::tra_callback()
 	// Otherwise we don't know why we are called...
 	else
 	{
-		logerror("%s %s Failed to transmit\n", FUNCNAME, m_owner->tag());
+		logerror("%s %s Failed to transmit\n", FUNCNAME, owner()->tag());
 	}
 }
 
@@ -596,7 +588,7 @@ void mpcc_device::tra_complete()
 }
 
 //-------------------------------------------------
-//  rcv_callback - called when it is time to sample incomming data bit
+//  rcv_callback - called when it is time to sample incoming data bit
 //-------------------------------------------------
 void mpcc_device::rcv_callback()
 {
@@ -618,6 +610,12 @@ void mpcc_device::rcv_complete()
 	data = get_received_char();
 	LOGRX("%s %02x [%c]\n", FUNCNAME, isascii(data) ? data : ' ', data);
 
+	uint8_t errors = 0;
+	if (is_receive_parity_error())
+		errors |= REG_RSR_CPERR;
+	if (is_receive_framing_error())
+		errors |= REG_RSR_FRERR;
+
 	//  receive_data(data);
 	if (m_rx_data_fifo.full())
 	{
@@ -631,7 +629,12 @@ void mpcc_device::rcv_complete()
 	}
 	else
 	{
-		m_rx_data_fifo.enqueue(data);
+		if (m_rx_data_fifo.empty())
+		{
+			m_rsr |= errors;
+			update_interrupts(INT_RX);
+		}
+		m_rx_data_fifo.enqueue(data | errors << 8);
 		m_rsr |= REG_RSR_RDA;
 		// interrupt if rx data availble is enabled
 		if (m_rier & REG_RIER_RDA)
@@ -756,13 +759,14 @@ void mpcc_device::update_interrupts(int source)
 
 	switch(source)
 	{
+	case INT_TX:
 	case INT_TX_TDRA:
 	case INT_TX_TFC:
 	case INT_TX_TUNRN:
 	case INT_TX_TFERR:
-		if ( m_tsr & (REG_TSR_TDRA | REG_TSR_TFC | REG_TSR_TUNRN | REG_TSR_TFERR) )
+		if (m_tsr & m_tier & (REG_TSR_TDRA | REG_TSR_TFC | REG_TSR_TUNRN | REG_TSR_TFERR))
 		{
-			LOGINT(" - Found unserved TX interrupt %02x\n", m_tsr);
+			LOGINT(" - Found unserved TX interrupt %02x\n", m_tsr & m_tier);
 			m_int_state[TX_INT_PRIO] = INT_REQ; // Still TX interrupts to serve
 		}
 		else
@@ -770,15 +774,16 @@ void mpcc_device::update_interrupts(int source)
 			m_int_state[TX_INT_PRIO] = INT_NONE; // No more TX interrupts to serve
 		}
 		break;
+	case INT_RX:
 	case INT_RX_RDA:
 	case INT_RX_EOF:
 	case INT_RX_CPERR:
 	case INT_RX_FRERR:
 	case INT_RX_ROVRN:
 	case INT_RX_RAB:
-		if ( m_rsr & (REG_RSR_RDA | REG_RSR_EOF | REG_RSR_CPERR | REG_RSR_FRERR | REG_RSR_ROVRN | REG_RSR_RAB))
+		if (m_rsr & m_rier & (REG_RSR_RDA | REG_RSR_EOF | REG_RSR_CPERR | REG_RSR_FRERR | REG_RSR_ROVRN | REG_RSR_RAB))
 		{
-			LOGINT(" - Found unserved RX interrupt %02x\n", m_rsr);
+			LOGINT(" - Found unserved RX interrupt %02x\n", m_rsr & m_rier);
 			m_int_state[RX_INT_PRIO] = INT_REQ; // Still RX interrupts to serve
 		}
 		else
@@ -786,12 +791,13 @@ void mpcc_device::update_interrupts(int source)
 			m_int_state[RX_INT_PRIO] = INT_NONE; // No more RX interrupts to serve
 		}
 		break;
+	case INT_SR:
 	case INT_SR_CTS:
 	case INT_SR_DSR:
 	case INT_SR_DCD:
-		if ( m_sisr & (REG_SISR_CTST | REG_SISR_DSRT | REG_SISR_DCDT ) )
+		if (m_sisr & m_sier & (REG_SISR_CTST | REG_SISR_DSRT | REG_SISR_DCDT))
 		{
-			LOGINT(" - Found unserved SR interrupt %02x\n", m_sisr);
+			LOGINT(" - Found unserved SR interrupt %02x\n", m_sisr & m_sier);
 			m_int_state[SR_INT_PRIO] = INT_REQ; // Still SR interrupts to serve
 		}
 		else
@@ -806,7 +812,7 @@ void mpcc_device::update_interrupts(int source)
 //-------------------------------------------------
 //  Read register
 //-------------------------------------------------
-READ8_MEMBER( mpcc_device::read )
+uint8_t mpcc_device::read(offs_t offset)
 {
 	uint8_t data = 0;
 
@@ -834,7 +840,7 @@ READ8_MEMBER( mpcc_device::read )
 	case 0x1d: data = do_brdr2(); break;
 	case 0x1e: data = do_ccr(); break;
 	case 0x1f: data = do_ecr(); break;
-	default: logerror("%s:%s invalid register accessed: %02x\n", m_owner->tag(), tag(), offset);
+	default: logerror("%s:%s invalid register accessed: %02x\n", owner()->tag(), tag(), offset);
 	}
 	LOGR(" * %s Reg %02x -> %02x  \n", tag(), offset, data);
 	return data;
@@ -843,7 +849,7 @@ READ8_MEMBER( mpcc_device::read )
 //-------------------------------------------------
 //  Write register
 //-------------------------------------------------
-WRITE8_MEMBER( mpcc_device::write )
+void mpcc_device::write(offs_t offset, uint8_t data)
 {
 	LOGSETUP(" * %s Reg %02x <- %02x  \n", tag(), offset, data);
 	switch(offset)
@@ -870,16 +876,19 @@ WRITE8_MEMBER( mpcc_device::write )
 	case 0x1d: do_brdr2(data); break;
 	case 0x1e: do_ccr(data); break;
 	case 0x1f: do_ecr(data); break;
-	default: logerror("%s:%s invalid register accessed: %02x\n", m_owner->tag(), tag(), offset);
+	default: logerror("%s:%s invalid register accessed: %02x\n", owner()->tag(), tag(), offset);
 	}
 }
 
-// TODO: Sync clear of error bits with readout from fifo
 // TODO: implement Idle bit
 void mpcc_device::do_rsr(uint8_t data)
 {
 	LOG("%s -> %02x\n", FUNCNAME, data);
-	m_rsr = data;
+	// writing 1 resets status bits except for RDA which is read-only
+	m_rsr &= ~data | REG_RSR_RDA;
+	// status belonging to data at the head of the FIFO cannot be cleared
+	if (!m_rx_data_fifo.empty())
+		m_rsr |= m_rx_data_fifo.peek() >> 8;
 	update_interrupts(INT_RX);
 }
 
@@ -918,13 +927,18 @@ uint8_t mpcc_device::do_rdr()
 	if (!m_rx_data_fifo.empty())
 	{
 		// load data from the FIFO
-		data = m_rx_data_fifo.dequeue();
+		data = m_rx_data_fifo.dequeue() & 0xff;
 
 		// Check if this was the last data and reset the interrupt and status register accordingly
 		if (m_rx_data_fifo.empty())
 		{
 			m_rsr &= ~REG_RSR_RDA;
 			update_interrupts(INT_RX_RDA);
+		}
+		else
+		{
+			m_rsr |= m_rx_data_fifo.peek() >> 8;
+			update_interrupts(INT_RX);
 		}
 	}
 	else
@@ -961,6 +975,7 @@ void mpcc_device::do_rier(uint8_t data)
 	LOGSETUP(" - Rx INT on Frame error          : %s\n", (m_rier & REG_RIER_FRERR) ? "enabled" : "disabled");
 	LOGSETUP(" - Rx INT on Receiver overrun     : %s\n", (m_rier & REG_RIER_ROVRN) ? "enabled" : "disabled");
 	LOGSETUP(" - Rx INT on Abort/Break          : %s\n", (m_rier & REG_RIER_RAB)   ? "enabled" : "disabled");
+	update_interrupts(INT_RX);
 }
 
 uint8_t mpcc_device::do_rier()
@@ -1013,7 +1028,8 @@ void mpcc_device::do_tdr(uint8_t data)
 void mpcc_device::do_tsr(uint8_t data)
 {
 	LOGINT("%s -> %02x\n", FUNCNAME, data);
-	m_tsr = data;
+	// writing 1 resets status bits except for TDRA which is read-only
+	m_tsr &= ~data | REG_TSR_TDRA;
 	update_interrupts(INT_TX);
 }
 
@@ -1069,6 +1085,7 @@ void mpcc_device::do_tier(uint8_t data)
 	LOGSETUP(" - Tx INT on Frame complete       : %s\n", (m_tier & REG_TIER_TFC ) ? "enabled" : "disabled");
 	LOGSETUP(" - Tx INT on Underrun             : %s\n", (m_tier & REG_TIER_TUNRN) ? "enabled" : "disabled");
 	LOGSETUP(" - Tx INT on Frame error          : %s\n", (m_tier & REG_TIER_TFERR) ? "enabled" : "disabled");
+	update_interrupts(INT_TX);
 }
 
 uint8_t mpcc_device::do_tier()
@@ -1140,6 +1157,7 @@ void mpcc_device::do_sier(uint8_t data)
 	LOGSETUP(" - Serial interface INT on CTS: %s\n", (m_sier & REG_SIER_CTS) ? "enabled" : "disabled");
 	LOGSETUP(" - Serial interface INT on DSR: %s\n", (m_sier & REG_SIER_DSR) ? "enabled" : "disabled");
 	LOGSETUP(" - Serial interface INT on DCD: %s\n", (m_sier & REG_SIER_DCD) ? "enabled" : "disabled");
+	update_interrupts(INT_SR);
 }
 
 uint8_t mpcc_device::do_sier()

@@ -13,21 +13,12 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_DS1302_H
+#define MAME_MACHINE_DS1302_H
+
 #pragma once
 
-#ifndef __DS1302_H__
-#define __DS1302_H__
-
 #include "dirtc.h"
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_DS1302_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, DS1302, _clock)
 
 
 
@@ -89,8 +80,6 @@ private:
 
 
 // device type definition
-extern const device_type DS1302;
+DECLARE_DEVICE_TYPE(DS1302, ds1302_device)
 
-
-
-#endif
+#endif // MAME_MACHINE_DS1302_H

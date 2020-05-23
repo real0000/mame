@@ -4,36 +4,34 @@
 #include "includes/bogeyman.h"
 
 
-PALETTE_INIT_MEMBER(bogeyman_state, bogeyman)
+void bogeyman_state::bogeyman_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
+	uint8_t const *color_prom = memregion("proms")->base();
 
-	/* first 16 colors are RAM */
-
-	for (i = 0; i < 256; i++)
+	// first 16 colors are RAM
+	for (int i = 0; i < 256; i++)
 	{
-		int bit0, bit1, bit2, r, g, b;
+		int bit0, bit1, bit2;
 
-		/* red component */
-		bit0 = (color_prom[0] >> 0) & 0x01;
-		bit1 = (color_prom[0] >> 1) & 0x01;
-		bit2 = (color_prom[0] >> 2) & 0x01;
-		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+		// red component
+		bit0 = BIT(color_prom[0], 0);
+		bit1 = BIT(color_prom[0], 1);
+		bit2 = BIT(color_prom[0], 2);
+		int const r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		/* green component */
-		bit0 = (color_prom[0] >> 3) & 0x01;
-		bit1 = (color_prom[256] >> 0) & 0x01;
-		bit2 = (color_prom[256] >> 1) & 0x01;
-		g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+		// green component
+		bit0 = BIT(color_prom[0], 3);
+		bit1 = BIT(color_prom[256], 0);
+		bit2 = BIT(color_prom[256], 1);
+		int const g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		/* blue component */
+		// blue component
 		bit0 = 0;
-		bit1 = (color_prom[256] >> 2) & 0x01;
-		bit2 = (color_prom[256] >> 3) & 0x01;
-		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+		bit1 = BIT(color_prom[256], 2);
+		bit2 = BIT(color_prom[256], 3);
+		int const b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette.set_pen_color(i + 16, rgb_t(r,g,b));
+		palette.set_pen_color(i + 16, rgb_t(r, g, b));
 		color_prom++;
 	}
 }
@@ -69,7 +67,7 @@ TILE_GET_INFO_MEMBER(bogeyman_state::get_bg_tile_info)
 	int code = m_videoram[tile_index] & 0x7f;
 	int color = (attr >> 1) & 0x07;
 
-	SET_TILE_INFO_MEMBER(gfxbank, code, color, 0);
+	tileinfo.set(gfxbank, code, color, 0);
 }
 
 TILE_GET_INFO_MEMBER(bogeyman_state::get_fg_tile_info)
@@ -79,13 +77,13 @@ TILE_GET_INFO_MEMBER(bogeyman_state::get_fg_tile_info)
 	int gfxbank = tile / 0x200;
 	int code = tile & 0x1ff;
 
-	SET_TILE_INFO_MEMBER(gfxbank, code, m_colbank, 0);
+	tileinfo.set(gfxbank, code, m_colbank, 0);
 }
 
 void bogeyman_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(bogeyman_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 16, 16);
-	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(bogeyman_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(bogeyman_state::get_bg_tile_info)), TILEMAP_SCAN_ROWS, 16, 16, 16, 16);
+	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(bogeyman_state::get_fg_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 }

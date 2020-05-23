@@ -11,8 +11,12 @@
 #ifndef MAME_EMU_DEBUG_DVMEMORY_H
 #define MAME_EMU_DEBUG_DVMEMORY_H
 
-#include "softfloat/mamesf.h"
-#include "softfloat/softfloat.h"
+#pragma once
+
+#include "debugvw.h"
+
+#include "softfloat3/source/include/softfloat.h"
+
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -23,21 +27,23 @@ class debug_view_memory_source : public debug_view_source
 {
 	friend class debug_view_memory;
 
-	debug_view_memory_source(const char *name, address_space &space);
-	debug_view_memory_source(const char *name, memory_region &region);
-	debug_view_memory_source(const char *name, void *base, int element_size, int num_elements);
-
 public:
+	debug_view_memory_source(std::string &&name, address_space &space);
+	debug_view_memory_source(std::string &&name, memory_region &region);
+	debug_view_memory_source(std::string &&name, void *base, int element_size, int num_elements, int num_blocks, int block_stride);
+
 	address_space *space() const { return m_space; }
 
 private:
-	address_space *m_space;                     // address space we reference (if any)
+	address_space           *m_space;           // address space we reference (if any)
 	device_memory_interface *m_memintf;         // pointer to the memory interface of the device
-	void *              m_base;                 // pointer to memory base
-	offs_t              m_length;               // length of memory
-	offs_t              m_offsetxor;            // XOR to apply to offsets
-	endianness_t        m_endianness;           // endianness of memory
-	u8                  m_prefsize;             // preferred bytes per chunk
+	void *                  m_base;             // pointer to memory base
+	offs_t                  m_blocklength;      // length of each block of memory
+	offs_t                  m_numblocks;        // number of blocks of memory
+	offs_t                  m_blockstride;      // stride between blocks of memory
+	offs_t                  m_offsetxor;        // XOR to apply to offsets
+	endianness_t            m_endianness;       // endianness of memory
+	u8                      m_prefsize;         // preferred bytes per chunk
 };
 
 
@@ -60,7 +66,7 @@ public:
 	offs_t addressAtCursorPosition(const debug_view_xy& pos) { return get_cursor_pos(pos).m_address; }
 
 	// setters
-	void set_expression(const char *expression);
+	void set_expression(const std::string &expression);
 	void set_chunks_per_row(u32 rowchunks);
 	void set_data_format(int format); // 1-8 current values 9 32bit floating point
 	void set_reverse(bool reverse);
@@ -96,12 +102,14 @@ private:
 	// memory access
 	bool read(u8 size, offs_t offs, u64 &data);
 	void write(u8 size, offs_t offs, u64 data);
-	bool read(u8 size, offs_t offs, floatx80 &data);
+	bool read(u8 size, offs_t offs, extFloat80_t &data);
+	bool read_chunk(offs_t address, int chunknum, u64 &chunkdata);
 
 	// internal state
 	debug_view_expression m_expression;         // expression describing the start address
 	u32                 m_chunks_per_row;       // number of chunks displayed per line
 	u8                  m_bytes_per_chunk;      // bytes per chunk
+	u8                  m_steps_per_chunk;      // bytes per chunk
 	int                 m_data_format;          // 1-8 current values 9 32bit floating point
 	bool                m_reverse_view;         // reverse-endian view?
 	bool                m_ascii_view;           // display ASCII characters?
@@ -128,8 +136,7 @@ private:
 	static const memory_view_pos s_memory_pos_table[12]; // table for rendering at different data formats
 
 	// constants
-	static const int MEM_MAX_LINE_WIDTH = 1024;
+	static constexpr int MEM_MAX_LINE_WIDTH = 1024;
 };
-
 
 #endif // MAME_EMU_DEBUG_DVMEMORY_H

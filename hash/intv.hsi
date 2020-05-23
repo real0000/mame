@@ -1,3 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+license:CC0
+-->
 <hashfile>
 	<!-- This MESS CRC file was generated from Cowering's Good databases (1.02) -->
 	<!-- Please keep this notice intact if editing this file -->
@@ -599,11 +603,11 @@
 	</hash>
 	<hash crc32="d6495910" name="Thin Ice (Prototype) (Intv Corp) [!]">
 		<year>1983</year>
- 		<extrainfo>0 84 210 242 0 0 0</extrainfo>
+		<extrainfo>0 84 210 242 0 0 0</extrainfo>
 	</hash>
 	<hash crc32="c1f1ca74" name="Thunder Castle (Mattel)">
 		<year>1982</year>
- 		<extrainfo>0 84 210 242 0 0 0</extrainfo>
+		<extrainfo>0 84 210 242 0 0 0</extrainfo>
 	</hash>
 	<hash crc32="d1d352a0" name="Tower of Doom (Intv Corp)">
 		<year>1986</year>

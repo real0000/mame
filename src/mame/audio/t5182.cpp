@@ -149,12 +149,12 @@ rom.
 #include "emu.h"
 #include "t5182.h"
 
-#define T5182_CLOCK     XTAL_14_31818MHz/4
+#define T5182_CLOCK     XTAL(14'318'181)/4
 
-const device_type T5182 = device_creator<t5182_device>;
+DEFINE_DEVICE_TYPE(T5182, t5182_device, "t5182", "T5182 MCU")
 
 t5182_device::t5182_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, T5182, "T5182 MCU", tag, owner, clock, "t5182", __FILE__),
+	: device_t(mconfig, T5182, tag, owner, clock),
 	m_ourcpu(*this, "t5182_z80"),
 	m_sharedram(*this, "sharedram"),
 	m_irqstate(0),
@@ -177,12 +177,12 @@ void t5182_device::device_start()
 	save_item(NAME(m_semaphore_snd));
 }
 
-READ8_MEMBER(t5182_device::sharedram_r)
+uint8_t t5182_device::sharedram_r(offs_t offset)
 {
 	return m_sharedram[offset];
 }
 
-WRITE8_MEMBER(t5182_device::sharedram_w)
+void t5182_device::sharedram_w(offs_t offset, uint8_t data)
 {
 	m_sharedram[offset] = data;
 }
@@ -225,25 +225,25 @@ void t5182_device::device_timer(emu_timer &timer, device_timer_id id, int param,
 {
 	switch (id)
 	{
-		case SETIRQ_CB:
-			setirq_callback(ptr, param);
-			break;
-		default:
-			assert_always(false, "Unknown id in t5182_device::device_timer");
+	case SETIRQ_CB:
+		setirq_callback(ptr, param);
+		break;
+	default:
+		throw emu_fatalerror("Unknown id in t5182_device::device_timer");
 	}
 }
 
-WRITE8_MEMBER( t5182_device::sound_irq_w )
+void t5182_device::sound_irq_w(uint8_t data)
 {
 	synchronize(SETIRQ_CB, CPU_ASSERT);
 }
 
-WRITE8_MEMBER( t5182_device::ym2151_irq_ack_w )
+void t5182_device::ym2151_irq_ack_w(uint8_t data)
 {
 	synchronize(SETIRQ_CB, YM2151_ACK);
 }
 
-WRITE8_MEMBER( t5182_device::cpu_irq_ack_w )
+void t5182_device::cpu_irq_ack_w(uint8_t data)
 {
 	synchronize(SETIRQ_CB, CPU_CLEAR);
 }
@@ -256,32 +256,32 @@ WRITE_LINE_MEMBER(t5182_device::ym2151_irq_handler)
 		synchronize(SETIRQ_CB, YM2151_CLEAR);
 }
 
-READ8_MEMBER(t5182_device::sharedram_semaphore_snd_r)
+uint8_t t5182_device::sharedram_semaphore_snd_r()
 {
 	return m_semaphore_snd;
 }
 
-WRITE8_MEMBER(t5182_device::sharedram_semaphore_main_acquire_w)
+void t5182_device::sharedram_semaphore_main_acquire_w(uint8_t data)
 {
 	m_semaphore_main = 1;
 }
 
-WRITE8_MEMBER(t5182_device::sharedram_semaphore_main_release_w)
+void t5182_device::sharedram_semaphore_main_release_w(uint8_t data)
 {
 	m_semaphore_main = 0;
 }
 
-WRITE8_MEMBER(t5182_device::sharedram_semaphore_snd_acquire_w)
+void t5182_device::sharedram_semaphore_snd_acquire_w(uint8_t data)
 {
 	m_semaphore_snd = 1;
 }
 
-WRITE8_MEMBER(t5182_device::sharedram_semaphore_snd_release_w)
+void t5182_device::sharedram_semaphore_snd_release_w(uint8_t data)
 {
 	m_semaphore_snd = 0;
 }
 
-READ8_MEMBER(t5182_device::sharedram_semaphore_main_r)
+uint8_t t5182_device::sharedram_semaphore_main_r()
 {
 	return m_semaphore_main | (m_irqstate & 2);
 }
@@ -335,12 +335,13 @@ ioport_constructor t5182_device::device_input_ports() const
 	//  90XX reset
 	//  A0XX
 	// rest unused
-ADDRESS_MAP_START( t5182_map, AS_PROGRAM, 8, t5182_device )
-	AM_RANGE(0x0000, 0x1fff) AM_ROM AM_REGION("cpu", 0) // internal ROM
-	AM_RANGE(0x2000, 0x27ff) AM_RAM AM_MIRROR(0x1800) // internal RAM
-	AM_RANGE(0x4000, 0x40ff) AM_RAM AM_MIRROR(0x3F00) AM_SHARE("sharedram") // 2016 with four 74ls245s, one each for main and t5182 address and data. pins 23, 22, 20, 19, 18 are all tied low so only 256 bytes are usable
-	AM_RANGE(0x8000, 0xffff) AM_ROM AM_REGION(":t5182_z80", 0) // external ROM
-ADDRESS_MAP_END
+void t5182_device::t5182_map(address_map &map)
+{
+	map(0x0000, 0x1fff).rom().region("cpu", 0); // internal ROM
+	map(0x2000, 0x27ff).ram().mirror(0x1800); // internal RAM
+	map(0x4000, 0x40ff).ram().mirror(0x3F00).share("sharedram"); // 2016 with four 74ls245s, one each for main and t5182 address and data. pins 23, 22, 20, 19, 18 are all tied low so only 256 bytes are usable
+	map(0x8000, 0xffff).rom().region(":t5182_z80", 0); // external ROM
+}
 
 
 	// 00  W YM2151 address
@@ -353,35 +354,26 @@ ADDRESS_MAP_END
 	// 30 R  coin inputs (bits 0 and 1, active high)
 	// 40  W external ROM banking? (the only 0 bit enables a ROM)
 	// 50  W test mode status flags (bit 0 = ROM test fail, bit 1 = RAM test fail, bit 2 = YM2151 IRQ not received)
-ADDRESS_MAP_START( t5182_io, AS_IO, 8, t5182_device )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE(":ymsnd", ym2151_device, read, write)
-	AM_RANGE(0x10, 0x10) AM_WRITE(sharedram_semaphore_snd_acquire_w)
-	AM_RANGE(0x11, 0x11) AM_WRITE(sharedram_semaphore_snd_release_w)
-	AM_RANGE(0x12, 0x12) AM_WRITE(ym2151_irq_ack_w)
-	AM_RANGE(0x13, 0x13) AM_WRITE(cpu_irq_ack_w)
-	AM_RANGE(0x20, 0x20) AM_READ(sharedram_semaphore_main_r)
-	AM_RANGE(0x30, 0x30) AM_READ_PORT("T5182_COIN")
-ADDRESS_MAP_END
-
-
-//-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( t5182 )
-//-------------------------------------------------
-
-MACHINE_CONFIG_FRAGMENT( t5182 )
-	MCFG_CPU_ADD("t5182_z80", Z80, T5182_CLOCK)
-	MCFG_CPU_PROGRAM_MAP(t5182_map)
-	MCFG_CPU_IO_MAP(t5182_io)
-
-MACHINE_CONFIG_END
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor t5182_device::device_mconfig_additions() const
+void t5182_device::t5182_io(address_map &map)
 {
-	return MACHINE_CONFIG_NAME( t5182 );
+	map.global_mask(0xff);
+	map(0x00, 0x01).rw(":ymsnd", FUNC(ym2151_device::read), FUNC(ym2151_device::write));
+	map(0x10, 0x10).w(FUNC(t5182_device::sharedram_semaphore_snd_acquire_w));
+	map(0x11, 0x11).w(FUNC(t5182_device::sharedram_semaphore_snd_release_w));
+	map(0x12, 0x12).w(FUNC(t5182_device::ym2151_irq_ack_w));
+	map(0x13, 0x13).w(FUNC(t5182_device::cpu_irq_ack_w));
+	map(0x20, 0x20).r(FUNC(t5182_device::sharedram_semaphore_main_r));
+	map(0x30, 0x30).portr("T5182_COIN");
+}
+
+
+//-------------------------------------------------
+// device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void t5182_device::device_add_mconfig(machine_config &config)
+{
+	Z80(config, m_ourcpu, T5182_CLOCK);
+	m_ourcpu->set_addrmap(AS_PROGRAM, &t5182_device::t5182_map);
+	m_ourcpu->set_addrmap(AS_IO, &t5182_device::t5182_io);
 }

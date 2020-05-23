@@ -13,10 +13,10 @@
 	*                                                                          *
 	\**************************************************************************/
 
-#pragma once
+#ifndef MAME_CPU_PIC16C62X_PIC16C62X_H
+#define MAME_CPU_PIC16C62X_PIC16C62X_H
 
-#ifndef __PIC16C62X_H__
-#define __PIC16C62X_H__
+#pragma once
 
 
 
@@ -42,39 +42,38 @@ enum
 #define PIC16C62x_T0        0
 
 
-extern const device_type PIC16C620;
-extern const device_type PIC16C620A;
-//extern const device_type PIC16CR620A;
-extern const device_type PIC16C621;
-extern const device_type PIC16C621A;
-extern const device_type PIC16C622;
-extern const device_type PIC16C622A;
+DECLARE_DEVICE_TYPE(PIC16C620,   pic16c620_device)
+DECLARE_DEVICE_TYPE(PIC16C620A,  pic16c620a_device)
+//DECLARE_DEVICE_TYPE(PIC16CR620A, pic16cr620a_device)
+DECLARE_DEVICE_TYPE(PIC16C621,   pic16c621_device)
+DECLARE_DEVICE_TYPE(PIC16C621A,  pic16c621a_device)
+DECLARE_DEVICE_TYPE(PIC16C622,   pic16c622_device)
+DECLARE_DEVICE_TYPE(PIC16C622A,  pic16c622a_device)
 
 
 class pic16c62x_device : public cpu_device
 {
 public:
-	// construction/destruction
-	pic16c62x_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, int program_width, int picmodel);
+	void set_config(int data);
+
 protected:
+	// construction/destruction
+	pic16c62x_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, int program_width, int picmodel);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint64_t execute_clocks_to_cycles(uint64_t clocks) const override { return (clocks + 4 - 1) / 4; }
-	virtual uint64_t execute_cycles_to_clocks(uint64_t cycles) const override { return (cycles * 4); }
-	virtual uint32_t execute_min_cycles() const override { return 1; }
-	virtual uint32_t execute_max_cycles() const override { return 2; }
-	virtual uint32_t execute_input_lines() const override { return 1; }
-	virtual uint32_t execute_default_irq_vector() const override { return 0; }
+	virtual uint64_t execute_clocks_to_cycles(uint64_t clocks) const noexcept override { return (clocks + 4 - 1) / 4; }
+	virtual uint64_t execute_cycles_to_clocks(uint64_t cycles) const noexcept override { return (cycles * 4); }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 2; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 1; }
 	virtual void execute_run() override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override
-	{
-		return (spacenum == AS_PROGRAM) ? &m_program_config : ( (spacenum == AS_IO) ? &m_io_config : ( (spacenum == AS_DATA) ? &m_data_config : nullptr ) );
-	}
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_import(const device_state_entry &entry) override;
@@ -82,9 +81,7 @@ protected:
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 2; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 2; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 private:
 	address_space_config m_program_config;
@@ -118,7 +115,7 @@ private:
 	int     m_inst_cycles;
 
 	address_space *m_program;
-	direct_read_data *m_direct;
+	memory_access_cache<1, -1, ENDIANNESS_LITTLE> *m_cache;
 	address_space *m_data;
 	address_space *m_io;
 
@@ -195,10 +192,15 @@ private:
 	void build_opcode_table(void);
 	void pic16c62x_reset_regs();
 	void pic16c62x_soft_reset();
-	void pic16c62x_set_config(int data);
 	void pic16c62x_update_watchdog(int counts);
 	void pic16c62x_update_timer(int counts);
 
+	void pic16c620_ram(address_map &map);
+	void pic16c622_ram(address_map &map);
+	void pic16c62x_rom_10(address_map &map);
+	void pic16c62x_rom_11(address_map &map);
+	void pic16c62x_rom_9(address_map &map);
+	void pic16c62xa_ram(address_map &map);
 };
 
 
@@ -253,4 +255,4 @@ public:
 };
 
 
-#endif  /* __PIC16C62X_H__ */
+#endif  // MAME_CPU_PIC16C62X_PIC16C62X_H

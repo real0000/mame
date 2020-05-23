@@ -1,22 +1,25 @@
 // license:BSD-3-Clause
 // copyright-holders:Olivier Galibert,Andreas Naive
-#ifndef _NAOMIM4_H_
-#define _NAOMIM4_H_
+#ifndef MAME_MACHINE_NAOMIM4_H
+#define MAME_MACHINE_NAOMIM4_H
 
 #include "naomibd.h"
 
-#define MCFG_NAOMI_M4_BOARD_ADD(_tag, _key_tag, _eeprom_tag, _irq_cb) \
-	MCFG_NAOMI_BOARD_ADD(_tag, NAOMI_M4_BOARD, _eeprom_tag, _irq_cb) \
-	naomi_m4_board::static_set_tags(*device, "^" _key_tag);
 
 class naomi_m4_board : public naomi_board
 {
 public:
+	template <typename T, typename U>
+	naomi_m4_board(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock, T &&eeprom_tag, U &&keyregion_tag)
+		: naomi_m4_board(mconfig, tag, owner, clock)
+	{
+		eeprom.set_tag(std::forward<T>(eeprom_tag));
+		m_key_data.set_tag(std::forward<U>(keyregion_tag));
+	}
+
 	naomi_m4_board(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	static void static_set_tags(device_t &device, const char *key_tag);
-
-	virtual DECLARE_ADDRESS_MAP(submap, 16) override;
+	virtual void submap(address_map &map) override;
 
 	DECLARE_READ16_MEMBER(m4_id_r);
 protected:
@@ -52,6 +55,6 @@ private:
 	uint16_t decrypt_one_round(uint16_t word, uint16_t subkey);
 };
 
-extern const device_type NAOMI_M4_BOARD;
+DECLARE_DEVICE_TYPE(NAOMI_M4_BOARD, naomi_m4_board)
 
-#endif
+#endif // MAME_MACHINE_NAOMIM4_H

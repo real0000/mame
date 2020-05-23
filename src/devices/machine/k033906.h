@@ -6,39 +6,29 @@
 
 ***************************************************************************/
 
+#ifndef MAME_MACHINE_K033906_H
+#define MAME_MACHINE_K033906_H
+
 #pragma once
 
-#ifndef __K033906_H__
-#define __K033906_H__
-
 #include "video/voodoo.h"
-
-
-/***************************************************************************
-    DEVICE CONFIGURATION MACROS
-***************************************************************************/
-
-#define MCFG_K033906_VOODOO(_tag) \
-	k033906_device::set_voodoo_tag(*device, "^" _tag);
-
-/***************************************************************************
-    TYPE DEFINITIONS
-***************************************************************************/
-
-
-// ======================> k033906_device
 
 class k033906_device :  public device_t
 {
 public:
 	// construction/destruction
+	template <typename T>
+	k033906_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock, T &&voodoo_tag)
+		: k033906_device(mconfig, tag, owner, clock)
+	{
+		m_voodoo.set_tag(std::forward<T>(voodoo_tag));
+	}
+
 	k033906_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	static void set_voodoo_tag(device_t &device, const char *tag) { downcast<k033906_device &>(device).m_voodoo.set_tag(tag); }
-
-	DECLARE_READ32_MEMBER( read );
-	DECLARE_WRITE32_MEMBER( write );
-	DECLARE_WRITE_LINE_MEMBER( set_reg );
+	u32 read(offs_t offset);
+	void write(offs_t offset, u32 data);
+	DECLARE_WRITE_LINE_MEMBER(set_reg);
 
 protected:
 	// device-level overrides
@@ -48,7 +38,6 @@ protected:
 	virtual void device_clock_changed() override { }
 
 private:
-
 	uint32_t reg_r(int reg);
 	void reg_w(int reg, uint32_t data);
 
@@ -58,12 +47,10 @@ private:
 
 	required_device<voodoo_device> m_voodoo;
 
-	uint32_t       m_reg[256];
-	uint32_t       m_ram[32768];
+	std::unique_ptr<u32[]> m_reg;
+	std::unique_ptr<u32[]> m_ram;
 };
 
+DECLARE_DEVICE_TYPE(K033906, k033906_device)
 
-// device type definition
-extern const device_type K033906;
-
-#endif  /* __K033906_H__ */
+#endif // MAME_MACHINE_K033906_H

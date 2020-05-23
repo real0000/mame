@@ -26,70 +26,39 @@
 
 **********************************************************************/
 
+#ifndef MAME_BUS_IMI7000_IMI7000_H
+#define MAME_BUS_IMI7000_IMI7000_H
+
 #pragma once
 
-#ifndef __IMI7000_BUS__
-#define __IMI7000_BUS__
+void imi7000_devices(device_slot_interface &device);
 
-
-
-
-//**************************************************************************
-//  CONSTANTS
-//**************************************************************************
-
-#define IMI7000_BUS_TAG      "imi7000"
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_IMI7000_BUS_ADD(_def_slot1, _def_slot2, _def_slot3, _def_slot4) \
-	MCFG_DEVICE_ADD(IMI7000_BUS_TAG, IMI7000_BUS, 0) \
-	MCFG_DEVICE_ADD(IMI7000_BUS_TAG":0", IMI7000_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(imi7000_devices, _def_slot1, false) \
-	MCFG_DEVICE_ADD(IMI7000_BUS_TAG":1", IMI7000_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(imi7000_devices, _def_slot2, false) \
-	MCFG_DEVICE_ADD(IMI7000_BUS_TAG":2", IMI7000_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(imi7000_devices, _def_slot3, false) \
-	MCFG_DEVICE_ADD(IMI7000_BUS_TAG":3", IMI7000_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(imi7000_devices, _def_slot4, false)
-
+DECLARE_DEVICE_TYPE(IMI7000_BUS,  imi7000_bus_device)
+DECLARE_DEVICE_TYPE(IMI7000_SLOT, imi7000_slot_device)
 
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-class imi7000_slot_device;
 class device_imi7000_interface;
-
-
-// ======================> imi7000_bus_device
-
-class imi7000_bus_device : public device_t
-{
-public:
-	// construction/destruction
-	imi7000_bus_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-
-protected:
-	// device-level overrides
-	virtual void device_start() override;
-
-	imi7000_slot_device *m_unit[4];
-};
 
 
 // ======================> imi7000_slot_device
 
-class imi7000_slot_device : public device_t,
-							public device_slot_interface
+class imi7000_slot_device : public device_t, public device_single_card_slot_interface<device_imi7000_interface>
 {
 public:
 	// construction/destruction
+	template <typename T>
+	imi7000_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, T &&opts, char const *dflt)
+		: imi7000_slot_device(mconfig, tag, owner, (uint32_t)0)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
 	imi7000_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 protected:
@@ -100,30 +69,43 @@ protected:
 };
 
 
-// ======================> device_imi7000_interface
+// ======================> imi7000_bus_device
 
-class device_imi7000_interface : public device_slot_card_interface
+class imi7000_bus_device : public device_t
 {
-	friend class imi7000_slot_device;
-
 public:
 	// construction/destruction
-	device_imi7000_interface(const machine_config &mconfig, device_t &device);
-	virtual ~device_imi7000_interface() { }
+	imi7000_bus_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
+
+	template <typename T, typename U, typename V, typename W>
+	void set_slot_default_options(T &&def1, U &&def2, V &&def3, W &&def4)
+	{
+		subdevice<imi7000_slot_device>(m_units[0].finder_tag())->set_default_option(std::forward<T>(def1));
+		subdevice<imi7000_slot_device>(m_units[1].finder_tag())->set_default_option(std::forward<U>(def2));
+		subdevice<imi7000_slot_device>(m_units[2].finder_tag())->set_default_option(std::forward<V>(def3));
+		subdevice<imi7000_slot_device>(m_units[3].finder_tag())->set_default_option(std::forward<W>(def4));
+	}
 
 protected:
-	imi7000_slot_device *m_slot;
+	// device-level overrides
+	virtual void device_add_mconfig(machine_config &config) override;
+	virtual void device_start() override;
+
+	required_device_array<imi7000_slot_device, 4> m_units;
 };
 
 
-// device type definition
-extern const device_type IMI7000_BUS;
-extern const device_type IMI7000_SLOT;
+// ======================> device_imi7000_interface
 
+class device_imi7000_interface : public device_interface
+{
+	friend class imi7000_slot_device;
 
-// slot interface
-SLOT_INTERFACE_EXTERN( imi7000_devices );
+protected:
+	// construction/destruction
+	device_imi7000_interface(const machine_config &mconfig, device_t &device);
 
+	imi7000_slot_device *m_slot;
+};
 
-
-#endif
+#endif // MAME_BUS_IMI7000_IMI7000_H

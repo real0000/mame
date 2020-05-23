@@ -21,7 +21,7 @@
 #include "machine/i8255.h"
 #include "machine/z80ctc.h"
 #include "cpu/z80/z80.h"
-#include "cpu/z80/z80daisy.h"
+#include "machine/z80daisy.h"
 
 
 
@@ -52,7 +52,7 @@
 //**************************************************************************
 
 // devices
-const device_type PIONEER_LDV1000 = device_creator<pioneer_ldv1000_device>;
+DEFINE_DEVICE_TYPE(PIONEER_LDV1000, pioneer_ldv1000_device, "ldv1000", "Pioneer LD-V1000")
 
 
 
@@ -60,21 +60,23 @@ const device_type PIONEER_LDV1000 = device_creator<pioneer_ldv1000_device>;
 //  LD-V1000 ROM AND MACHINE INTERFACES
 //**************************************************************************
 
-static ADDRESS_MAP_START( ldv1000_map, AS_PROGRAM, 8, pioneer_ldv1000_device )
-	AM_RANGE(0x0000, 0x1fff) AM_MIRROR(0x6000) AM_ROM
-	AM_RANGE(0x8000, 0x87ff) AM_MIRROR(0x3800) AM_RAM
-	AM_RANGE(0xc000, 0xc003) AM_MIRROR(0x1ff0) AM_DEVREADWRITE("ldvppi0", i8255_device, read, write)
-	AM_RANGE(0xc004, 0xc007) AM_MIRROR(0x1ff0) AM_DEVREADWRITE("ldvppi1", i8255_device, read, write)
-ADDRESS_MAP_END
+void pioneer_ldv1000_device::ldv1000_map(address_map &map)
+{
+	map(0x0000, 0x1fff).mirror(0x6000).rom();
+	map(0x8000, 0x87ff).mirror(0x3800).ram();
+	map(0xc000, 0xc003).mirror(0x1ff0).rw("ldvppi0", FUNC(i8255_device::read), FUNC(i8255_device::write));
+	map(0xc004, 0xc007).mirror(0x1ff0).rw("ldvppi1", FUNC(i8255_device::read), FUNC(i8255_device::write));
+}
 
 
-static ADDRESS_MAP_START( ldv1000_portmap, AS_IO, 8, pioneer_ldv1000_device )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x07) AM_MIRROR(0x38) AM_READWRITE(z80_decoder_display_port_r, z80_decoder_display_port_w)
-	AM_RANGE(0x40, 0x40) AM_MIRROR(0x3f) AM_READ(z80_controller_r)
-	AM_RANGE(0x80, 0x80) AM_MIRROR(0x3f) AM_WRITE(z80_controller_w)
-	AM_RANGE(0xc0, 0xc3) AM_MIRROR(0x3c) AM_DEVREADWRITE("ldvctc", z80ctc_device, read, write)
-ADDRESS_MAP_END
+void pioneer_ldv1000_device::ldv1000_portmap(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x07).mirror(0x38).rw(FUNC(pioneer_ldv1000_device::z80_decoder_display_port_r), FUNC(pioneer_ldv1000_device::z80_decoder_display_port_w));
+	map(0x40, 0x40).mirror(0x3f).r(FUNC(pioneer_ldv1000_device::z80_controller_r));
+	map(0x80, 0x80).mirror(0x3f).w(FUNC(pioneer_ldv1000_device::z80_controller_w));
+	map(0xc0, 0xc3).mirror(0x3c).rw(m_z80_ctc, FUNC(z80ctc_device::read), FUNC(z80ctc_device::write));
+}
 
 
 static const z80_daisy_config daisy_chain[] =
@@ -82,28 +84,6 @@ static const z80_daisy_config daisy_chain[] =
 	{ "ldvctc" },
 	{ nullptr }
 };
-
-
-static MACHINE_CONFIG_FRAGMENT( ldv1000 )
-	MCFG_CPU_ADD("ldv1000", Z80, XTAL_5MHz/2)
-	MCFG_Z80_DAISY_CHAIN(daisy_chain)
-	MCFG_CPU_PROGRAM_MAP(ldv1000_map)
-	MCFG_CPU_IO_MAP(ldv1000_portmap)
-
-	MCFG_DEVICE_ADD("ldvctc", Z80CTC, XTAL_5MHz/2)
-	MCFG_Z80CTC_INTR_CB(WRITELINE(pioneer_ldv1000_device, ctc_interrupt))
-
-	MCFG_DEVICE_ADD("ldvppi0", I8255, 0)
-	MCFG_I8255_OUT_PORTA_CB(WRITE8(pioneer_ldv1000_device, ppi0_porta_w))
-	MCFG_I8255_IN_PORTB_CB(READ8(pioneer_ldv1000_device, ppi0_portb_r))
-	MCFG_I8255_IN_PORTC_CB(READ8(pioneer_ldv1000_device, ppi0_portc_r))
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(pioneer_ldv1000_device, ppi0_portc_w))
-
-	MCFG_DEVICE_ADD("ldvppi1", I8255, 0)
-	MCFG_I8255_IN_PORTA_CB(READ8(pioneer_ldv1000_device, ppi1_porta_r))
-	MCFG_I8255_OUT_PORTB_CB(WRITE8(pioneer_ldv1000_device, ppi1_portb_w))
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(pioneer_ldv1000_device, ppi1_portc_w))
-MACHINE_CONFIG_END
 
 
 ROM_START( ldv1000 )
@@ -122,7 +102,7 @@ ROM_END
 //-------------------------------------------------
 
 pioneer_ldv1000_device::pioneer_ldv1000_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: laserdisc_device(mconfig, PIONEER_LDV1000, "Pioneer LD-V1000", tag, owner, clock, "ldv1000", __FILE__),
+	: laserdisc_device(mconfig, PIONEER_LDV1000, tag, owner, clock),
 		m_z80_cpu(*this, "ldv1000"),
 		m_z80_ctc(*this, "ldvctc"),
 		m_multitimer(nullptr),
@@ -152,7 +132,7 @@ void pioneer_ldv1000_device::data_w(uint8_t data)
 {
 	m_command = data;
 	if (LOG_COMMANDS)
-		printf("-> COMMAND = %02X (%s)\n", data, (m_portc1 & 0x10) ? "valid" : "invalid");
+		logerror("-> COMMAND = %02X (%s)\n", data, (m_portc1 & 0x10) ? "valid" : "invalid");
 }
 
 
@@ -289,13 +269,29 @@ const tiny_rom_entry *pioneer_ldv1000_device::device_rom_region() const
 
 
 //-------------------------------------------------
-//  device_mconfig_additions - return a pointer to
-//  our machine config fragment
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor pioneer_ldv1000_device::device_mconfig_additions() const
+void pioneer_ldv1000_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME(ldv1000);
+	Z80(config, m_z80_cpu, XTAL(5'000'000)/2);
+	m_z80_cpu->set_daisy_config(daisy_chain);
+	m_z80_cpu->set_addrmap(AS_PROGRAM, &pioneer_ldv1000_device::ldv1000_map);
+	m_z80_cpu->set_addrmap(AS_IO, &pioneer_ldv1000_device::ldv1000_portmap);
+
+	Z80CTC(config, m_z80_ctc, XTAL(5'000'000)/2);
+	m_z80_ctc->intr_callback().set(FUNC(pioneer_ldv1000_device::ctc_interrupt));
+
+	i8255_device &ldvppi0(I8255(config, "ldvppi0"));
+	ldvppi0.out_pa_callback().set(FUNC(pioneer_ldv1000_device::ppi0_porta_w));
+	ldvppi0.in_pb_callback().set(FUNC(pioneer_ldv1000_device::ppi0_portb_r));
+	ldvppi0.in_pc_callback().set(FUNC(pioneer_ldv1000_device::ppi0_portc_r));
+	ldvppi0.out_pc_callback().set(FUNC(pioneer_ldv1000_device::ppi0_portc_w));
+
+	i8255_device &ldvppi1(I8255(config, "ldvppi1"));
+	ldvppi1.in_pa_callback().set(FUNC(pioneer_ldv1000_device::ppi1_porta_r));
+	ldvppi1.out_pb_callback().set(FUNC(pioneer_ldv1000_device::ppi1_portb_w));
+	ldvppi1.out_pc_callback().set(FUNC(pioneer_ldv1000_device::ppi1_portc_w));
 }
 
 
@@ -333,7 +329,7 @@ int32_t pioneer_ldv1000_device::player_update(const vbi_metadata &vbi, int field
 	if (LOG_FRAMES_SEEN)
 	{
 		int frame = frame_from_metadata(vbi);
-		if (frame != FRAME_NOT_PRESENT) printf("== %d\n", frame);
+		if (frame != FRAME_NOT_PRESENT) logerror("== %d\n", frame);
 	}
 	return fieldnum;
 }
@@ -344,7 +340,7 @@ int32_t pioneer_ldv1000_device::player_update(const vbi_metadata &vbi, int field
 //  an interrupt in the daisy chain
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( pioneer_ldv1000_device::ctc_interrupt )
+void pioneer_ldv1000_device::ctc_interrupt(int state)
 {
 	m_z80_cpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
@@ -355,7 +351,7 @@ WRITE_LINE_MEMBER( pioneer_ldv1000_device::ctc_interrupt )
 //  the decoder/display chips
 //-------------------------------------------------
 
-WRITE8_MEMBER( pioneer_ldv1000_device::z80_decoder_display_port_w )
+void pioneer_ldv1000_device::z80_decoder_display_port_w(offs_t offset, uint8_t data)
 {
 	/*
 	    TX/RX = /A0 (A0=0 -> TX, A0=1 -> RX)
@@ -386,7 +382,7 @@ WRITE8_MEMBER( pioneer_ldv1000_device::z80_decoder_display_port_w )
 //  decoder/display chips
 //-------------------------------------------------
 
-READ8_MEMBER( pioneer_ldv1000_device::z80_decoder_display_port_r )
+uint8_t pioneer_ldv1000_device::z80_decoder_display_port_r(offs_t offset)
 {
 	// reads from offset 3 constitute actual reads from the display and decoder chips
 	uint8_t result = 0;
@@ -408,7 +404,7 @@ READ8_MEMBER( pioneer_ldv1000_device::z80_decoder_display_port_r )
 //  the controlling system
 //-------------------------------------------------
 
-READ8_MEMBER( pioneer_ldv1000_device::z80_controller_r )
+uint8_t pioneer_ldv1000_device::z80_controller_r()
 {
 	// note that this is a cheesy implementation; the real thing relies on exquisite timing
 	uint8_t result = m_command ^ 0xff;
@@ -421,10 +417,10 @@ READ8_MEMBER( pioneer_ldv1000_device::z80_controller_r )
 //  z80_controller_w - handle status latch writes
 //-------------------------------------------------
 
-WRITE8_MEMBER( pioneer_ldv1000_device::z80_controller_w )
+void pioneer_ldv1000_device::z80_controller_w(uint8_t data)
 {
 	if (LOG_STATUS_CHANGES && data != m_status)
-		printf("%04X:CONTROLLER.W=%02X\n", space.device().safe_pc(), data);
+		logerror("%s:CONTROLLER.W=%02X\n", machine().describe_context(), data);
 	m_status = data;
 }
 
@@ -434,11 +430,11 @@ WRITE8_MEMBER( pioneer_ldv1000_device::z80_controller_w )
 //  PPI #0
 //-------------------------------------------------
 
-WRITE8_MEMBER( pioneer_ldv1000_device::ppi0_porta_w )
+void pioneer_ldv1000_device::ppi0_porta_w(uint8_t data)
 {
 	m_counter_start = data;
 	if (LOG_PORT_IO)
-		printf("%s:PORTA.0=%02X\n", machine().describe_context(), data);
+		logerror("%s:PORTA.0=%02X\n", machine().describe_context(), data);
 }
 
 
@@ -447,7 +443,7 @@ WRITE8_MEMBER( pioneer_ldv1000_device::ppi0_porta_w )
 //  PPI #0
 //-------------------------------------------------
 
-READ8_MEMBER( pioneer_ldv1000_device::ppi0_portb_r )
+uint8_t pioneer_ldv1000_device::ppi0_portb_r()
 {
 	return m_counter;
 }
@@ -458,7 +454,7 @@ READ8_MEMBER( pioneer_ldv1000_device::ppi0_portb_r )
 //  PPI #0
 //-------------------------------------------------
 
-READ8_MEMBER( pioneer_ldv1000_device::ppi0_portc_r )
+uint8_t pioneer_ldv1000_device::ppi0_portc_r()
 {
 	/*
 	    $10 = /VSYNC
@@ -481,7 +477,7 @@ READ8_MEMBER( pioneer_ldv1000_device::ppi0_portc_r )
 //  PPI #0
 //-------------------------------------------------
 
-WRITE8_MEMBER( pioneer_ldv1000_device::ppi0_portc_w )
+void pioneer_ldv1000_device::ppi0_portc_w(uint8_t data)
 {
 	/*
 	    $01 = preload on up/down counters
@@ -495,11 +491,10 @@ WRITE8_MEMBER( pioneer_ldv1000_device::ppi0_portc_w )
 	m_portc0 = data;
 	if (LOG_PORT_IO && ((data ^ prev) & 0x0f) != 0)
 	{
-		printf("%s:PORTC.0=%02X", machine().describe_context(), data);
-		if (data & 0x01) printf(" PRELOAD");
-		if (!(data & 0x02)) printf(" /MULTIJUMP");
-		if (data & 0x04) printf(" SCANMODE");
-		printf("\n");
+		logerror("%s:PORTC.0=%02X%s%s%s\n", machine().describe_context(), data,
+			(data & 0x01) ? " PRELOAD" : "",
+			!(data & 0x02) ? " /MULTIJUMP" : "",
+			(data & 0x04) ? " SCANMODE" : "");
 	}
 
 	// on the rising edge of bit 0, clock the down counter load
@@ -517,7 +512,7 @@ WRITE8_MEMBER( pioneer_ldv1000_device::ppi0_portc_w )
 //  PPI #1
 //-------------------------------------------------
 
-READ8_MEMBER( pioneer_ldv1000_device::ppi1_porta_r )
+uint8_t pioneer_ldv1000_device::ppi1_porta_r()
 {
 	/*
 	    $01 = /FOCS LOCK
@@ -567,7 +562,7 @@ READ8_MEMBER( pioneer_ldv1000_device::ppi1_porta_r )
 //  PPI #1
 //-------------------------------------------------
 
-WRITE8_MEMBER( pioneer_ldv1000_device::ppi1_portb_w )
+void pioneer_ldv1000_device::ppi1_portb_w(uint8_t data)
 {
 	/*
 	    $01 = /FOCS ON
@@ -585,14 +580,13 @@ WRITE8_MEMBER( pioneer_ldv1000_device::ppi1_portb_w )
 	m_portb1 = data;
 	if (LOG_PORT_IO && ((data ^ prev) & 0xff) != 0)
 	{
-		printf("%s:PORTB.1=%02X:", machine().describe_context(), data);
-		if (!(data & 0x01)) printf(" FOCSON");
-		if (!(data & 0x02)) printf(" SPDLRUN");
-		if (!(data & 0x04)) printf(" JUMPTRIG");
-		if (!(data & 0x08)) printf(" SCANA (%c %c)", (data & 0x10) ? 'L' : 'H', (data & 0x20) ? 'F' : 'R');
-		if ( (data & 0x40)) printf(" LASERON");
-		if (!(data & 0x80)) printf(" SYNCST0");
-		printf("\n");
+		logerror("%s:PORTB.1=%02X: %s%s%s%s%s%s\n", machine().describe_context(), data,
+			!(data & 0x01) ? " FOCSON" : "",
+			!(data & 0x02) ? " SPDLRUN" : "",
+			!(data & 0x04) ? " JUMPTRIG" : "",
+			!(data & 0x08) ? string_format(" SCANA (%c %c)", (data & 0x10) ? 'L' : 'H', (data & 0x20) ? 'F' : 'R') : "",
+			(data & 0x40) ? " LASERON" : "",
+			!(data & 0x80) ? " SYNCST0" : "");
 	}
 
 	// bit 5 selects the direction of slider movement for JUMP TRG and scanning
@@ -621,7 +615,7 @@ WRITE8_MEMBER( pioneer_ldv1000_device::ppi1_portb_w )
 //  PPI #1
 //-------------------------------------------------
 
-WRITE8_MEMBER( pioneer_ldv1000_device::ppi1_portc_w )
+void pioneer_ldv1000_device::ppi1_portc_w(uint8_t data)
 {
 	/*
 	    $01 = AUD 1
@@ -639,16 +633,15 @@ WRITE8_MEMBER( pioneer_ldv1000_device::ppi1_portc_w )
 	m_portc1 = data;
 	if (LOG_PORT_IO && ((data ^ prev) & 0xcf) != 0)
 	{
-		printf("%s:PORTC.1=%02X", machine().describe_context(), data);
-		if (data & 0x01) printf(" AUD1");
-		if (data & 0x02) printf(" AUD2");
-		if (data & 0x04) printf(" AUDEN");
-		if (!(data & 0x08)) printf(" VIDEOSQ");
-		if (data & 0x10) printf(" COMMAND");
-		if (data & 0x20) printf(" STATUS");
-		if (data & 0x40) printf(" SIZE8");
-		if (!(data & 0x80)) printf(" CAV");
-		printf("\n");
+		logerror("%s:PORTC.1=%02X%s%s%s%s%s%s%s%s\n", machine().describe_context(), data,
+			(data & 0x01) ? " AUD1" : "",
+			(data & 0x02) ? " AUD2" : "",
+			(data & 0x04) ? " AUDEN" : "",
+			!(data & 0x08) ? " VIDEOSQ" : "",
+			(data & 0x10) ? " COMMAND" : "",
+			(data & 0x20) ? " STATUS" : "",
+			(data & 0x40) ? " SIZE8" : "",
+			!(data & 0x80) ? " CAV" : "");
 	}
 
 	// bit 4 sends a command strobe signal to Host CPU

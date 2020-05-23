@@ -53,10 +53,10 @@
 #include "video/kan_pand.h"
 #include "screen.h"
 
-const device_type KANEKO_PANDORA = device_creator<kaneko_pandora_device>;
+DEFINE_DEVICE_TYPE(KANEKO_PANDORA, kaneko_pandora_device, "kaneko_pandora", "Kaneko PANDORA GFX")
 
 kaneko_pandora_device::kaneko_pandora_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, KANEKO_PANDORA, "Kaneko PANDORA GFX", tag, owner, clock, "kaneko_pandora", __FILE__)
+	: device_t(mconfig, KANEKO_PANDORA, tag, owner, clock)
 	, device_video_interface(mconfig, *this)
 	, m_gfx_region(0)
 	, m_xoffset(0)
@@ -66,30 +66,22 @@ kaneko_pandora_device::kaneko_pandora_device(const machine_config &mconfig, cons
 }
 
 //-------------------------------------------------
-//  static_set_gfxdecode_tag: Set the tag of the
-//  gfx decoder
-//-------------------------------------------------
-
-void kaneko_pandora_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
-{
-	downcast<kaneko_pandora_device &>(device).m_gfxdecode.set_tag(tag);
-}
-
-//-------------------------------------------------
 //  device_start - device-specific startup
 //-------------------------------------------------
 
 void kaneko_pandora_device::device_start()
 {
 	m_bg_pen = 0;
+	m_flip_screen = false;
 
 	m_spriteram = std::make_unique<uint8_t[]>(0x1000);
 
-	m_sprites_bitmap = std::make_unique<bitmap_ind16>(m_screen->width(), m_screen->height());
+	m_sprites_bitmap = std::make_unique<bitmap_ind16>(screen().width(), screen().height());
 
 	save_item(NAME(m_clear_bitmap));
 	save_item(NAME(m_bg_pen));
-	save_pointer(NAME(m_spriteram.get()), 0x1000);
+	save_item(NAME(m_flip_screen));
+	save_pointer(NAME(m_spriteram), 0x1000);
 	save_item(NAME(*m_sprites_bitmap));
 }
 
@@ -181,7 +173,7 @@ void kaneko_pandora_device::draw( bitmap_ind16 &bitmap, const rectangle &cliprec
 			y = dy;
 		}
 
-		if (machine().driver_data()->flip_screen())
+		if (m_flip_screen)
 		{
 			sx = 240 - x;
 			sy = 240 - y;
@@ -220,20 +212,20 @@ void kaneko_pandora_device::eof( )
 
 	// the games can disable the clearing of the sprite bitmap, to leave sprite trails
 	if (m_clear_bitmap)
-		m_sprites_bitmap->fill(m_bg_pen, m_screen->visible_area());
+		m_sprites_bitmap->fill(m_bg_pen, screen().visible_area());
 
-	kaneko_pandora_device::draw(*m_sprites_bitmap, m_screen->visible_area());
+	kaneko_pandora_device::draw(*m_sprites_bitmap, screen().visible_area());
 }
 
 /*****************************************************************************
     DEVICE HANDLERS
 *****************************************************************************/
 
-WRITE8_MEMBER ( kaneko_pandora_device::spriteram_w )
+void kaneko_pandora_device::spriteram_w(offs_t offset, uint8_t data)
 {
 	// it's either hooked up oddly on this, or on the 16-bit games
 	// either way, we swap the address lines so that the spriteram is in the same format
-	offset = BITSWAP16(offset,  15,14,13,12, 11,   7,6,5,4,3,2,1,0,   10,9,8  );
+	offset = bitswap<16>(offset,  15,14,13,12, 11,   7,6,5,4,3,2,1,0,   10,9,8  );
 
 	if (!m_spriteram)
 	{
@@ -250,11 +242,11 @@ WRITE8_MEMBER ( kaneko_pandora_device::spriteram_w )
 	m_spriteram[offset] = data;
 }
 
-READ8_MEMBER( kaneko_pandora_device::spriteram_r )
+uint8_t kaneko_pandora_device::spriteram_r(offs_t offset)
 {
 	// it's either hooked up oddly on this, or on the 16-bit games
 	// either way, we swap the address lines so that the spriteram is in the same format
-	offset = BITSWAP16(offset,  15,14,13,12, 11,  7,6,5,4,3,2,1,0,  10,9,8  );
+	offset = bitswap<16>(offset,  15,14,13,12, 11,  7,6,5,4,3,2,1,0,  10,9,8  );
 
 	if (!m_spriteram)
 	{
@@ -271,7 +263,7 @@ READ8_MEMBER( kaneko_pandora_device::spriteram_r )
 }
 
 /* I don't know if this MSB/LSB mirroring is correct, or if there is twice as much ram, with half of it unused */
-WRITE16_MEMBER( kaneko_pandora_device::spriteram_LSB_w )
+void kaneko_pandora_device::spriteram_LSB_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
 	if (!m_spriteram)
 	{
@@ -290,7 +282,7 @@ WRITE16_MEMBER( kaneko_pandora_device::spriteram_LSB_w )
 	}
 }
 
-READ16_MEMBER( kaneko_pandora_device::spriteram_LSB_r )
+uint16_t kaneko_pandora_device::spriteram_LSB_r(offs_t offset)
 {
 	if (!m_spriteram)
 	{

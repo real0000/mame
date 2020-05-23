@@ -1,6 +1,7 @@
 //
 // Copyright (C) 2002-2005  3Dlabs Inc. Ltd.
 // Copyright (C) 2013 LunarG, Inc.
+// Copyright (C) 2015-2018 Google, Inc.
 //
 // All rights reserved.
 //
@@ -78,15 +79,23 @@ class TVariable;
 class TFunction;
 class TAnonMember;
 
+typedef TVector<const char*> TExtensionList;
+
 class TSymbol {
 public:
     POOL_ALLOCATOR_NEW_DELETE(GetThreadPoolAllocator())
-    explicit TSymbol(const TString *n) :  name(n), numExtensions(0), extensions(0), writable(true) { }
+    explicit TSymbol(const TString *n) :  name(n), extensions(0), writable(true) { }
     virtual TSymbol* clone() const = 0;
     virtual ~TSymbol() { }  // rely on all symbol owned memory coming from the pool
 
     virtual const TString& getName() const { return *name; }
     virtual void changeName(const TString* newName) { name = newName; }
+    virtual void addPrefix(const char* prefix)
+    {
+        TString newName(prefix);
+        newName.append(*name);
+        changeName(NewPoolTString(newName.c_str()));
+    }
     virtual const TString& getMangledName() const { return getName(); }
     virtual TFunction* getAsFunction() { return 0; }
     virtual const TFunction* getAsFunction() const { return 0; }
@@ -97,18 +106,21 @@ public:
     virtual TType& getWritableType() = 0;
     virtual void setUniqueId(int id) { uniqueId = id; }
     virtual int getUniqueId() const { return uniqueId; }
-    virtual void setExtensions(int num, const char* const exts[])
+    virtual void setExtensions(int numExts, const char* const exts[])
     {
         assert(extensions == 0);
-        assert(num > 0);
-        numExtensions = num;
-        extensions = NewPoolObject(exts[0], num);
-        for (int e = 0; e < num; ++e)
-            extensions[e] = exts[e];
+        assert(numExts > 0);
+        extensions = NewPoolObject(extensions);
+        for (int e = 0; e < numExts; ++e)
+            extensions->push_back(exts[e]);
     }
-    virtual int getNumExtensions() const { return numExtensions; }
-    virtual const char** getExtensions() const { return extensions; }
-    virtual void dump(TInfoSink &infoSink) const = 0;
+    virtual int getNumExtensions() const { return extensions == nullptr ? 0 : (int)extensions->size(); }
+    virtual const char** getExtensions() const { return extensions->data(); }
+
+#ifndef GLSLANG_WEB
+    virtual void dump(TInfoSink& infoSink, bool complete = false) const = 0;
+    void dumpExtensions(TInfoSink& infoSink) const;
+#endif
 
     virtual bool isReadOnly() const { return ! writable; }
     virtual void makeReadOnly() { writable = false; }
@@ -122,8 +134,7 @@ protected:
 
     // For tracking what extensions must be present
     // (don't use if correct version/profile is present).
-    int numExtensions;
-    const char** extensions; // an array of pointers to existing constant char strings
+    TExtensionList* extensions; // an array of pointers to existing constant char strings
 
     //
     // N.B.: Non-const functions that will be generally used should assert on this,
@@ -148,7 +159,9 @@ public:
         : TSymbol(name),
           userType(uT),
           constSubtree(nullptr),
-          anonId(-1) { type.shallowCopy(t); }
+          memberExtensions(nullptr),
+          anonId(-1)
+        { type.shallowCopy(t); }
     virtual TVariable* clone() const;
     virtual ~TVariable() { }
 
@@ -165,7 +178,27 @@ public:
     virtual void setAnonId(int i) { anonId = i; }
     virtual int getAnonId() const { return anonId; }
 
-    virtual void dump(TInfoSink &infoSink) const;
+    virtual void setMemberExtensions(int member, int numExts, const char* const exts[])
+    {
+        assert(type.isStruct());
+        assert(numExts > 0);
+        if (memberExtensions == nullptr) {
+            memberExtensions = NewPoolObject(memberExtensions);
+            memberExtensions->resize(type.getStruct()->size());
+        }
+        for (int e = 0; e < numExts; ++e)
+            (*memberExtensions)[member].push_back(exts[e]);
+    }
+    virtual bool hasMemberExtensions() const { return memberExtensions != nullptr; }
+    virtual int getNumMemberExtensions(int member) const 
+    {
+        return memberExtensions == nullptr ? 0 : (int)(*memberExtensions)[member].size();
+    }
+    virtual const char** getMemberExtensions(int member) const { return (*memberExtensions)[member].data(); }
+
+#ifndef GLSLANG_WEB
+    virtual void dump(TInfoSink& infoSink, bool complete = false) const;
+#endif
 
 protected:
     explicit TVariable(const TVariable&);
@@ -173,15 +206,14 @@ protected:
 
     TType type;
     bool userType;
+
     // we are assuming that Pool Allocator will free the memory allocated to unionArray
     // when this object is destroyed
 
-    // TODO: these two should be a union
-    // A variable could be a compile-time constant, or a specialization
-    // constant, or neither, but never both.
-    TConstUnionArray constArray;  // for compile-time constant value
-    TIntermTyped* constSubtree;   // for specialization constant computation
-    int anonId;                   // the ID used for anonymous blocks: TODO: see if uniqueId could serve a dual purpose
+    TConstUnionArray constArray;               // for compile-time constant value
+    TIntermTyped* constSubtree;                // for specialization constant computation
+    TVector<TExtensionList>* memberExtensions; // per-member extension list, allocated only when needed
+    int anonId; // the ID used for anonymous blocks: TODO: see if uniqueId could serve a dual purpose
 };
 
 //
@@ -201,6 +233,7 @@ struct TParameter {
         type = param.type->clone();
         defaultValue = param.defaultValue;
     }
+    TBuiltInVariable getDeclaredBuiltIn() const { return type->getQualifier().declaredBuiltIn; }
 };
 
 //
@@ -211,18 +244,25 @@ public:
     explicit TFunction(TOperator o) :
         TSymbol(0),
         op(o),
-        defined(false), prototyped(false), defaultParamCount(0) { }
+        defined(false), prototyped(false), implicitThis(false), illegalImplicitThis(false), defaultParamCount(0) { }
     TFunction(const TString *name, const TType& retType, TOperator tOp = EOpNull) :
         TSymbol(name),
         mangledName(*name + '('),
         op(tOp),
-        defined(false), prototyped(false), defaultParamCount(0) { returnType.shallowCopy(retType); }
-    virtual TFunction* clone() const;
+        defined(false), prototyped(false), implicitThis(false), illegalImplicitThis(false), defaultParamCount(0)
+    {
+        returnType.shallowCopy(retType);
+        declaredBuiltIn = retType.getQualifier().builtIn;
+    }
+    virtual TFunction* clone() const override;
     virtual ~TFunction();
 
-    virtual TFunction* getAsFunction() { return this; }
-    virtual const TFunction* getAsFunction() const { return this; }
+    virtual TFunction* getAsFunction() override { return this; }
+    virtual const TFunction* getAsFunction() const override { return this; }
 
+    // Install 'p' as the (non-'this') last parameter.
+    // Non-'this' parameters are reflected in both the list of parameters and the
+    // mangled name.
     virtual void addParameter(TParameter& p)
     {
         assert(writable);
@@ -233,15 +273,41 @@ public:
             defaultParamCount++;
     }
 
-    virtual const TString& getMangledName() const { return mangledName; }
-    virtual const TType& getType() const { return returnType; }
-    virtual TType& getWritableType() { return returnType; }
+    // Install 'this' as the first parameter.
+    // 'this' is reflected in the list of parameters, but not the mangled name.
+    virtual void addThisParameter(TType& type, const char* name)
+    {
+        TParameter p = { NewPoolTString(name), new TType, nullptr };
+        p.type->shallowCopy(type);
+        parameters.insert(parameters.begin(), p);
+    }
+
+    virtual void addPrefix(const char* prefix) override
+    {
+        TSymbol::addPrefix(prefix);
+        mangledName.insert(0, prefix);
+    }
+
+    virtual void removePrefix(const TString& prefix)
+    {
+        assert(mangledName.compare(0, prefix.size(), prefix) == 0);
+        mangledName.erase(0, prefix.size());
+    }
+
+    virtual const TString& getMangledName() const override { return mangledName; }
+    virtual const TType& getType() const override { return returnType; }
+    virtual TBuiltInVariable getDeclaredBuiltInType() const { return declaredBuiltIn; }
+    virtual TType& getWritableType() override { return returnType; }
     virtual void relateToOperator(TOperator o) { assert(writable); op = o; }
     virtual TOperator getBuiltInOp() const { return op; }
     virtual void setDefined() { assert(writable); defined = true; }
     virtual bool isDefined() const { return defined; }
     virtual void setPrototyped() { assert(writable); prototyped = true; }
     virtual bool isPrototyped() const { return prototyped; }
+    virtual void setImplicitThis() { assert(writable); implicitThis = true; }
+    virtual bool hasImplicitThis() const { return implicitThis; }
+    virtual void setIllegalImplicitThis() { assert(writable); illegalImplicitThis = true; }
+    virtual bool hasIllegalImplicitThis() const { return illegalImplicitThis; }
 
     // Return total number of parameters
     virtual int getParamCount() const { return static_cast<int>(parameters.size()); }
@@ -253,7 +319,9 @@ public:
     virtual TParameter& operator[](int i) { assert(writable); return parameters[i]; }
     virtual const TParameter& operator[](int i) const { return parameters[i]; }
 
-    virtual void dump(TInfoSink &infoSink) const;
+#ifndef GLSLANG_WEB
+    virtual void dump(TInfoSink& infoSink, bool complete = false) const override;
+#endif
 
 protected:
     explicit TFunction(const TFunction&);
@@ -262,10 +330,17 @@ protected:
     typedef TVector<TParameter> TParamList;
     TParamList parameters;
     TType returnType;
+    TBuiltInVariable declaredBuiltIn;
+
     TString mangledName;
     TOperator op;
     bool defined;
     bool prototyped;
+    bool implicitThis;         // True if this function is allowed to see all members of 'this'
+    bool illegalImplicitThis;  // True if this function is not supposed to have access to dynamic members of 'this',
+                               // even if it finds member variables in the symbol table.
+                               // This is important for a static member function that has member variables in scope,
+                               // but is not allowed to use them, or see hidden symbols instead.
     int  defaultParamCount;
 };
 
@@ -277,35 +352,44 @@ protected:
 //
 class TAnonMember : public TSymbol {
 public:
-    TAnonMember(const TString* n, unsigned int m, const TVariable& a, int an) : TSymbol(n), anonContainer(a), memberNumber(m), anonId(an) { }
-    virtual TAnonMember* clone() const;
+    TAnonMember(const TString* n, unsigned int m, TVariable& a, int an) : TSymbol(n), anonContainer(a), memberNumber(m), anonId(an) { }
+    virtual TAnonMember* clone() const override;
     virtual ~TAnonMember() { }
 
-    virtual const TAnonMember* getAsAnonMember() const { return this; }
+    virtual const TAnonMember* getAsAnonMember() const override { return this; }
     virtual const TVariable& getAnonContainer() const { return anonContainer; }
     virtual unsigned int getMemberNumber() const { return memberNumber; }
 
-    virtual const TType& getType() const
+    virtual const TType& getType() const override
     {
         const TTypeList& types = *anonContainer.getType().getStruct();
         return *types[memberNumber].type;
     }
 
-    virtual TType& getWritableType()
+    virtual TType& getWritableType() override
     {
         assert(writable);
         const TTypeList& types = *anonContainer.getType().getStruct();
         return *types[memberNumber].type;
     }
 
+    virtual void setExtensions(int numExts, const char* const exts[]) override
+    {
+        anonContainer.setMemberExtensions(memberNumber, numExts, exts);
+    }
+    virtual int getNumExtensions() const override { return anonContainer.getNumMemberExtensions(memberNumber); }
+    virtual const char** getExtensions() const override { return anonContainer.getMemberExtensions(memberNumber); }
+
     virtual int getAnonId() const { return anonId; }
-    virtual void dump(TInfoSink &infoSink) const;
+#ifndef GLSLANG_WEB
+    virtual void dump(TInfoSink& infoSink, bool complete = false) const override;
+#endif
 
 protected:
     explicit TAnonMember(const TAnonMember&);
     TAnonMember& operator=(const TAnonMember&);
 
-    const TVariable& anonContainer;
+    TVariable& anonContainer;
     unsigned int memberNumber;
     int anonId;
 };
@@ -313,7 +397,7 @@ protected:
 class TSymbolTableLevel {
 public:
     POOL_ALLOCATOR_NEW_DELETE(GetThreadPoolAllocator())
-    TSymbolTableLevel() : defaultPrecision(0), anonId(0) { }
+    TSymbolTableLevel() : defaultPrecision(0), anonId(0), thisLevel(false) { }
     ~TSymbolTableLevel();
 
     bool insert(TSymbol& symbol, bool separateNameSpaces)
@@ -467,9 +551,14 @@ public:
 
     void relateToOperator(const char* name, TOperator op);
     void setFunctionExtensions(const char* name, int num, const char* const extensions[]);
-    void dump(TInfoSink &infoSink) const;
+#ifndef GLSLANG_WEB
+    void dump(TInfoSink& infoSink, bool complete = false) const;
+#endif
     TSymbolTableLevel* clone() const;
     void readOnly();
+
+    void setThisLevel() { thisLevel = true; }
+    bool isThisLevel() const { return thisLevel; }
 
 protected:
     explicit TSymbolTableLevel(TSymbolTableLevel&);
@@ -482,6 +571,8 @@ protected:
     tLevel level;  // named mappings
     TPrecisionQualifier *defaultPrecision;
     int anonId;
+    bool thisLevel;  // True if this level of the symbol table is a structure scope containing member function
+                     // that are supposed to see anonymous access to member variables.
 };
 
 class TSymbolTable {
@@ -536,6 +627,20 @@ public:
     void push()
     {
         table.push_back(new TSymbolTableLevel);
+    }
+
+    // Make a new symbol-table level to represent the scope introduced by a structure
+    // containing member functions, such that the member functions can find anonymous
+    // references to member variables.
+    //
+    // 'thisSymbol' should have a name of "" to trigger anonymous structure-member
+    // symbol finds.
+    void pushThis(TSymbol& thisSymbol)
+    {
+        assert(thisSymbol.getName().size() == 0);
+        table.push_back(new TSymbolTableLevel);
+        table.back()->setThisLevel();
+        insert(thisSymbol);
     }
 
     void pop(TPrecisionQualifier *p)
@@ -624,19 +729,50 @@ public:
         }
     }
 
-    TSymbol* find(const TString& name, bool* builtIn = 0, bool *currentScope = 0)
+    // Normal find of a symbol, that can optionally say whether the symbol was found
+    // at a built-in level or the current top-scope level.
+    TSymbol* find(const TString& name, bool* builtIn = 0, bool* currentScope = 0, int* thisDepthP = 0)
     {
         int level = currentLevel();
         TSymbol* symbol;
+        int thisDepth = 0;
         do {
+            if (table[level]->isThisLevel())
+                ++thisDepth;
             symbol = table[level]->find(name);
             --level;
-        } while (symbol == 0 && level >= 0);
+        } while (symbol == nullptr && level >= 0);
         level++;
         if (builtIn)
             *builtIn = isBuiltInLevel(level);
         if (currentScope)
             *currentScope = isGlobalLevel(currentLevel()) || level == currentLevel();  // consider shared levels as "current scope" WRT user globals
+        if (thisDepthP != nullptr) {
+            if (! table[level]->isThisLevel())
+                thisDepth = 0;
+            *thisDepthP = thisDepth;
+        }
+
+        return symbol;
+    }
+
+    // Find of a symbol that returns how many layers deep of nested
+    // structures-with-member-functions ('this' scopes) deep the symbol was
+    // found in.
+    TSymbol* find(const TString& name, int& thisDepth)
+    {
+        int level = currentLevel();
+        TSymbol* symbol;
+        thisDepth = 0;
+        do {
+            if (table[level]->isThisLevel())
+                ++thisDepth;
+            symbol = table[level]->find(name);
+            --level;
+        } while (symbol == 0 && level >= 0);
+
+        if (! table[level + 1]->isThisLevel())
+            thisDepth = 0;
 
         return symbol;
     }
@@ -691,15 +827,36 @@ public:
             table[level]->setFunctionExtensions(name, num, extensions);
     }
 
-    void setVariableExtensions(const char* name, int num, const char* const extensions[])
+    void setVariableExtensions(const char* name, int numExts, const char* const extensions[])
     {
         TSymbol* symbol = find(TString(name));
-        if (symbol)
-            symbol->setExtensions(num, extensions);
+        if (symbol == nullptr)
+            return;
+
+        symbol->setExtensions(numExts, extensions);
+    }
+
+    void setVariableExtensions(const char* blockName, const char* name, int numExts, const char* const extensions[])
+    {
+        TSymbol* symbol = find(TString(blockName));
+        if (symbol == nullptr)
+            return;
+        TVariable* variable = symbol->getAsVariable();
+        assert(variable != nullptr);
+
+        const TTypeList& structure = *variable->getAsVariable()->getType().getStruct();
+        for (int member = 0; member < (int)structure.size(); ++member) {
+            if (structure[member].type->getFieldName().compare(name) == 0) {
+                variable->setMemberExtensions(member, numExts, extensions);
+                return;
+            }
+        }
     }
 
     int getMaxSymbolId() { return uniqueId; }
-    void dump(TInfoSink &infoSink) const;
+#ifndef GLSLANG_WEB
+    void dump(TInfoSink& infoSink, bool complete = false) const;
+#endif
     void copyTable(const TSymbolTable& copyOf);
 
     void setPreviousDefaultPrecisions(TPrecisionQualifier *p) { table[currentLevel()]->setPreviousDefaultPrecisions(p); }

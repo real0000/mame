@@ -14,7 +14,7 @@
 #include "screen.h"
 
 
-READ8_MEMBER( vector06_state::vector06_8255_portb_r )
+uint8_t vector06_state::vector06_8255_portb_r()
 {
 	uint8_t key = 0xff;
 	if (BIT(m_keyboard_mask, 0)) key &= m_line[0]->read();
@@ -28,7 +28,7 @@ READ8_MEMBER( vector06_state::vector06_8255_portb_r )
 	return key;
 }
 
-READ8_MEMBER( vector06_state::vector06_8255_portc_r )
+uint8_t vector06_state::vector06_8255_portc_r()
 {
 	uint8_t ret = m_line[8]->read();
 
@@ -38,7 +38,7 @@ READ8_MEMBER( vector06_state::vector06_8255_portc_r )
 	return ret;
 }
 
-WRITE8_MEMBER( vector06_state::vector06_8255_porta_w )
+void vector06_state::vector06_8255_porta_w(uint8_t data)
 {
 	m_keyboard_mask = data ^ 0xff;
 }
@@ -46,10 +46,10 @@ WRITE8_MEMBER( vector06_state::vector06_8255_porta_w )
 void vector06_state::vector06_set_video_mode(int width)
 {
 	rectangle visarea(0, width+64-1, 0, 256+64-1);
-	machine().first_screen()->configure(width+64, 256+64, visarea, machine().first_screen()->frame_period().attoseconds());
+	m_screen->configure(width+64, 256+64, visarea, m_screen->frame_period().attoseconds());
 }
 
-WRITE8_MEMBER( vector06_state::vector06_8255_portb_w )
+void vector06_state::vector06_8255_portb_w(uint8_t data)
 {
 	m_color_index = data & 0x0f;
 	if ((data & 0x10) != m_video_mode)
@@ -68,50 +68,30 @@ WRITE8_MEMBER( vector06_state::vector06_color_set )
 }
 
 
-READ8_MEMBER( vector06_state::vector06_romdisk_portb_r )
+uint8_t vector06_state::vector06_romdisk_portb_r()
 {
 	uint16_t addr = ((m_romdisk_msb & 0x7f) << 8) | m_romdisk_lsb;
 	if ((m_romdisk_msb & 0x80) && m_cart->exists() && addr < m_cart->get_rom_size())
-		return m_cart->read_rom(space, addr);
+		return m_cart->read_rom(addr);
 	else
-		return m_ay->ay8910_read_ym();
+		return m_ay->data_r();
 }
 
-WRITE8_MEMBER(vector06_state::vector06_romdisk_portb_w)
+void vector06_state::vector06_romdisk_portb_w(uint8_t data)
 {
 	m_aylatch = data;
 }
 
-WRITE8_MEMBER( vector06_state::vector06_romdisk_porta_w )
+void vector06_state::vector06_romdisk_porta_w(uint8_t data)
 {
 	m_romdisk_lsb = data;
 }
 
-WRITE8_MEMBER( vector06_state::vector06_romdisk_portc_w )
+void vector06_state::vector06_romdisk_portc_w (uint8_t data)
 {
 	if (data & 4)
-		m_ay->ay8910_write_ym((data >> 1) & 1, m_aylatch);
+		m_ay->address_data_w((data >> 1) & 1, m_aylatch);
 	m_romdisk_msb = data;
-}
-
-READ8_MEMBER( vector06_state::vector06_8255_1_r )
-{
-	return m_ppi->read(space, offset^3);
-}
-
-WRITE8_MEMBER( vector06_state::vector06_8255_1_w )
-{
-	m_ppi->write(space, offset^3, data);
-}
-
-READ8_MEMBER( vector06_state::vector06_8255_2_r )
-{
-	return m_ppi2->read(space, offset^3);
-}
-
-WRITE8_MEMBER( vector06_state::vector06_8255_2_w )
-{
-	m_ppi2->write(space, offset^3, data);
 }
 
 INTERRUPT_GEN_MEMBER(vector06_state::vector06_interrupt)
@@ -187,16 +167,16 @@ void vector06_state::update_mem()
 
 WRITE8_MEMBER(vector06_state::vector06_ramdisk_w)
 {
-	uint8_t oldbank = m_rambank;
+	const uint8_t oldbank = m_rambank;
 	m_rambank = data;
 	if (oldbank != m_rambank)
 		update_mem();
 }
 
-WRITE8_MEMBER(vector06_state::vector06_status_callback)
+void vector06_state::vector06_status_callback(uint8_t data)
 {
-	bool oldstate = m_stack_state;
-	m_stack_state = (data & I8085_STATUS_STACK) ? true : false;
+	const bool oldstate = m_stack_state;
+	m_stack_state = bool(data & i8080_cpu_device::STATUS_STACK);
 	if (oldstate != m_stack_state && (m_rambank & 0x10))
 		update_mem();
 }
@@ -206,19 +186,10 @@ WRITE_LINE_MEMBER(vector06_state::speaker_w)
 	m_speaker->level_w(state);
 }
 
-WRITE8_MEMBER(vector06_state::pit8253_w)
-{
-	m_pit8253->write(space, offset ^ 3, data);
-}
-
-READ8_MEMBER(vector06_state::pit8253_r)
-{
-	return m_pit8253->read(space,  offset ^ 3);
-}
-
 void vector06_state::machine_start()
 {
-	machine().scheduler().timer_pulse(attotime::from_hz(50), timer_expired_delegate(FUNC(vector06_state::reset_check_callback),this));
+	m_reset_check_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(vector06_state::reset_check_callback), this));
+	m_reset_check_timer->adjust(attotime::from_hz(50), 0, attotime::from_hz(50));
 }
 
 void vector06_state::machine_reset()

@@ -4,7 +4,9 @@
 #include "emu.h"
 #include "ym2151.h"
 
-const device_type YM2151 = device_creator<ym2151_device>;
+DEFINE_DEVICE_TYPE(YM2151, ym2151_device, "ym2151", "Yamaha YM2151 OPM")
+DEFINE_DEVICE_TYPE(YM2164, ym2164_device, "ym2164", "Yamaha YM2164 OPP")
+DEFINE_DEVICE_TYPE(YM2414, ym2414_device, "ym2414", "Yamaha YM2414 OPZ")
 
 
 #define FREQ_SH         16  /* 16.16 fixed point (frequency calculations) */
@@ -382,18 +384,6 @@ void ym2151_device::init_tables()
 		}
 	}
 
-	/* calculate timers' deltas */
-	for (int i=0; i<1024; i++)
-	{
-		/* ASG 980324: changed to compute both tim_A_tab and timer_A_time */
-		timer_A_time[i] = attotime::from_hz(clock()) * (64 * (1024 - i));
-	}
-	for (int i=0; i<256; i++)
-	{
-		/* ASG 980324: changed to compute both tim_B_tab and timer_B_time */
-		timer_B_time[i] = attotime::from_hz(clock()) * (1024 * (256 - i));
-	}
-
 	/* calculate noise periods table */
 	for (int i=0; i<32; i++)
 	{
@@ -401,6 +391,36 @@ void ym2151_device::init_tables()
 		j = 32-j;
 		j = (65536.0 / (double)(j*32.0));   /* number of samples per one shift of the shift register */
 		noise_tab[i] = j * 64;    /* number of chip clock cycles per one shift */
+	}
+}
+
+void ym2151_device::calculate_timers()
+{
+	/* calculate timers' deltas */
+	for (int i=0; i<1024; i++)
+	{
+		/* ASG 980324: changed to compute both tim_A_tab and timer_A_time */
+		timer_A_time[i] = clocks_to_attotime(64 * (1024 - i));
+	}
+	for (int i=0; i<256; i++)
+	{
+		/* ASG 980324: changed to compute both tim_B_tab and timer_B_time */
+		timer_B_time[i] = clocks_to_attotime(1024 * (256 - i));
+	}
+}
+
+void ym2164_device::calculate_timers()
+{
+	/* calculate timers' deltas */
+	for (int i=0; i<1024; i++)
+	{
+		/* ASG 980324: changed to compute both tim_A_tab and timer_A_time */
+		timer_A_time[i] = clocks_to_attotime(64 * (1024 - i));
+	}
+	for (int i=0; i<256; i++)
+	{
+		/* ASG 980324: changed to compute both tim_B_tab and timer_B_time */
+		timer_B_time[i] = clocks_to_attotime(2048 * (256 - i));
 	}
 }
 
@@ -907,6 +927,16 @@ void ym2151_device::write_reg(int r, int v)
 	}
 }
 
+void ym2164_device::write_reg(int r, int v)
+{
+	if (r < 0x08)
+		logerror("%s: Writing %02X to undocumented register %d\n", machine().describe_context(), v, r);
+	else if (r == 0x09)
+		ym2151_device::write_reg(0x01, v);
+	else
+		ym2151_device::write_reg(r, v);
+}
+
 void ym2151_device::device_post_load()
 {
 	for (int j=0; j<8; j++)
@@ -932,52 +962,49 @@ void ym2151_device::device_start()
 	eg_timer_add  = 1 << EG_SH;
 	eg_timer_overflow = 3 * eg_timer_add;
 
+	irqlinestate = 0;
+
 	/* save all 32 operators */
-	for (int j=0; j<32; j++)
-	{
-		YM2151Operator &op = oper[(j&7)*4+(j>>3)];
+	save_item(STRUCT_MEMBER(oper, phase));
+	save_item(STRUCT_MEMBER(oper, freq));
+	save_item(STRUCT_MEMBER(oper, dt1));
+	save_item(STRUCT_MEMBER(oper, mul));
+	save_item(STRUCT_MEMBER(oper, dt1_i));
+	save_item(STRUCT_MEMBER(oper, dt2));
+	/* operators connection is saved in chip data block */
+	save_item(STRUCT_MEMBER(oper, mem_value));
 
-		save_item(NAME(op.phase), j);
-		save_item(NAME(op.freq), j);
-		save_item(NAME(op.dt1), j);
-		save_item(NAME(op.mul), j);
-		save_item(NAME(op.dt1_i), j);
-		save_item(NAME(op.dt2), j);
-		/* operators connection is saved in chip data block */
-		save_item(NAME(op.mem_value), j);
+	save_item(STRUCT_MEMBER(oper, fb_shift));
+	save_item(STRUCT_MEMBER(oper, fb_out_curr));
+	save_item(STRUCT_MEMBER(oper, fb_out_prev));
+	save_item(STRUCT_MEMBER(oper, kc));
+	save_item(STRUCT_MEMBER(oper, kc_i));
+	save_item(STRUCT_MEMBER(oper, pms));
+	save_item(STRUCT_MEMBER(oper, ams));
+	save_item(STRUCT_MEMBER(oper, AMmask));
 
-		save_item(NAME(op.fb_shift), j);
-		save_item(NAME(op.fb_out_curr), j);
-		save_item(NAME(op.fb_out_prev), j);
-		save_item(NAME(op.kc), j);
-		save_item(NAME(op.kc_i), j);
-		save_item(NAME(op.pms), j);
-		save_item(NAME(op.ams), j);
-		save_item(NAME(op.AMmask), j);
+	save_item(STRUCT_MEMBER(oper, state));
+	save_item(STRUCT_MEMBER(oper, eg_sh_ar));
+	save_item(STRUCT_MEMBER(oper, eg_sel_ar));
+	save_item(STRUCT_MEMBER(oper, tl));
+	save_item(STRUCT_MEMBER(oper, volume));
+	save_item(STRUCT_MEMBER(oper, eg_sh_d1r));
+	save_item(STRUCT_MEMBER(oper, eg_sel_d1r));
+	save_item(STRUCT_MEMBER(oper, d1l));
+	save_item(STRUCT_MEMBER(oper, eg_sh_d2r));
+	save_item(STRUCT_MEMBER(oper, eg_sel_d2r));
+	save_item(STRUCT_MEMBER(oper, eg_sh_rr));
+	save_item(STRUCT_MEMBER(oper, eg_sel_rr));
 
-		save_item(NAME(op.state), j);
-		save_item(NAME(op.eg_sh_ar), j);
-		save_item(NAME(op.eg_sel_ar), j);
-		save_item(NAME(op.tl), j);
-		save_item(NAME(op.volume), j);
-		save_item(NAME(op.eg_sh_d1r), j);
-		save_item(NAME(op.eg_sel_d1r), j);
-		save_item(NAME(op.d1l), j);
-		save_item(NAME(op.eg_sh_d2r), j);
-		save_item(NAME(op.eg_sel_d2r), j);
-		save_item(NAME(op.eg_sh_rr), j);
-		save_item(NAME(op.eg_sel_rr), j);
+	save_item(STRUCT_MEMBER(oper, key));
+	save_item(STRUCT_MEMBER(oper, ks));
+	save_item(STRUCT_MEMBER(oper, ar));
+	save_item(STRUCT_MEMBER(oper, d1r));
+	save_item(STRUCT_MEMBER(oper, d2r));
+	save_item(STRUCT_MEMBER(oper, rr));
 
-		save_item(NAME(op.key), j);
-		save_item(NAME(op.ks), j);
-		save_item(NAME(op.ar), j);
-		save_item(NAME(op.d1r), j);
-		save_item(NAME(op.d2r), j);
-		save_item(NAME(op.rr), j);
-
-		save_item(NAME(op.reserved0), j);
-		save_item(NAME(op.reserved1), j);
-	}
+	save_item(STRUCT_MEMBER(oper, reserved0));
+	save_item(STRUCT_MEMBER(oper, reserved1));
 
 	save_item(NAME(pan));
 
@@ -1018,6 +1045,14 @@ void ym2151_device::device_start()
 	save_item(NAME(irqlinestate));
 
 	save_item(NAME(connect));
+
+	save_item(NAME(m_reset_active));
+}
+
+void ym2151_device::device_clock_changed()
+{
+	m_stream->set_sample_rate(clock() / 64);
+	calculate_timers();
 }
 
 
@@ -1649,13 +1684,39 @@ void ym2151_device::advance()
 //  ym2151_device - constructor
 //-------------------------------------------------
 
-ym2151_device::ym2151_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, YM2151, "YM2151", tag, owner, clock, "ym2151", __FILE__),
+ym2151_device::ym2151_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock),
 		device_sound_interface(mconfig, *this),
 		m_stream(nullptr),
 		m_lastreg(0),
 		m_irqhandler(*this),
-		m_portwritehandler(*this)
+		m_portwritehandler(*this),
+		m_reset_active(false)
+{
+}
+
+ym2151_device::ym2151_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: ym2151_device(mconfig, YM2151, tag, owner, clock)
+{
+}
+
+
+//-------------------------------------------------
+//  ym2164_device - constructor
+//-------------------------------------------------
+
+ym2164_device::ym2164_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: ym2151_device(mconfig, YM2164, tag, owner, clock)
+{
+}
+
+
+//-------------------------------------------------
+//  ym2414_device - constructor
+//-------------------------------------------------
+
+ym2414_device::ym2414_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: ym2151_device(mconfig, YM2414, tag, owner, clock)
 {
 }
 
@@ -1664,7 +1725,7 @@ ym2151_device::ym2151_device(const machine_config &mconfig, const char *tag, dev
 //  read - read from the device
 //-------------------------------------------------
 
-READ8_MEMBER( ym2151_device::read )
+u8 ym2151_device::read(offs_t offset)
 {
 	if (offset & 1)
 	{
@@ -1680,31 +1741,34 @@ READ8_MEMBER( ym2151_device::read )
 //  write - write from the device
 //-------------------------------------------------
 
-WRITE8_MEMBER( ym2151_device::write )
+void ym2151_device::write(offs_t offset, u8 data)
 {
 	if (offset & 1)
 	{
-		m_stream->update();
-		write_reg(m_lastreg, data);
+		if (!m_reset_active)
+		{
+			m_stream->update();
+			write_reg(m_lastreg, data);
+		}
 	}
 	else
 		m_lastreg = data;
 }
 
 
-READ8_MEMBER( ym2151_device::status_r )
+u8 ym2151_device::status_r()
 {
-	return read(space, 1);
+	return read(1);
 }
 
-WRITE8_MEMBER( ym2151_device::register_w )
+void ym2151_device::register_w(u8 data)
 {
-	write(space, 0, data);
+	write(0, data);
 }
 
-WRITE8_MEMBER( ym2151_device::data_w )
+void ym2151_device::data_w(u8 data)
 {
-	write(space, 1, data);
+	write(1, data);
 }
 
 
@@ -1764,11 +1828,33 @@ void ym2151_device::device_reset()
 
 
 //-------------------------------------------------
+//  reset_w - handle writes to the reset lines of
+//  the YM2151 and its associated DAC
+//-------------------------------------------------
+
+WRITE_LINE_MEMBER(ym2151_device::reset_w)
+{
+	// active low reset
+	if (!m_reset_active && !state)
+		reset();
+
+	m_reset_active = !state;
+}
+
+
+//-------------------------------------------------
 //  sound_stream_update - handle a stream update
 //-------------------------------------------------
 
 void ym2151_device::sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples)
 {
+	if (m_reset_active)
+	{
+		std::fill(&outputs[0][0], &outputs[0][samples], 0);
+		std::fill(&outputs[1][0], &outputs[1][samples], 0);
+		return;
+	}
+
 	for (int i=0; i<samples; i++)
 	{
 		advance_eg();

@@ -17,52 +17,25 @@ class at_mb_device : public device_t
 public:
 	at_mb_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_ADDRESS_MAP(map, 16);
+	void map(address_map &map);
 
-	DECLARE_READ8_MEMBER(page8_r);
-	DECLARE_WRITE8_MEMBER(page8_w);
-	DECLARE_READ8_MEMBER(portb_r);
-	DECLARE_WRITE8_MEMBER(portb_w);
-	DECLARE_READ8_MEMBER(get_slave_ack);
-	DECLARE_WRITE_LINE_MEMBER(pit8254_out2_changed);
-	DECLARE_WRITE_LINE_MEMBER(dma_hrq_changed);
-	DECLARE_READ8_MEMBER(dma8237_0_dack_r);
-	DECLARE_READ8_MEMBER(dma8237_1_dack_r);
-	DECLARE_READ8_MEMBER(dma8237_2_dack_r);
-	DECLARE_READ8_MEMBER(dma8237_3_dack_r);
-	DECLARE_READ8_MEMBER(dma8237_5_dack_r);
-	DECLARE_READ8_MEMBER(dma8237_6_dack_r);
-	DECLARE_READ8_MEMBER(dma8237_7_dack_r);
-	DECLARE_WRITE8_MEMBER(dma8237_0_dack_w);
-	DECLARE_WRITE8_MEMBER(dma8237_1_dack_w);
-	DECLARE_WRITE8_MEMBER(dma8237_2_dack_w);
-	DECLARE_WRITE8_MEMBER(dma8237_3_dack_w);
-	DECLARE_WRITE8_MEMBER(dma8237_5_dack_w);
-	DECLARE_WRITE8_MEMBER(dma8237_6_dack_w);
-	DECLARE_WRITE8_MEMBER(dma8237_7_dack_w);
-	DECLARE_WRITE_LINE_MEMBER(dma8237_out_eop);
-	DECLARE_WRITE_LINE_MEMBER(dack0_w);
-	DECLARE_WRITE_LINE_MEMBER(dack1_w);
-	DECLARE_WRITE_LINE_MEMBER(dack2_w);
-	DECLARE_WRITE_LINE_MEMBER(dack3_w);
-	DECLARE_WRITE_LINE_MEMBER(dack4_w);
-	DECLARE_WRITE_LINE_MEMBER(dack5_w);
-	DECLARE_WRITE_LINE_MEMBER(dack6_w);
-	DECLARE_WRITE_LINE_MEMBER(dack7_w);
-	DECLARE_WRITE8_MEMBER(write_rtc);
+	uint8_t page8_r(offs_t offset);
+	void page8_w(offs_t offset, uint8_t data);
+	uint8_t portb_r();
+	void portb_w(uint8_t data);
+	void write_rtc(offs_t offset, uint8_t data);
+	DECLARE_WRITE_LINE_MEMBER(iochck_w);
 
 	DECLARE_WRITE_LINE_MEMBER(shutdown);
 
-	DECLARE_READ8_MEMBER(dma_read_byte);
-	DECLARE_WRITE8_MEMBER(dma_write_byte);
-	DECLARE_READ8_MEMBER(dma_read_word);
-	DECLARE_WRITE8_MEMBER(dma_write_word);
-
 	uint32_t a20_286(bool state);
+
+	void at_softlists(machine_config &config);
 protected:
 	void device_start() override;
 	void device_reset() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
 private:
 	void set_dma_channel(int channel, int state);
 	void speaker_set_spkrdata(uint8_t data);
@@ -78,17 +51,50 @@ private:
 	uint8_t m_at_spkrdata;
 	uint8_t m_pit_out2;
 	int m_dma_channel;
-	bool m_cur_eop;
+	bool m_cur_eop, m_cur_eop2;
 	uint8_t m_dma_offset[2][4];
 	uint8_t m_at_pages[0x10];
 	uint16_t m_dma_high_byte;
 	uint8_t m_at_speaker;
 	uint8_t m_channel_check;
 	uint8_t m_nmi_enabled;
+
+	DECLARE_WRITE_LINE_MEMBER(pit8254_out2_changed);
+
+	DECLARE_WRITE_LINE_MEMBER(dma8237_out_eop);
+	DECLARE_WRITE_LINE_MEMBER(dma8237_2_out_eop);
+	uint8_t dma8237_0_dack_r();
+	uint8_t dma8237_1_dack_r();
+	uint8_t dma8237_2_dack_r();
+	uint8_t dma8237_3_dack_r();
+	uint8_t dma8237_5_dack_r();
+	uint8_t dma8237_6_dack_r();
+	uint8_t dma8237_7_dack_r();
+	void dma8237_0_dack_w(uint8_t data);
+	void dma8237_1_dack_w(uint8_t data);
+	void dma8237_2_dack_w(uint8_t data);
+	void dma8237_3_dack_w(uint8_t data);
+	void dma8237_5_dack_w(uint8_t data);
+	void dma8237_6_dack_w(uint8_t data);
+	void dma8237_7_dack_w(uint8_t data);
+	DECLARE_WRITE_LINE_MEMBER(dack0_w);
+	DECLARE_WRITE_LINE_MEMBER(dack1_w);
+	DECLARE_WRITE_LINE_MEMBER(dack2_w);
+	DECLARE_WRITE_LINE_MEMBER(dack3_w);
+	DECLARE_WRITE_LINE_MEMBER(dack4_w);
+	DECLARE_WRITE_LINE_MEMBER(dack5_w);
+	DECLARE_WRITE_LINE_MEMBER(dack6_w);
+	DECLARE_WRITE_LINE_MEMBER(dack7_w);
+	uint8_t get_slave_ack(offs_t offset);
+	DECLARE_WRITE_LINE_MEMBER(dma_hrq_changed);
+
+	uint8_t dma_read_byte(offs_t offset);
+	void dma_write_byte(offs_t offset, uint8_t data);
+	uint8_t dma_read_word(offs_t offset);
+	void dma_write_word(offs_t offset, uint8_t data);
 };
 
-extern const device_type AT_MB;
+DECLARE_DEVICE_TYPE(AT_MB, at_mb_device)
 
-MACHINE_CONFIG_EXTERN(at_softlists);
 
 #endif // MAME_MACHINE_AT_H

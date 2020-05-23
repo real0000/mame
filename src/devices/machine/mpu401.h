@@ -1,18 +1,11 @@
 // license:BSD-3-Clause
 // copyright-holders:R. Belmont
+#ifndef MAME_MACHINE_MPU401_H
+#define MAME_MACHINE_MPU401_H
+
 #pragma once
 
-#ifndef __MPU401_H__
-#define __MPU401_H__
-
-#include "cpu/m6800/m6800.h"
-
-#define MCFG_MPU401_ADD(_tag, _irqf ) \
-	MCFG_DEVICE_ADD(_tag, MPU401, 0) \
-	MCFG_IRQ_FUNC(_irqf)
-
-#define MCFG_IRQ_FUNC(_irqf) \
-	devcb = &downcast<mpu401_device *>(device)->set_irqf(DEVCB_##_irqf);
+#include "cpu/m6800/m6801.h"
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -22,33 +15,13 @@ class mpu401_device : public device_t
 {
 public:
 	// construction/destruction
-	mpu401_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	mpu401_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
-	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
-	required_device<m6801_cpu_device> m_ourcpu;
-
-	template<class _write> devcb_base &set_irqf(_write wr)
-	{
-		return write_irq.set_callback(wr);
-	}
-
-	devcb_write_line write_irq;
-
-	DECLARE_READ8_MEMBER(regs_mode2_r);
-	DECLARE_WRITE8_MEMBER(regs_mode2_w);
-	DECLARE_READ8_MEMBER(asic_r);
-	DECLARE_WRITE8_MEMBER(asic_w);
-	DECLARE_READ8_MEMBER(port1_r);
-	DECLARE_WRITE8_MEMBER(port1_w);
-	DECLARE_READ8_MEMBER(port2_r);
-	DECLARE_WRITE8_MEMBER(port2_w);
-	DECLARE_WRITE_LINE_MEMBER(midi_rx_w);
+	auto irq_cb() { return write_irq.bind(); }
 
 	// public API - call for reads/writes at I/O 330/331 on PC, C0n0/C0n1 on Apple II, etc.
-	DECLARE_READ8_MEMBER(mpu_r);
-	DECLARE_WRITE8_MEMBER(mpu_w);
+	uint8_t mpu_r(offs_t offset);
+	void mpu_w(offs_t offset, uint8_t data);
 
 protected:
 	// device-level overrides
@@ -56,8 +29,24 @@ protected:
 	virtual void device_reset() override;
 	virtual const tiny_rom_entry *device_rom_region() const override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 private:
+	void midi_rx_w(int state);
+
+	uint8_t asic_r(offs_t offset);
+	void asic_w(offs_t offset, uint8_t data);
+	uint8_t port1_r();
+	void port1_w(uint8_t data);
+	uint8_t port2_r();
+	void port2_w(uint8_t data);
+
+	void mpu401_map(address_map &map);
+
+	required_device<m6801_cpu_device> m_ourcpu;
+
+	devcb_write_line write_irq;
+
 	uint8_t m_port2;
 	uint8_t m_command;
 	uint8_t m_mpudata;
@@ -66,6 +55,6 @@ private:
 };
 
 // device type definition
-extern const device_type MPU401;
+DECLARE_DEVICE_TYPE(MPU401, mpu401_device)
 
-#endif  /* __MPU401_H__ */
+#endif // MAME_MACHINE_MPU401_H

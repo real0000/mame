@@ -17,32 +17,14 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_MACHINE_E0516_H
+#define MAME_MACHINE_E0516_H
 
-#ifndef __E0516__
-#define __E0516__
+#pragma once
 
 #include "dirtc.h"
 
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_E0516_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, E0516, _clock)
-
-
-
-//**************************************************************************
-//  TYPE DEFINITIONS
-//**************************************************************************
-
-// ======================> e0516_device
-
-class e0516_device :  public device_t,
-						public device_rtc_interface
+class e0516_device : public device_t, public device_rtc_interface
 {
 public:
 	// construction/destruction
@@ -77,8 +59,6 @@ private:
 
 
 // device type definition
-extern const device_type E0516;
+DECLARE_DEVICE_TYPE(E0516, e0516_device)
 
-
-
-#endif
+#endif // MAME_MACHINE_E0516_H

@@ -21,14 +21,14 @@
 //  o2_voice_device - constructor
 //-------------------------------------------------
 
-const device_type O2_ROM_VOICE = device_creator<o2_voice_device>;
+DEFINE_DEVICE_TYPE(O2_ROM_VOICE, o2_voice_device, "o2_voice", "Odyssey 2 The Voice Passthrough Cart")
 
 
 o2_voice_device::o2_voice_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: o2_rom_device(mconfig, O2_ROM_VOICE, "Odyssey 2 The Voice Passthrough Cart", tag, owner, clock, "o2_voice", __FILE__),
-					m_speech(*this, "sp0256_speech"),
-					m_subslot(*this, "subslot"),
-					m_lrq_state(0)
+	: o2_rom_device(mconfig, O2_ROM_VOICE, tag, owner, clock)
+	, m_speech(*this, "sp0256_speech")
+	, m_subslot(*this, "subslot")
+	, m_lrq_state(0)
 {
 }
 
@@ -38,30 +38,21 @@ void o2_voice_device::device_start()
 	save_item(NAME(m_lrq_state));
 }
 
-//-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( sub_slot )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( o2voice )
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-
-	MCFG_SOUND_ADD("sp0256_speech", SP0256, 3120000)
-	MCFG_SP0256_DATA_REQUEST_CB(WRITELINE(o2_voice_device, lrq_callback))
-	// The Voice uses a speaker with its own volume control so the relative volumes to use are subjective, these sound good
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-
-	MCFG_O2_CARTRIDGE_ADD("subslot", o2_cart, nullptr)
-MACHINE_CONFIG_END
-
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor o2_voice_device::device_mconfig_additions() const
+void o2_voice_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( o2voice );
+	SPEAKER(config, "mono").front_center();
+
+	SP0256(config, m_speech, 3120000);
+	m_speech->data_request_callback().set(FUNC(o2_voice_device::lrq_callback));
+	// The Voice uses a speaker with its own volume control so the relative volumes to use are subjective, these sound good
+	m_speech->add_route(ALL_OUTPUTS, "mono", 1.00);
+
+	O2_CART_SLOT(config, m_subslot, o2_cart, nullptr);
 }
 
 
@@ -95,10 +86,10 @@ WRITE_LINE_MEMBER(o2_voice_device::lrq_callback)
 	m_lrq_state = state;
 }
 
-WRITE8_MEMBER(o2_voice_device::io_write)
+void o2_voice_device::io_write(offs_t offset, uint8_t data)
 {
 	if (data & 0x20)
-		m_speech->ald_w(space, 0, offset & 0x7f);
+		m_speech->ald_w(offset & 0x7f);
 	else
 		m_speech->reset();
 }

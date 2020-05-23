@@ -51,7 +51,7 @@ TILE_GET_INFO_MEMBER(nycaptor_state::get_tile_info)
 	}
 #endif
 
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 			m_videoram[tile_index * 2] + ((m_videoram[tile_index * 2 + 1] & 0xc0) << 2) + 0x400 * m_char_bank,
 			pal, 0
 			);
@@ -60,7 +60,7 @@ TILE_GET_INFO_MEMBER(nycaptor_state::get_tile_info)
 
 void nycaptor_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(nycaptor_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32 );
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(nycaptor_state::get_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_bg_tilemap->set_transmask(0, 0xf800, 0x7ff); //split 0
 	m_bg_tilemap->set_transmask(1, 0xfe00, 0x01ff);//split 1
@@ -85,13 +85,10 @@ WRITE8_MEMBER(nycaptor_state::nycaptor_videoram_w)
 
 WRITE8_MEMBER(nycaptor_state::nycaptor_palette_w)
 {
-	if (m_gametype == 2) //colt
-		return;
-
 	if (offset & 0x100)
-		m_palette->write_ext(space, (offset & 0xff) + (m_palette_bank << 8), data);
+		m_palette->write8_ext((offset & 0xff) + (m_palette_bank << 8), data);
 	else
-		m_palette->write(space, (offset & 0xff) + (m_palette_bank << 8), data);
+		m_palette->write8((offset & 0xff) + (m_palette_bank << 8), data);
 }
 
 READ8_MEMBER(nycaptor_state::nycaptor_palette_r)

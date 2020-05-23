@@ -6,21 +6,10 @@
 
 **********************************************************************/
 
+#ifndef MAME_VIDEO_HD61830_H
+#define MAME_VIDEO_HD61830_H
+
 #pragma once
-
-#ifndef __HD61830__
-#define __HD61830__
-
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_HD61830_RD_CALLBACK(_read) \
-	devcb = &hd61830_device::set_rd_rd_callback(*device, DEVCB_##_read);
-
 
 
 //**************************************************************************
@@ -37,13 +26,13 @@ public:
 	// construction/destruction
 	hd61830_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_rd_rd_callback(device_t &device, _Object object) { return downcast<hd61830_device &>(device).m_read_rd.set_callback(object); }
+	auto rd_rd_callback() { return m_read_rd.bind(); }
 
-	DECLARE_READ8_MEMBER( status_r );
-	DECLARE_WRITE8_MEMBER( control_w );
+	uint8_t status_r();
+	void control_w(uint8_t data);
 
-	DECLARE_READ8_MEMBER( data_r );
-	DECLARE_WRITE8_MEMBER( data_w );
+	uint8_t data_r();
+	void data_w(uint8_t data);
 
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
@@ -55,10 +44,10 @@ protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
-	inline uint8_t readbyte(offs_t address);
-	inline void writebyte(offs_t address, uint8_t data);
+	uint8_t readbyte(offs_t address) { return space().read_byte(address); }
+	void writebyte(offs_t address, uint8_t data) { space().write_byte(address, data); }
 
 private:
 	enum
@@ -84,6 +73,8 @@ private:
 	void update_graphics(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void draw_char(bitmap_ind16 &bitmap, const rectangle &cliprect, uint16_t ma, int x, int y, uint8_t md);
 	void update_text(bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+	void hd61830(address_map &map);
 
 	devcb_read8 m_read_rd;
 
@@ -116,9 +107,7 @@ private:
 
 
 // device type definition
-extern const device_type HD61830;
-extern const device_type HD61830B;
+DECLARE_DEVICE_TYPE(HD61830, hd61830_device)
+DECLARE_DEVICE_TYPE(HD61830B, hd61830_device)
 
-
-
-#endif
+#endif // MAME_VIDEO_HD61830_H

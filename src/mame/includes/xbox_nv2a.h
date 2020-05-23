@@ -14,13 +14,13 @@
 #include <mutex>
 
 class vertex_program_disassembler {
-	static const char *srctypes[];
-	static const char *scaops[];
-	static const int scapar2[];
-	static const char *vecops[];
-	static const int vecpar2[];
-	static const char *vecouts[];
-	static const char compchar[];
+	static char const *const srctypes[];
+	static char const *const scaops[];
+	static int const scapar2[];
+	static char const *const vecops[];
+	static int const vecpar2[];
+	static char const *const vecouts[];
+	static char const compchar[];
 	int o[6];
 	int state;
 
@@ -195,7 +195,16 @@ offset in ramht+4 contains in the lower 16 bits the offset in RAMIN divided by 1
 objects have methods used to do drawing
 most methods set parameters, others actually draw
 */
-class nv2a_renderer : public poly_manager<double, nvidia_object_data, 13, 8192>
+
+class nv2a_rasterizer : public poly_manager<double, nvidia_object_data, 13, 8192>
+{
+public:
+	nv2a_rasterizer(running_machine& machine) : poly_manager<double, nvidia_object_data, 13, 8192>(machine)
+	{
+	}
+};
+
+class nv2a_renderer
 {
 public:
 	enum class VERTEX_PARAMETER {
@@ -372,13 +381,26 @@ public:
 		BACK = 0x0405,
 		FRONT_AND_BACK = 0x0408
 	};
+	enum class COMMAND {
+		CALL = 7,
+		JUMP = 6,
+		NON_INCREASING = 5,
+		OLD_JUMP = 4,
+		LONG_NON_INCREASING = 3,
+		RETURN = 2,
+		SLI_CONDITIONAL = 1,
+		INCREASING = 0,
+		INVALID = -1
+	};
 
-	struct nv2avertex_t : public vertex_t
+	struct nv2avertex_t : public nv2a_rasterizer::vertex_t
 	{
 		double w;
 	};
 
-	nv2a_renderer(running_machine &machine) : poly_manager<double, nvidia_object_data, 13, 8192>(machine)
+	nv2a_renderer(running_machine &machine)
+		: rasterizer(machine)
+		, mach(machine)
 	{
 		memset(channel, 0, sizeof(channel));
 		memset(pfifo, 0, sizeof(pfifo));
@@ -387,7 +409,7 @@ public:
 		memset(pgraph, 0, sizeof(pgraph));
 		memset(ramin, 0, sizeof(ramin));
 		computedilated();
-		objectdata = &(object_data_alloc());
+		objectdata = &(rasterizer.object_data_alloc());
 		objectdata->data = this;
 		combiner.used = 0;
 		enabled_vertex_attributes = 0;
@@ -453,22 +475,28 @@ public:
 		for (int n = 0; n < 16; n++)
 			persistvertexattr.attribute[n].fv[3] = 1;
 	}
+	running_machine &machine() { return mach; }
 	DECLARE_READ32_MEMBER(geforce_r);
 	DECLARE_WRITE32_MEMBER(geforce_w);
-	void vblank_callback(screen_device &screen, bool state);
+	DECLARE_WRITE_LINE_MEMBER(vblank_callback);
 	uint32_t screen_update_callback(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	bool update_interrupts();
-	void set_interrupt_device(pic8259_device *device);
+	void set_irq_callbaclk(std::function<void(int state)> callback) { irq_callback = callback; }
 
-	void render_texture_simple(int32_t scanline, const extent_t &extent, const nvidia_object_data &extradata, int threadid);
-	void render_color(int32_t scanline, const extent_t &extent, const nvidia_object_data &extradata, int threadid);
-	void render_register_combiners(int32_t scanline, const extent_t &extent, const nvidia_object_data &objectdata, int threadid);
+	void render_texture_simple(int32_t scanline, const nv2a_rasterizer::extent_t &extent, const nvidia_object_data &extradata, int threadid);
+	void render_color(int32_t scanline, const nv2a_rasterizer::extent_t &extent, const nvidia_object_data &extradata, int threadid);
+	void render_register_combiners(int32_t scanline, const nv2a_rasterizer::extent_t &extent, const nvidia_object_data &objectdata, int threadid);
 
-	int geforce_commandkind(uint32_t word);
+	COMMAND geforce_commandkind(uint32_t word);
 	uint32_t geforce_object_offset(uint32_t handle);
 	void geforce_read_dma_object(uint32_t handle, uint32_t &offset, uint32_t &size);
 	void geforce_assign_object(address_space &space, uint32_t chanel, uint32_t subchannel, uint32_t address);
-	int geforce_exec_method(address_space &space, uint32_t channel, uint32_t subchannel, uint32_t method, uint32_t address, int &countlen);
+	int execute_method(address_space &space, uint32_t channel, uint32_t subchannel, uint32_t method, uint32_t address, int &countlen);
+	int execute_method_3d(address_space &space, uint32_t chanel, uint32_t subchannel, uint32_t maddress, uint32_t address, uint32_t data, int &countlen);
+	int execute_method_m2mf(address_space &space, uint32_t chanel, uint32_t subchannel, uint32_t maddress, uint32_t address, uint32_t data, int &countlen);
+	int execute_method_surf2d(address_space &space, uint32_t chanel, uint32_t subchannel, uint32_t maddress, uint32_t address, uint32_t data, int &countlen);
+	int execute_method_blit(address_space &space, uint32_t chanel, uint32_t subchannel, uint32_t maddress, uint32_t address, uint32_t data, int &countlen);
+	void surface_2d_blit();
 	uint32_t texture_get_texel(int number, int x, int y);
 	uint8_t *read_pixel(int x, int y, int32_t c[4]);
 	void write_pixel(int x, int y, uint32_t color, int depth);
@@ -503,6 +531,7 @@ public:
 	void debug_grab_texture(int type, const char *filename);
 	void debug_grab_vertex_program_slot(int slot, uint32_t *instruction);
 	void start(address_space *cpu_space);
+	void set_ram_base(void *base);
 	void savestate_items();
 	void compute_supersample_factors(float &horizontal, float &vertical);
 	void compute_limits_rendertarget(uint32_t chanel, uint32_t subchannel);
@@ -512,23 +541,24 @@ public:
 	int read_vertices_0x180x(address_space & space, vertex_nv *destination, uint32_t address, int limit);
 	int read_vertices_0x1810(address_space & space, vertex_nv *destination, int offset, int limit);
 	int read_vertices_0x1818(address_space & space, vertex_nv *destination, uint32_t address, int limit);
-	void convert_vertices_poly(vertex_nv *source, nv2avertex_t *destination, int count);
-	void assemble_primitive(vertex_nv *source, int count, render_delegate &renderspans);
+	void convert_vertices(vertex_nv *source, nv2avertex_t *destination, int count);
+	void assemble_primitive(vertex_nv *source, int count);
 	int clip_triangle_w(nv2avertex_t *vi[3], nv2avertex_t *vo);
-	uint32_t render_triangle_clipping(const rectangle &cliprect, render_delegate callback, int paramcount, nv2avertex_t &_v1, nv2avertex_t &_v2, nv2avertex_t &_v3);
-	uint32_t render_triangle_culling(const rectangle &cliprect, render_delegate callback, int paramcount, nv2avertex_t &_v1, nv2avertex_t &_v2, nv2avertex_t &_v3);
+	uint32_t render_triangle_clipping(const rectangle &cliprect, int paramcount, nv2avertex_t &_v1, nv2avertex_t &_v2, nv2avertex_t &_v3);
+	uint32_t render_triangle_culling(const rectangle &cliprect, int paramcount, nv2avertex_t &_v1, nv2avertex_t &_v2, nv2avertex_t &_v3);
 	void clear_render_target(int what, uint32_t value);
 	void clear_depth_buffer(int what, uint32_t value);
 	inline uint8_t *direct_access_ptr(offs_t address);
 	TIMER_CALLBACK_MEMBER(puller_timer_work);
 
+	nv2a_rasterizer rasterizer;
+	running_machine &mach;
 	struct {
 		uint32_t regs[0x80 / 4];
 		struct {
-			uint32_t objhandle;
+			uint32_t offset;
 			uint32_t objclass;
 			uint32_t method[0x2000 / 4];
-			// int execute_method(address_space & space, uint32_t method, uint32_t address, int &countlen); // for the future
 		} object;
 	} channel[32][8];
 	uint32_t pfifo[0x2000 / 4];
@@ -536,11 +566,11 @@ public:
 	uint32_t pmc[0x1000 / 4];
 	uint32_t pgraph[0x2000 / 4];
 	uint32_t ramin[0x100000 / 4];
-	uint32_t dma_offset[2];
-	uint32_t dma_size[2];
+	uint32_t dma_offset[13];
+	uint32_t dma_size[13];
 	uint8_t *basemempointer;
 	uint8_t *topmempointer;
-	pic8259_device *interruptdevice;
+	std::function<void(int state)> irq_callback;
 	rectangle clippingwindows[8];
 	rectangle limits_rendertarget;
 	uint32_t pitch_rendertarget;
@@ -603,7 +633,7 @@ public:
 	vertex_nv vertex_software[1024+2]; // vertex attributes sent by the software to the 3d accelerator
 	nv2avertex_t vertex_xy[1024+2]; // vertex attributes computed by the 3d accelerator
 	vertex_nv persistvertexattr; // persistent vertex attributes
-	render_delegate render_spans_callback;
+	nv2a_rasterizer::render_delegate render_spans_callback;
 
 	struct {
 		float variable_A[4]; // 0=R 1=G 2=B 3=A
@@ -753,6 +783,17 @@ public:
 	int enabled_vertex_attributes;
 	int vertex_attribute_words[16];
 	int vertex_attribute_offset[16];
+
+	struct {
+		int format;
+		int pitch_source;
+		int pitch_destination;
+		uint32_t source_address;
+		uint32_t destination_address;
+		int op;
+		int width;
+		int heigth;
+	} bitblit;
 	emu_timer *puller_timer;
 	int puller_waiting;
 	address_space *puller_space;

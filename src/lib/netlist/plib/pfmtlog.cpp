@@ -1,135 +1,149 @@
 // license:GPL-2.0+
 // copyright-holders:Couriersud
-/*
- * nl_string.c
- *
- */
 
 #include "pfmtlog.h"
 #include "palloc.h"
+#include "pstonum.h"
+#include "pstrutil.h"
 
-#include <cstring>
-#include <cstdlib>
-#include <cstdarg>
 #include <algorithm>
-
-//* FIXME: remove cstring, replace with pstring */
+#include <array>
+#include <iomanip>
+#include <iostream>
 
 namespace plib {
 
-plog_dispatch_intf::~plog_dispatch_intf()
+#if 0
+struct ptemporary_locale
 {
-}
-
-pfmt::pfmt(const pstring &fmt)
-: m_str(m_str_buf), m_allocated(0), m_arg(0)
-{
-	std::size_t l = fmt.blen() + 1;
-	if (l>sizeof(m_str_buf))
+	ptemporary_locale(std::locale tlocale)
+	: new_locale(tlocale), old_clocale(std::setlocale(LC_ALL, nullptr))
 	{
-		m_allocated = 2 * l;
-		m_str = palloc_array<char>(2 * l);
+		if (old_locale != tlocale)
+			std::locale::global(tlocale);
+		if (old_clocale != tlocale.name().c_str())
+			std::setlocale(LC_ALL, tlocale.name().c_str());
 	}
-	std::copy(fmt.c_str(), fmt.c_str() + l, m_str);
-}
 
-pfmt::~pfmt()
-{
-	if (m_allocated > 0)
-		pfree_array(m_str);
-}
-
-void pfmt::format_element(const char *f, const char *l, const char *fmt_spec,  ...)
-{
-	va_list ap;
-	va_start(ap, fmt_spec);
-	char fmt[30] = "%";
-	char search[10] = "";
-	char buf[2048];
-	m_arg++;
-	std::size_t sl = static_cast<std::size_t>(sprintf(search, "{%d:", m_arg));
-	char *p = strstr(m_str, search);
-	if (p == nullptr)
+	~ptemporary_locale()
 	{
-		sl = static_cast<std::size_t>(sprintf(search, "{%d}", m_arg));
-		p = strstr(m_str, search);
-		if (p == nullptr)
-		{
-			sl = 2;
-			p = strstr(m_str, "{}");
-		}
-		if (p==nullptr)
-		{
-			sl=1;
-			p = strstr(m_str, "{");
-			if (p != nullptr)
-			{
-				char *p1 = strstr(p, "}");
-				if (p1 != nullptr)
-				{
-					sl = static_cast<std::size_t>(p1 - p + 1);
-					strncat(fmt, p+1, static_cast<std::size_t>(p1 - p - 2));
-				}
-				else
-					strcat(fmt, f);
-			}
-			else
-				strcat(fmt, f);
-		}
+		if (old_clocale != new_locale.name().c_str())
+			std::setlocale(LC_ALL, old_clocale.c_str());
+		if (old_locale != new_locale)
+			std::locale::global(old_locale);
 	}
-	else
+private:
+	std::locale new_locale;
+	std::locale old_locale;
+	pstring old_clocale;
+};
+#endif
+
+pfmt::rtype pfmt::setfmt(std::stringstream &strm, char32_t cfmt_spec)
+{
+	pstring fmt;
+	pstring search("{");
+	search += plib::to_string(m_arg);
+
+	rtype r;
+
+	r.sl = search.size();
+	r.p = m_str.find(search + ':');
+	r.sl++; // ":"
+	if (r.p == pstring::npos) // no further specifiers
 	{
-		char *p1 = strstr(p, "}");
-		if (p1 != nullptr)
+		r.p = m_str.find(search + '}');
+		if (r.p == pstring::npos) // not found try default
 		{
-			sl = static_cast<std::size_t>(p1 - p + 1);
-			if (m_arg>=10)
-				strncat(fmt, p+4, static_cast<std::size_t>(p1 - p - 4));
-			else
-				strncat(fmt, p+3, static_cast<std::size_t>(p1 - p - 3));
+			r.sl = 2;
+			r.p = m_str.find("{}");
 		}
 		else
-			strcat(fmt, f);
-	}
-	strcat(fmt, l);
-	char *pend = fmt + strlen(fmt) - 1;
-	if (strchr("fge", *fmt_spec) != nullptr)
-	{
-		if (strchr("fge", *pend) == nullptr)
-			strcat(fmt, fmt_spec);
-	}
-	else if (strchr("duxo", *fmt_spec) != nullptr)
-	{
-		if (strchr("duxo", *pend) == nullptr)
-			strcat(fmt, fmt_spec);
+			// found absolute positional place holder
+			r.ret = 1;
+		if (r.p == pstring::npos)
+		{
+			r.sl=2;
+			r.p = m_str.find("{:");
+			if (r.p != pstring:: npos)
+			{
+				auto p1 = m_str.find('}', r.p);
+				if (p1 != pstring::npos)
+				{
+					r.sl = p1 - r.p + 1;
+					fmt += m_str.substr(r.p+2, p1 - r.p - 2);
+				}
+			}
+		}
 	}
 	else
-		strcat(fmt, fmt_spec);
-	std::size_t nl = static_cast<std::size_t>(vsprintf(buf, fmt, ap));
-	if (p != nullptr)
 	{
-		// check room
-		std::size_t new_size = static_cast<std::size_t>(p - m_str) + nl + strlen(p) + 1 - sl;
-		if (new_size > m_allocated)
+		// found absolute positional place holder
+		auto p1 = m_str.find('}', r.p);
+		if (p1 != pstring::npos)
 		{
-			std::size_t old_alloc = std::max(m_allocated, sizeof(m_str_buf));
-			if (m_allocated < old_alloc)
-				m_allocated = old_alloc;
-			while (new_size > m_allocated)
-				m_allocated *= 2;
-			char *np = palloc_array<char>(m_allocated);
-			std::copy(m_str, m_str + old_alloc, np);
-			p = np + (p - m_str);
-			if (m_str != m_str_buf)
-				pfree_array(m_str);
-			m_str = np;
+			r.sl = p1 - r.p + 1;
+			fmt += ((m_arg>=10) ? m_str.substr(r.p+4, p1 - r.p - 4) : m_str.substr(r.p+3, p1 - r.p - 3));
+			r.ret = 1;
 		}
-		// Make room
-		//memmove(p+nl, p+sl, strlen(p) + 1 - sl);
-		std::copy_backward(p + sl, p + strlen(p) + 1, p + nl + strlen(p) + 1 - sl);
-		std::copy(buf, buf + nl, p);
 	}
-	va_end(ap);
-}
+	if (r.p != pstring::npos)
+	{
+		// a.b format here ...
+		char32_t pend(0);
+		int width(0);
+		if (fmt != "" && pstring("duxofge").find(static_cast<pstring::value_type>(cfmt_spec)) != pstring::npos)
+		{
+			pend = static_cast<char32_t>(fmt.at(fmt.size() - 1));
+			if (pstring("duxofge").find(static_cast<pstring::value_type>(pend)) == pstring::npos)
+				pend = cfmt_spec;
+			else
+				fmt = plib::left(fmt, fmt.size() - 1);
+		}
+		else
+			// FIXME: Error
+			pend = cfmt_spec;
+
+		auto pdot(fmt.find('.'));
+
+		if (pdot==0)
+			strm << std::setprecision(pstonum_ne_def<int>(fmt.substr(1), 6));
+		else if (pdot != pstring::npos)
+		{
+			strm << std::setprecision(pstonum_ne_def<int>(fmt.substr(pdot + 1), 6));
+			width = pstonum_ne_def<int>(left(fmt,pdot), 0);
+		}
+		else if (fmt != "")
+			width = pstonum_ne_def<int>(fmt, 0);
+
+		auto aw(plib::abs(width));
+
+		strm << std::setw(aw);
+		if (width < 0)
+			strm << std::left;
+
+		switch (pend)
+		{
+			case 'x':
+				strm << std::hex;
+				break;
+			case 'o':
+				strm << std::oct;
+				break;
+			case 'f':
+				strm << std::fixed;
+				break;
+			case 'e':
+				strm << std::scientific;
+				break;
+			default:
+				break;
+		}
+	}
+	else
+		r.ret = -1;
+	return r;
 
 }
+
+} // namespace plib

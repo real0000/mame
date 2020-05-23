@@ -48,27 +48,17 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type WANGPC_MCC = device_creator<wangpc_mcc_device>;
+DEFINE_DEVICE_TYPE(WANGPC_MCC, wangpc_mcc_device, "wangpc_mcc", "Wang PC-PM043 Multiport Communications Controller")
 
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( wangpc_mcc )
+//  machine_config( wangpc_mcc )
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( wangpc_mcc )
-	MCFG_Z80SIO2_ADD(Z80SIO2_TAG, 4000000, 0, 0, 0, 0)
-	MCFG_Z80DART_ADD(Z80DART_TAG, 4000000, 0, 0, 0, 0)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor wangpc_mcc_device::device_mconfig_additions() const
+void wangpc_mcc_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( wangpc_mcc );
+	Z80SIO(config, m_sio, 4000000); // SIO/2?
+	Z80DART(config, m_dart, 4000000);
 }
 
 
@@ -104,7 +94,7 @@ inline void wangpc_mcc_device::set_irq(int state)
 //-------------------------------------------------
 
 wangpc_mcc_device::wangpc_mcc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, WANGPC_MCC, "Wang PC-PM043", tag, owner, clock, "wangpc_mcc", __FILE__),
+	device_t(mconfig, WANGPC_MCC, tag, owner, clock),
 	device_wangpcbus_card_interface(mconfig, *this),
 	m_sio(*this, Z80SIO2_TAG),
 	m_dart(*this, Z80DART_TAG), m_option(0), m_irq(0)
@@ -139,7 +129,7 @@ void wangpc_mcc_device::device_reset()
 //  wangpcbus_iorc_r - I/O read
 //-------------------------------------------------
 
-uint16_t wangpc_mcc_device::wangpcbus_iorc_r(address_space &space, offs_t offset, uint16_t mem_mask)
+uint16_t wangpc_mcc_device::wangpcbus_iorc_r(offs_t offset, uint16_t mem_mask)
 {
 	uint16_t data = 0xffff;
 
@@ -153,7 +143,7 @@ uint16_t wangpc_mcc_device::wangpcbus_iorc_r(address_space &space, offs_t offset
 		case 0x06/2:
 			if (ACCESSING_BITS_0_7)
 			{
-				data = 0xff00 | m_sio->cd_ba_r(space, offset >> 1);
+				data = 0xff00 | m_sio->cd_ba_r(offset >> 1);
 			}
 			break;
 
@@ -163,7 +153,7 @@ uint16_t wangpc_mcc_device::wangpcbus_iorc_r(address_space &space, offs_t offset
 		case 0x0e/2:
 			if (ACCESSING_BITS_0_7)
 			{
-				data = 0xff00 | m_dart->cd_ba_r(space, offset >> 1);
+				data = 0xff00 | m_dart->cd_ba_r(offset >> 1);
 			}
 			break;
 
@@ -208,7 +198,7 @@ uint16_t wangpc_mcc_device::wangpcbus_iorc_r(address_space &space, offs_t offset
 //  wangpcbus_aiowc_w - I/O write
 //-------------------------------------------------
 
-void wangpc_mcc_device::wangpcbus_aiowc_w(address_space &space, offs_t offset, uint16_t mem_mask, uint16_t data)
+void wangpc_mcc_device::wangpcbus_aiowc_w(offs_t offset, uint16_t mem_mask, uint16_t data)
 {
 	if (sad(offset) && ACCESSING_BITS_0_7)
 	{
@@ -218,14 +208,14 @@ void wangpc_mcc_device::wangpcbus_aiowc_w(address_space &space, offs_t offset, u
 		case 0x02/2:
 		case 0x04/2:
 		case 0x06/2:
-			m_sio->cd_ba_w(space, offset >> 1, data & 0xff);
+			m_sio->cd_ba_w(offset >> 1, data & 0xff);
 			break;
 
 		case 0x08/2:
 		case 0x0a/2:
 		case 0x0c/2:
 		case 0x0e/2:
-			m_dart->cd_ba_w(space, offset >> 1, data & 0xff);
+			m_dart->cd_ba_w(offset >> 1, data & 0xff);
 			break;
 
 		case 0x12/2:

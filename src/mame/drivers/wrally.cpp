@@ -8,6 +8,27 @@ Driver by Manuel Abadia, Mike Coates, Nicola Salmoria and Miguel Angel Horna
 
 Thanks to GAELCO SA for the DS5002FP code and information about the encryption
 
+REF.930217  (also REF.930705)
++-------------------------------------------------+
+|       C1                                  6116  |
+|  VOL  C2                                  6116  |
+|          30MHz                            6116  |
+|    M6295                    +----------+  6116  |
+|     1MHz                    |TMS       |        |
+|      MS6264A                |TPC1020AFN|        |
+|J     MS6264A                |   -084C  |    H8  |
+|A     +------------+         +----------+        |
+|M     |DS5002FP Box|         +----------+        |
+|M     +------------+         |TMS       |    H12 |
+|A            MS6264A         |TPC1020AFN|        |
+|             MS6264A         |   -084C  |        |
+|                             +----------+        |
+|SW1                                  PAL  MS6264A|
+|     24MHz    MC68000P12                  MS6264A|
+|SW2           C22                    6116        |
+|      PAL     C23                    6116        |
++-------------------------------------------------+
+
 Main PCB components:
 ====================
 
@@ -16,7 +37,7 @@ CPUs related:
 * 1xDS5002FP @ D12 (Dallas security processor @ 12 MHz)
 * 1xHM62256ALFP-8T (32KB NVSRAM) @ C11 (encrypted DS5002FP program code)
 * 1xLithium cell
-* 2xMS6264A-20NC (16KB SRAM) @ D14 & D15 (shared memory between M68000 & DS5002FP)
+* 2xMS6264A-20NC (8KB SRAM) @ D14 & D15 (shared memory between M68000 & DS5002FP)
 * 4x74LS157 (Quad 2 input multiplexer) @ F14, F15, F16 & F17 (used to select M68000 or DS5002FP address bus)
 * 4x74LS245 (Octal bus transceiver) @ C14, C15, C16 & C17 (used to store shared RAM data)
 * 2x74LS373 (Octal tristate latch) @ D16 & D17 (used by DS5002FP to access data from shared RAM)
@@ -97,7 +118,7 @@ produces a high clock frequency, slow movements a low freq.
 
 PCB: REF.930217
 
-The PCB has a layout that can either use the 4 rom set of I7, I9, I11 & I 13 or larger
+The PCB has a layout that can either use the 4 rom set of I7, I9, I11 & I13 or larger
  roms at H8 & H12 for graphics as well as the ability to use different size sound sample
  roms at C1 & C3
 
@@ -106,60 +127,48 @@ The PCB has a layout that can either use the 4 rom set of I7, I9, I11 & I 13 or 
 #include "emu.h"
 #include "includes/wrally.h"
 
+#include "machine/gaelco_ds5002fp.h"
+
 #include "cpu/m68000/m68000.h"
 #include "cpu/mcs51/mcs51.h"
+#include "machine/74259.h"
 #include "sound/okim6295.h"
+
 #include "screen.h"
 #include "speaker.h"
 
 
-static ADDRESS_MAP_START( wrally_map, AS_PROGRAM, 16, wrally_state )
-	AM_RANGE(0x000000, 0x0fffff) AM_ROM                                                         /* ROM */
-	AM_RANGE(0x100000, 0x103fff) AM_RAM_WRITE(vram_w) AM_SHARE("videoram")   /* encrypted Video RAM */
-	AM_RANGE(0x108000, 0x108007) AM_RAM AM_SHARE("vregs")                                   /* Video Registers */
-	AM_RANGE(0x10800c, 0x10800d) AM_WRITENOP                                                /* CLR INT Video */
-	AM_RANGE(0x200000, 0x203fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    /* Palette */
-	AM_RANGE(0x440000, 0x440fff) AM_RAM AM_SHARE("spriteram")                               /* Sprite RAM */
-	AM_RANGE(0x700000, 0x700001) AM_READ_PORT("DSW")
-	AM_RANGE(0x700002, 0x700003) AM_READ_PORT("P1_P2")
-	AM_RANGE(0x700004, 0x700005) AM_READ_PORT("WHEEL")
-	AM_RANGE(0x700008, 0x700009) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0x70000c, 0x70000d) AM_WRITE(okim6295_bankswitch_w)                                /* OKI6295 bankswitch */
-	AM_RANGE(0x70000e, 0x70000f) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)  /* OKI6295 status/data register */
-	AM_RANGE(0x70000a, 0x70001b) AM_WRITE(coin_lockout_w)                                /* Coin lockouts */
-	AM_RANGE(0x70002a, 0x70003b) AM_WRITE(coin_counter_w)                                /* Coin counters */
-	AM_RANGE(0x70004a, 0x70004b) AM_WRITENOP                                                /* Sound muting */
-	AM_RANGE(0x70005a, 0x70005b) AM_WRITE(flipscreen_w)                                  /* Flip screen */
-	AM_RANGE(0x70006a, 0x70007b) AM_WRITENOP                                                /* ??? */
-	AM_RANGE(0xfec000, 0xfeffff) AM_RAM AM_SHARE("shareram")                                        /* Work RAM (shared with DS5002FP) */
-ADDRESS_MAP_END
-
-READ8_MEMBER(wrally_state::dallas_share_r)
+void wrally_state::mcu_hostmem_map(address_map &map)
 {
-	uint8_t *shareram = (uint8_t *)m_shareram.target();
-
-	return shareram[BYTE_XOR_BE(offset)];
+	map(0x0000, 0xffff).mask(0x3fff).rw(FUNC(wrally_state::shareram_r), FUNC(wrally_state::shareram_w)); // shared RAM with the main CPU
 }
 
-WRITE8_MEMBER(wrally_state::dallas_share_w)
-{
-	uint8_t *shareram = (uint8_t *)m_shareram.target();
 
-	shareram[BYTE_XOR_BE(offset)] = data;
+void wrally_state::wrally_map(address_map &map)
+{
+	map(0x000000, 0x0fffff).rom();                                                         /* ROM */
+	map(0x100000, 0x103fff).ram().w(FUNC(wrally_state::vram_w)).share("videoram");   /* encrypted Video RAM */
+	map(0x108000, 0x108007).ram().share("vregs");                                   /* Video Registers */
+	map(0x10800c, 0x10800d).nopw();                                                /* CLR INT Video */
+	map(0x200000, 0x203fff).ram().w(m_palette, FUNC(palette_device::write16)).share("palette");    /* Palette */
+	map(0x440000, 0x440fff).ram().share("spriteram");                               /* Sprite RAM */
+	map(0x700000, 0x700001).portr("DSW");
+	map(0x700002, 0x700003).portr("P1_P2");
+	map(0x700004, 0x700005).portr("WHEEL");
+	map(0x700008, 0x700009).portr("SYSTEM");
+	map(0x70000b, 0x70000b).select(0x000070).lw8(NAME([this] (offs_t offset, u8 data) { m_outlatch->write_d0(offset >> 4, data); }));
+	map(0x70000d, 0x70000d).w(FUNC(wrally_state::okim6295_bankswitch_w));                                /* OKI6295 bankswitch */
+	map(0x70000f, 0x70000f).rw("oki", FUNC(okim6295_device::read), FUNC(okim6295_device::write));  /* OKI6295 status/data register */
+	map(0xfec000, 0xfeffff).ram().share("shareram");                                        /* Work RAM (shared with DS5002FP) */
 }
 
-static ADDRESS_MAP_START( dallas_rom, AS_PROGRAM, 8, wrally_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM                                 /* Code in NVRAM */
-ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( dallas_ram, AS_IO, 8, wrally_state )
-	AM_RANGE(0x0000, 0xffff) AM_READWRITE(dallas_share_r, dallas_share_w)   AM_MASK(0x3fff)     /* Shared RAM with the main CPU */
-ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( oki_map, AS_0, 8, wrally_state )
-	AM_RANGE(0x00000, 0x2ffff) AM_ROM
-	AM_RANGE(0x30000, 0x3ffff) AM_ROMBANK("okibank")
-ADDRESS_MAP_END
+void wrally_state::oki_map(address_map &map)
+{
+	map(0x00000, 0x2ffff).rom();
+	map(0x30000, 0x3ffff).bankr("okibank");
+}
 
 static INPUT_PORTS_START( wrally )
 	PORT_START("DSW")
@@ -175,6 +184,7 @@ static INPUT_PORTS_START( wrally )
 	PORT_DIPSETTING(      0x0018, DEF_STR( Joystick ) )
 	PORT_DIPSETTING(      0x0010, "Pot Wheel" )
 	PORT_DIPSETTING(      0x0000, "Optical Wheel" )
+	PORT_DIPSETTING(      0x0008, "invalid" )
 	PORT_DIPNAME( 0x0020, 0x0000, DEF_STR( Demo_Sounds ) )     PORT_DIPLOCATION("SW2:3")
 	PORT_DIPSETTING(      0x0020, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
@@ -241,52 +251,60 @@ static const gfx_layout wrally_tilelayout16 =
 	RGN_FRAC(1,2),                          /* number of tiles */
 	4,                                      /* 4 bpp */
 	{ RGN_FRAC(1,2)+8, RGN_FRAC(1,2)+0, 8, 0 },
-	{ 0, 1, 2, 3, 4, 5, 6, 7,
-		16*16+0, 16*16+1, 16*16+2, 16*16+3, 16*16+4, 16*16+5, 16*16+6, 16*16+7 },
-	{ 0*16, 1*16, 2*16, 3*16, 4*16, 5*16, 6*16, 7*16,
-		8*16, 9*16, 10*16, 11*16, 12*16, 13*16, 14*16, 15*16 },
+	{ STEP8(0,1), STEP8(16*16,1) },
+	{ STEP16(0,16) },
 	64*8
 };
 
-static GFXDECODE_START( wrally )
+static GFXDECODE_START( gfx_wrally )
 	GFXDECODE_ENTRY( "gfx1", 0x000000, wrally_tilelayout16, 0, 64*8 )
 GFXDECODE_END
 
 
-static MACHINE_CONFIG_START( wrally, wrally_state )
+void wrally_state::wrally(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000,XTAL_24MHz/2)        /* verified on pcb */
-	MCFG_CPU_PROGRAM_MAP(wrally_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", wrally_state,  irq6_line_hold)
+	M68000(config, m_maincpu, XTAL(24'000'000)/2);        /* verified on pcb */
+	m_maincpu->set_addrmap(AS_PROGRAM, &wrally_state::wrally_map);
+	m_maincpu->set_vblank_int("screen", FUNC(wrally_state::irq6_line_hold));
 
-	MCFG_CPU_ADD("mcu", DS5002FP, XTAL_24MHz/2) /* verified on pcb */
-	MCFG_DS5002FP_CONFIG( 0x88, 0x00, 0x80 )
-	MCFG_CPU_PROGRAM_MAP(dallas_rom)
-	MCFG_CPU_IO_MAP(dallas_ram)
-
-	MCFG_QUANTUM_TIME(attotime::from_hz(38400))                 /* heavy sync */
+	gaelco_ds5002fp_device &ds5002(GAELCO_DS5002FP(config, "gaelco_ds5002fp", XTAL(24'000'000) / 2)); /* verified on pcb */
+	ds5002.set_addrmap(0, &wrally_state::mcu_hostmem_map);
+	config.set_perfect_quantum("gaelco_ds5002fp:mcu");
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_SCREEN_SIZE(64*16, 32*16)
-	MCFG_SCREEN_VISIBLE_AREA(8, 24*16-8-1, 16, 16*16-8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(wrally_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500)); /* not accurate */
+	screen.set_size(64*16, 32*16);
+	screen.set_visarea(8, 24*16-8-1, 16, 16*16-8-1);
+	screen.set_screen_update(FUNC(wrally_state::screen_update));
+	screen.set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", wrally)
-	MCFG_PALETTE_ADD("palette", 1024*8)
-	MCFG_PALETTE_FORMAT(xxxxBBBBRRRRGGGG)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_wrally);
+	PALETTE(config, m_palette).set_format(palette_device::xBRG_444, 1024*8);
 
+	GAELCO_WRALLY_SPRITES(config, m_sprites, 0);
+	m_sprites->set_gfxdecode_tag("gfxdecode");
+	m_sprites->set_screen_tag("screen");
+
+	LS259(config, m_outlatch);
+	m_outlatch->q_out_cb<0>().set(FUNC(wrally_state::coin1_lockout_w));
+	m_outlatch->q_out_cb<1>().set(FUNC(wrally_state::coin2_lockout_w));
+	m_outlatch->q_out_cb<2>().set(FUNC(wrally_state::coin1_counter_w));
+	m_outlatch->q_out_cb<3>().set(FUNC(wrally_state::coin2_counter_w));
+	m_outlatch->q_out_cb<4>().set_nop();                                /* Sound muting */
+	m_outlatch->q_out_cb<5>().set(FUNC(wrally_state::flipscreen_w));    /* Flip screen */
+	m_outlatch->q_out_cb<6>().set_nop();                                /* ??? */
+	m_outlatch->q_out_cb<7>().set_nop();                                /* ??? */
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_OKIM6295_ADD("oki", XTAL_1MHz, OKIM6295_PIN7_HIGH)                 /* verified on pcb */
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki_map)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	okim6295_device &oki(OKIM6295(config, "oki", XTAL(1'000'000), okim6295_device::PIN7_HIGH)); /* verified on pcb */
+	oki.set_addrmap(0, &wrally_state::oki_map);
+	oki.add_route(ALL_OUTPUTS, "mono", 1.0);
+}
 
 
 ROM_START( wrally )
@@ -294,8 +312,14 @@ ROM_START( wrally )
 	ROM_LOAD16_BYTE( "worldr17.c23", 0x000000, 0x080000, CRC(050f5629) SHA1(74fc2cd5114f3bc4b2429f1d8d7eeb1658f9f179) ) /* Only difference compared to set 2 is how the Dallas DS5002FP */
 	ROM_LOAD16_BYTE( "worldr16.c22", 0x000001, 0x080000, CRC(9e0d126c) SHA1(369360b7ec2c3497af3bf62b4eba24c3d9f94675) ) /* power failure shows on screen, IE: "Tension  baja " */
 
-	ROM_REGION( 0x10000, "mcu", 0 ) /* DS5002FP code */
+	ROM_REGION( 0x8000, "gaelco_ds5002fp:sram", 0 ) /* DS5002FP code */
 	ROM_LOAD( "wrdallas.bin", 0x00000, 0x8000, CRC(547d1768) SHA1(c58d1edd072d796be0663fb265f4739ec006b688) )
+
+	ROM_REGION( 0x100, "gaelco_ds5002fp:mcu:internal", ROMREGION_ERASE00 )
+	/* these are the default states stored in NVRAM */
+	DS5002FP_SET_MON( 0x88 )
+	DS5002FP_SET_RPCTL( 0x00 )
+	DS5002FP_SET_CRCR( 0x80 )
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
 	ROM_LOAD16_BYTE( "worldr21.i13", 0x000000, 0x080000, CRC(b7fddb12) SHA1(619a75daac8cbba7e85c97ca19733e2196d66d5c) )
@@ -321,8 +345,14 @@ ROM_START( wrallya )
 	ROM_LOAD16_BYTE( "c23.bin", 0x000000, 0x080000, CRC(8b7d93c3) SHA1(ce4163eebc5d4a0c1266d650523b1ffc702d1b87) ) /* Only difference compared to set 1 is how the Dallas DS5002FP */
 	ROM_LOAD16_BYTE( "c22.bin", 0x000001, 0x080000, CRC(56da43b6) SHA1(02db8f969ed5e7f5e5356c45c0312faf5f000335) ) /* power failure shows on screen, IE: "Power  Failure" */
 
-	ROM_REGION( 0x10000, "mcu", 0 ) /* DS5002FP code */
+	ROM_REGION( 0x8000, "gaelco_ds5002fp:sram", 0 ) /* DS5002FP code */
 	ROM_LOAD( "wrdallas.bin", 0x00000, 0x8000, CRC(547d1768) SHA1(c58d1edd072d796be0663fb265f4739ec006b688) )
+
+	ROM_REGION( 0x100, "gaelco_ds5002fp:mcu:internal", ROMREGION_ERASE00 )
+	/* these are the default states stored in NVRAM */
+	DS5002FP_SET_MON( 0x88 )
+	DS5002FP_SET_RPCTL( 0x00 )
+	DS5002FP_SET_CRCR( 0x80 )
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
 	ROM_LOAD16_BYTE( "worldr21.i13", 0x000000, 0x080000, CRC(b7fddb12) SHA1(619a75daac8cbba7e85c97ca19733e2196d66d5c) )
@@ -348,8 +378,14 @@ ROM_START( wrallyb )
 	ROM_LOAD16_BYTE( "rally_c23.c23", 0x000000, 0x080000, CRC(ddd6f833) SHA1(f12f82c412fa93f46020d50c2620974ae2fb502b) )
 	ROM_LOAD16_BYTE( "rally_c22.c22", 0x000001, 0x080000, CRC(59a0d35c) SHA1(7c6f376a53c1e6d793cbfb16861ee3298ee013a1) )
 
-	ROM_REGION( 0x10000, "mcu", 0 ) /* DS5002FP code */
+	ROM_REGION( 0x8000, "gaelco_ds5002fp:sram", 0 ) /* DS5002FP code */
 	ROM_LOAD( "wrdallas.bin", 0x00000, 0x8000, CRC(547d1768) SHA1(c58d1edd072d796be0663fb265f4739ec006b688) )
+
+	ROM_REGION( 0x100, "gaelco_ds5002fp:mcu:internal", ROMREGION_ERASE00 )
+	/* these are the default states stored in NVRAM */
+	DS5002FP_SET_MON( 0x88 )
+	DS5002FP_SET_RPCTL( 0x00 )
+	DS5002FP_SET_CRCR( 0x80 )
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
 	ROM_LOAD( "rally h-12.h12", 0x000000, 0x100000, CRC(3353dc00) SHA1(db3b1686751dcaa231d66c08b5be81fcfe299ad9) ) /* Same data, different layout */
@@ -371,8 +407,14 @@ ROM_START( wrallyat ) /* Board Marked 930217, Atari License */
 	ROM_LOAD16_BYTE( "rally.c23", 0x000000, 0x080000, CRC(366595ad) SHA1(e16341ed9eacf9b729c28184268150ea9b62f185) ) /* North & South America only... */
 	ROM_LOAD16_BYTE( "rally.c22", 0x000001, 0x080000, CRC(0ad4ec6f) SHA1(991557cf25fe960b1c586e990e6019befe5a11d0) )
 
-	ROM_REGION( 0x10000, "mcu", 0 ) /* DS5002FP code */
+	ROM_REGION( 0x8000, "gaelco_ds5002fp:sram", 0 ) /* DS5002FP code */
 	ROM_LOAD( "wrdallas.bin", 0x00000, 0x8000, CRC(547d1768) SHA1(c58d1edd072d796be0663fb265f4739ec006b688) )
+
+	ROM_REGION( 0x100, "gaelco_ds5002fp:mcu:internal", ROMREGION_ERASE00 )
+	/* these are the default states stored in NVRAM */
+	DS5002FP_SET_MON( 0x88 )
+	DS5002FP_SET_RPCTL( 0x00 )
+	DS5002FP_SET_CRCR( 0x80 )
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
 	ROM_LOAD( "rally h-12.h12", 0x000000, 0x100000, CRC(3353dc00) SHA1(db3b1686751dcaa231d66c08b5be81fcfe299ad9) ) /* Same data, different layout */
@@ -390,7 +432,7 @@ ROM_START( wrallyat ) /* Board Marked 930217, Atari License */
 ROM_END
 
 
-GAME( 1993, wrally,   0,      wrally, wrally, driver_device, 0, ROT0, "Gaelco", "World Rally (Version 1.0, Checksum 0E56)", MACHINE_SUPPORTS_SAVE ) /* Dallas DS5002FP power failure shows as: "Tension  baja " */
-GAME( 1993, wrallya,  wrally, wrally, wrally, driver_device, 0, ROT0, "Gaelco", "World Rally (Version 1.0, Checksum 3873)", MACHINE_SUPPORTS_SAVE ) /* Dallas DS5002FP power failure shows as: "Power  Failure" */
-GAME( 1993, wrallyb,  wrally, wrally, wrally, driver_device, 0, ROT0, "Gaelco", "World Rally (Version 1.0, Checksum 8AA2)", MACHINE_SUPPORTS_SAVE )
-GAME( 1993, wrallyat, wrally, wrally, wrally, driver_device, 0, ROT0, "Gaelco (Atari license)", "World Rally (US, 930217)", MACHINE_SUPPORTS_SAVE )
+GAME( 1993, wrally,   0,      wrally, wrally, wrally_state, empty_init, ROT0, "Gaelco", "World Rally (Version 1.0, Checksum 0E56)", MACHINE_SUPPORTS_SAVE ) /* Dallas DS5002FP power failure shows as: "Tension  baja " */
+GAME( 1993, wrallya,  wrally, wrally, wrally, wrally_state, empty_init, ROT0, "Gaelco", "World Rally (Version 1.0, Checksum 3873)", MACHINE_SUPPORTS_SAVE ) /* Dallas DS5002FP power failure shows as: "Power  Failure" */
+GAME( 1993, wrallyb,  wrally, wrally, wrally, wrally_state, empty_init, ROT0, "Gaelco", "World Rally (Version 1.0, Checksum 8AA2)", MACHINE_SUPPORTS_SAVE )
+GAME( 1993, wrallyat, wrally, wrally, wrally, wrally_state, empty_init, ROT0, "Gaelco (Atari license)", "World Rally (US, 930217)", MACHINE_SUPPORTS_SAVE )

@@ -11,7 +11,7 @@
 #include "emu.h"
 #include "ppccom.h"
 #include "ppcfe.h"
-
+#include "ppc_dasm.h"
 
 /***************************************************************************
     DEBUGGING
@@ -195,20 +195,20 @@ static const uint8_t fcmp_cr_table_source[32] =
 };
 
 
-const device_type PPC601 = device_creator<ppc601_device>;
-const device_type PPC602 = device_creator<ppc602_device>;
-const device_type PPC603 = device_creator<ppc603_device>;
-const device_type PPC603E = device_creator<ppc603e_device>;
-const device_type PPC603R = device_creator<ppc603r_device>;
-const device_type PPC604 = device_creator<ppc604_device>;
-const device_type MPC8240 = device_creator<mpc8240_device>;
-const device_type PPC403GA = device_creator<ppc403ga_device>;
-const device_type PPC403GCX = device_creator<ppc403gcx_device>;
-const device_type PPC405GP = device_creator<ppc405gp_device>;
+DEFINE_DEVICE_TYPE(PPC601,    ppc601_device,    "ppc601",     "IBM PowerPC 601")
+DEFINE_DEVICE_TYPE(PPC602,    ppc602_device,    "ppc602",     "IBM PowerPC 602")
+DEFINE_DEVICE_TYPE(PPC603,    ppc603_device,    "ppc603",     "IBM PowerPC 603")
+DEFINE_DEVICE_TYPE(PPC603E,   ppc603e_device,   "ppc603e",    "IBM PowerPC 603E")
+DEFINE_DEVICE_TYPE(PPC603R,   ppc603r_device,   "ppc603r",    "IBM PowerPC 603R")
+DEFINE_DEVICE_TYPE(PPC604,    ppc604_device,    "ppc604",     "IBM PowerPC 604")
+DEFINE_DEVICE_TYPE(MPC8240,   mpc8240_device,   "mpc8240",    "IBM PowerPC MPC8240")
+DEFINE_DEVICE_TYPE(PPC403GA,  ppc403ga_device,  "ppc403ga",   "IBM PowerPC 403GA")
+DEFINE_DEVICE_TYPE(PPC403GCX, ppc403gcx_device, "ppc403gcx",  "IBM PowerPC 403GCX")
+DEFINE_DEVICE_TYPE(PPC405GP,  ppc405gp_device,  "ppc405gp",   "IBM PowerPC 405GP")
 
 
-ppc_device::ppc_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, int address_bits, int data_bits, powerpc_flavor flavor, uint32_t cap, uint32_t tb_divisor, address_map_constructor internal_map)
-	: cpu_device(mconfig, type, name, tag, owner, clock, shortname, __FILE__)
+ppc_device::ppc_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, int address_bits, int data_bits, powerpc_flavor flavor, uint32_t cap, uint32_t tb_divisor, address_map_constructor internal_map)
+	: cpu_device(mconfig, type, tag, owner, clock)
 	, device_vtlb_interface(mconfig, *this, AS_PROGRAM)
 	, m_program_config("program", ENDIANNESS_BIG, data_bits, address_bits, 0, internal_map)
 	, c_bus_frequency(0)
@@ -217,6 +217,12 @@ ppc_device::ppc_device(const machine_config &mconfig, device_type type, const ch
 	, m_flavor(flavor)
 	, m_cap(cap)
 	, m_tb_divisor(tb_divisor)
+	, m_spu(*this)
+	, m_dcr_read_func(*this)
+	, m_dcr_write_func(*this)
+	, m_dcstore_cb(*this)
+	, m_ext_dma_read_cb(*this)
+	, m_ext_dma_write_cb(*this)
 	, m_cache(CACHE_SIZE + sizeof(internal_ppc_state))
 	, m_drcuml(nullptr)
 	, m_drcfe(nullptr)
@@ -231,6 +237,10 @@ ppc_device::ppc_device(const machine_config &mconfig, device_type type, const ch
 		set_vtlb_fixed_entries(PPC603_FIXED_TLB_ENTRIES);
 }
 
+ppc_device::~ppc_device()
+{
+}
+
 //ppc403_device::ppc403_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 //  : ppc_device(mconfig, PPC403, "PPC403", tag, owner, clock, "ppc403", 32?, 64?)
 //{
@@ -242,62 +252,70 @@ ppc_device::ppc_device(const machine_config &mconfig, device_type type, const ch
 //}
 
 ppc603_device::ppc603_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ppc_device(mconfig, PPC603, "PowerPC 603", tag, owner, clock, "ppc603", 32, 64, PPC_MODEL_603, PPCCAP_OEA | PPCCAP_VEA | PPCCAP_FPU | PPCCAP_MISALIGNED | PPCCAP_603_MMU, 4, nullptr)
+	: ppc_device(mconfig, PPC603, tag, owner, clock, 32, 64, PPC_MODEL_603, PPCCAP_OEA | PPCCAP_VEA | PPCCAP_FPU | PPCCAP_MISALIGNED | PPCCAP_603_MMU, 4, address_map_constructor())
 {
 }
 
 ppc603e_device::ppc603e_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ppc_device(mconfig, PPC603E, "PowerPC 603e", tag, owner, clock, "ppc603e", 32, 64, PPC_MODEL_603E, PPCCAP_OEA | PPCCAP_VEA | PPCCAP_FPU | PPCCAP_MISALIGNED | PPCCAP_603_MMU, 4, nullptr)
+	: ppc_device(mconfig, PPC603E, tag, owner, clock, 32, 64, PPC_MODEL_603E, PPCCAP_OEA | PPCCAP_VEA | PPCCAP_FPU | PPCCAP_MISALIGNED | PPCCAP_603_MMU, 4, address_map_constructor())
 {
 }
 
 ppc603r_device::ppc603r_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ppc_device(mconfig, PPC603R, "PowerPC 603R", tag, owner, clock, "ppc603r", 32, 64, PPC_MODEL_603R, PPCCAP_OEA | PPCCAP_VEA | PPCCAP_FPU | PPCCAP_MISALIGNED | PPCCAP_603_MMU, 4, nullptr)
+	: ppc_device(mconfig, PPC603R, tag, owner, clock, 32, 64, PPC_MODEL_603R, PPCCAP_OEA | PPCCAP_VEA | PPCCAP_FPU | PPCCAP_MISALIGNED | PPCCAP_603_MMU, 4, address_map_constructor())
 {
 }
 
 ppc602_device::ppc602_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ppc_device(mconfig, PPC602, "PowerPC 602", tag, owner, clock, "ppc602", 32, 64, PPC_MODEL_602, PPCCAP_OEA | PPCCAP_VEA | PPCCAP_FPU | PPCCAP_MISALIGNED | PPCCAP_603_MMU, 4, nullptr)
+	: ppc_device(mconfig, PPC602, tag, owner, clock, 32, 64, PPC_MODEL_602, PPCCAP_OEA | PPCCAP_VEA | PPCCAP_FPU | PPCCAP_MISALIGNED | PPCCAP_603_MMU, 4, address_map_constructor())
 {
 }
 
 mpc8240_device::mpc8240_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ppc_device(mconfig, MPC8240, "PowerPC MPC8240", tag, owner, clock, "mpc8240", 32, 64, PPC_MODEL_MPC8240, PPCCAP_OEA | PPCCAP_VEA | PPCCAP_FPU | PPCCAP_MISALIGNED | PPCCAP_603_MMU, 4/* unknown */, nullptr)
+	: ppc_device(mconfig, MPC8240, tag, owner, clock, 32, 64, PPC_MODEL_MPC8240, PPCCAP_OEA | PPCCAP_VEA | PPCCAP_FPU | PPCCAP_MISALIGNED | PPCCAP_603_MMU, 4/* unknown */, address_map_constructor())
 {
 }
 
 ppc601_device::ppc601_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ppc_device(mconfig, PPC601, "PowerPC 601", tag, owner, clock, "ppc601", 32, 64, PPC_MODEL_601, PPCCAP_OEA | PPCCAP_VEA | PPCCAP_FPU | PPCCAP_MISALIGNED | PPCCAP_MFIOC | PPCCAP_601BAT, 0/* no TB */, nullptr)
+	: ppc_device(mconfig, PPC601, tag, owner, clock, 32, 64, PPC_MODEL_601, PPCCAP_OEA | PPCCAP_VEA | PPCCAP_FPU | PPCCAP_MISALIGNED | PPCCAP_MFIOC | PPCCAP_601BAT, 0/* no TB */, address_map_constructor())
 {
 }
 
 ppc604_device::ppc604_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ppc_device(mconfig, PPC604, "PowerPC 604", tag, owner, clock, "ppc604", 32, 64, PPC_MODEL_604, PPCCAP_OEA | PPCCAP_VEA | PPCCAP_FPU | PPCCAP_MISALIGNED | PPCCAP_604_MMU, 4, nullptr)
+	: ppc_device(mconfig, PPC604, tag, owner, clock, 32, 64, PPC_MODEL_604, PPCCAP_OEA | PPCCAP_VEA | PPCCAP_FPU | PPCCAP_MISALIGNED | PPCCAP_604_MMU, 4, address_map_constructor())
 {
 }
 
-static ADDRESS_MAP_START( internal_ppc4xx, AS_PROGRAM, 32, ppc4xx_device )
-	AM_RANGE(0x40000000, 0x4000000f) AM_READWRITE8(ppc4xx_spu_r, ppc4xx_spu_w, 0xffffffff)
-ADDRESS_MAP_END
+void ppc4xx_device::internal_ppc4xx(address_map &map)
+{
+	map(0x40000000, 0x4000000f).rw(FUNC(ppc4xx_device::ppc4xx_spu_r), FUNC(ppc4xx_device::ppc4xx_spu_w));
+}
 
-ppc4xx_device::ppc4xx_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, powerpc_flavor flavor, uint32_t cap, uint32_t tb_divisor)
-	: ppc_device(mconfig, type, name, tag, owner, clock, shortname, 31, 32, flavor, cap, tb_divisor, ADDRESS_MAP_NAME(internal_ppc4xx))
+ppc4xx_device::ppc4xx_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, powerpc_flavor flavor, uint32_t cap, uint32_t tb_divisor)
+	: ppc_device(mconfig, type, tag, owner, clock, 31, 32, flavor, cap, tb_divisor, address_map_constructor(FUNC(ppc4xx_device::internal_ppc4xx), this))
 {
 }
 
 ppc403ga_device::ppc403ga_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ppc4xx_device(mconfig, PPC403GA, "PowerPC 403GA", tag, owner, clock, "ppc403ga", PPC_MODEL_403GA, PPCCAP_4XX, 1)
+	: ppc4xx_device(mconfig, PPC403GA, tag, owner, clock, PPC_MODEL_403GA, PPCCAP_4XX, 1)
 {
 }
 
 ppc403gcx_device::ppc403gcx_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ppc4xx_device(mconfig, PPC403GCX, "PowerPC 403GCX", tag, owner, clock, "ppc403gcx", PPC_MODEL_403GCX, PPCCAP_4XX, 1)
+	: ppc4xx_device(mconfig, PPC403GCX, tag, owner, clock, PPC_MODEL_403GCX, PPCCAP_4XX, 1)
 {
 }
 
 ppc405gp_device::ppc405gp_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ppc4xx_device(mconfig, PPC405GP, "PowerPC 405GP", tag, owner, clock, "ppc405gp", PPC_MODEL_405GP, PPCCAP_4XX | PPCCAP_VEA, 1)
+	: ppc4xx_device(mconfig, PPC405GP, tag, owner, clock, PPC_MODEL_405GP, PPCCAP_4XX | PPCCAP_VEA, 1)
 {
+}
+
+device_memory_interface::space_config_vector ppc_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
 }
 
 
@@ -437,9 +455,9 @@ inline void ppc_device::set_decrementer(uint32_t newdec)
 	if (PRINTF_DECREMENTER)
 	{
 		uint64_t total = total_cycles();
-		osd_printf_debug("set_decrementer: olddec=%08X newdec=%08X divisor=%d totalcyc=%08X%08X timer=%08X%08X\n",
+		osd_printf_debug("set_decrementer: olddec=%08X newdec=%08X divisor=%d totalcyc=%016X timer=%016X\n",
 				curdec, newdec, m_tb_divisor,
-				(uint32_t)(total >> 32), (uint32_t)total, (uint32_t)(cycles_until_done >> 32), (uint32_t)cycles_until_done);
+				total, cycles_until_done);
 	}
 
 	m_dec_zero_cycles = total_cycles() + cycles_until_done;
@@ -686,7 +704,6 @@ void ppc_device::device_start()
 	m_pit_reload = 0;
 	m_irqstate = 0;
 	memset(m_buffered_dma_rate, 0, sizeof(m_buffered_dma_rate));
-	m_codexor = 0;
 	m_system_clock = 0;
 	m_cpu_clock = 0;
 	m_tb_zero_cycles = 0;
@@ -703,15 +720,36 @@ void ppc_device::device_start()
 	m_cache_line_size = 32;
 	m_cpu_clock = clock();
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	if(m_cap & PPCCAP_4XX)
+	{
+		auto cache = m_program->cache<2, 0, ENDIANNESS_BIG>();
+		m_pr32 = [cache](offs_t address) -> u32 { return cache->read_dword(address); };
+		m_prptr = [cache](offs_t address) -> const void * { return cache->read_ptr(address); };
+	}
+	else
+	{
+		auto cache = m_program->cache<3, 0, ENDIANNESS_BIG>();
+		m_pr32 = [cache](offs_t address) -> u32 { return cache->read_dword(address); };
+		if(space_config()->m_endianness != ENDIANNESS_NATIVE)
+			m_prptr = [cache](offs_t address) -> const void * {
+				const u32 *ptr = static_cast<u32 *>(cache->read_ptr(address & ~7));
+				if(!(address & 4))
+					ptr++;
+				return ptr;
+			};
+		else
+			m_prptr = [cache](offs_t address) -> const void * {
+				const u32 *ptr = static_cast<u32 *>(cache->read_ptr(address & ~7));
+				if(address & 4)
+					ptr++;
+				return ptr;
+			};
+	}
 	m_system_clock = c_bus_frequency != 0 ? c_bus_frequency : clock();
-	m_dcr_read_func = read32_delegate();
-	m_dcr_write_func = write32_delegate();
+	m_dcr_read_func.set(nullptr);
+	m_dcr_write_func.set(nullptr);
 
 	m_tb_divisor = (m_tb_divisor * clock() + m_system_clock / 2 - 1) / m_system_clock;
-	m_codexor = 0;
-	if (!(m_cap & PPCCAP_4XX) && space_config()->m_endianness != ENDIANNESS_NATIVE)
-		m_codexor = 4;
 
 	/* allocate a timer for the compare interrupt */
 	if ((m_cap & PPCCAP_OEA) && (m_tb_divisor))
@@ -792,88 +830,14 @@ void ppc_device::device_start()
 	state_add(PPC_TBL,   "TBL", m_debugger_temp).callimport().callexport().formatstr("%08X");
 	state_add(PPC_DEC,   "DEC", m_debugger_temp).callimport().callexport().formatstr("%08X");
 
-	state_add(PPC_SR0,   "SR0", m_core->sr[0]).formatstr("%08X");
-	state_add(PPC_SR1,   "SR1", m_core->sr[1]).formatstr("%08X");
-	state_add(PPC_SR2,   "SR2", m_core->sr[2]).formatstr("%08X");
-	state_add(PPC_SR3,   "SR3", m_core->sr[3]).formatstr("%08X");
-	state_add(PPC_SR4,   "SR4", m_core->sr[4]).formatstr("%08X");
-	state_add(PPC_SR5,   "SR5", m_core->sr[5]).formatstr("%08X");
-	state_add(PPC_SR6,   "SR6", m_core->sr[6]).formatstr("%08X");
-	state_add(PPC_SR7,   "SR7", m_core->sr[7]).formatstr("%08X");
-	state_add(PPC_SR8,   "SR8", m_core->sr[8]).formatstr("%08X");
-	state_add(PPC_SR9,   "SR9", m_core->sr[9]).formatstr("%08X");
-	state_add(PPC_SR10,  "SR10", m_core->sr[10]).formatstr("%08X");
-	state_add(PPC_SR11,  "SR11", m_core->sr[11]).formatstr("%08X");
-	state_add(PPC_SR12,  "SR12", m_core->sr[12]).formatstr("%08X");
-	state_add(PPC_SR13,  "SR13", m_core->sr[13]).formatstr("%08X");
-	state_add(PPC_SR14,  "SR14", m_core->sr[14]).formatstr("%08X");
-	state_add(PPC_SR15,  "SR15", m_core->sr[15]).formatstr("%08X");
+	for (int regnum = 0; regnum < 16; regnum++)
+		state_add(PPC_SR0 + regnum, string_format("SR%d", regnum).c_str(), m_core->sr[regnum]).formatstr("%08X");
 
-	state_add(PPC_R0,    "R0", m_core->r[0]).formatstr("%08X");
-	state_add(PPC_R1,    "R1", m_core->r[1]).formatstr("%08X");
-	state_add(PPC_R2,    "R2", m_core->r[2]).formatstr("%08X");
-	state_add(PPC_R3,    "R3", m_core->r[3]).formatstr("%08X");
-	state_add(PPC_R4,    "R4", m_core->r[4]).formatstr("%08X");
-	state_add(PPC_R5,    "R5", m_core->r[5]).formatstr("%08X");
-	state_add(PPC_R6,    "R6", m_core->r[6]).formatstr("%08X");
-	state_add(PPC_R7,    "R7", m_core->r[7]).formatstr("%08X");
-	state_add(PPC_R8,    "R8", m_core->r[8]).formatstr("%08X");
-	state_add(PPC_R9,    "R9", m_core->r[9]).formatstr("%08X");
-	state_add(PPC_R10,   "R10", m_core->r[10]).formatstr("%08X");
-	state_add(PPC_R11,   "R11", m_core->r[11]).formatstr("%08X");
-	state_add(PPC_R12,   "R12", m_core->r[12]).formatstr("%08X");
-	state_add(PPC_R13,   "R13", m_core->r[13]).formatstr("%08X");
-	state_add(PPC_R14,   "R14", m_core->r[14]).formatstr("%08X");
-	state_add(PPC_R15,   "R15", m_core->r[15]).formatstr("%08X");
-	state_add(PPC_R16,   "R16", m_core->r[16]).formatstr("%08X");
-	state_add(PPC_R17,   "R17", m_core->r[17]).formatstr("%08X");
-	state_add(PPC_R18,   "R18", m_core->r[18]).formatstr("%08X");
-	state_add(PPC_R19,   "R19", m_core->r[19]).formatstr("%08X");
-	state_add(PPC_R20,   "R20", m_core->r[20]).formatstr("%08X");
-	state_add(PPC_R21,   "R21", m_core->r[21]).formatstr("%08X");
-	state_add(PPC_R22,   "R22", m_core->r[22]).formatstr("%08X");
-	state_add(PPC_R23,   "R23", m_core->r[23]).formatstr("%08X");
-	state_add(PPC_R24,   "R24", m_core->r[24]).formatstr("%08X");
-	state_add(PPC_R25,   "R25", m_core->r[25]).formatstr("%08X");
-	state_add(PPC_R26,   "R26", m_core->r[26]).formatstr("%08X");
-	state_add(PPC_R27,   "R27", m_core->r[27]).formatstr("%08X");
-	state_add(PPC_R28,   "R28", m_core->r[28]).formatstr("%08X");
-	state_add(PPC_R29,   "R29", m_core->r[29]).formatstr("%08X");
-	state_add(PPC_R30,   "R30", m_core->r[30]).formatstr("%08X");
-	state_add(PPC_R31,   "R31", m_core->r[31]).formatstr("%08X");
+	for (int regnum = 0; regnum < 32; regnum++)
+		state_add(PPC_R0 + regnum, string_format("R%d", regnum).c_str(), m_core->r[regnum]).formatstr("%08X");
 
-	state_add(PPC_F0,    "F0", m_core->f[0]).formatstr("%12s");
-	state_add(PPC_F1,    "F1", m_core->f[1]).formatstr("%12s");
-	state_add(PPC_F2,    "F2", m_core->f[2]).formatstr("%12s");
-	state_add(PPC_F3,    "F3", m_core->f[3]).formatstr("%12s");
-	state_add(PPC_F4,    "F4", m_core->f[4]).formatstr("%12s");
-	state_add(PPC_F5,    "F5", m_core->f[5]).formatstr("%12s");
-	state_add(PPC_F6,    "F6", m_core->f[6]).formatstr("%12s");
-	state_add(PPC_F7,    "F7", m_core->f[7]).formatstr("%12s");
-	state_add(PPC_F8,    "F8", m_core->f[8]).formatstr("%12s");
-	state_add(PPC_F9,    "F9", m_core->f[9]).formatstr("%12s");
-	state_add(PPC_F10,   "F10", m_core->f[10]).formatstr("%12s");
-	state_add(PPC_F11,   "F11", m_core->f[11]).formatstr("%12s");
-	state_add(PPC_F12,   "F12", m_core->f[12]).formatstr("%12s");
-	state_add(PPC_F13,   "F13", m_core->f[13]).formatstr("%12s");
-	state_add(PPC_F14,   "F14", m_core->f[14]).formatstr("%12s");
-	state_add(PPC_F15,   "F15", m_core->f[15]).formatstr("%12s");
-	state_add(PPC_F16,   "F16", m_core->f[16]).formatstr("%12s");
-	state_add(PPC_F17,   "F17", m_core->f[17]).formatstr("%12s");
-	state_add(PPC_F18,   "F18", m_core->f[18]).formatstr("%12s");
-	state_add(PPC_F19,   "F19", m_core->f[19]).formatstr("%12s");
-	state_add(PPC_F20,   "F20", m_core->f[20]).formatstr("%12s");
-	state_add(PPC_F21,   "F21", m_core->f[21]).formatstr("%12s");
-	state_add(PPC_F22,   "F22", m_core->f[22]).formatstr("%12s");
-	state_add(PPC_F23,   "F23", m_core->f[23]).formatstr("%12s");
-	state_add(PPC_F24,   "F24", m_core->f[24]).formatstr("%12s");
-	state_add(PPC_F25,   "F25", m_core->f[25]).formatstr("%12s");
-	state_add(PPC_F26,   "F26", m_core->f[26]).formatstr("%12s");
-	state_add(PPC_F27,   "F27", m_core->f[27]).formatstr("%12s");
-	state_add(PPC_F28,   "F28", m_core->f[28]).formatstr("%12s");
-	state_add(PPC_F29,   "F29", m_core->f[29]).formatstr("%12s");
-	state_add(PPC_F30,   "F30", m_core->f[30]).formatstr("%12s");
-	state_add(PPC_F31,   "F31", m_core->f[31]).formatstr("%12s");
+	for (int regnum = 0; regnum < 32; regnum++)
+		state_add(PPC_F0 + regnum, string_format("F%d", regnum).c_str(), m_core->f[regnum]).formatstr("%12s");
 	state_add(PPC_FPSCR, "FPSCR", m_core->fpscr).formatstr("%08X");
 
 	state_add(STATE_GENPC, "GENPC", m_core->pc).noshow();
@@ -881,7 +845,7 @@ void ppc_device::device_start()
 	state_add(STATE_GENSP, "GENSP", m_core->r[31]).noshow();
 	state_add(STATE_GENFLAGS, "GENFLAGS", m_debugger_temp).noshow().formatstr("%1s");
 
-	m_icountptr = &m_core->icount;
+	set_icountptr(m_core->icount);
 
 	uint32_t flags = 0;
 	/* initialize the UML generator */
@@ -931,7 +895,7 @@ void ppc_device::device_start()
 	m_drcuml->symbol_add(&m_fcmp_cr_table, sizeof(m_fcmp_cr_table), "fcmp_cr_table");
 
 	/* initialize the front-end helper */
-	m_drcfe = std::make_unique<ppc_frontend>(this, COMPILE_BACKWARDS_BYTES, COMPILE_FORWARDS_BYTES, SINGLE_INSTRUCTION_MODE ? 1 : COMPILE_MAX_SEQUENCE);
+	m_drcfe = std::make_unique<frontend>(*this, COMPILE_BACKWARDS_BYTES, COMPILE_FORWARDS_BYTES, SINGLE_INSTRUCTION_MODE ? 1 : COMPILE_MAX_SEQUENCE);
 
 	/* compute the register parameters */
 	for (int regnum = 0; regnum < 32; regnum++)
@@ -1204,7 +1168,10 @@ void ppc_device::device_reset()
 
 	/* initialize the 602 HID0 register */
 	if (m_flavor == PPC_MODEL_602)
+	{
+		m_core->spr[SPR602_ESASRR] = 0;
 		m_core->spr[SPR603_HID0] = 1;
+	}
 
 	/* time base starts here */
 	m_tb_zero_cycles = total_cycles();
@@ -1232,11 +1199,9 @@ void ppc_device::device_reset()
     CPU
 -------------------------------------------------*/
 
-offs_t ppc_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> ppc_device::create_disassembler()
 {
-	uint32_t op = *(uint32_t *)oprom;
-	op = big_endianize_int32(op);
-	return ppc_dasm_one(stream, pc, op);
+	return std::make_unique<powerpc_disassembler>();
 }
 
 
@@ -1370,6 +1335,15 @@ uint32_t ppc_device::ppccom_translate_address_internal(int intention, offs_t &ad
 		}
 	}
 
+#if 1
+	/* 602-specific Protection-Only mode */
+	if (m_flavor == PPC_MODEL_602 && m_core->spr[SPR603_HID0] & 0x00000080)
+	{
+		// TODO
+		return 0x001;
+	}
+#endif
+
 	/* look up the segment register */
 	segreg = m_core->sr[address >> 28];
 	if (transtype == TRANSLATE_FETCH && (segreg & 0x10000000))
@@ -1460,7 +1434,7 @@ uint32_t ppc_device::ppccom_translate_address_internal(int intention, offs_t &ad
     from logical to physical
 -------------------------------------------------*/
 
-bool ppc_device::memory_translate(address_spacenum spacenum, int intention, offs_t &address)
+bool ppc_device::memory_translate(int spacenum, int intention, offs_t &address)
 {
 	/* only applies to the program address space */
 	if (spacenum != AS_PROGRAM)
@@ -1552,7 +1526,10 @@ void ppc_device::ppccom_execute_tlbl()
 	vtlb_entry flags;
 	int entrynum;
 
-	/* determine entry number; we use rand() for associativity */
+	if (m_flavor == PPC_MODEL_602) // TODO
+		return;
+
+	/* determine entry number; we use machine().rand() for associativity */
 	entrynum = ((address >> 12) & 0x1f) | (machine().rand() & 0x20) | (isitlb ? 0x40 : 0);
 
 	/* determine the flags */
@@ -1629,6 +1606,23 @@ void ppc_device::ppccom_execute_mfspr()
 			/* decrementer */
 			case SPROEA_DEC:
 				m_core->param1 = get_decrementer();
+				return;
+		}
+	}
+
+	/* handle 602 SPRs */
+	if (m_flavor == PPC_MODEL_602)
+	{ // TODO: Which are read/write only?
+		switch (m_core->param0)
+		{
+			case SPR602_TCR:
+			case SPR602_IBR:
+			case SPR602_ESASRR:
+			case SPR602_SEBR:
+			case SPR602_SER:
+			case SPR602_SP:
+			case SPR602_LT:
+				m_core->param1 = m_core->spr[m_core->param0];
 				return;
 		}
 	}
@@ -1755,6 +1749,23 @@ void ppc_device::ppccom_execute_mtspr()
 			/* decrementer */
 			case SPROEA_DEC:
 				set_decrementer(m_core->param1);
+				return;
+		}
+	}
+
+	/* handle 602 SPRs */
+	if (m_flavor == PPC_MODEL_602)
+	{
+		switch (m_core->param0)
+		{ // TODO: Which are read/write only?
+			case SPR602_TCR:
+			case SPR602_IBR:
+			case SPR602_ESASRR:
+			case SPR602_SEBR:
+			case SPR602_SER:
+			case SPR602_SP:
+			case SPR602_LT:
+				m_core->spr[m_core->param0] = m_core->param1;
 				return;
 		}
 	}
@@ -2679,7 +2690,7 @@ void ppc_device::ppc4xx_spu_timer_reset()
 		attotime charperiod = clockperiod * (divisor * 16 * bpc);
 		m_spu.timer->adjust(charperiod, 0, charperiod);
 		if (PRINTF_SPU)
-			printf("ppc4xx_spu_timer_reset: baud rate = %.0f\n", ATTOSECONDS_TO_HZ(charperiod.attoseconds()) * bpc);
+			printf("ppc4xx_spu_timer_reset: baud rate = %.0f\n", charperiod.as_hz() * bpc);
 	}
 
 	/* otherwise, disable the timer */
@@ -2761,7 +2772,7 @@ updateirq:
     ppc4xx_spu_r - serial port read handler
 -------------------------------------------------*/
 
-READ8_MEMBER( ppc4xx_device::ppc4xx_spu_r )
+uint8_t ppc4xx_device::ppc4xx_spu_r(offs_t offset)
 {
 	uint8_t result = 0xff;
 
@@ -2787,7 +2798,7 @@ READ8_MEMBER( ppc4xx_device::ppc4xx_spu_r )
     ppc4xx_spu_w - serial port write handler
 -------------------------------------------------*/
 
-WRITE8_MEMBER( ppc4xx_device::ppc4xx_spu_w )
+void ppc4xx_device::ppc4xx_spu_w(offs_t offset, uint8_t data)
 {
 	uint8_t oldstate, newstate;
 

@@ -15,7 +15,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type S100_MDS_A = device_creator<s100_mds_a_device>;
+DEFINE_DEVICE_TYPE(S100_MDS_A, s100_mds_a_device, "s100_nsmdsa", "North Star MDS-A")
 
 
 //-------------------------------------------------
@@ -47,29 +47,20 @@ const tiny_rom_entry *s100_mds_a_device::device_rom_region() const
 //  SLOT_INTERFACE( mds_a_floppies )
 //-------------------------------------------------
 
-static SLOT_INTERFACE_START( mds_a_floppies )
-	SLOT_INTERFACE( "525sd", FLOPPY_525_SD ) // Shugart SA-400
-SLOT_INTERFACE_END
-
-
-//-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( mds_a )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( mds_a )
-	MCFG_FLOPPY_DRIVE_ADD("floppy0", mds_a_floppies, "525sd", floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("floppy1", mds_a_floppies, "525sd", floppy_image_device::default_floppy_formats)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor s100_mds_a_device::device_mconfig_additions() const
+static void mds_a_floppies(device_slot_interface &device)
 {
-	return MACHINE_CONFIG_NAME( mds_a );
+	device.option_add("525sd", FLOPPY_525_SD); // Shugart SA-400
+}
+
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void s100_mds_a_device::device_add_mconfig(machine_config &config)
+{
+	for (auto &floppy : m_floppy)
+		FLOPPY_CONNECTOR(config, floppy, mds_a_floppies, "525sd", floppy_image_device::default_floppy_formats);
 }
 
 
@@ -83,10 +74,9 @@ machine_config_constructor s100_mds_a_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 s100_mds_a_device::s100_mds_a_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, S100_MDS_A, "MDS-A", tag, owner, clock, "nsmdsa", __FILE__),
+	device_t(mconfig, S100_MDS_A, tag, owner, clock),
 	device_s100_card_interface(mconfig, *this),
-	m_floppy0(*this, "floppy0"),
-	m_floppy1(*this, "floppy1"),
+	m_floppy(*this, "floppy%u", 0U),
 	m_psel_rom(*this, "psel"),
 	m_pgm_rom(*this, "pgm")
 {
@@ -115,7 +105,7 @@ void s100_mds_a_device::device_reset()
 //  s100_smemr_r - memory read
 //-------------------------------------------------
 
-uint8_t s100_mds_a_device::s100_smemr_r(address_space &space, offs_t offset)
+uint8_t s100_mds_a_device::s100_smemr_r(offs_t offset)
 {
-	return 0;
+	return 0xff;
 }

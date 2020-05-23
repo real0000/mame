@@ -6,21 +6,13 @@
 
 **********************************************************************/
 
+#ifndef MAME_BUS_CBMIEC_SERIALBOX_H
+#define MAME_BUS_CBMIEC_SERIALBOX_H
+
 #pragma once
 
-#ifndef __SERIAL_BOX__
-#define __SERIAL_BOX__
-
+#include "cbmiec.h"
 #include "cpu/m6502/m65c02.h"
-#include "bus/cbmiec/cbmiec.h"
-
-
-
-//**************************************************************************
-//  MACROS / CONSTANTS
-//**************************************************************************
-
-#define SERIAL_BOX_TAG          "serialbox"
 
 
 
@@ -28,23 +20,22 @@
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-// ======================> serial_box_device
+// ======================> cbm_serial_box_device
 
-class serial_box_device :  public device_t,
-							public device_cbm_iec_interface
+class cbm_serial_box_device : public device_t, public device_cbm_iec_interface
 {
 public:
 	// construction/destruction
-	serial_box_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-
-	// optional information overrides
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	cbm_serial_box_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+
+	// optional information overrides
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	// device_cbm_iec_interface overrides
 	void cbm_iec_atn(int state) override;
@@ -53,12 +44,13 @@ protected:
 
 private:
 	required_device<m65c02_device> m_maincpu;
+
+	void serial_box_mem(address_map &map);
 };
 
 
 // device type definition
-extern const device_type SERIAL_BOX;
+DECLARE_DEVICE_TYPE(CBM_SERIAL_BOX, cbm_serial_box_device)
 
 
-
-#endif
+#endif // MAME_BUS_CBMIEC_SERIALBOX_H

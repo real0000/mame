@@ -27,8 +27,10 @@
 #include "ui/mainmenu.h"
 #include "ui/filemngr.h"
 #include "ui/sliders.h"
+#include "ui/state.h"
 #include "ui/viewgfx.h"
 #include "imagedev/cassette.h"
+#include "../osd/modules/lib/osdobj_common.h"
 
 
 /***************************************************************************
@@ -42,15 +44,13 @@ enum
 	LOADSAVE_SAVE
 };
 
-#define MAX_SAVED_STATE_JOYSTICK   4
-
 
 /***************************************************************************
     LOCAL VARIABLES
 ***************************************************************************/
 
 // list of natural keyboard keys that are not associated with UI_EVENT_CHARs
-static const input_item_id non_char_keys[] =
+static input_item_id const non_char_keys[] =
 {
 	ITEM_ID_ESC,
 	ITEM_ID_F1,
@@ -93,25 +93,6 @@ static const input_item_id non_char_keys[] =
 	ITEM_ID_CANCEL
 };
 
-static const char *s_color_list[] = {
-	OPTION_UI_BORDER_COLOR,
-	OPTION_UI_BACKGROUND_COLOR,
-	OPTION_UI_GFXVIEWER_BG_COLOR,
-	OPTION_UI_UNAVAILABLE_COLOR,
-	OPTION_UI_TEXT_COLOR,
-	OPTION_UI_TEXT_BG_COLOR,
-	OPTION_UI_SUBITEM_COLOR,
-	OPTION_UI_CLONE_COLOR,
-	OPTION_UI_SELECTED_COLOR,
-	OPTION_UI_SELECTED_BG_COLOR,
-	OPTION_UI_MOUSEOVER_COLOR,
-	OPTION_UI_MOUSEOVER_BG_COLOR,
-	OPTION_UI_MOUSEDOWN_COLOR,
-	OPTION_UI_MOUSEDOWN_BG_COLOR,
-	OPTION_UI_DIPSW_COLOR,
-	OPTION_UI_SLIDER_COLOR
-};
-
 /***************************************************************************
     GLOBAL VARIABLES
 ***************************************************************************/
@@ -130,7 +111,7 @@ slider_state *mame_ui_manager::slider_current;
     CORE IMPLEMENTATION
 ***************************************************************************/
 
-static const uint32_t mouse_bitmap[32*32] =
+static uint32_t const mouse_bitmap[32*32] =
 {
 	0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,
 	0x09a46f30,0x81ac7c43,0x24af8049,0x00ad7d45,0x00a8753a,0x00a46f30,0x009f6725,0x009b611c,0x00985b14,0x0095560d,0x00935308,0x00915004,0x00904e02,0x008f4e01,0x008f4d00,0x008f4d00,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,0x00ffffff,
@@ -182,9 +163,10 @@ mame_ui_manager::mame_ui_manager(running_machine &machine)
 	, m_showfps_end(0)
 	, m_show_profiler(false)
 	, m_popup_text_end(0)
+	, m_mouse_bitmap(32, 32)
 	, m_mouse_arrow_texture(nullptr)
 	, m_mouse_show(false)
-	, m_load_save_hold(false) {}
+	, m_target_font_height(0) {}
 
 mame_ui_manager::~mame_ui_manager()
 {
@@ -197,24 +179,35 @@ void mame_ui_manager::init()
 	ui::menu::init(machine(), options());
 	ui_gfx_init(machine());
 
-	get_font_rows(&machine());
-	decode_ui_color(0, &machine());
+	m_ui_colors.refresh(options());
+
+	// update font row info from setting
+	update_target_font_height();
 
 	// more initialization
 	using namespace std::placeholders;
 	set_handler(ui_callback_type::GENERAL, std::bind(&mame_ui_manager::handler_messagebox, this, _1));
 	m_non_char_keys_down = std::make_unique<uint8_t[]>((ARRAY_LENGTH(non_char_keys) + 7) / 8);
-	m_mouse_show = machine().system().flags & MACHINE_CLICKABLE_ARTWORK ? true : false;
+	m_mouse_show = machine().system().flags & machine_flags::CLICKABLE_ARTWORK ? true : false;
 
 	// request a callback upon exiting
 	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(&mame_ui_manager::exit, this));
 
 	// create mouse bitmap
-	bitmap_argb32 *ui_mouse_bitmap = auto_alloc(machine(), bitmap_argb32(32, 32));
-	uint32_t *dst = &ui_mouse_bitmap->pix32(0);
+	uint32_t *dst = &m_mouse_bitmap.pix32(0);
 	memcpy(dst,mouse_bitmap,32*32*sizeof(uint32_t));
 	m_mouse_arrow_texture = machine().render().texture_alloc();
-	m_mouse_arrow_texture->set_bitmap(*ui_mouse_bitmap, ui_mouse_bitmap->cliprect(), TEXFORMAT_ARGB32);
+	m_mouse_arrow_texture->set_bitmap(m_mouse_bitmap, m_mouse_bitmap.cliprect(), TEXFORMAT_ARGB32);
+}
+
+
+//-------------------------------------------------
+//  update_target_font_height
+//-------------------------------------------------
+
+void mame_ui_manager::update_target_font_height()
+{
+	m_target_font_height = 1.0f / options().font_rows();
 }
 
 
@@ -281,6 +274,26 @@ void mame_ui_manager::set_handler(ui_callback_type callback_type, const std::fun
 
 
 //-------------------------------------------------
+//  output_joined_collection
+//-------------------------------------------------
+
+template<typename TColl, typename TEmitMemberFunc, typename TEmitDelimFunc>
+static void output_joined_collection(const TColl &collection, TEmitMemberFunc emit_member, TEmitDelimFunc emit_delim)
+{
+	bool is_first = true;
+
+	for (const auto &member : collection)
+	{
+		if (is_first)
+			is_first = false;
+		else
+			emit_delim();
+		emit_member(member);
+	}
+}
+
+
+//-------------------------------------------------
 //  display_startup_screens - display the
 //  various startup screens
 //-------------------------------------------------
@@ -291,61 +304,61 @@ void mame_ui_manager::display_startup_screens(bool first_time)
 	int str = machine().options().seconds_to_run();
 	bool show_gameinfo = !machine().options().skip_gameinfo();
 	bool show_warnings = true, show_mandatory_fileman = true;
-	int state;
+	bool video_none = strcmp(downcast<osd_options &>(machine().options()).video(), OSDOPTVAL_NONE) == 0;
 
 	// disable everything if we are using -str for 300 or fewer seconds, or if we're the empty driver,
-	// or if we are debugging
-	if (!first_time || (str > 0 && str < 60*5) || &machine().system() == &GAME_NAME(___empty) || (machine().debug_flags & DEBUG_FLAG_ENABLED) != 0)
+	// or if we are debugging, or if there's no mame window to send inputs to
+	if (!first_time || (str > 0 && str < 60*5) || &machine().system() == &GAME_NAME(___empty) || (machine().debug_flags & DEBUG_FLAG_ENABLED) != 0 || video_none)
 		show_gameinfo = show_warnings = show_mandatory_fileman = false;
 
-	#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
 	// also disable for the JavaScript port since the startup screens do not run asynchronously
 	show_gameinfo = show_warnings = false;
-	#endif
+#endif
 
 	// loop over states
 	using namespace std::placeholders;
 	set_handler(ui_callback_type::GENERAL, std::bind(&mame_ui_manager::handler_ingame, this, _1));
-	for (state = 0; state < maxstate && !machine().scheduled_event_pending() && !ui::menu::stack_has_special_main_menu(machine()); state++)
+	for (int state = 0; state < maxstate && !machine().scheduled_event_pending() && !ui::menu::stack_has_special_main_menu(machine()); state++)
 	{
 		// default to standard colors
-		messagebox_backcolor = UI_BACKGROUND_COLOR;
+		messagebox_backcolor = colors().background_color();
 		messagebox_text.clear();
 
 		// pick the next state
 		switch (state)
 		{
-			case 0:
-				if (show_warnings)
-					messagebox_text = machine_info().warnings_string();
-				if (!messagebox_text.empty())
-				{
-					set_handler(ui_callback_type::MODAL, std::bind(&mame_ui_manager::handler_messagebox_anykey, this, _1));
-					// TODO: don't think BTANB should be marked yellow? Also move this snippet to specific getter
-					if (machine().system().flags & (MACHINE_WARNING_FLAGS|MACHINE_BTANB_FLAGS))
-						messagebox_backcolor = UI_YELLOW_COLOR;
-					if (machine().system().flags & (MACHINE_FATAL_FLAGS))
-						messagebox_backcolor = UI_RED_COLOR;
-				}
-				break;
+		case 0:
+			if (show_warnings)
+				messagebox_text = machine_info().warnings_string();
+			if (!messagebox_text.empty())
+			{
+				set_handler(ui_callback_type::MODAL, std::bind(&mame_ui_manager::handler_messagebox_anykey, this, _1));
+				messagebox_backcolor = machine_info().warnings_color();
+			}
+			break;
 
-			case 1:
-				if (show_gameinfo)
-					messagebox_text = machine_info().game_info_string();
-				if (!messagebox_text.empty())
-					set_handler(ui_callback_type::MODAL, std::bind(&mame_ui_manager::handler_messagebox_anykey, this, _1));
-				break;
+		case 1:
+			if (show_gameinfo)
+				messagebox_text = machine_info().game_info_string();
+			if (!messagebox_text.empty())
+				set_handler(ui_callback_type::MODAL, std::bind(&mame_ui_manager::handler_messagebox_anykey, this, _1));
+			break;
 
-			case 2:
-				if (show_mandatory_fileman)
-					messagebox_text = machine_info().mandatory_images();
-				if (!messagebox_text.empty())
-				{
-					std::string warning;
-					warning.assign(_("This driver requires images to be loaded in the following device(s): ")).append(messagebox_text.substr(0, messagebox_text.length() - 2));
-					ui::menu_file_manager::force_file_manager(*this, machine().render().ui_container(), warning.c_str());
-				}
-				break;
+		case 2:
+			std::vector<std::reference_wrapper<const std::string>> mandatory_images = mame_machine_manager::instance()->missing_mandatory_images();
+			if (!mandatory_images.empty() && show_mandatory_fileman)
+			{
+				std::ostringstream warning;
+				warning << _("This driver requires images to be loaded in the following device(s): ");
+
+				output_joined_collection(mandatory_images,
+					[&warning](const std::reference_wrapper<const std::string> &img)    { warning << "\"" << img.get() << "\""; },
+					[&warning]()                                                        { warning << ","; });
+
+				ui::menu_file_manager::force_file_manager(*this, machine().render().ui_container(), warning.str().c_str());
+			}
+			break;
 		}
 
 		// clear the input memory
@@ -381,7 +394,7 @@ void mame_ui_manager::set_startup_text(const char *text, bool force)
 
 	// copy in the new text
 	messagebox_text.assign(text);
-	messagebox_backcolor = UI_BACKGROUND_COLOR;
+	messagebox_backcolor = colors().background_color();
 
 	// don't update more than 4 times/second
 	if (force || (curtime - lastupdatetime) > osd_ticks_per_second() / 4)
@@ -403,7 +416,7 @@ void mame_ui_manager::update_and_render(render_container &container)
 	container.empty();
 
 	// if we're paused, dim the whole screen
-	if (machine().phase() >= MACHINE_PHASE_RESET && (single_step() || machine().paused()))
+	if (machine().phase() >= machine_phase::RESET && (single_step() || machine().paused()))
 	{
 		int alpha = (1.0f - machine().options().pause_brightness()) * 255.0f;
 		if (ui::menu::stack_has_special_main_menu(machine()))
@@ -415,7 +428,7 @@ void mame_ui_manager::update_and_render(render_container &container)
 	}
 
 	// render any cheat stuff at the bottom
-	if (machine().phase() >= MACHINE_PHASE_RESET)
+	if (machine().phase() >= machine_phase::RESET)
 		mame_machine_manager::instance()->cheat().render_text(*this, container);
 
 	// call the current UI handler
@@ -440,7 +453,7 @@ void mame_ui_manager::update_and_render(render_container &container)
 			if (mouse_target->map_point_container(mouse_target_x, mouse_target_y, container, mouse_x, mouse_y))
 			{
 				const float cursor_size = 0.6 * get_line_height();
-				container.add_quad(mouse_x, mouse_y, mouse_x + cursor_size * container.manager().ui_aspect(&container), mouse_y + cursor_size, UI_TEXT_COLOR, m_mouse_arrow_texture, PRIMFLAG_ANTIALIAS(1) | PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+				container.add_quad(mouse_x, mouse_y, mouse_x + cursor_size * container.manager().ui_aspect(&container), mouse_y + cursor_size, colors().text_color(), m_mouse_arrow_texture, PRIMFLAG_ANTIALIAS(1) | PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 			}
 		}
 	}
@@ -484,7 +497,7 @@ float mame_ui_manager::get_line_height()
 	one_to_one_line_height = (float)raw_font_pixel_height / (float)target_pixel_height;
 
 	// determine the scale factor
-	scale_factor = UI_TARGET_FONT_HEIGHT / one_to_one_line_height;
+	scale_factor = target_font_height() / one_to_one_line_height;
 
 	// if our font is small-ish, do integral scaling
 	if (raw_font_pixel_height < 24)
@@ -542,7 +555,7 @@ float mame_ui_manager::get_string_width(const char *s, float text_size)
 
 void mame_ui_manager::draw_outlined_box(render_container &container, float x0, float y0, float x1, float y1, rgb_t backcolor)
 {
-	draw_outlined_box(container, x0, y0, x1, y1, UI_BORDER_COLOR, backcolor);
+	draw_outlined_box(container, x0, y0, x1, y1, colors().border_color(), backcolor);
 }
 
 
@@ -568,7 +581,7 @@ void mame_ui_manager::draw_outlined_box(render_container &container, float x0, f
 
 void mame_ui_manager::draw_text(render_container &container, const char *buf, float x, float y)
 {
-	draw_text_full(container, buf, x, y, 1.0f - x, ui::text_layout::LEFT, ui::text_layout::WORD, mame_ui_manager::NORMAL, UI_TEXT_COLOR, UI_TEXT_BG_COLOR, nullptr, nullptr);
+	draw_text_full(container, buf, x, y, 1.0f - x, ui::text_layout::LEFT, ui::text_layout::WORD, mame_ui_manager::NORMAL, colors().text_color(), colors().text_bg_color(), nullptr, nullptr);
 }
 
 
@@ -610,7 +623,7 @@ void mame_ui_manager::draw_text_full(render_container &container, const char *or
 void mame_ui_manager::draw_text_box(render_container &container, const char *text, ui::text_layout::text_justify justify, float xpos, float ypos, rgb_t backcolor)
 {
 	// cap the maximum width
-	float maximum_width = 1.0f - UI_BOX_LR_BORDER * 2;
+	float maximum_width = 1.0f - box_lr_border() * 2;
 
 	// create a layout
 	ui::text_layout layout = create_layout(container, maximum_width, justify);
@@ -634,15 +647,15 @@ void mame_ui_manager::draw_text_box(render_container &container, ui::text_layout
 	auto actual_left = layout.actual_left();
 	auto actual_width = layout.actual_width();
 	auto actual_height = layout.actual_height();
-	auto x = std::min(std::max(xpos - actual_width / 2, UI_BOX_LR_BORDER), 1.0f - actual_width - UI_BOX_LR_BORDER);
-	auto y = std::min(std::max(ypos - actual_height / 2, UI_BOX_TB_BORDER), 1.0f - actual_height - UI_BOX_TB_BORDER);
+	auto x = std::min(std::max(xpos - actual_width / 2, box_lr_border()), 1.0f - actual_width - box_lr_border());
+	auto y = std::min(std::max(ypos - actual_height / 2, box_tb_border()), 1.0f - actual_height - box_tb_border());
 
 	// add a box around that
 	draw_outlined_box(container,
-			x - UI_BOX_LR_BORDER,
-			y - UI_BOX_TB_BORDER,
-			x + actual_width + UI_BOX_LR_BORDER,
-			y + actual_height + UI_BOX_TB_BORDER, backcolor);
+			x - box_lr_border(),
+			y - box_tb_border(),
+			x + actual_width + box_lr_border(),
+			y + actual_height + box_tb_border(), backcolor);
 
 	// emit the text
 	layout.emit(container, x - actual_left, y);
@@ -656,7 +669,7 @@ void mame_ui_manager::draw_text_box(render_container &container, ui::text_layout
 
 void mame_ui_manager::draw_message_window(render_container &container, const char *text)
 {
-	draw_text_box(container, text, ui::text_layout::text_justify::LEFT, 0.5f, 0.5f, UI_BACKGROUND_COLOR);
+	draw_text_box(container, text, ui::text_layout::text_justify::LEFT, 0.5f, 0.5f, colors().background_color());
 }
 
 
@@ -829,8 +842,8 @@ void mame_ui_manager::process_natural_keyboard()
 	while (machine().ui_input().pop_event(&event))
 	{
 		// if this was a UI_EVENT_CHAR event, post it
-		if (event.event_type == UI_EVENT_CHAR)
-			machine().ioport().natkeyboard().post(event.ch);
+		if (event.event_type == ui_event::IME_CHAR)
+			machine().ioport().natkeyboard().post_char(event.ch);
 	}
 
 	// process natural keyboard keys that don't get UI_EVENT_CHARs
@@ -853,7 +866,7 @@ void mame_ui_manager::process_natural_keyboard()
 			*key_down_ptr |= key_down_mask;
 
 			// post the key
-			machine().ioport().natkeyboard().post(UCHAR_MAMEKEY_BEGIN + code.item_id());
+			machine().ioport().natkeyboard().post_char(UCHAR_MAMEKEY_BEGIN + code.item_id());
 		}
 		else if (!pressed && (*key_down_ptr & key_down_mask))
 		{
@@ -904,36 +917,8 @@ void mame_ui_manager::decrease_frameskip()
 
 bool mame_ui_manager::can_paste()
 {
-	// retrieve the clipboard text
-	char *text = osd_get_clipboard_text();
-
-	// free the string if allocated
-	if (text != nullptr)
-		free(text);
-
-	// did we have text?
-	return text != nullptr;
-}
-
-
-//-------------------------------------------------
-//  paste - does a paste from the keyboard
-//-------------------------------------------------
-
-void mame_ui_manager::paste()
-{
-	// retrieve the clipboard text
-	char *text = osd_get_clipboard_text();
-
-	// was a result returned?
-	if (text != nullptr)
-	{
-		// post the text
-		machine().ioport().natkeyboard().post_utf8(text);
-
-		// free the string
-		free(text);
-	}
+	// check to see if the clipboard is not empty
+	return !osd_get_clipboard_text().empty();
 }
 
 
@@ -989,10 +974,9 @@ void mame_ui_manager::draw_profiler(render_container &container)
 
 void mame_ui_manager::start_save_state()
 {
-	machine().pause();
-	m_load_save_hold = true;
-	using namespace std::placeholders;
-	set_handler(ui_callback_type::GENERAL, std::bind(&mame_ui_manager::handler_load_save, this, _1, uint32_t(LOADSAVE_SAVE)));
+	ui::menu::stack_reset(machine());
+	show_menu();
+	ui::menu::stack_push<ui::menu_save_state>(*this, machine().render().ui_container());
 }
 
 
@@ -1002,10 +986,9 @@ void mame_ui_manager::start_save_state()
 
 void mame_ui_manager::start_load_state()
 {
-	machine().pause();
-	m_load_save_hold = true;
-	using namespace std::placeholders;
-	set_handler(ui_callback_type::GENERAL, std::bind(&mame_ui_manager::handler_load_save, this, _1, uint32_t(LOADSAVE_LOAD)));
+	ui::menu::stack_reset(machine());
+	show_menu();
+	ui::menu::stack_push<ui::menu_load_state>(*this, machine().render().ui_container());
 }
 
 
@@ -1017,7 +1000,7 @@ void mame_ui_manager::start_load_state()
 void mame_ui_manager::image_handler_ingame()
 {
 	// run display routine for devices
-	if (machine().phase() == MACHINE_PHASE_RUNNING)
+	if (machine().phase() == machine_phase::RUNNING)
 	{
 		auto layout = create_layout(machine().render().ui_container());
 
@@ -1036,8 +1019,8 @@ void mame_ui_manager::image_handler_ingame()
 		if (!layout.empty())
 		{
 			float x = 0.2f;
-			float y = 0.5f * get_line_height() + 2.0f * UI_BOX_TB_BORDER;
-			draw_text_box(machine().render().ui_container(), layout, x, y, UI_BACKGROUND_COLOR);
+			float y = 0.5f * get_line_height() + 2.0f * box_tb_border();
+			draw_text_box(machine().render().ui_container(), layout, x, y, colors().background_color());
 		}
 	}
 }
@@ -1112,14 +1095,14 @@ uint32_t mame_ui_manager::handler_ingame(render_container &container)
 	}
 
 	// is the natural keyboard enabled?
-	if (machine().ioport().natkeyboard().in_use() && (machine().phase() == MACHINE_PHASE_RUNNING))
+	if (machine().ioport().natkeyboard().in_use() && (machine().phase() == machine_phase::RUNNING))
 		process_natural_keyboard();
 
 	if (!ui_disabled)
 	{
 		// paste command
 		if (machine().ui_input().pressed(IPT_UI_PASTE))
-			paste();
+			machine().ioport().natkeyboard().paste();
 	}
 
 	image_handler_ingame();
@@ -1210,17 +1193,26 @@ uint32_t mame_ui_manager::handler_ingame(render_container &container)
 	// pause single step
 	if (machine().ui_input().pressed(IPT_UI_PAUSE_SINGLE))
 	{
+		machine().rewind_capture();
 		set_single_step(true);
 		machine().resume();
 	}
+
+	// rewind single step
+	if (machine().ui_input().pressed(IPT_UI_REWIND_SINGLE))
+		machine().rewind_step();
 
 	// handle a toggle cheats request
 	if (machine().ui_input().pressed(IPT_UI_TOGGLE_CHEAT))
 		mame_machine_manager::instance()->cheat().set_enable(!mame_machine_manager::instance()->cheat().enabled());
 
-	// toggle movie recording
-	if (machine().ui_input().pressed(IPT_UI_RECORD_MOVIE))
-		machine().video().toggle_record_movie();
+	// toggle MNG recording
+	if (machine().ui_input().pressed(IPT_UI_RECORD_MNG))
+		machine().video().toggle_record_movie(movie_recording::format::MNG);
+
+	// toggle MNG recording
+	if (machine().ui_input().pressed(IPT_UI_RECORD_AVI))
+		machine().video().toggle_record_movie(movie_recording::format::AVI);
 
 	// toggle profiler display
 	if (machine().ui_input().pressed(IPT_UI_SHOW_PROFILER))
@@ -1242,21 +1234,6 @@ uint32_t mame_ui_manager::handler_ingame(render_container &container)
 	if (machine().ui_input().pressed(IPT_UI_THROTTLE))
 		machine().video().toggle_throttle();
 
-	// toggle autofire
-	if (machine().ui_input().pressed(IPT_UI_TOGGLE_AUTOFIRE))
-	{
-		if (!machine().options().cheat())
-		{
-			machine().popmessage(_("Autofire can't be enabled"));
-		}
-		else
-		{
-			bool autofire_toggle = machine().ioport().get_autofire_toggle();
-			machine().ioport().set_autofire_toggle(!autofire_toggle);
-			machine().popmessage("Autofire %s", autofire_toggle ? _("Enabled") : _("Disabled"));
-		}
-	}
-
 	// check for fast forward
 	if (machine().ioport().type_pressed(IPT_UI_FAST_FORWARD))
 	{
@@ -1267,111 +1244,6 @@ uint32_t mame_ui_manager::handler_ingame(render_container &container)
 		machine().video().set_fastforward(false);
 
 	return 0;
-}
-
-
-//-------------------------------------------------
-//  handler_load_save - leads the user through
-//  specifying a game to save or load
-//-------------------------------------------------
-
-uint32_t mame_ui_manager::handler_load_save(render_container &container, uint32_t state)
-{
-	char filename[20];
-	char file = 0;
-
-	// if we're not in the middle of anything, skip
-	if (state == LOADSAVE_NONE)
-		return 0;
-
-	// okay, we're waiting for a key to select a slot; display a message
-	if (state == LOADSAVE_SAVE)
-		draw_message_window(container, _("Select position to save to"));
-	else
-		draw_message_window(container, _("Select position to load from"));
-
-	// if load/save state sequence is still being pressed, do not read the filename yet
-	if (m_load_save_hold) {
-		bool seq_in_progress = false;
-		const input_seq &load_save_seq = state == LOADSAVE_SAVE ?
-			machine().ioport().type_seq(IPT_UI_SAVE_STATE) :
-			machine().ioport().type_seq(IPT_UI_LOAD_STATE);
-
-		for (int i = 0; i < load_save_seq.length(); i++)
-			if (machine().input().code_pressed_once(load_save_seq[i]))
-				seq_in_progress = true;
-
-		if (seq_in_progress)
-			return state;
-		else
-			m_load_save_hold = false;
-	}
-
-	// check for cancel key
-	if (machine().ui_input().pressed(IPT_UI_CANCEL))
-	{
-		// display a popup indicating things were cancelled
-		if (state == LOADSAVE_SAVE)
-			machine().popmessage(_("Save cancelled"));
-		else
-			machine().popmessage(_("Load cancelled"));
-
-		// reset the state
-		machine().resume();
-		return UI_HANDLER_CANCEL;
-	}
-
-	// check for A-Z or 0-9
-	for (input_item_id id = ITEM_ID_A; id <= ITEM_ID_Z; ++id)
-		if (machine().input().code_pressed_once(input_code(DEVICE_CLASS_KEYBOARD, 0, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, id)))
-			file = id - ITEM_ID_A + 'a';
-	if (file == 0)
-		for (input_item_id id = ITEM_ID_0; id <= ITEM_ID_9; ++id)
-			if (machine().input().code_pressed_once(input_code(DEVICE_CLASS_KEYBOARD, 0, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, id)))
-				file = id - ITEM_ID_0 + '0';
-	if (file == 0)
-		for (input_item_id id = ITEM_ID_0_PAD; id <= ITEM_ID_9_PAD; ++id)
-			if (machine().input().code_pressed_once(input_code(DEVICE_CLASS_KEYBOARD, 0, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, id)))
-				file = id - ITEM_ID_0_PAD + '0';
-	if (file == 0)
-	{
-		bool found = false;
-
-		for (int joy_index = 0; joy_index <= MAX_SAVED_STATE_JOYSTICK; joy_index++)
-			for (input_item_id id = ITEM_ID_BUTTON1; id <= ITEM_ID_BUTTON32; ++id)
-				if (machine().input().code_pressed_once(input_code(DEVICE_CLASS_JOYSTICK, joy_index, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, id)))
-				{
-					snprintf(filename, sizeof(filename), "joy%i-%i", joy_index, id - ITEM_ID_BUTTON1 + 1);
-					found = true;
-					break;
-				}
-
-		if (!found)
-			return state;
-	}
-	else
-	{
-		sprintf(filename, "%c", file);
-	}
-
-	// display a popup indicating that the save will proceed
-	if (state == LOADSAVE_SAVE)
-	{
-		machine().popmessage(_("Save to position %s"), filename);
-		machine().schedule_save(filename);
-	}
-	else
-	{
-		machine().popmessage(_("Load from position %s"), filename);
-		machine().schedule_load(filename);
-	}
-
-	// avoid handling the name of the save state slot as a seperate input
-	machine().ui_input().mark_all_as_pressed();
-
-	// remove the pause and reset the state
-	machine().resume();
-	return UI_HANDLER_CANCEL;
 }
 
 
@@ -1447,10 +1319,9 @@ std::vector<ui::menu_item>& mame_ui_manager::get_slider_list(void)
 //  slider_alloc - allocate a new slider entry
 //-------------------------------------------------
 
-slider_state* mame_ui_manager::slider_alloc(running_machine &machine, int id, const char *title, int32_t minval, int32_t defval, int32_t maxval, int32_t incval, void *arg)
+std::unique_ptr<slider_state> mame_ui_manager::slider_alloc(int id, const char *title, int32_t minval, int32_t defval, int32_t maxval, int32_t incval, void *arg)
 {
-	int size = sizeof(slider_state) + strlen(title);
-	slider_state *state = (slider_state *)auto_alloc_array_clear(machine, uint8_t, size);
+	auto state = make_unique_clear<slider_state>();
 
 	state->minval = minval;
 	state->defval = defval;
@@ -1462,7 +1333,7 @@ slider_state* mame_ui_manager::slider_alloc(running_machine &machine, int id, co
 
 	state->arg = arg;
 	state->id = id;
-	strcpy(state->description, title);
+	state->description = title;
 
 	return state;
 }
@@ -1475,10 +1346,10 @@ slider_state* mame_ui_manager::slider_alloc(running_machine &machine, int id, co
 
 std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine)
 {
-	std::vector<slider_state *> sliders;
+	m_sliders.clear();
 
 	// add overall volume
-	sliders.push_back(slider_alloc(machine, SLIDER_ID_VOLUME, _("Master Volume"), -32, 0, 0, 1, nullptr));
+	m_sliders.push_back(slider_alloc(SLIDER_ID_VOLUME, _("Master Volume"), -32, 0, 0, 1, nullptr));
 
 	// add per-channel volume
 	mixer_input info;
@@ -1488,7 +1359,7 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 		int32_t defval = 1000;
 
 		std::string str = string_format(_("%1$s Volume"), info.stream->input_name(info.inputnum));
-		sliders.push_back(slider_alloc(machine, SLIDER_ID_MIXERVOL + item, str.c_str(), 0, defval, maxval, 20, (void *)(uintptr_t)item));
+		m_sliders.push_back(slider_alloc(SLIDER_ID_MIXERVOL + item, str.c_str(), 0, defval, maxval, 20, (void *)(uintptr_t)item));
 	}
 
 	// add analog adjusters
@@ -1499,7 +1370,7 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 		{
 			if (field.type() == IPT_ADJUSTER)
 			{
-				sliders.push_back(slider_alloc(machine, SLIDER_ID_ADJUSTER + slider_index++, field.name(), field.minval(), field.defvalue(), field.maxval(), 1, (void *)&field));
+				m_sliders.push_back(slider_alloc(SLIDER_ID_ADJUSTER + slider_index++, field.name(), field.minval(), field.defvalue(), field.maxval(), 1, (void *)&field));
 			}
 		}
 	}
@@ -1512,7 +1383,17 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 		{
 			void *param = (void *)&exec.device();
 			std::string str = string_format(_("Overclock CPU %1$s"), exec.device().tag());
-			sliders.push_back(slider_alloc(machine, SLIDER_ID_OVERCLOCK + slider_index++, str.c_str(), 10, 1000, 2000, 1, param));
+			m_sliders.push_back(slider_alloc(SLIDER_ID_OVERCLOCK + slider_index++, str.c_str(), 100, 1000, 4000, 10, param));
+		}
+		for (device_sound_interface &snd : sound_interface_iterator(machine.root_device()))
+		{
+			device_execute_interface *exec;
+			if (!snd.device().interface(exec) && snd.device().unscaled_clock() != 0)
+			{
+				void *param = (void *)&snd.device();
+				std::string str = string_format(_("Overclock %1$s sound"), snd.device().tag());
+				m_sliders.push_back(slider_alloc(SLIDER_ID_OVERCLOCK + slider_index++, str.c_str(), 100, 1000, 4000, 10, param));
+			}
 		}
 	}
 
@@ -1532,26 +1413,26 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 		if (machine.options().cheat())
 		{
 			std::string str = string_format(_("%1$s Refresh Rate"), screen_desc);
-			sliders.push_back(slider_alloc(machine, SLIDER_ID_REFRESH + slider_index, str.c_str(), -10000, 0, 10000, 1000, param));
+			m_sliders.push_back(slider_alloc(SLIDER_ID_REFRESH + slider_index, str.c_str(), -10000, 0, 10000, 1000, param));
 		}
 
 		// add standard brightness/contrast/gamma controls per-screen
 		std::string str = string_format(_("%1$s Brightness"), screen_desc);
-		sliders.push_back(slider_alloc(machine, SLIDER_ID_BRIGHTNESS + slider_index, str.c_str(), 100, 1000, 2000, 10, param));
+		m_sliders.push_back(slider_alloc(SLIDER_ID_BRIGHTNESS + slider_index, str.c_str(), 100, 1000, 2000, 10, param));
 		str = string_format(_("%1$s Contrast"), screen_desc);
-		sliders.push_back(slider_alloc(machine, SLIDER_ID_CONTRAST + slider_index, str.c_str(), 100, 1000, 2000, 50, param));
+		m_sliders.push_back(slider_alloc(SLIDER_ID_CONTRAST + slider_index, str.c_str(), 100, 1000, 2000, 50, param));
 		str = string_format(_("%1$s Gamma"), screen_desc);
-		sliders.push_back(slider_alloc(machine, SLIDER_ID_GAMMA + slider_index, str.c_str(), 100, 1000, 3000, 50, param));
+		m_sliders.push_back(slider_alloc(SLIDER_ID_GAMMA + slider_index, str.c_str(), 100, 1000, 3000, 50, param));
 
 		// add scale and offset controls per-screen
 		str = string_format(_("%1$s Horiz Stretch"), screen_desc);
-		sliders.push_back(slider_alloc(machine, SLIDER_ID_XSCALE + slider_index, str.c_str(), 500, defxscale, 1500, 2, param));
+		m_sliders.push_back(slider_alloc(SLIDER_ID_XSCALE + slider_index, str.c_str(), 500, defxscale, 1500, 2, param));
 		str = string_format(_("%1$s Horiz Position"), screen_desc);
-		sliders.push_back(slider_alloc(machine, SLIDER_ID_XOFFSET + slider_index, str.c_str(), -500, defxoffset, 500, 2, param));
+		m_sliders.push_back(slider_alloc(SLIDER_ID_XOFFSET + slider_index, str.c_str(), -500, defxoffset, 500, 2, param));
 		str = string_format(_("%1$s Vert Stretch"), screen_desc);
-		sliders.push_back(slider_alloc(machine, SLIDER_ID_YSCALE + slider_index, str.c_str(), 500, defyscale, 1500, 2, param));
+		m_sliders.push_back(slider_alloc(SLIDER_ID_YSCALE + slider_index, str.c_str(), 500, defyscale, 1500, 2, param));
 		str = string_format(_("%1$s Vert Position"), screen_desc);
-		sliders.push_back(slider_alloc(machine, SLIDER_ID_YOFFSET + slider_index, str.c_str(), -500, defyoffset, 500, 2, param));
+		m_sliders.push_back(slider_alloc(SLIDER_ID_YOFFSET + slider_index, str.c_str(), -500, defyoffset, 500, 2, param));
 		slider_index++;
 	}
 
@@ -1570,13 +1451,13 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 
 			// add scale and offset controls per-overlay
 			std::string str = string_format(_("Laserdisc '%1$s' Horiz Stretch"), laserdisc.tag());
-			sliders.push_back(slider_alloc(machine, SLIDER_ID_OVERLAY_XSCALE + slider_index, str.c_str(), 500, (defxscale == 0) ? 1000 : defxscale, 1500, 2, param));
+			m_sliders.push_back(slider_alloc(SLIDER_ID_OVERLAY_XSCALE + slider_index, str.c_str(), 500, (defxscale == 0) ? 1000 : defxscale, 1500, 2, param));
 			str = string_format(_("Laserdisc '%1$s' Horiz Position"), laserdisc.tag());
-			sliders.push_back(slider_alloc(machine, SLIDER_ID_OVERLAY_YSCALE + slider_index, str.c_str(), -500, defxoffset, 500, 2, param));
+			m_sliders.push_back(slider_alloc(SLIDER_ID_OVERLAY_YSCALE + slider_index, str.c_str(), -500, defxoffset, 500, 2, param));
 			str = string_format(_("Laserdisc '%1$s' Vert Stretch"), laserdisc.tag());
-			sliders.push_back(slider_alloc(machine, SLIDER_ID_OVERLAY_XOFFSET + slider_index, str.c_str(), 500, (defyscale == 0) ? 1000 : defyscale, 1500, 2, param));
+			m_sliders.push_back(slider_alloc(SLIDER_ID_OVERLAY_XOFFSET + slider_index, str.c_str(), 500, (defyscale == 0) ? 1000 : defyscale, 1500, 2, param));
 			str = string_format(_("Laserdisc '%1$s' Vert Position"), laserdisc.tag());
-			sliders.push_back(slider_alloc(machine, SLIDER_ID_OVERLAY_YOFFSET + slider_index, str.c_str(), -500, defyoffset, 500, 2, param));
+			m_sliders.push_back(slider_alloc(SLIDER_ID_OVERLAY_YOFFSET + slider_index, str.c_str(), -500, defyoffset, 500, 2, param));
 			slider_index++;
 		}
 	}
@@ -1587,10 +1468,10 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 		if (screen.screen_type() == SCREEN_TYPE_VECTOR)
 		{
 			// add vector control
-			sliders.push_back(slider_alloc(machine, SLIDER_ID_FLICKER + slider_index, _("Vector Flicker"), 0, 0, 1000, 10, nullptr));
-			sliders.push_back(slider_alloc(machine, SLIDER_ID_BEAM_WIDTH_MIN + slider_index, _("Beam Width Minimum"), 100, 100, 1000, 1, nullptr));
-			sliders.push_back(slider_alloc(machine, SLIDER_ID_BEAM_WIDTH_MAX + slider_index, _("Beam Width Maximum"), 100, 100, 1000, 1, nullptr));
-			sliders.push_back(slider_alloc(machine, SLIDER_ID_BEAM_INTENSITY + slider_index, _("Beam Intensity Weight"), -1000, 0, 1000, 10, nullptr));
+			m_sliders.push_back(slider_alloc(SLIDER_ID_FLICKER + slider_index, _("Vector Flicker"), 0, 0, 1000, 10, nullptr));
+			m_sliders.push_back(slider_alloc(SLIDER_ID_BEAM_WIDTH_MIN + slider_index, _("Beam Width Minimum"), 100, 100, 1000, 1, nullptr));
+			m_sliders.push_back(slider_alloc(SLIDER_ID_BEAM_WIDTH_MAX + slider_index, _("Beam Width Maximum"), 100, 100, 1000, 1, nullptr));
+			m_sliders.push_back(slider_alloc(SLIDER_ID_BEAM_INTENSITY + slider_index, _("Beam Intensity Weight"), -1000, 0, 1000, 10, nullptr));
 			slider_index++;
 			break;
 		}
@@ -1606,22 +1487,22 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 			if (field.crosshair_axis() != CROSSHAIR_AXIS_NONE && field.player() == 0)
 			{
 				std::string str = string_format(_("Crosshair Scale %1$s"), (field.crosshair_axis() == CROSSHAIR_AXIS_X) ? _("X") : _("Y"));
-				sliders.push_back(slider_alloc(machine, SLIDER_ID_CROSSHAIR_SCALE + slider_index, str.c_str(), -3000, 1000, 3000, 100, (void *)&field));
+				m_sliders.push_back(slider_alloc(SLIDER_ID_CROSSHAIR_SCALE + slider_index, str.c_str(), -3000, 1000, 3000, 100, (void *)&field));
 				str = string_format(_("Crosshair Offset %1$s"), (field.crosshair_axis() == CROSSHAIR_AXIS_X) ? _("X") : _("Y"));
-				sliders.push_back(slider_alloc(machine, SLIDER_ID_CROSSHAIR_OFFSET + slider_index, str.c_str(), -3000, 0, 3000, 100, (void *)&field));
+				m_sliders.push_back(slider_alloc(SLIDER_ID_CROSSHAIR_OFFSET + slider_index, str.c_str(), -3000, 0, 3000, 100, (void *)&field));
 			}
 		}
 	}
 #endif
 
 	std::vector<ui::menu_item> items;
-	for (slider_state *slider : sliders)
+	for (auto &slider : m_sliders)
 	{
 		ui::menu_item item;
 		item.text = slider->description;
 		item.subtext = "";
 		item.flags = 0;
-		item.ref = slider;
+		item.ref = slider.get();
 		item.type = ui::menu_item_type::SLIDER;
 		items.push_back(item);
 	}
@@ -1777,9 +1658,10 @@ int32_t mame_ui_manager::slider_refresh(running_machine &machine, void *arg, int
 		const rectangle &visarea = screen->visible_area();
 		screen->configure(width, height, visarea, HZ_TO_ATTOSECONDS(defrefresh + (double)newval * 0.001));
 	}
+
 	if (str)
-		*str = string_format(_("%1$.3ffps"), ATTOSECONDS_TO_HZ(machine.first_screen()->frame_period().attoseconds()));
-	refresh = ATTOSECONDS_TO_HZ(machine.first_screen()->frame_period().attoseconds());
+		*str = string_format(_("%1$.3f" UTF8_NBSP "Hz"), screen->frame_period().as_hz());
+	refresh = screen->frame_period().as_hz();
 	return floor((refresh - defrefresh) * 1000.0 + 0.5);
 }
 
@@ -2124,7 +2006,7 @@ int32_t mame_ui_manager::slider_crossoffset(running_machine &machine, void *arg,
 
 
 //-------------------------------------------------
-//  wrap_text
+//  create_layout
 //-------------------------------------------------
 
 ui::text_layout mame_ui_manager::create_layout(render_container &container, float width, ui::text_layout::text_justify justify, ui::text_layout::word_wrapping wrap)
@@ -2173,45 +2055,11 @@ void mame_ui_manager::draw_textured_box(render_container &container, float x0, f
 	container.add_line(x0, y1, x0, y0, UI_LINE_WIDTH, linecolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 }
 
-//-------------------------------------------------
-//  decode UI color options
-//-------------------------------------------------
-
-rgb_t decode_ui_color(int id, running_machine *machine)
-{
-	static rgb_t color[ARRAY_LENGTH(s_color_list)];
-
-	if (machine != nullptr) {
-		ui_options option;
-		for (int x = 0; x < ARRAY_LENGTH(s_color_list); ++x) {
-			const char *o_default = option.value(s_color_list[x]);
-			const char *s_option = mame_machine_manager::instance()->ui().options().value(s_color_list[x]);
-			int len = strlen(s_option);
-			if (len != 8)
-				color[x] = rgb_t((uint32_t)strtoul(o_default, nullptr, 16));
-			else
-				color[x] = rgb_t((uint32_t)strtoul(s_option, nullptr, 16));
-		}
-	}
-	return color[id];
-}
-
-//-------------------------------------------------
-//  get font rows from options
-//-------------------------------------------------
-
-int get_font_rows(running_machine *machine)
-{
-	static int value;
-
-	return ((machine != nullptr) ? value = mame_machine_manager::instance()->ui().options().font_rows() : value);
-}
-
 void mame_ui_manager::popup_time_string(int seconds, std::string message)
 {
 	// extract the text
 	messagebox_poptext = message;
-	messagebox_backcolor = UI_BACKGROUND_COLOR;
+	messagebox_backcolor = colors().background_color();
 
 	// set a timer
 	m_popup_text_end = osd_ticks() + osd_ticks_per_second() * seconds;
@@ -2229,14 +2077,18 @@ void mame_ui_manager::popup_time_string(int seconds, std::string message)
 void mame_ui_manager::load_ui_options()
 {
 	// parse the file
-	std::string error;
 	// attempt to open the output file
 	emu_file file(machine().options().ini_path(), OPEN_FLAG_READ);
 	if (file.open("ui.ini") == osd_file::error::NONE)
 	{
-		bool result = options().parse_ini_file((util::core_file&)file, OPTION_PRIORITY_MAME_INI, OPTION_PRIORITY_DRIVER_INI, error);
-		if (!result)
-			osd_printf_error("**Error loading ui.ini**");
+		try
+		{
+			options().parse_ini_file((util::core_file&)file, OPTION_PRIORITY_MAME_INI, OPTION_PRIORITY_MAME_INI < OPTION_PRIORITY_DRIVER_INI, true);
+		}
+		catch (options_exception &)
+		{
+			osd_printf_error("**Error loading ui.ini**\n");
+		}
 	}
 }
 
@@ -2267,35 +2119,47 @@ void mame_ui_manager::save_main_option()
 {
 	// parse the file
 	std::string error;
-	emu_options options(machine().options()); // This way we make sure that all OSD parts are in
-	std::string error_string;
+	emu_options options(emu_options::option_support::GENERAL_ONLY);
+
+	// This way we make sure that all OSD parts are in
+	osd_setup_osd_specific_emu_options(options);
+
+	options.copy_from(machine().options());
 
 	// attempt to open the main ini file
 	{
 		emu_file file(machine().options().ini_path(), OPEN_FLAG_READ);
-		if (file.open(emulator_info::get_configname(), ".ini") == osd_file::error::NONE)
+		if (file.open(std::string(emulator_info::get_configname()) + ".ini") == osd_file::error::NONE)
 		{
-			bool result = options.parse_ini_file((util::core_file&)file, OPTION_PRIORITY_MAME_INI, OPTION_PRIORITY_DRIVER_INI, error);
-			if (!result)
+			try
 			{
-				osd_printf_error("**Error loading %s.ini**", emulator_info::get_configname());
+				options.parse_ini_file((util::core_file&)file, OPTION_PRIORITY_MAME_INI, OPTION_PRIORITY_MAME_INI < OPTION_PRIORITY_DRIVER_INI, true);
+			}
+			catch(options_error_exception &)
+			{
+				osd_printf_error("**Error loading %s.ini**\n", emulator_info::get_configname());
 				return;
+			}
+			catch (options_exception &)
+			{
+				// ignore other exceptions related to options
 			}
 		}
 	}
 
-	for (emu_options::entry &f_entry : machine().options())
+	for (const auto &f_entry : machine().options().entries())
 	{
-		if (f_entry.is_changed())
+		const char *value = f_entry->value();
+		if (value && options.exists(f_entry->name()) && strcmp(value, options.value(f_entry->name().c_str())))
 		{
-			options.set_value(f_entry.name(), f_entry.value(), OPTION_PRIORITY_CMDLINE, error_string);
+			options.set_value(f_entry->name(), *f_entry->value(), OPTION_PRIORITY_CMDLINE);
 		}
 	}
 
 	// attempt to open the output file
 	{
 		emu_file file(machine().options().ini_path(), OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
-		if (file.open(emulator_info::get_configname(), ".ini") == osd_file::error::NONE)
+		if (file.open(std::string(emulator_info::get_configname()) + ".ini") == osd_file::error::NONE)
 		{
 			// generate the updated INI
 			std::string initext = options.output_ini();
@@ -2313,4 +2177,24 @@ void mame_ui_manager::save_main_option()
 void mame_ui_manager::menu_reset()
 {
 	ui::menu::stack_reset(machine());
+}
+
+void ui_colors::refresh(const ui_options &options)
+{
+	m_border_color = options.border_color();
+	m_background_color = options.background_color();
+	m_gfxviewer_bg_color = options.gfxviewer_bg_color();
+	m_unavailable_color = options.unavailable_color();
+	m_text_color = options.text_color();
+	m_text_bg_color = options.text_bg_color();
+	m_subitem_color = options.subitem_color();
+	m_clone_color = options.clone_color();
+	m_selected_color = options.selected_color();
+	m_selected_bg_color = options.selected_bg_color();
+	m_mouseover_color = options.mouseover_color();
+	m_mouseover_bg_color = options.mouseover_bg_color();
+	m_mousedown_color = options.mousedown_color();
+	m_mousedown_bg_color = options.mousedown_bg_color();
+	m_dipsw_color = options.dipsw_color();
+	m_slider_color = options.slider_color();
 }

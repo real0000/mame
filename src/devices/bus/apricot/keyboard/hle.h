@@ -6,14 +6,16 @@
 
 ***************************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_APRICOT_KEYBOARD_HLE_H
+#define MAME_BUS_APRICOT_KEYBOARD_HLE_H
 
-#ifndef __APRICOT_KEYBOARD_HLE_H__
-#define __APRICOT_KEYBOARD_HLE_H__
+#pragma once
 
 #include "keyboard.h"
 #include "machine/keyboard.h"
 #include "machine/msm5832.h"
+#include "machine/timer.h"
+#include "diserial.h"
 
 
 //**************************************************************************
@@ -37,7 +39,7 @@ public:
 protected:
 	// device_t overrides
 	virtual ioport_constructor device_input_ports() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
@@ -49,14 +51,14 @@ protected:
 	virtual void key_make(uint8_t row, uint8_t column) override;
 	virtual void key_break(uint8_t row, uint8_t column) override;
 
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
-
 private:
-	required_device<msm5832_device> m_rtc;
+	TIMER_DEVICE_CALLBACK_MEMBER(mouse_callback);
 
 	enum {
 		CMD_REQ_TIME_AND_DATE = 0xe1,
 		CMD_SET_TIME_AND_DATE = 0xe4,
+		CMD_ENABLE_MOUSE      = 0xe5,
+		CMD_DISABLE_MOUSE     = 0xe6,
 		CMD_KEYBOARD_RESET    = 0xe8
 	};
 
@@ -64,12 +66,21 @@ private:
 		ACK_DIAGNOSTICS = 0xfb
 	};
 
+	required_device<msm5832_device> m_rtc;
+	required_ioport m_mouse_b;
+	required_ioport m_mouse_x;
+	required_ioport m_mouse_y;
+
 	int m_rtc_index;
+	bool m_mouse_enabled;
+	uint8_t m_mouse_last_b;
+	uint8_t m_mouse_last_x;
+	uint8_t m_mouse_last_y;
 };
 
 
 // device type definition
-extern const device_type APRICOT_KEYBOARD_HLE;
+DECLARE_DEVICE_TYPE(APRICOT_KEYBOARD_HLE, apricot_keyboard_hle_device)
 
 
-#endif // __APRICOT_KEYBOARD_HLE_H__
+#endif // MAME_BUS_APRICOT_KEYBOARD_HLE_H

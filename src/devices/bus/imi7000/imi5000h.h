@@ -8,14 +8,14 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_IMI7000_IMI5000H_H
+#define MAME_BUS_IMI7000_IMI5000H_H
 
-#ifndef __IMI5000H__
-#define __IMI5000H__
+#pragma once
 
 #include "imi7000.h"
 #include "cpu/z80/z80.h"
-#include "cpu/z80/z80daisy.h"
+#include "machine/z80daisy.h"
 #include "machine/z80ctc.h"
 #include "machine/z80pio.h"
 
@@ -34,36 +34,39 @@ public:
 	// construction/destruction
 	imi5000h_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// optional information overrides
-	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	virtual ioport_constructor device_input_ports() const override;
-
-	DECLARE_WRITE_LINE_MEMBER( ctc_z0_w );
-	DECLARE_WRITE_LINE_MEMBER( ctc_z1_w );
-	DECLARE_WRITE_LINE_MEMBER( ctc_z2_w );
-
-	DECLARE_READ8_MEMBER( pio0_pa_r );
-	DECLARE_WRITE8_MEMBER( pio0_pa_w );
-	DECLARE_READ8_MEMBER( pio0_pb_r );
-	DECLARE_WRITE8_MEMBER( pio0_pb_w );
-
-	DECLARE_READ8_MEMBER( pio2_pa_r );
-	DECLARE_WRITE8_MEMBER( pio2_pa_w );
-	DECLARE_READ8_MEMBER( pio2_pb_r );
-	DECLARE_WRITE8_MEMBER( pio2_pb_w );
-
-	DECLARE_READ8_MEMBER( pio3_pa_r );
-	DECLARE_WRITE8_MEMBER( pio3_pa_w );
-	DECLARE_READ8_MEMBER( pio3_pb_r );
-	DECLARE_WRITE8_MEMBER( pio3_pb_w );
-
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
+	// optional information overrides
+	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+	virtual ioport_constructor device_input_ports() const override;
+
 private:
+	DECLARE_WRITE_LINE_MEMBER( ctc_z0_w );
+	DECLARE_WRITE_LINE_MEMBER( ctc_z1_w );
+	DECLARE_WRITE_LINE_MEMBER( ctc_z2_w );
+
+	uint8_t pio0_pa_r();
+	void pio0_pa_w(uint8_t data);
+	uint8_t pio0_pb_r();
+	void pio0_pb_w(uint8_t data);
+
+	uint8_t pio2_pa_r();
+	void pio2_pa_w(uint8_t data);
+	uint8_t pio2_pb_r();
+	void pio2_pb_w(uint8_t data);
+
+	uint8_t pio3_pa_r();
+	void pio3_pa_w(uint8_t data);
+	uint8_t pio3_pb_r();
+	void pio3_pb_w(uint8_t data);
+
+	void imi5000h_io(address_map &map);
+	void imi5000h_mem(address_map &map);
+
 	enum
 	{
 		LED_FAULT,
@@ -71,7 +74,7 @@ private:
 		LED_READY
 	};
 
-	required_device<cpu_device> m_maincpu;
+	required_device<z80_device> m_maincpu;
 	required_device<z80ctc_device> m_ctc;
 	required_ioport m_lsi11;
 	required_ioport m_mux;
@@ -81,8 +84,6 @@ private:
 
 
 // device type definition
-extern const device_type IMI5000H;
+DECLARE_DEVICE_TYPE(IMI5000H, imi5000h_device)
 
-
-
-#endif
+#endif // MAME_BUS_IMI7000_IMI5000H_H

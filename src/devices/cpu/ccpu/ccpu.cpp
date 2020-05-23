@@ -11,21 +11,22 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "debugger.h"
 #include "ccpu.h"
+#include "ccpudasm.h"
+#include "debugger.h"
 
 
-const device_type CCPU = device_creator<ccpu_cpu_device>;
+DEFINE_DEVICE_TYPE(CCPU, ccpu_cpu_device, "ccpu", "Cinematronics CPU")
 
 
 /***************************************************************************
     MACROS
 ***************************************************************************/
 
-#define READOP(a)         (m_direct->read_byte(a))
+#define READOP(a)         (m_cache->read_byte(a))
 
-#define RDMEM(a)          (m_data->read_word((a) * 2) & 0xfff)
-#define WRMEM(a,v)        (m_data->write_word((a) * 2, (v)))
+#define RDMEM(a)          (m_data->read_word((a) & 0xfff))
+#define WRMEM(a,v)        (m_data->write_word((a), (v)))
 
 #define READPORT(a)       (m_io->read_byte(a))
 #define WRITEPORT(a,v)    (m_io->write_byte((a), (v)))
@@ -63,17 +64,26 @@ do { \
 ***************************************************************************/
 
 ccpu_cpu_device::ccpu_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, CCPU, "Cinematronics CPU", tag, owner, clock, "ccpu", __FILE__)
+	: cpu_device(mconfig, CCPU, tag, owner, clock)
 	, m_program_config("program", ENDIANNESS_BIG, 8, 15, 0)
 	, m_data_config("data", ENDIANNESS_BIG, 16, 32, -1)
 	, m_io_config("io", ENDIANNESS_BIG, 8, 5, 0)
 	, m_external_input(*this)
+	, m_vector_callback(*this)
 	, m_flags(0)
 {
 }
 
+device_memory_interface::space_config_vector ccpu_cpu_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_DATA,    &m_data_config),
+		std::make_pair(AS_IO,      &m_io_config)
+	};
+}
 
-READ8_MEMBER( ccpu_cpu_device::read_jmi )
+uint8_t ccpu_cpu_device::read_jmi()
 {
 	/* this routine is called when there is no external input */
 	/* and the JMI jumper is present */
@@ -94,11 +104,11 @@ void ccpu_cpu_device::device_start()
 {
 	/* copy input params */
 	m_external_input.resolve_safe(0);
-	m_vector_callback.bind_relative_to(*owner());
+	m_vector_callback.resolve();
 	assert(!m_vector_callback.isnull());
 
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_cache = m_program->cache<0, 0, ENDIANNESS_BIG>();
 	m_data = &space(AS_DATA);
 	m_io = &space(AS_IO);
 
@@ -137,7 +147,7 @@ void ccpu_cpu_device::device_start()
 	state_add(STATE_GENPCBASE, "CURPC", m_PC).noshow();
 	state_add(STATE_GENFLAGS, "GENFLAGS", m_flags).formatstr("%6s").noshow();
 
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 }
 
 
@@ -211,7 +221,7 @@ void ccpu_cpu_device::execute_run()
 		opcode = READOP(m_PC);
 		if (opcode == 0x51 || opcode == 0x59)
 			m_extinput = m_external_input();
-		debugger_instruction_hook(this, m_PC);
+		debugger_instruction_hook(m_PC);
 		m_PC++;
 
 		switch (opcode)
@@ -687,8 +697,7 @@ void ccpu_cpu_device::execute_run()
 }
 
 
-offs_t ccpu_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> ccpu_cpu_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( ccpu );
-	return CPU_DISASSEMBLE_NAME(ccpu)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<ccpu_disassembler>();
 }

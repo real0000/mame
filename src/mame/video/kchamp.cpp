@@ -12,16 +12,14 @@
 #include "includes/kchamp.h"
 
 
-PALETTE_INIT_MEMBER(kchamp_state, kchamp)
+void kchamp_state::kchamp_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	int i, red, green, blue;
-
-	for (i = 0; i < palette.entries(); i++)
+	uint8_t const *const color_prom = memregion("proms")->base();
+	for (int i = 0; i < palette.entries(); i++)
 	{
-		red = color_prom[i];
-		green = color_prom[palette.entries() + i];
-		blue = color_prom[2 * palette.entries() + i];
+		int const red = color_prom[i];
+		int const green = color_prom[palette.entries() + i];
+		int const blue = color_prom[2 * palette.entries() + i];
 
 		palette.set_pen_color(i, pal4bit(red), pal4bit(green), pal4bit(blue));
 	}
@@ -39,9 +37,9 @@ WRITE8_MEMBER(kchamp_state::kchamp_colorram_w)
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
-WRITE8_MEMBER(kchamp_state::kchamp_flipscreen_w)
+WRITE_LINE_MEMBER(kchamp_state::flipscreen_w)
 {
-	flip_screen_set(data & 0x01);
+	flip_screen_set(state);
 }
 
 TILE_GET_INFO_MEMBER(kchamp_state::get_bg_tile_info)
@@ -49,12 +47,12 @@ TILE_GET_INFO_MEMBER(kchamp_state::get_bg_tile_info)
 	int code = m_videoram[tile_index] + ((m_colorram[tile_index] & 7) << 8);
 	int color = (m_colorram[tile_index] >> 3) & 0x1f;
 
-	SET_TILE_INFO_MEMBER(0, code, color, 0);
+	tileinfo.set(0, code, color, 0);
 }
 
 void kchamp_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(kchamp_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(kchamp_state::get_bg_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 /*

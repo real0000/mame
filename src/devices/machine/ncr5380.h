@@ -5,8 +5,10 @@
  *
  */
 
-#ifndef _NCR5380_H_
-#define _NCR5380_H_
+#ifndef MAME_MACHINE_NCR5380_H
+#define MAME_MACHINE_NCR5380_H
+
+#pragma once
 
 #include "legscsi.h"
 
@@ -34,8 +36,6 @@ enum
 
 // device stuff
 
-#define MCFG_NCR5380_IRQ_CB(_devcb) \
-	devcb = &ncr5380_device::set_irq_callback(*device, DEVCB_##_devcb);
 
 class ncr5380_device : public legacy_scsi_host_adapter
 {
@@ -43,7 +43,7 @@ public:
 	// construction/destruction
 	ncr5380_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_irq_callback(device_t &device, _Object object) { return downcast<ncr5380_device &>(device).m_irq_cb.set_callback(object); }
+	auto irq_callback() { return m_irq_cb.bind(); }
 
 	// our API
 	uint8_t ncr5380_read_reg(uint32_t offset);
@@ -65,6 +65,6 @@ private:
 };
 
 // device type definition
-extern const device_type NCR5380;
+DECLARE_DEVICE_TYPE(NCR5380, ncr5380_device)
 
-#endif
+#endif // MAME_MACHINE_NCR5380_H

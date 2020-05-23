@@ -11,6 +11,7 @@ Atari Sprint 4 driver
 #include "audio/sprint4.h"
 
 #include "cpu/m6502/m6502.h"
+#include "machine/74259.h"
 #include "speaker.h"
 
 #define MASTER_CLOCK    12096000
@@ -21,27 +22,24 @@ Atari Sprint 4 driver
 #define PIXEL_CLOCK    (MASTER_CLOCK / 2)
 
 
-CUSTOM_INPUT_MEMBER(sprint4_state::get_lever)
+template <int N>
+READ_LINE_MEMBER(sprint4_state::lever_r)
 {
-	int n = (uintptr_t) param;
-
-	return 4 * m_gear[n] > m_da_latch;
+	return 4 * m_gear[N] > m_da_latch;
 }
 
 
-CUSTOM_INPUT_MEMBER(sprint4_state::get_wheel)
+template <int N>
+READ_LINE_MEMBER(sprint4_state::wheel_r)
 {
-	int n = (uintptr_t) param;
-
-	return 8 * m_steer_FF1[n] + 8 * m_steer_FF2[n] > m_da_latch;
+	return 8 * m_steer_FF1[N] + 8 * m_steer_FF2[N] > m_da_latch;
 }
 
 
-CUSTOM_INPUT_MEMBER(sprint4_state::get_collision)
+template <int N>
+READ_LINE_MEMBER(sprint4_state::collision_flipflop_r)
 {
-	int n = (uintptr_t) param;
-
-	return m_collision[n];
+	return m_collision[N];
 }
 
 
@@ -53,7 +51,7 @@ void sprint4_state::device_timer(emu_timer &timer, device_timer_id id, int param
 		nmi_callback(ptr, param);
 		break;
 	default:
-		assert_always(false, "Unknown id in sprint4_state::device_timer");
+		throw emu_fatalerror("Unknown id in sprint4_state::device_timer");
 	}
 }
 
@@ -79,11 +77,9 @@ TIMER_CALLBACK_MEMBER(sprint4_state::nmi_callback)
 		static_cast<uint8_t>(ioport("LEVER4")->read())
 	};
 
-	int i;
-
 	/* emulation of steering wheels isn't very accurate */
 
-	for (i = 0; i < 4; i++)
+	for (int i = 0; i < 4; i++)
 	{
 		signed char delta = wheel[i] - m_last_wheel[i];
 
@@ -118,15 +114,28 @@ TIMER_CALLBACK_MEMBER(sprint4_state::nmi_callback)
 	m_watchdog->watchdog_enable(ioport("IN0")->read() & 0x40);
 
 	if (ioport("IN0")->read() & 0x40)
-		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_maincpu->pulse_input_line(INPUT_LINE_NMI, attotime::zero);
 
-	timer_set(m_screen->time_until_pos(scanline), TIMER_NMI, scanline);
+	m_nmi_timer->adjust(m_screen->time_until_pos(scanline), scanline);
+}
+
+
+void sprint4_state::machine_start()
+{
+	m_nmi_timer = timer_alloc(TIMER_NMI);
+
+	save_item(NAME(m_da_latch));
+	save_item(NAME(m_steer_FF1));
+	save_item(NAME(m_steer_FF2));
+	save_item(NAME(m_gear));
+	save_item(NAME(m_last_wheel));
+	save_item(NAME(m_collision));
 }
 
 
 void sprint4_state::machine_reset()
 {
-	timer_set(m_screen->time_until_pos(32), TIMER_NMI, 32);
+	m_nmi_timer->adjust(m_screen->time_until_pos(32), 32);
 
 	memset(m_steer_FF1, 0, sizeof m_steer_FF1);
 	memset(m_steer_FF2, 0, sizeof m_steer_FF2);
@@ -140,131 +149,98 @@ void sprint4_state::machine_reset()
 }
 
 
-READ8_MEMBER(sprint4_state::sprint4_wram_r)
+READ8_MEMBER(sprint4_state::wram_r)
 {
-	uint8_t *videoram = m_videoram;
-	return videoram[0x380 + offset];
+	return m_videoram[0x380 + offset];
 }
 
 
-READ8_MEMBER(sprint4_state::sprint4_analog_r)
+READ8_MEMBER(sprint4_state::analog_r)
 {
 	return (ioport("ANALOG")->read() << (~offset & 7)) & 0x80;
 }
-READ8_MEMBER(sprint4_state::sprint4_coin_r)
+READ8_MEMBER(sprint4_state::coin_r)
 {
 	return (ioport("COIN")->read() << (~offset & 7)) & 0x80;
 }
-READ8_MEMBER(sprint4_state::sprint4_collision_r)
+READ8_MEMBER(sprint4_state::collision_r)
 {
 	return (ioport("COLLISION")->read() << (~offset & 7)) & 0x80;
 }
 
 
-READ8_MEMBER(sprint4_state::sprint4_options_r)
+READ8_MEMBER(sprint4_state::options_r)
 {
 	return (ioport("DIP")->read() >> (2 * (offset & 3))) & 3;
 }
 
 
-WRITE8_MEMBER(sprint4_state::sprint4_wram_w)
+WRITE8_MEMBER(sprint4_state::wram_w)
 {
-	uint8_t *videoram = m_videoram;
-	videoram[0x380 + offset] = data;
+	m_videoram[0x380 + offset] = data;
 }
 
 
-WRITE8_MEMBER(sprint4_state::sprint4_collision_reset_w)
+WRITE8_MEMBER(sprint4_state::collision_reset_w)
 {
 	m_collision[(offset >> 1) & 3] = 0;
 }
 
 
-WRITE8_MEMBER(sprint4_state::sprint4_da_latch_w)
+WRITE8_MEMBER(sprint4_state::da_latch_w)
 {
 	m_da_latch = data & 15;
 }
 
 
-WRITE8_MEMBER(sprint4_state::sprint4_lamp_w)
-{
-	output().set_led_value((offset >> 1) & 3, offset & 1);
-}
-
 
 #ifdef UNUSED_FUNCTION
-WRITE8_MEMBER(sprint4_state::sprint4_lockout_w)
+WRITE8_MEMBER(sprint4_state::lockout_w)
 {
 	machine().bookkeeping().coin_lockout_global_w(~offset & 1);
 }
 #endif
 
 
-WRITE8_MEMBER(sprint4_state::sprint4_screech_1_w)
+WRITE8_MEMBER(sprint4_state::bang_w)
 {
-	m_discrete->write(space, SPRINT4_SCREECH_EN_1, offset & 1);
+	m_discrete->write(SPRINT4_BANG_DATA, data & 0x0f);
 }
 
 
-WRITE8_MEMBER(sprint4_state::sprint4_screech_2_w)
+WRITE8_MEMBER(sprint4_state::attract_w)
 {
-	m_discrete->write(space, SPRINT4_SCREECH_EN_2, offset & 1);
+	m_discrete->write(SPRINT4_ATTRACT_EN, data & 1);
 }
 
 
-WRITE8_MEMBER(sprint4_state::sprint4_screech_3_w)
+void sprint4_state::sprint4_cpu_map(address_map &map)
 {
-	m_discrete->write(space, SPRINT4_SCREECH_EN_3, offset & 1);
+
+	map.global_mask(0x3fff);
+
+	map(0x0080, 0x00ff).mirror(0x700).rw(FUNC(sprint4_state::wram_r), FUNC(sprint4_state::wram_w));
+	map(0x0800, 0x0bff).mirror(0x400).ram().w(FUNC(sprint4_state::video_ram_w)).share("videoram");
+
+	map(0x0000, 0x0007).mirror(0x718).r(FUNC(sprint4_state::analog_r));
+	map(0x0020, 0x0027).mirror(0x718).r(FUNC(sprint4_state::coin_r));
+	map(0x0040, 0x0047).mirror(0x718).r(FUNC(sprint4_state::collision_r));
+	map(0x0060, 0x0063).mirror(0x71c).r(FUNC(sprint4_state::options_r));
+
+	map(0x1000, 0x17ff).portr("IN0");
+	map(0x1800, 0x1fff).portr("IN1");
+
+	map(0x0000, 0x0000).mirror(0x71f).w(FUNC(sprint4_state::attract_w));
+	map(0x0020, 0x0027).mirror(0x718).w(FUNC(sprint4_state::collision_reset_w));
+	map(0x0040, 0x0041).mirror(0x718).w(FUNC(sprint4_state::da_latch_w));
+	map(0x0042, 0x0043).mirror(0x718).w(FUNC(sprint4_state::bang_w));
+	map(0x0044, 0x0045).mirror(0x718).w(m_watchdog, FUNC(watchdog_timer_device::reset_w));
+	map(0x0060, 0x006f).mirror(0x710).w("latch", FUNC(f9334_device::write_a0));
+
+	map(0x2000, 0x27ff).noprw(); /* diagnostic ROM */
+	map(0x2800, 0x3fff).rom();
+
 }
-
-
-WRITE8_MEMBER(sprint4_state::sprint4_screech_4_w)
-{
-	m_discrete->write(space, SPRINT4_SCREECH_EN_4, offset & 1);
-}
-
-WRITE8_MEMBER(sprint4_state::sprint4_bang_w)
-{
-	m_discrete->write(space, SPRINT4_BANG_DATA, data & 0x0f);
-}
-
-
-WRITE8_MEMBER(sprint4_state::sprint4_attract_w)
-{
-	m_discrete->write(space, SPRINT4_ATTRACT_EN, data & 1);
-}
-
-
-static ADDRESS_MAP_START( sprint4_cpu_map, AS_PROGRAM, 8, sprint4_state )
-
-	ADDRESS_MAP_GLOBAL_MASK(0x3fff)
-
-	AM_RANGE(0x0080, 0x00ff) AM_MIRROR(0x700) AM_READWRITE(sprint4_wram_r, sprint4_wram_w)
-	AM_RANGE(0x0800, 0x0bff) AM_MIRROR(0x400) AM_RAM_WRITE(sprint4_video_ram_w) AM_SHARE("videoram")
-
-	AM_RANGE(0x0000, 0x0007) AM_MIRROR(0x718) AM_READ(sprint4_analog_r)
-	AM_RANGE(0x0020, 0x0027) AM_MIRROR(0x718) AM_READ(sprint4_coin_r)
-	AM_RANGE(0x0040, 0x0047) AM_MIRROR(0x718) AM_READ(sprint4_collision_r)
-	AM_RANGE(0x0060, 0x0063) AM_MIRROR(0x71c) AM_READ(sprint4_options_r)
-
-	AM_RANGE(0x1000, 0x17ff) AM_READ_PORT("IN0")
-	AM_RANGE(0x1800, 0x1fff) AM_READ_PORT("IN1")
-
-	AM_RANGE(0x0000, 0x0000) AM_MIRROR(0x71f) AM_WRITE(sprint4_attract_w)
-	AM_RANGE(0x0020, 0x0027) AM_MIRROR(0x718) AM_WRITE(sprint4_collision_reset_w)
-	AM_RANGE(0x0040, 0x0041) AM_MIRROR(0x718) AM_WRITE(sprint4_da_latch_w)
-	AM_RANGE(0x0042, 0x0043) AM_MIRROR(0x718) AM_WRITE(sprint4_bang_w)
-	AM_RANGE(0x0044, 0x0045) AM_MIRROR(0x718) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)
-	AM_RANGE(0x0060, 0x0067) AM_MIRROR(0x710) AM_WRITE(sprint4_lamp_w)
-	AM_RANGE(0x0068, 0x0069) AM_MIRROR(0x710) AM_WRITE(sprint4_screech_1_w)
-	AM_RANGE(0x006a, 0x006b) AM_MIRROR(0x710) AM_WRITE(sprint4_screech_2_w)
-	AM_RANGE(0x006c, 0x006d) AM_MIRROR(0x710) AM_WRITE(sprint4_screech_3_w)
-	AM_RANGE(0x006e, 0x006f) AM_MIRROR(0x710) AM_WRITE(sprint4_screech_4_w)
-
-	AM_RANGE(0x2000, 0x27ff) AM_NOP /* diagnostic ROM */
-	AM_RANGE(0x2800, 0x3fff) AM_ROM
-
-ADDRESS_MAP_END
 
 
 static INPUT_PORTS_START( sprint4 )
@@ -278,13 +254,13 @@ static INPUT_PORTS_START( sprint4 )
 
 	PORT_START("COLLISION")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("Player 1 Gas") PORT_PLAYER(1)
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sprint4_state, get_collision, (void *)0 )
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sprint4_state, collision_flipflop_r<0>)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("Player 2 Gas") PORT_PLAYER(2)
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sprint4_state, get_collision, (void *)1 )
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sprint4_state, collision_flipflop_r<1>)
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("Player 3 Gas") PORT_PLAYER(3)
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sprint4_state, get_collision, (void *)2 )
+	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sprint4_state, collision_flipflop_r<2>)
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("Player 4 Gas") PORT_PLAYER(4)
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sprint4_state, get_collision, (void *)3 )
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sprint4_state, collision_flipflop_r<3>)
 
 	PORT_START("COIN")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
@@ -315,14 +291,14 @@ static INPUT_PORTS_START( sprint4 )
 	PORT_DIPSETTING(    0xe0, "150 seconds" )
 
 	PORT_START("ANALOG")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sprint4_state, get_wheel, (void *)0)
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sprint4_state, get_lever, (void *)0)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sprint4_state, get_wheel, (void *)1)
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sprint4_state, get_lever, (void *)1)
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sprint4_state, get_wheel, (void *)2)
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sprint4_state, get_lever, (void *)2)
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sprint4_state, get_wheel, (void *)3)
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sprint4_state, get_lever, (void *)3)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sprint4_state, wheel_r<0>)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sprint4_state, lever_r<0>)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sprint4_state, wheel_r<1>)
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sprint4_state, lever_r<1>)
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sprint4_state, wheel_r<2>)
+	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sprint4_state, lever_r<2>)
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sprint4_state, wheel_r<3>)
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sprint4_state, lever_r<3>)
 
 	PORT_START("WHEEL1")
 	PORT_BIT( 0xff, 0x00, IPT_DIAL ) PORT_SENSITIVITY(100) PORT_KEYDELTA(16) PORT_PLAYER(1)
@@ -355,10 +331,10 @@ static INPUT_PORTS_START( sprint4 )
 	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_BUTTON5 ) PORT_NAME("Player 3 Gear 4") PORT_CODE(KEYCODE_O) PORT_PLAYER(3)
 
 	PORT_START("LEVER4")
-	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("Player 4 Gear 1") PORT_PLAYER(3)
-	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_BUTTON3 ) PORT_NAME("Player 4 Gear 2") PORT_PLAYER(3)
-	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_BUTTON4 ) PORT_NAME("Player 4 Gear 3") PORT_PLAYER(3)
-	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_BUTTON5 ) PORT_NAME("Player 4 Gear 4") PORT_PLAYER(3)
+	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("Player 4 Gear 1") PORT_PLAYER(4)
+	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_BUTTON3 ) PORT_NAME("Player 4 Gear 2") PORT_PLAYER(4)
+	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_BUTTON4 ) PORT_NAME("Player 4 Gear 3") PORT_PLAYER(4)
+	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_BUTTON5 ) PORT_NAME("Player 4 Gear 4") PORT_PLAYER(4)
 
 	PORT_START("MOTOR1")
 	PORT_ADJUSTER( 35, "Motor 1 RPM" )
@@ -394,42 +370,48 @@ static const gfx_layout car_layout =
 };
 
 
-static GFXDECODE_START( sprint4 )
+static GFXDECODE_START( gfx_sprint4 )
 	GFXDECODE_ENTRY( "gfx1", 0, gfx_8x8x1, 0, 5 )
 	GFXDECODE_ENTRY( "gfx2", 0, car_layout, 0, 5 )
 GFXDECODE_END
 
 
-static MACHINE_CONFIG_START( sprint4, sprint4_state )
-
+void sprint4_state::sprint4(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6502, PIXEL_CLOCK / 8)
-	MCFG_CPU_PROGRAM_MAP(sprint4_cpu_map)
+	M6502(config, m_maincpu, PIXEL_CLOCK / 8);
+	m_maincpu->set_addrmap(AS_PROGRAM, &sprint4_state::sprint4_cpu_map);
 
-	MCFG_WATCHDOG_ADD("watchdog")
-	MCFG_WATCHDOG_VBLANK_INIT("screen", 8)
+	WATCHDOG_TIMER(config, m_watchdog).set_vblank_count(m_screen, 8);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, 0, 256, VTOTAL, 0, 224)
-	MCFG_SCREEN_UPDATE_DRIVER(sprint4_state, screen_update_sprint4)
-	MCFG_SCREEN_VBLANK_DRIVER(sprint4_state, screen_eof_sprint4)
-	MCFG_SCREEN_PALETTE("palette")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_raw(PIXEL_CLOCK, HTOTAL, 0, 256, VTOTAL, 0, 224);
+	m_screen->set_screen_update(FUNC(sprint4_state::screen_update));
+	m_screen->screen_vblank().set(FUNC(sprint4_state::screen_vblank));
+	m_screen->set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sprint4)
-	MCFG_PALETTE_ADD("palette", 10)
-	MCFG_PALETTE_INDIRECT_ENTRIES(6)
-	MCFG_PALETTE_INIT_OWNER(sprint4_state, sprint4)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_sprint4);
+	PALETTE(config, m_palette, FUNC(sprint4_state::sprint4_palette), 10, 6);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
 
-	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_DISCRETE_INTF(sprint4)
-	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
+	f9334_device &latch(F9334(config, "latch")); // at E11
+	latch.q_out_cb<0>().set_output("led0"); // START LAMP 1
+	latch.q_out_cb<1>().set_output("led1"); // START LAMP 2
+	latch.q_out_cb<2>().set_output("led2"); // START LAMP 3
+	latch.q_out_cb<3>().set_output("led3"); // START LAMP 4
+	latch.q_out_cb<4>().set("discrete", FUNC(discrete_device::write_line<SPRINT4_SCREECH_EN_1>));
+	latch.q_out_cb<5>().set("discrete", FUNC(discrete_device::write_line<SPRINT4_SCREECH_EN_2>));
+	latch.q_out_cb<6>().set("discrete", FUNC(discrete_device::write_line<SPRINT4_SCREECH_EN_3>));
+	latch.q_out_cb<7>().set("discrete", FUNC(discrete_device::write_line<SPRINT4_SCREECH_EN_4>));
 
-MACHINE_CONFIG_END
+	DISCRETE(config, m_discrete, sprint4_discrete);
+	m_discrete->add_route(0, "lspeaker", 1.0);
+	m_discrete->add_route(1, "rspeaker", 1.0);
+}
 
 
 ROM_START( sprint4 )
@@ -472,5 +454,5 @@ ROM_START( sprint4a )
 ROM_END
 
 
-GAME( 1977, sprint4,  0,       sprint4,  sprint4, driver_device,  0, ROT180, "Atari", "Sprint 4 (set 1)", 0 ) /* large cars */
-GAME( 1977, sprint4a, sprint4, sprint4,  sprint4, driver_device,  0, ROT180, "Atari", "Sprint 4 (set 2)", 0 ) /* small cars */
+GAME( 1977, sprint4,  0,       sprint4,  sprint4, sprint4_state, empty_init, ROT180, "Atari", "Sprint 4 (set 1)", MACHINE_SUPPORTS_SAVE ) /* large cars */
+GAME( 1977, sprint4a, sprint4, sprint4,  sprint4, sprint4_state, empty_init, ROT180, "Atari", "Sprint 4 (set 2)", MACHINE_SUPPORTS_SAVE ) /* small cars */

@@ -39,12 +39,13 @@ WRITE8_MEMBER(pcktgal_state::bank_w)
 WRITE8_MEMBER(pcktgal_state::sound_bank_w)
 {
 	membank("bank3")->set_entry((data >> 2) & 1);
+	m_msm->reset_w((data & 2) >> 1);
 }
 
 WRITE8_MEMBER(pcktgal_state::sound_w)
 {
-	m_soundlatch->write(space, 0, data);
-	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_soundlatch->write(data);
+	m_audiocpu->pulse_input_line(INPUT_LINE_NMI, attotime::zero);
 }
 
 
@@ -63,43 +64,46 @@ WRITE8_MEMBER(pcktgal_state::adpcm_data_w)
 	m_msm5205next = data;
 }
 
-READ8_MEMBER(pcktgal_state::adpcm_reset_r)
+READ8_MEMBER(pcktgal_state::sound_unk_r)
 {
-	m_msm->reset_w(0);
+	// POST only? Unknown purpose
+//  m_msm->reset_w(0);
 	return 0;
 }
 
 /***************************************************************************/
 
-static ADDRESS_MAP_START( pcktgal_map, AS_PROGRAM, 8, pcktgal_state )
-	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x0800, 0x0fff) AM_DEVREADWRITE("tilegen1", deco_bac06_device, pf_data_8bit_r, pf_data_8bit_w)
-	AM_RANGE(0x1000, 0x11ff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x1800, 0x1800) AM_READ_PORT("P1")
-	AM_RANGE(0x1800, 0x1807) AM_DEVWRITE("tilegen1", deco_bac06_device, pf_control0_8bit_w)
-	AM_RANGE(0x1810, 0x181f) AM_DEVREADWRITE("tilegen1", deco_bac06_device, pf_control1_8bit_r, pf_control1_8bit_w)
+void pcktgal_state::pcktgal_map(address_map &map)
+{
+	map(0x0000, 0x07ff).ram();
+	map(0x0800, 0x0fff).rw(m_tilegen, FUNC(deco_bac06_device::pf_data_8bit_r), FUNC(deco_bac06_device::pf_data_8bit_w));
+	map(0x1000, 0x11ff).ram().share("spriteram");
+	map(0x1800, 0x1800).portr("P1");
+	map(0x1800, 0x1807).w(m_tilegen, FUNC(deco_bac06_device::pf_control0_8bit_w));
+	map(0x1810, 0x181f).rw(m_tilegen, FUNC(deco_bac06_device::pf_control1_8bit_r), FUNC(deco_bac06_device::pf_control1_8bit_w));
 
-	AM_RANGE(0x1a00, 0x1a00) AM_READ_PORT("P2") AM_WRITE(sound_w)
-	AM_RANGE(0x1c00, 0x1c00) AM_READ_PORT("DSW") AM_WRITE(bank_w)
-	AM_RANGE(0x4000, 0x5fff) AM_ROMBANK("bank1")
-	AM_RANGE(0x6000, 0x7fff) AM_ROMBANK("bank2")
-	AM_RANGE(0x8000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+	map(0x1a00, 0x1a00).portr("P2").w(FUNC(pcktgal_state::sound_w));
+	map(0x1c00, 0x1c00).portr("DSW").w(FUNC(pcktgal_state::bank_w));
+	map(0x4000, 0x5fff).bankr("bank1");
+	map(0x6000, 0x7fff).bankr("bank2");
+	map(0x8000, 0xffff).rom();
+}
 
 
 /***************************************************************************/
 
-static ADDRESS_MAP_START( pcktgal_sound_map, AS_PROGRAM, 8, pcktgal_state )
-	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x0800, 0x0801) AM_DEVWRITE("ym1", ym2203_device, write)
-	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE("ym2", ym3812_device, write)
-	AM_RANGE(0x1800, 0x1800) AM_WRITE(adpcm_data_w) /* ADPCM data for the MSM5205 chip */
-	AM_RANGE(0x2000, 0x2000) AM_WRITE(sound_bank_w)
-	AM_RANGE(0x3000, 0x3000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
-	AM_RANGE(0x3400, 0x3400) AM_READ(adpcm_reset_r) /* ? not sure */
-	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank3")
-	AM_RANGE(0x8000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void pcktgal_state::pcktgal_sound_map(address_map &map)
+{
+	map(0x0000, 0x07ff).ram();
+	map(0x0800, 0x0801).w("ym1", FUNC(ym2203_device::write));
+	map(0x1000, 0x1001).w("ym2", FUNC(ym3812_device::write));
+	map(0x1800, 0x1800).w(FUNC(pcktgal_state::adpcm_data_w)); /* ADPCM data for the MSM5205 chip */
+	map(0x2000, 0x2000).w(FUNC(pcktgal_state::sound_bank_w));
+	map(0x3000, 0x3000).r(m_soundlatch, FUNC(generic_latch_8_device::read));
+	map(0x3400, 0x3400).r(FUNC(pcktgal_state::sound_unk_r));
+	map(0x4000, 0x7fff).bankr("bank3");
+	map(0x8000, 0xffff).rom();
+}
 
 
 /***************************************************************************/
@@ -197,12 +201,12 @@ static const gfx_layout bootleg_spritelayout =
 	32*8    /* every char takes 8 consecutive bytes */
 };
 
-static GFXDECODE_START( pcktgal )
+static GFXDECODE_START( gfx_pcktgal )
 	GFXDECODE_ENTRY( "gfx1", 0x00000, charlayout,   256, 16 ) /* chars */
 	GFXDECODE_ENTRY( "gfx2", 0x00000, spritelayout,   0,  8 ) /* sprites */
 GFXDECODE_END
 
-static GFXDECODE_START( bootleg )
+static GFXDECODE_START( gfx_bootleg )
 	GFXDECODE_ENTRY( "gfx1", 0x00000, bootleg_charlayout,   256, 16 ) /* chars */
 	GFXDECODE_ENTRY( "gfx2", 0x00000, bootleg_spritelayout,   0,  8 ) /* sprites */
 GFXDECODE_END
@@ -221,92 +225,88 @@ void pcktgal_state::machine_start()
 	save_item(NAME(m_toggle));
 }
 
-static MACHINE_CONFIG_START( pcktgal, pcktgal_state )
-
+void pcktgal_state::pcktgal(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6502, 2000000)
-	MCFG_CPU_PROGRAM_MAP(pcktgal_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", pcktgal_state,  nmi_line_pulse)
+	M6502(config, m_maincpu, 2000000);
+	m_maincpu->set_addrmap(AS_PROGRAM, &pcktgal_state::pcktgal_map);
 
-	MCFG_CPU_ADD("audiocpu", DECO_222, 1500000)
-	MCFG_CPU_PROGRAM_MAP(pcktgal_sound_map)
-							/* IRQs are caused by the ADPCM chip */
-							/* NMIs are caused by the main CPU */
+	DECO_222(config, m_audiocpu, 1500000);
+	m_audiocpu->set_addrmap(AS_PROGRAM, &pcktgal_state::pcktgal_sound_map);
+	/* IRQs are caused by the ADPCM chip */
+	/* NMIs are caused by the main CPU */
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(pcktgal_state, screen_update_pcktgal)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(32*8, 32*8);
+	screen.set_visarea(0*8, 32*8-1, 2*8, 30*8-1);
+	screen.set_screen_update(FUNC(pcktgal_state::screen_update_pcktgal));
+	screen.set_palette(m_palette);
+	screen.screen_vblank().set_inputline(m_maincpu, INPUT_LINE_NMI);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pcktgal)
-	MCFG_PALETTE_ADD("palette", 512)
-	MCFG_PALETTE_INIT_OWNER(pcktgal_state, pcktgal)
+	GFXDECODE(config, m_gfxdecode, "palette", gfx_pcktgal);
+	PALETTE(config, m_palette, FUNC(pcktgal_state::pcktgal_palette), 512);
 
-
-	MCFG_DEVICE_ADD("tilegen1", DECO_BAC06, 0)
-	MCFG_DECO_BAC06_GFX_REGION_WIDE(0, 0, 0)
-	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
+	DECO_BAC06(config, m_tilegen, 0);
+	m_tilegen->set_gfx_region_wide(0, 0, 0);
+	m_tilegen->set_gfxdecode_tag(m_gfxdecode);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	GENERIC_LATCH_8(config, m_soundlatch);
 
-	MCFG_SOUND_ADD("ym1", YM2203, 1500000)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
+	YM2203(config, "ym1", 1500000).add_route(ALL_OUTPUTS, "mono", 0.60);
+	YM3812(config, "ym2", 3000000).add_route(ALL_OUTPUTS, "mono", 1.00);
 
-	MCFG_SOUND_ADD("ym2", YM3812, 3000000)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MSM5205(config, m_msm, 384000);
+	m_msm->vck_legacy_callback().set(FUNC(pcktgal_state::adpcm_int));
+	m_msm->set_prescaler_selector(msm5205_device::S48_4B);  // 8kHz
+	m_msm->add_route(ALL_OUTPUTS, "mono", 0.70);
+}
 
-	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(pcktgal_state, adpcm_int))  /* interrupt function */
-	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8KHz            */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
-MACHINE_CONFIG_END
+void pcktgal_state::bootleg(machine_config &config)
+{
+	pcktgal(config);
+	m_gfxdecode->set_info(gfx_bootleg);
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(pcktgal_state::screen_update_pcktgalb));
+}
 
-
-static MACHINE_CONFIG_DERIVED( bootleg, pcktgal )
-	MCFG_GFXDECODE_MODIFY("gfxdecode", bootleg)
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(pcktgal_state, screen_update_pcktgalb)
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_DERIVED( pcktgal2, pcktgal )
-	MCFG_DEVICE_REMOVE("audiocpu")
-	MCFG_CPU_ADD("audiocpu", M6502, 1500000) /* doesn't use the encrypted 222 */
-	MCFG_CPU_PROGRAM_MAP(pcktgal_sound_map)
-MACHINE_CONFIG_END
+void pcktgal_state::pcktgal2(machine_config &config)
+{
+	pcktgal(config);
+	M6502(config.replace(), m_audiocpu, 1500000); /* doesn't use the encrypted 222 */
+	m_audiocpu->set_addrmap(AS_PROGRAM, &pcktgal_state::pcktgal_sound_map);
+}
 
 /***************************************************************************/
 
 ROM_START( pcktgal )
 	ROM_REGION( 0x14000, "maincpu", 0 )  /* 64k for code + 16k for banks */
-	ROM_LOAD( "eb04.j7",       0x10000, 0x4000, CRC(8215d60d) SHA1(ac26dfce7e215be21f2a17f864c5e966b8b8322e) )
-	ROM_CONTINUE(              0x04000, 0xc000)
+	ROM_LOAD( "eb04.j7", 0x10000, 0x4000, CRC(8215d60d) SHA1(ac26dfce7e215be21f2a17f864c5e966b8b8322e) )
+	ROM_CONTINUE(        0x04000, 0xc000)
 	/* 4000-7fff is banked but code falls through from 7fff to 8000, so */
 	/* I have to load the bank directly at 4000. */
 
 	ROM_REGION( 0x18000, "audiocpu", 0 )     /* 96k for code + 96k for decrypted opcodes */
-	ROM_LOAD( "eb03.f2",       0x10000, 0x8000, CRC(cb029b02) SHA1(fbb3da08ed05ae73fbeeb13e0e2ff735aaf83db8) )
-	ROM_CONTINUE(              0x08000, 0x8000 )
+	ROM_LOAD( "eb03.f2", 0x10000, 0x8000, CRC(cb029b02) SHA1(fbb3da08ed05ae73fbeeb13e0e2ff735aaf83db8) )
+	ROM_CONTINUE(        0x08000, 0x8000 )
 
 	ROM_REGION( 0x20000, "gfx1", 0 )
-	ROM_LOAD( "eb01.d11",      0x00000, 0x10000, CRC(63542c3d) SHA1(4f42af99a6d9d4766afe0bebe10d6a97811a0082) )
-	ROM_LOAD( "eb02.d12",      0x10000, 0x10000, CRC(a9dcd339) SHA1(245824ab86cdfe4b842ce1be0af60f2ff4c6ae07) )
+	ROM_LOAD( "eb01.d11", 0x00000, 0x10000, CRC(63542c3d) SHA1(4f42af99a6d9d4766afe0bebe10d6a97811a0082) )
+	ROM_LOAD( "eb02.d12", 0x10000, 0x10000, CRC(a9dcd339) SHA1(245824ab86cdfe4b842ce1be0af60f2ff4c6ae07) )
 
 	ROM_REGION( 0x10000, "gfx2", 0 )
-	ROM_LOAD( "eb00.a1",      0x00000, 0x10000, CRC(6c1a14a8) SHA1(03201197304c5f1d854b8c4f4a5c78336b51f872) )
+	ROM_LOAD( "eb00.a1", 0x00000, 0x10000, CRC(6c1a14a8) SHA1(03201197304c5f1d854b8c4f4a5c78336b51f872) )
 
 	ROM_REGION( 0x0400, "proms", 0 )
-	ROM_LOAD( "eb05.k14",     0x0000, 0x0200, CRC(3b6198cb) SHA1(d32b364cfce99637998ca83ad21783f80364dd65) ) /* 82s147.084 */
-	ROM_LOAD( "eb06.k15",     0x0200, 0x0200, CRC(1fbd4b59) SHA1(84e20329003cf09b849b49e1d83edc330d49f404) ) /* 82s131.101 */
+	ROM_LOAD( "eb05.k14", 0x0000, 0x0200, CRC(3b6198cb) SHA1(d32b364cfce99637998ca83ad21783f80364dd65) ) /* 82s147.084 */
+	ROM_LOAD( "eb06.k15", 0x0200, 0x0200, CRC(1fbd4b59) SHA1(84e20329003cf09b849b49e1d83edc330d49f404) ) /* 82s131.101 */
 ROM_END
 
-ROM_START( pcktgalb )
+ROM_START( pcktgalb )  /* bootleg - "Yada East Corporation" */
 	ROM_REGION( 0x14000, "maincpu", 0 )  /* 64k for code + 16k for banks */
 	ROM_LOAD( "sexybill.001", 0x10000, 0x4000, CRC(4acb3e84) SHA1(c83d03969587c6be80fb8fc84afe250907674a44) )
 	ROM_CONTINUE(             0x04000, 0xc000)
@@ -314,8 +314,8 @@ ROM_START( pcktgalb )
 	/* I have to load the bank directly at 4000. */
 
 	ROM_REGION( 0x18000, "audiocpu", 0 )     /* 96k for code + 96k for decrypted opcodes */
-	ROM_LOAD( "eb03.f2",       0x10000, 0x8000, CRC(cb029b02) SHA1(fbb3da08ed05ae73fbeeb13e0e2ff735aaf83db8) )
-	ROM_CONTINUE(             0x08000, 0x8000 )
+	ROM_LOAD( "eb03.f2", 0x10000, 0x8000, CRC(cb029b02) SHA1(fbb3da08ed05ae73fbeeb13e0e2ff735aaf83db8) )
+	ROM_CONTINUE(        0x08000, 0x8000 )
 
 	ROM_REGION( 0x20000, "gfx1", 0 )
 	ROM_LOAD( "sexybill.005", 0x00000, 0x10000, CRC(3128dc7b) SHA1(d011181e544b8284ecdf54578da5469804e06c63) )
@@ -326,116 +326,120 @@ ROM_START( pcktgalb )
 	ROM_LOAD( "sexybill.004", 0x08000, 0x08000, CRC(33a67af6) SHA1(6d9c04658ed75b970821a5c8b1f60c3c08fdda0a) )
 
 	ROM_REGION( 0x0400, "proms", 0 )
-	ROM_LOAD( "eb05.k14",     0x0000, 0x0200, CRC(3b6198cb) SHA1(d32b364cfce99637998ca83ad21783f80364dd65) ) /* 82s147.084 */
-	ROM_LOAD( "eb06.k15",     0x0200, 0x0200, CRC(1fbd4b59) SHA1(84e20329003cf09b849b49e1d83edc330d49f404) ) /* 82s131.101 */
+	ROM_LOAD( "eb05.k14", 0x0000, 0x0200, CRC(3b6198cb) SHA1(d32b364cfce99637998ca83ad21783f80364dd65) ) /* 82s147.084 */
+	ROM_LOAD( "eb06.k15", 0x0200, 0x0200, CRC(1fbd4b59) SHA1(84e20329003cf09b849b49e1d83edc330d49f404) ) /* 82s131.101 */
+
+	ROM_REGION( 0x0400, "plds", 0 ) // same as official sets?
+	ROM_LOAD( "pal16l8", 0x0000, 0x0104, CRC(b8d4b318) SHA1(6dd68892501c9b61714aaa7a3cfe14cc8ad1a877) )
+	ROM_LOAD( "pal16r6", 0x0200, 0x0104, CRC(43aad537) SHA1(892104f4315d7a739718ce32b910694ea9b13fae) ) /* also seen peel18CV8 used on other boards */
 ROM_END
 
 ROM_START( pcktgal2 )
 	ROM_REGION( 0x14000, "maincpu", 0 )  /* 64k for code + 16k for banks */
-	ROM_LOAD( "eb04-2.j7",   0x10000, 0x4000, CRC(0c7f2905) SHA1(882dbc1888a0149486c1fac5568dc3d297c2dadd) )
-	ROM_CONTINUE(             0x04000, 0xc000)
+	ROM_LOAD( "eb04-2.j7", 0x10000, 0x4000, CRC(0c7f2905) SHA1(882dbc1888a0149486c1fac5568dc3d297c2dadd) )
+	ROM_CONTINUE(          0x04000, 0xc000)
 	/* 4000-7fff is banked but code falls through from 7fff to 8000, so */
 	/* I have to load the bank directly at 4000. */
 
 	ROM_REGION( 0x18000, "audiocpu", 0 )     /* audio cpu */
-	ROM_LOAD( "eb03-2.f2",   0x10000, 0x8000, CRC(9408ffb4) SHA1(ddcb67da4acf3d986d54ad10404f213528a8bb62) )
-	ROM_CONTINUE(             0x08000, 0x8000)
+	ROM_LOAD( "eb03-2.f2", 0x10000, 0x8000, CRC(9408ffb4) SHA1(ddcb67da4acf3d986d54ad10404f213528a8bb62) )
+	ROM_CONTINUE(          0x08000, 0x8000)
 
 	ROM_REGION( 0x20000, "gfx1", 0 )
-	ROM_LOAD( "eb01-2.rom",   0x00000, 0x10000, CRC(e52b1f97) SHA1(4814fe3b2eb08ac173e09ffadc6e5daa9affa1a0) )
-	ROM_LOAD( "eb02-2.rom",   0x10000, 0x10000, CRC(f30d965d) SHA1(a787457b33ad39e78fcf8da0715fab7a63869bf9) )
+	ROM_LOAD( "eb01-2.rom", 0x00000, 0x10000, CRC(e52b1f97) SHA1(4814fe3b2eb08ac173e09ffadc6e5daa9affa1a0) )
+	ROM_LOAD( "eb02-2.rom", 0x10000, 0x10000, CRC(f30d965d) SHA1(a787457b33ad39e78fcf8da0715fab7a63869bf9) )
 
 	ROM_REGION( 0x10000, "gfx2", 0 )
-	ROM_LOAD( "eb00.a1",      0x00000, 0x10000, CRC(6c1a14a8) SHA1(03201197304c5f1d854b8c4f4a5c78336b51f872) )
+	ROM_LOAD( "eb00.a1", 0x00000, 0x10000, CRC(6c1a14a8) SHA1(03201197304c5f1d854b8c4f4a5c78336b51f872) )
 
 	ROM_REGION( 0x0400, "proms", 0 )
-	ROM_LOAD( "eb05.k14",     0x0000, 0x0200, CRC(3b6198cb) SHA1(d32b364cfce99637998ca83ad21783f80364dd65) ) /* 82s147.084 */
-	ROM_LOAD( "eb06.k15",     0x0200, 0x0200, CRC(1fbd4b59) SHA1(84e20329003cf09b849b49e1d83edc330d49f404) ) /* 82s131.101 */
+	ROM_LOAD( "eb05.k14", 0x0000, 0x0200, CRC(3b6198cb) SHA1(d32b364cfce99637998ca83ad21783f80364dd65) ) /* 82s147.084 */
+	ROM_LOAD( "eb06.k15", 0x0200, 0x0200, CRC(1fbd4b59) SHA1(84e20329003cf09b849b49e1d83edc330d49f404) ) /* 82s131.101 */
 ROM_END
 
 ROM_START( pcktgal2j )
 	ROM_REGION( 0x14000, "maincpu", 0 )  /* 64k for code + 16k for banks */
-	ROM_LOAD( "eb04-2.j7",   0x10000, 0x4000, CRC(0c7f2905) SHA1(882dbc1888a0149486c1fac5568dc3d297c2dadd) )
-	ROM_CONTINUE(             0x04000, 0xc000)
+	ROM_LOAD( "eb04-2.j7", 0x10000, 0x4000, CRC(0c7f2905) SHA1(882dbc1888a0149486c1fac5568dc3d297c2dadd) )
+	ROM_CONTINUE(          0x04000, 0xc000)
 	/* 4000-7fff is banked but code falls through from 7fff to 8000, so */
 	/* I have to load the bank directly at 4000. */
 
 	ROM_REGION( 0x18000, "audiocpu", 0 )     /* audio cpu */
-	ROM_LOAD( "eb03-2.f2",   0x10000, 0x8000, CRC(9408ffb4) SHA1(ddcb67da4acf3d986d54ad10404f213528a8bb62) )
-	ROM_CONTINUE(             0x08000, 0x8000)
+	ROM_LOAD( "eb03-2.f2", 0x10000, 0x8000, CRC(9408ffb4) SHA1(ddcb67da4acf3d986d54ad10404f213528a8bb62) )
+	ROM_CONTINUE(          0x08000, 0x8000)
 
 	ROM_REGION( 0x20000, "gfx1", 0 )
-	ROM_LOAD( "eb01-2.d11",   0x00000, 0x10000, CRC(8f42ab1a) SHA1(315fb26bbe004c08629a0a3a6e9d129768119e6b) )
-	ROM_LOAD( "eb02-2.d12",   0x10000, 0x10000, CRC(f394cb35) SHA1(f351b8b6fd8a6637ef9031f7a410a334da8ea5ae) )
+	ROM_LOAD( "eb01-2.d11", 0x00000, 0x10000, CRC(8f42ab1a) SHA1(315fb26bbe004c08629a0a3a6e9d129768119e6b) )
+	ROM_LOAD( "eb02-2.d12", 0x10000, 0x10000, CRC(f394cb35) SHA1(f351b8b6fd8a6637ef9031f7a410a334da8ea5ae) )
 
 	ROM_REGION( 0x10000, "gfx2", 0 )
-	ROM_LOAD( "eb00.a1",      0x00000, 0x10000, CRC(6c1a14a8) SHA1(03201197304c5f1d854b8c4f4a5c78336b51f872) )
+	ROM_LOAD( "eb00.a1", 0x00000, 0x10000, CRC(6c1a14a8) SHA1(03201197304c5f1d854b8c4f4a5c78336b51f872) )
 
 	ROM_REGION( 0x0400, "proms", 0 )
-	ROM_LOAD( "eb05.k14",     0x0000, 0x0200, CRC(3b6198cb) SHA1(d32b364cfce99637998ca83ad21783f80364dd65) ) /* 82s147.084 */
-	ROM_LOAD( "eb06.k15",     0x0200, 0x0200, CRC(1fbd4b59) SHA1(84e20329003cf09b849b49e1d83edc330d49f404) ) /* 82s131.101 */
+	ROM_LOAD( "eb05.k14", 0x0000, 0x0200, CRC(3b6198cb) SHA1(d32b364cfce99637998ca83ad21783f80364dd65) ) /* 82s147.084 */
+	ROM_LOAD( "eb06.k15", 0x0200, 0x0200, CRC(1fbd4b59) SHA1(84e20329003cf09b849b49e1d83edc330d49f404) ) /* 82s131.101 */
 ROM_END
 
 ROM_START( spool3 )
 	ROM_REGION( 0x14000, "maincpu", 0 )  /* 64k for code + 16k for banks */
-	ROM_LOAD( "eb04-2.j7",   0x10000, 0x4000, CRC(0c7f2905) SHA1(882dbc1888a0149486c1fac5568dc3d297c2dadd) )
-	ROM_CONTINUE(             0x04000, 0xc000)
+	ROM_LOAD( "eb04-2.j7", 0x10000, 0x4000, CRC(0c7f2905) SHA1(882dbc1888a0149486c1fac5568dc3d297c2dadd) )
+	ROM_CONTINUE(          0x04000, 0xc000)
 	/* 4000-7fff is banked but code falls through from 7fff to 8000, so */
 	/* I have to load the bank directly at 4000. */
 
 	ROM_REGION( 0x18000, "audiocpu", 0 )     /* audio cpu */
-	ROM_LOAD( "eb03-2.f2",   0x10000, 0x8000, CRC(9408ffb4) SHA1(ddcb67da4acf3d986d54ad10404f213528a8bb62) )
-	ROM_CONTINUE(             0x08000, 0x8000)
+	ROM_LOAD( "eb03-2.f2", 0x10000, 0x8000, CRC(9408ffb4) SHA1(ddcb67da4acf3d986d54ad10404f213528a8bb62) )
+	ROM_CONTINUE(          0x08000, 0x8000)
 
 	ROM_REGION( 0x20000, "gfx1", 0 )
-	ROM_LOAD( "deco2.bin",    0x00000, 0x10000, CRC(0a23f0cf) SHA1(8554215001ffc9e6f141e57cc11b400a853f89f2) )
-	ROM_LOAD( "deco3.bin",    0x10000, 0x10000, CRC(55ea7c45) SHA1(a8a6ff0c8a5aaee3afbfc3e71a171fb1d2360b45) )
+	ROM_LOAD( "deco2.bin", 0x00000, 0x10000, CRC(0a23f0cf) SHA1(8554215001ffc9e6f141e57cc11b400a853f89f2) )
+	ROM_LOAD( "deco3.bin", 0x10000, 0x10000, CRC(55ea7c45) SHA1(a8a6ff0c8a5aaee3afbfc3e71a171fb1d2360b45) )
 
 	ROM_REGION( 0x10000, "gfx2", 0 )
-	ROM_LOAD( "eb00.a1",      0x00000, 0x10000, CRC(6c1a14a8) SHA1(03201197304c5f1d854b8c4f4a5c78336b51f872) )
+	ROM_LOAD( "eb00.a1", 0x00000, 0x10000, CRC(6c1a14a8) SHA1(03201197304c5f1d854b8c4f4a5c78336b51f872) )
 
 	ROM_REGION( 0x0400, "proms", 0 )
-	ROM_LOAD( "eb05.k14",     0x0000, 0x0200, CRC(3b6198cb) SHA1(d32b364cfce99637998ca83ad21783f80364dd65) ) /* 82s147.084 */
-	ROM_LOAD( "eb06.k15",     0x0200, 0x0200, CRC(1fbd4b59) SHA1(84e20329003cf09b849b49e1d83edc330d49f404) ) /* 82s131.101 */
+	ROM_LOAD( "eb05.k14", 0x0000, 0x0200, CRC(3b6198cb) SHA1(d32b364cfce99637998ca83ad21783f80364dd65) ) /* 82s147.084 */
+	ROM_LOAD( "eb06.k15", 0x0200, 0x0200, CRC(1fbd4b59) SHA1(84e20329003cf09b849b49e1d83edc330d49f404) ) /* 82s131.101 */
 ROM_END
 
 ROM_START( spool3i )
 	ROM_REGION( 0x14000, "maincpu", 0 )  /* 64k for code + 16k for banks */
-	ROM_LOAD( "de1.bin",      0x10000, 0x4000, CRC(a59980fe) SHA1(64b55af4d0b314d14184784e9f817b56be0f24f2) )
-	ROM_CONTINUE(             0x04000, 0xc000)
+	ROM_LOAD( "de1.bin", 0x10000, 0x4000, CRC(a59980fe) SHA1(64b55af4d0b314d14184784e9f817b56be0f24f2) )
+	ROM_CONTINUE(        0x04000, 0xc000)
 	/* 4000-7fff is banked but code falls through from 7fff to 8000, so */
 	/* I have to load the bank directly at 4000. */
 
 	ROM_REGION( 0x18000, "audiocpu", 0 )     /* audio cpu */
-	ROM_LOAD( "eb03-2.f2",   0x10000, 0x8000, CRC(9408ffb4) SHA1(ddcb67da4acf3d986d54ad10404f213528a8bb62) )
-	ROM_CONTINUE(             0x08000, 0x8000)
+	ROM_LOAD( "eb03-2.f2", 0x10000, 0x8000, CRC(9408ffb4) SHA1(ddcb67da4acf3d986d54ad10404f213528a8bb62) )
+	ROM_CONTINUE(          0x08000, 0x8000)
 
 	ROM_REGION( 0x20000, "gfx1", 0 )
-	ROM_LOAD( "deco2.bin",    0x00000, 0x10000, CRC(0a23f0cf) SHA1(8554215001ffc9e6f141e57cc11b400a853f89f2) )
-	ROM_LOAD( "deco3.bin",    0x10000, 0x10000, CRC(55ea7c45) SHA1(a8a6ff0c8a5aaee3afbfc3e71a171fb1d2360b45) )
+	ROM_LOAD( "deco2.bin", 0x00000, 0x10000, CRC(0a23f0cf) SHA1(8554215001ffc9e6f141e57cc11b400a853f89f2) )
+	ROM_LOAD( "deco3.bin", 0x10000, 0x10000, CRC(55ea7c45) SHA1(a8a6ff0c8a5aaee3afbfc3e71a171fb1d2360b45) )
 
 	ROM_REGION( 0x10000, "gfx2", 0 )
-	ROM_LOAD( "eb00.a1",      0x00000, 0x10000, CRC(6c1a14a8) SHA1(03201197304c5f1d854b8c4f4a5c78336b51f872) )
+	ROM_LOAD( "eb00.a1", 0x00000, 0x10000, CRC(6c1a14a8) SHA1(03201197304c5f1d854b8c4f4a5c78336b51f872) )
 
 	ROM_REGION( 0x0400, "proms", 0 )
-	ROM_LOAD( "eb05.k14",     0x0000, 0x0200, CRC(3b6198cb) SHA1(d32b364cfce99637998ca83ad21783f80364dd65) ) /* 82s147.084 */
-	ROM_LOAD( "eb06.k15",     0x0200, 0x0200, CRC(1fbd4b59) SHA1(84e20329003cf09b849b49e1d83edc330d49f404) ) /* 82s131.101 */
+	ROM_LOAD( "eb05.k14", 0x0000, 0x0200, CRC(3b6198cb) SHA1(d32b364cfce99637998ca83ad21783f80364dd65) ) /* 82s147.084 */
+	ROM_LOAD( "eb06.k15", 0x0200, 0x0200, CRC(1fbd4b59) SHA1(84e20329003cf09b849b49e1d83edc330d49f404) ) /* 82s131.101 */
 ROM_END
 
 /***************************************************************************/
 
 
 
-DRIVER_INIT_MEMBER(pcktgal_state,pcktgal)
+void pcktgal_state::init_pcktgal()
 {
 	uint8_t *rom = memregion("gfx1")->base();
-	int len = memregion("gfx1")->bytes();
-	int i,j,temp[16];
+	const int len = memregion("gfx1")->bytes();
 
 	/* Tile graphics roms have some swapped lines, original version only */
-	for (i = 0x00000;i < len;i += 32)
+	for (int i = 0x00000; i < len; i += 32)
 	{
-		for (j=0; j<16; j++)
+		int temp[16];
+		for (int j = 0; j < 16; j++)
 		{
 			temp[j] = rom[i+j+16];
 			rom[i+j+16] = rom[i+j];
@@ -448,9 +452,9 @@ DRIVER_INIT_MEMBER(pcktgal_state,pcktgal)
 
 /***************************************************************************/
 
-GAME( 1987, pcktgal,  0,       pcktgal, pcktgal, pcktgal_state, pcktgal,  ROT0, "Data East Corporation", "Pocket Gal (Japan)", MACHINE_SUPPORTS_SAVE )
-GAME( 1987, pcktgalb, pcktgal, bootleg, pcktgal, driver_device, 0,        ROT0, "bootleg", "Pocket Gal (bootleg)", MACHINE_SUPPORTS_SAVE )
-GAME( 1989, pcktgal2, pcktgal, pcktgal2,pcktgal, pcktgal_state, pcktgal,  ROT0, "Data East Corporation", "Pocket Gal 2 (English)", MACHINE_SUPPORTS_SAVE )
-GAME( 1989, pcktgal2j,pcktgal, pcktgal2,pcktgal, pcktgal_state, pcktgal,  ROT0, "Data East Corporation", "Pocket Gal 2 (Japanese)", MACHINE_SUPPORTS_SAVE )
-GAME( 1989, spool3,   pcktgal, pcktgal2,pcktgal, pcktgal_state, pcktgal,  ROT0, "Data East Corporation", "Super Pool III (English)", MACHINE_SUPPORTS_SAVE )
-GAME( 1990, spool3i,  pcktgal, pcktgal2,pcktgal, pcktgal_state, pcktgal,  ROT0, "Data East Corporation (I-Vics license)", "Super Pool III (I-Vics)", MACHINE_SUPPORTS_SAVE )
+GAME( 1987, pcktgal,  0,       pcktgal, pcktgal, pcktgal_state, init_pcktgal,  ROT0, "Data East Corporation", "Pocket Gal (Japan)", MACHINE_SUPPORTS_SAVE )
+GAME( 1987, pcktgalb, pcktgal, bootleg, pcktgal, pcktgal_state, empty_init,    ROT0, "bootleg", "Pocket Gal (Yada East bootleg)", MACHINE_SUPPORTS_SAVE )
+GAME( 1989, pcktgal2, pcktgal, pcktgal2,pcktgal, pcktgal_state, init_pcktgal,  ROT0, "Data East Corporation", "Pocket Gal 2 (English)", MACHINE_SUPPORTS_SAVE )
+GAME( 1989, pcktgal2j,pcktgal, pcktgal2,pcktgal, pcktgal_state, init_pcktgal,  ROT0, "Data East Corporation", "Pocket Gal 2 (Japanese)", MACHINE_SUPPORTS_SAVE )
+GAME( 1989, spool3,   pcktgal, pcktgal2,pcktgal, pcktgal_state, init_pcktgal,  ROT0, "Data East Corporation", "Super Pool III (English)", MACHINE_SUPPORTS_SAVE )
+GAME( 1990, spool3i,  pcktgal, pcktgal2,pcktgal, pcktgal_state, init_pcktgal,  ROT0, "Data East Corporation (I-Vics license)", "Super Pool III (I-Vics)", MACHINE_SUPPORTS_SAVE )

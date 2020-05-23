@@ -2,8 +2,12 @@ local dat = {}
 local info, ver
 local datread = require("data/load_dat")
 do
-	local convert = require("data/button_char")
-	datread, ver = datread.open("command.dat", "# Command List%-Shorthand", convert)
+	local buttonchar
+	local function convert(str)
+		if not buttonchar then buttonchar = require("data/button_char") end
+		return buttonchar(str)
+	end
+	datread, ver = datread.open("command.dat", "# Version:", convert)
 end
 
 function dat.check(set, softlist)
@@ -16,11 +20,15 @@ function dat.check(set, softlist)
 		return nil
 	end
 	info = "#jf\n" .. info
-	return "Command"
+	return _("Command")
 end
 
 function dat.get()
 	return info
+end
+
+function dat.ver()
+	return ver
 end
 
 return dat

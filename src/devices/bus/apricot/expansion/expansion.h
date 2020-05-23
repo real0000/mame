@@ -41,45 +41,10 @@
 
 ***************************************************************************/
 
+#ifndef MAME_BUS_APRICOT_EXPANSION_EXPANSION_H
+#define MAME_BUS_APRICOT_EXPANSION_EXPANSION_H
+
 #pragma once
-
-#ifndef __APRICOT_EXPANSION_H__
-#define __APRICOT_EXPANSION_H__
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_EXPANSION_ADD(_tag, _cpu_tag) \
-	MCFG_DEVICE_ADD(_tag, APRICOT_EXPANSION_BUS, 0) \
-	apricot_expansion_bus_device::set_cpu_tag(*device, owner, _cpu_tag);
-
-#define MCFG_EXPANSION_IOP_ADD(_tag) \
-	apricot_expansion_bus_device::set_iop_tag(*device, owner, _tag);
-
-#define MCFG_EXPANSION_SLOT_ADD(_tag, _slot_intf, _def_slot) \
-	MCFG_DEVICE_ADD(_tag, APRICOT_EXPANSION_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
-
-#define MCFG_EXPANSION_DMA1_HANDLER(_devcb) \
-	devcb = &apricot_expansion_bus_device::set_dma1_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_EXPANSION_DMA2_HANDLER(_devcb) \
-	devcb = &apricot_expansion_bus_device::set_dma2_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_EXPANSION_EXT1_HANDLER(_devcb) \
-	devcb = &apricot_expansion_bus_device::set_ext1_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_EXPANSION_EXT2_HANDLER(_devcb) \
-	devcb = &apricot_expansion_bus_device::set_ext2_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_EXPANSION_INT2_HANDLER(_devcb) \
-	devcb = &apricot_expansion_bus_device::set_int2_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_EXPANSION_INT3_HANDLER(_devcb) \
-	devcb = &apricot_expansion_bus_device::set_int3_handler(*device, DEVCB_##_devcb);
 
 
 //**************************************************************************
@@ -92,20 +57,30 @@ class device_apricot_expansion_card_interface;
 
 // ======================> apricot_expansion_slot_device
 
-class apricot_expansion_slot_device : public device_t, public device_slot_interface
+class apricot_expansion_slot_device : public device_t, public device_single_card_slot_interface<device_apricot_expansion_card_interface>
 {
 public:
 	// construction/destruction
+	template <typename T>
+	apricot_expansion_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, T &&opts, char const *dflt)
+		: apricot_expansion_slot_device(mconfig, tag, owner, (uint32_t)0)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
 	apricot_expansion_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	apricot_expansion_slot_device(const machine_config &mconfig, device_type type, const char *name,
-		const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
+
+protected:
+	apricot_expansion_slot_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
 
 	// device-level overrides
 	virtual void device_start() override;
 };
 
 // device type definition
-extern const device_type APRICOT_EXPANSION_SLOT;
+DECLARE_DEVICE_TYPE(APRICOT_EXPANSION_SLOT, apricot_expansion_slot_device)
 
 
 // ======================> apricot_expansion_bus_device
@@ -117,27 +92,17 @@ public:
 	apricot_expansion_bus_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 	virtual ~apricot_expansion_bus_device();
 
-	template<class _Object> static devcb_base &set_dma1_handler(device_t &device, _Object object)
-		{ return downcast<apricot_expansion_bus_device &>(device).m_dma1_handler.set_callback(object); }
+	template <typename T> void set_program_space(T &&tag, int spacenum) { m_program.set_tag(std::forward<T>(tag), spacenum); }
+	template <typename T> void set_io_space(T &&tag, int spacenum) { m_io.set_tag(std::forward<T>(tag), spacenum); }
+	template <typename T> void set_program_iop_space(T &&tag, int spacenum) { m_program_iop.set_tag(std::forward<T>(tag), spacenum); }
+	template <typename T> void set_io_iop_space(T &&tag, int spacenum) { m_io_iop.set_tag(std::forward<T>(tag), spacenum); }
 
-	template<class _Object> static devcb_base &set_dma2_handler(device_t &device, _Object object)
-		{ return downcast<apricot_expansion_bus_device &>(device).m_dma2_handler.set_callback(object); }
-
-	template<class _Object> static devcb_base &set_ext1_handler(device_t &device, _Object object)
-		{ return downcast<apricot_expansion_bus_device &>(device).m_ext1_handler.set_callback(object); }
-
-	template<class _Object> static devcb_base &set_ext2_handler(device_t &device, _Object object)
-		{ return downcast<apricot_expansion_bus_device &>(device).m_ext2_handler.set_callback(object); }
-
-	template<class _Object> static devcb_base &set_int2_handler(device_t &device, _Object object)
-		{ return downcast<apricot_expansion_bus_device &>(device).m_int2_handler.set_callback(object); }
-
-	template<class _Object> static devcb_base &set_int3_handler(device_t &device, _Object object)
-		{ return downcast<apricot_expansion_bus_device &>(device).m_int3_handler.set_callback(object); }
-
-	// inline configuration
-	static void set_cpu_tag(device_t &device, device_t *owner, const char *tag);
-	static void set_iop_tag(device_t &device, device_t *owner, const char *tag);
+	auto dma1() { return m_dma1_handler.bind(); }
+	auto dma2() { return m_dma2_handler.bind(); }
+	auto ext1() { return m_ext1_handler.bind(); }
+	auto ext2() { return m_ext2_handler.bind(); }
+	auto int2() { return m_int2_handler.bind(); }
+	auto int3() { return m_int3_handler.bind(); }
 
 	void add_card(device_apricot_expansion_card_interface *card);
 
@@ -151,19 +116,26 @@ public:
 
 	void install_ram(offs_t addrstart, offs_t addrend, void *baseptr);
 
+	template<typename T> void install_io_device(offs_t addrstart, offs_t addrend, T &device, void (T::*map)(class address_map &map), uint64_t unitmask = ~u64(0))
+	{
+		m_io->install_device(addrstart, addrend, device, map, unitmask);
+
+		if (m_io_iop)
+			m_io_iop->install_device(addrstart, addrend, device, map, unitmask);
+	}
+
 protected:
 	// device-level overrides
 	virtual void device_start() override;
-	virtual void device_reset() override;
 
 private:
 	simple_list<device_apricot_expansion_card_interface> m_dev;
 
 	// address spaces we have access to
-	address_space *m_program;
-	address_space *m_io;
-	address_space *m_program_iop;
-	address_space *m_io_iop;
+	required_address_space m_program;
+	required_address_space m_io;
+	optional_address_space m_program_iop;
+	optional_address_space m_io_iop;
 
 	devcb_write_line m_dma1_handler;
 	devcb_write_line m_dma2_handler;
@@ -171,32 +143,32 @@ private:
 	devcb_write_line m_ext2_handler;
 	devcb_write_line m_int2_handler;
 	devcb_write_line m_int3_handler;
-
-	// configuration
-	const char *m_cpu_tag;
-	const char *m_iop_tag;
 };
 
 // device type definition
-extern const device_type APRICOT_EXPANSION_BUS;
+DECLARE_DEVICE_TYPE(APRICOT_EXPANSION_BUS, apricot_expansion_bus_device)
 
 
 // ======================> device_apricot_expansion_card_interface
 
-class device_apricot_expansion_card_interface : public device_slot_card_interface
+class device_apricot_expansion_card_interface : public device_interface
 {
+	template <class ElementType> friend class simple_list;
+
 public:
 	// construction/destruction
-	device_apricot_expansion_card_interface(const machine_config &mconfig, device_t &device);
 	virtual ~device_apricot_expansion_card_interface();
 
 	void set_bus_device(apricot_expansion_bus_device *bus);
 
 	device_apricot_expansion_card_interface *next() const { return m_next; }
-	device_apricot_expansion_card_interface *m_next;
 
 protected:
+	device_apricot_expansion_card_interface(const machine_config &mconfig, device_t &device);
+
 	apricot_expansion_bus_device *m_bus;
+
+	device_apricot_expansion_card_interface *m_next;
 };
 
 
@@ -204,4 +176,4 @@ protected:
 #include "cards.h"
 
 
-#endif // __APRICOT_EXPANSION_H__
+#endif // MAME_BUS_APRICOT_EXPANSION_EXPANSION_H

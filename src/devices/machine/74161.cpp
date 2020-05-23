@@ -9,13 +9,13 @@
 #include "emu.h"
 #include "74161.h"
 
-const device_type TTL74160 = device_creator<ttl74160_device>;
-const device_type TTL74161 = device_creator<ttl74161_device>;
-const device_type TTL74162 = device_creator<ttl74162_device>;
-const device_type TTL74163 = device_creator<ttl74163_device>;
+DEFINE_DEVICE_TYPE(TTL74160, ttl74160_device, "ttl74160", "54/74160 Decade Counter")
+DEFINE_DEVICE_TYPE(TTL74161, ttl74161_device, "ttl74161", "54/74161 Binary Counter")
+DEFINE_DEVICE_TYPE(TTL74162, ttl74162_device, "ttl74162", "54/74162 Decade Counter")
+DEFINE_DEVICE_TYPE(TTL74163, ttl74163_device, "ttl74163", "54/74163 Binary Counter")
 
-ttl7416x_device::ttl7416x_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, bool synchronous_reset, uint8_t limit)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, __FILE__)
+ttl7416x_device::ttl7416x_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, bool synchronous_reset, uint8_t limit)
+	: device_t(mconfig, type, tag, owner, clock)
 	, m_qa_func(*this)
 	, m_qb_func(*this)
 	, m_qc_func(*this)
@@ -26,32 +26,33 @@ ttl7416x_device::ttl7416x_device(const machine_config &mconfig, device_type type
 	, m_pe(0)
 	, m_cet(0)
 	, m_cep(0)
-	, m_clock(0)
+	, m_pclock(0)
 	, m_p(0)
+	, m_cetpre(0)
+	, m_ceppre(0)
 	, m_out(0)
-	, m_tc(0)
 	, m_synchronous_reset(synchronous_reset)
 	, m_limit(limit)
 {
 }
 
 ttl74160_device::ttl74160_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ttl7416x_device(mconfig, TTL74160, "54/74160 Decade Counter", tag, owner, clock, "ttl74160", false, 10)
+	: ttl7416x_device(mconfig, TTL74160, tag, owner, clock, false, 10)
 {
 }
 
 ttl74161_device::ttl74161_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ttl7416x_device(mconfig, TTL74160, "54/74160 Decade Counter", tag, owner, clock, "ttl74160", false, 16)
+	: ttl7416x_device(mconfig, TTL74161, tag, owner, clock, false, 16)
 {
 }
 
 ttl74162_device::ttl74162_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ttl7416x_device(mconfig, TTL74160, "54/74160 Decade Counter", tag, owner, clock, "ttl74160", true, 10)
+	: ttl7416x_device(mconfig, TTL74162, tag, owner, clock, true, 10)
 {
 }
 
 ttl74163_device::ttl74163_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ttl7416x_device(mconfig, TTL74160, "54/74160 Decade Counter", tag, owner, clock, "ttl74160", true, 16)
+	: ttl7416x_device(mconfig, TTL74163, tag, owner, clock, true, 16)
 {
 }
 
@@ -61,10 +62,9 @@ void ttl7416x_device::device_start()
 	save_item(NAME(m_pe));
 	save_item(NAME(m_cet));
 	save_item(NAME(m_cep));
-	save_item(NAME(m_clock));
+	save_item(NAME(m_pclock));
 	save_item(NAME(m_p));
 	save_item(NAME(m_out));
-	save_item(NAME(m_tc));
 
 	m_output_func.resolve_safe();
 	m_tc_func.resolve_safe();
@@ -79,15 +79,12 @@ void ttl7416x_device::init()
 {
 	m_clear = 0;
 	m_pe = 1;
-	m_cet = 0;
-	m_cep = 0;
-	m_clock = 0;
+	m_cet = m_cetpre;
+	m_cep = m_ceppre;
+	m_pclock = 0;
 	m_p = 0;
 
 	m_out = 0;
-	m_tc = 0;
-
-	m_tc = 0;
 }
 
 void ttl7416x_device::tick()
@@ -99,7 +96,7 @@ void ttl7416x_device::tick()
 	}
 
 	uint8_t last_out = m_out;
-	uint8_t last_tc = m_tc;
+	uint8_t last_tc = tc_r();
 
 	if (m_pe)
 	{
@@ -118,20 +115,30 @@ void ttl7416x_device::tick()
 		m_output_func(m_out);
 	}
 
-	if (m_tc != last_tc)
+	if (tc_r() != last_tc)
 	{
-		m_tc_func(m_tc);
+		m_tc_func(tc_r());
 	}
 }
 
+/*
+    State machine:
+    limit 16: 0->1->2->...->e->f(tc)->0
+    limit 10: 0->1->2->...->9(tc)->0
+              10->11->4(no tc)
+              12->13->4(no tc)
+              14->15->0(no tc)
+*/
 void ttl7416x_device::increment()
 {
-	m_out = (m_out + 1) % (m_limit + 1);
+	m_out++;
 
-	if (m_out == m_limit)
-		m_tc = 1;
-	else
-		m_tc = 0;
+	if (m_limit == 10)
+	{
+		if (m_out == 12 || m_out == 14) m_out = 4;
+		if (m_out == 10) m_out = 0;
+	}
+	m_out &= 0x0f;
 }
 
 WRITE_LINE_MEMBER( ttl7416x_device::clear_w )
@@ -159,15 +166,15 @@ WRITE_LINE_MEMBER( ttl7416x_device::cep_w )
 
 WRITE_LINE_MEMBER( ttl7416x_device::clock_w )
 {
-	uint8_t last_clock = m_clock;
-	m_clock = state;
-	if (m_clock != last_clock && m_clock != 0)
+	uint8_t last_clock = m_pclock;
+	m_pclock = state;
+	if (m_pclock != last_clock && m_pclock != 0)
 	{
 		tick();
 	}
 }
 
-WRITE8_MEMBER( ttl7416x_device::p_w )
+void ttl7416x_device::p_w(uint8_t data)
 {
 	m_p = data & 0xf;
 }
@@ -201,7 +208,11 @@ READ_LINE_MEMBER( ttl7416x_device::output_r )
 	return m_out;
 }
 
+/*
+    TC is an asynchronous signal, depending on the current states of CET, CEP,
+    and the counter value.
+*/
 READ_LINE_MEMBER( ttl7416x_device::tc_r )
 {
-	return m_tc;
+	return ((m_cet==1) && (m_cep==1) && (m_out==m_limit-1))? 1:0;
 }

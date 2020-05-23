@@ -17,28 +17,12 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_40105_H
+#define MAME_MACHINE_40105_H
+
 #pragma once
 
-#ifndef __CMOS_40105__
-#define __CMOS_40105__
-
 #include <queue>
-
-
-
-///*************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-///*************************************************************************
-
-#define MCFG_40105_DATA_IN_READY_CB(_dir) \
-	devcb = &downcast<cmos_40105_device *>(device)->set_dir_callback(DEVCB_##_dir);
-
-#define MCFG_40105_DATA_OUT_READY_CB(_dor) \
-	devcb = &downcast<cmos_40105_device *>(device)->set_dor_callback(DEVCB_##_dor);
-
-#define MCFG_40105_DATA_OUT_CB(_out) \
-	devcb = &downcast<cmos_40105_device *>(device)->set_data_out_callback(DEVCB_##_out);
-
 
 
 ///*************************************************************************
@@ -53,13 +37,12 @@ public:
 	// construction/destruction
 	cmos_40105_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock);
 
-	template<class _dir> devcb_base &set_dir_callback(_dir dir) { return m_write_dir.set_callback(dir); }
-	template<class _dor> devcb_base &set_dor_callback(_dor dor) { return m_write_dor.set_callback(dor); }
-	template<class _out> devcb_base &set_data_out_callback(_out out) { return m_write_q.set_callback(out); }
+	auto in_ready_cb() { return m_write_dir.bind(); }
+	auto out_ready_cb() { return m_write_dor.bind(); }
+	auto out_cb() { return m_write_q.bind(); }
 
 	u8 read();
 	void write(u8 data);
-	DECLARE_WRITE8_MEMBER(write);
 
 	DECLARE_WRITE_LINE_MEMBER( si_w );
 	DECLARE_WRITE_LINE_MEMBER( so_w );
@@ -95,8 +78,6 @@ private:
 
 
 // device type definition
-extern const device_type CD40105;
-extern const device_type HC40105;
+DECLARE_DEVICE_TYPE(CD40105, cmos_40105_device)
 
-
-#endif
+#endif // MAME_MACHINE_40105_H

@@ -6,27 +6,12 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_CDP1879_H
+#define MAME_MACHINE_CDP1879_H
+
 #pragma once
 
-#ifndef __CDP1879_H__
-#define __CDP1879_H__
-
 #include "dirtc.h"
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_CDP1879_IRQ_CALLBACK(_cb) \
-	devcb = &cdp1879_device::set_irq_cb(*device, DEVCB_##_cb);
-
-
-//**************************************************************************
-//  TYPE DEFINITIONS
-//**************************************************************************
-
-// ======================> cdp1879_device
 
 class cdp1879_device :  public device_t,
 						public device_rtc_interface
@@ -35,12 +20,10 @@ public:
 	// construction/destruction
 	cdp1879_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_READ8_MEMBER(read);
-	DECLARE_WRITE8_MEMBER(write);
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 
-	template<class _Object> static devcb_base &set_irq_cb(device_t &device, _Object wr) { return downcast<cdp1879_device &>(device).m_irq_w.set_callback(wr); }
-
-	devcb_write_line m_irq_w;
+	auto irq_callback() { return m_irq_w.bind(); }
 
 protected:
 	// device-level overrides
@@ -71,7 +54,9 @@ private:
 		R_ALM_HOURS
 	};
 
-	u8 m_regs[10];
+	devcb_write_line m_irq_w;
+
+	u8 m_regs[11];
 	bool m_comparator_state;
 
 	// timers
@@ -79,6 +64,6 @@ private:
 };
 
 // device type definition
-extern const device_type CDP1879;
+DECLARE_DEVICE_TYPE(CDP1879, cdp1879_device)
 
-#endif
+#endif // MAME_MACHINE_CDP1879_H

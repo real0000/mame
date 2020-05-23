@@ -8,11 +8,12 @@
 //
 //============================================================
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <sys/sysctl.h>
 #include <sys/types.h>
-#include <signal.h>
+#include <csignal>
 #include <dlfcn.h>
 
 #include <cstdio>
@@ -92,13 +93,22 @@ void osd_free_executable(void *ptr, size_t size)
 
 void osd_break_into_debugger(const char *message)
 {
-	#ifdef MAME_DEBUG
-	printf("MAME exception: %s\n", message);
-	printf("Attempting to fall into debugger\n");
-	kill(getpid(), SIGTRAP);
-	#else
-	printf("Ignoring MAME exception: %s\n", message);
-	#endif
+	pid_t const mypid = getpid();
+	int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, int(mypid) };
+	struct kinfo_proc info;
+	info.kp_proc.p_flag = 0;
+	std::size_t infosz = sizeof(info);
+	sysctl(mib, ARRAY_LENGTH(mib), &info, &infosz, nullptr, 0);
+	if (info.kp_proc.p_flag & P_TRACED)
+	{
+		printf("MAME exception: %s\n", message);
+		printf("Attempting to fall into debugger\n");
+		kill(mypid, SIGTRAP);
+	}
+	else
+	{
+		printf("Ignoring MAME exception: %s\n", message);
+	}
 }
 
 
@@ -106,22 +116,23 @@ void osd_break_into_debugger(const char *message)
 //  osd_get_clipboard_text
 //============================================================
 
-char *osd_get_clipboard_text(void)
+std::string osd_get_clipboard_text(void)
 {
+	std::string result;
+	bool has_result = false;
 	OSStatus err;
 
 	PasteboardRef pasteboard_ref;
 	err = PasteboardCreate(kPasteboardClipboard, &pasteboard_ref);
 	if (err)
-		return nullptr;
+		return result;
 
 	PasteboardSynchronize(pasteboard_ref);
 
 	ItemCount item_count;
 	err = PasteboardGetItemCount(pasteboard_ref, &item_count);
 
-	char *result = nullptr; // core expects a malloced C string of uft8 data
-	for (UInt32 item_index = 1; (item_index <= item_count) && !result; item_index++)
+	for (UInt32 item_index = 1; (item_index <= item_count) && !has_result; item_index++)
 	{
 		PasteboardItemID item_id;
 		err = PasteboardGetItemIdentifier(pasteboard_ref, item_index, &item_id);
@@ -134,7 +145,7 @@ char *osd_get_clipboard_text(void)
 			continue;
 
 		CFIndex const flavor_count = CFArrayGetCount(flavor_type_array);
-		for (CFIndex flavor_index = 0; (flavor_index < flavor_count) && !result; flavor_index++)
+		for (CFIndex flavor_index = 0; (flavor_index < flavor_count) && !has_result; flavor_index++)
 		{
 			CFStringRef const flavor_type = (CFStringRef)CFArrayGetValueAtIndex(flavor_type_array, flavor_index);
 
@@ -161,12 +172,9 @@ char *osd_get_clipboard_text(void)
 				CFIndex const length = CFDataGetLength(data_ref);
 				CFRange const range = CFRangeMake(0, length);
 
-				result = reinterpret_cast<char *>(malloc(length + 1));
-				if (result)
-				{
-					CFDataGetBytes(data_ref, range, reinterpret_cast<unsigned char *>(result));
-					result[length] = 0;
-				}
+				result.resize(length);
+				CFDataGetBytes(data_ref, range, reinterpret_cast<unsigned char *>(&result[0]));
+				has_result = true;
 
 				CFRelease(data_ref);
 			}
@@ -178,6 +186,15 @@ char *osd_get_clipboard_text(void)
 	CFRelease(pasteboard_ref);
 
 	return result;
+}
+
+//============================================================
+//  osd_getpid
+//============================================================
+
+int osd_getpid(void)
+{
+	return getpid();
 }
 
 //============================================================

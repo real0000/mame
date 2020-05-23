@@ -8,10 +8,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_CPU_M6809_KONAMI_H
+#define MAME_CPU_M6809_KONAMI_H
 
-#ifndef __KONAMI_CPU_H__
-#define __KONAMI_CPU_H__
+#pragma once
 
 #include "m6809.h"
 
@@ -20,12 +20,8 @@
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-#define MCFG_KONAMICPU_LINE_CB(_devcb) \
-	devcb = &konami_cpu_device::set_line_callback(*device, DEVCB_##_devcb);
-
-
 // device type definition
-extern const device_type KONAMI;
+DECLARE_DEVICE_TYPE(KONAMI, konami_cpu_device)
 
 // ======================> konami_cpu_device
 
@@ -36,7 +32,7 @@ public:
 	konami_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// configuration
-	template<class _Object> static devcb_base &set_line_callback(device_t &device, _Object object) { return downcast<konami_cpu_device &>(device).m_set_lines.set_callback(object); }
+	auto line() { return m_set_lines.bind(); }
 
 protected:
 	// device-level overrides
@@ -46,7 +42,7 @@ protected:
 	virtual void execute_run() override;
 
 	// device_disasm_interface overrides
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 private:
 	typedef m6809_base_device super;
@@ -78,4 +74,4 @@ private:
 #define KONAMI_IRQ_LINE  M6809_IRQ_LINE   /* 0 - IRQ line number */
 #define KONAMI_FIRQ_LINE M6809_FIRQ_LINE  /* 1 - FIRQ line number */
 
-#endif /* __KONAMI_CPU_H__ */
+#endif // MAME_CPU_M6809_KONAMI_H

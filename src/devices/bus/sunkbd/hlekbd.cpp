@@ -21,7 +21,7 @@
     0000 0011               bell off
     0000 1010               enable keyclick (5ms duration 480us period on make)
     0000 1011               disable keyclick
-    0000 1110  ---k lscn    LED (1 = on, k = kana, l = caps lock, s = scroll lock, c = compose, n = num lock)
+    0000 1110  ---k lscn    LED (1 = on: k = kana, l = caps lock, s = scroll lock, c = compose, n = num lock)
     0000 1111               layout request (keyboard responds with layout response)
 
     message from keyboad to host:
@@ -87,7 +87,7 @@
 
     Type 5 US UNIX layout:
 
-      76      xx      05  06  08  0a    0c  0e  10  11    12  07  09  0b    16  17  15    2d  02  04  30
+      76      0f      05  06  08  0a    0c  0e  10  11    12  07  09  0b    16  17  15    2d  02  04  30
 
     01  03    1d  1e  1f  20  21  22  23  24  25  26  27  28  29  58  2a    2c  34  60    62  2e  2f  47
     19  1a    35    36  37  38  39  3a  3b  3c  3d  3e  3f  40  41    2b    42  4a  7b    44  45  46
@@ -95,13 +95,13 @@
     48  49    63       64  65  66  67  68  69  6a  6b  6c  6d         6e        14        70  71  72
     5f  61    77     13   78                79                7a  43  0d    18  1b  1c      5e    32  5a
 
-    xx is a blank key
+    0f has a blank keycap
     backspace immediately above return
     backslash and backtick/tilde at top right of main area
     control on home row, caps lock at bottom left corner of main area
 
 
-    Type 5 International layout:
+    Type 5 International (ISO) layout:
 
       76      1d      05  06  08  0a    0c  0e  10  11    12  07  09  0b    16  17  15    2d  02  04  30
 
@@ -114,7 +114,7 @@
     double-height return key, 58 (US backslash) moved to home row, 7c added on left of bottom row
 
 
-    Type 5 Japanese layout:
+    Type 5 Japanese (JIS) layout:
 
       76      1d      05  06  08  0a    0c  0e  10  11    12  07  09  0b    16  17  15    2d  02  04  30
 
@@ -127,8 +127,8 @@
     double-height return key
     yen/pipe replaces backtick/tilde at top left corner of main area
     linefeed scancode repurposed for backslash/underscore
-    kana replaces alt graph (with LED window)
-    extra kakutei, henkan and nihongo on-off keys
+    kana (かな) replaces alt graph (with LED window)
+    extra kakutei (確定), henkan (変換) and nihongo on-off (日本語 On-Off) keys
 */
 
 
@@ -136,17 +136,19 @@
     DEVICE TYPE GLOBALS
 ***************************************************************************/
 
-device_type const SUN_TYPE3_HLE_KEYBOARD    = device_creator<bus::sunkbd::hle_type3_device>;
-device_type const SUN_TYPE4_HLE_KEYBOARD    = device_creator<bus::sunkbd::hle_type4_device>;
-device_type const SUN_TYPE5_HLE_KEYBOARD    = device_creator<bus::sunkbd::hle_type5_device>;
-device_type const SUN_TYPE5_GB_HLE_KEYBOARD = device_creator<bus::sunkbd::hle_type5_gb_device>;
-device_type const SUN_TYPE5_SE_HLE_KEYBOARD = device_creator<bus::sunkbd::hle_type5_se_device>;
-device_type const SUN_TYPE5_JP_HLE_KEYBOARD = device_creator<bus::sunkbd::hle_type5_jp_device>;
+DEFINE_DEVICE_TYPE_NS(SUN_TYPE3_HLE_KEYBOARD,    bus::sunkbd, hle_type3_device,    "kbd_type3_hle",    "Sun Type 3 Keyboard (HLE)")
+DEFINE_DEVICE_TYPE_NS(SUN_TYPE4_HLE_KEYBOARD,    bus::sunkbd, hle_type4_device,    "kbd_type4_hle",    "Sun Type 4 Keyboard (HLE)")
+DEFINE_DEVICE_TYPE_NS(SUN_TYPE5_HLE_KEYBOARD,    bus::sunkbd, hle_type5_device,    "kbd_type5_hle_us", "Sun Type 5 Keyboard (U.S.A. - HLE)")
+DEFINE_DEVICE_TYPE_NS(SUN_TYPE5_GB_HLE_KEYBOARD, bus::sunkbd, hle_type5_gb_device, "kbd_type5_hle_gb", "Sun Type 5 Keyboard (Great Britain - HLE)")
+DEFINE_DEVICE_TYPE_NS(SUN_TYPE5_SE_HLE_KEYBOARD, bus::sunkbd, hle_type5_se_device, "kbd_type5_hle_se", "Sun Type 5 Keyboard (Sweden - HLE)")
+DEFINE_DEVICE_TYPE_NS(SUN_TYPE5_JP_HLE_KEYBOARD, bus::sunkbd, hle_type5_jp_device, "kbd_type5_hle_jp", "Sun Type 5 Keyboard (Japan - HLE)")
 
 
 
 namespace bus { namespace sunkbd {
+
 namespace {
+
 /***************************************************************************
     INPUT PORT DEFINITIONS
 ***************************************************************************/
@@ -421,9 +423,9 @@ INPUT_PORTS_START( basic_jp )
 	PORT_BIT( 0x8000, IP_ACTIVE_HIGH, IPT_KEYBOARD )                           PORT_CODE(KEYCODE_BACKSLASH2) PORT_CHAR('\\') PORT_CHAR('_')
 
 	PORT_MODIFY("ROW7")
-	PORT_BIT( 0x0008, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Kakutei")
-	PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Henkan")
-	PORT_BIT( 0x0020, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Nihongo On-Off") PORT_CODE(KEYCODE_MENU)
+	PORT_BIT( 0x0008, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Kakutei")                                // 確定
+	PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Henkan")                                 // 変換
+	PORT_BIT( 0x0020, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Nihongo On-Off") PORT_CODE(KEYCODE_MENU) // 日本語 On-Off
 INPUT_PORTS_END
 
 
@@ -632,7 +634,7 @@ INPUT_PORTS_START( hle_type4_device )
 	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Scroll Lock")  PORT_CODE(KEYCODE_SCRLOCK)    PORT_CHAR(UCHAR_MAMEKEY(SCRLOCK))
 
 	PORT_MODIFY("ROW2")
-	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("KP =")         PORT_CODE(KEYCODE_INSERT)     PORT_CHAR(UCHAR_MAMEKEY(INSERT))
+	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("KP =")         PORT_CODE(KEYCODE_INSERT)     PORT_CHAR(UCHAR_MAMEKEY(EQUALS_PAD))
 
 	PORT_MODIFY("ROW6")
 	PORT_BIT( 0x8000, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Line Feed")                                  PORT_CHAR(10)
@@ -723,20 +725,8 @@ INPUT_PORTS_START( hle_type5_jp_device )
 	TYPE5_DIPS(0x11)
 
 	PORT_MODIFY("ROW0")
-	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Kana")         PORT_CODE(KEYCODE_RALT)
+	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Kana")         PORT_CODE(KEYCODE_RALT) // かな
 INPUT_PORTS_END
-
-
-
-/***************************************************************************
-    MACHINE CONFIGURATION FRAGMENTS
-***************************************************************************/
-
-MACHINE_CONFIG_FRAGMENT(sparc_keyboard)
-	MCFG_SPEAKER_STANDARD_MONO("bell")
-	MCFG_SOUND_ADD("beeper", BEEP, ATTOSECONDS_TO_HZ(480 * ATTOSECONDS_PER_MICROSECOND))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bell", 1.0)
-MACHINE_CONFIG_END
 
 } // anonymous namespace
 
@@ -754,19 +744,17 @@ MACHINE_CONFIG_END
 hle_device_base::hle_device_base(
 		machine_config const &mconfig,
 		device_type type,
-		char const *name,
 		char const *tag,
 		device_t *owner,
-		uint32_t clock,
-		char const *shortname,
-		char const *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source)
+		uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock)
 	, device_buffered_serial_interface(mconfig, *this)
 	, device_sun_keyboard_port_interface(mconfig, *this)
 	, device_matrix_keyboard_interface(mconfig, *this, "ROW0", "ROW1", "ROW2", "ROW3", "ROW4", "ROW5", "ROW6", "ROW7")
 	, m_dips(*this, "DIP")
 	, m_click_timer(nullptr)
 	, m_beeper(*this, "beeper")
+	, m_leds(*this, "led%u", 0U)
 	, m_make_count(0U)
 	, m_rx_state(RX_IDLE)
 	, m_keyclick(0U)
@@ -786,17 +774,6 @@ hle_device_base::~hle_device_base()
 
 
 /*--------------------------------------------------
-    hle_device_base::device_mconfig_additions
-    get machine configuration additions
---------------------------------------------------*/
-
-machine_config_constructor hle_device_base::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME(sparc_keyboard);
-}
-
-
-/*--------------------------------------------------
     hle_device_base::input_txd
     handle serial input line changes
 --------------------------------------------------*/
@@ -808,6 +785,18 @@ WRITE_LINE_MEMBER( hle_device_base::input_txd )
 
 
 /*--------------------------------------------------
+    hle_device_base::device_add_mconfig
+    add machine configuration
+--------------------------------------------------*/
+
+void hle_device_base::device_add_mconfig(machine_config &config)
+{
+	SPEAKER(config, "bell").front_center();
+	BEEP(config, m_beeper, ATTOSECONDS_TO_HZ(480 * ATTOSECONDS_PER_MICROSECOND)).add_route(ALL_OUTPUTS, "bell", 1.0);
+}
+
+
+/*--------------------------------------------------
     hle_device_base::device_start
     perform expensive initialisations, allocate
     resources, register for save state
@@ -815,8 +804,7 @@ WRITE_LINE_MEMBER( hle_device_base::input_txd )
 
 void hle_device_base::device_start()
 {
-	device_buffered_serial_interface::register_save_state(machine().save(), this);
-
+	m_leds.resolve();
 	m_click_timer = timer_alloc(CLICK_TIMER_ID);
 
 	save_item(NAME(m_make_count));
@@ -851,11 +839,11 @@ void hle_device_base::device_reset()
 	output_rxd(1);
 
 	// start with keyboard LEDs off
-	machine().output().set_led_value(LED_NUM, 0);
-	machine().output().set_led_value(LED_COMPOSE, 0);
-	machine().output().set_led_value(LED_SCROLL, 0);
-	machine().output().set_led_value(LED_CAPS, 0);
-	machine().output().set_led_value(LED_KANA, 0);
+	m_leds[LED_NUM] = 0;
+	m_leds[LED_COMPOSE] = 0;
+	m_leds[LED_SCROLL] = 0;
+	m_leds[LED_CAPS] = 0;
+	m_leds[LED_KANA] = 0;
 
 	// no beep
 	m_click_timer->reset();
@@ -887,8 +875,7 @@ void hle_device_base::device_timer(emu_timer &timer, device_timer_id id, int par
 		break;
 
 	default:
-		device_matrix_keyboard_interface::device_timer(timer, id, param, ptr);
-		device_buffered_serial_interface::device_timer(timer, id, param, ptr);
+		break;
 	}
 }
 
@@ -955,13 +942,13 @@ void hle_device_base::key_break(uint8_t row, uint8_t column)
 	assert(!fifo_full());
 	assert(m_make_count);
 
-	// send the break code, and the idle code if no other keysa are down
+	// send the break code, and the idle code if no other keys are down
 	transmit_byte(0x80U | (row << 4) | column);
 	if (!--m_make_count)
 		transmit_byte(0x7fU);
 
-	// check our counting
-	assert(are_all_keys_up() == !bool(m_make_count));
+	// this blows up if a key is pressed just as the last key is released
+	//assert(are_all_keys_up() == !bool(m_make_count));
 }
 
 
@@ -988,11 +975,11 @@ void hle_device_base::received_byte(uint8_t byte)
 	switch (m_rx_state)
 	{
 	case RX_LED:
-		machine().output().set_led_value(LED_NUM, BIT(byte, 0));
-		machine().output().set_led_value(LED_COMPOSE, BIT(byte, 1));
-		machine().output().set_led_value(LED_SCROLL, BIT(byte, 2));
-		machine().output().set_led_value(LED_CAPS, BIT(byte, 3));
-		machine().output().set_led_value(LED_KANA, BIT(byte, 4));
+		m_leds[LED_NUM] = BIT(byte, 0);
+		m_leds[LED_COMPOSE] = BIT(byte, 1);
+		m_leds[LED_SCROLL] = BIT(byte, 2);
+		m_leds[LED_CAPS] = BIT(byte, 3);
+		m_leds[LED_KANA] = BIT(byte, 4);
 		m_rx_state = RX_IDLE;
 		break;
 
@@ -1083,12 +1070,9 @@ hle_type3_device::hle_type3_device(
 	: hle_device_base(
 			mconfig,
 			SUN_TYPE3_HLE_KEYBOARD,
-			"Sun Type 3 Keyboard (HLE)",
 			tag,
 			owner,
-			clock,
-			"type3_hle_kbd",
-			__FILE__)
+			clock)
 {
 }
 
@@ -1134,12 +1118,9 @@ hle_type4_device::hle_type4_device(
 	: hle_type4_device_base(
 			mconfig,
 			SUN_TYPE4_HLE_KEYBOARD,
-			"Sun Type 4 Keyboard (HLE)",
 			tag,
 			owner,
-			clock,
-			"type4_hle_kbd",
-			__FILE__)
+			clock)
 {
 }
 
@@ -1173,12 +1154,9 @@ hle_type5_device::hle_type5_device(
 	: hle_type4_device_base(
 			mconfig,
 			SUN_TYPE5_HLE_KEYBOARD,
-			"Sun Type 5 Keyboard (U.S.A. - HLE)",
 			tag,
 			owner,
-			clock,
-			"type5_hle_kbd",
-			__FILE__)
+			clock)
 {
 }
 
@@ -1212,12 +1190,9 @@ hle_type5_gb_device::hle_type5_gb_device(
 	: hle_type4_device_base(
 			mconfig,
 			SUN_TYPE5_GB_HLE_KEYBOARD,
-			"Sun Type 5 Keyboard (Great Britain - HLE)",
 			tag,
 			owner,
-			clock,
-			"type5_gb_hle_kbd",
-			__FILE__)
+			clock)
 {
 }
 
@@ -1251,12 +1226,9 @@ hle_type5_se_device::hle_type5_se_device(
 	: hle_type4_device_base(
 			mconfig,
 			SUN_TYPE5_SE_HLE_KEYBOARD,
-			"Sun Type 5 Keyboard (Sweden - HLE)",
 			tag,
 			owner,
-			clock,
-			"type5_se_hle_kbd",
-			__FILE__)
+			clock)
 {
 }
 
@@ -1290,12 +1262,9 @@ hle_type5_jp_device::hle_type5_jp_device(
 	: hle_type4_device_base(
 			mconfig,
 			SUN_TYPE5_JP_HLE_KEYBOARD,
-			"Sun Type 5 Keyboard (Japan - HLE)",
 			tag,
 			owner,
-			clock,
-			"type5_jp_hle_kbd",
-			__FILE__)
+			clock)
 {
 }
 

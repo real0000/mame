@@ -7,18 +7,22 @@
  *
  **********************************************************************************************/
 
+#ifndef MAME_CPU_ES5510_ES5510_H
+#define MAME_CPU_ES5510_ES5510_H
+
 #pragma once
-
-#ifndef __ES5510_H__
-#define __ES5510_H__
-
 
 class es5510_device : public cpu_device {
 public:
+	// TODO : Not verified, Most of games are using 128KB DRAM.
+	static constexpr uint32_t DRAM_SIZE = (1<<20);
+	static constexpr uint32_t DRAM_MASK = (DRAM_SIZE-1);
+	static constexpr feature_type imperfect_features() { return feature::SOUND; }
+
 	es5510_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_READ8_MEMBER(host_r);
-	DECLARE_WRITE8_MEMBER(host_w);
+	uint8_t host_r(address_space &space, offs_t offset);
+	void host_w(offs_t offset, uint8_t data);
 
 	int16_t ser_r(int offset);
 	void ser_w(int offset, int16_t data);
@@ -114,7 +118,7 @@ public:
 
 	// for testing purposes
 	uint64_t &_instr(int pc) { return instr[pc % 160]; }
-	int16_t &_dram(int addr) { return dram[addr & 0xfffff]; }
+	int16_t &_dram(int addr) { return dram[addr & DRAM_MASK]; }
 
 	// publicly visible for testing purposes
 	int32_t read_reg(uint8_t reg);
@@ -124,17 +128,15 @@ public:
 protected:
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
-	virtual uint64_t execute_clocks_to_cycles(uint64_t clocks) const override;
-	virtual uint64_t execute_cycles_to_clocks(uint64_t cycles) const override;
-	virtual uint32_t execute_min_cycles() const override;
-	virtual uint32_t execute_max_cycles() const override;
-	virtual uint32_t execute_input_lines() const override;
+	virtual space_config_vector memory_space_config() const override;
+	virtual uint64_t execute_clocks_to_cycles(uint64_t clocks) const noexcept override;
+	virtual uint64_t execute_cycles_to_clocks(uint64_t cycles) const noexcept override;
+	virtual uint32_t execute_min_cycles() const noexcept override;
+	virtual uint32_t execute_max_cycles() const noexcept override;
+	virtual uint32_t execute_input_lines() const noexcept override;
 	virtual void execute_run() override;
-	virtual uint32_t disasm_min_opcode_bytes() const override;
-	virtual uint32_t disasm_max_opcode_bytes() const override;
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
 	virtual void execute_set_input(int linenum, int state) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 	int32_t alu_operation(uint8_t op, int32_t aValue, int32_t bValue, uint8_t &flags);
 	void alu_operation_end();
@@ -144,7 +146,7 @@ private:
 	bool halt_asserted;
 	uint8_t pc;
 	state_t state;
-	int32_t gpr[0xc0];     // 24 bits, right justified
+	std::unique_ptr<int32_t[]> gpr;
 	int16_t ser0r;
 	int16_t ser0l;
 	int16_t ser1r;
@@ -171,8 +173,12 @@ private:
 	int32_t dol[2];
 	int dol_count;
 
-	uint64_t instr[160];    // 48 bits, right justified
-	int16_t dram[1<<20];   // there are up to 20 address bits (at least 16 expected), left justified within the 24 bits of a gpr or dadr; we preallocate all of it.
+	std::unique_ptr<uint64_t[]> instr;
+	std::unique_ptr<int16_t[]> dram;
+
+	// TODO : Masked address?
+	int16_t dram_r(int addr) { return dram[addr & DRAM_MASK]; }
+	void dram_w(int addr, int16_t data) { dram[addr & DRAM_MASK] = data; }
 
 	// latch registers for host interaction
 	int32_t  dol_latch;     // 24 bits
@@ -189,6 +195,6 @@ private:
 	ram_t ram, ram_p, ram_pp; // ram operations for cycles N, N-1 and N-2
 };
 
-extern const device_type ES5510;
+DECLARE_DEVICE_TYPE(ES5510, es5510_device)
 
-#endif // __ES5510_H__
+#endif // MAME_CPU_ES5510_ES5510_H

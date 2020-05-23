@@ -35,6 +35,7 @@
 #include "emu.h"
 #include "m6805.h"
 #include "m6805defs.h"
+#include "6805dasm.h"
 
 #include "debugger.h"
 
@@ -236,11 +237,8 @@ m6805_base_device::m6805_base_device(
 		device_t *owner,
 		uint32_t clock,
 		device_type const type,
-		char const *name,
-		configuration_params const &params,
-		char const *shortname,
-		char const *source)
-	: cpu_device(mconfig, type, name, tag, owner, clock, shortname, source)
+		configuration_params const &params)
+	: cpu_device(mconfig, type, tag, owner, clock)
 	, m_params(params)
 	, m_program_config("program", ENDIANNESS_BIG, 8, params.m_addr_width)
 {
@@ -252,12 +250,9 @@ m6805_base_device::m6805_base_device(
 		device_t *owner,
 		uint32_t clock,
 		device_type const type,
-		char const *name,
 		configuration_params const &params,
-		address_map_delegate internal_map,
-		char const *shortname,
-		char const *source)
-	: cpu_device(mconfig, type, name, tag, owner, clock, shortname, source)
+		address_map_constructor internal_map)
+	: cpu_device(mconfig, type, tag, owner, clock)
 	, m_params(params)
 	, m_program_config("program", ENDIANNESS_BIG, 8, params.m_addr_width, 0, internal_map)
 {
@@ -268,10 +263,17 @@ m6805_base_device::m6805_base_device(
 void m6805_base_device::device_start()
 {
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_cache = m_program->cache<0, 0, ENDIANNESS_BIG>();
+
+	// get the minimum not including the zero placeholders for illegal instructions
+	m_min_cycles = *std::min_element(
+			std::begin(m_params.m_cycles),
+			std::end(m_params.m_cycles),
+			[] (u8 x, u8 y) { return u8(x - 1) < u8(y - 1); });
+	m_max_cycles = *std::max_element(std::begin(m_params.m_cycles), std::end(m_params.m_cycles));
 
 	// set our instruction counter
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 
 	// register our state for the debugger
 	state_add(STATE_GENPC,     "GENPC",     m_pc.w.l).noshow();
@@ -309,13 +311,10 @@ void m6805_base_device::device_reset()
 
 	m_nmi_state = 0;
 
-	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
-
 	/* IRQ disabled */
 	SEI;
 
-	rm16(0xfffe, m_pc);
+	rm16(0xfffe & m_params.m_vector_mask, m_pc);
 }
 
 
@@ -325,12 +324,11 @@ void m6805_base_device::device_reset()
 //  the space doesn't exist
 //-------------------------------------------------
 
-const address_space_config *m6805_base_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector m6805_base_device::memory_space_config() const
 {
-	if (spacenum == AS_PROGRAM)
-		return &m_program_config;
-	else
-		return nullptr;
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
 }
 
 
@@ -365,7 +363,7 @@ bool m6805_base_device::test_il()
 
 void m6805_base_device::interrupt_vector()
 {
-	rm16(0xfffa, m_pc);
+	rm16(0xfffa & m_params.m_vector_mask, m_pc);
 }
 
 /* Generate interrupts */
@@ -416,35 +414,13 @@ void m6805_base_device::interrupt()
 
 
 //-------------------------------------------------
-//  disasm_min_opcode_bytes - return the length
-//  of the shortest instruction, in bytes
-//-------------------------------------------------
-
-uint32_t m6805_base_device::disasm_min_opcode_bytes() const
-{
-	return 1;
-}
-
-
-//-------------------------------------------------
-//  disasm_max_opcode_bytes - return the length
-//  of the longest instruction, in bytes
-//-------------------------------------------------
-
-uint32_t m6805_base_device::disasm_max_opcode_bytes() const
-{
-	return 3;
-}
-
-
-//-------------------------------------------------
-//  disasm_disassemble - call the disassembly
+//  disassemble - call the disassembly
 //  helper function
 //-------------------------------------------------
 
-offs_t m6805_base_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> m6805_base_device::create_disassembler()
 {
-	return CPU_DISASSEMBLE_NAME(m6805)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<m6805_disassembler>();
 }
 
 
@@ -455,7 +431,7 @@ offs_t m6805_base_device::disasm_disassemble(std::ostream &stream, offs_t pc, co
 //  clock into cycles per second
 //-------------------------------------------------
 
-uint64_t m6805_base_device::execute_clocks_to_cycles(uint64_t clocks) const
+uint64_t m6805_base_device::execute_clocks_to_cycles(uint64_t clocks) const noexcept
 {
 	return (clocks + 3) / 4;
 }
@@ -466,7 +442,7 @@ uint64_t m6805_base_device::execute_clocks_to_cycles(uint64_t clocks) const
 //  count back to raw clocks
 //-------------------------------------------------
 
-uint64_t m6805_base_device::execute_cycles_to_clocks(uint64_t cycles) const
+uint64_t m6805_base_device::execute_cycles_to_clocks(uint64_t cycles) const noexcept
 {
 	return cycles * 4;
 }
@@ -477,14 +453,9 @@ uint64_t m6805_base_device::execute_cycles_to_clocks(uint64_t cycles) const
 //  cycles it takes for one instruction to execute
 //-------------------------------------------------
 
-uint32_t m6805_base_device::execute_min_cycles() const
+uint32_t m6805_base_device::execute_min_cycles() const noexcept
 {
-	// get the minimum not including the zero placeholders for illegal instructions
-	u32 const result(*std::min_element(
-			std::begin(m_params.m_cycles),
-			std::end(m_params.m_cycles),
-			[] (u8 x, u8 y) { return u8(x - 1) < u8(y - 1); }));
-	return result;
+	return m_min_cycles;
 }
 
 
@@ -493,10 +464,9 @@ uint32_t m6805_base_device::execute_min_cycles() const
 //  cycles it takes for one instruction to execute
 //-------------------------------------------------
 
-uint32_t m6805_base_device::execute_max_cycles() const
+uint32_t m6805_base_device::execute_max_cycles() const noexcept
 {
-	u32 const result(*std::max_element(std::begin(m_params.m_cycles), std::end(m_params.m_cycles)));
-	return result;
+	return m_max_cycles;
 }
 
 
@@ -505,7 +475,7 @@ uint32_t m6805_base_device::execute_max_cycles() const
 //  input/interrupt lines
 //-------------------------------------------------
 
-uint32_t m6805_base_device::execute_input_lines() const
+uint32_t m6805_base_device::execute_input_lines() const noexcept
 {
 	return 9;
 }
@@ -523,7 +493,7 @@ void m6805_base_device::execute_run()
 			interrupt();
 		}
 
-		debugger_instruction_hook(this, PC);
+		debugger_instruction_hook(PC);
 
 		u8 const ireg = rdop(PC++);
 
@@ -548,20 +518,6 @@ void m6805_base_device::execute_set_input(int inputnum, int state)
 }
 
 
-m6805_device::m6805_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: m6805_base_device(
-			mconfig,
-			tag,
-			owner,
-			clock,
-			M6805,
-			"M6805",
-			{ s_hmos_ops, s_hmos_cycles, 12, 0x007f, 0x0060, 0xfffc },
-			"m6805",
-			__FILE__)
-{
-}
-
 /****************************************************************************
  * M68HC05EG section
  ****************************************************************************/
@@ -572,10 +528,7 @@ m68hc05eg_device::m68hc05eg_device(const machine_config &mconfig, const char *ta
 			owner,
 			clock,
 			M68HC05EG,
-			"M68HC05EG",
-			{ s_hmos_ops, s_hmos_cycles, 13, 0x00ff, 0x00c0, 0xfffc }, // completely wrong, but it preserves existing behaviour
-			"m68hc05eg",
-			__FILE__)
+			{ s_hmos_ops, s_hmos_cycles, 13, 0x00ff, 0x00c0, 0xfffc }) // completely wrong, but it preserves existing behaviour
 {
 }
 
@@ -615,10 +568,7 @@ hd63705_device::hd63705_device(const machine_config &mconfig, const char *tag, d
 			owner,
 			clock,
 			HD63705,
-			"HD63705",
-			{ s_hmos_ops, s_hmos_cycles, 16, 0x017f, 0x0100, 0x1ffa },
-			"hd63705",
-			__FILE__)
+			{ s_hmos_ops, s_hmos_cycles, 16, 0x017f, 0x0100, 0x1ffa })
 {
 }
 
@@ -707,6 +657,5 @@ void hd63705_device::interrupt_vector()
 }
 
 
-const device_type M6805 = device_creator<m6805_device>;
-const device_type M68HC05EG = device_creator<m68hc05eg_device>;
-const device_type HD63705 = device_creator<hd63705_device>;
+DEFINE_DEVICE_TYPE(M68HC05EG, m68hc05eg_device, "m68hc05eg", "Motorola MC68HC05EG")
+DEFINE_DEVICE_TYPE(HD63705,   hd63705_device,   "hd63705",   "Hitachi HD63705")

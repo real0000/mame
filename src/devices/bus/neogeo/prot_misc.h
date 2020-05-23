@@ -1,22 +1,19 @@
 // license:BSD-3-Clause
 // copyright-holders:S. Smith,David Haywood,Fabio Priuli
 
+#ifndef MAME_BUS_NEOGEO_PROT_MISC_H
+#define MAME_BUS_NEOGEO_PROT_MISC_H
+
 #pragma once
 
-#ifndef __NEOBOOT_PROT__
-#define __NEOBOOT_PROT__
-
-extern const device_type NEOBOOT_PROT;
-
-#define MCFG_NEOBOOT_PROT_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, NEOBOOT_PROT, 0)
+DECLARE_DEVICE_TYPE(NEOBOOT_PROT, neoboot_prot_device)
 
 
 class neoboot_prot_device :  public device_t
 {
 public:
 	// construction/destruction
-	neoboot_prot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	neoboot_prot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
 	void cx_decrypt(uint8_t* sprrom, uint32_t sprrom_size);
 	void sx_decrypt(uint8_t* fixed, uint32_t fixed_size, int value);
@@ -41,10 +38,13 @@ public:
 	//DECLARE_WRITE16_MEMBER(ms5plus_bankswitch_w);
 	uint32_t mslug5p_bank_base(uint16_t sel);
 
+	void mslug5b_vx_decrypt(uint8_t* ymsndrom, uint32_t ymsndrom_size);
+	void mslug5b_cx_decrypt(uint8_t* sprrom, uint32_t sprrom_size);
+
 	void kog_px_decrypt(uint8_t* cpurom, uint32_t cpurom_size);
 
 	void svcboot_px_decrypt(uint8_t* cpurom, uint32_t cpurom_size);
-	void svcboot_cx_decrypt(uint8_t*sprrom, uint32_t sprrom_size);
+	void svcboot_cx_decrypt(uint8_t* sprrom, uint32_t sprrom_size);
 	void svcplus_px_decrypt(uint8_t* cpurom, uint32_t cpurom_size);
 	void svcplus_px_hack(uint8_t* cpurom, uint32_t cpurom_size);
 	void svcplusa_px_decrypt(uint8_t* cpurom, uint32_t cpurom_size);
@@ -62,4 +62,4 @@ protected:
 	virtual void device_reset() override;
 };
 
-#endif
+#endif // MAME_BUS_NEOGEO_PROT_MISC_H

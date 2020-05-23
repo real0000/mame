@@ -3,6 +3,9 @@
 /***************************************************************************
 
     Z80-SIO Serial Input/Output
+    Z80-DART Dual Asynchronous Receiver/Transmitter
+    Intel 8274 Multi-Protocol Serial Controller
+    NEC µPD7201 Multiprotocol Serial Communications Controller
 
 ****************************************************************************
              _____   _____               _____               _____
@@ -49,13 +52,106 @@
           R S S D K S D S S R D                  R S S D K S D S S R C
           A A A A   E B B B B B                  A A A A   E B B B B
                     T                                      T
+                                 _____   _____
+                         D1   1 |*    \_/     | 40  D0
+                         D3   2 |             | 39  D2
+                         D5   3 |             | 38  D4
+                         D7   4 |             | 37  D6
+                       _INT   5 |             | 36  _IORQ
+                        IEI   6 |             | 35  _CE
+                        IEO   7 |             | 34  B/_A
+                        _M1   8 |             | 33  C/_D
+                        Vdd   9 |             | 32  _RD
+                    _W/RDYA  10 |   Z80-DART  | 31  GND
+                       _RIA  11 |    Z8470    | 30  _W/RDYB
+                       RxDA  12 |             | 29  _RIB
+                      _RxCA  13 |             | 28  RxDB
+                      _TxCA  14 |             | 27  _RxTxCB
+                       TxDA  15 |             | 26  TxDB
+                      _DTRA  16 |             | 25  _DTRB
+                      _RTSA  17 |             | 24  _RTSB
+                      _CTSA  18 |             | 23  _CTSB
+                      _DCDA  19 |             | 22  _DCDB
+                        CLK  20 |_____________| 21  _RESET
+
+                                 _____   _____
+                        CLK   1 |*    \_/     | 40  Vcc
+                     _RESET   2 |             | 39  _CTSA
+                       _CDA   3 |             | 38  _RTSA
+                      _RxCB   4 |             | 37  TxDA
+                       _CDB   5 |             | 36  _TxCA
+                      _CTSB   6 |             | 35  _RxCA
+                      _TxCB   7 |             | 34  RxDA
+                       TxDB   8 |             | 33  _SYNDETA
+                       RxDB   9 |    DIP40    | 32  RDYA/RxDRQA
+             _RTSB/_SYNDETB  10 |    I8274    | 31  _DTRA
+               RDYB/_TxDRQA  11 |             | 30  _IPO/TxDRQB
+                         D7  12 |             | 29  _IPI/RxDRQB
+                         D6  13 |             | 28  _INT
+                         D5  14 |             | 27  _INTA
+                         D4  15 |             | 26  _DTRB
+                         D3  16 |             | 25  A0
+                         D2  17 |             | 24  A1
+                         D1  18 |             | 23  _CS
+                         D0  19 |             | 22  _RD
+                        Vss  20 |_____________| 21  _WR
+
+                                 _____   _____
+                        CLK   1 |*    \_/     | 40  Vcc
+                     _RESET   2 |             | 39  _CTSA
+                      _DCDA   3 |             | 38  _RTSA
+                      _RxCB   4 |             | 37  TxDA
+                      _DCDB   5 |             | 36  _TxCA
+                      _CTSB   6 |             | 35  _RxCA
+                      _TxCB   7 |             | 34  RxDA
+                       TxDB   8 |             | 33  _SYNCA
+                       RxDB   9 |   DIP40     | 32  _WAITA/DRQRxA
+               _RTSB/_SYNCB  10 |   D7201     | 31  _DTRA/_HAO
+             _WAITB/_DRQTxA  11 |             | 30  _PRO/DRQTxB
+                         D7  12 |             | 29  _PRI/DRQRxB
+                         D6  13 |             | 28  _INT
+                         D5  14 |             | 27  _INTAK
+                         D4  15 |             | 26  _DTRB/_HAI
+                         D3  16 |             | 25  B/_A
+                         D2  17 |             | 24  C/_D
+                         D1  18 |             | 23  _CS
+                         D0  19 |             | 22  _RD
+                        Vss  20 |_____________| 21  _WR
+
+                                 _____   _____
+                           D1  1|*    \_/     |48 D0
+                           D3  2|             |47 D2
+                           D5  3|             |46 D4
+                           D7  4|             |45 D6
+                        _INTR  5|             |44 R/_W
+                          CLK  6|             |43 _IACK
+                        XTAL1  7|             |42 _DTACK
+                        XTAL2  8|             |41 _CS
+                       _RESET  9|             |40 _RxRDYB
+                      _RxRDYA 10|             |39 _TxRDYB
+                      _TxRDYA 11|  DIP48      |38 GND
+                          Vcc 12|  MK68564    |37 _IEI
+                         _IEO 13|  SIO        |36 _SYNCB
+                       _SYNCA 14|             |35 _TxCB
+                        _TxCA 15|             |34 _RxCB
+                        _RxCA 16|             |29 RxDB
+                         RxDA 17|             |28 TxDB
+                         TxDA 18|             |27 _DTRB
+                        _DTRA 19|             |26 _RTSB
+                        _RTSA 20|             |25 _CTSB
+                        _CTSA 21|             |24 _DCDB
+                        _DCDA 22|             |23 A1
+                           A2 23|             |22 A3
+                           A4 24|_____________|21 A5
 
 ***************************************************************************/
 
-#ifndef __Z80SIO_H__
-#define __Z80SIO_H__
+#ifndef MAME_MACHINE_Z80SIO_H
+#define MAME_MACHINE_Z80SIO_H
 
-#include "cpu/z80/z80daisy.h"
+#pragma once
+
+#include "machine/z80daisy.h"
 
 //**************************************************************************
 //  DEVICE CONFIGURATION MACROS
@@ -63,65 +159,6 @@
 
 #define SIO_CHANA_TAG   "cha"
 #define SIO_CHANB_TAG   "chb"
-
-#define MCFG_Z80SIO_ADD(_tag, _clock, _rxa, _txa, _rxb, _txb) \
-	MCFG_DEVICE_ADD(_tag, Z80SIO, _clock) \
-	MCFG_Z80SIO_OFFSETS(_rxa, _txa, _rxb, _txb)
-
-#define MCFG_UPD7201_ADD(_tag, _clock, _rxa, _txa, _rxb, _txb) \
-	MCFG_DEVICE_ADD(_tag, UPD7201N, _clock) \
-	MCFG_Z80SIO_OFFSETS(_rxa, _txa, _rxb, _txb)
-
-/* Generic macros */
-#define MCFG_Z80SIO_OFFSETS(_rxa, _txa, _rxb, _txb) \
-	z80sio_device::configure_channels(*device, _rxa, _txa, _rxb, _txb);
-
-#define MCFG_Z80SIO_OUT_INT_CB(_devcb) \
-	devcb = &z80sio_device::set_out_int_callback(*device, DEVCB_##_devcb);
-
-// Port A callbacks
-#define MCFG_Z80SIO_OUT_TXDA_CB(_devcb) \
-	devcb = &z80sio_device::set_out_txda_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_Z80SIO_OUT_DTRA_CB(_devcb) \
-	devcb = &z80sio_device::set_out_dtra_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_Z80SIO_OUT_RTSA_CB(_devcb) \
-	devcb = &z80sio_device::set_out_rtsa_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_Z80SIO_OUT_WRDYA_CB(_devcb) \
-	devcb = &z80sio_device::set_out_wrdya_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_Z80SIO_OUT_SYNCA_CB(_devcb) \
-	devcb = &z80sio_device::set_out_synca_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_Z80SIO_OUT_RXDRQA_CB(_devcb) \
-	devcb = &z80sio_device::set_out_rxdrqa_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_Z80SIO_OUT_TXDRQA_CB(_devcb) \
-	devcb = &z80sio_device::set_out_txdrqa_callback(*device, DEVCB_##_devcb);
-
-// Port B callbacks
-#define MCFG_Z80SIO_OUT_TXDB_CB(_devcb) \
-	devcb = &z80sio_device::set_out_txdb_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_Z80SIO_OUT_DTRB_CB(_devcb) \
-	devcb = &z80sio_device::set_out_dtrb_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_Z80SIO_OUT_RTSB_CB(_devcb) \
-	devcb = &z80sio_device::set_out_rtsb_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_Z80SIO_OUT_WRDYB_CB(_devcb) \
-	devcb = &z80sio_device::set_out_wrdyb_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_Z80SIO_OUT_SYNCB_CB(_devcb) \
-	devcb = &z80sio_device::set_out_syncb_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_Z80SIO_OUT_RXDRQB_CB(_devcb) \
-	devcb = &z80sio_device::set_out_rxdrqb_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_Z80SIO_OUT_TXDRQB_CB(_devcb) \
-	devcb = &z80sio_device::set_out_txdrqb_callback(*device, DEVCB_##_devcb);
 
 
 //**************************************************************************
@@ -132,24 +169,16 @@
 
 class z80sio_device;
 
-class z80sio_channel : public device_t,
-		public device_serial_interface
+class z80sio_channel : public device_t
 {
 	friend class z80sio_device;
+	friend class z80dart_device;
+	friend class i8274_device;
+	friend class upd7201_device;
+	friend class mk68564_device;
 
 public:
 	z80sio_channel(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-
-	// device-level overrides
-	virtual void device_start() override;
-	virtual void device_reset() override;
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
-
-	// device_serial_interface overrides
-	virtual void tra_callback() override;
-	virtual void tra_complete() override;
-	virtual void rcv_callback() override;
-	virtual void rcv_complete() override;
 
 	// read register handlers
 	uint8_t do_sioreg_rr0();
@@ -173,25 +202,18 @@ public:
 	uint8_t data_read();
 	void data_write(uint8_t data);
 
-	void receive_data(uint8_t data);
-
-	DECLARE_WRITE_LINE_MEMBER( write_rx );
+	DECLARE_WRITE_LINE_MEMBER( write_rx ) { m_rxd = state; }
 	DECLARE_WRITE_LINE_MEMBER( cts_w );
 	DECLARE_WRITE_LINE_MEMBER( dcd_w );
-	//DECLARE_WRITE_LINE_MEMBER( ri_w );
 	DECLARE_WRITE_LINE_MEMBER( rxc_w );
 	DECLARE_WRITE_LINE_MEMBER( txc_w );
 	DECLARE_WRITE_LINE_MEMBER( sync_w );
 
-	int m_rxc;
-	int m_txc;
-
 	// Register state
-		// read registers     enum
+	// read registers     enum
 	uint8_t m_rr0; // REG_RR0_STATUS
 	uint8_t m_rr1; // REG_RR1_SPEC_RCV_COND
-	uint8_t m_rr2; // REG_RR2_INTERRUPT_VECT
-		// write registers    enum
+	// write registers    enum
 	uint8_t m_wr0; // REG_WR0_COMMAND_REGPT
 	uint8_t m_wr1; // REG_WR1_INT_DMA_ENABLE
 	uint8_t m_wr2; // REG_WR2_INT_VECTOR
@@ -201,21 +223,25 @@ public:
 	uint8_t m_wr6; // REG_WR6_SYNC_OR_SDLC_A
 	uint8_t m_wr7; // REG_WR7_SYNC_OR_SDLC_F
 
-	int m_variant; // Set in device
-
 protected:
 	enum
 	{
 		INT_TRANSMIT = 0,
 		INT_EXTERNAL,
-		INT_RECEIVE,
-		INT_SPECIAL
+		INT_RECEIVE
+	};
+
+	enum
+	{
+		INT_RCV_SPC_PRI_LVL  = 0,
+		INT_TRANSMIT_PRI_LVL = 1,
+		INT_EXTERNAL_PRI_LVL = 2
 	};
 
 	// Read registers
 	enum
 	{
-		REG_RR0_STATUS      = 0,
+		REG_RR0_STATUS          = 0,
 		REG_RR1_SPEC_RCV_COND   = 1,
 		REG_RR2_INTERRUPT_VECT  = 2
 	};
@@ -225,183 +251,216 @@ protected:
 	{
 		REG_WR0_COMMAND_REGPT   = 0,
 		REG_WR1_INT_DMA_ENABLE  = 1,
-		REG_WR2_INT_VECTOR  = 2,
-		REG_WR3_RX_CONTROL  = 3,
-		REG_WR4_RX_TX_MODES = 4,
-		REG_WR5_TX_CONTROL  = 5,
+		REG_WR2_INT_VECTOR      = 2,
+		REG_WR3_RX_CONTROL      = 3,
+		REG_WR4_RX_TX_MODES     = 4,
+		REG_WR5_TX_CONTROL      = 5,
 		REG_WR6_SYNC_OR_SDLC_A  = 6,
 		REG_WR7_SYNC_OR_SDLC_F  = 7
 	};
 
+	// used in a flag bitmap variable
+	enum : uint8_t
+	{
+		TX_FLAG_CRC     = 1U << 0,  // include in checksum calculation
+		TX_FLAG_FRAMING = 1U << 1,  // transmitting framing bits
+		TX_FLAG_ABORT_TX= 1U << 2,  // transmitting abort sequence
+		TX_FLAG_CRC_TX  = 1U << 3,  // transmitting CRC value
+		TX_FLAG_DATA_TX = 1U << 4   // transmitting frame data
+	};
+
+	// Sync/SDLC FSM states
 	enum
 	{
-		RR0_RX_CHAR_AVAILABLE     = 0x01,
-		RR0_INTERRUPT_PENDING     = 0x02,
-		RR0_TX_BUFFER_EMPTY   = 0x04,
-		RR0_DCD           = 0x08,
-		RR0_SYNC_HUNT         = 0x10,
-		RR0_CTS           = 0x20,
-		RR0_TX_UNDERRUN       = 0x40,
-		RR0_BREAK_ABORT       = 0x80
+		SYNC_FSM_HUNT = 0,  // Hunt for start sync/flag
+		SYNC_FSM_EVICT = 1, // Evict flag from sync SR
+		SYNC_FSM_1ST_CHAR = 2,  // Receiving 1st character
+		SYNC_FSM_IN_FRAME = 3   // Inside a frame
 	};
 
-	enum
-	{
-		RR1_ALL_SENT          = 0x01,
-		RR1_RESIDUE_CODE_MASK     = 0x0e,
-		RR1_PARITY_ERROR      = 0x10,
-		RR1_RX_OVERRUN_ERROR      = 0x20,
-		RR1_CRC_FRAMING_ERROR     = 0x40,
-		RR1_END_OF_FRAME      = 0x80
-	};
+	z80sio_channel(
+			const machine_config &mconfig,
+			device_type type,
+			const char *tag,
+			device_t *owner,
+			uint32_t clock,
+			uint8_t rr1_auto_reset);
 
-	enum
-	{                     // TODO: overload SIO functionality
-		RR2_INT_VECTOR_MASK   = 0xff, // SCC channel A, SIO channel B (special case)
-		RR2_INT_VECTOR_V1     = 0x02, // SIO (special case) /SCC Channel B
-		RR2_INT_VECTOR_V2     = 0x04, // SIO (special case) /SCC Channel B
-		RR2_INT_VECTOR_V3     = 0x08  // SIO (special case) /SCC Channel B
-	};
+	// device-level overrides
+	virtual void device_resolve_objects() override;
+	virtual void device_start() override;
+	virtual void device_reset() override;
 
-	enum
-	{
-		WR0_REGISTER_MASK     = 0x07,
-		WR0_COMMAND_MASK      = 0x38,
-		WR0_NULL          = 0x00,
-		WR0_SEND_ABORT        = 0x08, // not supported
-		WR0_RESET_EXT_STATUS      = 0x10,
-		WR0_CHANNEL_RESET     = 0x18,
-		WR0_ENABLE_INT_NEXT_RX    = 0x20,
-		WR0_RESET_TX_INT      = 0x28, // not supported
-		WR0_ERROR_RESET       = 0x30,
-		WR0_RETURN_FROM_INT   = 0x38, // not supported
-		WR0_CRC_RESET_CODE_MASK   = 0xc0, // not supported
-		WR0_CRC_RESET_NULL    = 0x00, // not supported
-		WR0_CRC_RESET_RX      = 0x40, // not supported
-		WR0_CRC_RESET_TX      = 0x80, // not supported
-		WR0_CRC_RESET_TX_UNDERRUN = 0xc0  // not supported
-	};
-
-	enum
-	{
-		WR1_EXT_INT_ENABLE    = 0x01,
-		WR1_TX_INT_ENABLE     = 0x02,
-		WR1_STATUS_VECTOR     = 0x04,
-		WR1_RX_INT_MODE_MASK      = 0x18,
-		WR1_RX_INT_DISABLE    = 0x00,
-		WR1_RX_INT_FIRST      = 0x08,
-		WR1_RX_INT_ALL_PARITY     = 0x10, // not supported
-		WR1_RX_INT_ALL        = 0x18,
-		WR1_WRDY_ON_RX_TX     = 0x20, // not supported
-		WR1_WRDY_FUNCTION     = 0x40, // not supported
-		WR1_WRDY_ENABLE       = 0x80  // not supported
-	};
-
-	enum
-	{
-		WR2_DATA_XFER_INT     = 0x00, // not supported
-		WR2_DATA_XFER_DMA_INT     = 0x01, // not supported
-		WR2_DATA_XFER_DMA     = 0x02, // not supported
-		WR2_DATA_XFER_ILLEGAL     = 0x03, // not supported
-		WR2_DATA_XFER_MASK    = 0x03, // not supported
-		WR2_PRIORITY          = 0x04, // not supported
-		WR2_MODE_8085_1       = 0x00, // not supported
-		WR2_MODE_8085_2       = 0x08, // not supported
-		WR2_MODE_8086_8088    = 0x10, // not supported
-		WR2_MODE_ILLEGAL      = 0x18, // not supported
-		WR2_MODE_MASK         = 0x18, // not supported
-		WR2_VECTORED_INT      = 0x20, // not supported
-		WR2_PIN10_SYNDETB_RTSB    = 0x80  // not supported
-	};
-
-	enum
-	{
-		WR3_RX_ENABLE         = 0x01,
-		WR3_SYNC_CHAR_LOAD_INHIBIT= 0x02, // not supported
-		WR3_ADDRESS_SEARCH_MODE   = 0x04, // not supported
-		WR3_RX_CRC_ENABLE     = 0x08, // not supported
-		WR3_ENTER_HUNT_PHASE      = 0x10, // not supported
-		WR3_AUTO_ENABLES      = 0x20,
-		WR3_RX_WORD_LENGTH_MASK   = 0xc0,
-		WR3_RX_WORD_LENGTH_5      = 0x00,
-		WR3_RX_WORD_LENGTH_7      = 0x40,
-		WR3_RX_WORD_LENGTH_6      = 0x80,
-		WR3_RX_WORD_LENGTH_8      = 0xc0
-	};
-
-	enum
-	{
-		WR4_PARITY_ENABLE     = 0x01,
-		WR4_PARITY_EVEN       = 0x02,
-		WR4_STOP_BITS_MASK    = 0x0c,
-		WR4_STOP_BITS_1       = 0x04,
-		WR4_STOP_BITS_1_5     = 0x08, // not supported
-		WR4_STOP_BITS_2       = 0x0c,
-		WR4_SYNC_MODE_MASK    = 0x30, // not supported
-		WR4_SYNC_MODE_8_BIT   = 0x00, // not supported
-		WR4_SYNC_MODE_16_BIT      = 0x10, // not supported
-		WR4_SYNC_MODE_SDLC    = 0x20, // not supported
-		WR4_SYNC_MODE_EXT     = 0x30, // not supported
-		WR4_CLOCK_RATE_MASK   = 0xc0,
-		WR4_CLOCK_RATE_X1     = 0x00,
-		WR4_CLOCK_RATE_X16    = 0x40,
-		WR4_CLOCK_RATE_X32    = 0x80,
-		WR4_CLOCK_RATE_X64    = 0xc0
-	};
-
-	enum
-	{
-		WR5_TX_CRC_ENABLE     = 0x01, // not supported
-		WR5_RTS           = 0x02,
-		WR5_CRC16         = 0x04, // not supported
-		WR5_TX_ENABLE         = 0x08,
-		WR5_SEND_BREAK        = 0x10,
-		WR5_TX_WORD_LENGTH_MASK   = 0x60,
-		WR5_TX_WORD_LENGTH_5      = 0x00,
-		WR5_TX_WORD_LENGTH_6      = 0x40,
-		WR5_TX_WORD_LENGTH_7      = 0x20,
-		WR5_TX_WORD_LENGTH_8      = 0x60,
-		WR5_DTR           = 0x80
-	};
-
-	void update_serial();
-	void update_rts();
+	void update_dtr_rts_break();
 	void set_dtr(int state);
 	void set_rts(int state);
 
-	int get_clock_mode();
-	stop_bits_t get_stop_bits();
-	int get_rx_word_length();
-	int get_tx_word_length();
+	int get_clock_mode() const;
+	int get_rx_word_length() const;
+	int get_tx_word_length() const;
 
 	// receiver state
-	uint8_t m_rx_data_fifo[3];    // receive data FIFO
-	uint8_t m_rx_error_fifo[3];   // receive error FIFO
-	uint8_t m_rx_error;       // current receive error
-	int m_rx_fifo;      // receive FIFO pointer
+	int m_rx_fifo_depth;
+	uint32_t m_rx_data_fifo;
+	uint32_t m_rx_error_fifo;
 
-	int m_rx_clock;     // receive clock pulse count
-	int m_rx_first;     // first character received
-	int m_rx_break;     // receive break condition
-	uint8_t m_rx_rr0_latch;   // read register 0 latched
+	int m_rx_clock;     // receive clock line state
+	int m_rx_count;     // clocks until next sample
+	bool m_dlyd_rxd;    // delayed RxD
+	int m_rx_bit;       // receive data bit (0 = start bit, 1 = LSB, etc.)
+	int m_rx_bit_limit; // bits to assemble for next character (sync/SDLC)
+	int m_rx_sync_fsm;  // Sync/SDLC FSM state
+	uint8_t m_rx_one_cnt;   // SDLC: counter to delete stuffed zeros
+	uint16_t m_rx_sr;   // receive shift register
+	uint8_t m_rx_sync_sr;   // rx sync SR
+	uint8_t m_rx_crc_delay; // rx CRC delay SR
+	uint16_t m_rx_crc;  // rx CRC accumulator
+	bool m_rx_crc_en;   // rx CRC enabled
+	bool m_rx_parity;   // accumulated parity
+
+	bool m_rx_first;    // first character received
 
 	int m_rxd;
-	int m_sh;           // sync hunt
-	int m_cts;          // clear to send latch
-	int m_dcd;          // data carrier detect latch
 
 	// transmitter state
-	uint8_t m_tx_data;        // transmit data register
-	int m_tx_clock;     // transmit clock pulse count
+	uint8_t m_tx_data;
 
+	int m_tx_clock;     // transmit clock line state
+	int m_tx_count;     // clocks until next bit transition
+	bool m_tx_phase;    // phase of bit clock
+	bool m_tx_parity;   // accumulated parity
+	bool m_tx_in_pkt;   // In active part of packet (sync mode)
+	bool m_tx_forced_sync;  // Force sync/flag
+	uint32_t m_tx_sr;   // transmit shift register
+	uint16_t m_tx_crc;  // calculated transmit checksum
+	uint8_t m_tx_hist;  // transmit history (for bitstuffing)
+	uint8_t m_tx_flags; // internal transmit control flags
+	uint8_t m_tx_delay; // 2-bit tx delay (4 half-bits)
+	uint8_t m_all_sent_delay;   // SR for all-sent delay
+
+	int m_txd;
 	int m_dtr;          // data terminal ready
 	int m_rts;          // request to send
 
+	// external/status monitoring
+	bool m_ext_latched; // changed data lines
+	bool m_brk_latched; // break status latched
+	int m_cts;          // clear to send line state
+	int m_dcd;          // data carrier detect line state
+	int m_sync;         // sync line state
+
 	// synchronous state
-	uint16_t m_sync;      // sync character
 
 	int m_index;
 	z80sio_device *m_uart;
+
+protected:
+	// helpers
+	void out_txd_cb(int state);
+	void out_rts_cb(int state);
+	void out_dtr_cb(int state);
+	void set_ready(bool ready);
+	bool receive_allowed() const;
+	virtual bool transmit_allowed() const;
+
+	void receive_enabled();
+	virtual void enter_hunt_mode();
+	virtual void sync_receive();
+	virtual void sdlc_receive();
+	void receive_data();
+	void queue_received(uint16_t data, uint32_t error);
+	void advance_rx_fifo();
+	uint8_t get_special_rx_mask() const;
+
+	bool is_tx_idle() const;
+	void transmit_enable();
+	void transmit_complete();
+	void async_tx_setup();
+	virtual void sync_tx_sr_empty();
+	void tx_setup(uint16_t data, int bits, bool framing, bool crc_tx, bool abort_tx);
+	virtual void tx_setup_idle();
+	bool get_tx_empty() const;
+	void set_tx_empty(bool prev_state, bool new_state);
+	void update_crc(uint16_t& crc , bool bit);
+
+	virtual void sync_save_state();
+	void reset_ext_status();
+	void read_ext();
+	void trigger_ext_int();
+
+	uint8_t const m_rr1_auto_reset;
+};
+
+
+// ======================> z80dart_channel
+
+class z80dart_channel : public z80sio_channel
+{
+public:
+	z80dart_channel(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+protected:
+	virtual void enter_hunt_mode() override;
+	virtual void sync_receive() override;
+	virtual void sdlc_receive() override;
+	virtual void sync_tx_sr_empty() override;
+	virtual void tx_setup_idle() override;
+	virtual void sync_save_state() override;
+};
+
+
+// ======================> i8274_channel
+
+class i8274_channel : public z80sio_channel
+{
+public:
+	i8274_channel(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+};
+
+
+// ======================> mk68564_channel
+
+class mk68564_channel : public z80sio_channel
+{
+	friend class mk68564_device;
+
+public:
+	mk68564_channel(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+protected:
+	virtual void device_start() override;
+	virtual void device_reset() override;
+
+	virtual bool transmit_allowed() const override;
+
+private:
+	uint8_t cmdreg_r();
+	void cmdreg_w(uint8_t data);
+	uint8_t modectl_r();
+	void modectl_w(uint8_t data);
+	uint8_t intctl_r();
+	void intctl_w(uint8_t data);
+	uint8_t sync1_r();
+	void sync1_w(uint8_t data);
+	uint8_t sync2_r();
+	void sync2_w(uint8_t data);
+	uint8_t rcvctl_r();
+	void rcvctl_w(uint8_t data);
+	uint8_t xmtctl_r();
+	void xmtctl_w(uint8_t data);
+	uint8_t tcreg_r();
+	void tcreg_w(uint8_t data);
+	uint8_t brgctl_r();
+	void brgctl_w(uint8_t data);
+
+	void brg_update();
+	TIMER_CALLBACK_MEMBER(brg_timeout);
+
+	bool m_tx_auto_enable;
+	uint8_t m_brg_tc;
+	uint8_t m_brg_control;
+	bool m_brg_state;
+	emu_timer *m_brg_timer;
 };
 
 
@@ -414,51 +473,43 @@ class z80sio_device :  public device_t,
 
 public:
 	// construction/destruction
-	z80sio_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source);
 	z80sio_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_out_txda_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_txda_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_dtra_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_dtra_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_rtsa_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_rtsa_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_wrdya_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_wrdya_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_synca_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_synca_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_txdb_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_txdb_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_dtrb_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_dtrb_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_rtsb_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_rtsb_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_wrdyb_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_wrdyb_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_syncb_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_syncb_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_int_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_int_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_rxdrqa_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_rxdrqa_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_txdrqa_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_txdrqa_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_rxdrqb_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_rxdrqb_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_txdrqb_callback(device_t &device, _Object object) { return downcast<z80sio_device &>(device).m_out_txdrqb_cb.set_callback(object); }
+	auto out_txda_callback() { return m_out_txd_cb[0].bind(); }
+	auto out_txdb_callback() { return m_out_txd_cb[1].bind(); }
+	auto out_dtra_callback() { return m_out_dtr_cb[0].bind(); }
+	auto out_dtrb_callback() { return m_out_dtr_cb[1].bind(); }
+	auto out_rtsa_callback() { return m_out_rts_cb[0].bind(); }
+	auto out_rtsb_callback() { return m_out_rts_cb[1].bind(); }
+	auto out_wrdya_callback() { return m_out_wrdy_cb[0].bind(); }
+	auto out_wrdyb_callback() { return m_out_wrdy_cb[1].bind(); }
+	auto out_synca_callback() { return m_out_sync_cb[0].bind(); }
+	auto out_syncb_callback() { return m_out_sync_cb[1].bind(); }
+	auto out_int_callback() { return m_out_int_cb.bind(); }
+	auto out_rxdrqa_callback() { return m_out_rxdrq_cb[0].bind(); }
+	auto out_rxdrqb_callback() { return m_out_rxdrq_cb[1].bind(); }
+	auto out_txdrqa_callback() { return m_out_txdrq_cb[0].bind(); }
+	auto out_txdrqb_callback() { return m_out_txdrq_cb[1].bind(); }
 
-	static void configure_channels(device_t &device, int rxa, int txa, int rxb, int txb)
-	{
-		z80sio_device &dev = downcast<z80sio_device &>(device);
-		dev.m_rxca = rxa;
-		dev.m_txca = txa;
-		dev.m_rxcb = rxb;
-		dev.m_txcb = txb;
-	}
+	template <typename T> void set_cputag(T &&tag) { m_hostcpu.set_tag(std::forward<T>(tag)); }
 
-	DECLARE_READ8_MEMBER( cd_ba_r );
-	DECLARE_WRITE8_MEMBER( cd_ba_w );
-	DECLARE_READ8_MEMBER( ba_cd_r );
-	DECLARE_WRITE8_MEMBER( ba_cd_w );
+	uint8_t cd_ba_r(offs_t offset);
+	void cd_ba_w(offs_t offset, uint8_t data);
+	uint8_t ba_cd_r(offs_t offset);
+	void ba_cd_w(offs_t offset, uint8_t data);
 
-	DECLARE_READ8_MEMBER( da_r ) { return m_chanA->data_read(); }
-	DECLARE_WRITE8_MEMBER( da_w ) { m_chanA->data_write(data); }
-	DECLARE_READ8_MEMBER( db_r ) { return m_chanB->data_read(); }
-	DECLARE_WRITE8_MEMBER( db_w ) { m_chanB->data_write(data); }
+	uint8_t da_r() { return m_chanA->data_read(); }
+	void da_w(uint8_t data) { m_chanA->data_write(data); }
+	uint8_t db_r() { return m_chanB->data_read(); }
+	void db_w(uint8_t data) { m_chanB->data_write(data); }
 
-	DECLARE_READ8_MEMBER( ca_r ) { return m_chanA->control_read(); }
-	DECLARE_WRITE8_MEMBER( ca_w ) { m_chanA->control_write(data); }
-	DECLARE_READ8_MEMBER( cb_r ) { return m_chanB->control_read(); }
-	DECLARE_WRITE8_MEMBER( cb_w ) { m_chanB->control_write(data); }
+	uint8_t ca_r() { return m_chanA->control_read(); }
+	void ca_w(uint8_t data) { m_chanA->control_write(data); }
+	uint8_t cb_r() { return m_chanB->control_read(); }
+	void cb_w(uint8_t data) { m_chanB->control_write(data); }
 
 	// interrupt acknowledge
-	int m1_r();
+	virtual int m1_r();
 
 	DECLARE_WRITE_LINE_MEMBER( rxa_w ) { m_chanA->write_rx(state); }
 	DECLARE_WRITE_LINE_MEMBER( rxb_w ) { m_chanB->write_rx(state); }
@@ -466,8 +517,6 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( ctsb_w ) { m_chanB->cts_w(state); }
 	DECLARE_WRITE_LINE_MEMBER( dcda_w ) { m_chanA->dcd_w(state); }
 	DECLARE_WRITE_LINE_MEMBER( dcdb_w ) { m_chanB->dcd_w(state); }
-	//DECLARE_WRITE_LINE_MEMBER( ria_w ) { m_chanA->ri_w(state); }
-	//DECLARE_WRITE_LINE_MEMBER( rib_w ) { m_chanB->ri_w(state); }
 	DECLARE_WRITE_LINE_MEMBER( rxca_w ) { m_chanA->rxc_w(state); }
 	DECLARE_WRITE_LINE_MEMBER( rxcb_w ) { m_chanB->rxc_w(state); }
 	DECLARE_WRITE_LINE_MEMBER( txca_w ) { m_chanA->txc_w(state); }
@@ -477,10 +526,14 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( syncb_w ) { m_chanB->sync_w(state); }
 
 protected:
+	z80sio_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	// device-level overrides
+	virtual void device_validity_check(validity_checker &valid) const override;
+	virtual void device_resolve_objects() override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	// device_z80daisy_interface overrides
 	virtual int z80daisy_irq_state() override;
@@ -490,14 +543,13 @@ protected:
 	// internal interrupt management
 	void check_interrupts();
 	void reset_interrupts();
-	void trigger_interrupt(int index, int state);
-	int get_channel_index(z80sio_channel *ch) { return (ch == m_chanA) ? 0 : 1; }
+	void trigger_interrupt(int index, int type);
+	void clear_interrupt(int index, int type);
+	void return_from_interrupt();
+	virtual uint8_t read_vector();
+	virtual int const *interrupt_priorities() const;
 
-	enum
-	{
-		TYPE_Z80SIO     = 0x001,
-		TYPE_UPD7201    = 0x002
-	};
+	int get_channel_index(z80sio_channel const *ch) const { return (ch == m_chanA) ? 0 : 1; }
 
 	enum
 	{
@@ -507,44 +559,87 @@ protected:
 
 	required_device<z80sio_channel> m_chanA;
 	required_device<z80sio_channel> m_chanB;
+	optional_device<cpu_device> m_hostcpu;
 
 	// internal state
-	int m_rxca;
-	int m_txca;
-	int m_rxcb;
-	int m_txcb;
+	devcb_write_line::array<2> m_out_txd_cb;
+	devcb_write_line::array<2> m_out_dtr_cb;
+	devcb_write_line::array<2> m_out_rts_cb;
+	devcb_write_line::array<2> m_out_wrdy_cb;
+	devcb_write_line::array<2> m_out_sync_cb;
 
-	devcb_write_line    m_out_txda_cb;
-	devcb_write_line    m_out_dtra_cb;
-	devcb_write_line    m_out_rtsa_cb;
-	devcb_write_line    m_out_wrdya_cb;
-	devcb_write_line    m_out_synca_cb;
-
-	devcb_write_line    m_out_txdb_cb;
-	devcb_write_line    m_out_dtrb_cb;
-	devcb_write_line    m_out_rtsb_cb;
-	devcb_write_line    m_out_wrdyb_cb;
-	devcb_write_line    m_out_syncb_cb;
-
-	devcb_write_line    m_out_int_cb;
-	devcb_write_line    m_out_rxdrqa_cb;
-	devcb_write_line    m_out_txdrqa_cb;
-	devcb_write_line    m_out_rxdrqb_cb;
-	devcb_write_line    m_out_txdrqb_cb;
+	devcb_write_line m_out_int_cb;
+	devcb_write_line::array<2> m_out_rxdrq_cb;
+	devcb_write_line::array<2> m_out_txdrq_cb;
 
 	int m_int_state[8]; // interrupt state
-	int m_variant;
+	int m_int_source[8]; // interrupt source
 };
 
-class upd7201N_device : public z80sio_device
+class z80dart_device : public z80sio_device
 {
-public :
-	upd7201N_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+public:
+	z80dart_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+	DECLARE_WRITE_LINE_MEMBER( ria_w ) { m_chanA->sync_w(state); }
+	DECLARE_WRITE_LINE_MEMBER( rib_w ) { m_chanB->sync_w(state); }
+
+protected:
+	// device_t overrides
+	virtual void device_add_mconfig(machine_config &config) override;
 };
 
-// device type definition
-extern const device_type Z80SIO;
-extern const device_type Z80SIO_CHANNEL;
-extern const device_type UPD7201N;
+class i8274_device : public z80sio_device
+{
+public:
+	i8274_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-#endif
+	uint8_t inta_r() { return m1_r(); }
+
+protected:
+	i8274_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
+	// device_t overrides
+	virtual void device_add_mconfig(machine_config &config) override;
+
+	// device_z80daisy_interface overrides
+	virtual int z80daisy_irq_ack() override;
+	virtual void z80daisy_irq_reti() override;
+
+	virtual uint8_t read_vector() override;
+	virtual int const *interrupt_priorities() const override;
+};
+
+class upd7201_device : public i8274_device
+{
+public:
+	upd7201_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+};
+
+class mk68564_device : public i8274_device
+{
+public:
+	mk68564_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+	void set_xtal(uint32_t clock);
+	void set_xtal(const XTAL &clock) { set_xtal(clock.value()); }
+
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
+
+protected:
+	// device_t overrides
+	virtual void device_add_mconfig(machine_config &config) override;
+
+private:
+	void vectrg_w(uint8_t data);
+};
+
+// device type declaration
+DECLARE_DEVICE_TYPE(Z80SIO,         z80sio_device)
+DECLARE_DEVICE_TYPE(Z80DART,        z80dart_device)
+DECLARE_DEVICE_TYPE(I8274,          i8274_device)
+DECLARE_DEVICE_TYPE(UPD7201,        upd7201_device)
+DECLARE_DEVICE_TYPE(MK68564,        mk68564_device)
+
+#endif // MAME_MACHINE_Z80SIO_H

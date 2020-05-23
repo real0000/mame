@@ -13,11 +13,11 @@
 #include "modules.h"
 #include "strformat.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include <time.h>
+#include <cstdio>
+#include <cstring>
+#include <cctype>
+#include <cstdlib>
+#include <ctime>
 #include <iostream>
 
 #ifdef _WIN32
@@ -106,7 +106,23 @@ static int parse_options(int argc, char *argv[], int minunnamed, int maxunnamed,
 				if (i < minunnamed)
 					goto error; /* Too few unnamed */
 
-				resolution->find(name)->set_value(value);
+				util::option_resolution::entry *entry = resolution->find(name);
+				if (entry->option_type() == util::option_guide::entry::option_type::ENUM_BEGIN)
+				{
+					const util::option_guide::entry *enum_value;
+					for (enum_value = entry->enum_value_begin(); enum_value != entry->enum_value_end(); enum_value++)
+					{
+						if (!strcmp (enum_value->identifier(), value))
+						{
+							entry->set_value(enum_value->parameter());
+							break;
+						}
+					}
+					if (enum_value ==  entry->enum_value_end())
+						goto error;
+				}
+				else
+					entry->set_value(value);
 			}
 		}
 	}
@@ -234,9 +250,11 @@ static int cmd_dir(const struct command *c, int argc, char *argv[])
 			? "<DIR>"
 			: string_format("%u", (unsigned int) ent.filesize);
 
-		if (ent.lastmodified_time != 0)
-			strftime(last_modified, sizeof(last_modified), "%d-%b-%y %H:%M:%S",
-				localtime(&ent.lastmodified_time));
+		if (!ent.lastmodified_time.empty())
+		{
+			std::tm t = ent.lastmodified_time.localtime();
+			strftime(last_modified, sizeof(last_modified), "%d-%b-%y %H:%M:%S", &t);
+		}
 
 		if (ent.hardlink)
 			strcat(ent.filename, " <hl>");
@@ -269,6 +287,8 @@ static int cmd_dir(const struct command *c, int argc, char *argv[])
 	util::stream_format(std::wcout, L"%8i File(s)        %8i bytes", total_count, total_size);
 	if (!freespace_err)
 		util::stream_format(std::wcout, L"                        %8u bytes free\n", (unsigned int)freespace);
+	else
+		util::stream_format(std::wcout, L"\n");
 
 done:
 	if (err)
@@ -412,7 +432,7 @@ static int cmd_getall(const struct command *c, int argc, char *argv[])
 	imgtool_dirent ent;
 	filter_getinfoproc filter;
 	int unnamedargs;
-	const char *path = nullptr;
+	const char *path = "";
 	int arg;
 	int partition_index = 0;
 
@@ -708,8 +728,8 @@ static int cmd_listfilters(const struct command *c, int argc, char *argv[])
 	for (i = 0; filters[i]; i++)
 	{
 		util::stream_format(std::wcout, L"  %-11s%s\n",
-			filter_get_info_string(filters[i], FILTINFO_STR_NAME),
-			filter_get_info_string(filters[i], FILTINFO_STR_HUMANNAME));
+			wstring_from_utf8(filter_get_info_string(filters[i], FILTINFO_STR_NAME)),
+			wstring_from_utf8(filter_get_info_string(filters[i], FILTINFO_STR_HUMANNAME)));
 	}
 
 	return 0;
@@ -830,7 +850,7 @@ static const struct command cmds[] =
 {
 	{ "create",             cmd_create,             "<format> <imagename> [--(createoption)=value]", 2, 8, 0},
 	{ "dir",                cmd_dir,                "<format> <imagename> [path]", 2, 3, 0 },
-	{ "get",                cmd_get,                "<format> <imagename> <filename> [newname] [--filter=filter] [--fork=fork]", 3, 4, 0 },
+	{ "get",                cmd_get,                "<format> <imagename> <filename> [newname] [--filter=filter] [--fork=fork]", 3, 6, 0 },
 	{ "put",                cmd_put,                "<format> <imagename> <filename>... <destname> [--(fileoption)==value] [--filter=filter] [--fork=fork]", 3, 0xffff, 0 },
 	{ "getall",             cmd_getall,             "<format> <imagename> [path] [--filter=filter]", 2, 3, 0 },
 	{ "del",                cmd_del,                "<format> <imagename> <filename>...", 3, 3, 1 },
@@ -863,6 +883,12 @@ int main(int argc, char *argv[])
 	if (imgtool_validitychecks())
 		return -1;
 #endif // MAME_DEBUG
+
+	// convert arguments to UTF-8
+	std::vector<std::string> args = osd_get_command_line(argc, argv);
+	argv = (char **)alloca(sizeof(char *) * args.size());
+	for (i = 0; i < args.size(); i++)
+		argv[i] = (char *)args[i].c_str();
 
 	util::stream_format(std::wcout, L"\n");
 

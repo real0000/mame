@@ -37,7 +37,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type PLUS4_SID = device_creator<plus4_sid_cartridge_device>;
+DEFINE_DEVICE_TYPE(PLUS4_SID, plus4_sid_cartridge_device, "plus4_sid", "Plus/4 SID cartridge")
 
 
 //-------------------------------------------------
@@ -61,26 +61,15 @@ const tiny_rom_entry *plus4_sid_cartridge_device::device_rom_region() const
 
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( plus4_sid )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( plus4_sid )
-	MCFG_SPEAKER_STANDARD_MONO("speaker")
-	MCFG_SOUND_ADD(MOS8580_TAG, MOS8580, XTAL_17_73447MHz/20)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 1.0)
-
-	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, nullptr)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor plus4_sid_cartridge_device::device_mconfig_additions() const
+void plus4_sid_cartridge_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( plus4_sid );
+	SPEAKER(config, "speaker").front_center();
+	MOS8580(config, m_sid, XTAL(17'734'470)/20).add_route(ALL_OUTPUTS, "speaker", 1.0);
+
+	VCS_CONTROL_PORT(config, m_joy, vcs_control_port_devices, nullptr);
 }
 
 
@@ -94,7 +83,7 @@ machine_config_constructor plus4_sid_cartridge_device::device_mconfig_additions(
 //-------------------------------------------------
 
 plus4_sid_cartridge_device::plus4_sid_cartridge_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, PLUS4_SID, "Plus/4 SID cartridge", tag, owner, clock, "plus4_sid", __FILE__),
+	device_t(mconfig, PLUS4_SID, tag, owner, clock),
 	device_plus4_expansion_card_interface(mconfig, *this),
 	m_sid(*this, MOS8580_TAG),
 	m_joy(*this, CONTROL1_TAG)
@@ -125,15 +114,15 @@ void plus4_sid_cartridge_device::device_reset()
 //  plus4_cd_r - cartridge data read
 //-------------------------------------------------
 
-uint8_t plus4_sid_cartridge_device::plus4_cd_r(address_space &space, offs_t offset, uint8_t data, int ba, int cs0, int c1l, int c2l, int cs1, int c1h, int c2h)
+uint8_t plus4_sid_cartridge_device::plus4_cd_r(offs_t offset, uint8_t data, int ba, int cs0, int c1l, int c2l, int cs1, int c1h, int c2h)
 {
 	if ((offset >= 0xfe80 && offset < 0xfea0) || (offset >= 0xfd40 && offset < 0xfd60))
 	{
-		data = m_sid->read(space, offset & 0x1f);
+		data = m_sid->read(offset & 0x1f);
 	}
 	else if (offset >= 0xfd80 && offset < 0xfd90)
 	{
-		data = m_joy->joy_r(space, 0);
+		data = m_joy->read_joy();
 	}
 
 	return data;
@@ -144,11 +133,11 @@ uint8_t plus4_sid_cartridge_device::plus4_cd_r(address_space &space, offs_t offs
 //  plus4_cd_w - cartridge data write
 //-------------------------------------------------
 
-void plus4_sid_cartridge_device::plus4_cd_w(address_space &space, offs_t offset, uint8_t data, int ba, int cs0, int c1l, int c2l, int cs1, int c1h, int c2h)
+void plus4_sid_cartridge_device::plus4_cd_w(offs_t offset, uint8_t data, int ba, int cs0, int c1l, int c2l, int cs1, int c1h, int c2h)
 {
 	if ((offset >= 0xfe80 && offset < 0xfea0) || (offset >= 0xfd40 && offset < 0xfd60))
 	{
-		m_sid->write(space, offset & 0x1f, data);
+		m_sid->write(offset & 0x1f, data);
 	}
 }
 

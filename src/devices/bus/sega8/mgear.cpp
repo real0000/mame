@@ -21,11 +21,10 @@
 //  constructors
 //-------------------------------------------------
 
-const device_type SEGA8_ROM_MGEAR = device_creator<sega8_mgear_device>;
+DEFINE_DEVICE_TYPE(SEGA8_ROM_MGEAR, sega8_mgear_device, "sega8_mgear", "Master Gear Converter")
 
 sega8_mgear_device::sega8_mgear_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: sega8_rom_device(mconfig, SEGA8_ROM_MGEAR, "Master Gear Converter", tag, owner, clock, "sega8_mgear", __FILE__),
-						m_subslot(*this, "subslot")
+	: sega8_rom_device(mconfig, SEGA8_ROM_MGEAR, tag, owner, clock), m_subslot(*this, "subslot")
 {
 }
 
@@ -38,16 +37,9 @@ void sega8_mgear_device::device_reset()
 {
 }
 
-/*-------------------------------------------------
- mapper specific handlers
- -------------------------------------------------*/
 
-static MACHINE_CONFIG_FRAGMENT( sub_slot )
-	MCFG_SMS_CARTRIDGE_ADD("subslot", sms_cart, nullptr)
-	MCFG_SOFTWARE_LIST_ADD("cart_list","sms")
-MACHINE_CONFIG_END
-
-machine_config_constructor sega8_mgear_device::device_mconfig_additions() const
+void sega8_mgear_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( sub_slot );
+	SMS_CART_SLOT(config, "subslot", sms_cart, nullptr);
+	SOFTWARE_LIST(config, "cart_list").set_original("sms");
 }

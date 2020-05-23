@@ -8,7 +8,6 @@ driver by Paul Hampson and Nicola Salmoria
 
 TODO:
 - sprite lag (the real game has quite a bit of lag too)
-- double-tap tolerance (find a way to emulate MCU?)
 
 Notes:
 - there's probably a 63701 on the board, used for protection. It is checked
@@ -27,16 +26,11 @@ Notes:
 #include "includes/spdodgeb.h"
 
 #include "cpu/m6502/m6502.h"
+#include "cpu/m6800/m6801.h"
 #include "cpu/m6809/m6809.h"
 #include "sound/3812intf.h"
 #include "speaker.h"
 
-
-WRITE8_MEMBER(spdodgeb_state::sound_command_w)
-{
-	m_soundlatch->write(space, offset, data);
-	m_audiocpu->set_input_line(M6809_IRQ_LINE, HOLD_LINE);
-}
 
 WRITE8_MEMBER(spdodgeb_state::spd_adpcm_w)
 {
@@ -96,188 +90,76 @@ WRITE_LINE_MEMBER(spdodgeb_state::spd_adpcm_int_2)
 	spd_adpcm_int(m_msm2, 1);
 }
 
-#if 0   // default - more sensitive (state change and timing measured on real board?)
-void spdodgeb_state::mcu63705_update_inputs()
-{
-	int buttons[2];
-	int p,j;
-
-	/* update running state */
-	for (p = 0; p <= 1; p++)
-	{
-		int curr[2][2];
-
-		curr[p][0] = ioport(p ? "P2" : "P1")->read() & 0x01;
-		curr[p][1] = ioport(p ? "P2" : "P1")->read() & 0x02;
-
-		for (j = 0;j <= 1;j++)
-		{
-			if (curr[p][j] == 0)
-			{
-				if (m_prev[p][j] != 0)
-					m_countup[p][j] = 0;
-				if (curr[p][j^1])
-					m_countup[p][j] = 100;
-				m_countup[p][j]++;
-				m_running[p] &= ~(1 << j);
-			}
-			else
-			{
-				if (m_prev[p][j] == 0)
-				{
-					if (m_countup[p][j] < 10 && m_countdown[p][j] < 5)
-						m_running[p] |= 1 << j;
-					m_countdown[p][j] = 0;
-				}
-				m_countdown[p][j]++;
-			}
-		}
-
-		m_prev[p][0] = curr[p][0];
-		m_prev[p][1] = curr[p][1];
-	}
-
-	/* update jumping and buttons state */
-	for (p = 0; p <= 1; p++)
-	{
-		int curr[2];
-
-		curr[p] = ioport(p ? "P2" : "P1")->read() & 0x30;
-
-		if (m_jumped[p]) buttons[p] = 0; /* jump only momentarily flips the buttons */
-		else buttons[p] = curr[p];
-
-		if (buttons[p] == 0x30) m_jumped[p] = 1;
-		if (curr[p] == 0x00) m_jumped[p] = 0;
-
-		m_prev[p] = curr[p];
-	}
-
-	m_inputs[0] = ioport("P1")->read() & 0xcf;
-	m_inputs[1] = ioport("P2")->read() & 0x0f;
-	m_inputs[2] = m_running[0] | buttons[0];
-	m_inputs[3] = m_running[1] | buttons[1];
-}
-#else   // alternate - less sensitive
-void spdodgeb_state::mcu63705_update_inputs()
-{
-#define DBLTAP_TOLERANCE 5
-
-#define R 0x01
-#define L 0x02
-#define A 0x10
-#define D 0x20
-
-	uint8_t curr_port[2];
-	uint8_t curr_dash[2];
-	int p;
-
-	for (p=0; p<=1; p++)
-	{
-		curr_port[p] = ioport(p ? "P2" : "P1")->read();
-		curr_dash[p] = 0;
-
-		if (curr_port[p] & R)
-		{
-			if (!(m_last_port[p] & R))
-			{
-				if (m_tapc[p]) curr_dash[p] |= R; else m_tapc[p] = DBLTAP_TOLERANCE;
-			}
-			else if (m_last_dash[p] & R) curr_dash[p] |= R;
-		}
-		else if (curr_port[p] & L)
-		{
-			if (!(m_last_port[p] & L))
-			{
-				if (m_tapc[p+2]) curr_dash[p] |= L; else m_tapc[p+2] = DBLTAP_TOLERANCE;
-			}
-			else if (m_last_dash[p] & L) curr_dash[p] |= L;
-		}
-
-		if (curr_port[p] & A && !(m_last_port[p] & A)) curr_dash[p] |= A;
-		if (curr_port[p] & D && !(m_last_port[p] & D)) curr_dash[p] |= D;
-
-		m_last_port[p] = curr_port[p];
-		m_last_dash[p] = curr_dash[p];
-
-		if (m_tapc[p  ]) m_tapc[p  ]--;
-		if (m_tapc[p+2]) m_tapc[p+2]--;
-	}
-
-	m_inputs[0] = curr_port[0] & 0xcf;
-	m_inputs[1] = curr_port[1] & 0x0f;
-	m_inputs[2] = curr_dash[0];
-	m_inputs[3] = curr_dash[1];
-
-#undef DBLTAP_TOLERANCE
-#undef R
-#undef L
-#undef A
-#undef D
-}
-#endif
-
 READ8_MEMBER(spdodgeb_state::mcu63701_r)
 {
-//  logerror("CPU #0 PC %04x: read from port %02x of 63701 data address 3801\n",space.device().safe_pc(),offset);
+//  logerror("CPU #0 PC %04x: read from port %02x of 63701 data address 3801\n",m_maincpu->pc(),offset);
 
-	if (m_mcu63701_command == 0) return 0x6a;
-	else switch (offset)
-	{
-		default:
-		case 0: return m_inputs[0];
-		case 1: return m_inputs[1];
-		case 2: return m_inputs[2];
-		case 3: return m_inputs[3];
-		case 4: return ioport("IN1")->read();
-	}
+	return m_inputs[offset];
 }
 
-WRITE8_MEMBER(spdodgeb_state::mcu63701_w)
+void spdodgeb_state::mcu_data_w(offs_t offset, uint8_t data)
 {
-//  logerror("CPU #0 PC %04x: write %02x to 63701 control address 3800\n",space.device().safe_pc(),data);
-	m_mcu63701_command = data;
-	mcu63705_update_inputs();
+	m_inputs[offset] = data;
+}
+
+void spdodgeb_state::mcu_status_w(uint8_t data)
+{
+	m_mcu_status = data & 0xc0;
+}
+
+void spdodgeb_state::mcu_nmi_w(uint8_t data)
+{
+	m_mcu->pulse_input_line(INPUT_LINE_NMI, attotime::zero);
 }
 
 
 
-static ADDRESS_MAP_START( spdodgeb_map, AS_PROGRAM, 8, spdodgeb_state )
-	AM_RANGE(0x0000, 0x0fff) AM_RAM
-	AM_RANGE(0x1000, 0x10ff) AM_WRITEONLY AM_SHARE("spriteram")
-	AM_RANGE(0x2000, 0x2fff) AM_RAM_WRITE(videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0x3000, 0x3000) AM_READ_PORT("IN0") //AM_WRITENOP
-	AM_RANGE(0x3001, 0x3001) AM_READ_PORT("DSW") //AM_WRITENOP
-	AM_RANGE(0x3002, 0x3002) AM_WRITE(sound_command_w)
-//  AM_RANGE(0x3003, 0x3003) AM_WRITENOP
-	AM_RANGE(0x3004, 0x3004) AM_WRITE(scrollx_lo_w)
-//  AM_RANGE(0x3005, 0x3005) AM_WRITENOP         /* mcu63701_output_w */
-	AM_RANGE(0x3006, 0x3006) AM_WRITE(ctrl_w)  /* scroll hi, flip screen, bank switch, palette select */
-	AM_RANGE(0x3800, 0x3800) AM_WRITE(mcu63701_w)
-	AM_RANGE(0x3801, 0x3805) AM_READ(mcu63701_r)
-	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("mainbank")
-	AM_RANGE(0x8000, 0xffff) AM_ROM
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( spdodgeb_sound_map, AS_PROGRAM, 8, spdodgeb_state )
-	AM_RANGE(0x0000, 0x0fff) AM_RAM
-	AM_RANGE(0x1000, 0x1000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
-	AM_RANGE(0x2800, 0x2801) AM_DEVWRITE("ymsnd", ym3812_device, write)
-	AM_RANGE(0x3800, 0x3807) AM_WRITE(spd_adpcm_w)
-	AM_RANGE(0x8000, 0xffff) AM_ROM AM_REGION("audiocpu", 0)
-ADDRESS_MAP_END
-
-
-CUSTOM_INPUT_MEMBER(spdodgeb_state::mcu63705_busy_r)
+void spdodgeb_state::spdodgeb_map(address_map &map)
 {
-	m_toggle ^= 0x01;
-	return m_toggle;
+	map(0x0000, 0x0fff).ram();
+	map(0x1000, 0x10ff).writeonly().share("spriteram");
+	map(0x2000, 0x2fff).ram().w(FUNC(spdodgeb_state::videoram_w)).share("videoram");
+	map(0x3000, 0x3000).portr("IN0"); //.nopw();
+	map(0x3001, 0x3001).portr("DSW"); //.nopw();
+	map(0x3002, 0x3002).w(m_soundlatch, FUNC(generic_latch_8_device::write));
+//  map(0x3003, 0x3003).nopw();
+	map(0x3004, 0x3004).w(FUNC(spdodgeb_state::scrollx_lo_w));
+	map(0x3005, 0x3005).w(FUNC(spdodgeb_state::mcu_nmi_w));
+	map(0x3006, 0x3006).w(FUNC(spdodgeb_state::ctrl_w));  /* scroll hi, flip screen, bank switch, palette select */
+	map(0x3800, 0x3800).w("mculatch", FUNC(generic_latch_8_device::write));
+	map(0x3801, 0x3805).r(FUNC(spdodgeb_state::mcu63701_r));
+	map(0x4000, 0x7fff).bankr("mainbank");
+	map(0x8000, 0xffff).rom();
+}
+
+void spdodgeb_state::spdodgeb_sound_map(address_map &map)
+{
+	map(0x0000, 0x0fff).ram();
+	map(0x1000, 0x1000).r(m_soundlatch, FUNC(generic_latch_8_device::read));
+	map(0x2800, 0x2801).w("ymsnd", FUNC(ym3812_device::write));
+	map(0x3800, 0x3807).w(FUNC(spdodgeb_state::spd_adpcm_w));
+	map(0x8000, 0xffff).rom().region("audiocpu", 0);
+}
+
+void spdodgeb_state::mcu_map(address_map &map)
+{
+	map(0x0000, 0x0027).m(m_mcu, FUNC(hd63701y0_cpu_device::hd6301y_io));
+	map(0x0040, 0x013f).ram();
+	map(0x8080, 0x8080).r("mculatch", FUNC(generic_latch_8_device::read));
+	map(0x8081, 0x8085).w(FUNC(spdodgeb_state::mcu_data_w));
+	map(0xc000, 0xffff).rom().region("mcu", 0);
+}
+
+
+READ_LINE_MEMBER(spdodgeb_state::mcu_busy_r)
+{
+	return BIT(m_mcu_status, 7);
 }
 
 static INPUT_PORTS_START( spdodgeb )
 	PORT_START("IN0")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen")
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, spdodgeb_state, mcu63705_busy_r, nullptr) /* mcu63701_busy flag */
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(spdodgeb_state, mcu_busy_r) // mcu63701_busy flag
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_COIN2 )
@@ -315,38 +197,36 @@ static INPUT_PORTS_START( spdodgeb )
 	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
 
 	PORT_START("P1")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_PLAYER(1)
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_PLAYER(1)
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_START1 )
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_START2 )
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(1)
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(1)
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(1)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(1)
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1)
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(1)
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_START1 )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START2 )
 
 	PORT_START("P2")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(2)
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(2)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(2)
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(2)
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_PLAYER(2)
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_PLAYER(2)
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_UNKNOWN )
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_UNKNOWN )
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(2)
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(2)
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(2)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(2)
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2)
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("IN1")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_UNKNOWN )
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_UNKNOWN )
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_UNKNOWN )
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_UNKNOWN )
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_UNKNOWN )
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_UNKNOWN )
-	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x40, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x00, DEF_STR( Allow_Continue ) )
-	PORT_DIPSETTING(    0x80, DEF_STR( No ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Yes ) )
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Allow_Continue ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( Yes ) )
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
 INPUT_PORTS_END
 
 
@@ -375,7 +255,7 @@ static const gfx_layout spritelayout =
 	64*8
 };
 
-static GFXDECODE_START( spdodgeb )
+static GFXDECODE_START( gfx_spdodgeb )
 	GFXDECODE_ENTRY( "text", 0, charlayout,   0x000, 32 )   /* colors 0x000-0x1ff */
 	GFXDECODE_ENTRY( "sprites", 0, spritelayout, 0x200, 32 )   /* colors 0x200-0x3ff */
 GFXDECODE_END
@@ -383,74 +263,76 @@ GFXDECODE_END
 
 void spdodgeb_state::machine_start()
 {
-	save_item(NAME(m_toggle));
 	save_item(NAME(m_adpcm_pos));
 	save_item(NAME(m_adpcm_end));
 	save_item(NAME(m_adpcm_idle));
 	save_item(NAME(m_adpcm_data));
-	save_item(NAME(m_mcu63701_command));
+	save_item(NAME(m_mcu_status));
 	save_item(NAME(m_inputs));
-	save_item(NAME(m_tapc));
-	save_item(NAME(m_last_port));
-	save_item(NAME(m_last_dash));
 }
 
 void spdodgeb_state::machine_reset()
 {
-	m_toggle = 0;
 	m_adpcm_pos[0] = m_adpcm_pos[1] = 0;
 	m_adpcm_end[0] = m_adpcm_end[1] = 0;
 	m_adpcm_idle[0] = m_adpcm_data[1] = 0;
 	m_adpcm_data[0] = m_adpcm_data[1] = -1;
-	m_mcu63701_command = 0;
+	m_mcu_status = 0;
 	memset(m_inputs, 0, sizeof(m_inputs));
-	memset(m_tapc, 0, sizeof(m_tapc));
-	m_last_port[0] = m_last_port[1] = 0;
-	m_last_dash[0] = m_last_dash[1] = 0;
 }
 
-static MACHINE_CONFIG_START( spdodgeb, spdodgeb_state )
-
+void spdodgeb_state::spdodgeb(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6502, XTAL_12MHz/6)   /* 2MHz ? */
-	MCFG_CPU_PROGRAM_MAP(spdodgeb_map)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", spdodgeb_state, interrupt, "screen", 0, 1) /* 1 IRQ every 8 visible scanlines, plus NMI for vblank */
+	M6502(config, m_maincpu, XTAL(12'000'000)/6);   /* 2MHz ? */
+	m_maincpu->set_addrmap(AS_PROGRAM, &spdodgeb_state::spdodgeb_map);
+	TIMER(config, "scantimer").configure_scanline(FUNC(spdodgeb_state::interrupt), "screen", 0, 1); /* 1 IRQ every 8 visible scanlines, plus NMI for vblank */
 
-	MCFG_CPU_ADD("audiocpu", M6809, XTAL_12MHz/6)  /* 2MHz ? */
-	MCFG_CPU_PROGRAM_MAP(spdodgeb_sound_map)
+	MC6809(config, m_audiocpu, XTAL(12'000'000)/2); // HD68A09P (1.5MHz internally)
+	m_audiocpu->set_addrmap(AS_PROGRAM, &spdodgeb_state::spdodgeb_sound_map);
+
+	hd63701y0_cpu_device &mcu(HD63701Y0(config, m_mcu, 4'000'000)); // unknown clock
+	mcu.set_addrmap(AS_PROGRAM, &spdodgeb_state::mcu_map);
+	mcu.in_p2_cb().set_ioport("P1");
+	mcu.in_p6_cb().set_ioport("P2");
+	mcu.in_p5_cb().set_ioport("IN1");
+	mcu.out_p5_cb().set(FUNC(spdodgeb_state::mcu_status_w));
+
+	GENERIC_LATCH_8(config, "mculatch");
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_RAW_PARAMS(XTAL_12MHz/2, 384, 0, 256, 272, 0, 240)
-	MCFG_SCREEN_UPDATE_DRIVER(spdodgeb_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_raw(XTAL(12'000'000)/2, 384, 0, 256, 272, 0, 240);
+	m_screen->set_screen_update(FUNC(spdodgeb_state::screen_update));
+	m_screen->set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", spdodgeb)
-	MCFG_PALETTE_ADD("palette", 1024)
-	MCFG_PALETTE_INIT_OWNER(spdodgeb_state, spdodgeb)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_spdodgeb);
+	PALETTE(config, m_palette, FUNC(spdodgeb_state::spdodgeb_palette), 1024);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set_inputline(m_audiocpu, M6809_IRQ_LINE);
 
-	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_12MHz/4)
-	MCFG_YM3812_IRQ_HANDLER(INPUTLINE("audiocpu", M6809_FIRQ_LINE))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
+	ym3812_device &ymsnd(YM3812(config, "ymsnd", XTAL(12'000'000)/4));
+	ymsnd.irq_handler().set_inputline(m_audiocpu, M6809_FIRQ_LINE);
+	ymsnd.add_route(ALL_OUTPUTS, "lspeaker", 1.0);
+	ymsnd.add_route(ALL_OUTPUTS, "rspeaker", 1.0);
 
-	MCFG_SOUND_ADD("msm1", MSM5205, 384000)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(spdodgeb_state, spd_adpcm_int_1))  /* interrupt function */
-	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)  /* 8kHz? */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
+	MSM5205(config, m_msm1, 384000);
+	m_msm1->vck_legacy_callback().set(FUNC(spdodgeb_state::spd_adpcm_int_1));  /* interrupt function */
+	m_msm1->set_prescaler_selector(msm5205_device::S48_4B);  /* 8kHz? */
+	m_msm1->add_route(ALL_OUTPUTS, "lspeaker", 0.50);
+	m_msm1->add_route(ALL_OUTPUTS, "rspeaker", 0.50);
 
-	MCFG_SOUND_ADD("msm2", MSM5205, 384000)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(spdodgeb_state, spd_adpcm_int_2))  /* interrupt function */
-	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)  /* 8kHz? */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
-MACHINE_CONFIG_END
+	MSM5205(config, m_msm2, 384000);
+	m_msm2->vck_legacy_callback().set(FUNC(spdodgeb_state::spd_adpcm_int_2));  /* interrupt function */
+	m_msm2->set_prescaler_selector(msm5205_device::S48_4B);  /* 8kHz? */
+	m_msm2->add_route(ALL_OUTPUTS, "lspeaker", 0.50);
+	m_msm2->add_route(ALL_OUTPUTS, "rspeaker", 0.50);
+}
 
 
 
@@ -461,9 +343,8 @@ ROM_START( spdodgeb )
 	ROM_REGION( 0x08000, "audiocpu", 0 ) /* audio cpu */
 	ROM_LOAD( "22j5-0.33",    0x00000, 0x08000, CRC(c31e264e) SHA1(0828a2094122e3934b784ec9ad7c2b89d91a83bb) )
 
-	ROM_REGION( 0x10000, "mcu", 0 ) /* I/O mcu */
-	/* Not hooked up yet, we need to add HD63701Y0 support to the hd63701 core (with extra io ports, serial ports, and timers). */
-	ROM_LOAD( "22ja-0.162",   0x0c000, 0x04000, CRC(7162a97b) SHA1(d6d4ee025e73a340428345f08711cd32f9169a8c) )
+	ROM_REGION( 0x04000, "mcu", 0 ) /* I/O mcu */
+	ROM_LOAD( "22ja-0.162",   0x00000, 0x04000, CRC(7162a97b) SHA1(d6d4ee025e73a340428345f08711cd32f9169a8c) )
 
 	ROM_REGION( 0x40000, "text", 0 ) /* text */
 	ROM_LOAD( "22a-4.121",    0x00000, 0x20000, CRC(acc26051) SHA1(445224238cce420990894824d95447e3f63a9ef0) )
@@ -497,7 +378,7 @@ OSC: 12.000MHz
 ROMs:
 22J4-0.139 - Main program
 22J5-0.33  - Sound program
-22JA-0.162 - HD63701Y0P (no dump)
+22JA-0.162 - HD63701Y0P
 
 TJ22J4-0.121 - Text
 TJ22J3-0.107 /
@@ -520,9 +401,8 @@ ROM_START( nkdodge )
 	ROM_REGION( 0x08000, "audiocpu", 0 ) /* audio cpu */
 	ROM_LOAD( "22j5-0.33",    0x00000, 0x08000, CRC(c31e264e) SHA1(0828a2094122e3934b784ec9ad7c2b89d91a83bb) )
 
-	ROM_REGION( 0x10000, "mcu", 0 ) /* I/O mcu */
-	/* Not hooked up yet, we need to add HD63701Y0 support to the hd63701 core (with extra io ports, serial ports, and timers). */
-	ROM_LOAD( "22ja-0.162",   0x0c000, 0x04000, CRC(7162a97b) SHA1(d6d4ee025e73a340428345f08711cd32f9169a8c) )
+	ROM_REGION( 0x04000, "mcu", 0 ) /* I/O mcu */
+	ROM_LOAD( "22ja-0.162",   0x00000, 0x04000, CRC(7162a97b) SHA1(d6d4ee025e73a340428345f08711cd32f9169a8c) )
 
 	ROM_REGION( 0x40000, "text", 0 ) /* text */
 	ROM_LOAD( "tj22j4-0.121",    0x00000, 0x20000, CRC(d2922b3f) SHA1(30ad37f8355c732b545017c2fc56879256b650be) )
@@ -550,8 +430,8 @@ ROM_START( nkdodgeb )
 	ROM_REGION( 0x08000, "audiocpu", 0 ) /* audio cpu */
 	ROM_LOAD( "22j5-0.33",    0x00000, 0x08000, CRC(c31e264e) SHA1(0828a2094122e3934b784ec9ad7c2b89d91a83bb) )
 
-	ROM_REGION( 0x10000, "mcu", 0 ) /* I/O mcu */
-	ROM_LOAD( "63701.bin",    0xc000, 0x4000, NO_DUMP ) /* missing; does this bootleg board use an i/o mcu at all? */
+	ROM_REGION( 0x04000, "mcu", 0 ) /* I/O mcu */
+	ROM_LOAD( "hd63701y0p.n12", 0x0000, 0x4000, CRC(7162a97b) SHA1(d6d4ee025e73a340428345f08711cd32f9169a8c) BAD_DUMP ) // missing from dump, but probably also identical
 
 	ROM_REGION( 0x40000, "text", 0 ) /* text */
 	ROM_LOAD( "10.bin",       0x00000, 0x10000, CRC(442326fd) SHA1(e0e9e1dfdca3edd6e2522f55c191b40b81b8eaff) )
@@ -576,6 +456,6 @@ ROM_END
 
 
 
-GAME( 1987, spdodgeb, 0,        spdodgeb, spdodgeb, driver_device, 0, ROT0, "Technos Japan", "Super Dodge Ball (US)", MACHINE_SUPPORTS_SAVE )
-GAME( 1987, nkdodge,  spdodgeb, spdodgeb, spdodgeb, driver_device, 0, ROT0, "Technos Japan", "Nekketsu Koukou Dodgeball Bu (Japan)", MACHINE_SUPPORTS_SAVE )
-GAME( 1987, nkdodgeb, spdodgeb, spdodgeb, spdodgeb, driver_device, 0, ROT0, "bootleg", "Nekketsu Koukou Dodgeball Bu (Japan, bootleg)", MACHINE_SUPPORTS_SAVE )
+GAME( 1987, spdodgeb, 0,        spdodgeb, spdodgeb, spdodgeb_state, empty_init, ROT0, "Technos Japan", "Super Dodge Ball (US)",                         MACHINE_SUPPORTS_SAVE )
+GAME( 1987, nkdodge,  spdodgeb, spdodgeb, spdodgeb, spdodgeb_state, empty_init, ROT0, "Technos Japan", "Nekketsu Koukou Dodgeball Bu (Japan)",          MACHINE_SUPPORTS_SAVE )
+GAME( 1987, nkdodgeb, spdodgeb, spdodgeb, spdodgeb, spdodgeb_state, empty_init, ROT0, "bootleg",       "Nekketsu Koukou Dodgeball Bu (Japan, bootleg)", MACHINE_SUPPORTS_SAVE )

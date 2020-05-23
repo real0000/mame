@@ -36,83 +36,14 @@
 
 ***************************************************************************/
 
-#ifndef __SCNXX562_H__
-#define __SCNXX562_H__
+#ifndef MAME_MACHINE_SCNXX562_H
+#define MAME_MACHINE_SCNXX562_H
 
-#include "cpu/z80/z80daisy.h"
+#pragma once
 
-//**************************************************************************
-//  DEVICE CONFIGURATION MACROS
-//**************************************************************************
+#include "machine/z80daisy.h"
+#include "diserial.h"
 
-#define LOCAL_BRG 0
-
-/* Variant ADD macros - use the right one to enable the right feature set! */
-#define MCFG_DUSCC26562_ADD(_tag, _clock, _rxa, _txa, _rxb, _txb) \
-	MCFG_DEVICE_ADD(_tag, DUSCC26562, _clock) \
-	MCFG_DUSCC_OFFSETS(_rxa, _txa, _rxb, _txb)
-
-#define MCFG_DUSCC26C562_ADD(_tag, _clock, _rxa, _txa, _rxb, _txb) \
-	MCFG_DEVICE_ADD(_tag, DUSCC26C562, _clock) \
-	MCFG_DUSCC_OFFSETS(_rxa, _txa, _rxb, _txb)
-
-#define MCFG_DUSCC68562_ADD(_tag, _clock, _rxa, _txa, _rxb, _txb) \
-	MCFG_DEVICE_ADD(_tag, DUSCC68562, _clock) \
-	MCFG_DUSCC_OFFSETS(_rxa, _txa, _rxb, _txb)
-
-#define MCFG_DUSCC68C562_ADD(_tag, _clock, _rxa, _txa, _rxb, _txb) \
-	MCFG_DEVICE_ADD(_tag, DUSCC68C562, _clock) \
-	MCFG_DUSCC_OFFSETS(_rxa, _txa, _rxb, _txb)
-
-/* generic ADD macro - Avoid using it directly, see above for correct variant instead */
-#define MCFG_DUSCC_ADD(_tag, _clock, _rxa, _txa, _rxb, _txb) \
-	MCFG_DEVICE_ADD(_tag, DUSCC, _clock) \
-	MCFG_DUSCC_OFFSETS(_rxa, _txa, _rxb, _txb)
-
-/* Generic macros */
-#define MCFG_DUSCC_OFFSETS(_rxa, _txa, _rxb, _txb) \
-	duscc_device::configure_channels(*device, _rxa, _txa, _rxb, _txb);
-
-// Port A callbacks
-#define MCFG_DUSCC_OUT_TXDA_CB(_devcb) \
-	devcb = &duscc_device::set_out_txda_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_DUSCC_OUT_DTRA_CB(_devcb) \
-	devcb = &duscc_device::set_out_dtra_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_DUSCC_OUT_RTSA_CB(_devcb) \
-	devcb = &duscc_device::set_out_rtsa_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_DUSCC_OUT_SYNCA_CB(_devcb) \
-	devcb = &duscc_device::set_out_synca_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_DUSCC_OUT_TRXCA_CB(_devcb) \
-	devcb = &duscc_device::set_out_trxca_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_DUSCC_OUT_RTXCA_CB(_devcb) \
-	devcb = &duscc_device::set_out_rtxca_callback(*device, DEVCB_##_devcb);
-
-// Port B callbacks
-#define MCFG_DUSCC_OUT_TXDB_CB(_devcb) \
-	devcb = &duscc_device::set_out_txdb_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_DUSCC_OUT_DTRB_CB(_devcb) \
-	devcb = &duscc_device::set_out_dtrb_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_DUSCC_OUT_RTSB_CB(_devcb) \
-	devcb = &duscc_device::set_out_rtsb_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_DUSCC_OUT_SYNCB_CB(_devcb) \
-	devcb = &duscc_device::set_out_syncb_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_DUSCC_OUT_TRXCB_CB(_devcb) \
-	devcb = &duscc_device::set_out_trxcb_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_DUSCC_OUT_RTXCB_CB(_devcb) \
-	devcb = &duscc_device::set_out_rtxcb_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_DUSCC_OUT_INT_CB(_devcb) \
-	devcb = &duscc_device::set_out_int_callback(*device, DEVCB_##_devcb);
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -122,24 +53,12 @@
 
 class duscc_device;
 
-class duscc_channel : public device_t,
-	public device_serial_interface
+class duscc_channel : public device_t, public device_serial_interface
 {
 	friend class duscc_device;
 
 public:
 	duscc_channel(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-
-	// device-level overrides
-	virtual void device_start() override;
-	virtual void device_reset() override;
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
-
-	// device_serial_interface overrides
-	virtual void tra_callback() override;
-	virtual void tra_complete() override;
-	virtual void rcv_callback() override;
-	virtual void rcv_complete() override;
 
 	// read register handlers
 	uint8_t do_dusccreg_cmr1_r();
@@ -221,13 +140,25 @@ public:
 	void m_rx_fifo_rp_step();
 	uint8_t m_rx_fifo_rp_data();
 
-	DECLARE_WRITE_LINE_MEMBER( write_rx );
-	DECLARE_WRITE_LINE_MEMBER( cts_w );
-	DECLARE_WRITE_LINE_MEMBER( dcd_w );
-	DECLARE_WRITE_LINE_MEMBER( ri_w );
-	DECLARE_WRITE_LINE_MEMBER( rxc_w );
-	DECLARE_WRITE_LINE_MEMBER( txc_w );
-	DECLARE_WRITE_LINE_MEMBER( sync_w );
+	void write_rx(int state);
+	void cts_w(int state);
+	void dcd_w(int state);
+	void ri_w(int state);
+	void rxc_w(int state);
+	void txc_w(int state);
+	void sync_w(int state);
+
+protected:
+	// device-level overrides
+	virtual void device_start() override;
+	virtual void device_reset() override;
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
+
+	// device_serial_interface overrides
+	virtual void tra_callback() override;
+	virtual void tra_complete() override;
+	virtual void rcv_callback() override;
+	virtual void rcv_complete() override;
 
 	int m_rxc;
 	int m_txc;
@@ -276,7 +207,6 @@ public:
 	uint8_t m_trmsr;
 	uint8_t m_telr;
 
-protected:
 	enum // Needs to be 0-3 in unmodified prio level
 	{
 		INT_RXREADY     = 0,
@@ -598,84 +528,82 @@ protected:
 
 // ======================> duscc_device
 
-
-class duscc_device :  public device_t
-		,public device_z80daisy_interface
+class duscc_device : public device_t, public device_z80daisy_interface
 {
 	friend class duscc_channel;
 
 public:
 	// construction/destruction
-	duscc_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, uint32_t variant, const char *shortname, const char *source);
 	duscc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_out_txda_callback(device_t &device, _Object object) { return downcast<duscc_device &>(device).m_out_txda_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_dtra_callback(device_t &device, _Object object) { return downcast<duscc_device &>(device).m_out_dtra_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_rtsa_callback(device_t &device, _Object object) { return downcast<duscc_device &>(device).m_out_rtsa_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_synca_callback(device_t &device, _Object object) { return downcast<duscc_device &>(device).m_out_synca_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_rtxca_callback(device_t &device, _Object object) { return downcast<duscc_device &>(device).m_out_rtxca_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_trxca_callback(device_t &device, _Object object) { return downcast<duscc_device &>(device).m_out_trxca_cb.set_callback(object); }
+	auto out_txda_callback() { return m_out_txda_cb.bind(); }
+	auto out_dtra_callback() { return m_out_dtra_cb.bind(); }
+	auto out_rtsa_callback() { return m_out_rtsa_cb.bind(); }
+	auto out_synca_callback() { return m_out_synca_cb.bind(); }
+	auto out_rtxca_callback() { return m_out_rtxca_cb.bind(); }
+	auto out_trxca_callback() { return m_out_trxca_cb.bind(); }
 
-	template<class _Object> static devcb_base &set_out_txdb_callback(device_t &device, _Object object) { return downcast<duscc_device &>(device).m_out_txdb_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_dtrb_callback(device_t &device, _Object object) { return downcast<duscc_device &>(device).m_out_dtrb_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_rtsb_callback(device_t &device, _Object object) { return downcast<duscc_device &>(device).m_out_rtsb_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_syncb_callback(device_t &device, _Object object) { return downcast<duscc_device &>(device).m_out_syncb_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_rtxcb_callback(device_t &device, _Object object) { return downcast<duscc_device &>(device).m_out_rtxcb_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_trxcb_callback(device_t &device, _Object object) { return downcast<duscc_device &>(device).m_out_trxcb_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_int_callback(device_t &device, _Object object) { return downcast<duscc_device &>(device).m_out_int_cb.set_callback(object); }
+	auto out_txdb_callback() { return m_out_txdb_cb.bind(); }
+	auto out_dtrb_callback() { return m_out_dtrb_cb.bind(); }
+	auto out_rtsb_callback() { return m_out_rtsb_cb.bind(); }
+	auto out_syncb_callback() { return m_out_syncb_cb.bind(); }
+	auto out_rtxcb_callback() { return m_out_rtxcb_cb.bind(); }
+	auto out_trxcb_callback() { return m_out_trxcb_cb.bind(); }
+	auto out_int_callback() { return m_out_int_cb.bind(); }
 
-	static void configure_channels(device_t &device, int rxa, int txa, int rxb, int txb)
+	void configure_channels(int rxa, int txa, int rxb, int txb)
 	{
 #if 0 // TODO: Fix this, need a way to set external rx/tx clocks for the channels
-		duscc_device &dev = downcast<duscc_device &>(device);
-		dev.m_chanA->m_rxc = rxa;
-		dev.m_chanA->m_txc = txa;
-		dev.m_chanB->m_rxc = rxb;
-		dev.m_chanB->m_txc = txb;
+		m_chanA->m_rxc = rxa;
+		m_chanA->m_txc = txa;
+		m_chanB->m_rxc = rxb;
+		m_chanB->m_txc = txb;
 #endif
 	}
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 
 	// interrupt acknowledge
-	DECLARE_READ8_MEMBER( iack );
+	uint8_t iack();
 
 	// device_z80daisy_interface overrides
 	virtual int z80daisy_irq_state() override;
 	virtual int z80daisy_irq_ack() override;
 	virtual void z80daisy_irq_reti() override;
 
-	DECLARE_WRITE_LINE_MEMBER( rxa_w ) { m_chanA->write_rx(state); }
-	DECLARE_WRITE_LINE_MEMBER( rxb_w ) { m_chanB->write_rx(state); }
-	DECLARE_WRITE_LINE_MEMBER( ctsa_w ) { m_chanA->cts_w(state); }
-	DECLARE_WRITE_LINE_MEMBER( ctsb_w ) { m_chanB->cts_w(state); }
-	DECLARE_WRITE_LINE_MEMBER( dcda_w ) { m_chanA->dcd_w(state); }
-	DECLARE_WRITE_LINE_MEMBER( dcdb_w ) { m_chanB->dcd_w(state); }
-	DECLARE_WRITE_LINE_MEMBER( ria_w ) { m_chanA->ri_w(state); }
-	DECLARE_WRITE_LINE_MEMBER( rib_w ) { m_chanB->ri_w(state); }
+	void rxa_w(int state) { m_chanA->write_rx(state); }
+	void rxb_w(int state) { m_chanB->write_rx(state); }
+	void ctsa_w(int state) { m_chanA->cts_w(state); }
+	void ctsb_w(int state) { m_chanB->cts_w(state); }
+	void dcda_w(int state) { m_chanA->dcd_w(state); }
+	void dcdb_w(int state) { m_chanB->dcd_w(state); }
+	void ria_w(int state) { m_chanA->ri_w(state); }
+	void rib_w(int state) { m_chanB->ri_w(state); }
 #if 0
-	DECLARE_WRITE_LINE_MEMBER( rxca_w ) { m_chanA->rxc_w(state); }
-	DECLARE_WRITE_LINE_MEMBER( rxcb_w ) { m_chanB->rxc_w(state); }
-	DECLARE_WRITE_LINE_MEMBER( txca_w ) { m_chanA->txc_w(state); }
-	DECLARE_WRITE_LINE_MEMBER( txcb_w ) { m_chanB->txc_w(state); }
-	DECLARE_WRITE_LINE_MEMBER( rxtxcb_w ) { m_chanB->rxc_w(state); m_chanB->txc_w(state); }
+	void rxca_w(int state) { m_chanA->rxc_w(state); }
+	void rxcb_w(int state) { m_chanB->rxc_w(state); }
+	void txca_w(int state) { m_chanA->txc_w(state); }
+	void txcb_w(int state) { m_chanB->txc_w(state); }
+	void rxtxcb_w(int state) { m_chanB->rxc_w(state); m_chanB->txc_w(state); }
 #endif
-	DECLARE_WRITE_LINE_MEMBER( synca_w ) { m_chanA->sync_w(state); }
-	DECLARE_WRITE_LINE_MEMBER( syncb_w ) { m_chanB->sync_w(state); }
+	void synca_w(int state) { m_chanA->sync_w(state); }
+	void syncb_w(int state) { m_chanB->sync_w(state); }
 
 protected:
+	duscc_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint32_t variant);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	// internal interrupt management
 	void check_interrupts();
 	void reset_interrupts();
 	uint8_t modify_vector(uint8_t vect, int i, uint8_t src);
 	void trigger_interrupt(int index, int state);
-	int get_channel_index(duscc_channel *ch) { return (ch == m_chanA) ? 0 : 1; }
+	int get_channel_index(duscc_channel *ch) const { return (ch == m_chanA) ? 0 : 1; }
 
 	// Variants in the DUSCC family
 	enum
@@ -685,10 +613,10 @@ protected:
 		TYPE_DUSCC26C562 = 0x004,
 		TYPE_DUSCC68562  = 0x008,
 		TYPE_DUSCC68C562 = 0x010,
-	};
 
-#define SET_NMOS   ( duscc_device::TYPE_DUSCC26562 | duscc_device::TYPE_DUSCC68562 )
-#define SET_CMOS   ( duscc_device::TYPE_DUSCC26C562 | duscc_device::TYPE_DUSCC68C562 )
+		SET_NMOS   = TYPE_DUSCC26562 | TYPE_DUSCC68562,
+		SET_CMOS   = TYPE_DUSCC26C562 | TYPE_DUSCC68C562
+	};
 
 	enum
 	{
@@ -748,12 +676,12 @@ protected:
 };
 
 // device type definition
-extern const device_type DUSCC;
-extern const device_type DUSCC_CHANNEL;
-extern const device_type DUSCC26562;
-extern const device_type DUSCC26C562;
-extern const device_type DUSCC68562;
-extern const device_type DUSCC68C562;
+DECLARE_DEVICE_TYPE(DUSCC,         duscc_device)
+DECLARE_DEVICE_TYPE(DUSCC_CHANNEL, duscc_channel)
+DECLARE_DEVICE_TYPE(DUSCC26562,    duscc26562_device)
+DECLARE_DEVICE_TYPE(DUSCC26C562,   duscc26c562_device)
+DECLARE_DEVICE_TYPE(DUSCC68562,    duscc68562_device)
+DECLARE_DEVICE_TYPE(DUSCC68C562,   duscc68c562_device)
 
 class duscc26562_device : public duscc_device
 {
@@ -761,10 +689,10 @@ public :
 	duscc26562_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 };
 
-class duscc26C562_device : public duscc_device
+class duscc26c562_device : public duscc_device
 {
 public :
-	duscc26C562_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	duscc26c562_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 };
 
 class duscc68562_device : public duscc_device
@@ -773,10 +701,10 @@ public :
 	duscc68562_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 };
 
-class duscc68C562_device : public duscc_device
+class duscc68c562_device : public duscc_device
 {
 public :
-	duscc68C562_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	duscc68c562_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 };
 
-#endif // __SCNXX562_H__
+#endif // MAME_MACHINE_SCNXX562_H

@@ -6,28 +6,14 @@
 
 **********************************************************************/
 
-#ifndef __S2636_H__
-#define __S2636_H__
+#ifndef MAME_MACHINE_S2636_H
+#define MAME_MACHINE_S2636_H
+
+#pragma once
 
 
 #define S2636_IS_PIXEL_DRAWN(p)     (((p) & 0x08) ? true : false)
 #define S2636_PIXEL_COLOR(p)        ((p) & 0x07)
-
-
-/*************************************
- *
- *  Device configuration macros
- *
- *************************************/
-
-#define MCFG_S2636_OFFSETS(_yoffs, _xoffs) \
-	s2636_device::set_offsets(*device, _yoffs, _xoffs);
-
-#define MCFG_S2636_DIVIDER(_divider) \
-	s2636_device::set_divider(*device, _divider);
-
-#define MCFG_S2623_SET_INTREQ_CALLBACK(_devcb) \
-	devcb = &s2636_device::set_intreq_cb(*device, DEVCB_##_devcb);
 
 
 /*************************************
@@ -42,26 +28,12 @@ class s2636_device : public device_t,
 {
 public:
 	s2636_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~s2636_device() {}
 
-	static void set_offsets(device_t &device, int y_offset, int x_offset)
-	{
-		s2636_device &dev = downcast<s2636_device &>(device);
-		dev.m_x_offset = x_offset;
-		dev.m_y_offset = y_offset;
-	}
+	void set_offsets(int y_offset, int x_offset) { m_x_offset = x_offset; m_y_offset = y_offset; }
 
-	static void set_divider(device_t &device, int divider)
-	{
-		s2636_device &dev = downcast<s2636_device &>(device);
-		dev.m_divider = divider;
-	}
+	void set_divider(int divider) { m_divider = divider; }
 
-	template<class _Object> static devcb_base &set_intreq_cb(device_t &device, _Object object)
-	{
-		s2636_device &dev = downcast<s2636_device &>(device);
-		return dev.m_intreq_cb.set_callback(object);
-	}
+	auto intreq_cb() { return m_intreq_cb.bind(); }
 
 	// returns a BITMAP_FORMAT_IND16 bitmap the size of the screen
 	// D0-D2 of each pixel is the pixel color
@@ -76,10 +48,10 @@ public:
 	void render_first_line();
 	void render_next_line();
 
-	DECLARE_READ8_MEMBER( read_data );
-	DECLARE_WRITE8_MEMBER( write_data );
+	uint8_t read_data(offs_t offset);
+	void write_data(offs_t offset, uint8_t data);
 
-	DECLARE_WRITE_LINE_MEMBER( write_intack );
+	void write_intack(int state);
 
 protected:
 	// device-level overrides
@@ -175,6 +147,6 @@ private:
 	bool            m_sound_lvl;
 };
 
-extern const device_type S2636;
+DECLARE_DEVICE_TYPE(S2636, s2636_device)
 
-#endif /* __S2636_H__ */
+#endif // MAME_MACHINE_S2636_H

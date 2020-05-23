@@ -201,8 +201,10 @@ bool debugwin_info::handle_key(WPARAM wparam, LPARAM lparam)
 		return true;
 
 	case VK_F11:
-		if (GetAsyncKeyState(VK_SHIFT) & 0x8000)
+		if ((GetAsyncKeyState(VK_SHIFT) & 0x8000) && ((GetAsyncKeyState(VK_CONTROL) & 0x8000) == 0))
 			SendMessage(m_wnd, WM_COMMAND, ID_STEP_OUT, 0);
+		else if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+			SendMessage(m_wnd, WM_COMMAND, ID_REWIND_STEP, 0);
 		else
 			SendMessage(m_wnd, WM_COMMAND, ID_STEP, 0);
 		return true;
@@ -325,6 +327,21 @@ bool debugwin_info::handle_command(WPARAM wparam, LPARAM lparam)
 			machine().debugger().cpu().get_visible_cpu()->debug()->single_step_out();
 			return true;
 
+		case ID_REWIND_STEP:
+			machine().rewind_step();
+
+			// clear all PC & memory tracks
+			for (device_t &device : device_iterator(machine().root_device()))
+			{
+				device.debug()->track_pc_data_clear();
+				device.debug()->track_mem_data_clear();
+			}
+
+			// update debugger and emulator window
+			machine().debug_view().update_all();
+			machine().debugger().refresh_display();
+			return true;
+
 		case ID_HARD_RESET:
 			machine().schedule_hard_reset();
 			return true;
@@ -420,7 +437,7 @@ LRESULT debugwin_info::window_proc(UINT message, WPARAM wparam, LPARAM lparam)
 	// get min/max info: set the minimum window size
 	case WM_GETMINMAXINFO:
 		{
-			MINMAXINFO *minmax = (MINMAXINFO *)lparam;
+			auto *minmax = (MINMAXINFO *)lparam;
 			minmax->ptMinTrackSize.x = m_minwidth;
 			minmax->ptMinTrackSize.y = m_minheight;
 			minmax->ptMaxSize.x = minmax->ptMaxTrackSize.x = m_maxwidth;
@@ -533,6 +550,7 @@ HMENU debugwin_info::create_standard_menubar()
 	AppendMenu(debugmenu, MF_ENABLED, ID_STEP, TEXT("Step Into\tF11"));
 	AppendMenu(debugmenu, MF_ENABLED, ID_STEP_OVER, TEXT("Step Over\tF10"));
 	AppendMenu(debugmenu, MF_ENABLED, ID_STEP_OUT, TEXT("Step Out\tShift+F11"));
+	AppendMenu(debugmenu, MF_ENABLED, ID_REWIND_STEP, TEXT("Rewind Step\tCtrl+F11"));
 	AppendMenu(debugmenu, MF_DISABLED | MF_SEPARATOR, 0, TEXT(""));
 	AppendMenu(debugmenu, MF_ENABLED, ID_SOFT_RESET, TEXT("Soft Reset\tF3"));
 	AppendMenu(debugmenu, MF_ENABLED, ID_HARD_RESET, TEXT("Hard Reset\tShift+F3"));
@@ -557,14 +575,14 @@ LRESULT CALLBACK debugwin_info::static_window_proc(HWND wnd, UINT message, WPARA
 	{
 		// set the info pointer
 		CREATESTRUCT const *const createinfo = (CREATESTRUCT *)lparam;
-		debugwin_info *const info = (debugwin_info *)createinfo->lpCreateParams;
+		auto *const info = (debugwin_info *)createinfo->lpCreateParams;
 		SetWindowLongPtr(wnd, GWLP_USERDATA, (LONG_PTR)createinfo->lpCreateParams);
 		if (info->m_handler)
 			SetWindowLongPtr(wnd, GWLP_WNDPROC, (LONG_PTR)info->m_handler);
 		return 0;
 	}
 
-	debugwin_info *const info = (debugwin_info *)(uintptr_t)GetWindowLongPtr(wnd, GWLP_USERDATA);
+	auto *const info = (debugwin_info *)(uintptr_t)GetWindowLongPtr(wnd, GWLP_USERDATA);
 	if (info == nullptr)
 		return DefWindowProc(wnd, message, wparam, lparam);
 

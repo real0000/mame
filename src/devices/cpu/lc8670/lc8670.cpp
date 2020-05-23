@@ -18,6 +18,7 @@
 #include "emu.h"
 #include "debugger.h"
 #include "lc8670.h"
+#include "lc8670dsm.h"
 
 //***************************************************************************
 //    DEBUGGING
@@ -31,7 +32,7 @@
 //  CONSTANTS
 //**************************************************************************
 
-const device_type LC8670 = device_creator<lc8670_cpu_device>;
+DEFINE_DEVICE_TYPE(LC8670, lc8670_cpu_device, "lc8670", "Sanyo LC8670")
 
 
 //**************************************************************************
@@ -155,11 +156,12 @@ const uint16_t lc8670_cpu_device::s_irq_vectors[] =
 //  Internal memory map
 //**************************************************************************
 
-static ADDRESS_MAP_START( lc8670_internal_map, AS_DATA, 8, lc8670_cpu_device )
-	AM_RANGE(0x000, 0x0ff) AM_READWRITE(mram_r, mram_w)
-	AM_RANGE(0x100, 0x17f) AM_READWRITE(regs_r, regs_w)
-	AM_RANGE(0x180, 0x1ff) AM_READWRITE(xram_r, xram_w)
-ADDRESS_MAP_END
+void lc8670_cpu_device::lc8670_internal_map(address_map &map)
+{
+	map(0x000, 0x0ff).rw(FUNC(lc8670_cpu_device::mram_r), FUNC(lc8670_cpu_device::mram_w));
+	map(0x100, 0x17f).rw(FUNC(lc8670_cpu_device::regs_r), FUNC(lc8670_cpu_device::regs_w));
+	map(0x180, 0x1ff).rw(FUNC(lc8670_cpu_device::xram_r), FUNC(lc8670_cpu_device::xram_w));
+}
 
 
 //**************************************************************************
@@ -171,13 +173,14 @@ ADDRESS_MAP_END
 //-------------------------------------------------
 
 lc8670_cpu_device::lc8670_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, LC8670, "Sanyo LC8670", tag, owner, clock, "lc8670", __FILE__),
-		m_program_config("program", ENDIANNESS_BIG, 8, 16, 0),
-		m_data_config("data", ENDIANNESS_BIG, 8, 9, 0, ADDRESS_MAP_NAME(lc8670_internal_map)),
-		m_io_config("io", ENDIANNESS_BIG, 8, 8, 0),
-		m_pc(0),
-		m_ppc(0),
-		m_bankswitch_func(*this)
+	: cpu_device(mconfig, LC8670, tag, owner, clock)
+	, m_program_config("program", ENDIANNESS_BIG, 8, 16, 0)
+	, m_data_config("data", ENDIANNESS_BIG, 8, 9, 0, address_map_constructor(FUNC(lc8670_cpu_device::lc8670_internal_map), this))
+	, m_io_config("io", ENDIANNESS_BIG, 8, 8, 0)
+	, m_pc(0)
+	, m_ppc(0)
+	, m_bankswitch_func(*this)
+	, m_lcd_update_func(*this)
 {
 	memset(m_sfr, 0x00, sizeof(m_sfr));
 	memset(m_timer0, 0x00, sizeof(m_timer0));
@@ -194,17 +197,18 @@ void lc8670_cpu_device::device_start()
 	m_program = &space(AS_PROGRAM);
 	m_data = &space(AS_DATA);
 	m_io = &space(AS_IO);
-	m_direct = &m_program->direct();
+	m_cache = m_program->cache<0, 0, ENDIANNESS_BIG>();
 
 	// set our instruction counter
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 
 	// resolve callbacks
 	m_bankswitch_func.resolve();
+	m_lcd_update_func.resolve();
 
 	// setup timers
 	m_basetimer = timer_alloc(BASE_TIMER);
-	m_basetimer->adjust(attotime::from_hz(m_clocks[LC8670_SUB_CLOCK]), 0, attotime::from_hz(m_clocks[LC8670_SUB_CLOCK]));
+	m_basetimer->adjust(attotime::from_hz(m_clocks[unsigned(clock_source::SUB)]), 0, attotime::from_hz(m_clocks[unsigned(clock_source::SUB)]));
 	m_clocktimer = timer_alloc(CLOCK_TIMER);
 
 	// register state for debugger
@@ -392,12 +396,13 @@ void lc8670_cpu_device::state_string_export(const device_state_entry &entry, std
 //  the space doesn't exist
 //-------------------------------------------------
 
-const address_space_config * lc8670_cpu_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector lc8670_cpu_device::memory_space_config() const
 {
-	return  (spacenum == AS_PROGRAM) ? &m_program_config :
-			(spacenum == AS_DATA) ? &m_data_config :
-			(spacenum == AS_IO) ? &m_io_config :
-			nullptr;
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_DATA,    &m_data_config),
+		std::make_pair(AS_IO,      &m_io_config)
+	};
 }
 
 //-------------------------------------------------
@@ -418,7 +423,7 @@ void lc8670_cpu_device::execute_run()
 		check_irqs();
 
 		m_ppc = m_pc;
-		debugger_instruction_hook(this, m_pc);
+		debugger_instruction_hook(m_pc);
 
 		int cycles;
 
@@ -556,9 +561,8 @@ void lc8670_cpu_device::execute_set_input(int inputnum, int state)
 
 uint32_t lc8670_cpu_device::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	if (m_lcd_update_func)
-		return m_lcd_update_func(*this, bitmap, cliprect, m_xram, (REG_MCR & 0x08) && (REG_VCCR & 0x80), REG_STAD);
-
+	if (!m_lcd_update_func.isnull())
+		return m_lcd_update_func(bitmap, cliprect, m_xram, (REG_MCR & 0x08) && (REG_VCCR & 0x80), REG_STAD);
 	return 0;
 }
 
@@ -902,19 +906,19 @@ void lc8670_cpu_device::timer1_tick()
 //  internal map handlers
 //**************************************************************************
 
-READ8_MEMBER(lc8670_cpu_device::mram_r)
+uint8_t lc8670_cpu_device::mram_r(offs_t offset)
 {
 	return m_mram[BIT(REG_PSW,1)*0x100 + offset];
 }
 
-WRITE8_MEMBER(lc8670_cpu_device::mram_w)
+void lc8670_cpu_device::mram_w(offs_t offset, uint8_t data)
 {
 	m_mram[BIT(REG_PSW,1)*0x100 + offset] = data;
 }
 
-READ8_MEMBER(lc8670_cpu_device::xram_r)
+uint8_t lc8670_cpu_device::xram_r(offs_t offset)
 {
-	if (!(REG_VCCR & 0x40) || machine().side_effect_disabled())  // XRAM access enabled
+	if (!(REG_VCCR & 0x40) || machine().side_effects_disabled())  // XRAM access enabled
 	{
 		uint8_t * xram_bank = m_xram + (REG_XBNK & 0x03) * 0x60;
 
@@ -935,9 +939,9 @@ READ8_MEMBER(lc8670_cpu_device::xram_r)
 	return 0xff;
 }
 
-WRITE8_MEMBER(lc8670_cpu_device::xram_w)
+void lc8670_cpu_device::xram_w(offs_t offset, uint8_t data)
 {
-	if (!(REG_VCCR & 0x40) || machine().side_effect_disabled())  // XRAM access enabled
+	if (!(REG_VCCR & 0x40) || machine().side_effects_disabled())  // XRAM access enabled
 	{
 		uint8_t * xram_bank = m_xram + (REG_XBNK & 0x03) * 0x60;
 
@@ -956,7 +960,7 @@ WRITE8_MEMBER(lc8670_cpu_device::xram_w)
 	}
 }
 
-READ8_MEMBER(lc8670_cpu_device::regs_r)
+uint8_t lc8670_cpu_device::regs_r(offs_t offset)
 {
 	switch(offset)
 	{
@@ -977,7 +981,7 @@ READ8_MEMBER(lc8670_cpu_device::regs_r)
 		case 0x66:
 		{
 			uint8_t data = m_vtrbf[((REG_VRMAD2<<8) | REG_VRMAD1) & 0x1ff];
-			if (!machine().side_effect_disabled() && (REG_VSEL & 0x10))
+			if (!machine().side_effects_disabled() && (REG_VSEL & 0x10))
 			{
 				uint16_t vrmad = (REG_VRMAD1 | (REG_VRMAD2<<8)) + 1;
 				REG_VRMAD1 = vrmad & 0xff;
@@ -989,13 +993,13 @@ READ8_MEMBER(lc8670_cpu_device::regs_r)
 		// write-only registers
 		case 0x20: case 0x23: case 0x24: case 0x27:
 		case 0x45: case 0x46: case 0x4d:
-			if(!machine().side_effect_disabled())    logerror("%s: read write-only SFR %04x\n", machine().describe_context(), offset);
+			if(!machine().side_effects_disabled())    logerror("%s: read write-only SFR %04x\n", machine().describe_context(), offset);
 			return 0xff;
 	}
 	return m_sfr[offset];
 }
 
-WRITE8_MEMBER(lc8670_cpu_device::regs_w)
+void lc8670_cpu_device::regs_w(offs_t offset, uint8_t data)
 {
 	switch(offset)
 	{
@@ -1005,7 +1009,7 @@ WRITE8_MEMBER(lc8670_cpu_device::regs_w)
 			break;
 		case 0x07:
 			if (data & HOLD_MODE)
-				fatalerror("%s: unemulated HOLD mode\n", machine().describe_context());
+				fatalerror("%s: unemulated HOLD mode\n", machine().describe_context().c_str());
 			break;
 		case 0x10:
 			if (!(data & 0x80))
@@ -1044,7 +1048,7 @@ WRITE8_MEMBER(lc8670_cpu_device::regs_w)
 			break;
 		case 0x66:
 			m_vtrbf[((REG_VRMAD2<<8) | REG_VRMAD1) & 0x1ff] = data;
-			if (!machine().side_effect_disabled() && (REG_VSEL & 0x10))
+			if (!machine().side_effects_disabled() && (REG_VSEL & 0x10))
 			{
 				uint16_t vrmad = (REG_VRMAD1 | (REG_VRMAD2<<8)) + 1;
 				REG_VRMAD1 = vrmad & 0xff;
@@ -1058,7 +1062,7 @@ WRITE8_MEMBER(lc8670_cpu_device::regs_w)
 
 		// read-only registers
 		case 0x12: case 0x14: case 0x5c:
-			if(!machine().side_effect_disabled())    logerror("%s: write read-only SFR %04x = %02x\n", machine().describe_context(), offset, data);
+			if(!machine().side_effects_disabled())    logerror("%s: write read-only SFR %04x = %02x\n", machine().describe_context(), offset, data);
 			return;
 	}
 
@@ -1072,7 +1076,7 @@ WRITE8_MEMBER(lc8670_cpu_device::regs_w)
 
 inline uint8_t lc8670_cpu_device::fetch()
 {
-	uint8_t data = m_direct->read_byte(m_pc);
+	uint8_t data = m_cache->read_byte(m_pc);
 
 	set_pc(m_pc + 1);
 
@@ -1143,7 +1147,7 @@ inline uint16_t lc8670_cpu_device::get_addr()
 	else if (mode > 0x03 && mode <= 0x07)
 		addr = read_data(GET_RI | ((REG_PSW>>1) & 0x0c)) | ((GET_RI & 0x02) ? 0x100 : 0x00);
 	else
-		fatalerror("%s: invalid get_addr in mode %x\n", machine().describe_context(), mode);
+		fatalerror("%s: invalid get_addr in mode %x\n", machine().describe_context().c_str(), mode);
 
 	return addr;
 }
@@ -1168,14 +1172,14 @@ inline void lc8670_cpu_device::change_clock_source()
 	switch(REG_OCR & 0x30)
 	{
 		case 0x00:
-			new_clock = m_clocks[LC8670_RC_CLOCK];
+			new_clock = m_clocks[unsigned(clock_source::RC)];
 			break;
 		case 0x20:
-			new_clock = m_clocks[LC8670_SUB_CLOCK];
+			new_clock = m_clocks[unsigned(clock_source::SUB)];
 			break;
 		case 0x10:
 		case 0x30:
-			new_clock = m_clocks[LC8670_CF_CLOCK];
+			new_clock = m_clocks[unsigned(clock_source::CF)];
 			break;
 	}
 
@@ -1775,4 +1779,9 @@ int lc8670_cpu_device::op_xor()
 	CHECK_P();
 
 	return 1;
+}
+
+std::unique_ptr<util::disasm_interface> lc8670_cpu_device::create_disassembler()
+{
+	return std::make_unique<lc8670_disassembler>();
 }

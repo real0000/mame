@@ -11,8 +11,10 @@
 
 ***************************************************************************/
 
-#ifndef __H83008_H__
-#define __H83008_H__
+#ifndef MAME_CPU_H8_H83008_H
+#define MAME_CPU_H8_H83008_H
+
+#pragma once
 
 #include "h8h.h"
 #include "h8_adc.h"
@@ -26,6 +28,9 @@
 class h83008_device : public h8h_device {
 public:
 	h83008_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+	void set_mode_a20() { mode_a20 = true; }
+	void set_mode_a24() { mode_a20 = false; }
 
 	DECLARE_READ8_MEMBER(syscr_r);
 	DECLARE_WRITE8_MEMBER(syscr_w);
@@ -59,14 +64,14 @@ protected:
 	virtual int trapa_setup() override;
 	virtual void irq_setup() override;
 	virtual void internal_update(uint64_t current_time) override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	DECLARE_ADDRESS_MAP(map, 16);
+	virtual void device_add_mconfig(machine_config &config) override;
+	void map(address_map &map);
 
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 };
 
-extern const device_type H83008;
+DECLARE_DEVICE_TYPE(H83008, h83008_device)
 
-#endif
+#endif // MAME_CPU_H8_H83008_H

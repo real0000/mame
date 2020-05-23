@@ -31,66 +31,50 @@
 
 **********************************************************************/
 
+#ifndef MAME_BUS_COMX35_EXP_H
+#define MAME_BUS_COMX35_EXP_H
+
 #pragma once
 
-#ifndef __COMX35_EXPANSION_SLOT__
-#define __COMX35_EXPANSION_SLOT__
-
-
-
-
-//**************************************************************************
-//  CONSTANTS
-//**************************************************************************
-
 #define COMX_EXPANSION_BUS_TAG      "comxexp"
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_COMX_EXPANSION_SLOT_ADD(_tag, _slot_intf, _def_slot) \
-	MCFG_DEVICE_ADD(_tag, COMX_EXPANSION_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
-
-
-#define MCFG_COMX_EXPANSION_SLOT_IRQ_CALLBACK(_write) \
-	devcb = &comx_expansion_slot_device::set_irq_wr_callback(*device, DEVCB_##_write);
-
-
-
-//**************************************************************************
-//  TYPE DEFINITIONS
-//**************************************************************************
 
 // ======================> comx_expansion_slot_device
 
 class device_comx_expansion_card_interface;
 
-class comx_expansion_slot_device : public device_t,
-									public device_slot_interface
+class comx_expansion_slot_device : public device_t, public device_single_card_slot_interface<device_comx_expansion_card_interface>
 {
 public:
 	// construction/destruction
+	template <typename T>
+	comx_expansion_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock, T &&opts, const char *dflt)
+		: comx_expansion_slot_device(mconfig, tag, owner, clock)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
+
 	comx_expansion_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual ~comx_expansion_slot_device() { }
 
-	template<class _Object> static devcb_base &set_irq_wr_callback(device_t &device, _Object object) { return downcast<comx_expansion_slot_device &>(device).m_write_irq.set_callback(object); }
+	auto irq_callback() { return m_write_irq.bind(); }
 
-	uint8_t mrd_r(address_space &space, offs_t offset, int *extrom);
-	void mwr_w(address_space &space, offs_t offset, uint8_t data);
+	uint8_t mrd_r(offs_t offset, int *extrom);
+	void mwr_w(offs_t offset, uint8_t data);
 
-	uint8_t io_r(address_space &space, offs_t offset);
-	void io_w(address_space &space, offs_t offset, uint8_t data);
+	uint8_t io_r(offs_t offset);
+	void io_w(offs_t offset, uint8_t data);
 
-	DECLARE_READ_LINE_MEMBER( ef4_r );
+	DECLARE_READ_LINE_MEMBER(ef4_r);
 
-	DECLARE_WRITE_LINE_MEMBER( ds_w );
-	DECLARE_WRITE_LINE_MEMBER( q_w );
+	DECLARE_WRITE_LINE_MEMBER(ds_w);
+	DECLARE_WRITE_LINE_MEMBER(q_w);
 
-	DECLARE_WRITE_LINE_MEMBER( irq_w ) { m_write_irq(state); }
+	DECLARE_WRITE_LINE_MEMBER(irq_w) { m_write_irq(state); }
+
+	void sc_w(offs_t offset, uint8_t data);
+	DECLARE_WRITE_LINE_MEMBER(tpb_w);
 
 protected:
 	// device-level overrides
@@ -105,40 +89,36 @@ protected:
 // ======================> device_comx_expansion_card_interface
 
 // class representing interface-specific live comx_expansion card
-class device_comx_expansion_card_interface : public device_slot_card_interface
+class device_comx_expansion_card_interface : public device_interface
 {
 	friend class comx_expansion_slot_device;
 
-public:
+protected:
 	// construction/destruction
 	device_comx_expansion_card_interface(const machine_config &mconfig, device_t &device);
-	virtual ~device_comx_expansion_card_interface() { }
 
-protected:
 	// signals
 	virtual int comx_ef4_r() { return CLEAR_LINE; }
-	virtual void comx_ds_w(int state) { m_ds = state; };
-	virtual void comx_q_w(int state) { };
+	virtual void comx_ds_w(int state) { m_ds = state; }
+	virtual void comx_q_w(int state) { }
+	virtual void comx_sc_w(int n, int sc) { }
+	virtual void comx_tpb_w(int state) { }
 
 	// memory access
-	virtual uint8_t comx_mrd_r(address_space &space, offs_t offset, int *extrom) { return 0; };
-	virtual void comx_mwr_w(address_space &space, offs_t offset, uint8_t data) { };
+	virtual uint8_t comx_mrd_r(offs_t offset, int *extrom) { return 0; }
+	virtual void comx_mwr_w(offs_t offset, uint8_t data) { }
 
 	// I/O access
-	virtual uint8_t comx_io_r(address_space &space, offs_t offset) { return 0; };
-	virtual void comx_io_w(address_space &space, offs_t offset, uint8_t data) { };
+	virtual uint8_t comx_io_r(offs_t offset) { return 0; }
+	virtual void comx_io_w(offs_t offset, uint8_t data) { }
 
 	comx_expansion_slot_device *m_slot;
 
 	int m_ds;
 };
 
+DECLARE_DEVICE_TYPE(COMX_EXPANSION_SLOT, comx_expansion_slot_device)
 
-// device type definition
-extern const device_type COMX_EXPANSION_SLOT;
+void comx_expansion_cards(device_slot_interface &device);
 
-
-SLOT_INTERFACE_EXTERN( comx_expansion_cards );
-
-
-#endif
+#endif // MAME_BUS_COMX35_EXP_H

@@ -33,24 +33,24 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type NES_NINA001 = device_creator<nes_nina001_device>;
-const device_type NES_NINA006 = device_creator<nes_nina006_device>;
-const device_type NES_MAXI15 = device_creator<nes_maxi15_device>;
+DEFINE_DEVICE_TYPE(NES_NINA001, nes_nina001_device, "nes_nina001", "NES Cart AVE Nina-001 PCB")
+DEFINE_DEVICE_TYPE(NES_NINA006, nes_nina006_device, "nes_nina006", "NES Cart AVE Nina-006 PCB")
+DEFINE_DEVICE_TYPE(NES_MAXI15,  nes_maxi15_device,  "nes_maxi15",  "NES Cart AVE Maxi 15 PCB")
 
 
 nes_nina001_device::nes_nina001_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_NINA001, "NES Cart AVE Nina-001 PCB", tag, owner, clock, "nes_nina001", __FILE__)
+	: nes_nrom_device(mconfig, NES_NINA001, tag, owner, clock)
 {
 }
 
 nes_nina006_device::nes_nina006_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_NINA006, "NES Cart AVE Nina-006 PCB", tag, owner, clock, "nes_nina006", __FILE__)
+	: nes_nrom_device(mconfig, NES_NINA006, tag, owner, clock)
 {
 }
 
 nes_maxi15_device::nes_maxi15_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_MAXI15, "NES Cart AVE Maxi 15 PCB", tag, owner, clock, "nes_maxi15", __FILE__), m_reg(0), m_bank(0)
-				{
+	: nes_nrom_device(mconfig, NES_MAXI15, tag, owner, clock), m_reg(0), m_bank(0)
+{
 }
 
 
@@ -122,7 +122,7 @@ void nes_maxi15_device::pcb_reset()
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_nina001_device::write_m)
+void nes_nina001_device::write_m(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("nina-001 write_m, offset: %04x, data: %02x\n", offset, data));
 
@@ -155,7 +155,7 @@ WRITE8_MEMBER(nes_nina001_device::write_m)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_nina006_device::write_l)
+void nes_nina006_device::write_l(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("nina-006 write_l, offset: %04x, data: %02x\n", offset, data));
 
@@ -192,7 +192,7 @@ void nes_maxi15_device::update_banks()
 	}
 }
 
-READ8_MEMBER(nes_maxi15_device::read_h)
+uint8_t nes_maxi15_device::read_h(offs_t offset)
 {
 	LOG_MMC(("Maxi 15 read_h, offset: %04x\n", offset));
 

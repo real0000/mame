@@ -5,12 +5,14 @@
     Acclaim RAX Sound Board
 
 ****************************************************************************/
+#ifndef MAME_AUDIO_RAX_H
+#define MAME_AUDIO_RAX_H
 
-#ifndef __ACCLAIM_H__
-#define __ACCLAIM_H__
+#pragma once
 
 #include "cpu/adsp2100/adsp2100.h"
 #include "machine/gen_latch.h"
+#include "machine/timer.h"
 #include "sound/dmadac.h"
 
 
@@ -20,27 +22,25 @@ public:
 	// construction/destruction
 	acclaim_rax_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	READ16_MEMBER( data_r );
-	WRITE16_MEMBER( data_w );
-
-	READ16_MEMBER(adsp_control_r);
-	WRITE16_MEMBER(adsp_control_w);
-	WRITE16_MEMBER(ram_bank_w);
-	WRITE16_MEMBER(rom_bank_w);
-
-	READ16_MEMBER(host_r);
-	WRITE16_MEMBER(host_w);
+	uint16_t data_r();
+	void data_w(uint16_t data);
 
 	void update_data_ram_bank();
 	void adsp_irq(int which);
 	void recompute_sample_rate(int which);
 
-	WRITE32_MEMBER(adsp_sound_tx_callback);
+	TIMER_DEVICE_CALLBACK_MEMBER( dma_timer_callback );
 
-	TIMER_DEVICE_CALLBACK_MEMBER(adsp_irq0);
-	TIMER_DEVICE_CALLBACK_MEMBER(sport0_irq);
-	WRITE32_MEMBER(dmovlay_callback);
+	void adsp_data_map(address_map &map);
+	void adsp_io_map(address_map &map);
+	void adsp_program_map(address_map &map);
+protected:
+	// device-level overrides
+	virtual void device_start() override;
+	virtual void device_reset() override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
+private:
 	required_device<adsp2181_device>    m_cpu;
 	required_shared_ptr<uint32_t>       m_adsp_pram;
 	required_memory_bank                m_adsp_data_bank;
@@ -79,16 +79,23 @@ public:
 	required_device<generic_latch_16_device> m_data_out;
 
 	timer_device *m_dma_timer;
-	TIMER_DEVICE_CALLBACK_MEMBER( dma_timer_callback );
 
-protected:
-	// device-level overrides
-	virtual void device_start() override;
-	virtual void device_reset() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	void adsp_sound_tx_callback(offs_t offset, uint32_t data);
+
+	TIMER_DEVICE_CALLBACK_MEMBER(adsp_irq0);
+	TIMER_DEVICE_CALLBACK_MEMBER(sport0_irq);
+	void dmovlay_callback(uint32_t data);
+
+	uint16_t adsp_control_r(offs_t offset);
+	void adsp_control_w(offs_t offset, uint16_t data);
+	void ram_bank_w(uint16_t data);
+	void rom_bank_w(uint16_t data);
+
+	uint16_t host_r();
+	void host_w(uint16_t data);
 };
 
 // device type definition
-extern const device_type ACCLAIM_RAX;
+DECLARE_DEVICE_TYPE(ACCLAIM_RAX, acclaim_rax_device)
 
-#endif
+#endif // MAME_AUDIO_RAX_H

@@ -57,50 +57,43 @@
 #define STAT_TX_FULL  (0x40)    // indicates the PC has written a new byte we haven't read yet
 #define STAT_RX_EMPTY (0x80)    // indicates we've written a new byte the PC hasn't read yet
 
-static ADDRESS_MAP_START( mpu401_map, AS_PROGRAM, 8, mpu401_device )
-	AM_RANGE(0x0000, 0x001f) AM_READWRITE(regs_mode2_r, regs_mode2_w)
-	AM_RANGE(0x0020, 0x0021) AM_READWRITE(asic_r, asic_w)
-	AM_RANGE(0x0080, 0x00ff) AM_RAM // on-chip RAM
-	AM_RANGE(0x0800, 0x0fff) AM_RAM // external RAM
-	AM_RANGE(0xf000, 0xffff) AM_ROM AM_REGION(ROM_TAG, 0)
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( mpu401_io_map, AS_IO, 8, mpu401_device )
-	AM_RANGE(M6801_PORT1, M6801_PORT1) AM_READWRITE(port1_r, port1_w)
-	AM_RANGE(M6801_PORT2, M6801_PORT2) AM_READWRITE(port2_r, port2_w)
-ADDRESS_MAP_END
-
-MACHINE_CONFIG_FRAGMENT( mpu401 )
-	MCFG_CPU_ADD(M6801_TAG, M6801, 4000000) /* 4 MHz as per schematics */
-	MCFG_CPU_PROGRAM_MAP(mpu401_map)
-	MCFG_CPU_IO_MAP(mpu401_io_map)
-	MCFG_M6801_SER_TX(DEVWRITELINE(MIDIOUT_TAG, midi_port_device, write_txd))
-
-	MCFG_MIDI_PORT_ADD(MIDIIN_TAG, midiin_slot, "midiin")
-	MCFG_MIDI_RX_HANDLER(DEVWRITELINE(DEVICE_SELF, mpu401_device, midi_rx_w))
-
-	MCFG_MIDI_PORT_ADD(MIDIOUT_TAG, midiout_slot, "midiout")
-MACHINE_CONFIG_END
+void mpu401_device::mpu401_map(address_map &map)
+{
+	map(0x0000, 0x001f).m(m_ourcpu, FUNC(m6801_cpu_device::m6801_io));
+	map(0x0020, 0x0021).rw(FUNC(mpu401_device::asic_r), FUNC(mpu401_device::asic_w));
+	map(0x0080, 0x00ff).ram(); // on-chip RAM
+	map(0x0800, 0x0fff).ram(); // external RAM
+	map(0xf000, 0xffff).rom().region(ROM_TAG, 0);
+}
 
 ROM_START( mpu401 )
 	ROM_REGION(0x1000, ROM_TAG, 0)
-	ROM_LOAD( "roland_6801v0b55p.bin", 0x000000, 0x001000, CRC(65d3a151) SHA1(00efbfb96aeb997b69bb16981c6751d3c784bb87) )
+	ROM_LOAD( "roland__6801v0b55p__15179222.bin", 0x000000, 0x001000, CRC(65d3a151) SHA1(00efbfb96aeb997b69bb16981c6751d3c784bb87) ) /* Mask MCU; Label: "Roland // 6801V0B55P // 5A1 JAPAN // 15179222"; This is the final version (1.5A) of the mpu401 firmware; version is located at offsets 0x649 (0x15) and 0x64f (0x01) */
 ROM_END
 
 //**************************************************************************
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type MPU401 = device_creator<mpu401_device>;
+DEFINE_DEVICE_TYPE(MPU401, mpu401_device, "mpu401", "Roland MPU-401 I/O box")
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor mpu401_device::device_mconfig_additions() const
+void mpu401_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( mpu401 );
+	M6801(config, m_ourcpu, 4000000); /* 4 MHz as per schematics */
+	m_ourcpu->set_addrmap(AS_PROGRAM, &mpu401_device::mpu401_map);
+	m_ourcpu->in_p1_cb().set(FUNC(mpu401_device::port1_r));
+	m_ourcpu->out_p1_cb().set(FUNC(mpu401_device::port1_w));
+	m_ourcpu->in_p2_cb().set(FUNC(mpu401_device::port2_r));
+	m_ourcpu->out_p2_cb().set(FUNC(mpu401_device::port2_w));
+	m_ourcpu->out_ser_tx_cb().set(MIDIOUT_TAG, FUNC(midi_port_device::write_txd));
+
+	MIDI_PORT(config, MIDIIN_TAG, midiin_slot, "midiin").rxd_handler().set(DEVICE_SELF, FUNC(mpu401_device::midi_rx_w));
+
+	MIDI_PORT(config, MIDIOUT_TAG, midiout_slot, "midiout");
 }
 
 //-------------------------------------------------
@@ -121,7 +114,7 @@ const tiny_rom_entry *mpu401_device::device_rom_region() const
 //-------------------------------------------------
 
 mpu401_device::mpu401_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, MPU401, "Roland MPU-401 I/O box", tag, owner, clock, "mpu401", __FILE__),
+	device_t(mconfig, MPU401, tag, owner, clock),
 	m_ourcpu(*this, M6801_TAG),
 	write_irq(*this)
 {
@@ -160,64 +153,28 @@ void mpu401_device::device_timer(emu_timer &timer, device_timer_id tid, int para
 	m_ourcpu->m6801_clock_serial();
 }
 
-READ8_MEMBER(mpu401_device::regs_mode2_r)
-{
-	switch (offset)
-	{
-		case 4:
-		case 5:
-		case 6:
-		case 7:
-		case 0xf:
-//          printf("MPU401: read @ unk %x (PC=%x)\n", offset, space.device().safe_pc());
-			break;
-
-		default:
-			return m_ourcpu->m6801_io_r(space, offset);
-	}
-
-	return 0xff;
-}
-
-WRITE8_MEMBER(mpu401_device::regs_mode2_w)
-{
-	switch (offset)
-	{
-		case 4:
-		case 5:
-		case 6:
-		case 7:
-		case 0xf:
-//          printf("MPU401: %02x @ unk %x (PC=%x)\n", data, offset, space.device().safe_pc());
-			break;
-
-		default:
-			return m_ourcpu->m6801_io_w(space, offset, data);
-	}
-}
-
-READ8_MEMBER(mpu401_device::port1_r)
+uint8_t mpu401_device::port1_r()
 {
 	return 0xff;
 }
 
-WRITE8_MEMBER(mpu401_device::port1_w)
+void mpu401_device::port1_w(uint8_t data)
 {
 //  printf("port1_w: %02x met %x syncout %x DSRD %d DRRD %d\n", data, data & 3, (data>>3) & 3, (data>>6) & 1, (data>>7) & 1);
 }
 
-READ8_MEMBER(mpu401_device::port2_r)
+uint8_t mpu401_device::port2_r()
 {
-//  printf("Read P2 (PC=%x)\n", space.device().safe_pc());
+//  printf("%s Read P2\n", machine().describe_context().c_str());
 	return m_port2;
 }
 
-WRITE8_MEMBER(mpu401_device::port2_w)
+void mpu401_device::port2_w(uint8_t data)
 {
 //  printf("port2_w: %02x SYCOUT %d SYCIN %d SRCK %d MIDI OUT %d\n", data, (data & 1), (data>>1) & 1, (data>>2) & 1, (data>>4) & 1);
 }
 
-READ8_MEMBER(mpu401_device::mpu_r)
+uint8_t mpu401_device::mpu_r(offs_t offset)
 {
 //  printf("mpu_r @ %d\n", offset);
 
@@ -233,7 +190,7 @@ READ8_MEMBER(mpu401_device::mpu_r)
 	}
 }
 
-WRITE8_MEMBER(mpu401_device::mpu_w)
+void mpu401_device::mpu_w(offs_t offset, uint8_t data)
 {
 //  printf("%02x to MPU-401 @ %d\n", data, offset);
 	m_command = data;
@@ -249,7 +206,7 @@ WRITE8_MEMBER(mpu401_device::mpu_w)
 	}
 }
 
-READ8_MEMBER(mpu401_device::asic_r)
+uint8_t mpu401_device::asic_r(offs_t offset)
 {
 	if (offset == 0)
 	{
@@ -264,7 +221,7 @@ READ8_MEMBER(mpu401_device::asic_r)
 	return 0xff;
 }
 
-WRITE8_MEMBER(mpu401_device::asic_w)
+void mpu401_device::asic_w(offs_t offset, uint8_t data)
 {
 //  printf("MPU401: %02x to gate array @ %d\n", data, offset);
 
@@ -277,7 +234,7 @@ WRITE8_MEMBER(mpu401_device::asic_w)
 }
 
 // MIDI receive
-WRITE_LINE_MEMBER( mpu401_device::midi_rx_w )
+void mpu401_device::midi_rx_w(int state)
 {
 	if (state == ASSERT_LINE)
 	{

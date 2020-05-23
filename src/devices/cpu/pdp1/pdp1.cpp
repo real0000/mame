@@ -342,6 +342,7 @@
 #include "emu.h"
 #include "debugger.h"
 #include "pdp1.h"
+#include "pdp1dasm.h"
 
 #define LOG 0
 #define LOG_EXTRA 0
@@ -377,16 +378,22 @@
 #define PREVIOUS_PC     ((PC & ADDRESS_EXTENSION_MASK) | ((PC-1) & BASE_ADDRESS_MASK))
 
 
-const device_type PDP1 = device_creator<pdp1_device>;
+DEFINE_DEVICE_TYPE(PDP1, pdp1_device, "pdp1_cpu", "DEC PDP1")
 
 
 pdp1_device::pdp1_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, PDP1, "PDP1", tag, owner, clock, "pdp1_cpu", __FILE__)
+	: cpu_device(mconfig, PDP1, tag, owner, clock)
 	, m_program_config("program", ENDIANNESS_BIG, 32, 18, 0)
 {
 	m_program_config.m_is_octal = true;
 }
 
+device_memory_interface::space_config_vector pdp1_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
+}
 
 void pdp1_device::device_config_complete()
 {
@@ -412,10 +419,9 @@ void pdp1_device::device_config_complete()
 }
 
 
-offs_t pdp1_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> pdp1_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( pdp1 );
-	return CPU_DISASSEMBLE_NAME(pdp1)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<pdp1_disassembler>();
 }
 
 
@@ -643,7 +649,7 @@ void pdp1_device::device_start()
 	state_add( STATE_GENPCBASE, "CURPC", m_pc ).noshow();
 	state_add( STATE_GENFLAGS, "GENFLAGS", m_pf ).formatstr("%13s").noshow();
 
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 
 	/* reset CPU flip-flops */
 	pulse_start_clear();
@@ -790,7 +796,7 @@ void pdp1_device::execute_run()
 {
 	do
 	{
-		debugger_instruction_hook(this, PC);
+		debugger_instruction_hook(PC);
 
 
 		/* ioh should be cleared at the end of the instruction cycle, and ios at the

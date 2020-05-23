@@ -1,17 +1,11 @@
 // license:BSD-3-Clause
 // copyright-holders:Juergen Buchmueller
+#ifndef MAME_CPU_Z80_Z80_H
+#define MAME_CPU_Z80_Z80_H
+
 #pragma once
 
-#ifndef __Z80_H__
-#define __Z80_H__
-
-#include "z80daisy.h"
-
-#define MCFG_Z80_SET_IRQACK_CALLBACK(_devcb) \
-	devcb = &z80_device::set_irqack_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_Z80_SET_REFRESH_CALLBACK(_devcb) \
-	devcb = &z80_device::set_refresh_cb(*device, DEVCB_##_devcb);
+#include "machine/z80daisy.h"
 
 enum
 {
@@ -39,26 +33,31 @@ public:
 	z80_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	void z80_set_cycle_tables(const uint8_t *op, const uint8_t *cb, const uint8_t *ed, const uint8_t *xy, const uint8_t *xycb, const uint8_t *ex);
-	template<class _Object> static devcb_base &set_irqack_cb(device_t &device, _Object object) { return downcast<z80_device &>(device).m_irqack_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_refresh_cb(device_t &device, _Object object) { return downcast<z80_device &>(device).m_refresh_cb.set_callback(object); }
+	template <typename... T> void set_memory_map(T &&... args) { set_addrmap(AS_PROGRAM, std::forward<T>(args)...); }
+	template <typename... T> void set_m1_map(T &&... args) { set_addrmap(AS_OPCODES, std::forward<T>(args)...); }
+	template <typename... T> void set_io_map(T &&... args) { set_addrmap(AS_IO, std::forward<T>(args)...); }
+	auto irqack_cb() { return m_irqack_cb.bind(); }
+	auto refresh_cb() { return m_refresh_cb.bind(); }
+	auto halt_cb() { return m_halt_cb.bind(); }
 
 protected:
-	z80_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
+	z80_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
 
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 2; }
-	virtual uint32_t execute_max_cycles() const override { return 16; }
-	virtual uint32_t execute_input_lines() const override { return 4; }
-	virtual uint32_t execute_default_irq_vector() const override { return 0xff; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 2; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 16; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 4; }
+	virtual uint32_t execute_default_irq_vector(int inputnum) const noexcept override { return 0xff; }
+	virtual bool execute_input_edge_triggered(int inputnum) const noexcept override { return inputnum == INPUT_LINE_NMI; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_import(const device_state_entry &entry) override;
@@ -66,9 +65,7 @@ protected:
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 1; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 4; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 #undef PROTOTYPES
 #define PROTOTYPES(prefix) \
@@ -237,15 +234,16 @@ protected:
 
 	// address spaces
 	const address_space_config m_program_config;
-	const address_space_config m_decrypted_opcodes_config;
+	const address_space_config m_opcodes_config;
 	const address_space_config m_io_config;
 	address_space *m_program;
-	address_space *m_decrypted_opcodes;
+	address_space *m_opcodes;
 	address_space *m_io;
-	direct_read_data *m_direct;
-	direct_read_data *m_decrypted_opcodes_direct;
+	memory_access_cache<0, 0, ENDIANNESS_LITTLE> *m_cache;
+	memory_access_cache<0, 0, ENDIANNESS_LITTLE> *m_opcodes_cache;
 	devcb_write_line m_irqack_cb;
-	devcb_write16 m_refresh_cb;
+	devcb_write8 m_refresh_cb;
+	devcb_write_line m_halt_cb;
 
 	PAIR            m_prvpc;
 	PAIR            m_pc;
@@ -287,7 +285,7 @@ protected:
 	const uint8_t *   m_cc_ex;
 };
 
-extern const device_type Z80;
+DECLARE_DEVICE_TYPE(Z80, z80_device)
 
 class nsc800_device : public z80_device
 {
@@ -300,7 +298,7 @@ protected:
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_input_lines() const override { return 7; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 7; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
@@ -308,7 +306,7 @@ protected:
 	uint8_t m_nsc800_irq_state[4]; /* state of NSC800 restart interrupts A, B, C */
 };
 
-extern const device_type NSC800;
+DECLARE_DEVICE_TYPE(NSC800, nsc800_device)
 
 
-#endif /* __Z80_H__ */
+#endif // MAME_CPU_Z80_Z80_H

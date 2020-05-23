@@ -37,22 +37,10 @@
 
 ***************************************************************************/
 
+#ifndef MAME_MACHINE_8364_PAULA_H
+#define MAME_MACHINE_8364_PAULA_H
+
 #pragma once
-
-#ifndef MAME_DEVICES_MACHINE_8364_PAULA_H
-#define MAME_DEVICES_MACHINE_8364_PAULA_H
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_PAULA_MEM_READ_CB(_devcb) \
-	devcb = &paula_8364_device::set_mem_r_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_PAULA_INT_CB(_devcb) \
-	devcb = &paula_8364_device::set_int_w_callback(*device, DEVCB_##_devcb);
 
 
 //**************************************************************************
@@ -65,17 +53,13 @@ class paula_8364_device : public device_t, public device_sound_interface
 {
 public:
 	paula_8364_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	~paula_8364_device() {}
 
 	// configuration
-	template<class _Object> static devcb_base &set_mem_r_callback(device_t &device, _Object object)
-		{ return downcast<paula_8364_device &>(device).m_mem_r.set_callback(object); }
-
-	template<class _Object> static devcb_base &set_int_w_callback(device_t &device, _Object object)
-		{ return downcast<paula_8364_device &>(device).m_int_w.set_callback(object); }
+	auto mem_read_cb() { return m_mem_r.bind(); }
+	auto int_cb() { return m_int_w.bind(); }
 
 	DECLARE_READ16_MEMBER(reg_r);
-	DECLARE_WRITE16_MEMBER(reg_w);
+	void reg_w(offs_t offset, uint16_t data);
 
 	void update();
 
@@ -128,7 +112,7 @@ private:
 		REG_AUD3DAT = 0xda/2
 	};
 
-	static const int CLOCK_DIVIDER = 16;
+	static constexpr int CLOCK_DIVIDER = 16;
 
 	struct audio_channel
 	{
@@ -166,6 +150,6 @@ private:
 };
 
 // device type definition
-extern const device_type PAULA_8364;
+DECLARE_DEVICE_TYPE(PAULA_8364, paula_8364_device)
 
 #endif // MAME_DEVICES_MACHINE_8364_PAULA_H

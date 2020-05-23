@@ -18,7 +18,7 @@ function createProjects_mame_dummy(_target, _subtarget)
 	kind (LIBTYPE)
 	uuid (os.uuid("drv-mame_dummy"))
 	addprojectflags()
-	precompiledheaders()
+	precompiledheaders_novs()
 
 	includedirs {
 		MAME_DIR .. "src/osd",
@@ -27,8 +27,9 @@ function createProjects_mame_dummy(_target, _subtarget)
 		MAME_DIR .. "src/mame",
 		MAME_DIR .. "src/lib",
 		MAME_DIR .. "src/lib/util",
+		MAME_DIR .. "src/lib/netlist",
 		MAME_DIR .. "3rdparty",
-		GEN_DIR  .. "mess/layout",
+		GEN_DIR  .. "mame/layout",
 	}
 
 files{

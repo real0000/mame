@@ -14,28 +14,28 @@
 
 #define xxxx 0x00
 
-const uint8_t ga2_v25_opcode_table[256] = {
+const uint8_t segas32_v25_state::ga2_opcode_table[256] = {
 		xxxx,xxxx,0xEA,xxxx,xxxx,0x8B,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
 		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xFA,
-		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0x49,xxxx,xxxx,xxxx,
-		xxxx,xxxx,xxxx,xxxx,xxxx,0xE8,xxxx,xxxx,0x75,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
+		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0x3B,xxxx,0x49,xxxx,xxxx,xxxx,
+		xxxx,xxxx,xxxx,xxxx,xxxx,0xE8,xxxx,xxxx,0x75,xxxx,xxxx,xxxx,xxxx,0x3A,xxxx,xxxx,
 		xxxx,xxxx,xxxx,xxxx,0x8D,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xBF,xxxx,0x88,xxxx,
+		xxxx,xxxx,xxxx,0x81,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
 		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
-		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
-		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xBC,
+		0x02,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xBC,
 		xxxx,xxxx,xxxx,0x8A,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0x83,xxxx,xxxx,xxxx,xxxx,xxxx,
 		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xB8,0x26,xxxx,
-		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xEB,
+		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xB5,xxxx,0xEB,
 		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xB2,xxxx,xxxx,xxxx,xxxx,
 		xxxx,xxxx,xxxx,0xC3,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
-		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xB9,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
+		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xB9,0xBB,xxxx,0x43,xxxx,xxxx,xxxx,xxxx,
 		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
-		xxxx,xxxx,0x8E,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xBE,xxxx,xxxx,xxxx,xxxx
+		xxxx,xxxx,0x8E,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xBE,xxxx,0x80,xxxx,xxxx
 };
 
 #undef xxxx
 
-void segas32_state::decrypt_ga2_protrom()
+void segas32_v25_state::decrypt_protrom()
 {
 	int i;
 	uint8_t *rom = memregion("mcu")->base();
@@ -46,17 +46,7 @@ void segas32_state::decrypt_ga2_protrom()
 
 	// unscramble the address lines
 	for(i = 0; i < 0x10000; i++)
-		rom[i] = temp[BITSWAP16(i, 14, 11, 15, 12, 13, 4, 3, 7, 5, 10, 2, 8, 9, 6, 1, 0)];
-}
-
-WRITE16_MEMBER(segas32_state::ga2_dpram_w)
-{
-	/* does it ever actually write.. */
-}
-
-READ16_MEMBER(segas32_state::ga2_dpram_r)
-{
-	return (m_ga2_dpram[offset])|(m_ga2_dpram[offset+1]<<8);
+		rom[i] = temp[bitswap<16>(i, 14, 11, 15, 12, 13, 4, 3, 7, 5, 10, 2, 8, 9, 6, 1, 0)];
 }
 
 
@@ -113,7 +103,7 @@ WRITE16_MEMBER(segas32_state::sonic_level_load_protection)
 		}
 		else
 		{
-			const uint8_t *ROM = memregion("maincpu")->base();
+			const uint8_t *ROM = m_maincpu_region->base();
 			level =  *((ROM + LEVEL_ORDER_ARRAY) + (m_system32_workram[CLEARED_LEVELS / 2] * 2) - 1);
 			level |= *((ROM + LEVEL_ORDER_ARRAY) + (m_system32_workram[CLEARED_LEVELS / 2] * 2) - 2) << 8;
 		}
@@ -163,7 +153,7 @@ WRITE16_MEMBER(segas32_state::brival_protection_w)
 	};
 	char ret[32];
 	int curProtType;
-	uint8_t *ROM = memregion("maincpu")->base();
+	uint8_t *ROM = m_maincpu_region->base();
 
 	switch (offset)
 	{
@@ -223,15 +213,15 @@ void segas32_state::darkedge_fd1149_vblank()
 
 WRITE16_MEMBER(segas32_state::darkedge_protection_w)
 {
-	logerror("%06x:darkedge_prot_w(%06X) = %04X & %04X\n",
-		space.device().safe_pc(), 0xa00000 + 2*offset, data, mem_mask);
+	logerror("%s:darkedge_prot_w(%06X) = %04X & %04X\n",
+		machine().describe_context(), 0xa00000 + 2*offset, data, mem_mask);
 }
 
 
 READ16_MEMBER(segas32_state::darkedge_protection_r)
 {
-	logerror("%06x:darkedge_prot_r(%06X) & %04X\n",
-		space.device().safe_pc(), 0xa00000 + 2*offset, mem_mask);
+	logerror("%s:darkedge_prot_r(%06X) & %04X\n",
+		machine().describe_context(), 0xa00000 + 2*offset, mem_mask);
 	return 0xffff;
 }
 
@@ -280,16 +270,38 @@ READ16_MEMBER(segas32_state::dbzvrvs_protection_r)
  ******************************************************************************
  ******************************************************************************/
 
+#define xxxx 0x00
 
-// protection ram is 8-bits wide and only occupies every other address
+const uint8_t segas32_v25_state::arf_opcode_table[256] = {
+		xxxx,xxxx,0x43,xxxx,xxxx,xxxx,0x83,xxxx,xxxx,xxxx,0xEA,xxxx,xxxx,0xBC,0x73,xxxx,
+		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
+		0x3A,xxxx,xxxx,0xBE,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0x80,xxxx,
+		xxxx,0xB5,xxxx,xxxx,xxxx,xxxx,xxxx,0x26,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
+		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xE8,0x8D,xxxx,0x8B,xxxx,
+		xxxx,xxxx,xxxx,0xFA,xxxx,0x8A,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
+		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
+		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xBA,0x88,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
+		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
+		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xBB,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
+		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0x75,xxxx,0xBF,
+		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0x03,0x3B,0x8E,0x74,xxxx,xxxx,0x81,xxxx,
+		xxxx,xxxx,xxxx,0xC3,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
+		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xB9,0xB2,xxxx,xxxx,xxxx,xxxx,0x49,xxxx,xxxx,
+		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0xEB,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,
+		xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,xxxx,0x02,0xB8
+};
+
+#undef xxxx
+
+#if 0 // old simulation
 READ16_MEMBER(segas32_state::arabfgt_protection_r)
 {
-	int PC = space.device().safe_pc();
+	int PC = m_maincpu->pc();
 	int cmpVal;
 
 	if (PC == 0xfe0325 || PC == 0xfe01e5 || PC == 0xfe035e || PC == 0xfe03cc)
 	{
-		cmpVal = space.device().state().state_int(1);
+		cmpVal = m_maincpu->state_int(V60_R0);
 
 		// R0 always contains the value the protection is supposed to return (!)
 		return cmpVal;
@@ -312,6 +324,7 @@ READ16_MEMBER(segas32_state::arf_wakeup_protection_r)
 		"wake up! ARF!                                   ";
 	return prot[offset];
 }
+#endif
 
 /******************************************************************************
  ******************************************************************************

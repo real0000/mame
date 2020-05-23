@@ -22,7 +22,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type S100_MM65K16S = device_creator<s100_mm65k16s_device>;
+DEFINE_DEVICE_TYPE(S100_MM65K16S, s100_mm65k16s_device, "s100_mm65k16s", "Morrow MM65K16S")
 
 
 //-------------------------------------------------
@@ -203,7 +203,7 @@ ioport_constructor s100_mm65k16s_device::device_input_ports() const
 //-------------------------------------------------
 
 s100_mm65k16s_device::s100_mm65k16s_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, S100_MM65K16S, "MM65K16S", tag, owner, clock, "mm65k16s", __FILE__),
+	device_t(mconfig, S100_MM65K16S, tag, owner, clock),
 	device_s100_card_interface(mconfig, *this),
 	m_ram(*this, "ram")
 {
@@ -233,9 +233,9 @@ void s100_mm65k16s_device::device_reset()
 //  s100_smemr_r - memory read
 //-------------------------------------------------
 
-uint8_t s100_mm65k16s_device::s100_smemr_r(address_space &space, offs_t offset)
+uint8_t s100_mm65k16s_device::s100_smemr_r(offs_t offset)
 {
-	uint8_t data = 0;
+	uint8_t data = 0xff;
 
 	if (offset < 0xf800)
 	{
@@ -250,7 +250,7 @@ uint8_t s100_mm65k16s_device::s100_smemr_r(address_space &space, offs_t offset)
 //  s100_mwrt_w - memory write
 //-------------------------------------------------
 
-void s100_mm65k16s_device::s100_mwrt_w(address_space &space, offs_t offset, uint8_t data)
+void s100_mm65k16s_device::s100_mwrt_w(offs_t offset, uint8_t data)
 {
 	if (offset < 0xf800)
 	{

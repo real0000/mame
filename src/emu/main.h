@@ -17,30 +17,27 @@
 #define MAME_EMU_MAIN_H
 
 #include <thread>
-#include <time.h>
+#include <ctime>
 
 //**************************************************************************
 //    CONSTANTS
 //**************************************************************************
 
-enum
-{
-	EMU_ERR_NONE             = 0,    /* no error */
-	EMU_ERR_FAILED_VALIDITY  = 1,    /* failed validity checks */
-	EMU_ERR_MISSING_FILES    = 2,    /* missing files */
-	EMU_ERR_FATALERROR       = 3,    /* some other fatal error */
-	EMU_ERR_DEVICE           = 4,    /* device initialization error (MESS-specific) */
-	EMU_ERR_NO_SUCH_GAME     = 5,    /* game was specified but doesn't exist */
-	EMU_ERR_INVALID_CONFIG   = 6,    /* some sort of error in configuration */
-	EMU_ERR_IDENT_NONROMS    = 7,    /* identified all non-ROM files */
-	EMU_ERR_IDENT_PARTIAL    = 8,    /* identified some files but not all */
-	EMU_ERR_IDENT_NONE       = 9     /* identified no files */
-};
+constexpr int EMU_ERR_NONE             = 0;    // no error
+constexpr int EMU_ERR_FAILED_VALIDITY  = 1;    // failed validity checks
+constexpr int EMU_ERR_MISSING_FILES    = 2;    // missing files
+constexpr int EMU_ERR_FATALERROR       = 3;    // some other fatal error
+constexpr int EMU_ERR_DEVICE           = 4;    // device initialization error
+constexpr int EMU_ERR_NO_SUCH_SYSTEM   = 5;    // system was specified but doesn't exist
+constexpr int EMU_ERR_INVALID_CONFIG   = 6;    // some sort of error in configuration
+constexpr int EMU_ERR_IDENT_NONROMS    = 7;    // identified all non-ROM files
+constexpr int EMU_ERR_IDENT_PARTIAL    = 8;    // identified some files but not all
+constexpr int EMU_ERR_IDENT_NONE       = 9;    // identified no files
+
 
 //**************************************************************************
 //    TYPE DEFINITIONS
 //**************************************************************************
-class osd_interface;
 
 class emulator_info
 {
@@ -61,21 +58,11 @@ public:
 	static void draw_user_interface(running_machine& machine);
 	static void periodic_check();
 	static bool frame_hook();
-	static void layout_file_cb(util::xml::data_node &layout);
+	static void sound_hook();
+	static void layout_file_cb(util::xml::data_node const &layout);
 	static bool standalone();
 };
 
-// ======================> machine_manager
-class ui_manager;
-namespace asio
-{
-	class io_context;
-}
-namespace webpp
-{
-	class http_server;
-	class ws_server;
-}
 
 class machine_manager
 {
@@ -84,7 +71,7 @@ protected:
 	// construction/destruction
 	machine_manager(emu_options& options, osd_interface& osd);
 public:
-	virtual ~machine_manager();
+	virtual ~machine_manager() { }
 
 	osd_interface &osd() const { return m_osd; }
 	emu_options &options() const { return m_options; }
@@ -97,21 +84,18 @@ public:
 	virtual void create_custom(running_machine& machine) { }
 	virtual void load_cheatfiles(running_machine& machine) { }
 	virtual void ui_initialize(running_machine& machine) { }
+	virtual void before_load_settings(running_machine &machine) { }
 
 	virtual void update_machine() { }
 
+	http_manager *http() { return m_http.get(); }
 	void start_http_server();
-	void start_context();
-	webpp::http_server* http_server() const { return m_server.get(); }
+
 protected:
-	osd_interface &         m_osd;                  // reference to OSD system
-	emu_options &           m_options;              // reference to options
-	running_machine *       m_machine;
-	std::shared_ptr<asio::io_context>   m_io_context;
-	std::unique_ptr<webpp::http_server> m_server;
-	std::unique_ptr<webpp::ws_server>   m_wsserver;
-	std::thread                         m_server_thread;
+	osd_interface &               m_osd;                  // reference to OSD system
+	emu_options &                 m_options;              // reference to options
+	running_machine *             m_machine;
+	std::unique_ptr<http_manager> m_http;
 };
 
-
-#endif  /* MAME_EMU_MAIN_H */
+#endif // MAME_EMU_MAIN_H

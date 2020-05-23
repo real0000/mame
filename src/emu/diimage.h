@@ -28,9 +28,6 @@
 
 extern struct io_procs image_ioprocs;
 
-class software_list;
-class software_list_loader;
-
 enum iodevice_t
 {
 	/* List of all supported devices.  Refer to the device by these names only */
@@ -49,11 +46,13 @@ enum iodevice_t
 	IO_QUICKLOAD,   /* 12 - Allow to load program/data into memory, without matching any actual device */
 	IO_MEMCARD,     /* 13 - Memory card */
 	IO_CDROM,       /* 14 - optical CD-ROM disc */
-	IO_MAGTAPE,     /* 15 - Magentic tape */
+	IO_MAGTAPE,     /* 15 - Magnetic tape */
 	IO_ROM,         /* 16 - Individual ROM image - the Amstrad CPC has a few applications that were sold on 16kB ROMs */
 	IO_MIDIIN,      /* 17 - MIDI In port */
 	IO_MIDIOUT,     /* 18 - MIDI Out port */
-	IO_COUNT        /* 19 - Total Number of IO_devices for searching */
+	IO_PICTURE,     /* 19 - A single-frame image */
+	IO_VIDEO,       /* 20 - A video file */
+	IO_COUNT        /* 21 - Total Number of IO_devices for searching */
 };
 
 enum image_error_t
@@ -81,10 +80,10 @@ public:
 	image_device_format(const std::string &name, const std::string &description, const std::string &extensions, const std::string &optspec);
 	~image_device_format();
 
-	const std::string &name() const { return m_name; }
-	const std::string &description() const { return m_description; }
-	const std::vector<std::string> &extensions() const { return m_extensions; }
-	const std::string &optspec() const { return m_optspec; }
+	const std::string &name() const noexcept { return m_name; }
+	const std::string &description() const noexcept { return m_description; }
+	const std::vector<std::string> &extensions() const noexcept { return m_extensions; }
+	const std::string &optspec() const noexcept { return m_optspec; }
 
 private:
 	std::string                 m_name;
@@ -94,38 +93,18 @@ private:
 };
 
 
-class device_image_interface;
-struct feature_list;
-class software_part;
-class software_info;
-
 enum class image_init_result { PASS, FAIL };
 enum class image_verify_result { PASS, FAIL };
-
-// device image interface function types
-typedef delegate<image_init_result (device_image_interface &)> device_image_load_delegate;
-typedef delegate<void (device_image_interface &)> device_image_func_delegate;
-// legacy
-typedef void (*device_image_partialhash_func)(util::hash_collection &, const unsigned char *, unsigned long, const char *);
 
 //**************************************************************************
 //  MACROS
 //**************************************************************************
 
-#define DEVICE_IMAGE_LOAD_MEMBER_NAME(_name)           device_image_load_##_name
-#define DEVICE_IMAGE_LOAD_NAME(_class,_name)           _class::DEVICE_IMAGE_LOAD_MEMBER_NAME(_name)
-#define DECLARE_DEVICE_IMAGE_LOAD_MEMBER(_name)        image_init_result DEVICE_IMAGE_LOAD_MEMBER_NAME(_name)(device_image_interface &image)
-#define DEVICE_IMAGE_LOAD_MEMBER(_class,_name)         image_init_result DEVICE_IMAGE_LOAD_NAME(_class,_name)(device_image_interface &image)
-#define DEVICE_IMAGE_LOAD_DELEGATE(_class,_name)       device_image_load_delegate(&DEVICE_IMAGE_LOAD_NAME(_class,_name), downcast<_class *>(device->owner()))
+#define DEVICE_IMAGE_LOAD_MEMBER(_name)             image_init_result _name(device_image_interface &image)
+#define DECLARE_DEVICE_IMAGE_LOAD_MEMBER(_name)     DEVICE_IMAGE_LOAD_MEMBER(_name)
 
-#define DEVICE_IMAGE_UNLOAD_MEMBER_NAME(_name)          device_image_unload_##_name
-#define DEVICE_IMAGE_UNLOAD_NAME(_class,_name)          _class::DEVICE_IMAGE_UNLOAD_MEMBER_NAME(_name)
-#define DECLARE_DEVICE_IMAGE_UNLOAD_MEMBER(_name)       void DEVICE_IMAGE_UNLOAD_MEMBER_NAME(_name)(device_image_interface &image)
-#define DEVICE_IMAGE_UNLOAD_MEMBER(_class,_name)        void DEVICE_IMAGE_UNLOAD_NAME(_class,_name)(device_image_interface &image)
-#define DEVICE_IMAGE_UNLOAD_DELEGATE(_class,_name)      device_image_func_delegate(&DEVICE_IMAGE_UNLOAD_NAME(_class,_name), downcast<_class *>(device->owner()))
-
-#define MCFG_SET_IMAGE_LOADABLE(_usrload) \
-	device_image_interface::static_set_user_loadable(*device, _usrload);
+#define DEVICE_IMAGE_UNLOAD_MEMBER(_name)           void _name(device_image_interface &image)
+#define DECLARE_DEVICE_IMAGE_UNLOAD_MEMBER(_name)   DEVICE_IMAGE_UNLOAD_MEMBER(_name)
 
 
 // ======================> device_image_interface
@@ -134,6 +113,9 @@ typedef void (*device_image_partialhash_func)(util::hash_collection &, const uns
 class device_image_interface : public device_interface
 {
 public:
+	typedef device_delegate<image_init_result (device_image_interface &)> load_delegate;
+	typedef device_delegate<void (device_image_interface &)> unload_delegate;
+
 	typedef std::vector<std::unique_ptr<image_device_format>> formatlist_type;
 
 	// construction/destruction
@@ -144,45 +126,43 @@ public:
 	static const char *device_brieftypename(iodevice_t type);
 	static iodevice_t device_typeid(const char *name);
 
-	virtual void device_compute_hash(util::hash_collection &hashes, const void *data, size_t length, const char *types) const;
-
 	virtual image_init_result call_load() { return image_init_result::PASS; }
 	virtual image_init_result call_create(int format_type, util::option_resolution *format_options) { return image_init_result::PASS; }
 	virtual void call_unload() { }
 	virtual std::string call_display() { return std::string(); }
-	virtual device_image_partialhash_func get_partial_hash() const { return nullptr; }
-	virtual bool core_opens_image_file() const { return true; }
-	virtual iodevice_t image_type()  const = 0;
-	virtual bool is_readable()  const = 0;
-	virtual bool is_writeable() const = 0;
-	virtual bool is_creatable() const = 0;
-	virtual bool must_be_loaded() const = 0;
-	virtual bool is_reset_on_load() const = 0;
-	virtual bool support_command_line_image_creation() const;
-	virtual const char *image_interface() const { return nullptr; }
-	virtual const char *file_extensions() const = 0;
+	virtual u32 unhashed_header_length() const noexcept { return 0; }
+	virtual bool core_opens_image_file() const noexcept { return true; }
+	virtual iodevice_t image_type() const noexcept = 0;
+	virtual bool is_readable()  const noexcept = 0;
+	virtual bool is_writeable() const noexcept = 0;
+	virtual bool is_creatable() const noexcept = 0;
+	virtual bool must_be_loaded() const noexcept = 0;
+	virtual bool is_reset_on_load() const noexcept = 0;
+	virtual bool support_command_line_image_creation() const noexcept;
+	virtual const char *image_interface() const noexcept { return nullptr; }
+	virtual const char *file_extensions() const noexcept = 0;
 	virtual const util::option_guide &create_option_guide() const;
-	virtual const char *custom_instance_name() const { return nullptr; }
-	virtual const char *custom_brief_instance_name() const { return nullptr; }
+	virtual const char *custom_instance_name() const noexcept { return nullptr; }
+	virtual const char *custom_brief_instance_name() const noexcept { return nullptr; }
 
-	const image_device_format *device_get_indexed_creatable_format(int index) const { if (index < m_formatlist.size()) return m_formatlist.at(index).get(); else return nullptr;  }
-	const image_device_format *device_get_named_creatable_format(const std::string &format_name);
+	const image_device_format *device_get_indexed_creatable_format(int index) const noexcept { return (index < m_formatlist.size()) ? m_formatlist.at(index).get() : nullptr;  }
+	const image_device_format *device_get_named_creatable_format(const std::string &format_name) noexcept;
 	const util::option_guide &device_get_creation_option_guide() const { return create_option_guide(); }
 
 	const char *error();
 	void seterror(image_error_t err, const char *message);
 	void message(const char *format, ...) ATTR_PRINTF(2,3);
 
-	bool exists() { return !m_image_name.empty(); }
-	const char *filename() const { if (m_image_name.empty()) return nullptr; else return m_image_name.c_str(); }
-	const char *basename() const { if (m_basename.empty()) return nullptr; else return m_basename.c_str(); }
-	const char *basename_noext()  const { if (m_basename_noext.empty()) return nullptr; else return m_basename_noext.c_str(); }
-	const std::string &filetype() const { return m_filetype; }
+	bool exists() const noexcept { return !m_image_name.empty(); }
+	const char *filename() const noexcept { return m_image_name.empty() ? nullptr : m_image_name.c_str(); }
+	const char *basename() const noexcept { return m_basename.empty() ? nullptr : m_basename.c_str(); }
+	const char *basename_noext()  const noexcept { return m_basename_noext.empty() ? nullptr : m_basename_noext.c_str(); }
+	const std::string &filetype() const noexcept { return m_filetype; }
 	bool is_filetype(const std::string &candidate_filetype) { return !core_stricmp(filetype().c_str(), candidate_filetype.c_str()); }
-	bool is_open() const { return bool(m_file); }
-	util::core_file &image_core_file() const { return *m_file; }
+	bool is_open() const noexcept { return bool(m_file); }
+	util::core_file &image_core_file() const noexcept { return *m_file; }
 	u64 length() { check_for_file(); return m_file->size(); }
-	bool is_readonly() const { return m_readonly; }
+	bool is_readonly() const noexcept { return m_readonly; }
 	u32 fread(void *buffer, u32 length) { check_for_file(); return m_file->read(buffer, length); }
 	u32 fread(optional_shared_ptr<u8> &ptr, u32 length) { ptr.allocate(length); return fread(ptr.target(), length); }
 	u32 fread(optional_shared_ptr<u8> &ptr, u32 length, offs_t offset) { ptr.allocate(length); return fread(ptr + offset, length - offset); }
@@ -194,37 +174,38 @@ public:
 	int image_feof() { check_for_file(); return m_file->eof(); }
 	void *ptr() {check_for_file(); return const_cast<void *>(m_file->buffer()); }
 	// configuration access
-	void set_init_phase() { m_init_phase = true; }
 
-	const std::string &longname() const { return m_longname; }
-	const std::string &manufacturer() const { return m_manufacturer; }
-	const std::string &year() const { return m_year; }
-	u32 supported() const { return m_supported; }
+	const std::string &longname() const noexcept { return m_longname; }
+	const std::string &manufacturer() const noexcept { return m_manufacturer; }
+	const std::string &year() const noexcept { return m_year; }
+	u32 supported() const noexcept { return m_supported; }
 
-	const software_info *software_entry() const;
-	const software_part *part_entry() const { return m_software_part_ptr; }
-	const char *software_list_name() const { return m_software_list_name.c_str(); }
-	bool loaded_through_softlist() const { return m_software_part_ptr != nullptr; }
+	const software_info *software_entry() const noexcept;
+	const software_part *part_entry() const noexcept { return m_software_part_ptr; }
+	const char *software_list_name() const noexcept { return m_software_list_name.c_str(); }
+	bool loaded_through_softlist() const noexcept { return m_software_part_ptr != nullptr; }
 
 	void set_working_directory(const char *working_directory) { m_working_directory = working_directory; }
 	const std::string &working_directory();
 
 	u8 *get_software_region(const char *tag);
 	u32 get_software_region_length(const char *tag);
-	const char *get_feature(const char *feature_name);
+	const char *get_feature(const char *feature_name) const;
 	bool load_software_region(const char *tag, optional_shared_ptr<u8> &ptr);
 
 	u32 crc();
 	util::hash_collection& hash() { return m_hash; }
+	util::hash_collection calculate_hash_on_file(util::core_file &file) const;
 
 	void battery_load(void *buffer, int length, int fill);
-	void battery_load(void *buffer, int length, void *def_buffer);
+	void battery_load(void *buffer, int length, const void *def_buffer);
 	void battery_save(const void *buffer, int length);
 
 	const char *image_type_name()  const { return device_typename(image_type()); }
 
 	const std::string &instance_name() const { return m_instance_name; }
 	const std::string &brief_instance_name() const { return m_brief_instance_name; }
+	const std::string &canonical_instance_name() const { return m_canonical_instance_name; }
 	bool uses_file_extension(const char *file_extension) const;
 	const formatlist_type &formatlist() const { return m_formatlist; }
 
@@ -234,7 +215,6 @@ public:
 	// loads a softlist item by name
 	image_init_result load_software(const std::string &software_identifier);
 
-	bool open_image_file(emu_options &options);
 	image_init_result finish_load();
 	void unload();
 	image_init_result create(const std::string &path, const image_device_format *create_format, util::option_resolution *create_args);
@@ -242,15 +222,11 @@ public:
 	bool load_software(software_list_device &swlist, const char *swname, const rom_entry *entry);
 	int reopen_for_write(const std::string &path);
 
-	static void static_set_user_loadable(device_t &device, bool user_loadable) {
-		device_image_interface *img;
-		if (!device.interface_check(img))
-			throw emu_fatalerror("MCFG_SET_IMAGE_LOADABLE called on device '%s' with no image interface\n", device.tag());
+	void set_user_loadable(bool user_loadable) { m_user_loadable = user_loadable; }
 
-		img->m_user_loadable = user_loadable;
-	}
-
-	bool user_loadable() const { return m_user_loadable; }
+	bool user_loadable() const noexcept { return m_user_loadable; }
+	bool is_reset_and_loading() const noexcept { return m_is_reset_and_loading; }
+	const std::string &full_software_name() const noexcept { return m_full_software_name; }
 
 protected:
 	// interface-level overrides
@@ -259,7 +235,7 @@ protected:
 	virtual const software_list_loader &get_software_list_loader() const;
 	virtual const bool use_software_list_file_extension_for_filetype() const { return false; }
 
-	image_init_result load_internal(const std::string &path, bool is_create, int create_format, util::option_resolution *create_args, bool just_load);
+	image_init_result load_internal(const std::string &path, bool is_create, int create_format, util::option_resolution *create_args);
 	image_error_t load_image_by_path(u32 open_flags, const std::string &path);
 	void clear();
 	bool is_loaded();
@@ -268,18 +244,16 @@ protected:
 
 	void clear_error();
 
-	void check_for_file() const { assert_always(m_file, "Illegal operation on unmounted image"); }
+	void check_for_file() const { if (!m_file) throw emu_fatalerror("%s(%s): Illegal operation on unmounted image", device().shortname(), device().tag()); }
 
 	void setup_working_directory();
 	bool try_change_working_directory(const std::string &subdir);
 
-	void make_readonly() { m_readonly = true; }
+	void make_readonly() noexcept { m_readonly = true; }
 
-	void run_hash(void (*partialhash)(util::hash_collection &, const unsigned char *, unsigned long, const char *), util::hash_collection &hashes, const char *types);
-	void image_checkhash();
+	bool image_checkhash();
 
 	const software_part *find_software_item(const std::string &identifier, bool restrict_to_interface, software_list_device **device = nullptr) const;
-	bool load_software_part(const std::string &identifier);
 	std::string software_get_default_slot(const char *default_card_slot) const;
 
 	void add_format(std::unique_ptr<image_device_format> &&format);
@@ -295,6 +269,7 @@ protected:
 	image_error_t m_err;
 	std::string m_err_message;
 
+private:
 	// variables that are only non-zero when an image is mounted
 	util::core_file::ptr m_file;
 	std::unique_ptr<emu_file> m_mame_file;
@@ -308,11 +283,17 @@ protected:
 	const software_part *m_software_part_ptr;
 	std::string m_software_list_name;
 
-private:
 	static image_error_t image_error_from_file_error(osd_file::error filerr);
-	bool schedule_postload_hard_reset_if_needed();
 	std::vector<u32> determine_open_plan(bool is_create);
 	void update_names();
+	bool load_software_part(const std::string &identifier);
+
+	bool init_phase() const;
+	static bool run_hash(util::core_file &file, u32 skip_bytes, util::hash_collection &hashes, const char *types);
+
+	// loads an image or software items and resets - called internally when we
+	// load an is_reset_on_load() item
+	void reset_and_load(const std::string &path);
 
 	// creation info
 	formatlist_type m_formatlist;
@@ -329,7 +310,6 @@ private:
 	// flags
 	bool m_readonly;
 	bool m_created;
-	bool m_init_phase;
 
 	// special - used when creating
 	int m_create_format;
@@ -337,14 +317,17 @@ private:
 
 	util::hash_collection m_hash;
 
-	std::string m_brief_instance_name;
-	std::string m_instance_name;
+	std::string m_instance_name;                // e.g. - "cartridge", "floppydisk2"
+	std::string m_brief_instance_name;          // e.g. - "cart", "flop2"
+	std::string m_canonical_instance_name;      // e.g. - "cartridge1", "floppydisk2" - only used internally in emuopts.cpp
 
 	// in the case of arcade cabinet with fixed carts inserted,
 	// we want to disable command line cart loading...
 	bool m_user_loadable;
 
 	bool m_is_loading;
+
+	bool m_is_reset_and_loading;
 };
 
 // iterator

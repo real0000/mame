@@ -21,10 +21,10 @@
       switch and run it as a cartridge.  This is useful for cartridge development.
 
       Blue RAM -- available in 4K, 16K, and 32K.  These also use an INS8154 chip,
-      (not yet implemented) which has an additional $80 bytes of RAM mapped
-      immediately after the end of the expansion address space.  This memory
-      can't be write protected.  The INS8154 has I/O features needed for loading
-      tape programs into Blue RAM BASIC, as well as running the Blue RAM Utility cart.
+      which has an additional $80 bytes of RAM mapped immediately after the end of
+      the expansion address space (not yet implemented).  This memory can't be write
+      protected.  The INS8154 has I/O features needed for loading tape programs into
+      Blue RAM BASIC, as well as running the Blue RAM Utility cart.
       4K:  $6000 to $6FFF (can't run VIPERSoft BASIC, because this program needs memory
       past this range)
       16K:  $6000 to $9FFF
@@ -60,56 +60,56 @@
 //  astrocade_rom_device - constructor
 //-------------------------------------------------
 
-const device_type ASTROCADE_BLUERAM_4K  = device_creator<astrocade_blueram_4k_device>;
-const device_type ASTROCADE_BLUERAM_16K = device_creator<astrocade_blueram_16k_device>;
-const device_type ASTROCADE_BLUERAM_32K = device_creator<astrocade_blueram_32k_device>;
-const device_type ASTROCADE_VIPER_SYS1  = device_creator<astrocade_viper_sys1_device>;
-const device_type ASTROCADE_WHITERAM    = device_creator<astrocade_whiteram_device>;
-const device_type ASTROCADE_RL64RAM     = device_creator<astrocade_rl64ram_device>;
+DEFINE_DEVICE_TYPE(ASTROCADE_BLUERAM_4K,  astrocade_blueram_4k_device,  "astrocade_br4",  "Bally Astrocade Blue RAM 4K")
+DEFINE_DEVICE_TYPE(ASTROCADE_BLUERAM_16K, astrocade_blueram_16k_device, "astrocade_br16", "Bally Astrocade Blue RAM 16K")
+DEFINE_DEVICE_TYPE(ASTROCADE_BLUERAM_32K, astrocade_blueram_32k_device, "astrocade_br32", "Bally Astrocade Blue RAM 32K")
+DEFINE_DEVICE_TYPE(ASTROCADE_VIPER_SYS1,  astrocade_viper_sys1_device,  "astrocade_vs1",  "Bally Astrocade Viper System 1")
+DEFINE_DEVICE_TYPE(ASTROCADE_WHITERAM,    astrocade_whiteram_device,    "astrocade_lwr",  "Bally Astrocade Lil' White RAM 32K")
+DEFINE_DEVICE_TYPE(ASTROCADE_RL64RAM,     astrocade_rl64ram_device,     "astrocade_rl64", "Bally Astrocade R&L RAM 64K")
 
 
-astrocade_blueram_4k_device::astrocade_blueram_4k_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-						device_astrocade_card_interface(mconfig, *this),
-						m_write_prot(*this, "RAM_PROTECT")
+astrocade_blueram_4k_device::astrocade_blueram_4k_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock)
+	, device_astrocade_exp_interface(mconfig, *this)
+	, m_write_prot(*this, "RAM_PROTECT")
+	, m_ramio(*this, "ramio")
+	, m_cassette(*this, "cassette")
 {
 }
 
 astrocade_blueram_4k_device::astrocade_blueram_4k_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, ASTROCADE_BLUERAM_4K, "Bally Astrocade Blue RAM 4K", tag, owner, clock, "astrocade_br4", __FILE__),
-						device_astrocade_card_interface(mconfig, *this),
-						m_write_prot(*this, "RAM_PROTECT")
+	: astrocade_blueram_4k_device(mconfig, ASTROCADE_BLUERAM_4K, tag, owner, clock)
 {
 }
 
 astrocade_blueram_16k_device::astrocade_blueram_16k_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: astrocade_blueram_4k_device(mconfig, ASTROCADE_BLUERAM_16K, "Bally Astrocade Blue RAM 16K", tag, owner, clock, "astrocade_br16", __FILE__)
+	: astrocade_blueram_4k_device(mconfig, ASTROCADE_BLUERAM_16K, tag, owner, clock)
 {
 }
 
 astrocade_blueram_32k_device::astrocade_blueram_32k_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: astrocade_blueram_4k_device(mconfig, ASTROCADE_BLUERAM_32K, "Bally Astrocade Blue RAM 32K", tag, owner, clock, "astrocade_br32", __FILE__)
+	: astrocade_blueram_4k_device(mconfig, ASTROCADE_BLUERAM_32K, tag, owner, clock)
 {
 }
 
 astrocade_viper_sys1_device::astrocade_viper_sys1_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, ASTROCADE_VIPER_SYS1, "Bally Astrocade Viper System 1", tag, owner, clock, "astrocade_vs1", __FILE__),
-						device_astrocade_card_interface(mconfig, *this),
-						m_write_prot(*this, "RAM_PROTECT")
+	: device_t(mconfig, ASTROCADE_VIPER_SYS1, tag, owner, clock)
+	, device_astrocade_exp_interface(mconfig, *this)
+	, m_write_prot(*this, "RAM_PROTECT")
 {
 }
 
 astrocade_whiteram_device::astrocade_whiteram_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, ASTROCADE_WHITERAM, "Bally Astrocade Lil' White RAM 32K", tag, owner, clock, "astrocade_lwr", __FILE__),
-						device_astrocade_card_interface(mconfig, *this),
-						m_write_prot(*this, "RAM_PROTECT")
+	: device_t(mconfig, ASTROCADE_WHITERAM, tag, owner, clock)
+	, device_astrocade_exp_interface(mconfig, *this)
+	, m_write_prot(*this, "RAM_PROTECT")
 {
 }
 
 astrocade_rl64ram_device::astrocade_rl64ram_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, ASTROCADE_RL64RAM, "Bally Astrocade R&L RAM 64K", tag, owner, clock, "astrocade_rl64", __FILE__),
-						device_astrocade_card_interface(mconfig, *this),
-						m_write_prot(*this, "RAM_PROTECT")
+	: device_t(mconfig, ASTROCADE_RL64RAM, tag, owner, clock)
+	, device_astrocade_exp_interface(mconfig, *this)
+	, m_write_prot(*this, "RAM_PROTECT")
 {
 }
 
@@ -151,7 +151,7 @@ ioport_constructor astrocade_rl64ram_device::device_input_ports() const
  -------------------------------------------------*/
 
 // Blue RAM expansions have RAM starting at 0x6000, up to the RAM size
-READ8_MEMBER(astrocade_blueram_4k_device::read)
+uint8_t astrocade_blueram_4k_device::read(offs_t offset)
 {
 	if (offset >= 0x1000 && offset < 0x1000 + m_ram.size())
 		return m_ram[offset - 0x1000];
@@ -159,16 +159,44 @@ READ8_MEMBER(astrocade_blueram_4k_device::read)
 		return 0;
 }
 
-WRITE8_MEMBER(astrocade_blueram_4k_device::write)
+void astrocade_blueram_4k_device::write(offs_t offset, uint8_t data)
 {
 	if (offset >= 0x1000 && offset < 0x1000 + m_ram.size() && !m_write_prot->read())
 		m_ram[offset - 0x1000] = data;
 }
 
+uint8_t astrocade_blueram_4k_device::read_io(offs_t offset)
+{
+	return m_ramio->read_io(offset & 0x7f);
+}
 
+void astrocade_blueram_4k_device::write_io(offs_t offset, uint8_t data)
+{
+	logerror("write_io: %04x = %02x\n", offset, data);
+	m_ramio->write_io(offset & 0x7f, data);
+}
+
+uint8_t astrocade_blueram_4k_device::porta_r()
+{
+	return 0;
+}
+
+uint8_t astrocade_blueram_4k_device::portb_r()
+{
+	return m_cassette->input() > 0.0 ? 1 : 0;
+}
+
+void astrocade_blueram_4k_device::porta_w(uint8_t data)
+{
+}
+
+void astrocade_blueram_4k_device::portb_w(uint8_t data)
+{
+	m_cassette->output(BIT(data, 0) ? +1 : -1);
+}
 
 // Viper System 1 expansion has RAM in 0x6000-0x9fff
-READ8_MEMBER(astrocade_viper_sys1_device::read)
+uint8_t astrocade_viper_sys1_device::read(offs_t offset)
 {
 	if (offset >= 0x1000 && offset < 0xa000)
 		return m_ram[offset - 0x1000];
@@ -176,7 +204,7 @@ READ8_MEMBER(astrocade_viper_sys1_device::read)
 		return 0;
 }
 
-WRITE8_MEMBER(astrocade_viper_sys1_device::write)
+void astrocade_viper_sys1_device::write(offs_t offset, uint8_t data)
 {
 	if (offset >= 0x1000 && offset < 0xa000 && !m_write_prot->read())
 		m_ram[offset - 0x1000] = data;
@@ -185,12 +213,12 @@ WRITE8_MEMBER(astrocade_viper_sys1_device::write)
 
 
 // Lil' WHITE RAM expansion has RAM in 0x5000-0xcfff + a mirror of the first 0x3000 bytes up to 0xffff
-READ8_MEMBER(astrocade_whiteram_device::read)
+uint8_t astrocade_whiteram_device::read(offs_t offset)
 {
 	return m_ram[offset % 0x8000];
 }
 
-WRITE8_MEMBER(astrocade_whiteram_device::write)
+void astrocade_whiteram_device::write(offs_t offset, uint8_t data)
 {
 	if (!m_write_prot->read())
 		m_ram[offset % 0x8000] = data;
@@ -199,13 +227,30 @@ WRITE8_MEMBER(astrocade_whiteram_device::write)
 
 
 // R&L 64K RAM Board (44KB installed) has RAM in 0x5000-0xffff
-READ8_MEMBER(astrocade_rl64ram_device::read)
+uint8_t astrocade_rl64ram_device::read(offs_t offset)
 {
 	return m_ram[offset];
 }
 
-WRITE8_MEMBER(astrocade_rl64ram_device::write)
+void astrocade_rl64ram_device::write(offs_t offset, uint8_t data)
 {
 	if (!m_write_prot->read())
 		m_ram[offset] = data;
+}
+
+/*-------------------------------------------------
+ machine configuration
+ -------------------------------------------------*/
+
+void astrocade_blueram_4k_device::device_add_mconfig(machine_config &config)
+{
+	CASSETTE(config, m_cassette);
+	m_cassette->set_default_state(CASSETTE_STOPPED);
+	m_cassette->set_interface("astrocade_cass");
+
+	INS8154(config, m_ramio);
+	m_ramio->out_a().set(FUNC(astrocade_blueram_4k_device::porta_w));
+	m_ramio->out_b().set(FUNC(astrocade_blueram_4k_device::portb_w));
+	m_ramio->in_a().set(FUNC(astrocade_blueram_4k_device::porta_r));
+	m_ramio->in_b().set(FUNC(astrocade_blueram_4k_device::portb_r));
 }

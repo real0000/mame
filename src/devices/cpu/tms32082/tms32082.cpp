@@ -8,14 +8,13 @@
 */
 
 #include "emu.h"
-#include "debugger.h"
 #include "tms32082.h"
+#include "dis_pp.h"
+#include "dis_mp.h"
+#include "debugger.h"
 
-extern CPU_DISASSEMBLE(tms32082_mp);
-extern CPU_DISASSEMBLE(tms32082_pp);
-
-const device_type TMS32082_MP = device_creator<tms32082_mp_device>;
-const device_type TMS32082_PP = device_creator<tms32082_pp_device>;
+DEFINE_DEVICE_TYPE(TMS32082_MP, tms32082_mp_device, "tms32082_mp", "Texas Instruments TMS32082 MP")
+DEFINE_DEVICE_TYPE(TMS32082_PP, tms32082_pp_device, "tms32082_pp", "Texas Instruments TMS32082 PP")
 
 
 
@@ -23,15 +22,16 @@ const device_type TMS32082_PP = device_creator<tms32082_pp_device>;
 // Master Processor
 
 // internal memory map
-static ADDRESS_MAP_START(mp_internal_map, AS_PROGRAM, 32, tms32082_mp_device)
-	AM_RANGE(0x00000000, 0x00000fff) AM_RAM AM_SHARE("pp0_data0")
-	AM_RANGE(0x00001000, 0x00001fff) AM_RAM AM_SHARE("pp1_data0")
-	AM_RANGE(0x00008000, 0x00008fff) AM_RAM AM_SHARE("pp0_data1")
-	AM_RANGE(0x00009000, 0x00009fff) AM_RAM AM_SHARE("pp1_data1")
-	AM_RANGE(0x01000000, 0x01000fff) AM_RAM AM_SHARE("pp0_param")
-	AM_RANGE(0x01001000, 0x01001fff) AM_RAM AM_SHARE("pp1_param")
-	AM_RANGE(0x01010000, 0x010107ff) AM_READWRITE(mp_param_r, mp_param_w)
-ADDRESS_MAP_END
+void tms32082_mp_device::mp_internal_map(address_map &map)
+{
+	map(0x00000000, 0x00000fff).ram().share("pp0_data0");
+	map(0x00001000, 0x00001fff).ram().share("pp1_data0");
+	map(0x00008000, 0x00008fff).ram().share("pp0_data1");
+	map(0x00009000, 0x00009fff).ram().share("pp1_data1");
+	map(0x01000000, 0x01000fff).ram().share("pp0_param");
+	map(0x01001000, 0x01001fff).ram().share("pp1_param");
+	map(0x01010000, 0x010107ff).rw(FUNC(tms32082_mp_device::mp_param_r), FUNC(tms32082_mp_device::mp_param_w));
+}
 
 const uint32_t tms32082_mp_device::SHIFT_MASK[] =
 {
@@ -45,22 +45,30 @@ const uint32_t tms32082_mp_device::SHIFT_MASK[] =
 
 
 tms32082_mp_device::tms32082_mp_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, TMS32082_MP, "TMS32082 MP", tag, owner, clock, "tms32082_mp", __FILE__)
-	, m_program_config("program", ENDIANNESS_BIG, 32, 32, 0, ADDRESS_MAP_NAME(mp_internal_map))
+	: cpu_device(mconfig, TMS32082_MP, tag, owner, clock)
+	, m_program_config("program", ENDIANNESS_BIG, 32, 32, 0, address_map_constructor(FUNC(tms32082_mp_device::mp_internal_map), this))
+	, m_cmd_callback(*this)
 {
 }
 
-
-offs_t tms32082_mp_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+device_memory_interface::space_config_vector tms32082_mp_device::memory_space_config() const
 {
-	return CPU_DISASSEMBLE_NAME(tms32082_mp)(this, stream, pc, oprom, opram, options);
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
+}
+
+device_memory_interface::space_config_vector tms32082_pp_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
 }
 
 
-
-void tms32082_mp_device::set_command_callback(write32_delegate callback)
+std::unique_ptr<util::disasm_interface> tms32082_mp_device::create_disassembler()
 {
-	m_cmd_callback = callback;
+	return std::make_unique<tms32082_mp_disassembler>();
 }
 
 
@@ -144,6 +152,7 @@ WRITE32_MEMBER(tms32082_mp_device::mp_param_w)
 void tms32082_mp_device::device_start()
 {
 	m_program = &space(AS_PROGRAM);
+	m_cmd_callback.resolve();
 
 	save_item(NAME(m_pc));
 	save_item(NAME(m_fetchpc));
@@ -210,9 +219,9 @@ void tms32082_mp_device::device_start()
 	state_add(STATE_GENPCBASE, "CURPC", m_pc).noshow();
 
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_cache = m_program->cache<2, 0, ENDIANNESS_BIG>();
 
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 }
 
 void tms32082_mp_device::state_string_export(const device_state_entry &entry, std::string &str) const
@@ -427,14 +436,14 @@ void tms32082_mp_device::execute_set_input(int inputnum, int state)
 
 uint32_t tms32082_mp_device::fetch()
 {
-	uint32_t w = m_direct->read_dword(m_fetchpc);
+	uint32_t w = m_cache->read_dword(m_fetchpc);
 	m_fetchpc += 4;
 	return w;
 }
 
 void tms32082_mp_device::delay_slot()
 {
-	debugger_instruction_hook(this, m_pc);
+	debugger_instruction_hook(m_pc);
 	m_ir = fetch();
 	execute();
 
@@ -449,7 +458,7 @@ void tms32082_mp_device::execute_run()
 
 		check_interrupts();
 
-		debugger_instruction_hook(this, m_pc);
+		debugger_instruction_hook(m_pc);
 
 		m_ir = fetch();
 		execute();
@@ -473,25 +482,26 @@ void tms32082_mp_device::execute_run()
 // Parallel Processor
 
 // internal memory map
-static ADDRESS_MAP_START(pp_internal_map, AS_PROGRAM, 32, tms32082_pp_device)
-	AM_RANGE(0x00000000, 0x00000fff) AM_RAM AM_SHARE("pp0_data0")
-	AM_RANGE(0x00001000, 0x00001fff) AM_RAM AM_SHARE("pp1_data0")
-	AM_RANGE(0x00008000, 0x00008fff) AM_RAM AM_SHARE("pp0_data1")
-	AM_RANGE(0x00009000, 0x00009fff) AM_RAM AM_SHARE("pp1_data1")
-	AM_RANGE(0x01000000, 0x01000fff) AM_RAM AM_SHARE("pp0_param")
-	AM_RANGE(0x01001000, 0x01001fff) AM_RAM AM_SHARE("pp1_param")
-ADDRESS_MAP_END
+void tms32082_pp_device::pp_internal_map(address_map &map)
+{
+	map(0x00000000, 0x00000fff).ram().share("pp0_data0");
+	map(0x00001000, 0x00001fff).ram().share("pp1_data0");
+	map(0x00008000, 0x00008fff).ram().share("pp0_data1");
+	map(0x00009000, 0x00009fff).ram().share("pp1_data1");
+	map(0x01000000, 0x01000fff).ram().share("pp0_param");
+	map(0x01001000, 0x01001fff).ram().share("pp1_param");
+}
 
 tms32082_pp_device::tms32082_pp_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, TMS32082_PP, "TMS32082 PP", tag, owner, clock, "tms32082_pp", __FILE__)
-	, m_program_config("program", ENDIANNESS_BIG, 32, 32, 0, ADDRESS_MAP_NAME(pp_internal_map))
+	: cpu_device(mconfig, TMS32082_PP, tag, owner, clock)
+	, m_program_config("program", ENDIANNESS_BIG, 32, 32, 0, address_map_constructor(FUNC(tms32082_pp_device::pp_internal_map), this))
 {
 }
 
 
-offs_t tms32082_pp_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+std::unique_ptr<util::disasm_interface> tms32082_pp_device::create_disassembler()
 {
-	return CPU_DISASSEMBLE_NAME(tms32082_pp)(this, stream, pc, oprom, opram, options);
+	return std::make_unique<tms32082_pp_disassembler>();
 }
 
 void tms32082_pp_device::device_start()
@@ -508,9 +518,9 @@ void tms32082_pp_device::device_start()
 	state_add(STATE_GENPCBASE, "CURPC", m_pc).noshow();
 
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_cache = m_program->cache<2, 0, ENDIANNESS_BIG>();
 
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 }
 
 void tms32082_pp_device::state_string_export(const device_state_entry &entry, std::string &str) const
@@ -532,7 +542,7 @@ void tms32082_pp_device::device_reset()
 void tms32082_pp_device::execute_run()
 {
 	m_pc = m_fetchpc;
-	debugger_instruction_hook(this, m_pc);
+	debugger_instruction_hook(m_pc);
 
 	m_icount = 0;
 

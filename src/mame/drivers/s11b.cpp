@@ -8,12 +8,15 @@
     - Black Knight 2000 randomly goes nuts or resets
       (some bug possibly relating to the 'lighting draws the "Ball 1"' animation???);
       if you insert 2 or more credits and hit start 2 times quickly so it doesn't
-      play the animation, the game seems more stable afterward; original
+      play the animation, the game seems more stable afterwards; original
       game bug or 6802 core bug or something else?
       This bug behaves slightly differently in the different sets, depending on whether
       nvram is cleared beforehand or not, and whether the last reset was soft or hard.
+      Proximate cause is smashing the stack, after which the RTS at 61DE (in bk2k_l4)
+      transfers to 0000 (where no valid code exists).
     - Black Knight 2000 LG-1 set reports U26 ROM FAILURE. Bad/hacked dump or original bug?
     - Advance button doesn't seem to work well (TODO: check if this may have been fixed with the irq and diagnostic button masking changes)
+    - Jokerz has an entirely different "Pin Sound '88" stereo audio board (D-12338-567)
 
     Known keys necessary to get games to start (so the proper number of balls are detected):
     - Black Knight 2000: Hold "D" "F" "Y" and press "1" after inserting 1 or more credits. press 'x' to get the main music started.
@@ -23,7 +26,6 @@
 #include "emu.h"
 #include "includes/s11b.h"
 
-#include "cpu/m6800/m6800.h"
 #include "cpu/m6809/m6809.h"
 #include "sound/volt_reg.h"
 #include "speaker.h"
@@ -31,35 +33,38 @@
 #include "s11b.lh"
 
 
-static ADDRESS_MAP_START( s11b_main_map, AS_PROGRAM, 8, s11b_state )
-	AM_RANGE(0x0000, 0x0fff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0x2100, 0x2103) AM_MIRROR(0x00fc) AM_DEVREADWRITE("pia21", pia6821_device, read, write) // sound+solenoids
-	AM_RANGE(0x2200, 0x2200) AM_MIRROR(0x01ff) AM_WRITE(sol3_w) // solenoids
-	AM_RANGE(0x2400, 0x2403) AM_MIRROR(0x03fc) AM_DEVREADWRITE("pia24", pia6821_device, read, write) // lamps
-	AM_RANGE(0x2800, 0x2803) AM_MIRROR(0x03fc) AM_DEVREADWRITE("pia28", pia6821_device, read, write) // display
-	AM_RANGE(0x2c00, 0x2c03) AM_MIRROR(0x03fc) AM_DEVREADWRITE("pia2c", pia6821_device, read, write) // alphanumeric display
-	AM_RANGE(0x3000, 0x3003) AM_MIRROR(0x03fc) AM_DEVREADWRITE("pia30", pia6821_device, read, write) // inputs
-	AM_RANGE(0x3400, 0x3403) AM_MIRROR(0x0bfc) AM_DEVREADWRITE("pia34", pia6821_device, read, write) // widget
-	AM_RANGE(0x4000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void s11b_state::s11b_main_map(address_map &map)
+{
+	map(0x0000, 0x0fff).ram().share("nvram");
+	map(0x2100, 0x2103).mirror(0x00fc).rw(m_pia21, FUNC(pia6821_device::read), FUNC(pia6821_device::write)); // sound+solenoids
+	map(0x2200, 0x2200).mirror(0x01ff).w(FUNC(s11b_state::sol3_w)); // solenoids
+	map(0x2400, 0x2403).mirror(0x03fc).rw(m_pia24, FUNC(pia6821_device::read), FUNC(pia6821_device::write)); // lamps
+	map(0x2800, 0x2803).mirror(0x03fc).rw(m_pia28, FUNC(pia6821_device::read), FUNC(pia6821_device::write)); // display
+	map(0x2c00, 0x2c03).mirror(0x03fc).rw(m_pia2c, FUNC(pia6821_device::read), FUNC(pia6821_device::write)); // alphanumeric display
+	map(0x3000, 0x3003).mirror(0x03fc).rw(m_pia30, FUNC(pia6821_device::read), FUNC(pia6821_device::write)); // inputs
+	map(0x3400, 0x3403).mirror(0x0bfc).rw(m_pia34, FUNC(pia6821_device::read), FUNC(pia6821_device::write)); // widget
+	map(0x4000, 0xffff).rom();
+}
 
-static ADDRESS_MAP_START( s11b_audio_map, AS_PROGRAM, 8, s11b_state )
-	AM_RANGE(0x0000, 0x07ff) AM_MIRROR(0x0800) AM_RAM
-	AM_RANGE(0x1000, 0x1fff) AM_WRITE(bank_w)
-	AM_RANGE(0x2000, 0x2003) AM_MIRROR(0x0ffc) AM_DEVREADWRITE("pias", pia6821_device, read, write)
-	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank0")
-	AM_RANGE(0xc000, 0xffff) AM_ROMBANK("bank1")
-ADDRESS_MAP_END
+void s11b_state::s11b_audio_map(address_map &map)
+{
+	map(0x0000, 0x07ff).mirror(0x0800).ram();
+	map(0x1000, 0x1fff).w(FUNC(s11b_state::bank_w));
+	map(0x2000, 0x2003).mirror(0x0ffc).rw(m_pias, FUNC(pia6821_device::read), FUNC(pia6821_device::write));
+	map(0x8000, 0xbfff).bankr("bank0");
+	map(0xc000, 0xffff).bankr("bank1");
+}
 
-static ADDRESS_MAP_START( s11b_bg_map, AS_PROGRAM, 8, s11b_state )
-	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x2000, 0x2001) AM_MIRROR(0x1ffe) AM_DEVREADWRITE("ym2151", ym2151_device, read, write)
-	AM_RANGE(0x4000, 0x4003) AM_MIRROR(0x1ffc) AM_DEVREADWRITE("pia40", pia6821_device, read, write)
-	AM_RANGE(0x6000, 0x67ff) AM_WRITE(bg_speech_digit_w)
-	AM_RANGE(0x6800, 0x6fff) AM_WRITE(bg_speech_clock_w)
-	AM_RANGE(0x7800, 0x7fff) AM_WRITE(bgbank_w)
-	AM_RANGE(0x8000, 0xffff) AM_ROMBANK("bgbank")
-ADDRESS_MAP_END
+void s11b_state::s11b_bg_map(address_map &map)
+{
+	map(0x0000, 0x07ff).ram();
+	map(0x2000, 0x2001).mirror(0x1ffe).rw(m_ym, FUNC(ym2151_device::read), FUNC(ym2151_device::write));
+	map(0x4000, 0x4003).mirror(0x1ffc).rw(m_pia40, FUNC(pia6821_device::read), FUNC(pia6821_device::write));
+	map(0x6000, 0x67ff).w(FUNC(s11b_state::bg_speech_digit_w));
+	map(0x6800, 0x6fff).w(FUNC(s11b_state::bg_speech_clock_w));
+	map(0x7800, 0x7fff).w(FUNC(s11b_state::bgbank_w));
+	map(0x8000, 0xffff).bankr("bgbank");
+}
 
 static INPUT_PORTS_START( s11b )
 	PORT_START("X0")
@@ -147,9 +152,9 @@ MACHINE_RESET_MEMBER( s11b_state, s11b )
 	membank("bank1")->set_entry(0);
 	membank("bgbank")->set_entry(0);
 	// reset the CPUs again, so that the CPUs are starting with the right vectors (otherwise sound may die on reset)
-	m_audiocpu->set_input_line(INPUT_LINE_RESET,PULSE_LINE);
+	m_audiocpu->pulse_input_line(INPUT_LINE_RESET, attotime::zero);
 	if(m_bgcpu)
-		m_bgcpu->set_input_line(INPUT_LINE_RESET,PULSE_LINE);
+		m_bgcpu->pulse_input_line(INPUT_LINE_RESET, attotime::zero);
 }
 
 WRITE8_MEMBER( s11b_state::bg_speech_clock_w )
@@ -168,7 +173,7 @@ WRITE8_MEMBER( s11b_state::bg_speech_digit_w )
 		m_bg_hc55516->digit_w(data);
 }
 
-WRITE8_MEMBER( s11b_state::dig1_w )
+void s11b_state::dig1_w(uint8_t data)
 {
 	uint32_t seg = get_segment2();
 	seg |= data;
@@ -176,15 +181,15 @@ WRITE8_MEMBER( s11b_state::dig1_w )
 	if((seg & 0x70000) == 0x30000)
 	{
 		if(m_invert)
-			output().set_digit_value(get_strobe()+16, BITSWAP16(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			m_digits[get_strobe()+16] = bitswap<16>(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0);
 		else
-			output().set_digit_value(get_strobe()+16, BITSWAP16(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			m_digits[get_strobe()+16] = bitswap<16>(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0);
 		seg |= 0x40000;
 	}
 	set_segment2(seg);
 }
 
-WRITE8_MEMBER( s11b_state::pia2c_pa_w )
+void s11b_state::pia2c_pa_w(uint8_t data)
 {
 	uint32_t seg = get_segment1();
 	seg |= (data<<8);
@@ -192,15 +197,15 @@ WRITE8_MEMBER( s11b_state::pia2c_pa_w )
 	if((seg & 0x70000) == 0x30000)
 	{
 		if(m_invert)
-			output().set_digit_value(get_strobe(), BITSWAP16(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			m_digits[get_strobe()] = bitswap<16>(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0);
 		else
-			output().set_digit_value(get_strobe(), BITSWAP16(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			m_digits[get_strobe()] = bitswap<16>(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0);
 		seg |= 0x40000;
 	}
 	set_segment1(seg);
 }
 
-WRITE8_MEMBER( s11b_state::pia2c_pb_w )
+void s11b_state::pia2c_pb_w(uint8_t data)
 {
 	uint32_t seg = get_segment1();
 	seg |= data;
@@ -208,15 +213,15 @@ WRITE8_MEMBER( s11b_state::pia2c_pb_w )
 	if((seg & 0x70000) == 0x30000)
 	{
 		if(m_invert)
-			output().set_digit_value(get_strobe(), BITSWAP16(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			m_digits[get_strobe()] = bitswap<16>(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0);
 		else
-			output().set_digit_value(get_strobe(), BITSWAP16(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			m_digits[get_strobe()] = bitswap<16>(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0);
 		seg |= 0x40000;
 	}
 	set_segment1(seg);
 }
 
-WRITE8_MEMBER( s11b_state::pia34_pa_w )
+void s11b_state::pia34_pa_w(uint8_t data)
 {
 	uint32_t seg = get_segment2();
 	seg |= (data<<8);
@@ -224,139 +229,132 @@ WRITE8_MEMBER( s11b_state::pia34_pa_w )
 	if((seg & 0x70000) == 0x30000)
 	{
 		if(m_invert)
-			output().set_digit_value(get_strobe()+16, BITSWAP16(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			m_digits[get_strobe()+16] = bitswap<16>(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0);
 		else
-			output().set_digit_value(get_strobe()+16, BITSWAP16(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			m_digits[get_strobe()+16] = bitswap<16>(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0);
 		seg |= 0x40000;
 	}
 	set_segment2(seg);
 }
 
-WRITE_LINE_MEMBER( s11b_state::pia40_ca2_w)
-{
-	if(state == ASSERT_LINE)
-		m_ym->reset();
-}
-
-DRIVER_INIT_MEMBER( s11b_state, s11b )
+void s11b_state::init_s11b()
 {
 	s11a_state::init_s11a();
 	m_invert = false;
 }
 
-DRIVER_INIT_MEMBER( s11b_state, s11b_invert )
+void s11b_state::init_s11b_invert()
 {
 	s11a_state::init_s11a();
 	m_invert = true;
 }
 
-static MACHINE_CONFIG_START( s11b, s11b_state )
+void s11b_state::s11b(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6808, XTAL_4MHz)
-	MCFG_CPU_PROGRAM_MAP(s11b_main_map)
+	M6808(config, m_maincpu, XTAL(4'000'000));
+	m_maincpu->set_addrmap(AS_PROGRAM, &s11b_state::s11b_main_map);
 	MCFG_MACHINE_RESET_OVERRIDE(s11b_state, s11b)
 
 	/* Video */
-	MCFG_DEFAULT_LAYOUT(layout_s11b)
+	config.set_default_layout(layout_s11b);
 
 	/* Sound */
-	MCFG_FRAGMENT_ADD( genpin_audio )
+	genpin_audio(config);
 
 	/* Devices */
-	MCFG_DEVICE_ADD("pia21", PIA6821, 0)
-	MCFG_PIA_READPA_HANDLER(READ8(s11_state, sound_r))
-	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s11_state, sound_w))
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11_state, sol2_w))
-	MCFG_PIA_CA2_HANDLER(WRITELINE(s11_state, pia21_ca2_w))
-	MCFG_PIA_CB2_HANDLER(WRITELINE(s11_state, pia21_cb2_w))
-	MCFG_PIA_IRQA_HANDLER(WRITELINE(s11_state, pia_irq))
-	MCFG_PIA_IRQB_HANDLER(WRITELINE(s11_state, pia_irq))
+	PIA6821(config, m_pia21, 0);
+	m_pia21->readpa_handler().set(FUNC(s11_state::sound_r));
+	m_pia21->writepa_handler().set(FUNC(s11_state::sound_w));
+	m_pia21->writepb_handler().set(FUNC(s11_state::sol2_w));
+	m_pia21->ca2_handler().set(FUNC(s11_state::pia21_ca2_w));
+	m_pia21->cb2_handler().set(FUNC(s11_state::pia21_cb2_w));
+	m_pia21->irqa_handler().set(FUNC(s11_state::pia_irq));
+	m_pia21->irqb_handler().set(FUNC(s11_state::pia_irq));
 
-	MCFG_DEVICE_ADD("pia24", PIA6821, 0)
-	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s11_state, lamp0_w))
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11_state, lamp1_w))
-	MCFG_PIA_CB2_HANDLER(WRITELINE(s11_state, pia24_cb2_w))
-	MCFG_PIA_IRQA_HANDLER(WRITELINE(s11_state, pia_irq))
-	MCFG_PIA_IRQB_HANDLER(WRITELINE(s11_state, pia_irq))
+	PIA6821(config, m_pia24, 0);
+	m_pia24->writepa_handler().set(FUNC(s11_state::lamp0_w));
+	m_pia24->writepb_handler().set(FUNC(s11_state::lamp1_w));
+	m_pia24->cb2_handler().set(FUNC(s11_state::pia24_cb2_w));
+	m_pia24->irqa_handler().set(FUNC(s11_state::pia_irq));
+	m_pia24->irqb_handler().set(FUNC(s11_state::pia_irq));
 
-	MCFG_DEVICE_ADD("pia28", PIA6821, 0)
-	MCFG_PIA_READPA_HANDLER(READ8(s11_state, pia28_w7_r))
-	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s11a_state, dig0_w))
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11b_state, dig1_w))
-	MCFG_PIA_CA2_HANDLER(WRITELINE(s11_state, pia28_ca2_w))
-	MCFG_PIA_CB2_HANDLER(WRITELINE(s11_state, pia28_cb2_w))
-	MCFG_PIA_IRQA_HANDLER(WRITELINE(s11_state, pia_irq))
-	MCFG_PIA_IRQB_HANDLER(WRITELINE(s11_state, pia_irq))
+	PIA6821(config, m_pia28, 0);
+	m_pia28->readpa_handler().set(FUNC(s11_state::pia28_w7_r));
+	m_pia28->writepa_handler().set(FUNC(s11a_state::dig0_w));
+	m_pia28->writepb_handler().set(FUNC(s11b_state::dig1_w));
+	m_pia28->ca2_handler().set(FUNC(s11_state::pia28_ca2_w));
+	m_pia28->cb2_handler().set(FUNC(s11_state::pia28_cb2_w));
+	m_pia28->irqa_handler().set(FUNC(s11_state::pia_irq));
+	m_pia28->irqb_handler().set(FUNC(s11_state::pia_irq));
 
-	MCFG_DEVICE_ADD("pia2c", PIA6821, 0)
-	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s11b_state, pia2c_pa_w))
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11b_state, pia2c_pb_w))
-	MCFG_PIA_IRQA_HANDLER(WRITELINE(s11_state, pia_irq))
-	MCFG_PIA_IRQB_HANDLER(WRITELINE(s11_state, pia_irq))
+	PIA6821(config, m_pia2c, 0);
+	m_pia2c->writepa_handler().set(FUNC(s11b_state::pia2c_pa_w));
+	m_pia2c->writepb_handler().set(FUNC(s11b_state::pia2c_pb_w));
+	m_pia2c->irqa_handler().set(FUNC(s11_state::pia_irq));
+	m_pia2c->irqb_handler().set(FUNC(s11_state::pia_irq));
 
-	MCFG_DEVICE_ADD("pia30", PIA6821, 0)
-	MCFG_PIA_READPA_HANDLER(READ8(s11_state, switch_r))
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11_state, switch_w))
-	MCFG_PIA_CB2_HANDLER(WRITELINE(s11_state, pia30_cb2_w))
-	MCFG_PIA_IRQA_HANDLER(WRITELINE(s11_state, pia_irq))
-	MCFG_PIA_IRQB_HANDLER(WRITELINE(s11_state, pia_irq))
+	PIA6821(config, m_pia30, 0);
+	m_pia30->readpa_handler().set(FUNC(s11_state::switch_r));
+	m_pia30->writepb_handler().set(FUNC(s11_state::switch_w));
+	m_pia30->cb2_handler().set(FUNC(s11_state::pia30_cb2_w));
+	m_pia30->irqa_handler().set(FUNC(s11_state::pia_irq));
+	m_pia30->irqb_handler().set(FUNC(s11_state::pia_irq));
 
-	MCFG_DEVICE_ADD("pia34", PIA6821, 0)
-	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s11b_state, pia34_pa_w))
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11_state, pia34_pb_w))
-	MCFG_PIA_CB2_HANDLER(WRITELINE(s11_state, pia34_cb2_w))
-	MCFG_PIA_IRQA_HANDLER(WRITELINE(s11_state, pia_irq))
-	MCFG_PIA_IRQB_HANDLER(WRITELINE(s11_state, pia_irq))
+	PIA6821(config, m_pia34, 0);
+	m_pia34->writepa_handler().set(FUNC(s11b_state::pia34_pa_w));
+	m_pia34->writepb_handler().set(FUNC(s11_state::pia34_pb_w));
+	m_pia34->cb2_handler().set(FUNC(s11_state::pia34_cb2_w));
+	m_pia34->irqa_handler().set(FUNC(s11_state::pia_irq));
+	m_pia34->irqb_handler().set(FUNC(s11_state::pia_irq));
 
-	MCFG_NVRAM_ADD_1FILL("nvram")
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	/* Add the soundcard */
-	MCFG_CPU_ADD("audiocpu", M6802, XTAL_4MHz)
-	MCFG_CPU_PROGRAM_MAP(s11b_audio_map)
+	M6802(config, m_audiocpu, XTAL(4'000'000));
+	m_audiocpu->set_ram_enable(false);
+	m_audiocpu->set_addrmap(AS_PROGRAM, &s11b_state::s11b_audio_map);
 
-	MCFG_SPEAKER_STANDARD_MONO("speaker")
-	MCFG_SOUND_ADD("dac", MC1408, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25)
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "dac1", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac1", -1.0, DAC_VREF_NEG_INPUT)
+	SPEAKER(config, "speaker").front_center();
+	MC1408(config, "dac", 0).add_route(ALL_OUTPUTS, "speaker", 0.25);
+	voltage_regulator_device &vref(VOLTAGE_REGULATOR(config, "vref"));
+	vref.add_route(0, "dac", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "dac", -1.0, DAC_VREF_NEG_INPUT);
+	vref.add_route(0, "dac1", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "dac1", -1.0, DAC_VREF_NEG_INPUT);
 
-	MCFG_SPEAKER_STANDARD_MONO("speech")
-	MCFG_SOUND_ADD("hc55516", HC55516, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speech", 0.50)
+	SPEAKER(config, "speech").front_center();
+	HC55516(config, m_hc55516, 0).add_route(ALL_OUTPUTS, "speech", 0.50);
 
-	MCFG_DEVICE_ADD("pias", PIA6821, 0)
-	MCFG_PIA_READPA_HANDLER(READ8(s11_state, sound_r))
-	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s11_state, sound_w))
-	MCFG_PIA_WRITEPB_HANDLER(DEVWRITE8("dac", dac_byte_interface, write))
-	MCFG_PIA_CA2_HANDLER(WRITELINE(s11_state, pias_ca2_w))
-	MCFG_PIA_CB2_HANDLER(WRITELINE(s11_state, pias_cb2_w))
-	MCFG_PIA_IRQA_HANDLER(INPUTLINE("audiocpu", M6802_IRQ_LINE))
-	MCFG_PIA_IRQB_HANDLER(INPUTLINE("audiocpu", M6802_IRQ_LINE))
+	PIA6821(config, m_pias, 0);
+	m_pias->readpa_handler().set(FUNC(s11_state::sound_r));
+	m_pias->writepa_handler().set(FUNC(s11_state::sound_w));
+	m_pias->writepb_handler().set("dac", FUNC(dac_byte_interface::data_w));
+	m_pias->ca2_handler().set("hc55516", FUNC(hc55516_device::clock_w));
+	m_pias->cb2_handler().set("hc55516", FUNC(hc55516_device::digit_w));
+	m_pias->irqa_handler().set_inputline("audiocpu", M6802_IRQ_LINE);
+	m_pias->irqa_handler().set_inputline("audiocpu", M6802_IRQ_LINE);
 
 	/* Add the background music card */
-	MCFG_CPU_ADD("bgcpu", M6809E, XTAL_8MHz) // MC68B09E (note: schematics show this as 8mhz/2, but games crash very quickly with that speed?)
-	MCFG_CPU_PROGRAM_MAP(s11b_bg_map)
-	MCFG_QUANTUM_TIME(attotime::from_hz(50))
+	MC6809E(config, m_bgcpu, XTAL(8'000'000) / 4); // MC68B09E
+	m_bgcpu->set_addrmap(AS_PROGRAM, &s11b_state::s11b_bg_map);
+	config.set_maximum_quantum(attotime::from_hz(50));
 
-	MCFG_SPEAKER_STANDARD_MONO("bg")
-	MCFG_YM2151_ADD("ym2151", 3580000)
-	MCFG_YM2151_IRQ_HANDLER(WRITELINE(s11b_state, ym2151_irq_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bg", 0.25)
+	SPEAKER(config, "bg").front_center();
+	YM2151(config, m_ym, 3580000);
+	m_ym->irq_handler().set(FUNC(s11b_state::ym2151_irq_w));
+	m_ym->add_route(ALL_OUTPUTS, "bg", 0.25);
 
-	MCFG_SOUND_ADD("dac1", MC1408, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bg", 0.25)
+	MC1408(config, "dac1", 0).add_route(ALL_OUTPUTS, "bg", 0.25);
 
-	MCFG_SOUND_ADD("hc55516_bg", HC55516, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speech", 0.50)
+	HC55516(config, m_bg_hc55516, 0).add_route(ALL_OUTPUTS, "speech", 0.50);
 
-	MCFG_DEVICE_ADD("pia40", PIA6821, 0)
-	MCFG_PIA_WRITEPA_HANDLER(DEVWRITE8("dac1", dac_byte_interface, write))
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11_state, pia40_pb_w))
-	MCFG_PIA_CA2_HANDLER(WRITELINE(s11b_state, pia40_ca2_w))
-	MCFG_PIA_CB2_HANDLER(WRITELINE(s11_state, pia40_cb2_w))
-	MCFG_PIA_IRQA_HANDLER(INPUTLINE("bgcpu", M6809_FIRQ_LINE))
-	MCFG_PIA_IRQB_HANDLER(INPUTLINE("bgcpu", INPUT_LINE_NMI))
-
-MACHINE_CONFIG_END
+	PIA6821(config, m_pia40, 0);
+	m_pia40->writepa_handler().set("dac1", FUNC(dac_byte_interface::data_w));
+	m_pia40->writepb_handler().set(FUNC(s11_state::pia40_pb_w));
+	m_pia40->ca2_handler().set("ym2151", FUNC(ym2151_device::reset_w));
+	m_pia40->cb2_handler().set(FUNC(s11_state::pia40_cb2_w));
+	m_pia40->irqa_handler().set_inputline("bgcpu", M6809_FIRQ_LINE);
+	m_pia40->irqb_handler().set_inputline("bgcpu", INPUT_LINE_NMI);
+}
 
 /*-----------------------
 / Bad Cats 12/89
@@ -544,9 +542,21 @@ ROM_START(bk2k_pu1)
 	ROM_LOAD("bk2k_u19.l1", 0x18000, 0x8000, CRC(58e162b2) SHA1(891f810ae18b46593f570d719f0290a1d08a1a10))
 ROM_END
 
+ROM_START(bk2k_pf1)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD("bk2k_u26.pf7", 0x4000, 0x4000, CRC(79a77d26) SHA1(dfecd3f1fa80f0e7a84cafe7f45a96dd1c847090))
+	ROM_LOAD("bk2k_u27.pf1", 0x8000, 0x8000, CRC(2a84db98) SHA1(58438763ec702c1a1e73ab853c58352fe97c27e7))
+	ROM_REGION(0x20000, "audiocpu", ROMREGION_ERASEFF)
+	ROM_LOAD("bk2k_u21.l1", 0x18000, 0x8000, CRC(08be36ad) SHA1(0f4c448e003df54ed8ccf0e0c57f6123ce1e2027))
+	ROM_LOAD("bk2k_u22.l1", 0x10000, 0x8000, CRC(9c8becd8) SHA1(9090e8104dad63f14246caabafec428d94d5e18d))
+	ROM_REGION(0x30000, "bgcpu", ROMREGION_ERASEFF)
+	ROM_LOAD("bk2k_u4.l2", 0x10000, 0x8000, CRC(1d87281b) SHA1(609288b017aac6ce6da8717a35fdf87013adeb3c))
+	ROM_LOAD("bk2k_u19.l1", 0x18000, 0x8000, CRC(58e162b2) SHA1(891f810ae18b46593f570d719f0290a1d08a1a10))
+ROM_END
+
 ROM_START(bk2k_la2)
 	ROM_REGION(0x10000, "maincpu", 0)
-	ROM_LOAD("bk2k_u26.la2", 0x4000, 0x4000, CRC(2da07403) SHA1(4b48c5d7b0a03aa4593dc6053dc5e94df22d2a64))
+	ROM_LOAD("u26-pu1.rom",  0x4000, 0x4000, CRC(2da07403) SHA1(4b48c5d7b0a03aa4593dc6053dc5e94df22d2a64))
 	ROM_LOAD("bk2k_u27.la2", 0x8000, 0x8000, CRC(531e7752) SHA1(e51a93d40bc316876488ae0a7691ff5fd514472d))
 	ROM_REGION(0x20000, "audiocpu", ROMREGION_ERASEFF)
 	ROM_LOAD("bk2k_u21.l1", 0x18000, 0x8000, CRC(08be36ad) SHA1(0f4c448e003df54ed8ccf0e0c57f6123ce1e2027))
@@ -706,6 +716,18 @@ ROM_START(esha_pa1)
 	ROM_LOAD("eshk_u19.l1", 0x18000, 0x8000, CRC(e5593075) SHA1(549b03402e5639b449e35325eb52e78f8810b07a))
 ROM_END
 
+ROM_START(esha_pa4)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD("eshk_u26.pa4", 0x4000, 0x4000, CRC(9ffe5ee8) SHA1(533e5e90f6ce1ee4ca69463158860c7fef6b8e05))
+	ROM_LOAD("eshk_u27.pa4", 0x8000, 0x8000, CRC(a1795d11) SHA1(1797aa566e7e490bca6b00891fed65ac1f115280))
+	ROM_REGION(0x20000, "audiocpu", ROMREGION_ERASEFF)
+	ROM_LOAD("eshk_u21.l1", 0x18000, 0x8000, CRC(feac68e5) SHA1(2f12a78398bc3a468e3e0656da91260d45b0663b))
+	ROM_LOAD("eshk_u22.l1", 0x10000, 0x8000, CRC(44f50fe1) SHA1(a8e24dbb0f5cf300118e1ebdcd2bb6b274d87936))
+	ROM_REGION(0x30000, "bgcpu", ROMREGION_ERASEFF)
+	ROM_LOAD("u4-p1.rom", 0x10000, 0x8000, CRC(7219ffc2) SHA1(b8585b7d12f401d8ba4d95a5e2f20d35ff0ac26a))
+	ROM_LOAD("eshk_u19.l1", 0x18000, 0x8000, CRC(e5593075) SHA1(549b03402e5639b449e35325eb52e78f8810b07a))
+ROM_END
+
 /*--------------------
 / Elvira and the Party Monsters 10/89
 /--------------------*/
@@ -774,6 +796,19 @@ ROM_START(eatpm_4u)
 	ROM_LOAD("elvi_u20.l1", 0x20000, 0x8000, CRC(3d92d5fd) SHA1(834d40a59be57057103d1d8ab48fdaaf7dc5eda2))
 ROM_END
 
+ROM_START(eatpm_f1)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD("u26-lf1.rom", 0x4000, 0x4000, CRC(d479fae4) SHA1(488890fa3ef185499d6f0d620e054cdc96548c40))
+	ROM_LOAD("u27-la1.rom", 0x8000, 0x8000, CRC(d1c80549) SHA1(ab7dd88c460102e7db095a2df58c567ba43d81af))
+	ROM_REGION(0x20000, "audiocpu", ROMREGION_ERASEFF)
+	ROM_LOAD("elvi_u21.l1", 0x18000, 0x8000, CRC(68d44545) SHA1(8c3ea8521a44b1539cd148f142cca14184174ba7))
+	ROM_LOAD("elvi_u22.l1", 0x10000, 0x8000, CRC(e525b4fe) SHA1(be728ec33a00b93c3346428a9248b588460af945))
+	ROM_REGION(0x30000, "bgcpu", ROMREGION_ERASEFF)
+	ROM_LOAD("elvi_u4.l1", 0x10000, 0x8000, CRC(b5afa4db) SHA1(59b72dac5301a4befa01b93da5162478682e6021))
+	ROM_LOAD("elvi_u19.l1", 0x18000, 0x8000, CRC(806bc350) SHA1(d170aef11001096da9f2f7240726662009e26f5f))
+	ROM_LOAD("elvi_u20.l1", 0x20000, 0x8000, CRC(3d92d5fd) SHA1(834d40a59be57057103d1d8ab48fdaaf7dc5eda2))
+ROM_END
+
 ROM_START(eatpm_p7)
 	ROM_REGION(0x10000, "maincpu", 0)
 	ROM_LOAD("u26-pa7.rom", 0x4000, 0x4000, CRC(0bcc6639) SHA1(016685f6f0ed144e673846c5d44c81baa273c949))
@@ -805,6 +840,17 @@ ROM_START(jokrz_l3)
 	ROM_REGION(0x10000, "maincpu", 0)
 	ROM_LOAD("u26-l3.rom", 0x4000, 0x4000, CRC(3bf963df) SHA1(9f7757d96deca8638dbc1fe3669eee78dc222ebb))
 	ROM_LOAD("u27-l3.rom", 0x8000, 0x8000, CRC(32526aff) SHA1(c4ee4b58e90f214012addada114fc9333d2d274c))
+	ROM_REGION(0x20000, "audiocpu", ROMREGION_ERASEFF)
+	ROM_LOAD("jokeru21.l1", 0x18000, 0x8000, CRC(9e2be4f6) SHA1(6e26b55935d0c8138176b54a11c1a9ab58366628))
+	ROM_LOAD("jokeru22.l1", 0x10000, 0x8000, CRC(2f67160c) SHA1(f1e179fde41f9bf8226069c24b0bd5152a13e518))
+	ROM_REGION(0x30000, "bgcpu", ROMREGION_ERASEFF)
+	ROM_LOAD("jokeru5.l2", 0x10000, 0x10000, CRC(e9dc0095) SHA1(23a99555e50461ccc8e67de01796642c080294c2))
+ROM_END
+
+ROM_START(jokrz_g4)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD("u26-l3.rom", 0x4000, 0x4000, CRC(3bf963df) SHA1(9f7757d96deca8638dbc1fe3669eee78dc222ebb))
+	ROM_LOAD("jokerz_u27.g4", 0x8000, 0x8000, CRC(3f3fe7ef) SHA1(afd17cea8442948b5aa0bb842dfbc17442b06a1d))
 	ROM_REGION(0x20000, "audiocpu", ROMREGION_ERASEFF)
 	ROM_LOAD("jokeru21.l1", 0x18000, 0x8000, CRC(9e2be4f6) SHA1(6e26b55935d0c8138176b54a11c1a9ab58366628))
 	ROM_LOAD("jokeru22.l1", 0x10000, 0x8000, CRC(2f67160c) SHA1(f1e179fde41f9bf8226069c24b0bd5152a13e518))
@@ -905,6 +951,19 @@ ROM_START(polic_l2)
 	ROM_LOAD("pfrc_u4.l2", 0x10000, 0x8000, CRC(8f431529) SHA1(0f479990715a31fd860c000a066cffb70da502c2))
 	ROM_LOAD("pfrc_u19.l1", 0x18000, 0x8000, CRC(abc4caeb) SHA1(6faef2de9a49a1015b4038ab18849de2f25dbded))
 ROM_END
+
+ROM_START(polic_g4)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD("pfrc_u26.l4",  0x4000, 0x4000, CRC(1a1409e9) SHA1(775d35a22483bcf8c4b03841e0aca22b6504a48f))
+	ROM_LOAD("pfrc_u27.lg4", 0x8000, 0x8000, CRC(058322e7) SHA1(87847065c0785dbd4dff61cc256ed73ff929c40d))
+	ROM_REGION(0x20000, "audiocpu", ROMREGION_ERASEFF)
+	ROM_LOAD("pfrc_u21.l1", 0x18000, 0x8000, CRC(7729afd3) SHA1(9cd2898a7a4203cf3b2dcd203e25cde5dd582ee7))
+	ROM_LOAD("pfrc_u22.l1", 0x10000, 0x8000, CRC(40f5e6b2) SHA1(4af2e2658720b08d03d24c9d314a6e5074b2c747))
+	ROM_REGION(0x30000, "bgcpu", ROMREGION_ERASEFF)
+	ROM_LOAD("pfrc_u4.l2", 0x10000, 0x8000, CRC(8f431529) SHA1(0f479990715a31fd860c000a066cffb70da502c2))
+	ROM_LOAD("pfrc_u19.l1", 0x18000, 0x8000, CRC(abc4caeb) SHA1(6faef2de9a49a1015b4038ab18849de2f25dbded))
+ROM_END
+
 /*--------------------
 / Space Station 1/88
 /--------------------*/
@@ -1067,57 +1126,62 @@ ROM_START(whirl_l2)
 	ROM_LOAD("whir_u20.l1", 0x20000, 0x8000, CRC(713007af) SHA1(3ac88bb905ccf8e227bbf3c102c74e3d2446cc88))
 ROM_END
 
-GAME(1989,  bcats_l5,       0,          s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Bad Cats (L-5)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  bcats_l2,       bcats_l5,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Bad Cats (LA-2)",              MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  bnzai_l3,       0,          s11b,   s11b, s11b_state,   s11b,   ROT0,   "Williams",             "Banzai Run (L-3)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  bnzai_g3,       bnzai_l3,   s11b,   s11b, s11b_state,   s11b,   ROT0,   "Williams",             "Banzai Run (L-3) Germany",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  bnzai_l1,       bnzai_l3,   s11b,   s11b, s11b_state,   s11b,   ROT0,   "Williams",             "Banzai Run (L-1)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  bnzai_pa,       bnzai_l3,   s11b,   s11b, s11b_state,   s11b,   ROT0,   "Williams",             "Banzai Run (P-A)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1987,  bguns_l8,       0,          s11b,   s11b, s11b_state,   s11b,   ROT0,   "Williams",             "Big Guns (L-8)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1987,  bguns_l7,       bguns_l8,   s11b,   s11b, s11b_state,   s11b,   ROT0,   "Williams",             "Big Guns (L-7)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1987,  bguns_la,       bguns_l8,   s11b,   s11b, s11b_state,   s11b,   ROT0,   "Williams",             "Big Guns (L-A)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1987,  bguns_p1,       bguns_l8,   s11b,   s11b, s11b_state,   s11b,   ROT0,   "Williams",             "Big Guns (P-1)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  bk2k_l4,        0,          s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Black Knight 2000 (L-4)",              MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  bk2k_lg1,       bk2k_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Black Knight 2000 (LG-1)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  bk2k_lg3,       bk2k_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Black Knight 2000 (LG-3)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  bk2k_pu1,       bk2k_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Black Knight 2000 (PU-1)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  bk2k_la2,       bk2k_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Black Knight 2000 (LA-2)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  bk2k_pa7,       bk2k_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Black Knight 2000 (PA-7)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  bk2k_pa5,       bk2k_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Black Knight 2000 (PA-5)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  cycln_l5,       0,          s11b,   s11b, s11b_state,   s11b,   ROT0,   "Williams",             "Cyclone (L-5)",                MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  cycln_l4,       cycln_l5,   s11b,   s11b, s11b_state,   s11b,   ROT0,   "Williams",             "Cyclone (L-4)",                MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  cycln_l1,       cycln_l5,   s11b,   s11b, s11b_state,   s11b,   ROT0,   "Williams",             "Cyclone (L-1)",                MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  esha_la3,       0,          s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Earthshaker (LA-3)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  esha_ma3,       esha_la3,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Earthshaker (Metallica) (LA-3)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  esha_pr4,       esha_la3,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Earthshaker (Family version) (PR-4)",              MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  esha_lg1,       esha_la3,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Earthshaker (German) (LG-1)",              MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  esha_lg2,       esha_la3,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Earthshaker (German) (LG-2)",              MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  esha_la1,       esha_la3,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Earthshaker (LA-1)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  esha_pa1,       esha_la3,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Earthshaker (Prototype) (PA-1)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  eatpm_l4,       0,          s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Bally",                "Elvira and the Party Monsters (LA-4)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  eatpm_l1,       eatpm_l4,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Bally",                "Elvira and the Party Monsters (LA-1)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  eatpm_l2,       eatpm_l4,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Bally",                "Elvira and the Party Monsters (LA-2)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  eatpm_4g,       eatpm_l4,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Bally",                "Elvira and the Party Monsters (LG-4)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  eatpm_4u,       eatpm_l4,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Bally",                "Elvira and the Party Monsters (LU-4)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  eatpm_p7,       eatpm_l4,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Bally",                "Elvira and the Party Monsters (PA-7)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  jokrz_l6,       0,          s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Jokerz! (L-6)",                MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  jokrz_l3,       jokrz_l6,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Jokerz! (L-3)",                MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  mousn_l4,       0,          s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Bally",                "Mousin' Around! (LA-4)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  mousn_l1,       mousn_l4,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Bally",                "Mousin' Around! (LA-1)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  mousn_lu,       mousn_l4,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Bally",                "Mousin' Around! (LU-1)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  mousn_lx,       mousn_l4,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Bally",                "Mousin' Around! (LX-1)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  polic_l4,       0,          s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Police Force (LA-4)",              MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  polic_l3,       polic_l4,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Police Force (LA-3)",              MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  polic_l2,       polic_l4,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Police Force (LA-2)",              MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  spstn_l5,       0,          s11b,   s11b, s11b_state,   s11b,   ROT0,   "Williams",             "Space Station (L-5)",              MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  swrds_l2,       0,          s11b,   s11b, s11b_state,   s11b,   ROT0,   "Williams",             "Swords of Fury (L-2)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  swrds_l1,       swrds_l2,   s11b,   s11b, s11b_state,   s11b,   ROT0,   "Williams",             "Swords of Fury (L-1)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  taxi_l4,        0,          s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Taxi (Lola) (L-4)",                MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  taxi_l3,        taxi_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Taxi (Marilyn) (L-3)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  taxi_lu1,       taxi_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Taxi (Marilyn) (LU-1)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  taxi_lg1,       taxi_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Taxi (Marilyn) (L-1) Germany",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  taxi_p5,        taxi_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Taxi (P-5)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  tsptr_l3,       0,          s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Bally",                "Transporter the Rescue (L-3)",             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1990,  whirl_l3,       0,          s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Whirlwind (L-3)",              MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1990,  whirl_l2,       whirl_l3,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Whirlwind (L-2)",              MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1990,  whirl_lg3,      whirl_l3,   s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Whirlwind (LG-3)",             MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  bcats_l5,       0,          s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Bad Cats (L-5)",                               MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  bcats_l2,       bcats_l5,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Bad Cats (LA-2)",                              MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  bnzai_l3,       0,          s11b,   s11b, s11b_state, init_s11b,        ROT0, "Williams", "Banzai Run (L-3)",                             MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  bnzai_g3,       bnzai_l3,   s11b,   s11b, s11b_state, init_s11b,        ROT0, "Williams", "Banzai Run (L-3) Germany",                     MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  bnzai_l1,       bnzai_l3,   s11b,   s11b, s11b_state, init_s11b,        ROT0, "Williams", "Banzai Run (L-1)",                             MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  bnzai_pa,       bnzai_l3,   s11b,   s11b, s11b_state, init_s11b,        ROT0, "Williams", "Banzai Run (P-A)",                             MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1987,  bguns_l8,       0,          s11b,   s11b, s11b_state, init_s11b,        ROT0, "Williams", "Big Guns (L-8)",                               MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1987,  bguns_l7,       bguns_l8,   s11b,   s11b, s11b_state, init_s11b,        ROT0, "Williams", "Big Guns (L-7)",                               MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1987,  bguns_la,       bguns_l8,   s11b,   s11b, s11b_state, init_s11b,        ROT0, "Williams", "Big Guns (L-A)",                               MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1987,  bguns_p1,       bguns_l8,   s11b,   s11b, s11b_state, init_s11b,        ROT0, "Williams", "Big Guns (P-1)",                               MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  bk2k_l4,        0,          s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Black Knight 2000 (L-4)",                      MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  bk2k_lg1,       bk2k_l4,    s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Black Knight 2000 (LG-1)",                     MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  bk2k_lg3,       bk2k_l4,    s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Black Knight 2000 (LG-3)",                     MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  bk2k_pu1,       bk2k_l4,    s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Black Knight 2000 (PU-1)",                     MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  bk2k_pf1,       bk2k_l4,    s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Black Knight 2000 (PF-1)",                     MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  bk2k_la2,       bk2k_l4,    s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Black Knight 2000 (LA-2)",                     MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  bk2k_pa7,       bk2k_l4,    s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Black Knight 2000 (PA-7)",                     MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  bk2k_pa5,       bk2k_l4,    s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Black Knight 2000 (PA-5)",                     MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  cycln_l5,       0,          s11b,   s11b, s11b_state, init_s11b,        ROT0, "Williams", "Cyclone (L-5)",                                MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  cycln_l4,       cycln_l5,   s11b,   s11b, s11b_state, init_s11b,        ROT0, "Williams", "Cyclone (L-4)",                                MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  cycln_l1,       cycln_l5,   s11b,   s11b, s11b_state, init_s11b,        ROT0, "Williams", "Cyclone (L-1)",                                MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  esha_la3,       0,          s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Earthshaker (LA-3)",                           MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  esha_ma3,       esha_la3,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Earthshaker (Metallica) (LA-3)",               MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  esha_pr4,       esha_la3,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Earthshaker (Family version) (PR-4)",          MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  esha_lg1,       esha_la3,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Earthshaker (German) (LG-1)",                  MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  esha_lg2,       esha_la3,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Earthshaker (German) (LG-2)",                  MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  esha_la1,       esha_la3,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Earthshaker (LA-1)",                           MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  esha_pa1,       esha_la3,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Earthshaker (Prototype) (PA-1)",               MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  esha_pa4,       esha_la3,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Earthshaker (Prototype) (PA-4)",               MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  eatpm_l4,       0,          s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Bally",    "Elvira and the Party Monsters (LA-4)",         MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  eatpm_l1,       eatpm_l4,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Bally",    "Elvira and the Party Monsters (LA-1)",         MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  eatpm_l2,       eatpm_l4,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Bally",    "Elvira and the Party Monsters (LA-2)",         MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  eatpm_4g,       eatpm_l4,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Bally",    "Elvira and the Party Monsters (LG-4)",         MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  eatpm_4u,       eatpm_l4,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Bally",    "Elvira and the Party Monsters (LU-4)",         MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  eatpm_f1,       eatpm_l4,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Bally",    "Elvira and the Party Monsters (LF-1) French",  MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  eatpm_p7,       eatpm_l4,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Bally",    "Elvira and the Party Monsters (PA-7)",         MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  jokrz_l6,       0,          s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Jokerz! (L-6)",                                MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  jokrz_l3,       jokrz_l6,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Jokerz! (L-3)",                                MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  jokrz_g4,       jokrz_l6,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Jokerz! (G-4)",                                MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  mousn_l4,       0,          s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Bally",    "Mousin' Around! (LA-4)",                       MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  mousn_l1,       mousn_l4,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Bally",    "Mousin' Around! (LA-1)",                       MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  mousn_lu,       mousn_l4,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Bally",    "Mousin' Around! (LU-1)",                       MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  mousn_lx,       mousn_l4,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Bally",    "Mousin' Around! (LX-1)",                       MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  polic_l4,       0,          s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Police Force (LA-4)",                          MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  polic_l3,       polic_l4,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Police Force (LA-3)",                          MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  polic_l2,       polic_l4,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Police Force (LA-2)",                          MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  polic_g4,       polic_l4,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Police Force (LG-4) Germany",                  MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  spstn_l5,       0,          s11b,   s11b, s11b_state, init_s11b,        ROT0, "Williams", "Space Station (L-5)",                          MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  swrds_l2,       0,          s11b,   s11b, s11b_state, init_s11b,        ROT0, "Williams", "Swords of Fury (L-2)",                         MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  swrds_l1,       swrds_l2,   s11b,   s11b, s11b_state, init_s11b,        ROT0, "Williams", "Swords of Fury (L-1)",                         MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  taxi_l4,        0,          s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Taxi (Lola) (L-4)",                            MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  taxi_l3,        taxi_l4,    s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Taxi (Marilyn) (L-3)",                         MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  taxi_lu1,       taxi_l4,    s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Taxi (Marilyn) (LU-1)",                        MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  taxi_lg1,       taxi_l4,    s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Taxi (Marilyn) (L-1) Germany",                 MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1988,  taxi_p5,        taxi_l4,    s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Taxi (P-5)",                                   MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  tsptr_l3,       0,          s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Bally",    "Transporter the Rescue (L-3)",                 MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1990,  whirl_l3,       0,          s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Whirlwind (L-3)",                              MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1990,  whirl_l2,       whirl_l3,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Whirlwind (L-2)",                              MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1990,  whirl_lg3,      whirl_l3,   s11b,   s11b, s11b_state, init_s11b_invert, ROT0, "Williams", "Whirlwind (LG-3)",                             MACHINE_IS_SKELETON_MECHANICAL)

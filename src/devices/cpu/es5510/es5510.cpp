@@ -1,23 +1,31 @@
 // license:BSD-3-Clause
 // copyright-holders:Christian Brunschen
-/***************************************************************************
+/***************************************************************************************
  *
  *   es5510.c - Ensoniq ES5510 (ESP) emulation
  *   by Christian Brunschen
  *
- ***************************************************************************/
+ *   TODO
+ *      ridingf, ringrage and clones: Exception after logo is displayed (MT #06894)
+ *      DRAM Size isn't verified, differs per machines?
+ *
+ ***************************************************************************************/
+
+#include "emu.h"
+#include "es5510.h"
+#include "es5510d.h"
+
+#include "cpu/m68000/m68000.h"
+#include "debugger.h"
 
 #include <cstdio>
-#include "emu.h"
-#include "debugger.h"
-#include "es5510.h"
-#include "cpu/m68000/m68000.h"
+#include <algorithm>
 
-static const int32_t MIN_24 = -(1 << 23);
-static const int32_t MAX_24 = (1 << 23) - 1;
+static constexpr int32_t MIN_24 = -(1 << 23);
+static constexpr int32_t MAX_24 = (1 << 23) - 1;
 
-static const int64_t MIN_48 = -(s64(1) << 47);
-static const int64_t MAX_48 = (s64(1) << 47) - 1;
+static constexpr int64_t MIN_48 = -(s64(1) << 47);
+static constexpr int64_t MAX_48 = (s64(1) << 47) - 1;
 
 #define SIGN_BIT_24 (0x00800000)
 #define GET_SIGN_BIT_24(x) ((x) & SIGN_BIT_24)
@@ -25,15 +33,14 @@ static const int64_t MAX_48 = (s64(1) << 47) - 1;
 
 #define CARRY_OUT_24 (0x01000000)
 
-static inline int32_t SX(int32_t x) { return IS_NEGATIVE(x) ? x | 0xff000000 : x & 0x00ffffff; }
-static inline int32_t SC(int32_t x) { return x & 0x00ffffff; }
-static inline int64_t SX64(int64_t x) { return (x & s64(0x0000800000000000U)) ? x | s64(0xffff000000000000U) : x & s64(0x0000ffffffffffffU); }
-//static inline int64_t SC64(int64_t x) { return x & s64(0x0000ffffffffffffU); }
+constexpr int32_t SX(int32_t x) { return IS_NEGATIVE(x) ? x | 0xff000000 : x & 0x00ffffff; }
+constexpr int32_t SC(int32_t x) { return x & 0x00ffffff; }
+constexpr int64_t SX64(int64_t x) { return (x & s64(0x0000800000000000U)) ? x | s64(0xffff000000000000U) : x & s64(0x0000ffffffffffffU); }
+//constexpr int64_t SC64(int64_t x) { return x & s64(0x0000ffffffffffffU); }
 
 #define VERBOSE 0
 #define VERBOSE_EXEC 0
 
-#if VERBOSE
 static inline void ATTR_PRINTF(1,2) log_to_stderr(const char *format, ...) {
 	va_list ap;
 	va_start(ap, format);
@@ -41,20 +48,17 @@ static inline void ATTR_PRINTF(1,2) log_to_stderr(const char *format, ...) {
 	va_end(ap);
 }
 
-#define LOG(x) do { log_to_stderr x; } while(0)
-#else
-#define LOG(x)
-#endif
+#define LOG(...) do { if (VERBOSE) log_to_stderr(__VA_ARGS__); } while(0)
 
 
 #if VERBOSE_EXEC
 static int exec_cc = 0;
-#define LOG_EXEC(x) do { if (!exec_cc) LOG(x); } while(0)
+#define LOG_EXEC(x) do { if (!exec_cc) LOG x; } while(0)
 #else
 #define LOG_EXEC(x)
 #endif
 
-const device_type ES5510 = device_creator<es5510_device>;
+DEFINE_DEVICE_TYPE(ES5510, es5510_device, "es5510", "ES5510")
 
 #define FLAG_N (1 << 7)
 #define FLAG_C (1 << 6)
@@ -126,52 +130,48 @@ inline static int32_t asl(int32_t value, int shift, uint8_t &flags) {
 	return saturate(result, flags, signBefore != 0);
 }
 
+// Initialize ESP to mostly zeroed, configured for 64k samples of delay line memory, running (not halted)
 es5510_device::es5510_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-: cpu_device(mconfig, ES5510, "ES5510", tag, owner, clock, "es5510", __FILE__)
+	: cpu_device(mconfig, ES5510, tag, owner, clock)
+	, icount(0)
+	, halt_asserted(false)
+	, pc(0)
+	, state(STATE_HALTED)
+	, gpr(nullptr)
+	, ser0r(0)
+	, ser0l(0)
+	, ser1r(0)
+	, ser1l(0)
+	, ser2r(0)
+	, ser2l(0)
+	, ser3r(0)
+	, ser3l(0)
+	, machl(0)
+	, dil(0)
+	, memsiz(0x00ffffff)
+	, memmask(0x00000000)
+	, memincrement(0x01000000)
+	, memshift(24)
+	, dlength(0)
+	, abase(0)
+	, bbase(0)
+	, dbase(0)
+	, sigreg(1)
+	, mulshift(1)
+	, ccr(0)
+	, cmr(0)
+	, dol_count(0)
+	, instr(nullptr)
+	, dram(nullptr)
+	, dol_latch(0)
+	, dil_latch(0)
+	, dadr_latch(0)
+	, gpr_latch(0)
+	, instr_latch(0)
+	, ram_sel(0)
+	, host_control(0)
 {
-	// Initialize ESP to mostly zeroed, configured for 64k samples of delay line memory, running (not halted)
-	halt_asserted = false;
-	icount = 0;
-	pc = 0;
-	state = STATE_HALTED;
-	memset(gpr, 0, 0xc0 * sizeof(gpr[0]));
-	ser0r = 0;
-	ser0l = 0;
-	ser1r = 0;
-	ser1l = 0;
-	ser2r = 0;
-	ser2l = 0;
-	ser3r = 0;
-	ser3l = 0;
-	machl = 0;
-	dil   = 0;
-	memsiz       = 0x00ffffff;
-	memmask      = 0x00000000;
-	memincrement = 0x01000000;
-	memshift     = 24;
-	dlength      = 0;
-	abase        = 0;
-	bbase        = 0;
-	dbase        = 0;
-	sigreg       = 1;
-	mulshift     = 1;
-	ccr = 0;
-	cmr = 0;
 	dol[0] = dol[1] = 0;
-	dol_count = 0;
-
-	memset(instr, 0, 160 * sizeof(instr[0]));
-	memset(dram, 0, (1<<20) * sizeof(dram[0]));
-
-	dol_latch = 0;
-	dil_latch = 0;
-	dadr_latch = 0;
-	gpr_latch = 0;
-	instr_latch = 0;
-	ram_sel = 0;
-	host_control = 0;
-
-	pc = 0;
 	memset(&alu, 0, sizeof(alu));
 	memset(&mulacc, 0, sizeof(mulacc));
 }
@@ -355,14 +355,14 @@ static inline char * DESCRIBE_INSTR(char *s, uint64_t instr, uint32_t gpr, const
 }
 
 
-READ8_MEMBER(es5510_device::host_r)
+uint8_t es5510_device::host_r(address_space &space, offs_t offset)
 {
-	//  printf("%06x: DSP read offset %04x (data is %04x)\n",space.device().safe_pc(),offset,dsp_ram[offset]);
+	//  printf("%06x: DSP read offset %04x (data is %04x)\n",pc(),offset,dsp_ram[offset]);
 
 	// VFX hack
-	if (core_stricmp(space.machine().system().name, "vfx") == 0)
+	if (core_stricmp(machine().system().name, "vfx") == 0)
 	{
-		if (space.device().safe_pc() == 0xc091f0)
+		if (pc == 0xc091f0)
 		{
 			return space.device().state().state_int(M68K_D2);
 		}
@@ -370,30 +370,30 @@ READ8_MEMBER(es5510_device::host_r)
 
 	switch(offset)
 	{
-	case 0x00: LOG(("ES5510: Host Read GPR latch[2]: %02x\n", (gpr_latch >> 16) & 0xff)); return (gpr_latch >> 16) & 0xff;
-	case 0x01: LOG(("ES5510: Host Read GPR latch[1]: %02x\n", (gpr_latch >>  8) & 0xff)); return (gpr_latch >>  8) & 0xff;
-	case 0x02: LOG(("ES5510: Host Read GPR latch[0]: %02x\n", (gpr_latch >>  0) & 0xff)); return (gpr_latch >>  0) & 0xff;
+	case 0x00: LOG("ES5510: Host Read GPR latch[2]: %02x\n", (gpr_latch >> 16) & 0xff); return (gpr_latch >> 16) & 0xff;
+	case 0x01: LOG("ES5510: Host Read GPR latch[1]: %02x\n", (gpr_latch >>  8) & 0xff); return (gpr_latch >>  8) & 0xff;
+	case 0x02: LOG("ES5510: Host Read GPR latch[0]: %02x\n", (gpr_latch >>  0) & 0xff); return (gpr_latch >>  0) & 0xff;
 
-	case 0x03: LOG(("ES5510: Host Read INSTR latch[5]: %02x\n", (uint8_t)((instr_latch >> 40) & 0xff))); return (instr_latch >> 40) & 0xff;
-	case 0x04: LOG(("ES5510: Host Read INSTR latch[4]: %02x\n", (uint8_t)((instr_latch >> 32) & 0xff))); return (instr_latch >> 32) & 0xff;
-	case 0x05: LOG(("ES5510: Host Read INSTR latch[3]: %02x\n", (uint8_t)((instr_latch >> 24) & 0xff))); return (instr_latch >> 24) & 0xff;
-	case 0x06: LOG(("ES5510: Host Read INSTR latch[2]: %02x\n", (uint8_t)((instr_latch >> 16) & 0xff))); return (instr_latch >> 16) & 0xff;
-	case 0x07: LOG(("ES5510: Host Read INSTR latch[1]: %02x\n", (uint8_t)((instr_latch >>  8) & 0xff))); return (instr_latch >>  8) & 0xff;
-	case 0x08: LOG(("ES5510: Host Read INSTR latch[0]: %02x\n", (uint8_t)((instr_latch >>  0) & 0xff))); return (instr_latch >>  0) & 0xff;
+	case 0x03: LOG("ES5510: Host Read INSTR latch[5]: %02x\n", uint8_t((instr_latch >> 40) & 0xff)); return (instr_latch >> 40) & 0xff;
+	case 0x04: LOG("ES5510: Host Read INSTR latch[4]: %02x\n", uint8_t((instr_latch >> 32) & 0xff)); return (instr_latch >> 32) & 0xff;
+	case 0x05: LOG("ES5510: Host Read INSTR latch[3]: %02x\n", uint8_t((instr_latch >> 24) & 0xff)); return (instr_latch >> 24) & 0xff;
+	case 0x06: LOG("ES5510: Host Read INSTR latch[2]: %02x\n", uint8_t((instr_latch >> 16) & 0xff)); return (instr_latch >> 16) & 0xff;
+	case 0x07: LOG("ES5510: Host Read INSTR latch[1]: %02x\n", uint8_t((instr_latch >>  8) & 0xff)); return (instr_latch >>  8) & 0xff;
+	case 0x08: LOG("ES5510: Host Read INSTR latch[0]: %02x\n", uint8_t((instr_latch >>  0) & 0xff)); return (instr_latch >>  0) & 0xff;
 
-	case 0x09: LOG(("ES5510: Host Read DIL latch[2]: %02x\n", (dil_latch >> 16) & 0xff)); return (dil_latch >> 16) & 0xff;
-	case 0x0a: LOG(("ES5510: Host Read DIL latch[1]: %02x\n", (dil_latch >>  8) & 0xff)); return (dil_latch >>  8) & 0xff;
-	case 0x0b: LOG(("ES5510: Host Read DIL latch[0]: %02x\n", 0)); return 0;
+	case 0x09: LOG("ES5510: Host Read DIL latch[2]: %02x\n", (dil_latch >> 16) & 0xff); return (dil_latch >> 16) & 0xff;
+	case 0x0a: LOG("ES5510: Host Read DIL latch[1]: %02x\n", (dil_latch >>  8) & 0xff); return (dil_latch >>  8) & 0xff;
+	case 0x0b: LOG("ES5510: Host Read DIL latch[0]: %02x\n", 0); return 0;
 
-	case 0x0c: LOG(("ES5510: Host Read DOL latch[2]: %02x\n", (dol_latch >> 16) & 0xff)); return (dol_latch >> 16) & 0xff;
-	case 0x0d: LOG(("ES5510: Host Read DOL latch[1]: %02x\n", (dol_latch >>  8) & 0xff)); return (dol_latch >>  8) & 0xff;
-	case 0x0e: LOG(("ES5510: Host Read DOL latch[0]: %02x\n", 0xff)); return 0xff;
+	case 0x0c: LOG("ES5510: Host Read DOL latch[2]: %02x\n", (dol_latch >> 16) & 0xff); return (dol_latch >> 16) & 0xff;
+	case 0x0d: LOG("ES5510: Host Read DOL latch[1]: %02x\n", (dol_latch >>  8) & 0xff); return (dol_latch >>  8) & 0xff;
+	case 0x0e: LOG("ES5510: Host Read DOL latch[0]: %02x\n", 0xff); return 0xff;
 
-	case 0x0f: LOG(("ES5510: Host Read DADR latch[2]: %02x\n", (dadr_latch >> 16) & 0xff)); return (dadr_latch >> 16) & 0xff;
-	case 0x10: LOG(("ES5510: Host Read DADR latch[1]: %02x\n", (dadr_latch >>  8) & 0xff)); return (dadr_latch >>  8) & 0xff;
-	case 0x11: LOG(("ES5510: Host Read DADR latch[0]: %02x\n", (dadr_latch >>  0) & 0xff)); return (dadr_latch >>  0) & 0xff;
+	case 0x0f: LOG("ES5510: Host Read DADR latch[2]: %02x\n", (dadr_latch >> 16) & 0xff); return (dadr_latch >> 16) & 0xff;
+	case 0x10: LOG("ES5510: Host Read DADR latch[1]: %02x\n", (dadr_latch >>  8) & 0xff); return (dadr_latch >>  8) & 0xff;
+	case 0x11: LOG("ES5510: Host Read DADR latch[0]: %02x\n", (dadr_latch >>  0) & 0xff); return (dadr_latch >>  0) & 0xff;
 
-	case 0x12: LOG(("ES5510: Host Reading Host Control\n")); return 0; // Host Control
+	case 0x12: LOG("ES5510: Host Reading Host Control\n"); return 0; // Host Control
 
 	case 0x16: return 0x27; // Program Counter, for test purposes only
 	}
@@ -402,7 +402,7 @@ READ8_MEMBER(es5510_device::host_r)
 	return 0x00;
 }
 
-WRITE8_MEMBER(es5510_device::host_w)
+void es5510_device::host_w(offs_t offset, uint8_t data)
 {
 #if VERBOSE
 	static char buf[1024];
@@ -410,40 +410,40 @@ WRITE8_MEMBER(es5510_device::host_w)
 	switch (offset) {
 	case 0x00:
 		gpr_latch = (gpr_latch&0x00ffff) | ((data&0xff)<<16);
-		LOG(("ES5510: Host Write GPR latch[2] = %02x -> %06x (%d)\n", data, gpr_latch, SX(gpr_latch)));
+		LOG("ES5510: Host Write GPR latch[2] = %02x -> %06x (%d)\n", data, gpr_latch, SX(gpr_latch));
 		break;
 	case 0x01:
 		gpr_latch = (gpr_latch&0xff00ff) | ((data&0xff)<< 8);
-		LOG(("ES5510: Host Write GPR latch[1] = %02x -> %06x (%d)\n", data, gpr_latch, SX(gpr_latch)));
+		LOG("ES5510: Host Write GPR latch[1] = %02x -> %06x (%d)\n", data, gpr_latch, SX(gpr_latch));
 		break;
 	case 0x02:
 		gpr_latch = (gpr_latch&0xffff00) | ((data&0xff)<< 0);
-		LOG(("ES5510: Host Write GPR latch[0] = %02x -> %06x (%d)\n", data, gpr_latch, SX(gpr_latch)));
+		LOG("ES5510: Host Write GPR latch[0] = %02x -> %06x (%d)\n", data, gpr_latch, SX(gpr_latch));
 		break;
 
 		/* 0x03 to 0x08 INSTR Register */
-	case 0x03: instr_latch = ((instr_latch&0x00ffffffffffU) | ((int64_t)data&0xff)<<40); LOG(("%s",string_format("ES5510: Host Write INSTR latch[5] = %02x -> %012I64x\n", data, instr_latch).c_str())); break;
-	case 0x04: instr_latch = ((instr_latch&0xff00ffffffffU) | ((int64_t)data&0xff)<<32); LOG(("%s",string_format("ES5510: Host Write INSTR latch[4] = %02x -> %012I64x\n", data, instr_latch).c_str())); break;
-	case 0x05: instr_latch = ((instr_latch&0xffff00ffffffU) | ((int64_t)data&0xff)<<24); LOG(("%s",string_format("ES5510: Host Write INSTR latch[3] = %02x -> %012I64x\n", data, instr_latch).c_str())); break;
-	case 0x06: instr_latch = ((instr_latch&0xffffff00ffffU) | ((int64_t)data&0xff)<<16); LOG(("%s",string_format("ES5510: Host Write INSTR latch[2] = %02x -> %012I64x\n", data, instr_latch).c_str())); break;
-	case 0x07: instr_latch = ((instr_latch&0xffffffff00ffU) | ((int64_t)data&0xff)<< 8); LOG(("%s",string_format("ES5510: Host Write INSTR latch[1] = %02x -> %012I64x\n", data, instr_latch).c_str())); break;
-	case 0x08: instr_latch = ((instr_latch&0xffffffffff00U) | ((int64_t)data&0xff)<< 0); LOG(("%s",string_format("ES5510: Host Write INSTR latch[0] = %02x -> %012I64x\n", data, instr_latch).c_str())); break;
+	case 0x03: instr_latch = ((instr_latch&0x00ffffffffffU) | (int64_t(data)&0xff)<<40); LOG("%s",string_format("ES5510: Host Write INSTR latch[5] = %02x -> %012x\n", data, instr_latch).c_str()); break;
+	case 0x04: instr_latch = ((instr_latch&0xff00ffffffffU) | (int64_t(data)&0xff)<<32); LOG("%s",string_format("ES5510: Host Write INSTR latch[4] = %02x -> %012x\n", data, instr_latch).c_str()); break;
+	case 0x05: instr_latch = ((instr_latch&0xffff00ffffffU) | (int64_t(data)&0xff)<<24); LOG("%s",string_format("ES5510: Host Write INSTR latch[3] = %02x -> %012x\n", data, instr_latch).c_str()); break;
+	case 0x06: instr_latch = ((instr_latch&0xffffff00ffffU) | (int64_t(data)&0xff)<<16); LOG("%s",string_format("ES5510: Host Write INSTR latch[2] = %02x -> %012x\n", data, instr_latch).c_str()); break;
+	case 0x07: instr_latch = ((instr_latch&0xffffffff00ffU) | (int64_t(data)&0xff)<< 8); LOG("%s",string_format("ES5510: Host Write INSTR latch[1] = %02x -> %012x\n", data, instr_latch).c_str()); break;
+	case 0x08: instr_latch = ((instr_latch&0xffffffffff00U) | (int64_t(data)&0xff)<< 0); LOG("%s",string_format("ES5510: Host Write INSTR latch[0] = %02x -> %012x\n", data, instr_latch).c_str()); break;
 
 		/* 0x09 to 0x0b DIL Register (r/o) */
 
-	case 0x0c: dol_latch = (dol_latch&0x00ffff) | ((data&0xff)<<16); LOG(("ES5510: Host Write DOL latch[2] = %02x -> %06x (%d)\n", data, dol_latch, SX(dol_latch))); break;
-	case 0x0d: dol_latch = (dol_latch&0xff00ff) | ((data&0xff)<< 8); LOG(("ES5510: Host Write DOL latch[1] = %02x -> %06x (%d)\n", data, dol_latch, SX(dol_latch))); break;
-	case 0x0e: dol_latch = (dol_latch&0xffff00) | ((data&0xff)<< 0); LOG(("ES5510: Host Write DOL latch[0] = %02x -> %06x (%d)\n", data, dol_latch, SX(dol_latch))); break; //TODO: docs says that this always returns 0xff
+	case 0x0c: dol_latch = (dol_latch&0x00ffff) | ((data&0xff)<<16); LOG("ES5510: Host Write DOL latch[2] = %02x -> %06x (%d)\n", data, dol_latch, SX(dol_latch)); break;
+	case 0x0d: dol_latch = (dol_latch&0xff00ff) | ((data&0xff)<< 8); LOG("ES5510: Host Write DOL latch[1] = %02x -> %06x (%d)\n", data, dol_latch, SX(dol_latch)); break;
+	case 0x0e: dol_latch = (dol_latch&0xffff00) | ((data&0xff)<< 0); LOG("ES5510: Host Write DOL latch[0] = %02x -> %06x (%d)\n", data, dol_latch, SX(dol_latch)); break; //TODO: docs says that this always returns 0xff
 
 	case 0x0f:
 		dadr_latch = (dadr_latch&0x00ffff) | ((data&0xff)<<16);
 		if (ram_sel)
 		{
-			dil_latch = dram[dadr_latch] << 8;
+			dil_latch = dram_r(dadr_latch) << 8;
 		}
 		else
 		{
-			dram[dadr_latch] = dol_latch >> 8;
+			dram_w(dadr_latch, dol_latch >> 8);
 		}
 		break;
 
@@ -458,26 +458,26 @@ WRITE8_MEMBER(es5510_device::host_w)
 		/* 0x17 Internal Refresh counter (test purpose) */
 		/* 0x18 Host Serial Control */
 	case 0x18:
-		LOG(("ES5510: Host Write Host Serial control %02x: %s, %s, ser3 %s, ser2 %s, ser1 %s, ser0 %s\n", data,
+		LOG("ES5510: Host Write Host Serial control %02x: %s, %s, ser3 %s, ser2 %s, ser1 %s, ser0 %s\n", data,
 			data&0x80 ? "Master" : "Slave",
 			data&0x40 ? "Sony" : "I2S",
 			data & 0x20 ? "Out" : "In",
 			data & 0x10 ? "Out" : "In",
 			data & 0x08 ? "Out" : "In",
-			data & 0x04 ? "Out" : "In"));
+			data & 0x04 ? "Out" : "In");
 		break;
 
 		/* 0x1f Halt enable (w) / Frame Counter (r) */
 	case 0x1F:
-		LOG(("ES5510: Host Write Halt Enable %02x; HALT line is %d\n", data, halt_asserted));
+		LOG("ES5510: Host Write Halt Enable %02x; HALT line is %d\n", data, halt_asserted);
 		if (halt_asserted) {
-			LOG(("ES5510: Host Write to Halt Enable while HALT line is asserted: Halting!\n"));
+			LOG("ES5510: Host Write to Halt Enable while HALT line is asserted: Halting!\n");
 			state = STATE_HALTED;
 		}
 		break;
 
 	case 0x80: /* Read select - GPR + INSTR */
-		LOG(("%s",string_format("ES5510: Host Read INSTR+GPR %02x (%s): %012I64x %06x (%d)\n", data, REGNAME(data & 0xff), instr[data] & 0xffffffffffffU, gpr[data] & 0xffffff, gpr[data]).c_str()));
+		LOG("%s",string_format("ES5510: Host Read INSTR+GPR %02x (%s): %012x %06x (%d)\n", data, REGNAME(data & 0xff), instr[data] & 0xffffffffffffU, gpr[data] & 0xffffff, gpr[data]).c_str());
 
 		/* Check if an INSTR address is selected */
 		if (data < 0xa0) {
@@ -491,14 +491,14 @@ WRITE8_MEMBER(es5510_device::host_w)
 		break;
 
 	case 0xa0: /* Write select - GPR */
-		LOG(("ES5510: Host Write GPR %02x (%s): %06x (%d)\n", data, REGNAME(data&0xff), gpr_latch, SX(gpr_latch)));
+		LOG("ES5510: Host Write GPR %02x (%s): %06x (%d)\n", data, REGNAME(data&0xff), gpr_latch, SX(gpr_latch));
 		write_reg(data, gpr_latch);
 		break;
 
 	case 0xc0: /* Write select - INSTR */
 #if VERBOSE
 		DESCRIBE_INSTR(buf, instr_latch, gpr[data], nullptr, nullptr, nullptr, nullptr);
-		LOG(("%s",string_format("ES5510: Host Write INSTR %02x %012I64x: %s\n", data, instr_latch&0xffffffffffffU, buf).c_str()));
+		LOG("%s",string_format("ES5510: Host Write INSTR %02x %012x: %s\n", data, instr_latch&0xffffffffffffU, buf).c_str());
 #endif
 		if (data < 0xa0) {
 			instr[data] = instr_latch&0xffffffffffffU;
@@ -508,7 +508,7 @@ WRITE8_MEMBER(es5510_device::host_w)
 	case 0xe0: /* Write select - GPR + INSTR */
 #if VERBOSE
 		DESCRIBE_INSTR(buf, instr_latch, gpr_latch, nullptr, nullptr, nullptr, nullptr);
-		LOG(("%s",string_format("ES5510: Host Write INSTR+GPR %02x (%s): %012I64x %06x (%d): %s\n", data, REGNAME(data&0xff), instr_latch, gpr_latch, SX(gpr_latch), buf).c_str()));
+		LOG("%s",string_format("ES5510: Host Write INSTR+GPR %02x (%s): %012x %06x (%d): %s\n", data, REGNAME(data&0xff), instr_latch, gpr_latch, SX(gpr_latch), buf).c_str());
 #endif
 		if (data < 0xa0) {
 			instr[data] = instr_latch;
@@ -550,16 +550,87 @@ void es5510_device::ser_w(int offset, int16_t data)
 }
 
 void es5510_device::device_start() {
-	m_icountptr = &icount;
+	gpr = std::make_unique<int32_t[]>(0xc0);     // 24 bits, right justified
+	instr = std::make_unique<uint64_t[]>(160);    // 48 bits, right justified
+	dram = std::make_unique<int16_t[]>(DRAM_SIZE);   // there are up to 20 address bits (at least 16 expected), left justified within the 24 bits of a gpr or dadr; we preallocate all of it.
+	set_icountptr(icount);
 	state_add(STATE_GENPC,"GENPC", pc).noshow();
 	state_add(STATE_GENPCBASE, "CURPC", pc).noshow();
+
+	save_item(NAME(icount));
+	save_item(NAME(halt_asserted));
+	save_item(NAME(pc));
+	save_item(NAME(ser0r));
+	save_item(NAME(ser0l));
+	save_item(NAME(ser1r));
+	save_item(NAME(ser1l));
+	save_item(NAME(ser2r));
+	save_item(NAME(ser2l));
+	save_item(NAME(ser3r));
+	save_item(NAME(ser3l));
+	save_item(NAME(machl));
+	save_item(NAME(mac_overflow));
+	save_item(NAME(dil));
+	save_item(NAME(memsiz));
+	save_item(NAME(memmask));
+	save_item(NAME(memincrement));
+	save_item(NAME(memshift));
+	save_item(NAME(dlength));
+	save_item(NAME(abase));
+	save_item(NAME(bbase));
+	save_item(NAME(dbase));
+	save_item(NAME(sigreg));
+	save_item(NAME(mulshift));
+	save_item(NAME(ccr));
+	save_item(NAME(cmr));
+	save_item(NAME(dol));
+	save_item(NAME(dol_count));
+
+	save_pointer(NAME(gpr), 0xc0);
+	save_pointer(NAME(instr), 160);
+	save_pointer(NAME(dram), DRAM_SIZE);
+
+	save_item(NAME(dol_latch));
+	save_item(NAME(dil_latch));
+	save_item(NAME(dadr_latch));
+	save_item(NAME(gpr_latch));
+	save_item(NAME(instr_latch));
+	save_item(NAME(ram_sel));
+	save_item(NAME(host_control));
+
+	save_item(NAME(alu.aReg));
+	save_item(NAME(alu.bReg));
+	save_item(NAME(alu.op));
+	save_item(NAME(alu.aValue));
+	save_item(NAME(alu.bValue));
+	save_item(NAME(alu.result));
+	save_item(NAME(alu.update_ccr));
+	save_item(NAME(alu.write_result));
+
+	save_item(NAME(mulacc.cReg));
+	save_item(NAME(mulacc.dReg));
+	save_item(NAME(mulacc.accumulate));
+	save_item(NAME(mulacc.cValue));
+	save_item(NAME(mulacc.dValue));
+	save_item(NAME(mulacc.product));
+	save_item(NAME(mulacc.result));
+	save_item(NAME(mulacc.write_result));
+
+	save_item(NAME(ram.address));
+	save_item(NAME(ram.io));
+
+	save_item(NAME(ram_p.address));
+	save_item(NAME(ram_p.io));
+
+	save_item(NAME(ram_pp.address));
+	save_item(NAME(ram_pp.io));
 }
 
 void es5510_device::device_reset() {
 	pc = 0x00;
-	memset(gpr, 0, sizeof(*gpr) * 0xc0);
-	memset(instr, 0, sizeof(*instr) * 0xa0);
-	memset(dram, 0, sizeof(*dram) * (1<<20));
+	std::fill(&gpr[0], &gpr[0xc0], 0);
+	std::fill(&instr[0], &instr[160], 0);
+	std::fill(&dram[0], &dram[DRAM_SIZE], 0);
 	state = STATE_RUNNING;
 	dil_latch = dol_latch = dadr_latch = gpr_latch = 0;
 	instr_latch = uint64_t(0);
@@ -570,27 +641,29 @@ void es5510_device::device_reset() {
 	memset(&ram_pp, 0, sizeof(ram_t));
 }
 
-const address_space_config *es5510_device::memory_space_config(address_spacenum spacenum) const {
-	return nullptr;
+device_memory_interface::space_config_vector es5510_device::memory_space_config() const
+{
+	return space_config_vector {
+	};
 }
 
-uint64_t es5510_device::execute_clocks_to_cycles(uint64_t clocks) const {
+uint64_t es5510_device::execute_clocks_to_cycles(uint64_t clocks) const noexcept {
 	return clocks / 3;
 }
 
-uint64_t es5510_device::execute_cycles_to_clocks(uint64_t cycles) const {
+uint64_t es5510_device::execute_cycles_to_clocks(uint64_t cycles) const noexcept {
 	return cycles * 3;
 }
 
-uint32_t es5510_device::execute_min_cycles() const {
+uint32_t es5510_device::execute_min_cycles() const noexcept {
 	return 1;
 }
 
-uint32_t es5510_device::execute_max_cycles() const {
+uint32_t es5510_device::execute_max_cycles() const noexcept {
 	return 1;
 }
 
-uint32_t es5510_device::execute_input_lines() const {
+uint32_t es5510_device::execute_input_lines() const noexcept {
 	return 1;
 }
 
@@ -601,7 +674,7 @@ void es5510_device::execute_set_input(int linenum, int state) {
 }
 
 void es5510_device::list_program(void(p)(const char *, ...)) {
-	LOG(("ES5501: Starting!\n"));
+	LOG("ES5501: Starting!\n");
 
 	char buf[1024];
 	bool is_written[0x100], is_read[0x100];
@@ -676,7 +749,7 @@ void es5510_device::list_program(void(p)(const char *, ...)) {
 		uint8_t cReg = (uint8_t)((instr[addr] >> 32) & 0xff);
 		uint8_t dReg = (uint8_t)((instr[addr] >> 40) & 0xff);
 		DESCRIBE_INSTR(buf, instr[addr], gpr[addr], name[aReg], name[bReg], name[cReg], name[dReg]);
-		p("%s",string_format("%02x: %012I64x %06x (%8d) %s\n", addr, instr[addr], gpr[addr]&0xffffff, SX(gpr[addr]&0xffffff), buf).c_str());
+		p("%s",string_format("%02x: %012x %06x (%8d) %s\n", addr, instr[addr], gpr[addr]&0xffffff, SX(gpr[addr]&0xffffff), buf).c_str());
 	}
 	for (; addr < 0xc0; addr++) {
 		p("%02x: %06x (%d)\n", addr, gpr[addr]&0xffffff, SX(gpr[addr]&0xffffff));
@@ -702,7 +775,7 @@ void es5510_device::execute_run() {
 #if VERBOSE_EXEC
 			char buf[1024];
 			DESCRIBE_INSTR(buf, instr[pc], gpr[pc], nullptr, nullptr, nullptr, nullptr);
-			LOG_EXEC(("%s",string_format("EXECUTING %02x: %012I64x %06x  %s\n", pc, instr[pc], gpr[pc]&0xffffff, buf).c_str()));
+			LOG_EXEC(("%s",string_format("EXECUTING %02x: %012x %06x  %s\n", pc, instr[pc], gpr[pc]&0xffffff, buf).c_str()));
 #endif
 
 			ram_pp = ram_p;
@@ -722,7 +795,7 @@ void es5510_device::execute_run() {
 				if (ram_pp.io) { // read from I/O and store into DIL
 					dil = 0; // read_io(ram_pp.address);;
 				} else { // read from DRAM and store into DIL
-					dil = dram[ram_pp.address] << 8;
+					dil = dram_r(ram_pp.address) << 8;
 					LOG_EXEC(("  . RAM: read %x (%d) from address %x\n", dil, dil, ram_pp.address));
 				}
 			}
@@ -895,7 +968,7 @@ void es5510_device::execute_run() {
 					if (ram_p.io) {
 						// write_io(ram_p.io, dol[0]);
 					} else {
-						dram[ram_p.address] = dol[0] >> 8;
+						dram_w(ram_p.address, dol[0] >> 8);
 						LOG_EXEC(("  . RAM: writing %x (%d) [of %x (%d)] to address %x\n", dol[0]&0xffff00, SX(dol[0]&0xffff00), dol[0], SX(dol[0]), ram_p.address));
 					}
 				}
@@ -923,19 +996,9 @@ void es5510_device::execute_run() {
 	}
 }
 
-uint32_t es5510_device::disasm_min_opcode_bytes() const
+std::unique_ptr<util::disasm_interface> es5510_device::create_disassembler()
 {
-	return 6;
-}
-
-uint32_t es5510_device::disasm_max_opcode_bytes() const
-{
-	return 6;
-}
-
-offs_t es5510_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
-{
-	return pc;
+	return std::make_unique<es5510_disassembler>();
 }
 
 #if VERBOSE_EXEC

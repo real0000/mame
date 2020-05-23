@@ -9,38 +9,16 @@
 
 ***************************************************************************/
 
-#ifndef __H8_ADC_H__
-#define __H8_ADC_H__
+#ifndef MAME_CPU_H8_H8_ADC_H
+#define MAME_CPU_H8_H8_ADC_H
+
+#pragma once
 
 #include "h8.h"
 #include "h8_intc.h"
 
-#define MCFG_H8_ADC_GENERIC_ADD( _tag, _type, intc, vect )  \
-	MCFG_DEVICE_ADD( _tag, _type, 0 ) \
-	downcast<h8_adc_device *>(device)->set_info(intc, vect);
-
-#define MCFG_H8_ADC_3337_ADD( _tag, intc, vect ) \
-	MCFG_H8_ADC_GENERIC_ADD( _tag, H8_ADC_3337, intc, vect )
-
-#define MCFG_H8_ADC_3006_ADD( _tag, intc, vect ) \
-	MCFG_H8_ADC_GENERIC_ADD( _tag, H8_ADC_3006, intc, vect )
-
-#define MCFG_H8_ADC_2245_ADD( _tag, intc, vect ) \
-	MCFG_H8_ADC_GENERIC_ADD( _tag, H8_ADC_2245, intc, vect )
-
-#define MCFG_H8_ADC_2320_ADD( _tag, intc, vect ) \
-	MCFG_H8_ADC_GENERIC_ADD( _tag, H8_ADC_2320, intc, vect )
-
-#define MCFG_H8_ADC_2357_ADD( _tag, intc, vect ) \
-	MCFG_H8_ADC_GENERIC_ADD( _tag, H8_ADC_2357, intc, vect )
-
-#define MCFG_H8_ADC_2655_ADD( _tag, intc, vect ) \
-	MCFG_H8_ADC_GENERIC_ADD( _tag, H8_ADC_2655, intc, vect )
-
 class h8_adc_device : public device_t {
 public:
-	h8_adc_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
-
 	void set_info(const char *intc_tag, int vect);
 
 	DECLARE_READ8_MEMBER(addr8_r);
@@ -55,6 +33,8 @@ public:
 	uint64_t internal_update(uint64_t current_time);
 
 protected:
+	h8_adc_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	required_device<h8_device> cpu;
 	h8_intc_device *intc;
 	address_space *io;
@@ -114,6 +94,11 @@ protected:
 class h8_adc_3337_device : public h8_adc_device {
 public:
 	h8_adc_3337_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	h8_adc_3337_device(const machine_config &mconfig, const char *tag, device_t *owner, const char *intc_tag, int vect)
+		: h8_adc_3337_device(mconfig, tag, owner, 0)
+	{
+		set_info(intc_tag, vect);
+	}
 
 protected:
 	virtual int conversion_time(bool first, bool poweron) override;
@@ -123,6 +108,11 @@ protected:
 class h8_adc_3006_device : public h8_adc_device {
 public:
 	h8_adc_3006_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	h8_adc_3006_device(const machine_config &mconfig, const char *tag, device_t *owner, const char *intc_tag, int vect)
+		: h8_adc_3006_device(mconfig, tag, owner, 0)
+	{
+		set_info(intc_tag, vect);
+	}
 
 protected:
 	virtual int conversion_time(bool first, bool poweron) override;
@@ -132,6 +122,11 @@ protected:
 class h8_adc_2245_device : public h8_adc_device {
 public:
 	h8_adc_2245_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	h8_adc_2245_device(const machine_config &mconfig, const char *tag, device_t *owner, const char *intc_tag, int vect)
+		: h8_adc_2245_device(mconfig, tag, owner, 0)
+	{
+		set_info(intc_tag, vect);
+	}
 
 protected:
 	virtual int conversion_time(bool first, bool poweron) override;
@@ -141,6 +136,11 @@ protected:
 class h8_adc_2320_device : public h8_adc_device {
 public:
 	h8_adc_2320_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	h8_adc_2320_device(const machine_config &mconfig, const char *tag, device_t *owner, const char *intc_tag, int vect)
+		: h8_adc_2320_device(mconfig, tag, owner, 0)
+	{
+		set_info(intc_tag, vect);
+	}
 
 protected:
 	virtual int conversion_time(bool first, bool poweron) override;
@@ -150,6 +150,11 @@ protected:
 class h8_adc_2357_device : public h8_adc_device {
 public:
 	h8_adc_2357_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	h8_adc_2357_device(const machine_config &mconfig, const char *tag, device_t *owner, const char *intc_tag, int vect)
+		: h8_adc_2357_device(mconfig, tag, owner, 0)
+	{
+		set_info(intc_tag, vect);
+	}
 
 protected:
 	virtual int conversion_time(bool first, bool poweron) override;
@@ -159,6 +164,11 @@ protected:
 class h8_adc_2655_device : public h8_adc_device {
 public:
 	h8_adc_2655_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	h8_adc_2655_device(const machine_config &mconfig, const char *tag, device_t *owner, const char *intc_tag, int vect)
+		: h8_adc_2655_device(mconfig, tag, owner, 0)
+	{
+		set_info(intc_tag, vect);
+	}
 
 protected:
 	virtual int conversion_time(bool first, bool poweron) override;
@@ -167,11 +177,11 @@ protected:
 	virtual int get_channel_index(int count) override;
 };
 
-extern const device_type H8_ADC_3337;
-extern const device_type H8_ADC_3006;
-extern const device_type H8_ADC_2245;
-extern const device_type H8_ADC_2320;
-extern const device_type H8_ADC_2357;
-extern const device_type H8_ADC_2655;
+DECLARE_DEVICE_TYPE(H8_ADC_3337, h8_adc_3337_device)
+DECLARE_DEVICE_TYPE(H8_ADC_3006, h8_adc_3006_device)
+DECLARE_DEVICE_TYPE(H8_ADC_2245, h8_adc_2245_device)
+DECLARE_DEVICE_TYPE(H8_ADC_2320, h8_adc_2320_device)
+DECLARE_DEVICE_TYPE(H8_ADC_2357, h8_adc_2357_device)
+DECLARE_DEVICE_TYPE(H8_ADC_2655, h8_adc_2655_device)
 
-#endif
+#endif // MAME_CPU_H8_H8_ADC_H

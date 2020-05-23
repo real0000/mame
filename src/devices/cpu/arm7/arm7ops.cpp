@@ -5,6 +5,11 @@
 #include "arm7core.h"
 #include "arm7help.h"
 
+#define LOG_OPS     (1 << 0)
+
+#define VERBOSE     (0)
+#include "logmacro.h"
+
 int64_t arm7_cpu_device::saturate_qbit_overflow(int64_t res)
 {
 	if (res > 2147483647)   // INT32_MAX
@@ -61,23 +66,17 @@ uint32_t arm7_cpu_device::decodeShift(uint32_t insn, uint32_t *pCarry)
 	/* All shift types ending in 1 are Rk, not #k */
 	if (t & 1)
 	{
-//      LOG(("%08x:  RegShift %02x %02x\n", R15, k >> 1, GetRegister(k >> 1)));
+//      LOGMASKED(LOG_OPS, "%08x:  RegShift %02x %02x\n", R15, k >> 1, GetRegister(k >> 1));
 #if ARM7_DEBUG_CORE
 			if ((insn & 0x80) == 0x80)
-				LOG(("%08x:  RegShift ERROR (p36)\n", R15));
+				LOGMASKED(LOG_OPS, "%08x:  RegShift ERROR (p36)\n", R15);
 #endif
-
-		// see p35 for check on this
-		//k = GetRegister(k >> 1) & 0x1f;
-
 		// Keep only the bottom 8 bits for a Register Shift
 		k = GetRegister(k >> 1) & 0xff;
 
 		if (k == 0) /* Register shift by 0 is a no-op */
 		{
-//          LOG(("%08x:  NO-OP Regshift\n", R15));
-			/* TODO this is wrong for at least ROR by reg with lower
-			 *      5 bits 0 but lower 8 bits non zero */
+//          LOGMASKED(LOG_OPS, "%08x:  NO-OP Regshift\n", R15);
 			if (pCarry)
 				*pCarry = GET_CPSR & C_MASK;
 			return rm;
@@ -145,11 +144,19 @@ uint32_t arm7_cpu_device::decodeShift(uint32_t insn, uint32_t *pCarry)
 	case 3:                     /* ROR and RRX */
 		if (k)
 		{
-			while (k > 32)
-				k -= 32;
-			if (pCarry)
-				*pCarry = rm & (1 << (k - 1));
-			return ROR(rm, k);
+			k &= 31;
+			if (k)
+			{
+				if (pCarry)
+					*pCarry = rm & (1 << (k - 1));
+				return ROR(rm, k);
+			}
+			else
+			{
+				if (pCarry)
+					*pCarry = rm & SIGN_BIT;
+				return rm;
+			}
 		}
 		else
 		{
@@ -160,7 +167,7 @@ uint32_t arm7_cpu_device::decodeShift(uint32_t insn, uint32_t *pCarry)
 		}
 	}
 
-	LOG(("%08x: Decodeshift error\n", R15));
+	LOGMASKED(LOG_OPS, "%08x: Decodeshift error\n", R15);
 	return 0;
 } /* decodeShift */
 
@@ -250,7 +257,7 @@ int arm7_cpu_device::storeInc(uint32_t pat, uint32_t rbv, int mode)
 		{
 #if ARM7_DEBUG_CORE
 			if (i == 15) /* R15 is plus 12 from address of STM */
-				LOG(("%08x: StoreInc on R15\n", R15));
+				LOGMASKED(LOG_OPS, "%08x: StoreInc on R15\n", R15);
 #endif
 			WRITE32(rbv += 4, GetModeRegister(mode, i));
 			result++;
@@ -262,31 +269,22 @@ int arm7_cpu_device::storeInc(uint32_t pat, uint32_t rbv, int mode)
 
 int arm7_cpu_device::storeDec(uint32_t pat, uint32_t rbv, int mode)
 {
-	int i, result = 0, cnt;
-
 	// pre-count the # of registers being stored
-	for (i = 15; i >= 0; i--)
-	{
-		if ((pat >> i) & 1)
-		{
-			result++;
+	int const result = population_count_32(pat & 0x0000ffff);
 
-			// starting address
-			rbv -= 4;
-		}
-	}
+	// adjust starting address
+	rbv -= (result << 2);
 
-	cnt = 0;
-	for (i = 0; i <= 15; i++)
+	for (int i = 0; i <= 15; i++)
 	{
 		if ((pat >> i) & 1)
 		{
 #if ARM7_DEBUG_CORE
 			if (i == 15) /* R15 is plus 12 from address of STM */
-				LOG(("%08x: StoreDec on R15\n", R15));
+				LOGMASKED(LOG_OPS, "%08x: StoreDec on R15\n", R15);
 #endif
-			WRITE32(rbv + (cnt * 4), GetModeRegister(mode, i));
-			cnt++;
+			WRITE32(rbv, GetModeRegister(mode, i));
+			rbv += 4;
 		}
 	}
 	return result;
@@ -347,7 +345,7 @@ void arm7_cpu_device::HandleCoProcDT(uint32_t insn)
 
 #if ARM7_DEBUG_CORE
 	if (((insn >> 16) & 0xf) == 15 && (insn & 0x200000))
-		LOG(("%08x: Illegal use of R15 as base for write back value!\n", R15));
+		LOGMASKED(LOG_OPS, "%08x: Illegal use of R15 as base for write back value!\n", R15);
 #endif
 
 	// Pre-Increment base address (IF POST INCREMENT - CALL BACK FUNCTION MUST DO IT)
@@ -387,8 +385,8 @@ void arm7_cpu_device::HandleBranch(uint32_t insn, bool h_bit)
 		off |= (insn & 0x01000000) >> 23;
 	}
 
-	/* Save PC into LR if this is a branch with link */
-	if (insn & INSN_BL)
+	/* Save PC into LR if this is a branch with link or a BLX */
+	if ((insn & INSN_BL) || ((m_archRev >= 5) && ((insn & 0xfe000000) == 0xfa000000)))
 	{
 		SetRegister(14, R15 + 4);
 	}
@@ -499,8 +497,13 @@ void arm7_cpu_device::HandleMemSingle(uint32_t insn)
 						R15 = data - 4;
 					else
 						R15 = (R15 & ~0x03FFFFFC) /* N Z C V I F M1 M0 */ | ((data - 4) & 0x03FFFFFC);
-				// LDR, PC takes 2S + 2N + 1I (5 total cycles)
+					// LDR, PC takes 2S + 2N + 1I (5 total cycles)
 					ARM7_ICOUNT -= 2;
+					if ((data & 1) && m_archRev >= 5)
+					{
+						set_cpsr(GET_CPSR | T_MASK);
+						R15--;
+					}
 				}
 				else
 				{
@@ -515,8 +518,8 @@ void arm7_cpu_device::HandleMemSingle(uint32_t insn)
 		if (insn & INSN_SDT_B)
 		{
 #if ARM7_DEBUG_CORE
-				if (rd == eR15)
-					LOG(("Wrote R15 in byte mode\n"));
+			if (rd == eR15)
+				LOGMASKED(LOG_OPS, "Wrote R15 in byte mode\n");
 #endif
 
 			WRITE8(rnv, (uint8_t) GetRegister(rd) & 0xffu);
@@ -524,8 +527,8 @@ void arm7_cpu_device::HandleMemSingle(uint32_t insn)
 		else
 		{
 #if ARM7_DEBUG_CORE
-				if (rd == eR15)
-					LOG(("Wrote R15 in 32bit mode\n"));
+			if (rd == eR15)
+				LOGMASKED(LOG_OPS, "Wrote R15 in 32bit mode\n");
 #endif
 
 			//WRITE32(rnv, rd == eR15 ? R15 + 8 : GetRegister(rd));
@@ -557,7 +560,7 @@ void arm7_cpu_device::HandleMemSingle(uint32_t insn)
 			}
 			else {
 				if ((insn & INSN_SDT_W) != 0)
-					LOG(("%08x:  RegisterWritebackIncrement %d %d %d\n", R15, (insn & INSN_SDT_P) != 0, (insn & INSN_SDT_W) != 0, (insn & INSN_SDT_U) != 0));
+					LOGMASKED(LOG_OPS, "%08x:  RegisterWritebackIncrement %d %d %d\n", R15, (insn & INSN_SDT_P) != 0, (insn & INSN_SDT_W) != 0, (insn & INSN_SDT_U) != 0);
 
 				SetRegister(rn, (rnv + off));
 			}
@@ -573,7 +576,7 @@ void arm7_cpu_device::HandleMemSingle(uint32_t insn)
 				SetRegister(rn, (rnv - off));
 
 				if ((insn & INSN_SDT_W) != 0)
-					LOG(("%08x:  RegisterWritebackDecrement %d %d %d\n", R15, (insn & INSN_SDT_P) != 0, (insn & INSN_SDT_W) != 0, (insn & INSN_SDT_U) != 0));
+					LOGMASKED(LOG_OPS, "%08x:  RegisterWritebackDecrement %d %d %d\n", R15, (insn & INSN_SDT_P) != 0, (insn & INSN_SDT_W) != 0, (insn & INSN_SDT_U) != 0);
 			}
 		}
 	}
@@ -650,10 +653,10 @@ void arm7_cpu_device::HandleHalfWordDT(uint32_t insn)
 
 			// Signed Half Word?
 			if (insn & 0x20) {
-				uint16_t signbyte, databyte;
-				databyte = READ16(rnv) & 0xFFFF;
-				signbyte = (databyte & 0x8000) ? 0xffff : 0;
-				newval = (uint32_t)(signbyte << 16)|databyte;
+				int32_t data = (int32_t)(int16_t)(uint16_t)READ16(rnv & ~1);
+				if ((rnv & 1) && m_archRev < 5)
+					data >>= 8;
+				newval = (uint32_t)data;
 			}
 			// Signed Byte
 			else {
@@ -770,7 +773,7 @@ void arm7_cpu_device::HandleHalfWordDT(uint32_t insn)
 			}
 			else {
 				if ((insn & INSN_SDT_W) != 0)
-					LOG(("%08x:  RegisterWritebackIncrement %d %d %d\n", R15, (insn & INSN_SDT_P) != 0, (insn & INSN_SDT_W) != 0, (insn & INSN_SDT_U) != 0));
+					LOGMASKED(LOG_OPS, "%08x:  RegisterWritebackIncrement %d %d %d\n", R15, (insn & INSN_SDT_P) != 0, (insn & INSN_SDT_W) != 0, (insn & INSN_SDT_U) != 0);
 
 				SetRegister(rn, (rnv + off));
 			}
@@ -786,7 +789,7 @@ void arm7_cpu_device::HandleHalfWordDT(uint32_t insn)
 				SetRegister(rn, (rnv - off));
 
 				if ((insn & INSN_SDT_W) != 0)
-					LOG(("%08x:  RegisterWritebackDecrement %d %d %d\n", R15, (insn & INSN_SDT_P) != 0, (insn & INSN_SDT_W) != 0, (insn & INSN_SDT_U) != 0));
+					LOGMASKED(LOG_OPS, "%08x:  RegisterWritebackDecrement %d %d %d\n", R15, (insn & INSN_SDT_P) != 0, (insn & INSN_SDT_W) != 0, (insn & INSN_SDT_U) != 0);
 			}
 		}
 	}
@@ -805,7 +808,7 @@ void arm7_cpu_device::HandleSwap(uint32_t insn)
 
 #if ARM7_DEBUG_CORE
 	if (rn == 15 || rm == 15 || rd == 15)
-		LOG(("%08x: Illegal use of R15 in Swap Instruction\n", R15));
+		LOGMASKED(LOG_OPS, "%08x: Illegal use of R15 in Swap Instruction\n", R15);
 #endif
 
 	// can be byte or word
@@ -983,7 +986,7 @@ void arm7_cpu_device::HandleALU(uint32_t insn)
 		if ((rn = (insn & INSN_RN) >> INSN_RN_SHIFT) == eR15)
 		{
 #if ARM7_DEBUG_CORE
-			LOG(("%08x:  Pipelined R15 (Shift %d)\n", R15, (insn & INSN_I ? 8 : insn & 0x10u ? 12 : 12)));
+			LOGMASKED(LOG_OPS, "%08x:  Pipelined R15 (Shift %d)\n", R15, (insn & INSN_I ? 8 : insn & 0x10u ? 12 : 12));
 #endif
 			if (MODE32)
 				rn = R15 + 8;
@@ -1121,7 +1124,7 @@ void arm7_cpu_device::HandleALU(uint32_t insn)
 	{
 		if (insn & INSN_S) {
 #if ARM7_DEBUG_CORE
-				LOG(("%08x: TST class on R15 s bit set\n", R15));
+			LOGMASKED(LOG_OPS, "%08x: TST class on R15 s bit set\n", R15);
 #endif
 			if (MODE32)
 				R15 = rd;
@@ -1140,7 +1143,7 @@ void arm7_cpu_device::HandleALU(uint32_t insn)
 		else
 		{
 #if ARM7_DEBUG_CORE
-				LOG(("%08x: TST class on R15 no s bit set\n", R15));
+			LOGMASKED(LOG_OPS, "%08x: TST class on R15 no s bit set\n", R15);
 #endif
 		}
 		// extra cycles (PC written)
@@ -1171,7 +1174,7 @@ void arm7_cpu_device::HandleMul(uint32_t insn)
 	if ((insn & INSN_MUL_RM) == 0xf ||
 		((insn & INSN_MUL_RS) >> INSN_MUL_RS_SHIFT) == 0xf ||
 		((insn & INSN_MUL_RN) >> INSN_MUL_RN_SHIFT) == 0xf)
-		LOG(("%08x:  R15 used in mult\n", R15));
+		LOGMASKED(LOG_OPS, "%08x:  R15 used in mult\n", R15);
 #endif
 
 	/* Add on Rn if this is a MLA */
@@ -1218,7 +1221,7 @@ void arm7_cpu_device::HandleSMulLong(uint32_t insn)
 
 #if ARM7_DEBUG_CORE
 		if ((insn & 0xf) == 15 || ((insn >> 8) & 0xf) == 15 || ((insn >> 16) & 0xf) == 15 || ((insn >> 12) & 0xf) == 15)
-			LOG(("%08x: Illegal use of PC as a register in SMULL opcode\n", R15));
+			LOGMASKED(LOG_OPS, "%08x: Illegal use of PC as a register in SMULL opcode\n", R15);
 #endif
 
 	/* Perform the multiplication */
@@ -1270,7 +1273,7 @@ void arm7_cpu_device::HandleUMulLong(uint32_t insn)
 
 #if ARM7_DEBUG_CORE
 		if (((insn & 0xf) == 15) || (((insn >> 8) & 0xf) == 15) || (((insn >> 16) & 0xf) == 15) || (((insn >> 12) & 0xf) == 15))
-			LOG(("%08x: Illegal use of PC as a register in SMULL opcode\n", R15));
+			LOGMASKED(LOG_OPS, "%08x: Illegal use of PC as a register in SMULL opcode\n", R15);
 #endif
 
 	/* Perform the multiplication */
@@ -1311,7 +1314,7 @@ void arm7_cpu_device::HandleMemBlock(uint32_t insn)
 
 #if ARM7_DEBUG_CORE
 	if (rbp & 3)
-		LOG(("%08x: Unaligned Mem Transfer @ %08x\n", R15, rbp));
+		LOGMASKED(LOG_OPS, "%08x: Unaligned Mem Transfer @ %08x\n", R15, rbp);
 #endif
 
 	// Normal LDM instructions take nS + 1N + 1I and LDM PC takes (n+1)S + 2N + 1I
@@ -1337,7 +1340,7 @@ void arm7_cpu_device::HandleMemBlock(uint32_t insn)
 				// set to user mode - then do the transfer, and set back
 				//int curmode = GET_MODE;
 				//SwitchMode(eARM7_MODE_USER);
-				LOG(("%08x: User Bank Transfer not fully tested - please check if working properly!\n", R15));
+				LOGMASKED(LOG_OPS, "%08x: User Bank Transfer not fully tested - please check if working properly!\n", R15);
 				result = loadInc(insn & 0xffff, rbp, insn & INSN_BDT_S, eARM7_MODE_USER);
 				// todo - not sure if Writeback occurs on User registers also..
 				//SwitchMode(curmode);
@@ -1348,8 +1351,8 @@ void arm7_cpu_device::HandleMemBlock(uint32_t insn)
 			if ((insn & INSN_BDT_W) && !m_pendingAbtD)
 			{
 #if ARM7_DEBUG_CORE
-					if (rb == 15)
-						LOG(("%08x:  Illegal LDRM writeback to r15\n", R15));
+				if (rb == 15)
+					LOGMASKED(LOG_OPS, "%08x:  Illegal LDRM writeback to r15\n", R15);
 #endif
 				// "A LDM will always overwrite the updated base if the base is in the list." (also for a user bank transfer?)
 				// GBA "V-Rally 3" expects R0 not to be overwritten with the updated base value [BP 8077B0C]
@@ -1374,12 +1377,18 @@ void arm7_cpu_device::HandleMemBlock(uint32_t insn)
 					else
 					{
 						uint32_t temp;
-//                      LOG(("LDM + S | R15 %08X CPSR %08X\n", R15, GET_CPSR));
+//                      LOGMASKED(LOG_OPS, "LDM + S | R15 %08X CPSR %08X\n", R15, GET_CPSR);
 						temp = (GET_CPSR & 0x0FFFFF20) | (R15 & 0xF0000000) /* N Z C V */ | ((R15 & 0x0C000000) >> (26 - 6)) /* I F */ | (R15 & 0x00000003) /* M1 M0 */;
 						set_cpsr( temp);
 						SwitchMode(temp & 3);
 					}
 				}
+				else
+					if ((R15 & 1) && m_archRev >= 5)
+					{
+						set_cpsr(GET_CPSR | T_MASK);
+						R15--;
+					}
 				// LDM PC - takes 2 extra cycles
 				ARM7_ICOUNT -= 2;
 			}
@@ -1398,7 +1407,7 @@ void arm7_cpu_device::HandleMemBlock(uint32_t insn)
 				// set to user mode - then do the transfer, and set back
 				//int curmode = GET_MODE;
 				//SwitchMode(eARM7_MODE_USER);
-				LOG(("%08x: User Bank Transfer not fully tested - please check if working properly!\n", R15));
+				LOGMASKED(LOG_OPS, "%08x: User Bank Transfer not fully tested - please check if working properly!\n", R15);
 				result = loadDec(insn & 0xffff, rbp, insn & INSN_BDT_S, eARM7_MODE_USER);
 				// todo - not sure if Writeback occurs on User registers also..
 				//SwitchMode(curmode);
@@ -1409,7 +1418,7 @@ void arm7_cpu_device::HandleMemBlock(uint32_t insn)
 			if ((insn & INSN_BDT_W) && !m_pendingAbtD)
 			{
 				if (rb == 0xf)
-					LOG(("%08x:  Illegal LDRM writeback to r15\n", R15));
+					LOGMASKED(LOG_OPS, "%08x:  Illegal LDRM writeback to r15\n", R15);
 				// "A LDM will always overwrite the updated base if the base is in the list." (also for a user bank transfer?)
 				if (((insn >> rb) & 1) == 0)
 				{
@@ -1431,12 +1440,18 @@ void arm7_cpu_device::HandleMemBlock(uint32_t insn)
 					else
 					{
 						uint32_t temp;
-//                      LOG(("LDM + S | R15 %08X CPSR %08X\n", R15, GET_CPSR));
+//                      LOGMASKED(LOG_OPS, "LDM + S | R15 %08X CPSR %08X\n", R15, GET_CPSR);
 						temp = (GET_CPSR & 0x0FFFFF20) /* N Z C V I F M4 M3 M2 M1 M0 */ | (R15 & 0xF0000000) /* N Z C V */ | ((R15 & 0x0C000000) >> (26 - 6)) /* I F */ | (R15 & 0x00000003) /* M1 M0 */;
 						set_cpsr(temp);
 						SwitchMode(temp & 3);
 					}
 				}
+				else
+					if ((R15 & 1) && m_archRev >= 5)
+					{
+						set_cpsr(GET_CPSR | T_MASK);
+						R15--;
+					}
 				// LDM PC - takes 2 extra cycles
 				ARM7_ICOUNT -= 2;
 			}
@@ -1450,7 +1465,7 @@ void arm7_cpu_device::HandleMemBlock(uint32_t insn)
 		if (insn & (1 << eR15))
 		{
 #if ARM7_DEBUG_CORE
-				LOG(("%08x: Writing R15 in strm\n", R15));
+			LOGMASKED(LOG_OPS, "%08x: Writing R15 in strm\n", R15);
 #endif
 			/* special case handling if writing to PC */
 			R15 += 12;
@@ -1471,7 +1486,7 @@ void arm7_cpu_device::HandleMemBlock(uint32_t insn)
 				// set to user mode - then do the transfer, and set back
 				//int curmode = GET_MODE;
 				//SwitchMode(eARM7_MODE_USER);
-				LOG(("%08x: User Bank Transfer not fully tested - please check if working properly!\n", R15));
+				LOGMASKED(LOG_OPS, "%08x: User Bank Transfer not fully tested - please check if working properly!\n", R15);
 				result = storeInc(insn & 0xffff, rbp, eARM7_MODE_USER);
 				// todo - not sure if Writeback occurs on User registers also..
 				//SwitchMode(curmode);
@@ -1498,7 +1513,7 @@ void arm7_cpu_device::HandleMemBlock(uint32_t insn)
 				// set to user mode - then do the transfer, and set back
 				//int curmode = GET_MODE;
 				//SwitchMode(eARM7_MODE_USER);
-				LOG(("%08x: User Bank Transfer not fully tested - please check if working properly!\n", R15));
+				LOGMASKED(LOG_OPS, "%08x: User Bank Transfer not fully tested - please check if working properly!\n", R15);
 				result = storeDec(insn & 0xffff, rbp, eARM7_MODE_USER);
 				// todo - not sure if Writeback occurs on User registers also..
 				//SwitchMode(curmode);
@@ -1539,7 +1554,7 @@ const arm7_cpu_device::arm7ops_ophandler arm7_cpu_device::ops_handler[0x20] =
 void arm7_cpu_device::arm9ops_undef(uint32_t insn)
 {
 	// unsupported instruction
-	LOG(("ARM7: Instruction %08X unsupported\n", insn));
+	LOGMASKED(LOG_OPS, "ARM7: Instruction %08X unsupported\n", insn);
 }
 
 void arm7_cpu_device::arm9ops_1(uint32_t insn)
@@ -1549,15 +1564,23 @@ void arm7_cpu_device::arm9ops_1(uint32_t insn)
 	{
 		// unsupported (armv6 onwards only)
 		arm9ops_undef(insn);
+		R15 += 4;
 	}
 	else if ((insn & 0x00ff00f0) == 0x00010000) /* set endianness (SETEND) */
 	{
 		// unsupported (armv6 onwards only)
-		arm9ops_undef(insn);
+		if (m_archRev < 6) arm9ops_undef(insn);
+		else
+		{
+			uint32_t new_cpsr = GET_CPSR & ~(1 << 9);
+			set_cpsr(new_cpsr | (insn & (1 << 9)));
+		}
+		R15 += 4;
 	}
 	else
 	{
 		arm9ops_undef(insn);
+		R15 += 4;
 	}
 }
 
@@ -1567,11 +1590,13 @@ void arm7_cpu_device::arm9ops_57(uint32_t insn)
 	if ((insn & 0x0070f000) == 0x0050f000)
 	{
 		// unsupported (armv6 onwards only)
-		arm9ops_undef(insn);
+		if(m_archRev < 6) arm9ops_undef(insn);
+		R15 += 4;
 	}
 	else
 	{
 		arm9ops_undef(insn);
+		R15 += 4;
 	}
 }
 
@@ -1582,15 +1607,18 @@ void arm7_cpu_device::arm9ops_89(uint32_t insn)
 	{
 		// unsupported (armv6 onwards only)
 		arm9ops_undef(insn);
+		R15 += 4;
 	}
 	else if ((insn & 0x00500f00) == 0x00100a00) /* Return From Exception (RFE) */
 	{
 		// unsupported (armv6 onwards only)
 		arm9ops_undef(insn);
+		R15 += 4;
 	}
 	else
 	{
 		arm9ops_undef(insn);
+		R15 += 4;
 	}
 }
 
@@ -1608,10 +1636,12 @@ void arm7_cpu_device::arm9ops_c(uint32_t insn)
 	{
 		// unsupported
 		arm9ops_undef(insn);
+		R15 += 4;
 	}
 	else
 	{
 		arm9ops_undef(insn);
+		R15 += 4;
 	}
 }
 
@@ -1620,6 +1650,7 @@ void arm7_cpu_device::arm9ops_e(uint32_t insn)
 	/* Additional coprocessor register transfer */
 	// unsupported
 	arm9ops_undef(insn);
+	R15 += 4;
 }
 
 
@@ -1632,6 +1663,18 @@ void arm7_cpu_device::arm7ops_0123(uint32_t insn)
 	/* Branch and Exchange (BX) */
 	if ((insn & 0x0ffffff0) == 0x012fff10)     // bits 27-4 == 000100101111111111110001
 	{
+		R15 = GetRegister(insn & 0x0f);
+		// If new PC address has A0 set, switch to Thumb mode
+		if (R15 & 1) {
+			set_cpsr(GET_CPSR|T_MASK);
+			R15--;
+		}
+	}
+	else if ((insn & 0x0ff000f0) == 0x01200030) // BLX Rn - v5
+	{
+		// save link address
+		SetRegister(14, R15 + 4);
+
 		R15 = GetRegister(insn & 0x0f);
 		// If new PC address has A0 set, switch to Thumb mode
 		if (R15 & 1) {

@@ -8,13 +8,17 @@
 
 *********************************************************************/
 
-#ifndef __SOFTLIST_H_
-#define __SOFTLIST_H_
+#ifndef MAME_EMU_SOFTLIST_H
+#define MAME_EMU_SOFTLIST_H
 
-#include <list>
+#pragma once
+
+
 #include "emucore.h"
 #include "romentry.h"
 #include "corefile.h"
+
+#include <list>
 
 
 //**************************************************************************
@@ -29,9 +33,6 @@
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
-
-struct XML_ParserStruct;
-class software_info;
 
 // ======================> feature_list_item
 
@@ -48,9 +49,9 @@ public:
 	feature_list_item& operator=(feature_list_item &&) = delete;
 
 	// getters
-	feature_list_item *next() const { return m_next; }
-	const std::string &name() const { return m_name; }
-	const std::string &value() const { return m_value; }
+	feature_list_item *next() const noexcept { return m_next; }
+	const std::string &name() const noexcept { return m_name; }
+	const std::string &value() const noexcept { return m_value; }
 
 private:
 	// internal state
@@ -76,16 +77,16 @@ public:
 	software_part& operator=(software_part &&) = delete;
 
 	// getters
-	software_part *next() const { return m_next; }
-	software_info &info() const { return m_info; }
-	const std::string &name() const { return m_name; }
-	const std::string &interface() const { return m_interface; }
-	const std::list<feature_list_item> &featurelist() const { return m_featurelist; }
-	const std::vector<rom_entry> &romdata() const { return m_romdata; }
+	software_part *next() const noexcept { return m_next; }
+	software_info &info() const noexcept { return m_info; }
+	const std::string &name() const noexcept { return m_name; }
+	const std::string &interface() const noexcept { return m_interface; }
+	const std::list<feature_list_item> &featurelist() const noexcept { return m_featurelist; }
+	const std::vector<rom_entry> &romdata() const noexcept { return m_romdata; }
 
 	// helpers
-	bool matches_interface(const char *interface) const;
-	const char *feature(const std::string &feature_name) const;
+	bool matches_interface(const char *interface_list) const noexcept;
+	const char *feature(const std::string &feature_name) const noexcept;
 
 private:
 	// internal state
@@ -211,4 +212,4 @@ private:
 // parses a software identifier (e.g. - 'apple2e:agentusa:flop1') into its constituent parts (returns false if cannot parse)
 bool software_name_parse(const std::string &identifier, std::string *list_name = nullptr, std::string *software_name = nullptr, std::string *part_name = nullptr);
 
-#endif // __SOFTLIST_H_
+#endif // MAME_EMU_SOFTLIST_H

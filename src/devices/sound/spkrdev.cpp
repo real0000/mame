@@ -76,20 +76,17 @@
 #include "sound/spkrdev.h"
 
 
-static const int16_t default_levels[2] = {0, 32767};
+static constexpr int16_t default_levels[2] = {0, 32767};
 
 // Internal oversampling factor (interm. samples vs stream samples)
-static const int RATE_MULTIPLIER = 4;
+static constexpr int RATE_MULTIPLIER = 4;
 
 
-const device_type SPEAKER_SOUND = device_creator<speaker_sound_device>;
-
-template class device_finder<speaker_sound_device, false>;
-template class device_finder<speaker_sound_device, true>;
+DEFINE_DEVICE_TYPE(SPEAKER_SOUND, speaker_sound_device, "speaker_sound_device", "Filtered 1-bit DAC")
 
 
 speaker_sound_device::speaker_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, SPEAKER_SOUND, "Filtered 1-bit DAC", tag, owner, clock, "speaker_sound", __FILE__)
+	: device_t(mconfig, SPEAKER_SOUND, tag, owner, clock)
 	, device_sound_interface(mconfig, *this)
 	, m_num_levels(2)
 	, m_levels(default_levels)
@@ -171,8 +168,6 @@ void speaker_sound_device::device_start()
 	save_item(NAME(m_last_update_time));
 	save_item(NAME(m_prevx));
 	save_item(NAME(m_prevy));
-
-	machine().save().register_postload(save_prepost_delegate(FUNC(speaker_sound_device::speaker_postload), this));
 }
 
 void speaker_sound_device::device_reset()
@@ -196,7 +191,7 @@ void speaker_sound_device::device_reset()
 	m_prevx = m_prevy = 0.0;
 }
 
-void speaker_sound_device::speaker_postload()
+void speaker_sound_device::device_post_load()
 {
 	m_channel_next_sample_time = m_channel_last_sample_time + attotime(0, m_channel_sample_period);
 	m_next_interm_sample_time = m_channel_last_sample_time + attotime(0, m_interm_sample_period);

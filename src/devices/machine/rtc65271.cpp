@@ -346,12 +346,12 @@ uint8_t rtc65271_device::read(int xramsel, offs_t offset)
 	return reply;
 }
 
-READ8_MEMBER( rtc65271_device::rtc_r )
+uint8_t rtc65271_device::rtc_r(offs_t offset)
 {
 	return read(0, offset );
 }
 
-READ8_MEMBER( rtc65271_device::xram_r )
+uint8_t rtc65271_device::xram_r(offs_t offset)
 {
 	return read(1, offset );
 }
@@ -436,12 +436,12 @@ void rtc65271_device::write(int xramsel, offs_t offset, uint8_t data)
 	}
 }
 
-WRITE8_MEMBER( rtc65271_device::rtc_w )
+void rtc65271_device::rtc_w(offs_t offset, uint8_t data)
 {
 	write(0, offset, data );
 }
 
-WRITE8_MEMBER( rtc65271_device::xram_w )
+void rtc65271_device::xram_w(offs_t offset, uint8_t data)
 {
 	write(1, offset, data );
 }
@@ -462,6 +462,10 @@ void rtc65271_device::field_interrupts()
 	}
 }
 
+READ_LINE_MEMBER(rtc65271_device::intrq_r)
+{
+	return (m_regs[reg_C] & reg_C_IRQF)? ASSERT_LINE : CLEAR_LINE;
+}
 
 /*
     Update SQW output state each half-period and assert periodic interrupt each
@@ -646,16 +650,16 @@ TIMER_CALLBACK_MEMBER(rtc65271_device::rtc_end_update_cb)
 }
 
 // device type definition
-const device_type RTC65271 = device_creator<rtc65271_device>;
+DEFINE_DEVICE_TYPE(RTC65271, rtc65271_device, "rtc65271", "Epson RTC-65271 RTC")
 
 //-------------------------------------------------
 //  rtc65271_device - constructor
 //-------------------------------------------------
 
 rtc65271_device::rtc65271_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, RTC65271, "RTC-65271", tag, owner, clock, "rtc65271", __FILE__),
-		device_nvram_interface(mconfig, *this),
-		m_interrupt_cb(*this)
+	: device_t(mconfig, RTC65271, tag, owner, clock)
+	, device_nvram_interface(mconfig, *this)
+	, m_interrupt_cb(*this)
 {
 }
 

@@ -165,17 +165,17 @@ const uint8_t i80286_cpu_device::m_i80286_timing[] =
 	13,             /* (80186) BOUND */
 };
 
-const device_type I80286 = device_creator<i80286_cpu_device>;
+DEFINE_DEVICE_TYPE(I80286, i80286_cpu_device, "i80286", "Intel 80286")
 
 i80286_cpu_device::i80286_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: i8086_common_cpu_device(mconfig, I80286, "I80286", tag, owner, clock, "i80286", __FILE__)
+	: i8086_common_cpu_device(mconfig, I80286, tag, owner, clock)
 	, m_program_config("program", ENDIANNESS_LITTLE, 16, 24, 0)
+	, m_opcodes_config("opcodes", ENDIANNESS_LITTLE, 16, 24, 0)
 	, m_io_config("io", ENDIANNESS_LITTLE, 16, 16, 0)
 	, m_out_shutdown_func(*this)
 {
 	memcpy(m_timing, m_i80286_timing, sizeof(m_i80286_timing));
 	m_amask = 0xffffff;
-	m_fetch_xor = BYTE_XOR_LE(0);
 	memset(m_sregs, 0x00, sizeof(m_sregs));
 	m_sregs[CS] = 0xf000;
 	memset(m_base, 0x00, sizeof(m_base));
@@ -203,7 +203,7 @@ void i80286_cpu_device::device_reset()
 	m_sregs[DS] = m_sregs[SS] = m_sregs[ES] = 0;
 	m_base[DS] = m_base[SS] = m_base[ES] = 0;
 	m_rights[DS] = m_rights[SS] = m_rights[ES] = 0x93;
-	m_rights[CS] = 0x9b;
+	m_rights[CS] = 0x93;
 	m_valid[CS] = m_valid[SS] = m_valid[DS] = m_valid[ES] = true;
 	m_idtr.base = 0;
 	m_idtr.limit = 0x3ff;
@@ -275,10 +275,25 @@ void i80286_cpu_device::device_start()
 	state_add( I286_VECTOR, "V", m_int_vector).formatstr("%02X");
 
 	state_add( I286_PC, "PC", m_pc).callimport().formatstr("%06X");
-	state_add( STATE_GENPCBASE, "CURPC", m_pc ).callimport().formatstr("%06X").noshow();
+	state_add<uint32_t>( STATE_GENPCBASE, "CURPC", [this] { return m_base[CS] + m_prev_ip; }).mask(0xffffff).noshow();
 	state_add( I8086_HALT, "HALT", m_halt ).mask(1);
 
 	m_out_shutdown_func.resolve_safe();
+}
+
+device_memory_interface::space_config_vector i80286_cpu_device::memory_space_config() const
+{
+	if(has_configured_map(AS_OPCODES))
+		return space_config_vector {
+			std::make_pair(AS_PROGRAM, &m_program_config),
+			std::make_pair(AS_OPCODES, &m_opcodes_config),
+			std::make_pair(AS_IO,      &m_io_config)
+		};
+	else
+		return space_config_vector {
+			std::make_pair(AS_PROGRAM, &m_program_config),
+			std::make_pair(AS_IO,      &m_io_config)
+		};
 }
 
 
@@ -301,7 +316,6 @@ void i80286_cpu_device::state_import(const device_state_entry &entry)
 		break;
 
 	case STATE_GENPC:
-	case STATE_GENPCBASE:
 		if (m_pc - m_base[CS] > m_limit[CS])
 		{
 			// TODO: should this call data_descriptor instead of ignoring jumps outside the current segment?
@@ -316,6 +330,7 @@ void i80286_cpu_device::state_import(const device_state_entry &entry)
 			}
 		}
 		m_ip = m_pc - m_base[CS];
+		m_prev_ip = m_ip;
 		break;
 	}
 }
@@ -355,7 +370,7 @@ void i80286_cpu_device::state_string_export(const device_state_entry &entry, std
 	}
 }
 
-bool i80286_cpu_device::memory_translate(address_spacenum spacenum, int intention, offs_t &address)
+bool i80286_cpu_device::memory_translate(int spacenum, int intention, offs_t &address)
 {
 	if(spacenum == AS_PROGRAM)
 		address &= m_amask;
@@ -576,7 +591,7 @@ void i80286_cpu_device::switch_task(uint16_t ntask, int type)
 	uint8_t r, lr;
 	uint32_t naddr, oaddr, ldtaddr;
 	int i;
-	logerror("i286: %06x This program uses TSSs, how rare. Please report this to the developers.\n", pc());
+	logerror("i286: %06x This program uses TSSs, how rare. Please report this to the developers.\n", m_pc);
 
 	if(TBL(ntask))
 		throw TRAP(FAULT_TS, IDXTBL(ntask));
@@ -754,7 +769,7 @@ void i80286_cpu_device::code_descriptor(uint16_t selector, uint16_t offset, int 
 			m_limit[CS] = LIMIT(desc);
 			m_base[CS] = BASE(desc);
 			m_rights[CS] = RIGHTS(desc);
-			m_ip = offset;
+			m_prev_ip = m_ip = offset;
 		}
 		else
 		{ // systemdescriptor
@@ -847,10 +862,10 @@ void i80286_cpu_device::code_descriptor(uint16_t selector, uint16_t offset, int 
 	}
 	else
 	{
-		m_ip = offset;
+		m_prev_ip = m_ip = offset;
 		m_sregs[CS]=selector;
 		m_base[CS]=selector<<4;
-		m_rights[CS]=0x9b;
+		m_rights[CS]=0x93;
 		m_limit[CS]=0xffff;
 	}
 }
@@ -865,10 +880,10 @@ void i80286_cpu_device::interrupt_descriptor(int number, int hwint, int error)
 	{
 		number = standard_irq_callback(0);
 
-		m_irq_state = CLEAR_LINE;
-		m_pending_irq &= ~INT_IRQ;
 		hwint = 1;
 	}
+
+	debugger_exception_hook(number);
 
 	if(!PM)
 	{
@@ -964,7 +979,7 @@ void i80286_cpu_device::interrupt_descriptor(int number, int hwint, int error)
 			m_limit[CS] = LIMIT(gatedesc);
 			m_base[CS] = BASE(gatedesc);
 			m_rights[CS] = RIGHTS(gatedesc);
-			m_ip = GATEOFF(desc);
+			m_prev_ip = m_ip = GATEOFF(desc);
 			m_TF = 0;
 			m_NT = 0;
 			if(GATE(RIGHTS(desc)) == INTGATE)
@@ -1004,24 +1019,13 @@ void i80286_cpu_device::write_port_word(uint16_t port, uint16_t data)
 	m_io->write_word_unaligned(port, data);
 }
 
-uint8_t i80286_cpu_device::fetch_op()
-{
-	uint8_t data;
-	if(m_ip > m_limit[CS])
-		throw TRAP(FAULT_GP, 0);
-
-	data = m_direct->read_byte( pc() & m_amask, m_fetch_xor );
-	m_ip++;
-	return data;
-}
-
 uint8_t i80286_cpu_device::fetch()
 {
 	uint8_t data;
 	if(m_ip > m_limit[CS])
 		throw TRAP(FAULT_GP, 0);
 
-	data = m_direct->read_byte( pc() & m_amask, m_fetch_xor );
+	data = m_or8(update_pc() & m_amask);
 	m_ip++;
 	return data;
 }
@@ -1096,7 +1100,7 @@ void i80286_cpu_device::execute_run()
 				}
 			}
 
-			debugger_instruction_hook( this, pc() & m_amask );
+			debugger_instruction_hook( update_pc() & m_amask );
 
 			uint8_t op = fetch_op();
 
@@ -1412,7 +1416,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 					if (tmp<low || tmp>high)
 						interrupt(5);
 					CLK(BOUND);
-					logerror("%06x: bound %04x high %04x low %04x tmp\n", pc(), high, low, tmp);
+					logerror("%06x: bound %04x high %04x low %04x tmp\n", m_pc, high, low, tmp);
 				}
 				break;
 
@@ -1489,7 +1493,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 					m_modrm = fetch();
 					if((m_modrm & 0x38) > 0x18)
 					{
-						logerror("%06x: Mov Sreg - Invalid register\n", pc());
+						logerror("%06x: Mov Sreg - Invalid register\n", m_pc);
 						throw TRAP(FAULT_UD, (uint16_t)-1);
 					}
 					PutRMWord(m_sregs[(m_modrm & 0x38) >> 3]);
@@ -1513,7 +1517,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 							data_descriptor(DS, m_src);
 							break;
 						default:
-							logerror("%06x: Mov Sreg - Invalid register\n", pc());
+							logerror("%06x: Mov Sreg - Invalid register\n", m_pc);
 							throw TRAP(FAULT_UD, (uint16_t)-1);
 					}
 					break;
@@ -1776,7 +1780,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 				case 0xf0: // i_lock
 					if(PM && (CPL > m_IOPL))
 						throw TRAP(FAULT_GP, 0);
-					logerror("%06x: Warning - BUSLOCK\n", pc());
+					logerror("%06x: Warning - BUSLOCK\n", m_pc);
 					m_no_interrupt = 1;
 					CLK(NOP);
 					break;
@@ -1853,7 +1857,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 							CLKM(PUSH_R16,PUSH_M16);
 							break;
 						default:
-							logerror("%06x: FF Pre with unimplemented mod\n", pc());
+							logerror("%06x: FF Pre with unimplemented mod\n", m_pc);
 							throw TRAP(FAULT_UD,(uint16_t)-1);
 						}
 					}
@@ -1889,7 +1893,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 					if(!common_op(op))
 					{
 						m_icount -= 10; // UD fault timing?
-						logerror("%06x: Invalid Opcode %02x\n", pc(), op);
+						logerror("%06x: Invalid Opcode %02x\n", m_pc, op);
 						m_ip = m_prev_ip;
 						throw TRAP(FAULT_UD, (uint16_t)-1);
 					}
@@ -2005,7 +2009,7 @@ uint16_t i80286_cpu_device::far_return(int iret, int bytes)
 		m_regs.w[SP] += (iret ? 6 : 4) + bytes;
 		m_sregs[CS] = sel;
 		m_base[CS] = sel << 4;
-		m_rights[CS] = 0x9b;
+		m_rights[CS] = 0x93;
 		m_limit[CS] = 0xffff;
 		m_ip = off;
 	}

@@ -1,9 +1,9 @@
 // license:BSD-3-Clause
 // copyright-holders:Ville Linde
-#pragma once
+#ifndef MAME_CPU_TMS32082_TMS32082_H
+#define MAME_CPU_TMS32082_TMS32082_H
 
-#ifndef __TMS32082_H__
-#define __TMS32082_H__
+#pragma once
 
 // Master Processor class
 class tms32082_mp_device : public cpu_device
@@ -71,38 +71,29 @@ public:
 	DECLARE_READ32_MEMBER(mp_param_r);
 	DECLARE_WRITE32_MEMBER(mp_param_w);
 
-	void set_command_callback(write32_delegate callback);
+	template <typename... T> void set_command_callback(T &&... args) { m_cmd_callback.set(std::forward<T>(args)...); }
 
-
+	void mp_internal_map(address_map &map);
 protected:
 	// device level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 1; }
-	virtual uint32_t execute_max_cycles() const override { return 1; }
-	virtual uint32_t execute_input_lines() const override { return 0; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 0; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override
-	{
-		switch (spacenum)
-		{
-			case AS_PROGRAM: return &m_program_config;
-			default:         return nullptr;
-		}
-	}
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 4; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 8; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 	address_space_config m_program_config;
 
@@ -139,7 +130,7 @@ protected:
 	int m_icount;
 
 	address_space *m_program;
-	direct_read_data* m_direct;
+	memory_access_cache<2, 0, ENDIANNESS_BIG> * m_cache;
 
 	write32_delegate m_cmd_callback;
 
@@ -170,34 +161,26 @@ public:
 		PP_PC = 1
 	};
 
+	void pp_internal_map(address_map &map);
 protected:
 	// device level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 1; }
-	virtual uint32_t execute_max_cycles() const override { return 1; }
-	virtual uint32_t execute_input_lines() const override { return 0; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 0; }
 	virtual void execute_run() override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override
-	{
-		switch (spacenum)
-		{
-			case AS_PROGRAM: return &m_program_config;
-			default:         return nullptr;
-		}
-	}
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 8; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 8; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 	address_space_config m_program_config;
 
@@ -207,12 +190,12 @@ protected:
 	int m_icount;
 
 	address_space *m_program;
-	direct_read_data* m_direct;
+	memory_access_cache<2, 0, ENDIANNESS_BIG> * m_cache;
 };
 
 
-extern const device_type TMS32082_MP;
-extern const device_type TMS32082_PP;
+DECLARE_DEVICE_TYPE(TMS32082_MP, tms32082_mp_device)
+DECLARE_DEVICE_TYPE(TMS32082_PP, tms32082_pp_device)
 
 
-#endif /* __TMS32082_H__ */
+#endif // MAME_CPU_TMS32082_TMS32082_H

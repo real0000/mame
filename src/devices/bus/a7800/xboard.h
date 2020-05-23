@@ -1,7 +1,9 @@
 // license:BSD-3-Clause
 // copyright-holders:Fabio Priuli
-#ifndef __A78_XBOARD_H
-#define __A78_XBOARD_H
+#ifndef MAME_BUS_A7800_XBOARD_H
+#define MAME_BUS_A7800_XBOARD_H
+
+#pragma once
 
 #include "a78_slot.h"
 #include "rom.h"
@@ -15,21 +17,21 @@ class a78_xboard_device : public a78_rom_device
 {
 public:
 	// construction/destruction
-	a78_xboard_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
 	a78_xboard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// device-level overrides
-	virtual void device_start() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	virtual void device_reset() override;
-
 	// reading and writing
-	virtual DECLARE_READ8_MEMBER(read_04xx) override;
-	virtual DECLARE_WRITE8_MEMBER(write_04xx) override;
-	virtual DECLARE_READ8_MEMBER(read_40xx) override;
-	virtual DECLARE_WRITE8_MEMBER(write_40xx) override;
+	virtual uint8_t read_04xx(offs_t offset) override;
+	virtual void write_04xx(offs_t offset, uint8_t data) override;
+	virtual uint8_t read_40xx(offs_t offset) override;
+	virtual void write_40xx(offs_t offset, uint8_t data) override;
 
 protected:
+	a78_xboard_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
+	virtual void device_start() override;
+	virtual void device_reset() override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
 	required_device<a78_cart_slot_device> m_xbslot;
 	required_device<pokey_device> m_pokey;
 	int m_reg, m_ram_bank;
@@ -44,19 +46,18 @@ public:
 	// construction/destruction
 	a78_xm_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// device-level overrides
-	virtual void device_start() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	virtual void device_reset() override;
-
 	// reading and writing
-	virtual DECLARE_READ8_MEMBER(read_04xx) override;
-	virtual DECLARE_WRITE8_MEMBER(write_04xx) override;
-	virtual DECLARE_READ8_MEMBER(read_10xx) override;
-	virtual DECLARE_WRITE8_MEMBER(write_10xx) override;
-	virtual DECLARE_READ8_MEMBER(read_30xx) override;
+	virtual uint8_t read_04xx(offs_t offset) override;
+	virtual void write_04xx(offs_t offset, uint8_t data) override;
+	virtual uint8_t read_10xx(offs_t offset) override;
+	virtual void write_10xx(offs_t offset, uint8_t data) override;
+	virtual uint8_t read_30xx(offs_t offset) override;
 
 protected:
+	virtual void device_start() override;
+	virtual void device_reset() override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
 	required_device<ym2151_device> m_ym;
 	int m_ym_enabled;
 };
@@ -64,8 +65,8 @@ protected:
 
 
 // device type definition
-extern const device_type A78_XBOARD;
-extern const device_type A78_XM;
+DECLARE_DEVICE_TYPE(A78_XBOARD, a78_xboard_device)
+DECLARE_DEVICE_TYPE(A78_XM,     a78_xm_device)
 
 
-#endif
+#endif // MAME_BUS_A7800_XBOARD_H

@@ -2,7 +2,7 @@
 // copyright-holders:Christian Brunschen
 /***************************************************************************
 
-  esqpump.c - Ensoniq 5505/5506 to 5510 interface.
+  esqpump.cpp - Ensoniq 5505/5506 to 5510 interface.
 
   By Christian Brunschen
 
@@ -11,16 +11,24 @@
 #include "emu.h"
 #include "sound/esqpump.h"
 
-const device_type ESQ_5505_5510_PUMP = device_creator<esq_5505_5510_pump>;
+DEFINE_DEVICE_TYPE(ESQ_5505_5510_PUMP, esq_5505_5510_pump_device, "esq_5505_5510_pump", "Ensoniq 5505/5506 to 5510 interface")
 
-esq_5505_5510_pump::esq_5505_5510_pump(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, ESQ_5505_5510_PUMP, "ESQ_5505_5510_PUMP", tag, owner, clock, "esq_5505_5510_pump", __FILE__),
-		device_sound_interface(mconfig, *this), m_stream(nullptr), m_timer(nullptr), m_otis(nullptr), m_esp(nullptr),
-		m_esp_halted(true), ticks_spent_processing(0), samples_processed(0)
+esq_5505_5510_pump_device::esq_5505_5510_pump_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, ESQ_5505_5510_PUMP, tag, owner, clock)
+	, device_sound_interface(mconfig, *this)
+	, m_stream(nullptr)
+	, m_timer(nullptr)
+	, m_esp(*this, finder_base::DUMMY_TAG)
+	, m_esp_halted(true)
+	, ticks_spent_processing(0)
+	, samples_processed(0)
 {
+#if !PUMP_FAKE_ESP_PROCESSING && PUMP_REPLACE_ESP_PROGRAM
+	e = nullptr;
+#endif
 }
 
-void esq_5505_5510_pump::device_start()
+void esq_5505_5510_pump_device::device_start()
 {
 	logerror("Clock = %d\n", clock());
 
@@ -43,27 +51,29 @@ void esq_5505_5510_pump::device_start()
 #endif
 
 #if !PUMP_FAKE_ESP_PROCESSING && PUMP_REPLACE_ESP_PROGRAM
-	memset(e, 0, 0x4000 * sizeof(e[0]));
+	e = make_unique_clear<int16_t[]>(0x4000);
 	ei = 0;
 #endif
 }
 
-void esq_5505_5510_pump::device_stop()
+void esq_5505_5510_pump_device::device_stop()
 {
 	m_timer->enable(false);
 }
 
-void esq_5505_5510_pump::device_reset()
+void esq_5505_5510_pump_device::device_reset()
 {
-	int64_t nsec_per_sample = 100 * 16 * 21;
-	attotime sample_time(0, 1000000000 * nsec_per_sample);
-	attotime initial_delay(0, 0);
-
-	m_timer->adjust(initial_delay, 0, sample_time);
+	m_timer->adjust(attotime::zero, 0, attotime::from_hz(clock()));
 	m_timer->enable(true);
 }
 
-void esq_5505_5510_pump::sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples)
+void esq_5505_5510_pump_device::device_clock_changed()
+{
+	m_stream->set_sample_rate(clock());
+	m_timer->adjust(attotime::zero, 0, attotime::from_hz(clock()));
+}
+
+void esq_5505_5510_pump_device::sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples)
 {
 	if (samples != 1) {
 		logerror("Pump: request for %d samples\n", samples);
@@ -165,7 +175,7 @@ void esq_5505_5510_pump::sound_stream_update(sound_stream &stream, stream_sample
 #endif
 }
 
-void esq_5505_5510_pump::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) {
+void esq_5505_5510_pump_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) {
 	// ecery time there's a new sample period, update the stream!
 	m_stream->update();
 }

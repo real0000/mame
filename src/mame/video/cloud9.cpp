@@ -40,23 +40,8 @@ void cloud9_state::video_start()
 	m_screen->register_screen_bitmap(m_spritebitmap);
 
 	/* register for savestates */
-	save_pointer(NAME(m_videoram.get()), 0x8000);
-	save_item(NAME(m_video_control));
+	save_pointer(NAME(m_videoram), 0x8000);
 	save_item(NAME(m_bitmode_addr));
-}
-
-
-
-/*************************************
- *
- *  Video control registers
- *
- *************************************/
-
-WRITE8_MEMBER(cloud9_state::cloud9_video_control_w)
-{
-	/* only D7 matters */
-	m_video_control[offset] = (data >> 7) & 1;
 }
 
 
@@ -81,19 +66,19 @@ WRITE8_MEMBER(cloud9_state::cloud9_paletteram_w)
 	bit0 = (~r >> 0) & 0x01;
 	bit1 = (~r >> 1) & 0x01;
 	bit2 = (~r >> 2) & 0x01;
-	r = combine_3_weights(m_rweights, bit0, bit1, bit2);
+	r = combine_weights(m_rweights, bit0, bit1, bit2);
 
 	/* green component (inverted) */
 	bit0 = (~g >> 0) & 0x01;
 	bit1 = (~g >> 1) & 0x01;
 	bit2 = (~g >> 2) & 0x01;
-	g = combine_3_weights(m_gweights, bit0, bit1, bit2);
+	g = combine_weights(m_gweights, bit0, bit1, bit2);
 
 	/* blue component (inverted) */
 	bit0 = (~b >> 0) & 0x01;
 	bit1 = (~b >> 1) & 0x01;
 	bit2 = (~b >> 2) & 0x01;
-	b = combine_3_weights(m_bweights, bit0, bit1, bit2);
+	b = combine_weights(m_bweights, bit0, bit1, bit2);
 
 	m_palette->set_pen_color(offset & 0x3f, rgb_t(r, g, b));
 }
@@ -127,8 +112,8 @@ inline void cloud9_state::cloud9_write_vram( uint16_t addr, uint8_t data, uint8_
 	    Bit 0 = PIXA
 	*/
 	promaddr |= bitmd << 7;
-	promaddr |= m_video_control[4] << 6;
-	promaddr |= m_video_control[6] << 5;
+	promaddr |= m_videolatch->q4_r() << 6;
+	promaddr |= m_videolatch->q6_r() << 5;
 	promaddr |= ((addr & 0xf000) != 0x4000) << 4;
 	promaddr |= ((addr & 0x3800) == 0x0000) << 3;
 	promaddr |= ((addr & 0x0600) == 0x0600) << 2;
@@ -159,11 +144,11 @@ inline void cloud9_state::cloud9_write_vram( uint16_t addr, uint8_t data, uint8_
 inline void cloud9_state::bitmode_autoinc(  )
 {
 	/* auto increment in the x-direction if it's enabled */
-	if (!m_video_control[0]) /* /AX */
+	if (!m_videolatch->q0_r()) /* /AX */
 		m_bitmode_addr[0]++;
 
 	/* auto increment in the y-direction if it's enabled */
-	if (!m_video_control[1]) /* /AY */
+	if (!m_videolatch->q1_r()) /* /AY */
 		m_bitmode_addr[1]++;
 }
 
@@ -239,7 +224,7 @@ WRITE8_MEMBER(cloud9_state::cloud9_bitmode_addr_w)
 uint32_t cloud9_state::screen_update_cloud9(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	uint8_t *spriteaddr = m_spriteram;
-	int flip = m_video_control[5] ? 0xff : 0x00;    /* PLAYER2 */
+	int flip = m_videolatch->q5_r() ? 0xff : 0x00;    /* PLAYER2 */
 	pen_t black = m_palette->black_pen();
 	int x, y, offs;
 
@@ -261,14 +246,14 @@ uint32_t cloud9_state::screen_update_cloud9(screen_device &screen, bitmap_ind16 
 		}
 
 	/* draw the bitmap to the screen, looping over Y */
-	for (y = cliprect.min_y; y <= cliprect.max_y; y++)
+	for (y = cliprect.top(); y <= cliprect.bottom(); y++)
 	{
 		uint16_t *dst = &bitmap.pix16(y);
 
 		/* if we're in the VBLANK region, just fill with black */
 		if (~m_syncprom[y] & 2)
 		{
-			for (x = cliprect.min_x; x <= cliprect.max_x; x++)
+			for (x = cliprect.left(); x <= cliprect.right(); x++)
 				dst[x] = black;
 		}
 
@@ -284,7 +269,7 @@ uint32_t cloud9_state::screen_update_cloud9(screen_device &screen, bitmap_ind16 
 			src[1] = &m_videoram[0x0000 | (effy * 64)];
 
 			/* loop over X */
-			for (x = cliprect.min_x; x <= cliprect.max_x; x++)
+			for (x = cliprect.left(); x <= cliprect.right(); x++)
 			{
 				/* if we're in the HBLANK region, just store black */
 				if (x >= 256)
@@ -304,7 +289,7 @@ uint32_t cloud9_state::screen_update_cloud9(screen_device &screen, bitmap_ind16 
 						pix = mopix | 0x10;
 
 					/* the high bit is the bank select */
-					pix |= m_video_control[7] << 5;
+					pix |= m_videolatch->q7_r() << 5;
 
 					/* store the pixel value and also a priority value based on the topmost bit */
 					dst[x] = pix;

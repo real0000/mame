@@ -52,16 +52,15 @@ void m92_state::device_timer(emu_timer &timer, device_timer_id id, int param, vo
 	{
 	case TIMER_SPRITEBUFFER:
 		m_sprite_buffer_busy = 1;
-		if (m_game_kludge!=2) /* Major Title 2 doesn't like this interrupt!? */
-			m92_sprite_interrupt();
+		m_upd71059c->ir1_w(1);
 		break;
 	default:
-		assert_always(false, "Unknown id in m92_state::device_timer");
+		throw emu_fatalerror("Unknown id in m92_state::device_timer");
 	}
 }
 
 
-WRITE16_MEMBER(m92_state::m92_spritecontrol_w)
+WRITE16_MEMBER(m92_state::spritecontrol_w)
 {
 	COMBINE_DATA(&m_spritecontrol[offset]);
 	// offset0: sprite list size (negative)
@@ -88,15 +87,16 @@ WRITE16_MEMBER(m92_state::m92_spritecontrol_w)
 		/* this implementation is not accurate: still some delayed sprites in gunforc2 (might be another issue?) */
 		m_spriteram->copy();
 		m_sprite_buffer_busy = 0;
+		m_upd71059c->ir1_w(0);
 
 		/* Pixel clock is 26.6666MHz (some boards 27MHz??), we have 0x800 bytes, or 0x400 words to copy from
 		spriteram to the buffer.  It seems safe to assume 1 word can be copied per clock. */
-		timer_set(attotime::from_hz(XTAL_26_66666MHz) * 0x400, TIMER_SPRITEBUFFER);
+		m_spritebuffer_timer->adjust(attotime::from_hz(XTAL(26'666'666)) * 0x400);
 	}
-//  logerror("%04x: m92_spritecontrol_w %08x %08x\n",space.device().safe_pc(),offset,data);
+//  logerror("%s: spritecontrol_w %08x %08x\n",m_maincpu->pc(),offset,data);
 }
 
-WRITE16_MEMBER(m92_state::m92_videocontrol_w)
+WRITE16_MEMBER(m92_state::videocontrol_w)
 {
 	COMBINE_DATA(&m_videocontrol);
 	/*
@@ -130,17 +130,17 @@ WRITE16_MEMBER(m92_state::m92_videocontrol_w)
 	/* Access to upper palette bank */
 	m_palette_bank = (m_videocontrol >> 1) & 1;
 
-//  logerror("%04x: m92_videocontrol_w %d = %02x\n",space.device().safe_pc(),offset,data);
+//  logerror("%s: videocontrol_w %d = %02x\n",m_maincpu->pc(),offset,data);
 }
 
-READ16_MEMBER(m92_state::m92_paletteram_r)
+READ16_MEMBER(m92_state::paletteram_r)
 {
-	return m_paletteram[offset + 0x400 * m_palette_bank];
+	return m_paletteram[offset | (m_palette_bank << 10)];
 }
 
-WRITE16_MEMBER(m92_state::m92_paletteram_w)
+WRITE16_MEMBER(m92_state::paletteram_w)
 {
-	m_palette->write(space, offset + 0x400 * m_palette_bank, data, mem_mask);
+	m_palette->write16(offset | (m_palette_bank << 10), data, mem_mask);
 }
 
 /*****************************************************************************/
@@ -154,7 +154,7 @@ TILE_GET_INFO_MEMBER(m92_state::get_pf_tile_info)
 	attrib = m_vram_data[tile_index + 1];
 	tile = m_vram_data[tile_index] + ((attrib & 0x8000) << 1);
 
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 			tile,
 			attrib & 0x7f,
 			TILE_FLIPYX(attrib >> 9));
@@ -165,7 +165,7 @@ TILE_GET_INFO_MEMBER(m92_state::get_pf_tile_info)
 
 /*****************************************************************************/
 
-WRITE16_MEMBER(m92_state::m92_vram_w)
+WRITE16_MEMBER(m92_state::vram_w)
 {
 	int laynum;
 
@@ -185,22 +185,7 @@ WRITE16_MEMBER(m92_state::m92_vram_w)
 
 /*****************************************************************************/
 
-WRITE16_MEMBER(m92_state::m92_pf1_control_w)
-{
-	COMBINE_DATA(&m_pf_layer[0].control[offset]);
-}
-
-WRITE16_MEMBER(m92_state::m92_pf2_control_w)
-{
-	COMBINE_DATA(&m_pf_layer[1].control[offset]);
-}
-
-WRITE16_MEMBER(m92_state::m92_pf3_control_w)
-{
-	COMBINE_DATA(&m_pf_layer[2].control[offset]);
-}
-
-WRITE16_MEMBER(m92_state::m92_master_control_w)
+WRITE16_MEMBER(m92_state::master_control_w)
 {
 	uint16_t old = m_pf_master_control[offset];
 	M92_pf_layer_info *layer;
@@ -239,6 +224,7 @@ WRITE16_MEMBER(m92_state::m92_master_control_w)
 
 		case 3:
 			m_raster_irq_position = m_pf_master_control[3] - 128;
+			m_upd71059c->ir2_w(0);
 			break;
 	}
 }
@@ -247,16 +233,16 @@ WRITE16_MEMBER(m92_state::m92_master_control_w)
 
 VIDEO_START_MEMBER(m92_state,m92)
 {
-	int laynum;
+	m_spritebuffer_timer = timer_alloc(TIMER_SPRITEBUFFER);
 
 	memset(&m_pf_layer, 0, sizeof(m_pf_layer));
-	for (laynum = 0; laynum < 3; laynum++)
+	for (int laynum = 0; laynum < 3; laynum++)
 	{
 		M92_pf_layer_info *layer = &m_pf_layer[laynum];
 
 		/* allocate two tilemaps per layer, one normal, one wide */
-		layer->tmap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(m92_state::get_pf_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 64,64);
-		layer->wide_tmap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(m92_state::get_pf_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 128,64);
+		layer->tmap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(m92_state::get_pf_tile_info)), TILEMAP_SCAN_ROWS,  8,8, 64,64);
+		layer->wide_tmap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(m92_state::get_pf_tile_info)), TILEMAP_SCAN_ROWS,  8,8, 128,64);
 
 		/* set the user data for each one to point to the layer */
 		layer->tmap->set_user_data(&m_pf_layer[laynum]);
@@ -301,11 +287,9 @@ VIDEO_START_MEMBER(m92_state,m92)
 
 VIDEO_START_MEMBER(m92_state,ppan)
 {
-	int laynum;
-
 	VIDEO_START_CALL_MEMBER(m92);
 
-	for (laynum = 0; laynum < 3; laynum++)
+	for (int laynum = 0; laynum < 3; laynum++)
 	{
 		M92_pf_layer_info *layer = &m_pf_layer[laynum];
 

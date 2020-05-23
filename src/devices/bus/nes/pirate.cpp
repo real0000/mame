@@ -17,8 +17,7 @@
 #include "emu.h"
 #include "pirate.h"
 
-#include "cpu/m6502/m6502.h"
-#include "video/ppu2c0x.h"      // this has to be included so that IRQ functions can access PPU_BOTTOM_VISIBLE_SCANLINE
+#include "video/ppu2c0x.h"      // this has to be included so that IRQ functions can access ppu2c0x_device::BOTTOM_VISIBLE_SCANLINE
 #include "screen.h"
 
 
@@ -35,108 +34,96 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type NES_AGCI_50282 = device_creator<nes_agci_device>;
-const device_type NES_DREAMTECH01 = device_creator<nes_dreamtech_device>;
-const device_type NES_FUKUTAKE = device_creator<nes_fukutake_device>;
-const device_type NES_FUTUREMEDIA = device_creator<nes_futuremedia_device>;
-const device_type NES_MAGSERIES = device_creator<nes_magseries_device>;
-const device_type NES_DAOU306 = device_creator<nes_daou306_device>;
-const device_type NES_SUBOR0 = device_creator<nes_subor0_device>;
-const device_type NES_SUBOR1 = device_creator<nes_subor1_device>;
-const device_type NES_CC21 = device_creator<nes_cc21_device>;
-const device_type NES_XIAOZY = device_creator<nes_xiaozy_device>;
-const device_type NES_EDU2K = device_creator<nes_edu2k_device>;
-const device_type NES_T230 = device_creator<nes_t230_device>;
-const device_type NES_MK2 = device_creator<nes_mk2_device>;
-const device_type NES_WHERO = device_creator<nes_whero_device>;
-const device_type NES_43272 = device_creator<nes_43272_device>;
-const device_type NES_TF1201 = device_creator<nes_tf1201_device>;
-const device_type NES_CITYFIGHT = device_creator<nes_cityfight_device>;
+DEFINE_DEVICE_TYPE(NES_AGCI_50282,  nes_agci_device,        "nes_agci50282",   "NES Cart AGCI 50282 PCB")
+DEFINE_DEVICE_TYPE(NES_DREAMTECH01, nes_dreamtech_device,   "nes_dreamtech",   "NES Cart Dreamtech01 PCB")
+DEFINE_DEVICE_TYPE(NES_FUKUTAKE,    nes_fukutake_device,    "nes_futuremedia", "NES Cart Fukutake Study Box PCB")
+DEFINE_DEVICE_TYPE(NES_FUTUREMEDIA, nes_futuremedia_device, "nes_fukutake",    "NES Cart FutureMedia PCB")
+DEFINE_DEVICE_TYPE(NES_MAGSERIES,   nes_magseries_device,   "nes_magseries",   "NES Cart Magical Series PCB")
+DEFINE_DEVICE_TYPE(NES_DAOU306,     nes_daou306_device,     "nes_daou306",     "NES Cart Daou 306 PCB")
+DEFINE_DEVICE_TYPE(NES_CC21,        nes_cc21_device,        "nes_cc21",        "NES Cart CC-21 PCB")
+DEFINE_DEVICE_TYPE(NES_XIAOZY,      nes_xiaozy_device,      "nes_xiaozy",      "NES Cart Xiao Zhuan Yuan PCB")
+DEFINE_DEVICE_TYPE(NES_EDU2K,       nes_edu2k_device,       "nes_edu2k",       "NES Cart Educational Computer 2000 PCB")
+DEFINE_DEVICE_TYPE(NES_T230,        nes_t230_device,        "nes_t230",        "NES Cart T-230 PCB")
+DEFINE_DEVICE_TYPE(NES_MK2,         nes_mk2_device,         "nes_mk2",         "NES Cart Mortal Kombat 2 PCB")
+DEFINE_DEVICE_TYPE(NES_WHERO,       nes_whero_device,       "nes_whero",       "NES Cart World Heroes PCB")
+DEFINE_DEVICE_TYPE(NES_43272,       nes_43272_device,       "nes_43272",       "NES Cart UNL-43272 PCB")
+DEFINE_DEVICE_TYPE(NES_TF1201,      nes_tf1201_device,      "nes_tf1201",      "NES Cart UNL-TF1201 PCB")
+DEFINE_DEVICE_TYPE(NES_CITYFIGHT,   nes_cityfight_device,   "nes_cityfight",   "NES Cart City Fighter PCB")
 
 
 nes_agci_device::nes_agci_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_AGCI_50282, "NES Cart AGCI 50282 PCB", tag, owner, clock, "nes_agci50282", __FILE__)
+	: nes_nrom_device(mconfig, NES_AGCI_50282, tag, owner, clock)
 {
 }
 
 nes_dreamtech_device::nes_dreamtech_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_DREAMTECH01, "NES Cart Dreamtech01 PCB", tag, owner, clock, "nes_dreamtech", __FILE__)
+	: nes_nrom_device(mconfig, NES_DREAMTECH01, tag, owner, clock)
 {
 }
 
 nes_fukutake_device::nes_fukutake_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_FUKUTAKE, "NES Cart Fukutake Study Box PCB", tag, owner, clock, "nes_fukutake", __FILE__), m_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_FUKUTAKE, tag, owner, clock), m_latch(0)
+{
 }
 
 nes_futuremedia_device::nes_futuremedia_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_FUTUREMEDIA, "NES Cart FutureMedia PCB", tag, owner, clock, "nes_futuremedia", __FILE__), m_irq_count(0), m_irq_count_latch(0), m_irq_clear(0), m_irq_enable(0)
-				{
+	: nes_nrom_device(mconfig, NES_FUTUREMEDIA, tag, owner, clock), m_irq_count(0), m_irq_count_latch(0), m_irq_clear(0), m_irq_enable(0)
+{
 }
 
 nes_magseries_device::nes_magseries_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_MAGSERIES, "NES Cart Magical Series PCB", tag, owner, clock, "nes_magseries", __FILE__)
+	: nes_nrom_device(mconfig, NES_MAGSERIES, tag, owner, clock)
 {
 }
 
 nes_daou306_device::nes_daou306_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_DAOU306, "NES Cart Daou 306 PCB", tag, owner, clock, "nes_daou306", __FILE__)
-{
-}
-
-nes_subor0_device::nes_subor0_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_SUBOR0, "NES Cart Subor Type 0 PCB", tag, owner, clock, "nes_subor0", __FILE__)
-{
-}
-
-nes_subor1_device::nes_subor1_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_SUBOR1, "NES Cart Subor Type 1 PCB", tag, owner, clock, "nes_subor1", __FILE__)
+	: nes_nrom_device(mconfig, NES_DAOU306, tag, owner, clock)
 {
 }
 
 nes_cc21_device::nes_cc21_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_CC21, "NES Cart CC-21 PCB", tag, owner, clock, "nes_cc21", __FILE__)
+	: nes_nrom_device(mconfig, NES_CC21, tag, owner, clock)
 {
 }
 
 nes_xiaozy_device::nes_xiaozy_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_XIAOZY, "NES Cart Xiao Zhuan Yuan PCB", tag, owner, clock, "nes_xiaozy", __FILE__)
+	: nes_nrom_device(mconfig, NES_XIAOZY, tag, owner, clock)
 {
 }
 
 nes_edu2k_device::nes_edu2k_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_EDU2K, "NES Cart Educational Computer 2000 PCB", tag, owner, clock, "nes_edu2k", __FILE__), m_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_EDU2K, tag, owner, clock)
+{
 }
 
 nes_t230_device::nes_t230_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_T230, "NES Cart T-230 PCB", tag, owner, clock, "nes_t230", __FILE__), m_irq_count(0), m_irq_count_latch(0), m_irq_mode(0), m_irq_enable(0), m_irq_enable_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_T230, tag, owner, clock), m_irq_count(0), m_irq_count_latch(0), m_irq_mode(0), m_irq_enable(0), m_irq_enable_latch(0)
+{
 }
 
 nes_mk2_device::nes_mk2_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_MK2, "NES Cart Mortal Kombat 2 PCB", tag, owner, clock, "nes_mk2", __FILE__), m_irq_count(0), m_irq_count_latch(0), m_irq_clear(0), m_irq_enable(0)
-				{
+	: nes_nrom_device(mconfig, NES_MK2, tag, owner, clock), m_irq_count(0), m_irq_count_latch(0), m_irq_clear(0), m_irq_enable(0)
+{
 }
 
 nes_whero_device::nes_whero_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_WHERO, "NES Cart World Heroes PCB", tag, owner, clock, "nes_whero", __FILE__), m_reg(0), m_irq_count(0), m_irq_count_latch(0), m_irq_enable(0), m_irq_enable_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_WHERO, tag, owner, clock), m_reg(0), m_irq_count(0), m_irq_count_latch(0), m_irq_enable(0), m_irq_enable_latch(0)
+{
 }
 
 nes_43272_device::nes_43272_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_43272, "NES Cart UNL-43272 PCB", tag, owner, clock, "nes_43272", __FILE__), m_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_43272, tag, owner, clock), m_latch(0)
+{
 }
 
 nes_tf1201_device::nes_tf1201_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_TF1201, "NES Cart UNL-TF1201 PCB", tag, owner, clock, "nes_tf1201", __FILE__), m_prg(0), m_swap(0), m_irq_count(0), m_irq_enable(0), m_irq_enable_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_TF1201, tag, owner, clock), m_prg(0), m_swap(0), m_irq_count(0), m_irq_enable(0), m_irq_enable_latch(0)
+{
 }
 
 nes_cityfight_device::nes_cityfight_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_CITYFIGHT, "NES Cart City Fighter PCB", tag, owner, clock, "nes_cityfight", __FILE__), m_prg_reg(0), m_prg_mode(0), m_irq_count(0), m_irq_enable(0), irq_timer(nullptr)
-				{
+	: nes_nrom_device(mconfig, NES_CITYFIGHT, tag, owner, clock), m_prg_reg(0), m_prg_mode(0), m_irq_count(0), m_irq_enable(0), irq_timer(nullptr)
+{
 }
 
 
@@ -232,38 +219,6 @@ void nes_daou306_device::pcb_reset()
 	prg16_cdef(m_prg_chunks - 1);
 	chr8(0, m_chr_source);
 	set_nt_mirroring(PPU_MIRROR_LOW);
-
-	memset(m_reg, 0, sizeof(m_reg));
-}
-
-void nes_subor0_device::device_start()
-{
-	common_start();
-	save_item(NAME(m_reg));
-}
-
-void nes_subor0_device::pcb_reset()
-{
-	m_chr_source = m_vrom_chunks ? CHRROM : CHRRAM;
-	prg16_89ab(0);
-	prg16_cdef(0x20);
-	chr8(0, m_chr_source);
-
-	memset(m_reg, 0, sizeof(m_reg));
-}
-
-void nes_subor1_device::device_start()
-{
-	common_start();
-	save_item(NAME(m_reg));
-}
-
-void nes_subor1_device::pcb_reset()
-{
-	m_chr_source = m_vrom_chunks ? CHRROM : CHRRAM;
-	prg16_89ab(0);
-	prg16_cdef(0x07);
-	chr8(0, m_chr_source);
 
 	memset(m_reg, 0, sizeof(m_reg));
 }
@@ -427,7 +382,7 @@ void nes_cityfight_device::device_start()
 {
 	common_start();
 	irq_timer = timer_alloc(TIMER_IRQ);
-	irq_timer->adjust(attotime::zero, 0, machine().device<cpu_device>("maincpu")->cycles_to_attotime(1));
+	irq_timer->adjust(attotime::zero, 0, clocks_to_attotime(1));
 
 	save_item(NAME(m_prg_reg));
 	save_item(NAME(m_prg_mode));
@@ -468,7 +423,7 @@ void nes_cityfight_device::pcb_reset()
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_agci_device::write_h)
+void nes_agci_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("agci write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -490,7 +445,7 @@ WRITE8_MEMBER(nes_agci_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_dreamtech_device::write_l)
+void nes_dreamtech_device::write_l(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("dreamtech write_l, offset: %04x, data: %02x\n", offset, data));
 	offset += 0x100;
@@ -512,7 +467,7 @@ WRITE8_MEMBER(nes_dreamtech_device::write_l)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_fukutake_device::write_l)
+void nes_fukutake_device::write_l(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("fukutake write_l, offset: %04x, data: %02x\n", offset, data));
 	offset += 0x100;
@@ -528,7 +483,7 @@ WRITE8_MEMBER(nes_fukutake_device::write_l)
 		m_ram[offset - 0x400] = data;
 }
 
-READ8_MEMBER(nes_fukutake_device::read_l)
+uint8_t nes_fukutake_device::read_l(offs_t offset)
 {
 	LOG_MMC(("fukutake read_l, offset: %04x\n", offset));
 	offset += 0x100;
@@ -548,13 +503,13 @@ READ8_MEMBER(nes_fukutake_device::read_l)
 	return 0;
 }
 
-WRITE8_MEMBER(nes_fukutake_device::write_m)
+void nes_fukutake_device::write_m(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("fukutake write_m, offset: %04x, data: %02x\n", offset, data));
 	m_prgram[((m_latch * 0x2000) + offset) & (m_prgram.size() - 1)] = data;
 }
 
-READ8_MEMBER(nes_fukutake_device::read_m)
+uint8_t nes_fukutake_device::read_m(offs_t offset)
 {
 	LOG_MMC(("fukutake read_m, offset: %04x\n", offset));
 	return m_prgram[((m_latch * 0x2000) + offset) & (m_prgram.size() - 1)];
@@ -574,18 +529,18 @@ READ8_MEMBER(nes_fukutake_device::read_m)
 
 void nes_futuremedia_device::hblank_irq(int scanline, int vblank, int blanked)
 {
-	//  if (scanline < PPU_BOTTOM_VISIBLE_SCANLINE)
+	//  if (scanline < ppu2c0x_device::BOTTOM_VISIBLE_SCANLINE)
 	{
 		if (m_irq_enable && m_irq_count)
 		{
 			m_irq_count--;
 			if (!m_irq_count)
-				m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+				hold_irq_line();
 		}
 	}
 }
 
-WRITE8_MEMBER(nes_futuremedia_device::write_h)
+void nes_futuremedia_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("futuremedia write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -648,7 +603,7 @@ WRITE8_MEMBER(nes_futuremedia_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_magseries_device::write_h)
+void nes_magseries_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("magseries write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -671,7 +626,7 @@ WRITE8_MEMBER(nes_magseries_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_daou306_device::write_h)
+void nes_daou306_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("daou306 write_h, offset: %04x, data: %02x\n", offset, data));
 	int reg = BIT(offset, 2) ? 8 : 0;
@@ -732,82 +687,6 @@ WRITE8_MEMBER(nes_daou306_device::write_h)
 
 /*-------------------------------------------------
 
- Subor bootleg board Type 0
-
- iNES: mapper 167
-
- -------------------------------------------------*/
-
-WRITE8_MEMBER(nes_subor0_device::write_h)
-{
-	uint8_t subor_helper1, subor_helper2;
-	LOG_MMC(("subor0 write_h, offset: %04x, data: %02x\n", offset, data));
-
-	m_reg[(offset >> 13) & 0x03] = data;
-	subor_helper1 = ((m_reg[0] ^ m_reg[1]) << 1) & 0x20;
-	subor_helper2 = ((m_reg[2] ^ m_reg[3]) << 0) & 0x1f;
-
-	if (m_reg[1] & 0x08)
-	{
-		subor_helper1 += subor_helper2 & 0xfe;
-		subor_helper2 = subor_helper1;
-		subor_helper1 += 1;
-	}
-	else if (m_reg[1] & 0x04)
-	{
-		subor_helper2 += subor_helper1;
-		subor_helper1 = 0x1f;
-	}
-	else
-	{
-		subor_helper1 += subor_helper2;
-		subor_helper2 = 0x20;
-	}
-
-	prg16_89ab(subor_helper1);
-	prg16_cdef(subor_helper2);
-}
-
-/*-------------------------------------------------
-
- Subor bootleg board Type 1
-
- iNES: mapper 166
-
- -------------------------------------------------*/
-
-WRITE8_MEMBER(nes_subor1_device::write_h)
-{
-	uint8_t subor_helper1, subor_helper2;
-	LOG_MMC(("subor1 write_h, offset: %04x, data: %02x\n", offset, data));
-
-	m_reg[(offset >> 13) & 0x03] = data;
-	subor_helper1 = ((m_reg[0] ^ m_reg[1]) << 1) & 0x20;
-	subor_helper2 = ((m_reg[2] ^ m_reg[3]) << 0) & 0x1f;
-
-	if (m_reg[1] & 0x08)
-	{
-		subor_helper1 += subor_helper2 & 0xfe;
-		subor_helper2 = subor_helper1;
-		subor_helper2 += 1;
-	}
-	else if (m_reg[1] & 0x04)
-	{
-		subor_helper2 += subor_helper1;
-		subor_helper1 = 0x1f;
-	}
-	else
-	{
-		subor_helper1 += subor_helper2;
-		subor_helper2 = 0x07;
-	}
-
-	prg16_89ab(subor_helper1);
-	prg16_cdef(subor_helper2);
-}
-
-/*-------------------------------------------------
-
  Board UNL-CC-21
 
  Games: Mi Hun Che
@@ -816,7 +695,7 @@ WRITE8_MEMBER(nes_subor1_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_cc21_device::write_h)
+void nes_cc21_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("cc21 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -839,7 +718,7 @@ WRITE8_MEMBER(nes_cc21_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_xiaozy_device::write_l)
+void nes_xiaozy_device::write_l(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("xiaozy write_l, offset: %04x, data: %02x\n", offset, data));
 
@@ -860,7 +739,7 @@ WRITE8_MEMBER(nes_xiaozy_device::write_l)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_edu2k_device::write_h)
+void nes_edu2k_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("edu2k write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -868,13 +747,13 @@ WRITE8_MEMBER(nes_edu2k_device::write_h)
 	m_latch = (data & 0xc0) >> 6;
 }
 
-WRITE8_MEMBER(nes_edu2k_device::write_m)
+void nes_edu2k_device::write_m(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("edu2k write_m, offset: %04x, data: %02x\n", offset, data));
 	m_prgram[((m_latch * 0x2000) + offset) & (m_prgram.size() - 1)] = data;
 }
 
-READ8_MEMBER(nes_edu2k_device::read_m)
+uint8_t nes_edu2k_device::read_m(offs_t offset)
 {
 	LOG_MMC(("edu2k read_m, offset: %04x\n", offset));
 	return m_prgram[((m_latch * 0x2000) + offset) & (m_prgram.size() - 1)];
@@ -904,11 +783,11 @@ void nes_t230_device::hblank_irq(int scanline, int vblank, int blanked)
 	{
 		m_irq_count = m_irq_count_latch;
 		m_irq_enable = m_irq_enable_latch;
-		m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+		hold_irq_line();
 	}
 }
 
-WRITE8_MEMBER(nes_t230_device::write_h)
+void nes_t230_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("t230 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -973,7 +852,7 @@ WRITE8_MEMBER(nes_t230_device::write_h)
 // Same IRQ as MMC3
 void nes_mk2_device::hblank_irq( int scanline, int vblank, int blanked )
 {
-	if (scanline < PPU_BOTTOM_VISIBLE_SCANLINE)
+	if (scanline < ppu2c0x_device::BOTTOM_VISIBLE_SCANLINE)
 	{
 		int prior_count = m_irq_count;
 		if ((m_irq_count == 0) || m_irq_clear)
@@ -983,15 +862,14 @@ void nes_mk2_device::hblank_irq( int scanline, int vblank, int blanked )
 
 		if (m_irq_enable && !blanked && (m_irq_count == 0) && (prior_count || m_irq_clear))
 		{
-			LOG_MMC(("irq fired, scanline: %d (MAME %d, beam pos: %d)\n", scanline,
-						machine().first_screen()->vpos(), machine().first_screen()->hpos()));
-			m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+			LOG_MMC(("irq fired, scanline: %d\n", scanline));
+			hold_irq_line();
 		}
 	}
 	m_irq_clear = 0;
 }
 
-WRITE8_MEMBER(nes_mk2_device::write_m)
+void nes_mk2_device::write_m(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("mk2 write_m, offset: %04x, data: %02x\n", offset, data));
 
@@ -1039,11 +917,11 @@ void nes_whero_device::hblank_irq(int scanline, int vblank, int blanked)
 	{
 		m_irq_count = m_irq_count_latch;
 		m_irq_enable = m_irq_enable_latch;
-		m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+		hold_irq_line();
 	}
 }
 
-WRITE8_MEMBER(nes_whero_device::write_h)
+void nes_whero_device::write_h(offs_t offset, uint8_t data)
 {
 	int bank, shift, mask1, mask2;
 	LOG_MMC(("World Hero write_h, offset: %04x, data: %02x\n", offset, data));
@@ -1127,7 +1005,7 @@ WRITE8_MEMBER(nes_whero_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_43272_device::write_h)
+void nes_43272_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("unl_43272 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -1138,7 +1016,7 @@ WRITE8_MEMBER(nes_43272_device::write_h)
 }
 
 
-READ8_MEMBER(nes_43272_device::read_h)
+uint8_t nes_43272_device::read_h(offs_t offset)
 {
 	uint8_t mask = (m_latch & 0x400) ? 0xfe : 0xff;
 	LOG_MMC(("unl_43272 read_h, offset: %04x\n", offset));
@@ -1166,7 +1044,7 @@ void nes_tf1201_device::hblank_irq(int scanline, int vblank, int blanked)
 	{
 		m_irq_count++;
 		if ((m_irq_count & 0xff) == 238)
-			m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+			hold_irq_line();
 	}
 }
 
@@ -1176,7 +1054,7 @@ void nes_tf1201_device::update_prg()
 	prg8_cd(m_swap ? m_prg : 0xff );
 }
 
-WRITE8_MEMBER(nes_tf1201_device::write_h)
+void nes_tf1201_device::write_h(offs_t offset, uint8_t data)
 {
 	int bank;
 	LOG_MMC(("unl_tf1201 write_h, offset: %04x, data: %02x\n", offset, data));
@@ -1245,7 +1123,7 @@ void nes_cityfight_device::device_timer(emu_timer &timer, device_timer_id id, in
 		{
 			if (!m_irq_count)
 			{
-				m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+				hold_irq_line();
 				m_irq_count = 0xffff;
 			}
 			else
@@ -1261,7 +1139,7 @@ void nes_cityfight_device::update_prg()
 		prg8_cd(m_prg_reg);
 }
 
-WRITE8_MEMBER(nes_cityfight_device::write_h)
+void nes_cityfight_device::write_h(offs_t offset, uint8_t data)
 {
 	int bank;
 	LOG_MMC(("unl_cityfight write_h, offset: %04x, data: %02x\n", offset, data));
@@ -1366,7 +1244,7 @@ void nes_fujiya_device::pcb_reset()
 	m_latch = 0;
 }
 
-WRITE8_MEMBER(nes_fujiya_device::write_m)
+void nes_fujiya_device::write_m(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("fujiya write_m, offset: %04x, data: %02x\n", offset, data));
 	offset += 0x6000;
@@ -1375,7 +1253,7 @@ WRITE8_MEMBER(nes_fujiya_device::write_m)
 		m_latch = (data & 0x40) << 1;
 }
 
-READ8_MEMBER(nes_fujiya_device::read_m)
+uint8_t nes_fujiya_device::read_m(offs_t offset)
 {
 	LOG_MMC(("fujiya read_m, offset: %04x\n", offset));
 	offset += 0x6000;
@@ -1383,6 +1261,6 @@ READ8_MEMBER(nes_fujiya_device::read_m)
 	if (offset == 0x7001 || offset == 0x7777)
 		return m_latch | ((offset >> 8) & 0x7f);
 
-	return m_open_bus;  // open bus
+	return get_open_bus();  // open bus
 }
 #endif

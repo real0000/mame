@@ -24,10 +24,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_SOUND_LMC1992_H
+#define MAME_SOUND_LMC1992_H
 
-#ifndef __LMC1992__
-#define __LMC1992__
+#pragma once
 
 
 
@@ -49,16 +49,6 @@ enum
 };
 
 
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_LMC1992_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, LMC1992, 0)
-
-
-
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
@@ -70,7 +60,7 @@ class lmc1992_device :  public device_t,
 {
 public:
 	// construction/destruction
-	lmc1992_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	lmc1992_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
 	DECLARE_WRITE_LINE_MEMBER( clock_w );
 	DECLARE_WRITE_LINE_MEMBER( data_w );
@@ -105,8 +95,6 @@ private:
 
 
 // device type definition
-extern const device_type LMC1992;
+DECLARE_DEVICE_TYPE(LMC1992, lmc1992_device)
 
-
-
-#endif
+#endif // MAME_SOUND_LMC1992_H

@@ -33,8 +33,9 @@
 *********************************************************************/
 
 #include "emu.h"
-#include "machine/applefdc.h"
 #include "sonydriv.h"
+
+#include "machine/applefdc.h"
 #include "formats/ap_dsk35.h"
 #include "imagedev/flopdrv.h"
 
@@ -100,6 +101,48 @@ static sonydriv_t sony;
 static int sony_enable2(void)
 {
 	return (sony.lines & SONY_CA1) && (sony.lines & SONY_LSTRB);
+}
+
+static legacy_floppy_image_device *floppy_get_device(running_machine &machine,int drive)
+{
+	switch(drive) {
+		case 0 : return machine.device<legacy_floppy_image_device>(FLOPPY_0);
+		case 1 : return machine.device<legacy_floppy_image_device>(FLOPPY_1);
+		case 2 : return machine.device<legacy_floppy_image_device>(FLOPPY_2);
+		case 3 : return machine.device<legacy_floppy_image_device>(FLOPPY_3);
+	}
+	return nullptr;
+}
+
+static legacy_floppy_image_device *floppy_get_device_by_type(running_machine &machine,int ftype,int drive)
+{
+	int i;
+	int cnt = 0;
+	for (i=0;i<4;i++) {
+		legacy_floppy_image_device *disk = floppy_get_device(machine,i);
+		if (disk && disk->floppy_get_drive_type()==ftype) {
+			if (cnt==drive) {
+				return disk;
+			}
+			cnt++;
+		}
+	}
+	return nullptr;
+}
+
+static int floppy_get_drive_by_type(legacy_floppy_image_device *image,int ftype)
+{
+	int i,drive =0;
+	for (i=0;i<4;i++) {
+		legacy_floppy_image_device *disk = floppy_get_device(image->machine(),i);
+		if (disk && disk->floppy_get_drive_type()==ftype) {
+			if (image==disk) {
+				return drive;
+			}
+			drive++;
+		}
+	}
+	return -1;
 }
 
 static void load_track_data(device_t *device,int floppy_select)
@@ -271,8 +314,9 @@ int sony_read_status(device_t *device)
 
 	if (LOG_SONY_EXTRA)
 	{
-		printf("sony.status(): action=%x pc=0x%08x%s\n",
-			action, (int) device->machine().firstcpu->pc(), sony.floppy_enable ? "" : " (no drive enabled)");
+		device->logerror("%s sony.status(): action=%x%s\n",
+			device->machine().describe_context(),
+			action, sony.floppy_enable ? "" : " (no drive enabled)");
 	}
 
 	if ((! sony_enable2()) && sony.floppy_enable)
@@ -428,6 +472,12 @@ static void sony_doaction(device_t *device)
 			break;
 		case 0x03:  /* Reset diskswitched */
 			f->disk_switched = 0;
+			// flopdrv.cpp won't reset its disk switch flag without
+			// doing a seek.  So we do a seek of 0 tracks, which works.
+			if (cur_image)
+			{
+				cur_image->floppy_drive_seek(0);
+			}
 			break;
 		case 0x04:  /* Step disk */
 			if (cur_image)
@@ -470,7 +520,7 @@ void sony_set_lines(device_t *device,uint8_t lines)
 
 	{
 		//int action = ((sony.lines & (SONY_CA1 | SONY_CA0)) << 2) | (sony.sel_line << 1) | ((sony.lines & SONY_CA2) >> 2);
-		//printf("sony.set_lines: %02x, action now %d\n", lines&0xf, action);
+		//logerror("sony.set_lines: %02x, action now %d\n", lines&0xf, action);
 	}
 
 	/* have we just set LSTRB ? */
@@ -512,7 +562,7 @@ void sony_set_sel_line(device_t *device,int sel)
 
 	{
 		//int action = ((sony.lines & (SONY_CA1 | SONY_CA0)) << 2) | (sony.sel_line << 1) | ((sony.lines & SONY_CA2) >> 2);
-		//printf("sony.set_sel_line: %d, action now %d\n", sony.sel_line, action);
+		//logerror("sony.set_sel_line: %d, action now %d\n", sony.sel_line, action);
 	}
 
 	if (LOG_SONY_EXTRA)
@@ -525,14 +575,14 @@ void sony_set_speed(int speed)
 }
 
 // device type definition
-const device_type FLOPPY_SONY = device_creator<sonydriv_floppy_image_device>;
+DEFINE_DEVICE_TYPE(FLOPPY_SONY, sonydriv_floppy_image_device, "floppy_sonny", "Floppy Disk [Sony]")
 
 //-------------------------------------------------
 //  sonydriv_floppy_image_device - constructor
 //-------------------------------------------------
 
 sonydriv_floppy_image_device::sonydriv_floppy_image_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: legacy_floppy_image_device(mconfig, FLOPPY_SONY, "Floppy Disk [Sony]", tag, owner, clock, "floppy_sonny", __FILE__)
+	: legacy_floppy_image_device(mconfig, FLOPPY_SONY, tag, owner, clock)
 {
 }
 
@@ -569,4 +619,10 @@ void sonydriv_floppy_image_device::call_unload()
 	memset(&sony.floppy[id], 0, sizeof(sony.floppy[id]));
 
 	legacy_floppy_image_device::call_unload();
+}
+
+void sonydriv_floppy_image_device::legacy_2_drives_add(machine_config &mconfig, const floppy_interface *config)
+{
+	FLOPPY_SONY(mconfig, FLOPPY_0).set_floppy_config(config);
+	FLOPPY_SONY(mconfig, FLOPPY_1).set_floppy_config(config);
 }

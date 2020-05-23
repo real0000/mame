@@ -11,10 +11,10 @@
 	*                                                                          *
 	\**************************************************************************/
 
-#pragma once
+#ifndef MAME_CPU_PIC16C5X_PIC16C5X_H
+#define MAME_CPU_PIC16C5X_PIC16C5X_H
 
-#ifndef __PIC16C5X_H__
-#define __PIC16C5X_H__
+#pragma once
 
 // input lines
 enum
@@ -35,74 +35,51 @@ enum
 	PIC16C5x_PORTD
 };
 
-// port a, 4 or 8 bits, 2-way
-#define MCFG_PIC16C5x_READ_A_CB(_devcb) \
-	devcb = &pic16c5x_device::set_read_a_callback(*device, DEVCB_##_devcb);
-#define MCFG_PIC16C5x_WRITE_A_CB(_devcb) \
-	devcb = &pic16c5x_device::set_write_a_callback(*device, DEVCB_##_devcb);
+DECLARE_DEVICE_TYPE(PIC16C54, pic16c54_device)
+DECLARE_DEVICE_TYPE(PIC16C55, pic16c55_device)
+DECLARE_DEVICE_TYPE(PIC16C56, pic16c56_device)
+DECLARE_DEVICE_TYPE(PIC16C57, pic16c57_device)
+DECLARE_DEVICE_TYPE(PIC16C58, pic16c58_device)
 
-// port b, 8 bits, 2-way
-#define MCFG_PIC16C5x_READ_B_CB(_devcb) \
-	devcb = &pic16c5x_device::set_read_b_callback(*device, DEVCB_##_devcb);
-#define MCFG_PIC16C5x_WRITE_B_CB(_devcb) \
-	devcb = &pic16c5x_device::set_write_b_callback(*device, DEVCB_##_devcb);
-
-// port c, 8 bits, 2-way
-#define MCFG_PIC16C5x_READ_C_CB(_devcb) \
-	devcb = &pic16c5x_device::set_read_c_callback(*device, DEVCB_##_devcb);
-#define MCFG_PIC16C5x_WRITE_C_CB(_devcb) \
-	devcb = &pic16c5x_device::set_write_c_callback(*device, DEVCB_##_devcb);
-
-// port d, 8 bits, 2-way
-#define MCFG_PIC16C5x_READ_D_CB(_devcb) \
-	devcb = &pic16c5x_device::set_read_d_callback(*device, DEVCB_##_devcb);
-#define MCFG_PIC16C5x_WRITE_D_CB(_devcb) \
-	devcb = &pic16c5x_device::set_write_d_callback(*device, DEVCB_##_devcb);
-
-// CONFIG register
-#define MCFG_PIC16C5x_SET_CONFIG(_data) \
-	pic16c5x_device::set_config_static(*device, _data);
-
-
-
-extern const device_type PIC16C54;
-extern const device_type PIC16C55;
-extern const device_type PIC16C56;
-extern const device_type PIC16C57;
-extern const device_type PIC16C58;
-
-extern const device_type PIC1650;
-extern const device_type PIC1655;
+DECLARE_DEVICE_TYPE(PIC1650,  pic1650_device)
+DECLARE_DEVICE_TYPE(PIC1655,  pic1655_device)
 
 
 class pic16c5x_device : public cpu_device
 {
 public:
-	// construction/destruction
-	pic16c5x_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, int program_width, int data_width, int picmodel);
+	// port a, 4 or 8 bits, 2-way
+	auto read_a() { return m_read_a.bind(); }
+	auto write_a() { return m_write_a.bind(); }
 
-	// static configuration helpers
-	template<class _Object> static devcb_base &set_read_a_callback(device_t &device, _Object object) { return downcast<pic16c5x_device &>(device).m_read_a.set_callback(object); }
-	template<class _Object> static devcb_base &set_read_b_callback(device_t &device, _Object object) { return downcast<pic16c5x_device &>(device).m_read_b.set_callback(object); }
-	template<class _Object> static devcb_base &set_read_c_callback(device_t &device, _Object object) { return downcast<pic16c5x_device &>(device).m_read_c.set_callback(object); }
-	template<class _Object> static devcb_base &set_read_d_callback(device_t &device, _Object object) { return downcast<pic16c5x_device &>(device).m_read_d.set_callback(object); }
+	// port b, 8 bits, 2-way
+	auto read_b() { return m_read_b.bind(); }
+	auto write_b() { return m_write_b.bind(); }
 
-	template<class _Object> static devcb_base &set_write_a_callback(device_t &device, _Object object) { return downcast<pic16c5x_device &>(device).m_write_a.set_callback(object); }
-	template<class _Object> static devcb_base &set_write_b_callback(device_t &device, _Object object) { return downcast<pic16c5x_device &>(device).m_write_b.set_callback(object); }
-	template<class _Object> static devcb_base &set_write_c_callback(device_t &device, _Object object) { return downcast<pic16c5x_device &>(device).m_write_c.set_callback(object); }
-	template<class _Object> static devcb_base &set_write_d_callback(device_t &device, _Object object) { return downcast<pic16c5x_device &>(device).m_write_d.set_callback(object); }
+	// port c, 8 bits, 2-way
+	auto read_c() { return m_read_c.bind(); }
+	auto write_c() { return m_write_c.bind(); }
+
+	// port d, 8 bits, 2-way
+	auto read_d() { return m_read_d.bind(); }
+	auto write_d() { return m_write_d.bind(); }
 
 	/****************************************************************************
 	 *  Function to configure the CONFIG register. This is actually hard-wired
 	 *  during ROM programming, so should be called in the driver INIT, with
 	 *  the value if known (available in HEX dumps of the ROM).
 	 */
-	void pic16c5x_set_config(uint16_t data);
+	void set_config(uint16_t data);
 
-	// or with a macro
-	static void set_config_static(device_t &device, uint16_t data) { downcast<pic16c5x_device &>(device).m_temp_config = data; }
-
+	void ram_5(address_map &map);
+	void ram_7(address_map &map);
+	void rom_10(address_map &map);
+	void rom_11(address_map &map);
+	void rom_9(address_map &map);
 protected:
+	// construction/destruction
+	pic16c5x_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, int program_width, int data_width, int picmodel);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
@@ -115,20 +92,17 @@ protected:
 	 *  times. (Each instruction cycle passes through 4 machine states). This
 	 *  is handled by the cpu execution engine.
 	 */
-	virtual uint64_t execute_clocks_to_cycles(uint64_t clocks) const override { return (clocks + 4 - 1) / 4; }
-	virtual uint64_t execute_cycles_to_clocks(uint64_t cycles) const override { return (cycles * 4); }
-	virtual uint32_t execute_min_cycles() const override { return 1; }
-	virtual uint32_t execute_max_cycles() const override { return 2; }
-	virtual uint32_t execute_input_lines() const override { return 1; }
-	virtual uint32_t execute_default_irq_vector() const override { return 0; }
+	virtual uint64_t execute_clocks_to_cycles(uint64_t clocks) const noexcept override { return (clocks + 4 - 1) / 4; }
+	virtual uint64_t execute_cycles_to_clocks(uint64_t cycles) const noexcept override { return (cycles * 4); }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 2; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 1; }
+	virtual bool execute_input_edge_triggered(int inputnum) const noexcept override { return inputnum == PIC16C5x_RTCC; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int line, int state) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override
-	{
-		return (spacenum == AS_PROGRAM) ? &m_program_config : ( (spacenum == AS_DATA) ? &m_data_config : nullptr );
-	}
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_import(const device_state_entry &entry) override;
@@ -136,9 +110,7 @@ protected:
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 2; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 2; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 private:
 	address_space_config m_program_config;
@@ -172,7 +144,7 @@ private:
 	int     m_inst_cycles;
 
 	address_space *m_program;
-	direct_read_data *m_direct;
+	memory_access_cache<1, -1, ENDIANNESS_LITTLE> *m_cache;
 	address_space *m_data;
 
 	// i/o handlers
@@ -305,4 +277,4 @@ public:
 	pic1655_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 };
 
-#endif  /* __PIC16C5X_H__ */
+#endif  // MAME_CPU_PIC16C5X_PIC16C5X_H

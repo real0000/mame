@@ -8,36 +8,28 @@
 
 *********************************************************************/
 
+#ifndef MAME_MACHINE_6850ACIA_H
+#define MAME_MACHINE_6850ACIA_H
+
 #pragma once
 
-#ifndef __ACIA6850_H__
-#define __ACIA6850_H__
-
-
-#define MCFG_ACIA6850_TXD_HANDLER(_devcb) \
-	devcb = &acia6850_device::set_txd_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_ACIA6850_RTS_HANDLER(_devcb) \
-	devcb = &acia6850_device::set_rts_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_ACIA6850_IRQ_HANDLER(_devcb) \
-	devcb = &acia6850_device::set_irq_handler(*device, DEVCB_##_devcb);
 
 class acia6850_device :  public device_t
 {
 public:
 	// construction/destruction
-	acia6850_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	acia6850_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
-	// static configuration helpers
-	template<class _Object> static devcb_base &set_txd_handler(device_t &device, _Object object) { return downcast<acia6850_device &>(device).m_txd_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_rts_handler(device_t &device, _Object object) { return downcast<acia6850_device &>(device).m_rts_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_irq_handler(device_t &device, _Object object) { return downcast<acia6850_device &>(device).m_irq_handler.set_callback(object); }
+	auto txd_handler() { return m_txd_handler.bind(); }
+	auto rts_handler() { return m_rts_handler.bind(); }
+	auto irq_handler() { return m_irq_handler.bind(); }
 
-	DECLARE_WRITE8_MEMBER( control_w );
-	DECLARE_READ8_MEMBER( status_r );
-	DECLARE_WRITE8_MEMBER( data_w );
-	DECLARE_READ8_MEMBER( data_r );
+	void control_w(uint8_t data);
+	uint8_t status_r();
+	void data_w(uint8_t data);
+	uint8_t data_r();
+	void write(offs_t offset, uint8_t data);
+	uint8_t read(offs_t offset);
 
 	DECLARE_WRITE_LINE_MEMBER( write_cts );
 	DECLARE_WRITE_LINE_MEMBER( write_dcd );
@@ -46,7 +38,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( write_txc );
 
 protected:
-	acia6850_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
+	acia6850_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -60,6 +52,8 @@ private:
 	void output_txd(int txd);
 	void output_rts(int txd);
 	void output_irq(int irq);
+
+	TIMER_CALLBACK_MEMBER(delayed_output_irq);
 
 	enum
 	{
@@ -140,9 +134,6 @@ private:
 };
 
 // device type definition
-extern const device_type ACIA6850;
+DECLARE_DEVICE_TYPE(ACIA6850, acia6850_device)
 
-extern template class device_finder<acia6850_device, false>;
-extern template class device_finder<acia6850_device, true>;
-
-#endif /* __ACIA6850_H__ */
+#endif // MAME_MACHINE_6850ACIA_H

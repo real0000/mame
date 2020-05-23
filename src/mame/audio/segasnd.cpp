@@ -2,19 +2,24 @@
 // copyright-holders:Aaron Giles
 /***************************************************************************
 
-    segasnd.c
+    segasnd.cpp
 
     Sound boards for early Sega G-80 based games.
 
 ***************************************************************************/
 
 #include "emu.h"
-#include "sound/sp0250.h"
 #include "segasnd.h"
+
+#include "sound/sp0250.h"
+#include "includes/segag80r.h"
+#include "includes/segag80v.h"
+
+#include <cmath>
 
 
 #define VERBOSE 0
-#define LOG(x) do { if (VERBOSE) logerror x; } while (0)
+#include "logmacro.h"
 
 
 /***************************************************************************
@@ -37,24 +42,23 @@
     INLINE FUNCTIONS
 ***************************************************************************/
 
-static inline void configure_filter(g80_filter_state *state, double r, double c)
+inline void usb_sound_device::g80_filter_state::configure(double r, double c)
 {
-	state->capval = 0;
-	state->exponent = 1.0 - exp(-1.0 / (r * c * SAMPLE_RATE));
+	capval = 0.0;
+	exponent = 1.0 - std::exp(-1.0 / (r * c * SAMPLE_RATE));
 }
 
 
-static inline double step_rc_filter(g80_filter_state *state, double input)
+inline double usb_sound_device::g80_filter_state::step_rc(double input)
 {
-	state->capval += (input - state->capval) * state->exponent;
-	return state->capval;
+	return capval += (input - capval) * exponent;
 }
 
 
-static inline double step_cr_filter(g80_filter_state *state, double input)
+inline double usb_sound_device::g80_filter_state::step_cr(double input)
 {
-	double result = (input - state->capval);
-	state->capval += (input - state->capval) * state->exponent;
+	double const result = input - capval;
+	capval += result * exponent;
 	return result;
 }
 
@@ -64,16 +68,19 @@ static inline double step_cr_filter(g80_filter_state *state, double input)
     SPEECH BOARD
 ***************************************************************************/
 
-const device_type SEGASPEECH = device_creator<speech_sound_device>;
+DEFINE_DEVICE_TYPE(SEGASPEECH, speech_sound_device, "sega_speech_sound", "Sega Speech Sound Board")
 
-speech_sound_device::speech_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, SEGASPEECH, "Sega Speech Sound Board", tag, owner, clock, "sega_speech_sound", __FILE__),
+#define SEGASPEECH_REGION "speech"
+
+speech_sound_device::speech_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)
+	: device_t(mconfig, SEGASPEECH, tag, owner, clock),
 		device_sound_interface(mconfig, *this),
+		m_int_cb(*this),
+		m_speech(*this, SEGASPEECH_REGION),
 		m_drq(0),
 		m_latch(0),
 		m_t0(0),
-		m_p2(0),
-		m_speech(nullptr)
+		m_p2(0)
 {
 }
 
@@ -83,12 +90,12 @@ speech_sound_device::speech_sound_device(const machine_config &mconfig, const ch
 
 void speech_sound_device::device_start()
 {
-		m_speech = machine().root_device().memregion("speech")->base();
+	m_int_cb.resolve();
 
-		save_item(NAME(m_latch));
-		save_item(NAME(m_t0));
-		save_item(NAME(m_p2));
-		save_item(NAME(m_drq));
+	save_item(NAME(m_latch));
+	save_item(NAME(m_t0));
+	save_item(NAME(m_p2));
+	save_item(NAME(m_drq));
 }
 
 
@@ -100,33 +107,33 @@ void speech_sound_device::device_start()
 
 
 
-READ8_MEMBER( speech_sound_device::t0_r )
+READ_LINE_MEMBER( speech_sound_device::t0_r )
 {
 	return m_t0;
 }
 
-READ8_MEMBER( speech_sound_device::t1_r )
+READ_LINE_MEMBER( speech_sound_device::t1_r )
 {
 	return m_drq;
 }
 
-READ8_MEMBER( speech_sound_device::p1_r )
+uint8_t speech_sound_device::p1_r()
 {
 	return m_latch & 0x7f;
 }
 
-READ8_MEMBER( speech_sound_device::rom_r )
+uint8_t speech_sound_device::rom_r(offs_t offset)
 {
-	return m_speech[0x100 * (m_p2 & 0x3f) + offset];
+	return m_speech->base()[0x100 * (m_p2 & 0x3f) + offset];
 }
 
-WRITE8_MEMBER( speech_sound_device::p1_w )
+void speech_sound_device::p1_w(uint8_t data)
 {
 	if (!(data & 0x80))
 		m_t0 = 0;
 }
 
-WRITE8_MEMBER( speech_sound_device::p2_w )
+void speech_sound_device::p2_w(uint8_t data)
 {
 	m_p2 = data;
 }
@@ -155,13 +162,13 @@ WRITE_LINE_MEMBER(speech_sound_device::drq_w)
 TIMER_CALLBACK_MEMBER( speech_sound_device::delayed_speech_w )
 {
 	int data = param;
-	uint8_t old = m_latch;
+	u8 old = m_latch;
 
 	/* all 8 bits are latched */
 	m_latch = data;
 
 	/* the high bit goes directly to the INT line */
-	machine().device("audiocpu")->execute().set_input_line(0, (data & 0x80) ? CLEAR_LINE : ASSERT_LINE);
+	m_int_cb((data & 0x80) ? CLEAR_LINE : ASSERT_LINE);
 
 	/* a clock on the high bit clocks a 1 into T0 */
 	if (!(old & 0x80) && (data & 0x80))
@@ -169,15 +176,15 @@ TIMER_CALLBACK_MEMBER( speech_sound_device::delayed_speech_w )
 }
 
 
-WRITE8_MEMBER( speech_sound_device::data_w )
+void speech_sound_device::data_w(uint8_t data)
 {
-	space.machine().scheduler().synchronize(timer_expired_delegate(FUNC(speech_sound_device::delayed_speech_w), this), data);
+	machine().scheduler().synchronize(timer_expired_delegate(FUNC(speech_sound_device::delayed_speech_w), this), data);
 }
 
 
-WRITE8_MEMBER( speech_sound_device::control_w )
+void speech_sound_device::control_w(uint8_t data)
 {
-	LOG(("Speech control = %X\n", data));
+	LOG("Speech control = %X\n", data);
 }
 
 
@@ -189,6 +196,16 @@ void speech_sound_device::sound_stream_update(sound_stream &stream, stream_sampl
 {
 }
 
+/*************************************
+ *
+ *  Speech board functions
+ *
+ *************************************/
+
+WRITE_LINE_MEMBER(segag80snd_common::segaspeech_int_w)
+{
+	m_audiocpu->set_input_line(0, state);
+}
 
 /*************************************
  *
@@ -196,19 +213,17 @@ void speech_sound_device::sound_stream_update(sound_stream &stream, stream_sampl
  *
  *************************************/
 
-static ADDRESS_MAP_START( speech_map, AS_PROGRAM, 8, speech_sound_device )
-	AM_RANGE(0x0000, 0x07ff) AM_MIRROR(0x0800) AM_ROM
-ADDRESS_MAP_END
+void segag80snd_common::speech_map(address_map &map)
+{
+	map(0x0000, 0x07ff).mirror(0x0800).rom();
+}
 
 
-static ADDRESS_MAP_START( speech_portmap, AS_IO, 8, speech_sound_device )
-	AM_RANGE(0x00, 0xff) AM_DEVREAD("segaspeech", speech_sound_device, rom_r)
-	AM_RANGE(0x00, 0xff) AM_DEVWRITE("speech", sp0250_device, write)
-	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_DEVREADWRITE("segaspeech", speech_sound_device, p1_r, p1_w)
-	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_DEVWRITE("segaspeech", speech_sound_device, p2_w)
-	AM_RANGE(MCS48_PORT_T0, MCS48_PORT_T0) AM_DEVREAD("segaspeech", speech_sound_device, t0_r)
-	AM_RANGE(MCS48_PORT_T1, MCS48_PORT_T1) AM_DEVREAD("segaspeech", speech_sound_device, t1_r)
-ADDRESS_MAP_END
+void segag80snd_common::speech_portmap(address_map &map)
+{
+	map(0x00, 0xff).r("segaspeech", FUNC(speech_sound_device::rom_r));
+	map(0x00, 0xff).w("speech", FUNC(sp0250_device::write));
+}
 
 
 /*************************************
@@ -217,19 +232,24 @@ ADDRESS_MAP_END
  *
  *************************************/
 
-MACHINE_CONFIG_FRAGMENT( sega_speech_board )
-
+void segag80snd_common::sega_speech_board(machine_config &config)
+{
 	/* CPU for the speech board */
-	MCFG_CPU_ADD("audiocpu", I8035, SPEECH_MASTER_CLOCK)        /* divide by 15 in CPU */
-	MCFG_CPU_PROGRAM_MAP(speech_map)
-	MCFG_CPU_IO_MAP(speech_portmap)
+	i8035_device &audiocpu(I8035(config, m_audiocpu, SPEECH_MASTER_CLOCK));        /* divide by 15 in CPU */
+	audiocpu.set_addrmap(AS_PROGRAM, &segag80snd_common::speech_map);
+	audiocpu.set_addrmap(AS_IO, &segag80snd_common::speech_portmap);
+	audiocpu.p1_in_cb().set("segaspeech", FUNC(speech_sound_device::p1_r));
+	audiocpu.p1_out_cb().set("segaspeech", FUNC(speech_sound_device::p1_w));
+	audiocpu.p2_out_cb().set("segaspeech", FUNC(speech_sound_device::p2_w));
+	audiocpu.t0_in_cb().set("segaspeech", FUNC(speech_sound_device::t0_r));
+	audiocpu.t1_in_cb().set("segaspeech", FUNC(speech_sound_device::t1_r));
 
 	/* sound hardware */
-	MCFG_SOUND_ADD("segaspeech", SEGASPEECH, 0)
-	MCFG_SOUND_ADD("speech", SP0250, SPEECH_MASTER_CLOCK)
-	MCFG_SP0250_DRQ_CALLBACK(DEVWRITELINE("segaspeech", speech_sound_device, drq_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 1.0)
-MACHINE_CONFIG_END
+	SEGASPEECH(config, "segaspeech", 0).int_cb().set(FUNC(segag80snd_common::segaspeech_int_w));
+	sp0250_device &speech(SP0250(config, "speech", SPEECH_MASTER_CLOCK));
+	speech.drq().set("segaspeech", FUNC(speech_sound_device::drq_w));
+	speech.add_route(ALL_OUTPUTS, "speaker", 1.0);
+}
 
 
 
@@ -237,12 +257,13 @@ MACHINE_CONFIG_END
     UNIVERSAL SOUND BOARD
 ***************************************************************************/
 
-const device_type SEGAUSB = device_creator<usb_sound_device>;
+DEFINE_DEVICE_TYPE(SEGAUSB, usb_sound_device, "segausb", "Sega Universal Sound Board")
 
-usb_sound_device::usb_sound_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+usb_sound_device::usb_sound_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock)
+	: device_t(mconfig, type, tag, owner, clock),
 		device_sound_interface(mconfig, *this),
 		m_ourcpu(*this, "ourcpu"),
+		m_maincpu(*this, finder_base::DUMMY_TAG),
 		m_stream(nullptr),
 		m_in_latch(0),
 		m_out_latch(0),
@@ -258,12 +279,8 @@ usb_sound_device::usb_sound_device(const machine_config &mconfig, device_type ty
 {
 }
 
-usb_sound_device::usb_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, SEGAUSB, "Sega Universal Sound Board", tag, owner, clock, "segausb", __FILE__),
-		device_sound_interface(mconfig, *this),
-		m_ourcpu(*this, "ourcpu"),
-		m_program_ram(*this, "pgmram"),
-		m_work_ram(*this, "workram")
+usb_sound_device::usb_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)
+	: usb_sound_device(mconfig, SEGAUSB, tag, owner, clock)
 {
 }
 
@@ -273,44 +290,37 @@ usb_sound_device::usb_sound_device(const machine_config &mconfig, const char *ta
 
 void usb_sound_device::device_start()
 {
-	g80_filter_state temp;
-	int tchan, tgroup;
-
-	/* find the CPU we are associated with */
-	m_maincpu = machine().device("maincpu");
-	assert(m_maincpu != nullptr);
-
 	/* create a sound stream */
 	m_stream = machine().sound().stream_alloc(*this, 0, 1, SAMPLE_RATE);
 
 	/* initialize state */
 	m_noise_shift = 0x15555;
 
-	for (tgroup = 0; tgroup < 3; tgroup++)
+	for (timer8253 &g : m_timer_group)
 	{
-		timer8253 *g = &m_timer_group[tgroup];
-		configure_filter(&g->chan_filter[0], 10e3, 1e-6);
-		configure_filter(&g->chan_filter[1], 10e3, 1e-6);
-		configure_filter(&g->gate1, 100e3, 0.01e-6);
-		configure_filter(&g->gate2, 2 * 100e3, 0.01e-6);
+		g.chan_filter[0].configure(10e3, 1e-6);
+		g.chan_filter[1].configure(10e3, 1e-6);
+		g.gate1.configure(100e3, 0.01e-6);
+		g.gate2.configure(2 * 100e3, 0.01e-6);
 	}
 
-	configure_filter(&temp, 100e3, 0.01e-6);
+	g80_filter_state temp;
+	temp.configure(100e3, 0.01e-6);
 	m_gate_rc1_exp[0] = temp.exponent;
-	configure_filter(&temp, 1e3, 0.01e-6);
+	temp.configure(1e3, 0.01e-6);
 	m_gate_rc1_exp[1] = temp.exponent;
-	configure_filter(&temp, 2 * 100e3, 0.01e-6);
+	temp.configure(2 * 100e3, 0.01e-6);
 	m_gate_rc2_exp[0] = temp.exponent;
-	configure_filter(&temp, 2 * 1e3, 0.01e-6);
+	temp.configure(2 * 1e3, 0.01e-6);
 	m_gate_rc2_exp[1] = temp.exponent;
 
-	configure_filter(&m_noise_filters[0], 2.7e3 + 2.7e3, 1.0e-6);
-	configure_filter(&m_noise_filters[1], 2.7e3 + 1e3, 0.30e-6);
-	configure_filter(&m_noise_filters[2], 2.7e3 + 270, 0.15e-6);
-	configure_filter(&m_noise_filters[3], 2.7e3 + 0, 0.082e-6);
-	configure_filter(&m_noise_filters[4], 33e3, 0.1e-6);
+	m_noise_filters[0].configure(2.7e3 + 2.7e3, 1.0e-6);
+	m_noise_filters[1].configure(2.7e3 + 1e3, 0.30e-6);
+	m_noise_filters[2].configure(2.7e3 + 270, 0.15e-6);
+	m_noise_filters[3].configure(2.7e3 + 0, 0.082e-6);
+	m_noise_filters[4].configure(33e3, 0.1e-6);
 
-	configure_filter(&m_final_filter, 100e3, 4.7e-6);
+	m_final_filter.configure(100e3, 4.7e-6);
 
 	/* register for save states */
 	save_item(NAME(m_in_latch));
@@ -319,12 +329,12 @@ void usb_sound_device::device_start()
 	save_item(NAME(m_work_ram_bank));
 	save_item(NAME(m_t1_clock));
 
-	for (tgroup = 0; tgroup < 3; tgroup++)
+	for (int tgroup = 0; tgroup < 3; tgroup++)
 	{
 		timer8253 *group = &m_timer_group[tgroup];
-		for (tchan = 0; tchan < 3; tchan++)
+		for (int tchan = 0; tchan < 3; tchan++)
 		{
-			timer8253_channel *channel = &group->chan[tchan];
+			timer8253::channel *channel = &group->chan[tchan];
 			save_item(NAME(channel->holding), tgroup * 3 + tchan);
 			save_item(NAME(channel->latchmode), tgroup * 3 + tchan);
 			save_item(NAME(channel->latchtoggle), tgroup * 3 + tchan);
@@ -389,11 +399,11 @@ TIMER_DEVICE_CALLBACK_MEMBER( usb_sound_device::increment_t1_clock_timer_cb )
  *
  *************************************/
 
-READ8_MEMBER( usb_sound_device::status_r )
+uint8_t usb_sound_device::status_r()
 {
-	LOG(("%04X:usb_data_r = %02X\n", m_maincpu->safe_pc(), (m_out_latch & 0x81) | (m_in_latch & 0x7e)));
+	LOG("%s:usb_data_r = %02X\n", machine().describe_context(), (m_out_latch & 0x81) | (m_in_latch & 0x7e));
 
-	m_maincpu->execute().adjust_icount(-200);
+	m_maincpu->adjust_icount(-200);
 
 	/* only bits 0 and 7 are controlled by the I8035; the remaining */
 	/* bits 1-6 reflect the current input latch values */
@@ -417,28 +427,28 @@ TIMER_CALLBACK_MEMBER( usb_sound_device::delayed_usb_data_w )
 }
 
 
-WRITE8_MEMBER( usb_sound_device::data_w )
+void usb_sound_device::data_w(uint8_t data)
 {
-	LOG(("%04X:usb_data_w = %02X\n", m_maincpu->safe_pc(), data));
-	space.machine().scheduler().synchronize(timer_expired_delegate(FUNC(usb_sound_device::delayed_usb_data_w), this), data);
+	LOG("%s:usb_data_w = %02X\n", machine().describe_context(), data);
+	machine().scheduler().synchronize(timer_expired_delegate(FUNC(usb_sound_device::delayed_usb_data_w), this), data);
 
 	/* boost the interleave so that sequences can be sent */
-	space.machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(250));
+	machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(250));
 }
 
 
-READ8_MEMBER( usb_sound_device::ram_r )
+uint8_t usb_sound_device::ram_r(offs_t offset)
 {
 	return m_program_ram[offset];
 }
 
 
-WRITE8_MEMBER( usb_sound_device::ram_w )
+void usb_sound_device::ram_w(offs_t offset, uint8_t data)
 {
 	if (m_in_latch & 0x80)
 		m_program_ram[offset] = data;
 	else
-		LOG(("%04X:sega_usb_ram_w(%03X) = %02X while /LOAD disabled\n", m_maincpu->safe_pc(), offset, data));
+		LOG("%s:sega_usb_ram_w(%03X) = %02X while /LOAD disabled\n", machine().describe_context(), offset, data);
 }
 
 
@@ -449,26 +459,26 @@ WRITE8_MEMBER( usb_sound_device::ram_w )
  *
  *************************************/
 
-READ8_MEMBER( usb_sound_device::p1_r )
+uint8_t usb_sound_device::p1_r()
 {
 	/* bits 0-6 are inputs and map to bits 0-6 of the input latch */
 	if ((m_in_latch & 0x7f) != 0)
-		LOG(("%03X: P1 read = %02X\n", m_maincpu->safe_pc(), m_in_latch & 0x7f));
+		LOG("%s: P1 read = %02X\n", machine().describe_context(), m_in_latch & 0x7f);
 	return m_in_latch & 0x7f;
 }
 
 
-WRITE8_MEMBER( usb_sound_device::p1_w )
+void usb_sound_device::p1_w(uint8_t data)
 {
 	/* bit 7 maps to bit 0 on the output latch */
 	m_out_latch = (m_out_latch & 0xfe) | (data >> 7);
-	LOG(("%03X: P1 write = %02X\n", m_maincpu->safe_pc(), data));
+	LOG("%s: P1 write = %02X\n", machine().describe_context(), data);
 }
 
 
-WRITE8_MEMBER( usb_sound_device::p2_w )
+void usb_sound_device::p2_w(uint8_t data)
 {
-	uint8_t old = m_last_p2_value;
+	u8 old = m_last_p2_value;
 	m_last_p2_value = data;
 
 	/* low 2 bits control the bank of work RAM we are addressing */
@@ -484,11 +494,11 @@ WRITE8_MEMBER( usb_sound_device::p2_w )
 	if ((old & 0x80) && !(data & 0x80))
 		m_t1_clock = 0;
 
-	LOG(("%03X: P2 write -> bank=%d ready=%d clock=%d\n", m_maincpu->safe_pc(), data & 3, (data >> 6) & 1, (data >> 7) & 1));
+	LOG("%s: P2 write -> bank=%d ready=%d clock=%d\n", machine().describe_context(), data & 3, (data >> 6) & 1, (data >> 7) & 1);
 }
 
 
-READ8_MEMBER( usb_sound_device::t1_r )
+READ_LINE_MEMBER( usb_sound_device::t1_r )
 {
 	/* T1 returns 1 based on the value of the T1 clock; the exact */
 	/* pattern is determined by one or more jumpers on the board. */
@@ -503,41 +513,41 @@ READ8_MEMBER( usb_sound_device::t1_r )
  *
  *************************************/
 
-static inline void clock_channel(timer8253_channel *ch)
+inline void usb_sound_device::timer8253::channel::clock()
 {
-	uint8_t lastgate = ch->lastgate;
+	u8 const old_lastgate = lastgate;
 
 	/* update the gate */
-	ch->lastgate = ch->gate;
+	lastgate = gate;
 
 	/* if we're holding, skip */
-	if (ch->holding)
+	if (holding)
 		return;
 
 	/* switch off the clock mode */
-	switch (ch->clockmode)
+	switch (clockmode)
 	{
 		/* oneshot; waits for trigger to restart */
 		case 1:
-			if (!lastgate && ch->gate)
+			if (!old_lastgate && gate)
 			{
-				ch->output = 0;
-				ch->remain = ch->count;
+				output = 0;
+				remain = count;
 			}
 			else
 			{
-				if (--ch->remain == 0)
-					ch->output = 1;
+				if (--remain == 0)
+					output = 1;
 			}
 			break;
 
 		/* square wave: counts down by 2 and toggles output */
 		case 3:
-			ch->remain = (ch->remain - 1) & ~1;
-			if (ch->remain == 0)
+			remain = (remain - 1) & ~1;
+			if (remain == 0)
 			{
-				ch->output ^= 1;
-				ch->remain = ch->count;
+				output ^= 1;
+				remain = count;
 			}
 			break;
 	}
@@ -550,10 +560,10 @@ static inline void clock_channel(timer8253_channel *ch)
  *
  *************************************/
 
-void usb_sound_device::timer_w(int which, uint8_t offset, uint8_t data)
+void usb_sound_device::timer_w(int which, u8 offset, u8 data)
 {
 	timer8253 *g = &m_timer_group[which];
-	timer8253_channel *ch;
+	timer8253::channel *ch;
 	int was_holding;
 
 	m_stream->update();
@@ -619,7 +629,7 @@ void usb_sound_device::timer_w(int which, uint8_t offset, uint8_t data)
 }
 
 
-void usb_sound_device::env_w(int which, uint8_t offset, uint8_t data)
+void usb_sound_device::env_w(int which, u8 offset, u8 data)
 {
 	timer8253 *g = &m_timer_group[which];
 
@@ -639,14 +649,14 @@ void usb_sound_device::env_w(int which, uint8_t offset, uint8_t data)
  *
  *************************************/
 
-READ8_MEMBER( usb_sound_device::workram_r )
+uint8_t usb_sound_device::workram_r(offs_t offset)
 {
 	offset += 256 * m_work_ram_bank;
 	return m_work_ram[offset];
 }
 
 
-WRITE8_MEMBER( usb_sound_device::workram_w )
+void usb_sound_device::workram_w(offs_t offset, uint8_t data)
 {
 	offset += 256 * m_work_ram_bank;
 	m_work_ram[offset] = data;
@@ -724,7 +734,7 @@ void usb_sound_device::sound_stream_update(sound_stream &stream, stream_sample_t
 
 		/* final output goes through a CR filter; the scaling factor is arbitrary to get the noise to the */
 		/* correct relative volume */
-		noiseval = step_cr_filter(&m_noise_filters[4], noiseval);
+		noiseval = m_noise_filters[4].step_cr(noiseval);
 		noiseval *= 0.075;
 
 		/* there are 3 identical groups of circuits, each with its own 8253 */
@@ -747,12 +757,12 @@ void usb_sound_device::sound_stream_update(sound_stream &stream, stream_sample_t
 			{
 				g->chan[0].subcount = USB_2MHZ_CLOCK / USB_PCS_CLOCK;
 				g->chan[0].gate = 1;
-				clock_channel(&g->chan[0]);
+				g->chan[0].clock();
 			}
 			g->chan[0].subcount -= step;
 
 			/* channel 0 is mixed in with a resistance of 100k */
-			chan0 = step_cr_filter(&g->chan_filter[0], g->chan[0].output) * g->env[0] * (1.0/100.0);
+			chan0 = g->chan_filter[0].step_cr(g->chan[0].output) * g->env[0] * (1.0/100.0);
 
 
 			/*-------------
@@ -768,12 +778,12 @@ void usb_sound_device::sound_stream_update(sound_stream &stream, stream_sample_t
 			{
 				g->chan[1].subcount = USB_2MHZ_CLOCK / USB_PCS_CLOCK;
 				g->chan[1].gate = 1;
-				clock_channel(&g->chan[1]);
+				g->chan[1].clock();
 			}
 			g->chan[1].subcount -= step;
 
 			/* channel 1 is mixed in with a resistance of 100k */
-			chan1 = step_cr_filter(&g->chan_filter[1], g->chan[1].output) * g->env[1] * (1.0/100.0);
+			chan1 = g->chan_filter[1].step_cr(g->chan[1].output) * g->env[1] * (1.0/100.0);
 
 
 			/*-------------
@@ -801,7 +811,7 @@ void usb_sound_device::sound_stream_update(sound_stream &stream, stream_sample_t
 					g->chan[2].subcount = USB_2MHZ_CLOCK / USB_GOS_CLOCK / 2 - 1;
 					g->chan[2].gate = !g->chan[2].gate;
 				}
-				clock_channel(&g->chan[2]);
+				g->chan[2].clock();
 			}
 
 			/* the exponents for the gate filters are determined by channel 2's output */
@@ -811,14 +821,14 @@ void usb_sound_device::sound_stream_update(sound_stream &stream, stream_sample_t
 			/* based on the envelope mode, we do one of two things with source 2 */
 			if (g->config == 0)
 			{
-				chan2 = step_rc_filter(&g->gate2, step_rc_filter(&g->gate1, noiseval)) * -1.56 * g->env[2] * (1.0/33.0);
+				chan2 = g->gate2.step_rc(g->gate1.step_rc(noiseval)) * -1.56 * g->env[2] * (1.0/33.0);
 				mix = chan0 + chan1 + chan2;
 			}
 			else
 			{
 				chan2 = -noiseval * g->env[2] * (1.0/33.0);
 				mix = chan0 + chan1 + chan2;
-				mix = step_rc_filter(&g->gate2, step_rc_filter(&g->gate1, -mix)) * 1.56;
+				mix = g->gate2.step_rc(g->gate1.step_rc(-mix)) * 1.56;
 			}
 
 			/* accumulate the sample */
@@ -835,7 +845,7 @@ void usb_sound_device::sound_stream_update(sound_stream &stream, stream_sample_t
 		  WEIGHT
 
 		*/
-		*dest++ = 4000 * step_cr_filter(&m_final_filter, sample);
+		*dest++ = 4000 * m_final_filter.step_cr(sample);
 	}
 }
 
@@ -846,61 +856,54 @@ void usb_sound_device::sound_stream_update(sound_stream &stream, stream_sample_t
  *
  *************************************/
 
-static ADDRESS_MAP_START( usb_map, AS_PROGRAM, 8, usb_sound_device )
-	AM_RANGE(0x0000, 0x0fff) AM_RAM AM_SHARE("pgmram")
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( usb_portmap, AS_IO, 8, usb_sound_device )
-	AM_RANGE(0x00, 0xff) AM_READWRITE(workram_r, workram_w) AM_SHARE("workram")
-	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_READWRITE(p1_r, p1_w)
-	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_WRITE(p2_w)
-	AM_RANGE(MCS48_PORT_T1, MCS48_PORT_T1) AM_READ(t1_r)
-ADDRESS_MAP_END
-
-
-/*************************************
- *
- *  USB machine drivers
- *
- *************************************/
-
-MACHINE_CONFIG_FRAGMENT( segausb )
-
-	/* CPU for the usb board */
-	MCFG_CPU_ADD("ourcpu", I8035, USB_MASTER_CLOCK)     /* divide by 15 in CPU */
-	MCFG_CPU_PROGRAM_MAP(usb_map)
-	MCFG_CPU_IO_MAP(usb_portmap)
-
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("usb_timer", usb_sound_device, increment_t1_clock_timer_cb, attotime::from_hz(USB_2MHZ_CLOCK / 256))
-MACHINE_CONFIG_END
-
-machine_config_constructor usb_sound_device::device_mconfig_additions() const
+void usb_sound_device::usb_map(address_map &map)
 {
-	return MACHINE_CONFIG_NAME( segausb );
+	map(0x0000, 0x0fff).ram().share("pgmram");
 }
 
-const device_type SEGAUSBROM = device_creator<usb_rom_sound_device>;
+void usb_sound_device::usb_portmap(address_map &map)
+{
+	map(0x00, 0xff).rw(FUNC(usb_sound_device::workram_r), FUNC(usb_sound_device::workram_w)).share("workram");
+}
 
-usb_rom_sound_device::usb_rom_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: usb_sound_device(mconfig, SEGAUSBROM, "Sega Universal Sound Board with ROM", tag, owner, clock, "segausbrom", __FILE__)
+
+//-------------------------------------------------
+// device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void usb_sound_device::device_add_mconfig(machine_config &config)
+{
+	/* CPU for the usb board */
+	I8035(config, m_ourcpu, USB_MASTER_CLOCK);     /* divide by 15 in CPU */
+	m_ourcpu->set_addrmap(AS_PROGRAM, &usb_sound_device::usb_map);
+	m_ourcpu->set_addrmap(AS_IO, &usb_sound_device::usb_portmap);
+	m_ourcpu->p1_in_cb().set(FUNC(usb_sound_device::p1_r));
+	m_ourcpu->p1_out_cb().set(FUNC(usb_sound_device::p1_w));
+	m_ourcpu->p2_out_cb().set(FUNC(usb_sound_device::p2_w));
+	m_ourcpu->t1_in_cb().set(FUNC(usb_sound_device::t1_r));
+
+	TIMER(config, "usb_timer", 0).configure_periodic(
+			FUNC(usb_sound_device::increment_t1_clock_timer_cb),
+			attotime::from_hz(USB_2MHZ_CLOCK / 256));
+}
+
+
+DEFINE_DEVICE_TYPE(SEGAUSBROM, usb_rom_sound_device, "segausbrom", "Sega Universal Sound Board with ROM")
+
+usb_rom_sound_device::usb_rom_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)
+	: usb_sound_device(mconfig, SEGAUSBROM, tag, owner, clock)
 {
 }
 
-static ADDRESS_MAP_START( usb_map_rom, AS_PROGRAM, 8, usb_sound_device )
-	AM_RANGE(0x0000, 0x0fff) AM_ROM AM_REGION(":usbcpu", 0)
-ADDRESS_MAP_END
+void usb_sound_device::usb_map_rom(address_map &map)
+{
+	map(0x0000, 0x0fff).rom().region(":usbcpu", 0);
+}
 
-MACHINE_CONFIG_FRAGMENT( segausb_rom )
+void usb_rom_sound_device::device_add_mconfig(machine_config &config)
+{
+	usb_sound_device::device_add_mconfig(config);
 
 	/* CPU for the usb board */
-	MCFG_CPU_ADD("ourcpu", I8035, USB_MASTER_CLOCK)     /* divide by 15 in CPU */
-	MCFG_CPU_PROGRAM_MAP(usb_map_rom)
-	MCFG_CPU_IO_MAP(usb_portmap)
-
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("usb_timer", usb_sound_device, increment_t1_clock_timer_cb, attotime::from_hz(USB_2MHZ_CLOCK / 256))
-MACHINE_CONFIG_END
-
-machine_config_constructor usb_rom_sound_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( segausb_rom );
+	m_ourcpu->set_addrmap(AS_PROGRAM, &usb_rom_sound_device::usb_map_rom);
 }

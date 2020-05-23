@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_C64_ZAXXON_H
+#define MAME_BUS_C64_ZAXXON_H
 
-#ifndef __ZAXXON__
-#define __ZAXXON__
+#pragma once
 
 
 #include "exp.h"
@@ -34,7 +34,7 @@ protected:
 	virtual void device_start() override;
 
 	// device_c64_expansion_card_interface overrides
-	virtual uint8_t c64_cd_r(address_space &space, offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2) override;
+	virtual uint8_t c64_cd_r(offs_t offset, uint8_t data, int sphi2, int ba, int roml, int romh, int io1, int io2) override;
 
 private:
 	int m_bank;
@@ -42,7 +42,7 @@ private:
 
 
 // device type definition
-extern const device_type C64_ZAXXON;
+DECLARE_DEVICE_TYPE(C64_ZAXXON, c64_zaxxon_cartridge_device)
 
 
-#endif
+#endif // MAME_BUS_C64_ZAXXON_H

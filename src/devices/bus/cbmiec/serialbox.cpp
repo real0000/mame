@@ -32,7 +32,7 @@ enum
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type SERIAL_BOX = device_creator<serial_box_device>;
+DEFINE_DEVICE_TYPE(CBM_SERIAL_BOX, cbm_serial_box_device, "cbm_serbox", "Serial Box")
 
 
 //-------------------------------------------------
@@ -49,7 +49,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *serial_box_device::device_rom_region() const
+const tiny_rom_entry *cbm_serial_box_device::device_rom_region() const
 {
 	return ROM_NAME( serial_box );
 }
@@ -59,29 +59,20 @@ const tiny_rom_entry *serial_box_device::device_rom_region() const
 //  ADDRESS_MAP( serial_box_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( serial_box_mem, AS_PROGRAM, 8, serial_box_device )
-	AM_RANGE(0xf000, 0xffff) AM_ROM AM_REGION(M6502_TAG, 0)
-ADDRESS_MAP_END
-
-
-//-------------------------------------------------
-//  MACHINE_DRIVER( serial_box )
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( serial_box )
-	MCFG_CPU_ADD(M6502_TAG, M65C02, XTAL_4MHz/4)
-	MCFG_CPU_PROGRAM_MAP(serial_box_mem)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor serial_box_device::device_mconfig_additions() const
+void cbm_serial_box_device::serial_box_mem(address_map &map)
 {
-	return MACHINE_CONFIG_NAME( serial_box );
+	map(0xf000, 0xffff).rom().region(M6502_TAG, 0);
+}
+
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void cbm_serial_box_device::device_add_mconfig(machine_config &config)
+{
+	M65C02(config, m_maincpu, XTAL(4'000'000)/4);
+	m_maincpu->set_addrmap(AS_PROGRAM, &cbm_serial_box_device::serial_box_mem);
 }
 
 
@@ -91,11 +82,11 @@ machine_config_constructor serial_box_device::device_mconfig_additions() const
 //**************************************************************************
 
 //-------------------------------------------------
-//  serial_box_device - constructor
+//  cbm_serial_box_device - constructor
 //-------------------------------------------------
 
-serial_box_device::serial_box_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, SERIAL_BOX, "Serial Box", tag, owner, clock, "serbox", __FILE__),
+cbm_serial_box_device::cbm_serial_box_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, CBM_SERIAL_BOX, tag, owner, clock),
 		device_cbm_iec_interface(mconfig, *this),
 		m_maincpu(*this, M6502_TAG)
 {
@@ -106,7 +97,7 @@ serial_box_device::serial_box_device(const machine_config &mconfig, const char *
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void serial_box_device::device_start()
+void cbm_serial_box_device::device_start()
 {
 }
 
@@ -115,7 +106,7 @@ void serial_box_device::device_start()
 //  device_reset - device-specific reset
 //-------------------------------------------------
 
-void serial_box_device::device_reset()
+void cbm_serial_box_device::device_reset()
 {
 }
 
@@ -124,7 +115,7 @@ void serial_box_device::device_reset()
 //  cbm_iec_atn -
 //-------------------------------------------------
 
-void serial_box_device::cbm_iec_atn(int state)
+void cbm_serial_box_device::cbm_iec_atn(int state)
 {
 }
 
@@ -133,7 +124,7 @@ void serial_box_device::cbm_iec_atn(int state)
 //  cbm_iec_data -
 //-------------------------------------------------
 
-void serial_box_device::cbm_iec_data(int state)
+void cbm_serial_box_device::cbm_iec_data(int state)
 {
 }
 
@@ -142,7 +133,7 @@ void serial_box_device::cbm_iec_data(int state)
 //  cbm_iec_reset -
 //-------------------------------------------------
 
-void serial_box_device::cbm_iec_reset(int state)
+void cbm_serial_box_device::cbm_iec_reset(int state)
 {
 	if (!state)
 	{

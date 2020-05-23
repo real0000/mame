@@ -28,7 +28,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type SV807 = device_creator<sv807_device>;
+DEFINE_DEVICE_TYPE(SV807, sv807_device, "sv807", "SV-807 64k RAM Cartridge")
 
 //-------------------------------------------------
 //  input_ports - device-specific input ports
@@ -77,7 +77,7 @@ ioport_constructor sv807_device::device_input_ports() const
 //-------------------------------------------------
 
 sv807_device::sv807_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, SV807, "SV-807 64k RAM Cartridge", tag, owner, clock, "sv807", __FILE__),
+	device_t(mconfig, SV807, tag, owner, clock),
 	device_svi_slot_interface(mconfig, *this),
 	m_switch(*this, "S"),
 	m_bk21(1), m_bk22(1), m_bk31(1), m_bk32(1)
@@ -99,8 +99,8 @@ void sv807_device::device_start()
 	save_item(NAME(m_bk22));
 	save_item(NAME(m_bk31));
 	save_item(NAME(m_bk32));
-	save_pointer(NAME(m_ram_bank1.get()), 0x8000);
-	save_pointer(NAME(m_ram_bank2.get()), 0x8000);
+	save_pointer(NAME(m_ram_bank1), 0x8000);
+	save_pointer(NAME(m_ram_bank2), 0x8000);
 }
 
 //-------------------------------------------------
@@ -118,7 +118,7 @@ void sv807_device::device_reset()
 
 // test setup: S2 = enabled (22), S3 = enabled (31)
 
-READ8_MEMBER( sv807_device::mreq_r )
+uint8_t sv807_device::mreq_r(offs_t offset)
 {
 	if ((BK21_ACTIVE || BK31_ACTIVE) && offset < 0x8000)
 	{
@@ -135,7 +135,7 @@ READ8_MEMBER( sv807_device::mreq_r )
 	return 0xff;
 }
 
-WRITE8_MEMBER( sv807_device::mreq_w )
+void sv807_device::mreq_w(offs_t offset, uint8_t data)
 {
 	if ((BK21_ACTIVE || BK31_ACTIVE) && offset < 0x8000)
 	{

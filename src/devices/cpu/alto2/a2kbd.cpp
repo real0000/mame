@@ -16,27 +16,13 @@
  */
 READ16_MEMBER( alto2_cpu_device::kbd_ad_r )
 {
-	uint16_t data = 0177777;
-	switch (offset & 3) {
-	case 0:
-		data = machine().root_device().ioport("ROW0")->read();
-		break;
-	case 1:
-		data = machine().root_device().ioport("ROW1")->read();
-		break;
-	case 2:
-		data = machine().root_device().ioport("ROW2")->read();
-		break;
-	case 3:
-		data = machine().root_device().ioport("ROW3")->read();
-		break;
-	}
+	uint16_t data = m_kb_read_callback(offset & 3);
 	m_kbd.matrix[offset & 03] = data;
-	if (!machine().side_effect_disabled()) {
+	if (!machine().side_effects_disabled()) {
 		LOG((this,LOG_KBD,2,"    read KBDAD+%o (%#o)\n", offset & 3, data));
 	}
 	if (0 == (offset & 3) && (m_kbd.bootkey != 0177777)) {
-		if (!machine().side_effect_disabled()) {
+		if (!machine().side_effects_disabled()) {
 			LOG((this,0,2,"  boot keys (%#o & %#o)\n", data, m_kbd.bootkey));
 		}
 		data &= m_kbd.bootkey;

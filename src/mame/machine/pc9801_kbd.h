@@ -5,19 +5,10 @@
     PC-9801 Keyboard simulation
 
 ***************************************************************************/
+#ifndef MAME_MACHINE_PC9801_KBD_H
+#define MAME_MACHINE_PC9801_KBD_H
 
 #pragma once
-
-#ifndef __PC9801_KBDDEV_H__
-#define __PC9801_KBDDEV_H__
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_PC9801_KBD_IRQ_CALLBACK(_write) \
-	devcb = &pc9801_kbd_device::set_irq_wr_callback(*device, DEVCB_##_write);
 
 
 //**************************************************************************
@@ -32,13 +23,13 @@ public:
 	// construction/destruction
 	pc9801_kbd_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_irq_wr_callback(device_t &device, _Object object) { return downcast<pc9801_kbd_device &>(device).m_write_irq.set_callback(object); }
+	auto irq_wr_callback() { return m_write_irq.bind(); }
 
 	virtual ioport_constructor device_input_ports() const override;
 
 	// I/O operations
-	DECLARE_WRITE8_MEMBER( tx_w );
-	DECLARE_READ8_MEMBER( rx_r );
+	void tx_w(uint8_t data);
+	uint8_t rx_r(offs_t offset);
 	DECLARE_INPUT_CHANGED_MEMBER(key_stroke);
 
 protected:
@@ -60,7 +51,7 @@ protected:
 
 
 // device type definition
-extern const device_type PC9801_KBD;
+DECLARE_DEVICE_TYPE(PC9801_KBD, pc9801_kbd_device)
 
 
 
@@ -70,4 +61,4 @@ extern const device_type PC9801_KBD;
 
 
 
-#endif
+#endif // MAME_MACHINE_PC9801_KBD_H

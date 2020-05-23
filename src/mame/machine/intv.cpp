@@ -217,8 +217,8 @@ WRITE8_MEMBER( intv_state::intvkbd_io_w )
 			// If write mode:
 			//  0=Write Channel B data, 1 = Record Channel B Audio
 			tape_drive.channel_select = (data & 1);
-		case 0x027:
 			break;
+		case 0x027:
 			// "Tape Drive Control: Erase"
 			tape_drive.erase = (data & 1);
 			break;
@@ -275,7 +275,7 @@ WRITE8_MEMBER( intv_state::intvkbd_io_w )
 			m_sr1_int_pending = 0;
 			break;
 		default:
-			//logerror("%04X: Unknown write %02x to 0x40%02x\n",space.device().safe_pc(),data,offset);
+			//logerror("%04X: Unknown write %02x to 0x40%02x\n",m_keyboard->pc(),data,offset);
 			break;
 	}
 }
@@ -539,25 +539,31 @@ WRITE16_MEMBER( intv_state::intv_ram16_w )
 READ8_MEMBER( intv_state::intvkb_iocart_r )
 {
 	if (m_iocart1->exists())
-		return m_iocart1->read_rom(space, offset, mem_mask);
+		return m_iocart1->read_rom(offset);
 	else if (m_iocart2->exists())
-		return m_iocart2->read_rom(space, offset, mem_mask);
+		return m_iocart2->read_rom(offset);
 	else
 		return m_region_keyboard->as_u8(offset + 0xe000);
+}
+
+uint16_t intv_state::iab_r()
+{
+	if (m_maincpu_reset)
+	{
+		// Reset vector
+		m_maincpu_reset = false;
+		return 0x1000;
+	}
+
+	// INTR/INTRM vector
+	return 0x1004;
 }
 
 
 /* Set Reset and INTR/INTRM Vector */
 void intv_state::machine_reset()
 {
-	m_maincpu->set_input_line_vector(CP1610_RESET, 0x1000);
-
-	/* These are actually the same vector, and INTR is unused */
-	m_maincpu->set_input_line_vector(CP1610_INT_INTRM, 0x1004);
-	m_maincpu->set_input_line_vector(CP1610_INT_INTR,  0x1004);
-
-	/* Set initial PC */
-	m_maincpu->set_state_int(CP1610_R7, 0x1000);
+	m_maincpu_reset = true;
 
 	if (m_is_keybd)
 	{
@@ -574,6 +580,7 @@ void intv_state::machine_start()
 	save_item(NAME(m_ram16));
 	save_item(NAME(m_sr1_int_pending));
 	save_item(NAME(m_ram8));
+	save_item(NAME(m_maincpu_reset));
 
 	// intvkbd
 	if (m_is_keybd)
@@ -581,7 +588,7 @@ void intv_state::machine_start()
 		for (int i = 0; i < 10; i++)
 		{
 			char str[5];
-			sprintf(str, "ROW%i", i);
+			sprintf(str, "ROW%X", uint8_t(i));
 			m_intv_keyboard[i] = ioport(str);
 		}
 
@@ -598,35 +605,35 @@ void intv_state::machine_start()
 		switch (m_cart->get_type())
 		{
 			case INTV_RAM:
-				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xd000, 0xd7ff, read16_delegate(FUNC(intv_cart_slot_device::read_ram),(intv_cart_slot_device*)m_cart), write16_delegate(FUNC(intv_cart_slot_device::write_ram),(intv_cart_slot_device*)m_cart));
+				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xd000, 0xd7ff, read16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::read_ram)), write16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::write_ram)));
 				break;
 			case INTV_GFACT:
-				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x8800, 0x8fff, read16_delegate(FUNC(intv_cart_slot_device::read_ram),(intv_cart_slot_device*)m_cart), write16_delegate(FUNC(intv_cart_slot_device::write_ram),(intv_cart_slot_device*)m_cart));
+				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x8800, 0x8fff, read16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::read_ram)), write16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::write_ram)));
 				break;
 			case INTV_VOICE:
 				m_cart->late_subslot_setup();
-				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x0080, 0x0081, read16_delegate(FUNC(intv_cart_slot_device::read_speech),(intv_cart_slot_device*)m_cart), write16_delegate(FUNC(intv_cart_slot_device::write_speech),(intv_cart_slot_device*)m_cart));
+				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x0080, 0x0081, read16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::read_speech)), write16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::write_speech)));
 
 				// passthru for RAM-equipped carts
-				m_maincpu->space(AS_PROGRAM).install_write_handler(0x8800, 0x8fff, write16_delegate(FUNC(intv_cart_slot_device::write_88),(intv_cart_slot_device*)m_cart));
-				m_maincpu->space(AS_PROGRAM).install_write_handler(0xd000, 0xd7ff, write16_delegate(FUNC(intv_cart_slot_device::write_d0),(intv_cart_slot_device*)m_cart));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0x8800, 0x8fff, write16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::write_88)));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0xd000, 0xd7ff, write16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::write_d0)));
 				break;
 			case INTV_ECS:
 				m_cart->late_subslot_setup();
-				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x00f0, 0x00ff, read16_delegate(FUNC(intv_cart_slot_device::read_ay),(intv_cart_slot_device*)m_cart), write16_delegate(FUNC(intv_cart_slot_device::write_ay),(intv_cart_slot_device*)m_cart));
-				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x4000, 0x47ff, read16_delegate(FUNC(intv_cart_slot_device::read_ram),(intv_cart_slot_device*)m_cart), write16_delegate(FUNC(intv_cart_slot_device::write_ram),(intv_cart_slot_device*)m_cart));
+				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x00f0, 0x00ff, read16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::read_ay)), write16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::write_ay)));
+				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x4000, 0x47ff, read16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::read_ram)), write16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::write_ram)));
 
-				m_maincpu->space(AS_PROGRAM).install_write_handler(0x2000, 0x2fff, write16_delegate(FUNC(intv_cart_slot_device::write_rom20),(intv_cart_slot_device*)m_cart));
-				m_maincpu->space(AS_PROGRAM).install_write_handler(0x7000, 0x7fff, write16_delegate(FUNC(intv_cart_slot_device::write_rom70),(intv_cart_slot_device*)m_cart));
-				m_maincpu->space(AS_PROGRAM).install_write_handler(0xe000, 0xefff, write16_delegate(FUNC(intv_cart_slot_device::write_rome0),(intv_cart_slot_device*)m_cart));
-				m_maincpu->space(AS_PROGRAM).install_write_handler(0xf000, 0xffff, write16_delegate(FUNC(intv_cart_slot_device::write_romf0),(intv_cart_slot_device*)m_cart));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0x2000, 0x2fff, write16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::write_rom20)));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0x7000, 0x7fff, write16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::write_rom70)));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0xe000, 0xefff, write16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::write_rome0)));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0xf000, 0xffff, write16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::write_romf0)));
 
 				// passthru for Intellivoice expansion
-				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x0080, 0x0081, read16_delegate(FUNC(intv_cart_slot_device::read_speech),(intv_cart_slot_device*)m_cart), write16_delegate(FUNC(intv_cart_slot_device::write_speech),(intv_cart_slot_device*)m_cart));
+				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x0080, 0x0081, read16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::read_speech)), write16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::write_speech)));
 
 				// passthru for RAM-equipped carts
-				m_maincpu->space(AS_PROGRAM).install_write_handler(0x8800, 0x8fff, write16_delegate(FUNC(intv_cart_slot_device::write_88),(intv_cart_slot_device*)m_cart));
-				m_maincpu->space(AS_PROGRAM).install_write_handler(0xd000, 0xd7ff, write16_delegate(FUNC(intv_cart_slot_device::write_d0),(intv_cart_slot_device*)m_cart));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0x8800, 0x8fff, write16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::write_88)));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0xd000, 0xd7ff, write16sm_delegate(*m_cart, FUNC(intv_cart_slot_device::write_d0)));
 				break;
 		}
 
@@ -646,8 +653,8 @@ TIMER_CALLBACK_MEMBER(intv_state::intv_btb_fill)
 	uint8_t row = m_backtab_row;
 	//m_maincpu->adjust_icount(-STIC_ROW_FETCH);
 
-	for (int column = 0; column < STIC_BACKTAB_WIDTH; column++)
-		m_stic->write_to_btb(row, column,  m_ram16[column + row * STIC_BACKTAB_WIDTH]);
+	for (int column = 0; column < stic_device::BACKTAB_WIDTH; column++)
+		m_stic->write_to_btb(row, column,  m_ram16[column + row * stic_device::BACKTAB_WIDTH]);
 
 	m_backtab_row += 1;
 }
@@ -660,16 +667,16 @@ INTERRUPT_GEN_MEMBER(intv_state::intv_interrupt)
 	m_bus_copy_mode = 1;
 	m_backtab_row = 0;
 
-	m_maincpu->adjust_icount(-(12*STIC_ROW_BUSRQ+STIC_FRAME_BUSRQ)); // Account for stic cycle stealing
-	timer_set(m_maincpu->cycles_to_attotime(STIC_VBLANK_END), TIMER_INTV_INTERRUPT_COMPLETE);
-	for (int row = 0; row < STIC_BACKTAB_HEIGHT; row++)
+	m_maincpu->adjust_icount(-(12*stic_device::ROW_BUSRQ+stic_device::FRAME_BUSRQ)); // Account for stic cycle stealing
+	timer_set(m_maincpu->cycles_to_attotime(stic_device::VBLANK_END), TIMER_INTV_INTERRUPT_COMPLETE);
+	for (int row = 0; row < stic_device::BACKTAB_HEIGHT; row++)
 	{
-		timer_set(m_maincpu->cycles_to_attotime(STIC_FIRST_FETCH-STIC_FRAME_BUSRQ+STIC_CYCLES_PER_SCANLINE*STIC_Y_SCALE*delay + (STIC_CYCLES_PER_SCANLINE*STIC_Y_SCALE*STIC_CARD_HEIGHT - STIC_ROW_BUSRQ)*row), TIMER_INTV_BTB_FILL);
+		timer_set(m_maincpu->cycles_to_attotime(stic_device::FIRST_FETCH-stic_device::FRAME_BUSRQ+stic_device::CYCLES_PER_SCANLINE*stic_device::Y_SCALE*delay + (stic_device::CYCLES_PER_SCANLINE*stic_device::Y_SCALE*stic_device::CARD_HEIGHT - stic_device::ROW_BUSRQ)*row), TIMER_INTV_BTB_FILL);
 	}
 
 	if (delay == 0)
 	{
-		m_maincpu->adjust_icount(-STIC_ROW_BUSRQ); // extra row fetch occurs if vertical delay == 0
+		m_maincpu->adjust_icount(-stic_device::ROW_BUSRQ); // extra row fetch occurs if vertical delay == 0
 	}
 
 	m_stic->screenrefresh();

@@ -13,7 +13,8 @@ class bitbanger_device : public device_t,
 	public device_image_interface
 {
 public:
-	static void static_set_interface(device_t &device, const char *_interface) { downcast<bitbanger_device &>(device).m_interface = _interface; }
+	void set_interface(const char *interface) { m_interface = interface; }
+	void set_readonly(bool is_readonly) { m_is_readonly = is_readonly; }
 
 	// construction/destruction
 	bitbanger_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
@@ -24,16 +25,16 @@ public:
 	virtual void call_unload() override;
 
 	// image device
-	virtual iodevice_t image_type() const override { return IO_SERIAL; }
-	virtual bool is_readable()  const override { return 1; }
-	virtual bool is_writeable() const override { return 1; }
-	virtual bool is_creatable() const override { return 1; }
-	virtual bool must_be_loaded() const override { return 0; }
-	virtual bool is_reset_on_load() const override { return 0; }
-	virtual const char *image_interface() const override { return m_interface; }
-	virtual const char *file_extensions() const override { return ""; }
-	virtual const char *custom_instance_name() const override { return "bitbanger"; }
-	virtual const char *custom_brief_instance_name() const override { return "bitb"; }
+	virtual iodevice_t image_type() const noexcept override { return IO_SERIAL; }
+	virtual bool is_readable()  const noexcept override { return true; }
+	virtual bool is_writeable() const noexcept override { return !m_is_readonly; }
+	virtual bool is_creatable() const noexcept override { return !m_is_readonly; }
+	virtual bool must_be_loaded() const noexcept override { return false; }
+	virtual bool is_reset_on_load() const noexcept override { return false; }
+	virtual const char *image_interface() const noexcept override { return m_interface; }
+	virtual const char *file_extensions() const noexcept override { return ""; }
+	virtual const char *custom_instance_name() const noexcept override { return "bitbanger"; }
+	virtual const char *custom_brief_instance_name() const noexcept override { return "bitb"; }
 
 	void output(uint8_t data);
 	uint32_t input(void *buffer, uint32_t length);
@@ -44,12 +45,11 @@ protected:
 
 private:
 	char const *m_interface;
+	bool m_is_readonly;
 };
 
-#define MCFG_BITBANGER_INTERFACE(_interface) \
-	bitbanger_image_device::static_set_interface(*device, _interface);
 
 // device type definition
-extern const device_type BITBANGER;
+DECLARE_DEVICE_TYPE(BITBANGER, bitbanger_device)
 
 #endif // MAME_DEVICES_IMAGEDEV_BITBNGR_H

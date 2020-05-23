@@ -1,7 +1,9 @@
 // license:BSD-3-Clause
 // copyright-holders:Fabio Priuli
-#ifndef __O2_SLOT_H
-#define __O2_SLOT_H
+#ifndef MAME_BUS_ODYSSEY2_SLOT_H
+#define MAME_BUS_ODYSSEY2_SLOT_H
+
+#pragma once
 
 #include "softlist_dev.h"
 
@@ -24,20 +26,19 @@ enum
 
 // ======================> device_o2_cart_interface
 
-class device_o2_cart_interface : public device_slot_card_interface
+class device_o2_cart_interface : public device_interface
 {
 public:
 	// construction/destruction
-	device_o2_cart_interface(const machine_config &mconfig, device_t &device);
 	virtual ~device_o2_cart_interface();
 
 	// reading and writing
-	virtual DECLARE_READ8_MEMBER(read_rom04) { return 0xff; }
-	virtual DECLARE_READ8_MEMBER(read_rom0c) { return 0xff; }
-	virtual void write_bank(int bank) {}
+	virtual uint8_t read_rom04(offs_t offset) { return 0xff; }
+	virtual uint8_t read_rom0c(offs_t offset) { return 0xff; }
+	virtual void write_bank(int bank) { }
 
-	virtual DECLARE_WRITE8_MEMBER(io_write) {}
-	virtual DECLARE_READ8_MEMBER(t0_read) { return 0; }
+	virtual void io_write(offs_t offset, uint8_t data) { }
+	virtual DECLARE_READ_LINE_MEMBER(t0_read) { return 0; }
 
 	void rom_alloc(uint32_t size, const char *tag);
 	void ram_alloc(uint32_t size);
@@ -47,6 +48,8 @@ public:
 	uint32_t get_ram_size() { return m_ram.size(); }
 
 protected:
+	device_o2_cart_interface(const machine_config &mconfig, device_t &device);
+
 	// internal state
 	uint8_t *m_rom;
 	uint32_t m_rom_size;
@@ -58,53 +61,62 @@ protected:
 
 class o2_cart_slot_device : public device_t,
 								public device_image_interface,
-								public device_slot_interface
+								public device_single_card_slot_interface<device_o2_cart_interface>
 {
 public:
 	// construction/destruction
-	o2_cart_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual ~o2_cart_slot_device();
+	template <typename T>
+	o2_cart_slot_device(machine_config const &mconfig, char const *tag, device_t *owner, T &&opts, char const *dflt)
+		: o2_cart_slot_device(mconfig, tag, owner, 0)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
 
-	// device-level overrides
-	virtual void device_start() override;
+	o2_cart_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
+	virtual ~o2_cart_slot_device();
 
 	// image-level overrides
 	virtual image_init_result call_load() override;
-	virtual void call_unload() override {}
-	virtual const software_list_loader &get_software_list_loader() const override { return rom_software_list_loader::instance(); }
+	virtual void call_unload() override { }
+
+	virtual iodevice_t image_type() const noexcept override { return IO_CARTSLOT; }
+	virtual bool is_readable()  const noexcept override { return true; }
+	virtual bool is_writeable() const noexcept override { return false; }
+	virtual bool is_creatable() const noexcept override { return false; }
+	virtual bool must_be_loaded() const noexcept override { return false; }
+	virtual bool is_reset_on_load() const noexcept override { return true; }
+	virtual const char *image_interface() const noexcept override { return "odyssey_cart"; }
+	virtual const char *file_extensions() const noexcept override { return "bin,rom"; }
+
+	// slot interface overrides
+	virtual std::string get_default_card_software(get_default_card_software_hook &hook) const override;
 
 	int get_type() { return m_type; }
 
-	virtual iodevice_t image_type() const override { return IO_CARTSLOT; }
-	virtual bool is_readable()  const override { return 1; }
-	virtual bool is_writeable() const override { return 0; }
-	virtual bool is_creatable() const override { return 0; }
-	virtual bool must_be_loaded() const override { return 0; }
-	virtual bool is_reset_on_load() const override { return 1; }
-	virtual const char *image_interface() const override { return "odyssey_cart"; }
-	virtual const char *file_extensions() const override { return "bin,rom"; }
-
-	// slot interface overrides
-	virtual std::string get_default_card_software() override;
-
 	// reading and writing
-	virtual DECLARE_READ8_MEMBER(read_rom04);
-	virtual DECLARE_READ8_MEMBER(read_rom0c);
-	virtual DECLARE_WRITE8_MEMBER(io_write);
-	virtual DECLARE_READ8_MEMBER(t0_read) { if (m_cart) return m_cart->t0_read(space, offset); else return 0; }
+	uint8_t read_rom04(offs_t offset);
+	uint8_t read_rom0c(offs_t offset);
+	void io_write(offs_t offset, uint8_t data);
+	DECLARE_READ_LINE_MEMBER(t0_read) { if (m_cart) return m_cart->t0_read(); else return 0; }
 
-	virtual void write_bank(int bank)   { if (m_cart) m_cart->write_bank(bank); }
+	void write_bank(int bank)   { if (m_cart) m_cart->write_bank(bank); }
 
 protected:
+	// device-level overrides
+	virtual void device_start() override;
+
+	// device_image_interface implementation
+	virtual const software_list_loader &get_software_list_loader() const override { return rom_software_list_loader::instance(); }
 
 	int m_type;
-	device_o2_cart_interface*       m_cart;
+	device_o2_cart_interface* m_cart;
 };
 
-
-
 // device type definition
-extern const device_type O2_CART_SLOT;
+DECLARE_DEVICE_TYPE(O2_CART_SLOT, o2_cart_slot_device)
 
 
 /***************************************************************************
@@ -113,10 +125,6 @@ extern const device_type O2_CART_SLOT;
 
 #define O2SLOT_ROM_REGION_TAG ":cart:rom"
 
-#define MCFG_O2_CARTRIDGE_ADD(_tag,_slot_intf,_def_slot) \
-	MCFG_DEVICE_ADD(_tag, O2_CART_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
+void o2_cart(device_slot_interface &device);
 
-SLOT_INTERFACE_EXTERN(o2_cart);
-
-#endif
+#endif // MAME_BUS_ODYSSEY2_SLOT_H

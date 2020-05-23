@@ -3,19 +3,19 @@
 /*
     DataEast/Sega Version 1 and 2
 
-    Main CPU: 6808 @ 4MHz
-    Audio CPU: 68B09E @ 8MHz (internally divided by 4)
+    Main CPU: 6808 @ 4MHz (internally divided by 4)
+    Audio CPU: 68B09E @ 2MHz
     Audio: YM2151 @ 3.58MHz, MSM5205 @ 384kHz
 */
 
-
 #include "emu.h"
+
+#include "machine/decopincpu.h"
 #include "machine/genpin.h"
 
 #include "cpu/m6800/m6800.h"
 #include "cpu/m6809/m6809.h"
 #include "machine/6821pia.h"
-#include "machine/decopincpu.h"
 #include "sound/msm5205.h"
 #include "sound/ym2151.h"
 #include "speaker.h"
@@ -32,78 +32,78 @@
 // Data East CPU board is similar to Williams System 11, but without the generic audio board.
 // For now, we'll presume the timings are the same.
 
-// 6808 CPU's input clock is 4MHz
-// but because it has an internal /4 divider, its E clock runs at 1/4 that frequency
-#define E_CLOCK (XTAL_4MHz/4)
-
-// Length of time in cycles between IRQs on the main 6808 CPU
-// This length is determined by the settings of the W14 and W15 jumpers
-// It can be 0x300, 0x380, 0x700 or 0x780 cycles long.
-// IRQ length is always 32 cycles
-#define S11_IRQ_CYCLES 0x380
-
 class de_2_state : public genpin_class
 {
 public:
 	de_2_state(const machine_config &mconfig, device_type type, const char *tag)
-		: genpin_class(mconfig, type, tag),
-			m_ym2151(*this, "ym2151"),
-			m_audiocpu(*this, "audiocpu"),
-			m_msm5205(*this, "msm5205"),
-			m_sample_bank(*this, "sample_bank")
+		: genpin_class(mconfig, type, tag)
+		, m_ym2151(*this, "ym2151")
+		, m_audiocpu(*this, "audiocpu")
+		, m_msm5205(*this, "msm5205")
+		, m_sample_bank(*this, "sample_bank")
+		, m_digits(*this, "digit%u", 0U)
+		, m_diag_digit(*this, "digit60")
 	{ }
 
-protected:
+	void de_type1(machine_config &config);
+	void de_type2(machine_config &config);
+	void de_type2_alpha3(machine_config &config);
+	void de_type3(machine_config &config);
 
-	// devices
-	required_device<ym2151_device> m_ym2151;
+private:
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
 
-public:
-	DECLARE_DRIVER_INIT(de_2);
-	DECLARE_MACHINE_RESET(de_2);
-	DECLARE_MACHINE_RESET(de_2_alpha3);
+	void de_bg_audio(machine_config &config);
+	void de_2_map(address_map &map);
+	void de_2_audio_map(address_map &map);
+
 	DECLARE_WRITE8_MEMBER(sample_w);
-	DECLARE_WRITE8_MEMBER(pia34_pa_w);
-	DECLARE_WRITE8_MEMBER(type2alpha3_pia34_pa_w);
-	DECLARE_WRITE8_MEMBER(alpha3_pia34_pa_w);
-	DECLARE_READ8_MEMBER(switch_r);
-	DECLARE_WRITE8_MEMBER(switch_w);
-	DECLARE_WRITE8_MEMBER(pia2c_pa_w);
-	DECLARE_WRITE8_MEMBER(pia2c_pb_w);
-	DECLARE_WRITE_LINE_MEMBER(pia28_ca2_w) { }; // comma3&4
-	DECLARE_WRITE_LINE_MEMBER(pia28_cb2_w) { }; // comma1&2
-	DECLARE_READ8_MEMBER(pia28_w7_r);
-	DECLARE_WRITE8_MEMBER(dig0_w);
-	DECLARE_WRITE8_MEMBER(dig1_w);
-	DECLARE_WRITE8_MEMBER(type2alpha3_dig1_w);
-	DECLARE_WRITE8_MEMBER(alpha3_dig1_w);
-	DECLARE_WRITE8_MEMBER(lamp0_w);
-	DECLARE_WRITE8_MEMBER(lamp1_w) { };
+	void pia34_pa_w(uint8_t data);
+	void type2alpha3_pia34_pa_w(uint8_t data);
+	void alpha3_pia34_pa_w(uint8_t data);
+	uint8_t switch_r();
+	void switch_w(uint8_t data);
+	void pia2c_pa_w(uint8_t data);
+	void pia2c_pb_w(uint8_t data);
+	DECLARE_WRITE_LINE_MEMBER(pia28_ca2_w) { } // comma3&4
+	DECLARE_WRITE_LINE_MEMBER(pia28_cb2_w) { } // comma1&2
+	uint8_t pia28_w7_r();
+	void dig0_w(uint8_t data);
+	void dig1_w(uint8_t data);
+	void type2alpha3_dig1_w(uint8_t data);
+	void alpha3_dig1_w(uint8_t data);
+	void lamp0_w(uint8_t data);
+	void lamp1_w(uint8_t data) { }
 	DECLARE_WRITE_LINE_MEMBER(ym2151_irq_w);
 	DECLARE_WRITE_LINE_MEMBER(msm5205_irq_w);
-	DECLARE_WRITE8_MEMBER(sol2_w) { }; // solenoids 8-15
+	DECLARE_WRITE8_MEMBER(sol2_w) { } // solenoids 8-15
 	DECLARE_WRITE8_MEMBER(sol3_w);
-	DECLARE_WRITE8_MEMBER(sound_w);
+	void sound_w(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER(pia21_ca2_w);
 
 	DECLARE_READ8_MEMBER(sound_latch_r);
 	DECLARE_WRITE8_MEMBER(sample_bank_w);
 
 	// devcb callbacks
-	DECLARE_READ8_MEMBER(display_r);
-	DECLARE_WRITE8_MEMBER(display_w);
-	DECLARE_WRITE8_MEMBER(type2alpha3_display_w);
-	DECLARE_WRITE8_MEMBER(alpha3_display_w);
-	DECLARE_WRITE8_MEMBER(lamps_w);
+	uint8_t display_r(offs_t offset);
+	void display_w(offs_t offset, uint8_t data);
+	void type2alpha3_display_w(offs_t offset, uint8_t data);
+	void type3_display_w(offs_t offset, uint8_t data);
+	void lamps_w(offs_t offset, uint8_t data);
 
+	// devices
+	required_device<ym2151_device> m_ym2151;
 	required_device<cpu_device> m_audiocpu;
 	required_device<msm5205_device> m_msm5205;
 	required_memory_bank m_sample_bank;
+	output_finder<32> m_digits;
+	output_finder<> m_diag_digit;
+
 	uint8_t m_sample_data;
 	bool m_more_data;
 	bool m_nmi_enable;
 
-private:
 	uint32_t m_segment1;
 	uint32_t m_segment2;
 	uint8_t m_strobe;
@@ -116,29 +116,32 @@ private:
 	uint8_t m_msm_prescaler;
 };
 
-/*static ADDRESS_MAP_START( de_2_map, AS_PROGRAM, 8, de_2_state )
-    AM_RANGE(0x0000, 0x1fff) AM_RAM AM_SHARE("nvram")
-    AM_RANGE(0x2100, 0x2103) AM_DEVREADWRITE("pia21", pia6821_device, read, write) // sound+solenoids
-    AM_RANGE(0x2200, 0x2200) AM_WRITE(sol3_w) // solenoids
-    AM_RANGE(0x2400, 0x2403) AM_DEVREADWRITE("pia24", pia6821_device, read, write) // lamps
-    AM_RANGE(0x2800, 0x2803) AM_DEVREADWRITE("pia28", pia6821_device, read, write) // display
-    AM_RANGE(0x2c00, 0x2c03) AM_DEVREADWRITE("pia2c", pia6821_device, read, write) // alphanumeric display
-    AM_RANGE(0x3000, 0x3003) AM_DEVREADWRITE("pia30", pia6821_device, read, write) // inputs
-    AM_RANGE(0x3400, 0x3403) AM_DEVREADWRITE("pia34", pia6821_device, read, write) // widget
-    AM_RANGE(0x4000, 0xffff) AM_ROM
-ADDRESS_MAP_END
-*/
-static ADDRESS_MAP_START( de_2_audio_map, AS_PROGRAM, 8, de_2_state )
-	AM_RANGE(0x0000, 0x1fff) AM_RAM
-	AM_RANGE(0x2000, 0x2001) AM_DEVREADWRITE("ym2151", ym2151_device, read, write)
-	AM_RANGE(0x2400, 0x2400) AM_READ(sound_latch_r)
-	AM_RANGE(0x2800, 0x2800) AM_WRITE(sample_bank_w)
+
+void de_2_state::de_2_map(address_map &map)
+{
+	map(0x0000, 0x1fff).ram().share("nvram");
+	map(0x2100, 0x2103).rw("pia21", FUNC(pia6821_device::read), FUNC(pia6821_device::write)); // sound+solenoids
+	map(0x2200, 0x2200).w(FUNC(de_2_state::sol3_w)); // solenoids
+	map(0x2400, 0x2403).rw("pia24", FUNC(pia6821_device::read), FUNC(pia6821_device::write)); // lamps
+	map(0x2800, 0x2803).rw("pia28", FUNC(pia6821_device::read), FUNC(pia6821_device::write)); // display
+	map(0x2c00, 0x2c03).rw("pia2c", FUNC(pia6821_device::read), FUNC(pia6821_device::write)); // alphanumeric display
+	map(0x3000, 0x3003).rw("pia30", FUNC(pia6821_device::read), FUNC(pia6821_device::write)); // inputs
+	map(0x3400, 0x3403).rw("pia34", FUNC(pia6821_device::read), FUNC(pia6821_device::write)); // widget
+	map(0x4000, 0xffff).rom();
+}
+
+void de_2_state::de_2_audio_map(address_map &map)
+{
+	map(0x0000, 0x1fff).ram();
+	map(0x2000, 0x2001).rw(m_ym2151, FUNC(ym2151_device::read), FUNC(ym2151_device::write));
+	map(0x2400, 0x2400).r(FUNC(de_2_state::sound_latch_r));
+	map(0x2800, 0x2800).w(FUNC(de_2_state::sample_bank_w));
 	// 0x2c00        - 4052(?)
-	AM_RANGE(0x3000, 0x3000) AM_WRITE(sample_w)
+	map(0x3000, 0x3000).w(FUNC(de_2_state::sample_w));
 	// 0x3800        - Watchdog reset
-	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("sample_bank")
-	AM_RANGE(0x8000, 0xffff) AM_ROM
-ADDRESS_MAP_END
+	map(0x4000, 0x7fff).bankr("sample_bank");
+	map(0x8000, 0xffff).rom();
+}
 
 static INPUT_PORTS_START( de_2 )
 	PORT_START("INP0")
@@ -214,15 +217,22 @@ static INPUT_PORTS_START( de_2 )
 INPUT_PORTS_END
 
 
-MACHINE_RESET_MEMBER(de_2_state, de_2)
+void de_2_state::machine_reset()
 {
+	genpin_class::machine_reset();
+
 	m_sample_bank->set_entry(0);
 	m_more_data = false;
 }
 
-DRIVER_INIT_MEMBER(de_2_state, de_2)
+void de_2_state::machine_start()
 {
-	uint8_t *ROM = memregion("sound1")->base();
+	genpin_class::machine_start();
+
+	m_digits.resolve();
+	m_diag_digit.resolve();
+
+	uint8_t *const ROM = memregion("sound1")->base();
 	m_sample_bank->configure_entries(0, 16, &ROM[0x0000], 0x4000);
 	m_sample_bank->set_entry(0);
 }
@@ -238,7 +248,7 @@ WRITE_LINE_MEMBER(de_2_state::msm5205_irq_w)
 	if(m_more_data)
 	{
 		if(m_nmi_enable)
-			m_audiocpu->set_input_line(INPUT_LINE_NMI,PULSE_LINE);  // generate NMI when we need more data
+			m_audiocpu->pulse_input_line(INPUT_LINE_NMI, attotime::zero);  // generate NMI when we need more data
 		m_more_data = false;
 	}
 	else
@@ -253,7 +263,7 @@ WRITE8_MEMBER( de_2_state::sol3_w )
 {
 }
 
-WRITE8_MEMBER( de_2_state::sound_w )
+void de_2_state::sound_w(uint8_t data)
 {
 	m_sound_data = data;
 	m_audiocpu->set_input_line(M6809_FIRQ_LINE, ASSERT_LINE);
@@ -266,56 +276,56 @@ WRITE_LINE_MEMBER( de_2_state::pia21_ca2_w )
 }
 
 // 6821 PIA at 0x2400
-WRITE8_MEMBER( de_2_state::lamp0_w )
+void de_2_state::lamp0_w(uint8_t data)
 {
 }
 
 // 6821 PIA at 0x2800
-WRITE8_MEMBER( de_2_state::dig0_w )
+void de_2_state::dig0_w(uint8_t data)
 {
 	static const uint8_t patterns[16] = { 0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7c, 0x07, 0x7f, 0x67, 0x58, 0x4c, 0x62, 0x69, 0x78, 0 }; // 7447
 	data &= 0x7f;
 	m_strobe = data & 15;
 	m_diag = (data & 0x70) >> 4;
-	output().set_digit_value(60, patterns[data>>4]); // diag digit
+	m_diag_digit = patterns[data>>4]; // diag digit
 	m_segment1 = 0;
 	m_segment2 = 0;
 }
 
-WRITE8_MEMBER( de_2_state::dig1_w )
+void de_2_state::dig1_w(uint8_t data)
 {
 	m_segment2 |= data;
 	m_segment2 |= 0x30000;
 	if ((m_segment2 & 0x70000) == 0x30000)
 	{
-		output().set_digit_value(m_strobe+16, BITSWAP16(m_segment2, 11, 15, 12, 10, 8, 14, 13, 9, 7, 6, 5, 4, 3, 2, 1, 0));
+		m_digits[m_strobe+16] = bitswap<16>(m_segment2, 11, 15, 12, 10, 8, 14, 13, 9, 7, 6, 5, 4, 3, 2, 1, 0);
 		m_segment2 |= 0x40000;
 	}
 }
 
-WRITE8_MEMBER( de_2_state::type2alpha3_dig1_w )
+void de_2_state::type2alpha3_dig1_w(uint8_t data)
 {
 	m_segment2 |= data;
 	m_segment2 |= 0x20000;
 	if ((m_segment2 & 0x70000) == 0x30000)
 	{
-		output().set_digit_value(m_strobe+16, BITSWAP16(m_segment2, 11, 15, 12, 10, 8, 14, 13, 9, 7, 6, 5, 4, 3, 2, 1, 0));
+		m_digits[m_strobe+16] = bitswap<16>(m_segment2, 11, 15, 12, 10, 8, 14, 13, 9, 7, 6, 5, 4, 3, 2, 1, 0);
 		m_segment2 |= 0x40000;
 	}
 }
 
-WRITE8_MEMBER( de_2_state::alpha3_dig1_w )
+void de_2_state::alpha3_dig1_w(uint8_t data)
 {
 	m_segment2 |= data;
 	m_segment2 |= 0x20000;
 	if ((m_segment2 & 0x70000) == 0x30000)
 	{
-		output().set_digit_value(m_strobe+16, BITSWAP16(m_segment2, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+		m_digits[m_strobe+16] = bitswap<16>(m_segment2, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0);
 		m_segment2 |= 0x40000;
 	}
 }
 
-READ8_MEMBER( de_2_state::pia28_w7_r )
+uint8_t de_2_state::pia28_w7_r()
 {
 	uint8_t ret = 0x80;
 
@@ -326,41 +336,40 @@ READ8_MEMBER( de_2_state::pia28_w7_r )
 }
 
 // 6821 PIA at 0x2c00
-WRITE8_MEMBER( de_2_state::pia2c_pa_w )
+void de_2_state::pia2c_pa_w(uint8_t data)
 {
 	m_segment1 |= (data<<8);
 	m_segment1 |= 0x10000;
 	if ((m_segment1 & 0x70000) == 0x30000)
 	{
-		output().set_digit_value(m_strobe, BITSWAP16(m_segment1, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+		m_digits[m_strobe] = bitswap<16>(m_segment1, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0);
 		m_segment1 |= 0x40000;
 	}
 }
 
-WRITE8_MEMBER( de_2_state::pia2c_pb_w )
+void de_2_state::pia2c_pb_w(uint8_t data)
 {
 	m_segment1 |= data;
 	m_segment1 |= 0x20000;
 	if ((m_segment1 & 0x70000) == 0x30000)
 	{
-		output().set_digit_value(m_strobe, BITSWAP16(m_segment1, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+		m_digits[m_strobe] = bitswap<16>(m_segment1, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0);
 		m_segment1 |= 0x40000;
 	}
 }
 
 
 // 6821 PIA at 0x3000
-READ8_MEMBER( de_2_state::switch_r )
+uint8_t de_2_state::switch_r()
 {
 	char kbdrow[8];
 	sprintf(kbdrow,"INP%X",m_kbdrow);
 	return ~ioport(kbdrow)->read();
 }
 
-WRITE8_MEMBER( de_2_state::switch_w )
+void de_2_state::switch_w(uint8_t data)
 {
 	int x;
-
 	// about every second, 0xFF is written here, but it would be impossible to select more than one set of switches
 	// at once, so just return the first bit set.  Maybe 0xFF has special meaning, or is just a disable?
 	for(x=0;x<8;x++)
@@ -372,29 +381,29 @@ WRITE8_MEMBER( de_2_state::switch_w )
 }
 
 // 6821 PIA at 0x3400
-WRITE8_MEMBER( de_2_state::pia34_pa_w )
+void de_2_state::pia34_pa_w(uint8_t data)
 {
 	// Not connected on alphanumeric type 2 boards
 }
 
-WRITE8_MEMBER( de_2_state::type2alpha3_pia34_pa_w )
+void de_2_state::type2alpha3_pia34_pa_w(uint8_t data)
 {
 	m_segment2 |= (data<<8);
 	m_segment2 |= 0x10000;
 	if ((m_segment2 & 0x70000) == 0x30000)
 	{
-		output().set_digit_value(m_strobe+16, BITSWAP16(m_segment2, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+		m_digits[m_strobe+16] = bitswap<16>(m_segment2, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0);
 		m_segment2 |= 0x40000;
 	}
 }
 
-WRITE8_MEMBER( de_2_state::alpha3_pia34_pa_w )
+void de_2_state::alpha3_pia34_pa_w(uint8_t data)
 {
 	m_segment2 |= (data<<8);
 	m_segment2 |= 0x10000;
 	if ((m_segment2 & 0x70000) == 0x30000)
 	{
-		output().set_digit_value(m_strobe+16, BITSWAP16(m_segment2, 11, 15, 12, 10, 8, 14, 13, 9, 7, 6, 5, 4, 3, 2, 1, 0));
+		m_digits[m_strobe+16] = bitswap<16>(m_segment2, 11, 15, 12, 10, 8, 14, 13, 9, 7, 6, 5, 4, 3, 2, 1, 0);
 		m_segment2 |= 0x40000;
 	}
 }
@@ -414,7 +423,7 @@ READ8_MEMBER( de_2_state::sound_latch_r )
 
 WRITE8_MEMBER( de_2_state::sample_bank_w )
 {
-	static const uint8_t prescale[4] = { MSM5205_S96_4B, MSM5205_S48_4B, MSM5205_S64_4B, 0 };
+	static constexpr uint8_t prescale[4] = { msm5205_device::S96_4B, msm5205_device::S48_4B, msm5205_device::S64_4B, 0 };
 
 	m_sample_bank_num = (data & 0x07);
 	m_sample_bank->set_entry(m_sample_bank_num);
@@ -424,211 +433,181 @@ WRITE8_MEMBER( de_2_state::sample_bank_w )
 	m_msm5205->reset_w(data & 0x40);
 }
 
-READ8_MEMBER(de_2_state::display_r)
+uint8_t de_2_state::display_r(offs_t offset)
 {
 	uint8_t ret = 0x00;
 
 	switch(offset)
 	{
 	case 0:
-		ret = pia28_w7_r(space,0);
+		ret = pia28_w7_r();
 		break;
 	}
 
 	return ret;
 }
 
-WRITE8_MEMBER(de_2_state::display_w)
+void de_2_state::display_w(offs_t offset, uint8_t data)
 {
 	switch(offset)
 	{
 	case 0:
-		dig0_w(space,0,data);
+		dig0_w(data);
 		break;
 	case 1:
-		dig1_w(space,0,data);
+		dig1_w(data);
 		break;
 	case 2:
-		pia2c_pa_w(space,0,data);
+		pia2c_pa_w(data);
 		break;
 	case 3:
-		pia2c_pb_w(space,0,data);
+		pia2c_pb_w(data);
 		break;
 	case 4:
-		pia34_pa_w(space,0,data);
+		pia34_pa_w(data);
 		break;
 	}
 }
 
-WRITE8_MEMBER(de_2_state::type2alpha3_display_w)
+void de_2_state::type2alpha3_display_w(offs_t offset, uint8_t data)
 {
 	switch(offset)
 	{
 	case 0:
-		dig0_w(space,0,data);
+		dig0_w(data);
 		break;
 	case 1:
-		type2alpha3_dig1_w(space,0,data);
+		type2alpha3_dig1_w(data);
 		break;
 	case 2:
-		pia2c_pa_w(space,0,data);
+		pia2c_pa_w(data);
 		break;
 	case 3:
-		pia2c_pb_w(space,0,data);
+		pia2c_pb_w(data);
 		break;
 	case 4:
-		type2alpha3_pia34_pa_w(space,0,data);
+		type2alpha3_pia34_pa_w(data);
 		break;
 	}
 }
 
-WRITE8_MEMBER(de_2_state::alpha3_display_w)
+void de_2_state::type3_display_w(offs_t offset, uint8_t data)
 {
 	switch(offset)
 	{
 	case 0:
-		dig0_w(space,0,data);
+		dig0_w(data);
 		break;
 	case 1:
-		alpha3_dig1_w(space,0,data);
+		alpha3_dig1_w(data);
 		break;
 	case 2:
-		pia2c_pa_w(space,0,data);
+		pia2c_pa_w(data);
 		break;
 	case 3:
-		pia2c_pb_w(space,0,data);
+		pia2c_pb_w(data);
 		break;
 	case 4:
-		alpha3_pia34_pa_w(space,0,data);
+		alpha3_pia34_pa_w(data);
 		break;
 	}
 }
 
-WRITE8_MEMBER(de_2_state::lamps_w)
+void de_2_state::lamps_w(offs_t offset, uint8_t data)
 {
 	switch(offset)
 	{
 	case 0:
-		lamp0_w(space,0,data);
+		lamp0_w(data);
 		break;
 	case 1:
-		lamp1_w(space,0,data);
+		lamp1_w(data);
 		break;
 	}
 }
 
 
-static MACHINE_CONFIG_START( de_type1, de_2_state )
+void de_2_state::de_bg_audio(machine_config &config)
+{
+	/* sound CPU */
+	MC6809E(config, m_audiocpu, XTAL(8'000'000) / 4); // MC68B09E
+	m_audiocpu->set_addrmap(AS_PROGRAM, &de_2_state::de_2_audio_map);
+
+	SPEAKER(config, "bg").front_center();
+
+	YM2151(config, m_ym2151, XTAL(3'579'545));
+	m_ym2151->irq_handler().set(FUNC(de_2_state::ym2151_irq_w));
+	m_ym2151->add_route(ALL_OUTPUTS, "bg", 0.50);
+
+	MSM5205(config, m_msm5205, XTAL(384'000));
+	m_msm5205->vck_legacy_callback().set(FUNC(de_2_state::msm5205_irq_w));
+	m_msm5205->set_prescaler_selector(msm5205_device::S96_4B);
+	m_msm5205->add_route(ALL_OUTPUTS, "bg", 0.50);
+}
+
+void de_2_state::de_type1(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_DECOCPU_TYPE1_ADD("decocpu",XTAL_8MHz / 2, ":maincpu")
-	MCFG_DECOCPU_DISPLAY(READ8(de_2_state,display_r),WRITE8(de_2_state,display_w))
-	MCFG_DECOCPU_SOUNDLATCH(WRITE8(de_2_state,sound_w))
-	MCFG_DECOCPU_SWITCH(READ8(de_2_state,switch_r),WRITE8(de_2_state,switch_w))
-	MCFG_DECOCPU_LAMP(WRITE8(de_2_state,lamps_w))
-	MCFG_MACHINE_RESET_OVERRIDE(de_2_state, de_2)
+	decocpu_type1_device &decocpu(DECOCPU1(config, "decocpu", XTAL(8'000'000) / 2, "maincpu"));
+	decocpu.display_read_callback().set(FUNC(de_2_state::display_r));
+	decocpu.display_write_callback().set(FUNC(de_2_state::display_w));
+	decocpu.soundlatch_write_callback().set(FUNC(de_2_state::sound_w));
+	decocpu.switch_read_callback().set(FUNC(de_2_state::switch_r));
+	decocpu.switch_write_callback().set(FUNC(de_2_state::switch_w));
+	decocpu.lamp_write_callback().set(FUNC(de_2_state::lamps_w));
 
 	/* Video */
-	MCFG_DEFAULT_LAYOUT(layout_de2)
+	config.set_default_layout(layout_de2);
 
-	MCFG_FRAGMENT_ADD( genpin_audio )
+	genpin_audio(config);
+	de_bg_audio(config);
+}
 
-	/* sound CPU */
-	MCFG_CPU_ADD("audiocpu", M6809E, 8000000) // MC68B09E
-	MCFG_CPU_PROGRAM_MAP(de_2_audio_map)
-
-	MCFG_SPEAKER_STANDARD_MONO("bg")
-	MCFG_YM2151_ADD("ym2151", 3580000)
-	MCFG_YM2151_IRQ_HANDLER(WRITELINE(de_2_state, ym2151_irq_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bg", 0.50)
-	MCFG_SOUND_ADD("msm5205", MSM5205, 384000)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(de_2_state, msm5205_irq_w))
-	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S96_4B)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bg", 0.50)
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_START( de_type2, de_2_state )
+void de_2_state::de_type2(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_DECOCPU_TYPE2_ADD("decocpu",XTAL_8MHz / 2, ":maincpu")
-	MCFG_DECOCPU_DISPLAY(READ8(de_2_state,display_r),WRITE8(de_2_state,display_w))
-	MCFG_DECOCPU_SOUNDLATCH(WRITE8(de_2_state,sound_w))
-	MCFG_DECOCPU_SWITCH(READ8(de_2_state,switch_r),WRITE8(de_2_state,switch_w))
-	MCFG_DECOCPU_LAMP(WRITE8(de_2_state,lamps_w))
-	MCFG_MACHINE_RESET_OVERRIDE(de_2_state, de_2)
+	decocpu_type2_device &decocpu(DECOCPU2(config, "decocpu", XTAL(8'000'000) / 2, "maincpu"));
+	decocpu.display_read_callback().set(FUNC(de_2_state::display_r));
+	decocpu.display_write_callback().set(FUNC(de_2_state::display_w));
+	decocpu.soundlatch_write_callback().set(FUNC(de_2_state::sound_w));
+	decocpu.switch_read_callback().set(FUNC(de_2_state::switch_r));
+	decocpu.switch_write_callback().set(FUNC(de_2_state::switch_w));
+	decocpu.lamp_write_callback().set(FUNC(de_2_state::lamps_w));
 
 	/* Video */
-	MCFG_DEFAULT_LAYOUT(layout_de2)
+	config.set_default_layout(layout_de2);
 
-	MCFG_FRAGMENT_ADD( genpin_audio )
+	genpin_audio(config);
+	de_bg_audio(config);
+}
 
-	/* sound CPU */
-	MCFG_CPU_ADD("audiocpu", M6809E, 8000000) // MC68B09E
-	MCFG_CPU_PROGRAM_MAP(de_2_audio_map)
-
-	MCFG_SPEAKER_STANDARD_MONO("bg")
-	MCFG_YM2151_ADD("ym2151", 3580000)
-	MCFG_YM2151_IRQ_HANDLER(WRITELINE(de_2_state, ym2151_irq_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bg", 0.50)
-	MCFG_SOUND_ADD("msm5205", MSM5205, 384000)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(de_2_state, msm5205_irq_w))
-	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S96_4B)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bg", 0.50)
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_START( de_type2_alpha3, de_2_state )
+void de_2_state::de_type2_alpha3(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_DECOCPU_TYPE2_ADD("decocpu",XTAL_8MHz / 2, ":maincpu")
-	MCFG_DECOCPU_DISPLAY(READ8(de_2_state,display_r),WRITE8(de_2_state,type2alpha3_display_w))
-	MCFG_DECOCPU_SOUNDLATCH(WRITE8(de_2_state,sound_w))
-	MCFG_DECOCPU_SWITCH(READ8(de_2_state,switch_r),WRITE8(de_2_state,switch_w))
-	MCFG_DECOCPU_LAMP(WRITE8(de_2_state,lamps_w))
-	MCFG_MACHINE_RESET_OVERRIDE(de_2_state, de_2)
+	de_type2(config);
+	subdevice<decocpu_type2_device>("decocpu")->display_write_callback().set(FUNC(de_2_state::type2alpha3_display_w));
 
 	/* Video */
-	MCFG_DEFAULT_LAYOUT(layout_de2a3)
+	config.set_default_layout(layout_de2a3);
+}
 
-	MCFG_FRAGMENT_ADD( genpin_audio )
-
-	/* sound CPU */
-	MCFG_CPU_ADD("audiocpu", M6809E, 8000000) // MC68B09E
-	MCFG_CPU_PROGRAM_MAP(de_2_audio_map)
-
-	MCFG_SPEAKER_STANDARD_MONO("bg")
-	MCFG_YM2151_ADD("ym2151", 3580000)
-	MCFG_YM2151_IRQ_HANDLER(WRITELINE(de_2_state, ym2151_irq_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bg", 0.50)
-	MCFG_SOUND_ADD("msm5205", MSM5205, 384000)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(de_2_state, msm5205_irq_w))
-	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S96_4B)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bg", 0.50)
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_START( de_type3, de_2_state )
+void de_2_state::de_type3(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_DECOCPU_TYPE3_ADD("decocpu",XTAL_8MHz / 2, ":maincpu")
-	MCFG_DECOCPU_DISPLAY(READ8(de_2_state,display_r),WRITE8(de_2_state,alpha3_display_w))
-	MCFG_DECOCPU_SOUNDLATCH(WRITE8(de_2_state,sound_w))
-	MCFG_DECOCPU_SWITCH(READ8(de_2_state,switch_r),WRITE8(de_2_state,switch_w))
-	MCFG_DECOCPU_LAMP(WRITE8(de_2_state,lamps_w))
-	MCFG_MACHINE_RESET_OVERRIDE(de_2_state, de_2)
+	decocpu_type3_device &decocpu(DECOCPU3(config, "decocpu", XTAL(8'000'000) / 2, "maincpu"));
+	decocpu.display_read_callback().set(FUNC(de_2_state::display_r));
+	decocpu.display_write_callback().set(FUNC(de_2_state::type3_display_w));
+	decocpu.soundlatch_write_callback().set(FUNC(de_2_state::sound_w));
+	decocpu.switch_read_callback().set(FUNC(de_2_state::switch_r));
+	decocpu.switch_write_callback().set(FUNC(de_2_state::switch_w));
+	decocpu.lamp_write_callback().set(FUNC(de_2_state::lamps_w));
 
 	/* Video */
-	MCFG_DEFAULT_LAYOUT(layout_de2a3)
+	config.set_default_layout(layout_de2a3);
 
-	MCFG_FRAGMENT_ADD( genpin_audio )
-
-	/* sound CPU */
-	MCFG_CPU_ADD("audiocpu", M6809E, 8000000) // MC68B09E
-	MCFG_CPU_PROGRAM_MAP(de_2_audio_map)
-
-	MCFG_SPEAKER_STANDARD_MONO("bg")
-	MCFG_YM2151_ADD("ym2151", 3580000)
-	MCFG_YM2151_IRQ_HANDLER(WRITELINE(de_2_state, ym2151_irq_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bg", 0.50)
-	MCFG_SOUND_ADD("msm5205", MSM5205, 384000)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(de_2_state, msm5205_irq_w))
-	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S96_4B)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bg", 0.50)
-MACHINE_CONFIG_END
+	genpin_audio(config);
+	de_bg_audio(config);
+}
 
 
 /*--------------------------------------------------------------------------------
@@ -777,6 +756,17 @@ ROM_START(poto_a32)
 	ROM_LOAD("potof5.rom", 0x10000, 0x10000, CRC(5a0537a8) SHA1(26724441d7e2edd7725337b262d95448499151ad))
 ROM_END
 
+ROM_START(poto_a31)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD("potob5.3-1", 0x4000, 0x4000, CRC(b7be6fa8) SHA1(3ef77daafaf31e2388ac207275aa060f854bd4b9))
+	ROM_LOAD("potoc5.3-1", 0x8000, 0x8000, CRC(4ce1d254) SHA1(4d24a230ae3a37674cc25ab5ae40c57acbdf5f04))
+	ROM_REGION(0x10000, "audiocpu", 0)
+	ROM_LOAD("potof7.rom", 0x8000, 0x8000, CRC(2e60b2e3) SHA1(0be89fc9b2c6548392febb35c1ace0eb912fc73f))
+	ROM_REGION(0x40000, "sound1", 0)
+	ROM_LOAD("potof6.rom", 0x00000, 0x10000, CRC(62b8f74b) SHA1(f82c706b88f49341bab9014bd83371259eb53b47))
+	ROM_LOAD("potof5.rom", 0x10000, 0x10000, CRC(5a0537a8) SHA1(26724441d7e2edd7725337b262d95448499151ad))
+ROM_END
+
 ROM_START(poto_a29)
 	ROM_REGION(0x10000, "maincpu", 0)
 	ROM_LOAD("potob5.2-9", 0x4000, 0x4000, CRC(f01b5510) SHA1(90c632ee74a2dbf877cfe013a69067b1771f1d67))
@@ -820,6 +810,17 @@ ROM_START(robo_a30)
 	ROM_REGION(0x10000, "maincpu", 0)
 	ROM_LOAD("b5.256", 0x0000, 0x8000, CRC(6870f3ae) SHA1(f02cace5f1d1922aed52c84efe60a46e5297865c))
 	ROM_LOAD("c5.256", 0x8000, 0x8000, CRC(f2de58cf) SHA1(0b5dd14761b4c64c1b01faad923ab671573499c5))
+	ROM_REGION(0x10000, "audiocpu", 0)
+	ROM_LOAD("robof7.rom", 0x8000, 0x8000, CRC(fa0891bd) SHA1(332d03c7802989abf717564230993b54819ebc0d))
+	ROM_REGION(0x40000, "sound1", 0)
+	ROM_LOAD("robof6.rom", 0x00000, 0x10000, CRC(9246e107) SHA1(e8e72c0d099b17ea9e59ea7794011bad4c072c5e))
+	ROM_LOAD("robof4.rom", 0x10000, 0x10000, CRC(27d31df3) SHA1(1611a508ce74eb62a07296d69782ea4fa14503fc))
+ROM_END
+
+ROM_START(robo_a29)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD("robob5.a29", 0x0000, 0x8000, CRC(72497d0b) SHA1(8a970c879cd0aaef5970a77778f71c0f3d6da049))
+	ROM_LOAD("roboc5.a29", 0x8000, 0x8000, CRC(b251b0b6) SHA1(3d340070494b102703e282ae3a7970f6f8aaede9))
 	ROM_REGION(0x10000, "audiocpu", 0)
 	ROM_LOAD("robof7.rom", 0x8000, 0x8000, CRC(fa0891bd) SHA1(332d03c7802989abf717564230993b54819ebc0d))
 	ROM_REGION(0x40000, "sound1", 0)
@@ -950,29 +951,31 @@ ROM_START(torp_a16)
 ROM_END
 
 
-GAME(1990,  bttf_a28,       0,          de_type3,   de_2, de_2_state,   de_2,   ROT0,   "Data East",    "Back To the Future (2.8)",                                     MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1990,  bttf_a27,       bttf_a28,   de_type3,   de_2, de_2_state,   de_2,   ROT0,   "Data East",    "Back To the Future (2.7)",                                     MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1990,  bttf_a20,       bttf_a28,   de_type3,   de_2, de_2_state,   de_2,   ROT0,   "Data East",    "Back To the Future (2.0)",                                     MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1990,  bttf_a21,       bttf_a28,   de_type3,   de_2, de_2_state,   de_2,   ROT0,   "Data East",    "Back To The Future (2.1)",                                     MACHINE_IS_SKELETON_MECHANICAL)
-GAME(199?,  bttf_g27,       bttf_a28,   de_type3,   de_2, de_2_state,   de_2,   ROT0,   "Data East",    "Back To the Future (2.7 Germany)",                             MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1990,  kiko_a10,       0,          de_type3,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "King Kong (1.0)",           MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1987,  lwar_a83,       0,          de_type1,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Laser War (8.3)",           MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1987,  lwar_a81,       lwar_a83,   de_type1,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Laser War (8.1)",           MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1987,  lwar_e90,       lwar_a83,   de_type1,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Laser War (9.0 Europe)",    MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  mnfb_c29,       0,          de_type2_alpha3,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Monday Night Football (2.9, 50cts)",       MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  mnfb_c27,       mnfb_c29,   de_type2_alpha3,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Monday Night Football (2.7, 50cts)",       MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1990,  poto_a32,       0,          de_type2_alpha3,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "The Phantom of the Opera (3.2)",           MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1990,  poto_a29,       poto_a32,   de_type2_alpha3,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "The Phantom of the Opera (2.9)",           MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  play_a24,       0,          de_type2,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Playboy 35th Anniversary (2.4)",           MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  robo_a34,       0,          de_type3,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Robocop (3.4)",                            MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1989,  robo_a30,       robo_a34,   de_type3,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Robocop (3.0)",                            MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  ssvc_a26,       0,          de_type2,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Secret Service (2.6)",                     MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  ssvc_b26,       ssvc_a26,   de_type2,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Secret Service (2.6 alternate sound)",     MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  ssvc_a42,       ssvc_a26,   de_type2,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Secret Service (4.2 alternate sound)",     MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1990,  simp_a27,       0,          de_type3,   de_2, de_2_state,   de_2,   ROT0,   "Data East",    "The Simpsons (2.7)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1990,  simp_a20,       simp_a27,   de_type3,   de_2, de_2_state,   de_2,   ROT0,   "Data East",    "The Simpsons (2.0)",               MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  tmac_a24,       0,          de_type2,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Time Machine (2.4)",                       MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  tmac_a18,       tmac_a24,   de_type2,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Time Machine (1.8)",                       MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  tmac_g18,       tmac_a24,   de_type2,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Time Machine (1.8, Germany)",              MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  torp_e21,       0,          de_type2,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Torpedo Alley (2.1, Europe)",              MACHINE_IS_SKELETON_MECHANICAL)
-GAME(1988,  torp_a16,       torp_e21,   de_type2,   de_2, de_2_state,   de_2,   ROT0,   "Data East",        "Torpedo Alley (1.6)",              MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1990, bttf_a28, 0,        de_type3,        de_2, de_2_state, empty_init, ROT0, "Data East", "Back to the Future - The Pinball (2.8)",          MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1990, bttf_a27, bttf_a28, de_type3,        de_2, de_2_state, empty_init, ROT0, "Data East", "Back to the Future - The Pinball (2.7)",          MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1990, bttf_a20, bttf_a28, de_type3,        de_2, de_2_state, empty_init, ROT0, "Data East", "Back to the Future - The Pinball (2.0)",          MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1990, bttf_a21, bttf_a28, de_type3,        de_2, de_2_state, empty_init, ROT0, "Data East", "Back to the Future - The Pinball (2.1)",          MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 199?, bttf_g27, bttf_a28, de_type3,        de_2, de_2_state, empty_init, ROT0, "Data East", "Back to the Future - The Pinball (2.7, Germany)", MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1990, kiko_a10, 0,        de_type3,        de_2, de_2_state, empty_init, ROT0, "Data East", "King Kong (1.0)",                      MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1987, lwar_a83, 0,        de_type1,        de_2, de_2_state, empty_init, ROT0, "Data East", "Laser War (8.3)",                      MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1987, lwar_a81, lwar_a83, de_type1,        de_2, de_2_state, empty_init, ROT0, "Data East", "Laser War (8.1)",                      MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1987, lwar_e90, lwar_a83, de_type1,        de_2, de_2_state, empty_init, ROT0, "Data East", "Laser War (9.0 Europe)",               MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1989, mnfb_c29, 0,        de_type2_alpha3, de_2, de_2_state, empty_init, ROT0, "Data East", "Monday Night Football (2.9, 50cts)",   MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1989, mnfb_c27, mnfb_c29, de_type2_alpha3, de_2, de_2_state, empty_init, ROT0, "Data East", "Monday Night Football (2.7, 50cts)",   MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1990, poto_a32, 0,        de_type2_alpha3, de_2, de_2_state, empty_init, ROT0, "Data East", "The Phantom of the Opera (3.2)",       MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1990, poto_a31, poto_a32, de_type2_alpha3, de_2, de_2_state, empty_init, ROT0, "Data East", "The Phantom of the Opera (3.1)",       MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1990, poto_a29, poto_a32, de_type2_alpha3, de_2, de_2_state, empty_init, ROT0, "Data East", "The Phantom of the Opera (2.9)",       MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1989, play_a24, 0,        de_type2,        de_2, de_2_state, empty_init, ROT0, "Data East", "Playboy 35th Anniversary (2.4)",       MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1989, robo_a34, 0,        de_type3,        de_2, de_2_state, empty_init, ROT0, "Data East", "Robocop (3.4)",                        MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1989, robo_a30, robo_a34, de_type3,        de_2, de_2_state, empty_init, ROT0, "Data East", "Robocop (3.0)",                        MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1989, robo_a29, robo_a34, de_type3,        de_2, de_2_state, empty_init, ROT0, "Data East", "Robocop (2.9)",                        MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1988, ssvc_a26, 0,        de_type2,        de_2, de_2_state, empty_init, ROT0, "Data East", "Secret Service (2.6)",                 MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1988, ssvc_b26, ssvc_a26, de_type2,        de_2, de_2_state, empty_init, ROT0, "Data East", "Secret Service (2.6 alternate sound)", MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1988, ssvc_a42, ssvc_a26, de_type2,        de_2, de_2_state, empty_init, ROT0, "Data East", "Secret Service (4.2 alternate sound)", MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1990, simp_a27, 0,        de_type3,        de_2, de_2_state, empty_init, ROT0, "Data East", "The Simpsons (2.7)",                   MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1990, simp_a20, simp_a27, de_type3,        de_2, de_2_state, empty_init, ROT0, "Data East", "The Simpsons (2.0)",                   MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1988, tmac_a24, 0,        de_type2,        de_2, de_2_state, empty_init, ROT0, "Data East", "Time Machine (2.4)",                   MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1988, tmac_a18, tmac_a24, de_type2,        de_2, de_2_state, empty_init, ROT0, "Data East", "Time Machine (1.8)",                   MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1988, tmac_g18, tmac_a24, de_type2,        de_2, de_2_state, empty_init, ROT0, "Data East", "Time Machine (1.8, Germany)",          MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1988, torp_e21, 0,        de_type2,        de_2, de_2_state, empty_init, ROT0, "Data East", "Torpedo Alley (2.1, Europe)",          MACHINE_IS_SKELETON_MECHANICAL)
+GAME( 1988, torp_a16, torp_e21, de_type2,        de_2, de_2_state, empty_init, ROT0, "Data East", "Torpedo Alley (1.6)",                  MACHINE_IS_SKELETON_MECHANICAL)

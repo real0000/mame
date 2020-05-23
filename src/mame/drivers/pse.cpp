@@ -55,9 +55,10 @@ public:
 	}
 
 	// devices
-	required_device<netlist_mame_device_t> m_maincpu;
+	required_device<netlist_mame_device> m_maincpu;
 	required_device<fixedfreq_device> m_video;
 
+	void pse(machine_config &config);
 protected:
 
 	// driver_device overrides
@@ -98,20 +99,20 @@ void pse_state::video_start()
 {
 }
 
-static MACHINE_CONFIG_START( pse, pse_state )
-
+void pse_state::pse(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_DEVICE_ADD("maincpu", NETLIST_CPU, NETLIST_CLOCK)
-	MCFG_NETLIST_SETUP(pse)
+	NETLIST_CPU(config, m_maincpu, NETLIST_CLOCK).set_source(netlist_pse);
 
 	/* video hardware */
-	MCFG_FIXFREQ_ADD("fixfreq", "screen")
-	MCFG_FIXFREQ_MONITOR_CLOCK(MASTER_CLOCK)
-	MCFG_FIXFREQ_HORZ_PARAMS(H_TOTAL-67,H_TOTAL-40,H_TOTAL-8,H_TOTAL)
-	MCFG_FIXFREQ_VERT_PARAMS(V_TOTAL-22,V_TOTAL-19,V_TOTAL-12,V_TOTAL)
-	MCFG_FIXFREQ_FIELDCOUNT(1)
-	MCFG_FIXFREQ_SYNC_THRESHOLD(0.30)
-MACHINE_CONFIG_END
+	SCREEN(config, "screen", SCREEN_TYPE_RASTER);
+	FIXFREQ(config, m_video).set_screen("screen");
+	m_video->set_monitor_clock(MASTER_CLOCK);
+	m_video->set_horz_params(H_TOTAL-67,H_TOTAL-40,H_TOTAL-8,H_TOTAL);
+	m_video->set_vert_params(V_TOTAL-22,V_TOTAL-19,V_TOTAL-12,V_TOTAL);
+	m_video->set_fieldcount(1);
+	m_video->set_threshold(0.30);
+}
 
 
 /***************************************************************************
@@ -132,7 +133,7 @@ ROM_START( bazooka )
 	ROM_LOAD( "bd2.e7",  0x0820, 0x0020, CRC(1bfb073f) SHA1(f6b26dcece71b2cf2ed4a537434edbe31cb10399) ) // 82123
 ROM_END
 
-ROM_START( bazookabr )
+ROM_START( bazookabr )  // 4 identical PROMs were found on a Model Racing "CS 18" PCB, labeled Cross Fir. Unfortunately PROMs at 1l and 6c were missing.
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00 )
 
 	ROM_REGION( 0x0840, "roms", ROMREGION_ERASE00 )
@@ -148,11 +149,11 @@ ROM_START( dpatrol )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00 )
 
 	ROM_REGION( 0x0CA0, "roms", ROMREGION_ERASE00 )
-	ROM_LOAD( "bd1.d2", 0x0000, 0x0400, CRC(e4c8e4ab) SHA1(0b989ca9369139f212dcea1d1461998f20057db8)) // Computer program game code. 6341-1 or 82S181 according to Desert Patrol schematics
-	ROM_LOAD( "bd1.e2", 0x0400, 0x0400, CRC(256b3320) SHA1(712573e3d9625a84c54bbe2e3edafb8879a14b2e)) // Computer program game code. 6341-1 or 82S181 according to Desert Patrol schematics
+	ROM_LOAD( "bd1.d2", 0x0000, 0x0400, CRC(e4c8e4ab) SHA1(0b989ca9369139f212dcea1d1461998f20057db8)) // Computer program game code. 6341-1 or 82S181 according to Desert Patrol schematics - sldh w/dpatrola
+	ROM_LOAD( "bd1.e2", 0x0400, 0x0400, CRC(256b3320) SHA1(712573e3d9625a84c54bbe2e3edafb8879a14b2e)) // Computer program game code. 6341-1 or 82S181 according to Desert Patrol schematics - sldh w/dpatrola
 
 	ROM_LOAD( "bd2.l4", 0x0800, 0x0200, CRC(bc87c648) SHA1(c4709d155aa50cc87146abd152a11de618cfd64c)) // PROM 1 contains aircraft target images and explosion image. PCB has 82S141; schematics show 6341-1
-	ROM_LOAD( "bd2.l1", 0x0A00, 0x0200, CRC(4ddcc237) SHA1(6bfad6a8bf8387e93c0bb1a04b647690b3701d54)) // PROM 2 contains parachute and man, falling man. PCB has 82S141; schematics show 6341-1
+	ROM_LOAD( "bd2.l1", 0x0A00, 0x0200, CRC(4ddcc237) SHA1(6bfad6a8bf8387e93c0bb1a04b647690b3701d54)) // PROM 2 contains parachute and man, falling man. PCB has 82S141; schematics show 6341-1 (from dpatrola, but expected to match)
 
 	ROM_LOAD( "bd2.h7", 0x0C00, 0x0020, NO_DUMP) // Contains PROM address codes and image speeds. Each image has its own speed and address block in the image PROM. Chip is 82S123
 
@@ -163,8 +164,8 @@ ROM_START( dpatrola )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00 )
 
 	ROM_REGION( 0x0900, "roms", ROMREGION_ERASE00 )
-	ROM_LOAD( "bd1.d2", 0x0000, 0x0200, CRC(dd30f565) SHA1(04676adf9fe172c5332bdc9d235a899c7dbe90b5)) // Computer program game code. PCB has SN74S474; schematics show 6341-1 or 82S181
-	ROM_LOAD( "bd1.e2", 0x0200, 0x0200, CRC(e1f0941b) SHA1(57f51e9a74838708c3017c5a00e8ec33c6445e47)) // Computer program game code. PCB has SN74S474; schematics show 6341-1 or 82S181
+	ROM_LOAD( "bd1.d2", 0x0000, 0x0200, CRC(dd30f565) SHA1(04676adf9fe172c5332bdc9d235a899c7dbe90b5)) // Computer program game code. PCB has SN74S474; schematics show 6341-1 or 82S181 - sldh w/dpatrol
+	ROM_LOAD( "bd1.e2", 0x0200, 0x0200, CRC(e1f0941b) SHA1(57f51e9a74838708c3017c5a00e8ec33c6445e47)) // Computer program game code. PCB has SN74S474; schematics show 6341-1 or 82S181 - sldh w/dpatrol
 
 	ROM_LOAD( "bd2.l4", 0x0400, 0x0200, CRC(bc87c648) SHA1(c4709d155aa50cc87146abd152a11de618cfd64c)) // PROM 1 contains aircraft target images and explosion image. PCB has SN74S474; schematics show 6341-1
 	ROM_LOAD( "bd2.l1", 0x0600, 0x0200, CRC(4ddcc237) SHA1(6bfad6a8bf8387e93c0bb1a04b647690b3701d54)) // PROM 2 contains parachute and man, falling man. PCB has SN74S474; schematics show 6341-1
@@ -204,9 +205,9 @@ ROM_START( gametree )
 ROM_END
 
 
-GAME( 1976, bazooka,    0,       pse, 0, driver_device,  0, ROT0, "Project Support Engineering", "Bazooka [TTL]", MACHINE_IS_SKELETON )
-GAME( 1977, bazookabr,  bazooka, pse, 0, driver_device,  0, ROT0, "Taito do Brasil", "Bazooka (Brazil) [TTL]", MACHINE_IS_SKELETON )
-GAME( 1977, dpatrol,    0,       pse, 0, driver_device,  0, ROT0, "Project Support Engineering", "Desert Patrol [TTL]", MACHINE_IS_SKELETON )
-GAME( 1977, dpatrola,   dpatrol, pse, 0, driver_device,  0, ROT0, "Project Support Engineering (Telegames license)", "Desert Patrol (set 2) [TTL]", MACHINE_IS_SKELETON )
-GAME( 1978, gametree, 0,       pse, 0, driver_device,  0, ROT0, "Project Support Engineering", "Game Tree [TTL]", MACHINE_IS_SKELETON )
-//GAME( 1976, knightar, 0,       pse, 0, driver_device,  0, ROT0, "Project Support Engineering", "Knights in Armor [TTL]", MACHINE_IS_SKELETON )
+GAME( 1976, bazooka,    0,       pse, 0, pse_state, empty_init, ROT0, "Project Support Engineering", "Bazooka [TTL]", MACHINE_IS_SKELETON )
+GAME( 1977, bazookabr,  bazooka, pse, 0, pse_state, empty_init, ROT0, "Taito do Brasil", "Bazooka (Brazil) [TTL]", MACHINE_IS_SKELETON )
+GAME( 1977, dpatrol,    0,       pse, 0, pse_state, empty_init, ROT0, "Project Support Engineering", "Desert Patrol [TTL]", MACHINE_IS_SKELETON )
+GAME( 1977, dpatrola,   dpatrol, pse, 0, pse_state, empty_init, ROT0, "Project Support Engineering (Telegames license)", "Desert Patrol (set 2) [TTL]", MACHINE_IS_SKELETON )
+GAME( 1978, gametree,   0,       pse, 0, pse_state, empty_init, ROT0, "Project Support Engineering", "Game Tree [TTL]", MACHINE_IS_SKELETON )
+//GAME( 1976, knightar, 0,       pse, 0, pse_state, empty_init, ROT0, "Project Support Engineering", "Knights in Armor [TTL]", MACHINE_IS_SKELETON )

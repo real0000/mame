@@ -15,7 +15,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type VIC10_STD = device_creator<vic10_standard_cartridge_device>;
+DEFINE_DEVICE_TYPE(VIC10_STD, vic10_standard_cartridge_device, "vic10_standard", "VIC-10 Standard Cartridge")
 
 
 
@@ -28,8 +28,7 @@ const device_type VIC10_STD = device_creator<vic10_standard_cartridge_device>;
 //-------------------------------------------------
 
 vic10_standard_cartridge_device::vic10_standard_cartridge_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, VIC10_STD, "VIC-10 Standard Cartridge", tag, owner, clock, "vic10_standard", __FILE__),
-		device_vic10_expansion_card_interface(mconfig, *this)
+	: device_t(mconfig, VIC10_STD, tag, owner, clock), device_vic10_expansion_card_interface(mconfig, *this)
 {
 }
 
@@ -47,7 +46,7 @@ void vic10_standard_cartridge_device::device_start()
 //  vic10_cd_r - cartridge data read
 //-------------------------------------------------
 
-uint8_t vic10_standard_cartridge_device::vic10_cd_r(address_space &space, offs_t offset, uint8_t data, int lorom, int uprom, int exram)
+uint8_t vic10_standard_cartridge_device::vic10_cd_r(offs_t offset, uint8_t data, int lorom, int uprom, int exram)
 {
 	if (!lorom && m_lorom.bytes())
 	{
@@ -70,7 +69,7 @@ uint8_t vic10_standard_cartridge_device::vic10_cd_r(address_space &space, offs_t
 //  vic10_cd_w - cartridge data write
 //-------------------------------------------------
 
-void vic10_standard_cartridge_device::vic10_cd_w(address_space &space, offs_t offset, uint8_t data, int lorom, int uprom, int exram)
+void vic10_standard_cartridge_device::vic10_cd_w(offs_t offset, uint8_t data, int lorom, int uprom, int exram)
 {
 	if (!exram && m_exram.bytes())
 	{

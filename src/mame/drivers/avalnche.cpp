@@ -33,14 +33,11 @@
 #include "emu.h"
 #include "includes/avalnche.h"
 #include "cpu/m6502/m6502.h"
+#include "machine/74259.h"
 #include "machine/watchdog.h"
-#include "sound/discrete.h"
 #include "screen.h"
-#include "speaker.h"
 
 #include "avalnche.lh"
-
-#define MASTER_CLOCK XTAL_12_096MHz
 
 
 /*************************************
@@ -87,9 +84,9 @@ uint32_t avalnche_state::screen_update_avalnche(screen_device &screen, bitmap_rg
  *
  *************************************/
 
-WRITE8_MEMBER(avalnche_state::avalance_video_invert_w)
+WRITE_LINE_MEMBER(avalnche_state::video_invert_w)
 {
-	m_avalance_video_inverted = data & 0x01;
+	m_avalance_video_inverted = state;
 }
 
 WRITE8_MEMBER(avalnche_state::catch_coin_counter_w)
@@ -98,56 +95,33 @@ WRITE8_MEMBER(avalnche_state::catch_coin_counter_w)
 	machine().bookkeeping().coin_counter_w(1, data & 2);
 }
 
-WRITE8_MEMBER(avalnche_state::avalance_credit_1_lamp_w)
+void avalnche_state::main_map(address_map &map)
 {
-	output().set_led_value(0, data & 1);
+	map.global_mask(0x7fff);
+	map(0x0000, 0x1fff).ram().share("videoram");
+	map(0x2000, 0x2000).mirror(0x0ffc).portr("IN0");
+	map(0x2001, 0x2001).mirror(0x0ffc).portr("IN1");
+	map(0x2002, 0x2002).mirror(0x0ffc).portr("PADDLE");
+	map(0x2003, 0x2003).mirror(0x0ffc).nopr();
+	map(0x3000, 0x3000).mirror(0x0fff).w("watchdog", FUNC(watchdog_timer_device::reset_w));
+	map(0x4000, 0x4007).mirror(0x0ff8).w("latch", FUNC(f9334_device::write_d0));
+	map(0x5000, 0x5000).mirror(0x0fff).w(FUNC(avalnche_state::avalnche_noise_amplitude_w));
+	map(0x6000, 0x7fff).rom();
 }
 
-WRITE8_MEMBER(avalnche_state::avalance_credit_2_lamp_w)
+void avalnche_state::catch_map(address_map &map)
 {
-	output().set_led_value(1, data & 1);
+	map.global_mask(0x7fff);
+	map(0x0000, 0x1fff).ram().share("videoram");
+	map(0x2000, 0x2000).mirror(0x0ffc).portr("IN0");
+	map(0x2001, 0x2001).mirror(0x0ffc).portr("IN1");
+	map(0x2002, 0x2002).mirror(0x0ffc).portr("PADDLE");
+	map(0x2003, 0x2003).mirror(0x0ffc).nopr();
+	map(0x3000, 0x3000).mirror(0x0fff).w("watchdog", FUNC(watchdog_timer_device::reset_w));
+	map(0x4000, 0x4007).mirror(0x0ff8).w("latch", FUNC(f9334_device::write_d0));
+	map(0x6000, 0x6000).mirror(0x0fff).w(FUNC(avalnche_state::catch_coin_counter_w));
+	map(0x7000, 0x7fff).rom();
 }
-
-WRITE8_MEMBER(avalnche_state::avalance_start_lamp_w)
-{
-	output().set_led_value(2, data & 1);
-}
-
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, avalnche_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x7fff)
-	AM_RANGE(0x0000, 0x1fff) AM_RAM AM_SHARE("videoram")
-	AM_RANGE(0x2000, 0x2000) AM_MIRROR(0x0ffc) AM_READ_PORT("IN0")
-	AM_RANGE(0x2001, 0x2001) AM_MIRROR(0x0ffc) AM_READ_PORT("IN1")
-	AM_RANGE(0x2002, 0x2002) AM_MIRROR(0x0ffc) AM_READ_PORT("PADDLE")
-	AM_RANGE(0x2003, 0x2003) AM_MIRROR(0x0ffc) AM_READNOP
-	AM_RANGE(0x3000, 0x3000) AM_MIRROR(0x0fff) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)
-	AM_RANGE(0x4000, 0x4000) AM_MIRROR(0x0ff8) AM_WRITE(avalance_credit_1_lamp_w)
-	AM_RANGE(0x4001, 0x4001) AM_MIRROR(0x0ff8) AM_WRITE(avalnche_attract_enable_w)
-	AM_RANGE(0x4002, 0x4002) AM_MIRROR(0x0ff8) AM_WRITE(avalance_video_invert_w)
-	AM_RANGE(0x4003, 0x4003) AM_MIRROR(0x0ff8) AM_WRITE(avalance_credit_2_lamp_w)
-	AM_RANGE(0x4004, 0x4006) AM_MIRROR(0x0ff8) AM_WRITE(avalnche_audio_w)
-	AM_RANGE(0x4007, 0x4007) AM_MIRROR(0x0ff8) AM_WRITE(avalance_start_lamp_w)
-	AM_RANGE(0x5000, 0x5000) AM_MIRROR(0x0fff) AM_WRITE(avalnche_noise_amplitude_w)
-	AM_RANGE(0x6000, 0x7fff) AM_ROM
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( catch_map, AS_PROGRAM, 8, avalnche_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x7fff)
-	AM_RANGE(0x0000, 0x1fff) AM_RAM AM_SHARE("videoram")
-	AM_RANGE(0x2000, 0x2000) AM_MIRROR(0x0ffc) AM_READ_PORT("IN0")
-	AM_RANGE(0x2001, 0x2001) AM_MIRROR(0x0ffc) AM_READ_PORT("IN1")
-	AM_RANGE(0x2002, 0x2002) AM_MIRROR(0x0ffc) AM_READ_PORT("PADDLE")
-	AM_RANGE(0x2003, 0x2003) AM_MIRROR(0x0ffc) AM_READNOP
-	AM_RANGE(0x3000, 0x3000) AM_MIRROR(0x0fff) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)
-	AM_RANGE(0x4000, 0x4000) AM_MIRROR(0x0ff8) AM_WRITE(avalance_credit_1_lamp_w)
-//  AM_RANGE(0x4001, 0x4001) AM_MIRROR(0x0ff8) AM_WRITE(avalnche_attract_enable_w) /* It is attract_enable just like avalnche, but not hooked up yet. */
-	AM_RANGE(0x4002, 0x4002) AM_MIRROR(0x0ff8) AM_WRITE(avalance_video_invert_w)
-	AM_RANGE(0x4003, 0x4003) AM_MIRROR(0x0ff8) AM_WRITE(avalance_credit_2_lamp_w)
-	AM_RANGE(0x4004, 0x4006) AM_MIRROR(0x0ff8) AM_WRITE(catch_audio_w)
-	AM_RANGE(0x4007, 0x4007) AM_MIRROR(0x0ff8) AM_WRITE(avalance_start_lamp_w)
-	AM_RANGE(0x6000, 0x6000) AM_MIRROR(0x0fff) AM_WRITE(catch_coin_counter_w)
-	AM_RANGE(0x7000, 0x7fff) AM_ROM
-ADDRESS_MAP_END
 
 
 /*************************************
@@ -241,47 +215,45 @@ void avalnche_state::machine_start()
 	save_item(NAME(m_avalance_video_inverted));
 }
 
-void avalnche_state::machine_reset()
+void avalnche_state::avalnche_base(machine_config &config)
 {
-	m_avalance_video_inverted = 0;
-}
-
-static MACHINE_CONFIG_START( avalnche, avalnche_state )
-
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6502,MASTER_CLOCK/16)     /* clock input is the "2H" signal divided by two */
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(avalnche_state, nmi_line_pulse, 8*60)
+	M6502(config, m_maincpu, 12.096_MHz_XTAL / 16);     /* clock input is the "2H" signal divided by two */
+	m_maincpu->set_addrmap(AS_PROGRAM, &avalnche_state::main_map);
+	m_maincpu->set_periodic_int(FUNC(avalnche_state::nmi_line_pulse), attotime::from_hz(8*60));
 
-	MCFG_WATCHDOG_ADD("watchdog")
+	F9334(config, m_latch); // F8
+	m_latch->q_out_cb<0>().set_output("led0"); // 1 CREDIT LAMP
+	m_latch->q_out_cb<2>().set(FUNC(avalnche_state::video_invert_w));
+	m_latch->q_out_cb<3>().set_output("led1"); // 2 CREDIT LAMP
+	m_latch->q_out_cb<7>().set_output("led2"); // START LAMP
+	// Q1, Q4, Q5, Q6 are configured in audio/avalnche.cpp
+
+	WATCHDOG_TIMER(config, "watchdog");
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 32*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(avalnche_state, screen_update_avalnche)
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_raw(12.096_MHz_XTAL / 2, 384, 0, 256, 262, 16, 256);
+	screen.set_screen_update(FUNC(avalnche_state::screen_update_avalnche));
+}
 
+void avalnche_state::avalnche(machine_config &config)
+{
+	avalnche_base(config);
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	avalnche_sound(config);
+}
 
-	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_DISCRETE_INTF(avalnche)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_DERIVED( catch, avalnche )
+void avalnche_state::acatch(machine_config &config)
+{
+	avalnche_base(config);
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(catch_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &avalnche_state::catch_map);
 
 	/* sound hardware... */
-	MCFG_DEVICE_REMOVE("discrete")
-	MCFG_DEVICE_REMOVE("mono")
-
-MACHINE_CONFIG_END
+	acatch_sound(config);
+}
 
 
 /*************************************
@@ -292,12 +264,12 @@ MACHINE_CONFIG_END
 
 ROM_START( avalnche )
 	ROM_REGION( 0x8000, "maincpu", 0 )
-	ROM_LOAD_NIB_HIGH(  "30612.d2",     0x6800, 0x0800, CRC(3f975171) SHA1(afe680865da97824f1ebade4c7a2ba5d7ee2cbab) )
-	ROM_LOAD_NIB_LOW (  "30615.d3",     0x6800, 0x0800, CRC(3e1a86b4) SHA1(3ff4cffea5b7a32231c0996473158f24c3bbe107) )
-	ROM_LOAD_NIB_HIGH(  "30613.e2",     0x7000, 0x0800, CRC(47a224d3) SHA1(9feb7444a2e5a3d90a4fe78ae5d23c3a5039bfaa) )
-	ROM_LOAD_NIB_LOW (  "30616.e3",     0x7000, 0x0800, CRC(f620f0f8) SHA1(7802b399b3469fc840796c3145b5f63781090956) )
-	ROM_LOAD_NIB_HIGH(  "30611.c2",     0x7800, 0x0800, CRC(0ad07f85) SHA1(5a1a873b14e63dbb69ee3686ba53f7ca831fe9d0) )
-	ROM_LOAD_NIB_LOW (  "30614.c3",     0x7800, 0x0800, CRC(a12d5d64) SHA1(1647d7416bf9266d07f066d3797bda943e004d24) )
+	ROM_LOAD_NIB_HIGH(  "30612-01.d2",     0x6800, 0x0800, CRC(3f975171) SHA1(afe680865da97824f1ebade4c7a2ba5d7ee2cbab) )
+	ROM_LOAD_NIB_LOW (  "30615-01.d3",     0x6800, 0x0800, CRC(3e1a86b4) SHA1(3ff4cffea5b7a32231c0996473158f24c3bbe107) )
+	ROM_LOAD_NIB_HIGH(  "30613-01.e2",     0x7000, 0x0800, CRC(47a224d3) SHA1(9feb7444a2e5a3d90a4fe78ae5d23c3a5039bfaa) )
+	ROM_LOAD_NIB_LOW (  "30616-01.e3",     0x7000, 0x0800, CRC(f620f0f8) SHA1(7802b399b3469fc840796c3145b5f63781090956) )
+	ROM_LOAD_NIB_HIGH(  "30611-01.c2",     0x7800, 0x0800, CRC(0ad07f85) SHA1(5a1a873b14e63dbb69ee3686ba53f7ca831fe9d0) )
+	ROM_LOAD_NIB_LOW (  "30614-01.c3",     0x7800, 0x0800, CRC(a12d5d64) SHA1(1647d7416bf9266d07f066d3797bda943e004d24) )
 ROM_END
 
 ROM_START( cascade )
@@ -328,6 +300,6 @@ ROM_END
  *
  *************************************/
 
-GAMEL( 1978, avalnche, 0,        avalnche, avalnche, driver_device, 0, ROT0, "Atari", "Avalanche", MACHINE_SUPPORTS_SAVE, layout_avalnche )
-GAMEL( 1978, cascade,  avalnche, avalnche, cascade, driver_device,  0, ROT0, "bootleg? (Sidam)", "Cascade", MACHINE_SUPPORTS_SAVE, layout_avalnche )
-GAME ( 1977, catchp,   0,        catch,    catch, driver_device,    0, ROT0, "Atari", "Catch (prototype)", MACHINE_SUPPORTS_SAVE | MACHINE_NO_SOUND ) // pre-production board, evolved into Avalanche
+GAMEL( 1978, avalnche, 0,        avalnche, avalnche, avalnche_state, empty_init, ROT0, "Atari",            "Avalanche", MACHINE_SUPPORTS_SAVE, layout_avalnche )
+GAMEL( 1978, cascade,  avalnche, avalnche, cascade,  avalnche_state, empty_init, ROT0, "bootleg? (Sidam)", "Cascade", MACHINE_SUPPORTS_SAVE, layout_avalnche )
+GAME(  1977, catchp,   0,        acatch,   catch,    avalnche_state, empty_init, ROT0, "Atari",            "Catch (prototype)", MACHINE_SUPPORTS_SAVE | MACHINE_NO_SOUND ) // pre-production board, evolved into Avalanche

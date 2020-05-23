@@ -319,10 +319,10 @@ void winwindow_process_events_periodic(running_machine &machine)
 //  (main or window thread)
 //============================================================
 
-BOOL winwindow_has_focus(void)
+bool winwindow_has_focus(void)
 {
 	// For now always act like we have focus
-	return TRUE;
+	return true;
 }
 
 //============================================================
@@ -406,9 +406,9 @@ void uwp_window_info::create(running_machine &machine, int index, std::shared_pt
 
 	// make the window title
 	if (video_config.numscreens == 1)
-		sprintf(window->m_title, "%s: %s [%s]", emulator_info::get_appname(), machine.system().description, machine.system().name);
+		sprintf(window->m_title, "%s: %s [%s]", emulator_info::get_appname(), machine.system().type.fullname(), machine.system().name);
 	else
-		sprintf(window->m_title, "%s: %s [%s] - Screen %d", emulator_info::get_appname(), machine.system().description, machine.system().name, index);
+		sprintf(window->m_title, "%s: %s [%s] - Screen %d", emulator_info::get_appname(), machine.system().type.fullname(), machine.system().name, index);
 
 	// set the initial maximized state
 	window->m_startmaximized = options.maximize();
@@ -525,7 +525,7 @@ void uwp_window_info::update()
 
 			// Actually perform the redraw
 			m_primlist = primlist;
-			draw_video_contents(FALSE);
+			draw_video_contents(false);
 		}
 	}
 }
@@ -535,7 +535,7 @@ void uwp_window_info::update()
 //  (window thread)
 //============================================================
 
-void uwp_window_info::draw_video_contents(int update)
+void uwp_window_info::draw_video_contents(bool update)
 {
 	assert(GetCurrentThreadId() == window_threadid);
 

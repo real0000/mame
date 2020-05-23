@@ -53,13 +53,13 @@
 #define SEEK_FAST_SPEED                 (4000 / 30)         // 4000 frames/second
 
 // serial timing, mostly from the service manual, derived from the XTAL
-#define SERIAL_CLOCK                    XTAL_455kHz
-#define SERIAL_0_BIT_TIME               attotime::from_hz((double)SERIAL_CLOCK / 512)
-#define SERIAL_1_BIT_TIME               attotime::from_hz((double)SERIAL_CLOCK / 1024)
-#define SERIAL_MIDPOINT_TIME            attotime::from_hz((double)SERIAL_CLOCK / 600)
-#define SERIAL_MAX_BIT_TIME             attotime::from_hz((double)SERIAL_CLOCK / 4096)
-#define SERIAL_MAX_WORD_TIME            attotime::from_hz((double)SERIAL_CLOCK / 11520)
-#define SERIAL_REJECT_DUPLICATE_TIME    attotime::from_hz((double)SERIAL_CLOCK / 11520 / 4)
+#define SERIAL_CLOCK                    XTAL(455'000)
+#define SERIAL_0_BIT_TIME               attotime::from_hz(SERIAL_CLOCK / 512)
+#define SERIAL_1_BIT_TIME               attotime::from_hz(SERIAL_CLOCK / 1024)
+#define SERIAL_MIDPOINT_TIME            attotime::from_hz(SERIAL_CLOCK / 600)
+#define SERIAL_MAX_BIT_TIME             attotime::from_hz(SERIAL_CLOCK / 4096)
+#define SERIAL_MAX_WORD_TIME            attotime::from_hz(SERIAL_CLOCK / 11520)
+#define SERIAL_REJECT_DUPLICATE_TIME    attotime::from_hz(SERIAL_CLOCK / 11520 / 4)
 
 
 
@@ -68,8 +68,8 @@
 //**************************************************************************
 
 // devices
-const device_type PIONEER_PR8210 = device_creator<pioneer_pr8210_device>;
-const device_type SIMUTREK_SPECIAL = device_creator<simutrek_special_device>;
+DEFINE_DEVICE_TYPE(PIONEER_PR8210,   pioneer_pr8210_device,   "pr8210",   "Pioneer PR-8210")
+DEFINE_DEVICE_TYPE(SIMUTREK_SPECIAL, simutrek_special_device, "simutrek", "Simutrek Modified PR-8210")
 
 
 // bitmaps for the characters
@@ -148,21 +148,10 @@ static const uint8_t text_bitmap[0x40][7] =
 //  PR-8210 ROM AND MACHINE INTERFACES
 //**************************************************************************
 
-static ADDRESS_MAP_START( pr8210_portmap, AS_IO, 8, pioneer_pr8210_device )
-	AM_RANGE(0x00, 0xff) AM_READWRITE(i8049_pia_r, i8049_pia_w)
-	AM_RANGE(MCS48_PORT_BUS, MCS48_PORT_BUS) AM_READ(i8049_bus_r)
-	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_WRITE(i8049_port1_w)
-	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_WRITE(i8049_port2_w)
-	AM_RANGE(MCS48_PORT_T0, MCS48_PORT_T0) AM_READ(i8049_t0_r)
-	AM_RANGE(MCS48_PORT_T1, MCS48_PORT_T1) AM_READ(i8049_t1_r)
-ADDRESS_MAP_END
-
-
-static MACHINE_CONFIG_FRAGMENT( pr8210 )
-	MCFG_CPU_ADD("pr8210", I8049, XTAL_4_41MHz)
-	MCFG_CPU_IO_MAP(pr8210_portmap)
-MACHINE_CONFIG_END
-
+void pioneer_pr8210_device::pr8210_portmap(address_map &map)
+{
+	map(0x00, 0xff).rw(FUNC(pioneer_pr8210_device::i8049_pia_r), FUNC(pioneer_pr8210_device::i8049_pia_w));
+}
 
 ROM_START( pr8210 )
 	ROM_REGION( 0x800, "pr8210", 0 )
@@ -180,23 +169,22 @@ ROM_END
 //-------------------------------------------------
 
 pioneer_pr8210_device::pioneer_pr8210_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: laserdisc_device(mconfig, PIONEER_PR8210, "Pioneer PR-8210", tag, owner, clock, "pr8210", __FILE__),
-		m_control(0),
-		m_lastcommand(0),
-		m_accumulator(0),
-		m_lastcommandtime(attotime::zero),
-		m_lastbittime(attotime::zero),
-		m_firstbittime(attotime::zero),
-		m_i8049_cpu(*this, "pr8210"),
-		m_slowtrg(attotime::zero),
-		m_vsync(false),
-		m_i8049_port1(0),
-		m_i8049_port2(0)
+	: pioneer_pr8210_device(mconfig, PIONEER_PR8210, tag, owner, clock)
 {
 }
 
-pioneer_pr8210_device::pioneer_pr8210_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-	: laserdisc_device(mconfig, type, name, tag, owner, clock, shortname, source),
+pioneer_pr8210_device::pioneer_pr8210_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: laserdisc_device(mconfig, type, tag, owner, clock),
+		m_audio1(*this, "pr8210_audio1"),
+		m_audio2(*this, "pr8210_audio2"),
+		m_clv(*this, "pr8210_clv"),
+		m_cav(*this, "pr8210_cav"),
+		m_srev(*this, "pr8210_srev"),
+		m_sfwd(*this, "pr8210_sfwd"),
+		m_play(*this, "pr8210_play"),
+		m_step(*this, "pr8210_step"),
+		m_pause(*this, "pr8210_pause"),
+		m_standby(*this, "pr8210_standby"),
 		m_control(0),
 		m_lastcommand(0),
 		m_accumulator(0),
@@ -239,7 +227,7 @@ void pioneer_pr8210_device::control_w(uint8_t data)
 			m_firstbittime = curtime;
 			m_accumulator = 0x5555;
 			if (LOG_SERIAL)
-				printf("Reset accumulator\n");
+				logerror("Reset accumulator\n");
 		}
 
 		// 0 bit delta is 1.05 msec, 1 bit delta is 2.11 msec
@@ -250,7 +238,7 @@ void pioneer_pr8210_device::control_w(uint8_t data)
 		if (LOG_SERIAL)
 		{
 			int usecdiff = (int)(delta.attoseconds() / ATTOSECONDS_IN_USEC(1));
-			printf("bitdelta = %5d (%d) - accum = %04X\n", usecdiff, longpulse, m_accumulator);
+			logerror("bitdelta = %5d (%d) - accum = %04X\n", usecdiff, longpulse, m_accumulator);
 		}
 
 		// if we have a complete command, signal it
@@ -259,7 +247,7 @@ void pioneer_pr8210_device::control_w(uint8_t data)
 		{
 			// data is stored to the PIA in bit-reverse order
 			uint8_t newcommand = (m_accumulator >> 2) & 0x1f;
-			m_pia.porta = BITSWAP8(newcommand, 0,1,2,3,4,5,6,7);
+			m_pia.porta = bitswap<8>(newcommand, 0,1,2,3,4,5,6,7);
 
 			// the MCU logic requires a 0 to execute many commands; however, nobody
 			// consistently sends a 0, whereas they do tend to send duplicate commands...
@@ -273,7 +261,7 @@ void pioneer_pr8210_device::control_w(uint8_t data)
 
 			// log the command and wait for a keypress
 			if (LOG_SERIAL)
-				printf("--- Command = %02X\n", m_pia.porta >> 3);
+				logerror("--- Command = %02X\n", m_pia.porta >> 3);
 
 			// reset the first bit time so that the accumulator clears on the next write
 			m_firstbittime = curtime - SERIAL_MAX_WORD_TIME;
@@ -288,6 +276,18 @@ void pioneer_pr8210_device::control_w(uint8_t data)
 
 void pioneer_pr8210_device::device_start()
 {
+	// resolve outputs
+	m_audio1.resolve();
+	m_audio2.resolve();
+	m_clv.resolve();
+	m_cav.resolve();
+	m_srev.resolve();
+	m_sfwd.resolve();
+	m_play.resolve();
+	m_step.resolve();
+	m_pause.resolve();
+	m_standby.resolve();
+
 	// pass through to the parent
 	laserdisc_device::device_start();
 }
@@ -330,9 +330,9 @@ void pioneer_pr8210_device::device_timer(emu_timer &timer, device_timer_id id, i
 			{
 				uint32_t line1718 = get_field_code(LASERDISC_CODE_LINE1718, false);
 				if ((line1718 & VBI_MASK_CAV_PICTURE) == VBI_CODE_CAV_PICTURE)
-					printf("%3d:VBI(%05d)\n", screen().vpos(), VBI_CAV_PICTURE(line1718));
+					logerror("%3d:VBI(%05d)\n", screen().vpos(), VBI_CAV_PICTURE(line1718));
 				else
-					printf("%3d:VBI()\n", screen().vpos());
+					logerror("%3d:VBI()\n", screen().vpos());
 			}
 
 			// update PIA registers based on vbi code
@@ -392,13 +392,18 @@ const tiny_rom_entry *pioneer_pr8210_device::device_rom_region() const
 
 
 //-------------------------------------------------
-//  device_mconfig_additions - return a pointer to
-//  our machine config fragment
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor pioneer_pr8210_device::device_mconfig_additions() const
+void pioneer_pr8210_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME(pr8210);
+	I8049(config, m_i8049_cpu, XTAL(4'410'000));
+	m_i8049_cpu->set_addrmap(AS_IO, &pioneer_pr8210_device::pr8210_portmap);
+	m_i8049_cpu->bus_in_cb().set(FUNC(pioneer_pr8210_device::i8049_bus_r));
+	m_i8049_cpu->p1_out_cb().set(FUNC(pioneer_pr8210_device::i8049_port1_w));
+	m_i8049_cpu->p2_out_cb().set(FUNC(pioneer_pr8210_device::i8049_port2_w));
+	m_i8049_cpu->t0_in_cb().set(FUNC(pioneer_pr8210_device::i8049_t0_r));
+	m_i8049_cpu->t1_in_cb().set(FUNC(pioneer_pr8210_device::i8049_t1_r));
 }
 
 
@@ -413,9 +418,9 @@ void pioneer_pr8210_device::player_vsync(const vbi_metadata &vbi, int fieldnum, 
 	if (LOG_VBLANK_VBI)
 	{
 		if ((vbi.line1718 & VBI_MASK_CAV_PICTURE) == VBI_CODE_CAV_PICTURE)
-			printf("%3d:VSYNC(%d,%05d)\n", screen().vpos(), fieldnum, VBI_CAV_PICTURE(vbi.line1718));
+			logerror("%3d:VSYNC(%d,%05d)\n", screen().vpos(), fieldnum, VBI_CAV_PICTURE(vbi.line1718));
 		else
-			printf("%3d:VSYNC(%d)\n", screen().vpos(), fieldnum);
+			logerror("%3d:VSYNC(%d)\n", screen().vpos(), fieldnum);
 	}
 
 	// signal VSYNC and set a timer to turn it off
@@ -436,7 +441,7 @@ int32_t pioneer_pr8210_device::player_update(const vbi_metadata &vbi, int fieldn
 {
 	// logging
 	if (LOG_VBLANK_VBI)
-		printf("%3d:Update(%d)\n", screen().vpos(), fieldnum);
+		logerror("%3d:Update(%d)\n", screen().vpos(), fieldnum);
 
 	// if the spindle is on, we advance by 1 track after completing field #1
 	return spdl_on() ? fieldnum : 0;
@@ -479,7 +484,7 @@ void pioneer_pr8210_device::player_overlay(bitmap_yuy16 &bitmap)
 //  Pioneer PIA
 //-------------------------------------------------
 
-READ8_MEMBER( pioneer_pr8210_device::i8049_pia_r )
+uint8_t pioneer_pr8210_device::i8049_pia_r(offs_t offset)
 {
 	uint8_t result = 0xff;
 	switch (offset)
@@ -503,19 +508,19 @@ READ8_MEMBER( pioneer_pr8210_device::i8049_pia_r )
 		// (C0) VBI decoding state 1
 		case 0xc0:
 			if (LOG_VBLANK_VBI)
-				printf("%3d:PIA(C0)\n", screen().vpos());
+				logerror("%3d:PIA(C0)\n", screen().vpos());
 			result = m_pia.vbi1;
 			break;
 
 		// (E0) VBI decoding state 2
 		case 0xe0:
 			if (LOG_VBLANK_VBI)
-				printf("%3d:PIA(E0)\n", screen().vpos());
+				logerror("%3d:PIA(E0)\n", screen().vpos());
 			result = m_pia.vbi2;
 			break;
 
 		default:
-			osd_printf_debug("%03X:Unknown PR-8210 PIA read from offset %02X\n", space.device().safe_pc(), offset);
+			logerror("%s Unknown PR-8210 PIA read from offset %02X\n", machine().describe_context(), offset);
 			break;
 	}
 	return result;
@@ -527,7 +532,7 @@ READ8_MEMBER( pioneer_pr8210_device::i8049_pia_r )
 //  Pioneer PIA
 //-------------------------------------------------
 
-WRITE8_MEMBER( pioneer_pr8210_device::i8049_pia_w )
+void pioneer_pr8210_device::i8049_pia_w(offs_t offset, uint8_t data)
 {
 	uint8_t value;
 	switch (offset)
@@ -563,18 +568,18 @@ WRITE8_MEMBER( pioneer_pr8210_device::i8049_pia_w )
 		case 0x60:
 
 			// these 4 are direct-connect
-			machine().output().set_value("pr8210_audio1", (data & 0x01) != 0);
-			machine().output().set_value("pr8210_audio2", (data & 0x02) != 0);
-			machine().output().set_value("pr8210_clv", (data & 0x04) != 0);
-			machine().output().set_value("pr8210_cav", (data & 0x08) != 0);
+			m_audio1 = BIT(data, 0);
+			m_audio2 = BIT(data, 1);
+			m_clv = BIT(data, 2);
+			m_cav = BIT(data, 3);
 
 			// remaining 3 bits select one of 5 LEDs via a mux
 			value = ((data & 0x40) >> 6) | ((data & 0x20) >> 4) | ((data & 0x10) >> 2);
-			machine().output().set_value("pr8210_srev", (value == 0));
-			machine().output().set_value("pr8210_sfwd", (value == 1));
-			machine().output().set_value("pr8210_play", (value == 2));
-			machine().output().set_value("pr8210_step", (value == 3));
-			machine().output().set_value("pr8210_pause", (value == 4));
+			m_srev = (value == 0);
+			m_sfwd = (value == 1);
+			m_play = (value == 2);
+			m_step = (value == 3);
+			m_pause = (value == 4);
 
 			m_pia.portb = data;
 			update_audio_squelch();
@@ -587,7 +592,7 @@ WRITE8_MEMBER( pioneer_pr8210_device::i8049_pia_w )
 
 		// no other writes known
 		default:
-			osd_printf_debug("%03X:Unknown PR-8210 PIA write to offset %02X = %02X\n", space.device().safe_pc(), offset, data);
+			logerror("%s Unknown PR-8210 PIA write to offset %02X = %02X\n", machine().describe_context(), offset, data);
 			break;
 	}
 }
@@ -598,7 +603,7 @@ WRITE8_MEMBER( pioneer_pr8210_device::i8049_pia_w )
 //  input, which is enabled via the PIA above
 //-------------------------------------------------
 
-READ8_MEMBER( pioneer_pr8210_device::i8049_bus_r )
+uint8_t pioneer_pr8210_device::i8049_bus_r()
 {
 	/*
 	   $80 = n/c
@@ -642,7 +647,7 @@ READ8_MEMBER( pioneer_pr8210_device::i8049_bus_r )
 //  port #1
 //-------------------------------------------------
 
-WRITE8_MEMBER( pioneer_pr8210_device::i8049_port1_w )
+void pioneer_pr8210_device::i8049_port1_w(uint8_t data)
 {
 	/*
 	   $80 = (out) SCAN C (F/R)
@@ -669,11 +674,11 @@ WRITE8_MEMBER( pioneer_pr8210_device::i8049_port1_w )
 		if (!override_control())
 		{
 			if (LOG_SIMUTREK)
-				printf("%3d:JUMP TRG\n", screen().vpos());
+				logerror("%3d:JUMP TRG\n", screen().vpos());
 			advance_slider(direction);
 		}
 		else if (LOG_SIMUTREK)
-			printf("%3d:Skipped JUMP TRG\n", screen().vpos());
+			logerror("%3d:Skipped JUMP TRG\n", screen().vpos());
 	}
 
 	// bit 1 low enables scanning
@@ -699,7 +704,7 @@ WRITE8_MEMBER( pioneer_pr8210_device::i8049_port1_w )
 //  port #2
 //-------------------------------------------------
 
-WRITE8_MEMBER( pioneer_pr8210_device::i8049_port2_w )
+void pioneer_pr8210_device::i8049_port2_w(uint8_t data)
 {
 	/*
 	   $80 = (out) /CS on PIA
@@ -717,14 +722,14 @@ WRITE8_MEMBER( pioneer_pr8210_device::i8049_port2_w )
 	m_i8049_port2 = data;
 
 	// on the falling edge of bit 5, start the slow timer
-	if (!(data & 0x20) && (prev & 0x20))
+	if (!BIT(data, 5) && BIT(prev, 5))
 		m_slowtrg = machine().time();
 
 	// bit 6 when low triggers an IRQ on the MCU
-	m_i8049_cpu->set_input_line(MCS48_INPUT_IRQ, (data & 0x40) ? CLEAR_LINE : ASSERT_LINE);
+	m_i8049_cpu->set_input_line(MCS48_INPUT_IRQ, BIT(data, 6) ? CLEAR_LINE : ASSERT_LINE);
 
-	// standby LED is set accordingl to bit 4
-	machine().output().set_value("pr8210_standby", (data & 0x10) != 0);
+	// standby LED is set accordingly to bit 4
+	m_standby = BIT(data, 4);
 }
 
 
@@ -733,7 +738,7 @@ WRITE8_MEMBER( pioneer_pr8210_device::i8049_port2_w )
 //  T0 input (connected to VSYNC)
 //-------------------------------------------------
 
-READ8_MEMBER( pioneer_pr8210_device::i8049_t0_r )
+int pioneer_pr8210_device::i8049_t0_r()
 {
 	// returns VSYNC state
 	return !m_vsync;
@@ -745,7 +750,7 @@ READ8_MEMBER( pioneer_pr8210_device::i8049_t0_r )
 //  T1 input (pulled high)
 //-------------------------------------------------
 
-READ8_MEMBER( pioneer_pr8210_device::i8049_t1_r )
+int pioneer_pr8210_device::i8049_t1_r()
 {
 	return 1;
 }
@@ -856,19 +861,10 @@ void pioneer_pr8210_device::overlay_draw_char(bitmap_yuy16 &bitmap, uint8_t ch, 
 //  SIMUTREK ROM AND MACHINE INTERFACES
 //**************************************************************************
 
-static ADDRESS_MAP_START( simutrek_portmap, AS_IO, 8, simutrek_special_device )
-	AM_RANGE(0x00, 0xff) AM_READ(i8748_data_r)
-	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_READWRITE(i8748_port2_r, i8748_port2_w)
-	AM_RANGE(MCS48_PORT_T0, MCS48_PORT_T0) AM_READ(i8748_t0_r)
-ADDRESS_MAP_END
-
-
-static MACHINE_CONFIG_FRAGMENT( simutrek )
-	MCFG_CPU_ADD("simutrek", I8748, XTAL_6MHz)
-	MCFG_CPU_IO_MAP(simutrek_portmap)
-
-	MCFG_FRAGMENT_ADD(pr8210)
-MACHINE_CONFIG_END
+void simutrek_special_device::simutrek_portmap(address_map &map)
+{
+	map(0x00, 0xff).r(FUNC(simutrek_special_device::i8748_data_r));
+}
 
 
 ROM_START( simutrek )
@@ -890,7 +886,7 @@ ROM_END
 //-------------------------------------------------
 
 simutrek_special_device::simutrek_special_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: pioneer_pr8210_device(mconfig, SIMUTREK_SPECIAL, "Simutrek Modified PR-8210", tag, owner, clock, "simutrek", __FILE__),
+	: pioneer_pr8210_device(mconfig, SIMUTREK_SPECIAL, tag, owner, clock),
 		m_i8748_cpu(*this, "simutrek"),
 		m_audio_squelch(0),
 		m_data(0),
@@ -911,7 +907,7 @@ void simutrek_special_device::data_w(uint8_t data)
 {
 	synchronize(TID_LATCH_DATA, data);
 	if (LOG_SIMUTREK)
-		printf("%03d:**** Simutrek Command = %02X\n", screen().vpos(), data);
+		logerror("%03d:**** Simutrek Command = %02X\n", screen().vpos(), data);
 }
 
 
@@ -923,7 +919,7 @@ void simutrek_special_device::data_w(uint8_t data)
 void simutrek_special_device::set_external_audio_squelch(int state)
 {
 	if (LOG_SIMUTREK && m_audio_squelch != (state == 0))
-		printf("--> audio squelch = %d\n", state == 0);
+		logerror("--> audio squelch = %d\n", state == 0);
 	m_audio_squelch = (state == 0);
 	update_audio_squelch();
 }
@@ -945,14 +941,14 @@ void simutrek_special_device::player_vsync(const vbi_metadata &vbi, int fieldnum
 
 	// call the parent
 	if (LOG_SIMUTREK)
-		printf("%3d:VSYNC(%d)\n", screen().vpos(), fieldnum);
+		logerror("%3d:VSYNC(%d)\n", screen().vpos(), fieldnum);
 	pioneer_pr8210_device::player_vsync(vbi, fieldnum, curtime);
 
 	// process data
 	if (m_data_ready)
 	{
 		if (LOG_SIMUTREK)
-			printf("%3d:VSYNC IRQ\n", screen().vpos());
+			logerror("%3d:VSYNC IRQ\n", screen().vpos());
 		m_i8748_cpu->set_input_line(MCS48_INPUT_IRQ, ASSERT_LINE);
 		timer_set(screen().scan_period(), TID_IRQ_OFF);
 	}
@@ -1025,13 +1021,18 @@ const tiny_rom_entry *simutrek_special_device::device_rom_region() const
 
 
 //-------------------------------------------------
-//  device_mconfig_additions - return a pointer to
-//  our machine config fragment
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor simutrek_special_device::device_mconfig_additions() const
+void simutrek_special_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME(simutrek);
+	i8748_device &special(I8748(config, "simutrek", XTAL(6'000'000)));
+	special.set_addrmap(AS_IO, &simutrek_special_device::simutrek_portmap);
+	special.p2_in_cb().set(FUNC(simutrek_special_device::i8748_port2_r));
+	special.p2_out_cb().set(FUNC(simutrek_special_device::i8748_port2_w));
+	special.t0_in_cb().set(FUNC(simutrek_special_device::i8748_t0_r));
+
+	pioneer_pr8210_device::device_add_mconfig(config);
 }
 
 
@@ -1040,7 +1041,7 @@ machine_config_constructor simutrek_special_device::device_mconfig_additions() c
 //  port #2
 //-------------------------------------------------
 
-READ8_MEMBER( simutrek_special_device::i8748_port2_r )
+uint8_t simutrek_special_device::i8748_port2_r()
 {
 	// bit $80 is the pr8210 video squelch
 	return (m_i8049_port1 & 0x20) ? 0x00 : 0x80;
@@ -1052,7 +1053,7 @@ READ8_MEMBER( simutrek_special_device::i8748_port2_r )
 //  port #2
 //-------------------------------------------------
 
-WRITE8_MEMBER( simutrek_special_device::i8748_port2_w )
+void simutrek_special_device::i8748_port2_w(uint8_t data)
 {
 	// update stat
 	uint8_t prev = m_i8748_port2;
@@ -1068,18 +1069,18 @@ WRITE8_MEMBER( simutrek_special_device::i8748_port2_w )
 	{
 		int direction = (data & 0x08) ? 1 : -1;
 		if (LOG_SIMUTREK)
-			printf("%3d:JUMP TRG (Simutrek PC=%03X)\n", screen().vpos(), space.device().safe_pc());
+			logerror("%3d:JUMP TRG %s\n", screen().vpos(), machine().describe_context());
 		advance_slider(direction);
 	}
 
 	// bit $04 controls who owns the JUMP TRG command
 	if (LOG_SIMUTREK && ((data ^ prev) & 0x04))
-		printf("%3d:Simutrek ownership line = %d (Simutrek PC=%03X)\n", screen().vpos(), (data >> 2) & 1, space.device().safe_pc());
+		logerror("%3d:Simutrek ownership line = %d %s\n", screen().vpos(), (data >> 2) & 1, machine().describe_context());
 	m_controlnext = (~data >> 2) & 1;
 
 	// bits $03 control something (status?)
 	if (LOG_SIMUTREK && ((data ^ prev) & 0x03))
-		printf("Simutrek Status = %d\n", data & 0x03);
+		logerror("Simutrek Status = %d\n", data & 0x03);
 }
 
 
@@ -1087,7 +1088,7 @@ WRITE8_MEMBER( simutrek_special_device::i8748_port2_w )
 //  i8748_data_r - handle external 8748 data reads
 //-------------------------------------------------
 
-READ8_MEMBER( simutrek_special_device::i8748_data_r )
+uint8_t simutrek_special_device::i8748_data_r()
 {
 	// acknowledge the read and clear the data ready flag
 	m_data_ready = false;
@@ -1100,7 +1101,7 @@ READ8_MEMBER( simutrek_special_device::i8748_data_r )
 //  T0 input
 //-------------------------------------------------
 
-READ8_MEMBER( simutrek_special_device::i8748_t0_r )
+int simutrek_special_device::i8748_t0_r()
 {
 	// return 1 if data is waiting from main CPU
 	return m_data_ready;

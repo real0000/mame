@@ -50,7 +50,7 @@ Notes:
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type SMS_SPORTS_PAD_JP = device_creator<sms_sports_pad_jp_device>;
+DEFINE_DEVICE_TYPE(SMS_SPORTS_PAD_JP, sms_sports_pad_jp_device, "sms_sports_pad_jp", "Sega SMS Sports Pad (JP)")
 
 // time interval not verified
 #define SPORTS_PAD_JP_INTERVAL attotime::from_hz(20000)
@@ -65,11 +65,11 @@ CUSTOM_INPUT_MEMBER( sms_sports_pad_jp_device::rldu_pins_r ) { return ~(m_rldu_p
 
 static INPUT_PORTS_START( sms_sports_pad_jp )
 	PORT_START("SPORTS_JP_IN")
-	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sms_sports_pad_jp_device, rldu_pins_r, nullptr) // R,L,D,U
+	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_CUSTOM_MEMBER(sms_sports_pad_jp_device, rldu_pins_r) // R,L,D,U
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNUSED ) // Vcc
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER( DEVICE_SELF, sms_sports_pad_jp_device, tl_pin_r ) // TL
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sms_sports_pad_jp_device, tl_pin_r) // TL
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNUSED )  // TH
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER( DEVICE_SELF, sms_sports_pad_jp_device, tr_pin_r ) // TR
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sms_sports_pad_jp_device, tr_pin_r) // TR
 
 	PORT_START("SPORTS_JP_BT")    /* Sports Pad buttons nibble */
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 )
@@ -104,7 +104,7 @@ ioport_constructor sms_sports_pad_jp_device::device_input_ports() const
 //-------------------------------------------------
 
 sms_sports_pad_jp_device::sms_sports_pad_jp_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, SMS_SPORTS_PAD_JP, "Sega SMS Sports Pad JP", tag, owner, clock, "sms_sports_pad_jp", __FILE__),
+	device_t(mconfig, SMS_SPORTS_PAD_JP, tag, owner, clock),
 	device_sms_control_port_interface(mconfig, *this),
 	m_sports_jp_in(*this, "SPORTS_JP_IN"),
 	m_sports_jp_bt(*this, "SPORTS_JP_BT"),

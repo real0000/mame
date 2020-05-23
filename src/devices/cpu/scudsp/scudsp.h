@@ -6,10 +6,10 @@
  *
  *****************************************************************************/
 
-#pragma once
+#ifndef MAME_CPU_SCUDSP_SCUDSP_H
+#define MAME_CPU_SCUDSP_SCUDSP_H
 
-#ifndef __SCUDSP_H__
-#define __SCUDSP_H__
+#pragma once
 
 enum
 {
@@ -36,37 +36,17 @@ enum
 };
 
 
-#define MCFG_SCUDSP_OUT_IRQ_CB(_devcb) \
-	devcb = &scudsp_cpu_device::set_out_irq_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_SCUDSP_IN_DMA_CB(_devcb) \
-	devcb = &scudsp_cpu_device::set_in_dma_callback(*device, DEVCB_##_devcb);
-
-#define MCFG_SCUDSP_OUT_DMA_CB(_devcb) \
-	devcb = &scudsp_cpu_device::set_out_dma_callback(*device, DEVCB_##_devcb);
-
-
 #define SCUDSP_RESET        INPUT_LINE_RESET    /* Non-Maskable */
 
-union SCUDSPREG32 {
-	int32_t  si;
-	uint32_t ui;
-};
-
-union SCUDSPREG16 {
-	int16_t  si;
-	uint16_t ui;
-};
-
-class scudsp_cpu_device :  public cpu_device
+class scudsp_cpu_device : public cpu_device
 {
 public:
 	// construction/destruction
 	scudsp_cpu_device(const machine_config &mconfig, const char *_tag, device_t *_owner, uint32_t _clock);
 
-	template<class _Object> static devcb_base &set_out_irq_callback(device_t &device, _Object object) { return downcast<scudsp_cpu_device &>(device).m_out_irq_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_in_dma_callback(device_t &device, _Object object) { return downcast<scudsp_cpu_device &>(device).m_in_dma_cb.set_callback(object); }
-	template<class _Object> static devcb_base &set_out_dma_callback(device_t &device, _Object object) { return downcast<scudsp_cpu_device &>(device).m_out_dma_cb.set_callback(object); }
+	auto out_irq_callback() { return m_out_irq_cb.bind(); }
+	auto in_dma_callback() { return m_in_dma_cb.bind(); }
+	auto out_dma_callback() { return m_out_dma_cb.bind(); }
 
 	/* port 0 */
 	DECLARE_READ32_MEMBER( program_control_r );
@@ -78,36 +58,45 @@ public:
 	/* port 3 */
 	DECLARE_READ32_MEMBER( ram_address_r );
 	DECLARE_WRITE32_MEMBER( ram_address_w );
-//  virtual DECLARE_ADDRESS_MAP(map, 32) = 0;
 
+	void data_map(address_map &map);
+	void program_map(address_map &map);
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 1; }
-	virtual uint32_t execute_max_cycles() const override { return 7; }
-	virtual uint32_t execute_input_lines() const override { return 0; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 7; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 0; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : ( (spacenum == AS_DATA) ? &m_data_config : nullptr ); }
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 4; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 4; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 	devcb_write_line     m_out_irq_cb;
 	devcb_read16         m_in_dma_cb;
 	devcb_write16        m_out_dma_cb;
 
 private:
+	union SCUDSPREG32 {
+		int32_t  si;
+		uint32_t ui;
+	};
+
+	union SCUDSPREG16 {
+		int16_t  si;
+		uint16_t ui;
+	};
+
 	address_space_config m_program_config;
 	address_space_config m_data_config;
 
@@ -156,9 +145,6 @@ private:
 };
 
 
-extern const device_type SCUDSP;
+DECLARE_DEVICE_TYPE(SCUDSP, scudsp_cpu_device)
 
-
-CPU_DISASSEMBLE( scudsp );
-
-#endif /* __SCUDSP_H__ */
+#endif // MAME_CPU_SCUDSP_SCUDSP_H

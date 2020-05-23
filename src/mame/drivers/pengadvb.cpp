@@ -22,6 +22,19 @@ AY-3-8910 @ 1.789766MHz [10.7386/6]
 10 position DIPSW
 NOTE! switches 1, 3 & 5 must be ON or the game will not boot.
 
+== MSX2 hardware version:
+
+It's on the same PCB as sfkick, but with a small daughterboard for the sound chip, and no epoxy block.
+Positions originally for YM2203 and extra Z80 are not populated.
+
+TODO:
+- pengadvb: add dipswitch
+- pengadvb: A timer apparently expires when beating stage 4 (signalled by a long beeping sound).
+  Player needs to insert another credit and press start button (?) in order to continue.
+  Is this timer supposed to be shown on screen or there are additional 7-LEDs not handled?
+- pengadvb2: V9938 video chip with 64KB VRAM instead of TMS9128, game works ok though
+- pengadvb2: The CBK1029 PCB is also emulated by sfkick.cpp. Merge drivers? The board is differently populated.
+
 ***************************************************************************/
 
 #include "emu.h"
@@ -38,31 +51,43 @@ class pengadvb_state : public driver_device
 {
 public:
 	pengadvb_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu")
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_page(*this, "page%u", 0U)
+		, m_bank(*this, "bank%u", 0U)
 	{ }
 
-	required_device<cpu_device> m_maincpu;
+	void pengadvb(machine_config &config);
 
-	address_map_bank_device *m_page[4];
-	memory_bank *m_bank[4];
-	uint8_t m_primary_slot_reg;
-	uint8_t m_kb_matrix_row;
+	void init_pengadvb();
+	void init_pengadvb2();
 
-	DECLARE_READ8_MEMBER(mem_r);
-	DECLARE_WRITE8_MEMBER(mem_w);
-	DECLARE_WRITE8_MEMBER(megarom_bank_w);
-
-	DECLARE_WRITE8_MEMBER(pengadvb_psg_port_b_w);
-	DECLARE_READ8_MEMBER(pengadvb_ppi_port_a_r);
-	DECLARE_WRITE8_MEMBER(pengadvb_ppi_port_a_w);
-	DECLARE_READ8_MEMBER(pengadvb_ppi_port_b_r);
-	DECLARE_WRITE8_MEMBER(pengadvb_ppi_port_c_w);
-
-	DECLARE_DRIVER_INIT(pengadvb);
+protected:
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
+
+private:
+	uint8_t mem_r(offs_t offset);
+	void mem_w(offs_t offset, uint8_t data);
+	void megarom_bank_w(offs_t offset, uint8_t data);
+
+	void psg_port_b_w(uint8_t data);
+	uint8_t ppi_port_a_r();
+	void ppi_port_a_w(uint8_t data);
+	uint8_t ppi_port_b_r();
+	void ppi_port_c_w(uint8_t data);
+
 	void pengadvb_decrypt(const char* region);
+	void bank_mem(address_map &map);
+	void io_mem(address_map &map);
+	void program_mem(address_map &map);
+
+	required_device<cpu_device> m_maincpu;
+	required_device_array<address_map_bank_device, 4> m_page;
+	required_memory_bank_array<4> m_bank;
+
+	uint8_t m_primary_slot_reg;
+	uint8_t m_kb_matrix_row;
 };
 
 
@@ -72,49 +97,51 @@ public:
 
 ***************************************************************************/
 
-READ8_MEMBER(pengadvb_state::mem_r)
+uint8_t pengadvb_state::mem_r(offs_t offset)
 {
-	return m_page[offset >> 14 & 3]->read8(space, offset);
+	return m_page[offset >> 14 & 3]->read8(offset);
 }
 
-WRITE8_MEMBER(pengadvb_state::mem_w)
+void pengadvb_state::mem_w(offs_t offset, uint8_t data)
 {
-	m_page[offset >> 14 & 3]->write8(space, offset, data);
+	m_page[offset >> 14 & 3]->write8(offset, data);
 }
 
-WRITE8_MEMBER(pengadvb_state::megarom_bank_w)
+void pengadvb_state::megarom_bank_w(offs_t offset, uint8_t data)
 {
 	m_bank[offset >> 13 & 3]->set_entry(data & 0xf);
 }
 
-static ADDRESS_MAP_START( program_mem, AS_PROGRAM, 8, pengadvb_state )
-	AM_RANGE(0x0000, 0xffff) AM_READWRITE(mem_r, mem_w) // 4 pages of 16KB
-ADDRESS_MAP_END
+void pengadvb_state::program_mem(address_map &map)
+{
+	map(0x0000, 0xffff).rw(FUNC(pengadvb_state::mem_r), FUNC(pengadvb_state::mem_w)); // 4 pages of 16KB
+}
 
-static ADDRESS_MAP_START( bank_mem, AS_PROGRAM, 8, pengadvb_state )
+void pengadvb_state::bank_mem(address_map &map)
+{
 	// slot 0, MSX BIOS
-	AM_RANGE(0x00000, 0x07fff) AM_ROM AM_REGION("maincpu", 0)
+	map(0x00000, 0x07fff).rom().region("maincpu", 0);
 
 	// slot 1, MegaROM
-	AM_RANGE(0x14000, 0x15fff) AM_ROMBANK("bank0")
-	AM_RANGE(0x16000, 0x17fff) AM_ROMBANK("bank1")
-	AM_RANGE(0x18000, 0x19fff) AM_ROMBANK("bank2")
-	AM_RANGE(0x1a000, 0x1bfff) AM_ROMBANK("bank3")
-	AM_RANGE(0x14000, 0x1bfff) AM_WRITE(megarom_bank_w)
+	map(0x14000, 0x15fff).bankr("bank0");
+	map(0x16000, 0x17fff).bankr("bank1");
+	map(0x18000, 0x19fff).bankr("bank2");
+	map(0x1a000, 0x1bfff).bankr("bank3");
+	map(0x14000, 0x1bfff).w(FUNC(pengadvb_state::megarom_bank_w));
 
 	// slot 3, 16KB RAM
-	AM_RANGE(0x3c000, 0x3ffff) AM_RAM
-ADDRESS_MAP_END
+	map(0x3c000, 0x3ffff).ram();
+}
 
-static ADDRESS_MAP_START( io_mem, AS_IO, 8, pengadvb_state )
-	ADDRESS_MAP_UNMAP_HIGH
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x98, 0x98) AM_DEVREADWRITE("tms9128", tms9128_device, vram_read, vram_write)
-	AM_RANGE(0x99, 0x99) AM_DEVREADWRITE("tms9128", tms9128_device, register_read, register_write)
-	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
-	AM_RANGE(0xa2, 0xa2) AM_DEVREAD("aysnd", ay8910_device, data_r)
-	AM_RANGE(0xa8, 0xab) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
-ADDRESS_MAP_END
+void pengadvb_state::io_mem(address_map &map)
+{
+	map.unmap_value_high();
+	map.global_mask(0xff);
+	map(0x98, 0x99).rw("tms9128", FUNC(tms9128_device::read), FUNC(tms9128_device::write));
+	map(0xa0, 0xa1).w("aysnd", FUNC(ay8910_device::address_data_w));
+	map(0xa2, 0xa2).r("aysnd", FUNC(ay8910_device::data_r));
+	map(0xa8, 0xab).rw("ppi8255", FUNC(i8255_device::read), FUNC(i8255_device::write));
+}
 
 
 /***************************************************************************
@@ -125,19 +152,70 @@ ADDRESS_MAP_END
 
 static INPUT_PORTS_START( pengadvb )
 	PORT_START("IN0")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_UP)
-	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN)
-	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT)
-	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT)
-	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_BUTTON1)
-	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_BUTTON2)
-	PORT_BIT(0xc0, IP_ACTIVE_LOW, IPT_UNUSED)
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_UP )
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT )
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_BUTTON1 )
+	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_BUTTON2 )
+	PORT_BIT(0xc0, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("IN1")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_COIN1) PORT_IMPULSE(1)
-	PORT_BIT(0xfe, IP_ACTIVE_LOW, IPT_UNUSED)
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_COIN1 ) PORT_IMPULSE(1)
+	// bit 1 is also tested, unknown purpose.
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_START1 )
+	PORT_BIT(0xee, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_START("IN2")
+	PORT_BIT(0xff, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_START("DSW1")
+	PORT_BIT(0xff, IP_ACTIVE_LOW, IPT_UNUSED )
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( pengadvb2 ) // reads are scrambled
+	PORT_START("IN0")
+	PORT_BIT(0xff, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_START("IN1")
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT )
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_START1 ) // also used for button 2 (pistol)
+	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_BUTTON1 )
+	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_START("IN2")
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_COIN1 )
+	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )
+	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_JOYSTICK_UP )
+	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_START("DSW1")
+	PORT_DIPNAME( 0x03, 0x02, DEF_STR( Lives ) ) PORT_DIPLOCATION("SW1:1,2")
+	PORT_DIPSETTING(    0x03, "1" )
+	PORT_DIPSETTING(    0x02, "2" )
+	PORT_DIPSETTING(    0x01, "3" )
+	PORT_DIPSETTING(    0x00, "5" )
+	PORT_DIPNAME( 0xa4, 0xa4, DEF_STR( Coinage ) ) PORT_DIPLOCATION("SW1:3,4,5")
+	PORT_DIPSETTING(    0x04, DEF_STR( 3C_1C ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( 3C_2C ) )
+	PORT_DIPSETTING(    0x84, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( 2C_3C ) )
+	PORT_DIPSETTING(    0xa4, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(    0xa0, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(    0x24, DEF_STR( 1C_3C ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( 1C_5C ) )
+	PORT_DIPUNKNOWN_DIPLOC(0x08, 0x08, "SW1:6")
+	PORT_DIPUNKNOWN_DIPLOC(0x10, 0x10, "SW1:7")
+	PORT_DIPUNKNOWN_DIPLOC(0x40, 0x40, "SW1:8")
+INPUT_PORTS_END
 
 /***************************************************************************
 
@@ -146,7 +224,7 @@ INPUT_PORTS_END
 ***************************************************************************/
 
 // AY8910
-WRITE8_MEMBER(pengadvb_state::pengadvb_psg_port_b_w)
+void pengadvb_state::psg_port_b_w(uint8_t data)
 {
 	// leftover from msx ver?
 }
@@ -154,12 +232,12 @@ WRITE8_MEMBER(pengadvb_state::pengadvb_psg_port_b_w)
 /**************************************************************************/
 
 // I8255
-READ8_MEMBER(pengadvb_state::pengadvb_ppi_port_a_r)
+uint8_t pengadvb_state::ppi_port_a_r()
 {
 	return m_primary_slot_reg;
 }
 
-WRITE8_MEMBER(pengadvb_state::pengadvb_ppi_port_a_w)
+void pengadvb_state::ppi_port_a_w(uint8_t data)
 {
 	if (data != m_primary_slot_reg)
 	{
@@ -170,14 +248,16 @@ WRITE8_MEMBER(pengadvb_state::pengadvb_ppi_port_a_w)
 	}
 }
 
-READ8_MEMBER(pengadvb_state::pengadvb_ppi_port_b_r)
+uint8_t pengadvb_state::ppi_port_b_r()
 {
-	// TODO: dipswitch
 	switch (m_kb_matrix_row)
 	{
-		case 0x0:
+		case 0x00:
 			return ioport("IN1")->read();
-
+		case 0x01:
+			return ioport("IN2")->read();
+		case 0x04:
+			return ioport("DSW1")->read();
 		default:
 			break;
 	}
@@ -185,7 +265,7 @@ READ8_MEMBER(pengadvb_state::pengadvb_ppi_port_b_r)
 	return 0xff;
 }
 
-WRITE8_MEMBER(pengadvb_state::pengadvb_ppi_port_c_w)
+void pengadvb_state::ppi_port_c_w(uint8_t data)
 {
 	m_kb_matrix_row = data & 0x0f;
 }
@@ -196,62 +276,38 @@ WRITE8_MEMBER(pengadvb_state::pengadvb_ppi_port_c_w)
 
 ***************************************************************************/
 
-static MACHINE_CONFIG_START( pengadvb, pengadvb_state )
-
+void pengadvb_state::pengadvb(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, XTAL_10_738635MHz/3)
-	MCFG_CPU_PROGRAM_MAP(program_mem)
-	MCFG_CPU_IO_MAP(io_mem)
+	Z80(config, m_maincpu, XTAL(10'738'635)/3);
+	m_maincpu->set_addrmap(AS_PROGRAM, &pengadvb_state::program_mem);
+	m_maincpu->set_addrmap(AS_IO, &pengadvb_state::io_mem);
 
-	// -_-;
-	MCFG_DEVICE_ADD("page0", ADDRESS_MAP_BANK, 0)
-	MCFG_DEVICE_PROGRAM_MAP(bank_mem)
-	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(18)
-	MCFG_ADDRESS_MAP_BANK_STRIDE(0x10000)
+	ADDRESS_MAP_BANK(config, "page0").set_map(&pengadvb_state::bank_mem).set_options(ENDIANNESS_LITTLE, 8, 18, 0x10000);
+	ADDRESS_MAP_BANK(config, "page1").set_map(&pengadvb_state::bank_mem).set_options(ENDIANNESS_LITTLE, 8, 18, 0x10000);
+	ADDRESS_MAP_BANK(config, "page2").set_map(&pengadvb_state::bank_mem).set_options(ENDIANNESS_LITTLE, 8, 18, 0x10000);
+	ADDRESS_MAP_BANK(config, "page3").set_map(&pengadvb_state::bank_mem).set_options(ENDIANNESS_LITTLE, 8, 18, 0x10000);
 
-	MCFG_DEVICE_ADD("page1", ADDRESS_MAP_BANK, 0)
-	MCFG_DEVICE_PROGRAM_MAP(bank_mem)
-	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(18)
-	MCFG_ADDRESS_MAP_BANK_STRIDE(0x10000)
-
-	MCFG_DEVICE_ADD("page2", ADDRESS_MAP_BANK, 0)
-	MCFG_DEVICE_PROGRAM_MAP(bank_mem)
-	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(18)
-	MCFG_ADDRESS_MAP_BANK_STRIDE(0x10000)
-
-	MCFG_DEVICE_ADD("page3", ADDRESS_MAP_BANK, 0)
-	MCFG_DEVICE_PROGRAM_MAP(bank_mem)
-	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(18)
-	MCFG_ADDRESS_MAP_BANK_STRIDE(0x10000)
-
-	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
-	MCFG_I8255_IN_PORTA_CB(READ8(pengadvb_state, pengadvb_ppi_port_a_r))
-	MCFG_I8255_OUT_PORTA_CB(WRITE8(pengadvb_state, pengadvb_ppi_port_a_w))
-	MCFG_I8255_IN_PORTB_CB(READ8(pengadvb_state, pengadvb_ppi_port_b_r))
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(pengadvb_state, pengadvb_ppi_port_c_w))
+	i8255_device &ppi(I8255(config, "ppi8255"));
+	ppi.in_pa_callback().set(FUNC(pengadvb_state::ppi_port_a_r));
+	ppi.out_pa_callback().set(FUNC(pengadvb_state::ppi_port_a_w));
+	ppi.in_pb_callback().set(FUNC(pengadvb_state::ppi_port_b_r));
+	ppi.out_pc_callback().set(FUNC(pengadvb_state::ppi_port_c_w));
 
 	/* video hardware */
-	MCFG_DEVICE_ADD("tms9128", TMS9128, XTAL_10_738635MHz/2)
-	MCFG_TMS9928A_VRAM_SIZE(0x4000)
-	MCFG_TMS9928A_OUT_INT_LINE_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
-	MCFG_TMS9928A_SCREEN_ADD_NTSC( "screen" )
-	MCFG_SCREEN_UPDATE_DEVICE("tms9128", tms9128_device, screen_update)
+	tms9128_device &vdp(TMS9128(config, "tms9128", XTAL(10'738'635)));
+	vdp.set_screen("screen");
+	vdp.set_vram_size(0x4000);
+	vdp.int_callback().set_inputline(m_maincpu, INPUT_LINE_IRQ0);
+	SCREEN(config, "screen", SCREEN_TYPE_RASTER);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("aysnd", AY8910, XTAL_10_738635MHz/6)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("IN0"))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(pengadvb_state, pengadvb_psg_port_b_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-MACHINE_CONFIG_END
+	SPEAKER(config, "mono").front_center();
+	ay8910_device &aysnd(AY8910(config, "aysnd", XTAL(10'738'635)/6));
+	aysnd.port_a_read_callback().set_ioport("IN0");
+	aysnd.port_b_write_callback().set(FUNC(pengadvb_state::psg_port_b_w));
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
+}
 
 
 /***************************************************************************
@@ -281,38 +337,32 @@ void pengadvb_state::machine_reset()
 void pengadvb_state::pengadvb_decrypt(const char* region)
 {
 	uint8_t *mem = memregion(region)->base();
-	int memsize = memregion(region)->bytes();
+	uint32_t memsize = memregion(region)->bytes();
 
 	// data lines swap
 	for (int i = 0; i < memsize; i++)
-	{
-		mem[i] = BITSWAP8(mem[i],7,6,5,3,4,2,1,0);
-	}
+		mem[i] = bitswap<8>(mem[i],7,6,5,3,4,2,1,0);
 
 	// address line swap
 	std::vector<uint8_t> buf(memsize);
 	memcpy(&buf[0], mem, memsize);
 	for (int i = 0; i < memsize; i++)
-	{
-		mem[i] = buf[BITSWAP24(i,23,22,21,20,19,18,17,16,15,14,13,5,11,10,9,8,7,6,12,4,3,2,1,0)];
-	}
+		mem[i] = buf[bitswap<24>(i,23,22,21,20,19,18,17,16,15,14,13,5,11,10,9,8,7,6,12,4,3,2,1,0)];
 }
 
-DRIVER_INIT_MEMBER(pengadvb_state,pengadvb)
+void pengadvb_state::init_pengadvb()
 {
 	pengadvb_decrypt("maincpu");
 	pengadvb_decrypt("game");
 
-	// init banks
-	static const char * const pagenames[] = { "page0", "page1", "page2", "page3" };
-	static const char * const banknames[] = { "bank0", "bank1", "bank2", "bank3" };
-	for (int i = 0; i < 4; i++)
-	{
-		m_page[i] = machine().device<address_map_bank_device>(pagenames[i]);
+	init_pengadvb2();
+}
 
-		m_bank[i] = membank(banknames[i]);
+void pengadvb_state::init_pengadvb2()
+{
+	// init banks
+	for (int i = 0; i < 4; i++)
 		m_bank[i]->configure_entries(0, 0x10, memregion("game")->base(), 0x2000);
-	}
 }
 
 
@@ -333,5 +383,16 @@ ROM_START( pengadvb )
 	ROM_LOAD( "rom.u10", 0x18000, 0x8000, CRC(5c48360f) SHA1(0866e20969f57b7b7c59df8f7ca203f18c7c9870) )
 ROM_END
 
+ROM_START( pengadvb2 ) // CBK1029 PCB
+	ROM_REGION( 0x8000, "maincpu", 0 )
+	ROM_LOAD( "7l",  0x00000, 0x8000, CRC(9645ab69) SHA1(7a15b501d2c357b9fda83c811b0d728df318ceb2) )
 
-GAME( 1988, pengadvb, 0, pengadvb, pengadvb, pengadvb_state, pengadvb, ROT0, "bootleg (Screen) / Konami", "Penguin Adventure (bootleg of MSX version)", MACHINE_SUPPORTS_SAVE )
+	ROM_REGION( 0x20000, "game", 0 )
+	ROM_LOAD( "7a",  0x00000, 0x8000, CRC(8434344c) SHA1(c3002df12fb5395506a16abcefbcb4f5cbe3eb6a) )
+	ROM_LOAD( "7c",  0x08000, 0x8000, CRC(0274f6eb) SHA1(185b3819357abf65988971e9deece3b5c67dd1d0) )
+	ROM_LOAD( "7d",  0x10000, 0x8000, CRC(8cb1f223) SHA1(ff5db3c373e6d919b4e8e06c3e4607b150f31964) )
+	ROM_LOAD( "7e",  0x18000, 0x8000, CRC(60764899) SHA1(a75e59c2ecf8cebdb99708cb18390157ad7b6993) )
+ROM_END
+
+GAME( 1988, pengadvb,  0,        pengadvb, pengadvb,  pengadvb_state, init_pengadvb,  ROT0, "bootleg (Screen)", "Penguin Adventure (bootleg of MSX version, encrypted)", MACHINE_SUPPORTS_SAVE )
+GAME( 1988, pengadvb2, pengadvb, pengadvb, pengadvb2, pengadvb_state, init_pengadvb2, ROT0, "bootleg (Comet)", "Penguin Adventure (bootleg of MSX version, not encrypted)", MACHINE_SUPPORTS_SAVE )

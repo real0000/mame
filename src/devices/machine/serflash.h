@@ -2,61 +2,45 @@
 // copyright-holders:David Haywood, Luca Elia
 /* Serial Flash */
 
+#ifndef MAME_MACHINE_SERFLASH_H
+#define MAME_MACHINE_SERFLASH_H
+
 #pragma once
 
-#ifndef __SERFLASH_H__
-#define __SERFLASH_H__
-
-
-#define FLASH_PAGE_SIZE (2048+64)
-
-
-
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_SERFLASH_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, SERFLASH, 0)
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-class serflash_device;
-
-typedef enum                            { STATE_IDLE = 0,   STATE_READ,     STATE_READ_ID,  STATE_READ_STATUS, STATE_BLOCK_ERASE, STATE_PAGE_PROGRAM    } flash_state_t;
-//const char *m_flash_state_name[] =    { "IDLE",           "READ",         "READ_ID",      "READ_STATUS",     "BLOCK ERASE",     "PAGE PROGRAM"        };
-
-// custom initialization for default state
-typedef device_delegate<void (serflash_device &, void *, size_t)> serflash_init_delegate;
-
 
 // ======================> serflash_device
 
-class serflash_device :    public device_t,
-						public device_nvram_interface
+class serflash_device : public device_t, public device_nvram_interface
 {
 public:
+	// custom initialization for default state
+	typedef device_delegate<void (serflash_device &, void *, size_t)> init_delegate;
 
 	// construction/destruction
 	serflash_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_READ8_MEMBER( flash_ready_r );
-	DECLARE_READ8_MEMBER( flash_io_r );
-	DECLARE_WRITE8_MEMBER( flash_addr_w );
-	DECLARE_WRITE8_MEMBER( flash_data_w );
-	DECLARE_WRITE8_MEMBER( flash_cmd_w );
-	DECLARE_WRITE8_MEMBER( flash_enab_w );
+	// configuration
+	void set_flash_page_size(uint16_t size) { m_flash_page_size = size; }
+
+	uint8_t flash_ready_r();
+	uint8_t flash_io_r();
+	void flash_addr_w(uint8_t data);
+	void flash_data_w(uint8_t data);
+	void flash_cmd_w(uint8_t data);
+	void flash_enab_w(uint8_t data);
 	void flash_hard_reset();
 
-	DECLARE_READ8_MEMBER(n3d_flash_r);
-	DECLARE_WRITE8_MEMBER(n3d_flash_cmd_w);
-	DECLARE_WRITE8_MEMBER(n3d_flash_addr_w);
+	uint8_t n3d_flash_r(offs_t offset);
+	void n3d_flash_cmd_w(offs_t offset, uint8_t data);
+	void n3d_flash_addr_w(offs_t offset, uint8_t data);
 
 protected:
+	enum class flash_state_t : u8 { IDLE = 0, READ, READ_ID, READ_STATUS, BLOCK_ERASE, PAGE_PROGRAM };
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
@@ -72,6 +56,8 @@ protected:
 	size_t                      m_length;
 	uint8_t* m_region;
 
+	uint32_t                    m_row_num;
+	uint16_t                    m_flash_page_size;
 
 	flash_state_t m_flash_state;
 
@@ -83,9 +69,10 @@ protected:
 	uint8_t m_flash_addr_seq;
 	uint8_t m_flash_read_seq;
 
-	uint16_t m_flash_row, m_flash_col;
+	uint32_t m_flash_row;
+	uint16_t m_flash_col;
 	int m_flash_page_addr;
-	uint16_t m_flash_page_index;
+	uint32_t m_flash_page_index;
 
 
 	std::vector<uint8_t> m_flashwritemap;
@@ -94,15 +81,11 @@ protected:
 
 	uint32_t m_flash_addr;
 
-	uint8_t m_flash_page_data[FLASH_PAGE_SIZE];
-
-
-
+	std::vector<uint8_t> m_flash_page_data;
 };
 
 
 // device type definition
-extern const device_type SERFLASH;
+DECLARE_DEVICE_TYPE(SERFLASH, serflash_device)
 
-
-#endif
+#endif // MAME_MACHINE_SERFLASH_H

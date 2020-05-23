@@ -9,7 +9,7 @@
 #include "emu.h"
 #include "includes/turrett.h"
 
-const device_type TURRETT = device_creator<turrett_device>;
+DEFINE_DEVICE_TYPE(TURRETT, turrett_device, "ttsnd", "Turret Tower Sound")
 
 
 //-------------------------------------------------
@@ -17,10 +17,10 @@ const device_type TURRETT = device_creator<turrett_device>;
 //-------------------------------------------------
 
 turrett_device::turrett_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, TURRETT, "Turret Tower Sound", tag, owner, clock, "ttsnd", __FILE__),
-		device_sound_interface(mconfig, *this),
-		device_memory_interface(mconfig, *this),
-		m_space_config("ttsound", ENDIANNESS_LITTLE, 16, 28, 0, nullptr)
+	: device_t(mconfig, TURRETT, tag, owner, clock)
+	, device_sound_interface(mconfig, *this)
+	, device_memory_interface(mconfig, *this)
+	, m_space_config("ttsound", ENDIANNESS_LITTLE, 16, 28, 0)
 {
 }
 
@@ -29,9 +29,11 @@ turrett_device::turrett_device(const machine_config &mconfig, const char *tag, d
 //  memory_space_config - configure address space
 //-------------------------------------------------
 
-const address_space_config *turrett_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector turrett_device::memory_space_config() const
 {
-	return (spacenum == 0) ? &m_space_config : nullptr;
+	return space_config_vector {
+		std::make_pair(0, &m_space_config)
+	};
 }
 
 
@@ -42,7 +44,7 @@ const address_space_config *turrett_device::memory_space_config(address_spacenum
 void turrett_device::device_start()
 {
 	// Find our direct access
-	m_direct = &space().direct();
+	m_cache = space().cache<1, 0, ENDIANNESS_LITTLE>();
 
 	// Create the sound stream
 	m_stream = machine().sound().stream_alloc(*this, 0, 2, 44100);
@@ -104,7 +106,7 @@ void turrett_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 
 			for (int s = 0; s < samples; ++s)
 			{
-				int16_t sample = m_direct->read_word(addr << 1);
+				int16_t sample = m_cache->read_word(addr << 1);
 
 				if ((uint16_t)sample == 0x8000)
 				{

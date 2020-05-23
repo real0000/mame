@@ -15,7 +15,7 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type VIP_BYTEIO_PORT = device_creator<vip_byteio_port_device>;
+DEFINE_DEVICE_TYPE(VIP_BYTEIO_PORT, vip_byteio_port_device, "vip_byteio_port", "VIP byte I/O port")
 
 
 
@@ -27,8 +27,8 @@ const device_type VIP_BYTEIO_PORT = device_creator<vip_byteio_port_device>;
 //  device_vip_byteio_port_interface - constructor
 //-------------------------------------------------
 
-device_vip_byteio_port_interface::device_vip_byteio_port_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig,device)
+device_vip_byteio_port_interface::device_vip_byteio_port_interface(const machine_config &mconfig, device_t &device) :
+	device_interface(device, "vipbyteio")
 {
 	m_slot = dynamic_cast<vip_byteio_port_device *>(device.owner());
 }
@@ -44,9 +44,10 @@ device_vip_byteio_port_interface::device_vip_byteio_port_interface(const machine
 //-------------------------------------------------
 
 vip_byteio_port_device::vip_byteio_port_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-		device_t(mconfig, VIP_BYTEIO_PORT, "VIP byte I/O port", tag, owner, clock, "vip_byteio_port", __FILE__),
-		device_slot_interface(mconfig, *this),
-		m_write_inst(*this), m_cart(nullptr)
+	device_t(mconfig, VIP_BYTEIO_PORT, tag, owner, clock),
+	device_single_card_slot_interface<device_vip_byteio_port_interface>(mconfig, *this),
+	m_write_inst(*this),
+	m_cart(nullptr)
 {
 }
 
@@ -56,7 +57,7 @@ vip_byteio_port_device::vip_byteio_port_device(const machine_config &mconfig, co
 
 void vip_byteio_port_device::device_start()
 {
-	m_cart = dynamic_cast<device_vip_byteio_port_interface *>(get_card_device());
+	m_cart = get_card_device();
 
 	// resolve callbacks
 	m_write_inst.resolve_safe();
@@ -83,7 +84,8 @@ WRITE_LINE_MEMBER( vip_byteio_port_device::q_w ) { if (m_cart != nullptr) m_cart
 //  SLOT_INTERFACE( vip_byteio_cards )
 //-------------------------------------------------
 
-SLOT_INTERFACE_START( vip_byteio_cards )
-	//SLOT_INTERFACE("exp2", VP576_BYTEIO)
-	SLOT_INTERFACE("ascii", VP620)
-SLOT_INTERFACE_END
+void vip_byteio_cards(device_slot_interface &device)
+{
+	//device.option_add("exp2", VP576_BYTEIO);
+	device.option_add("ascii", VP620);
+}

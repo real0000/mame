@@ -50,7 +50,7 @@ WRITE_LINE_MEMBER( mbee_state::crtc_vs )
 {
 	m_b7_vs = state;
 	if ((m_io_config->read() & 0xc0) == 0) // VS selected in config menu
-		m_pio->port_b_write(pio_port_b_r(generic_space(),0,0xff));
+		m_pio->port_b_write(pio_port_b_r());
 }
 
 /***********************************************************
@@ -104,7 +104,7 @@ void mbee_state::sy6545_cursor_configure()
 ************************************************************/
 
 
-READ8_MEMBER( mbee_state::video_low_r )
+uint8_t mbee_state::video_low_r(offs_t offset)
 {
 	if (m_is_premium && ((m_1c & 0x9f) == 0x90))
 		return m_p_attribram[offset];
@@ -115,7 +115,7 @@ READ8_MEMBER( mbee_state::video_low_r )
 		return m_p_videoram[offset];
 }
 
-WRITE8_MEMBER( mbee_state::video_low_w )
+void mbee_state::video_low_w(offs_t offset, uint8_t data)
 {
 	if (BIT(m_1c, 4))
 	{
@@ -127,7 +127,7 @@ WRITE8_MEMBER( mbee_state::video_low_w )
 		m_p_videoram[offset] = data;
 }
 
-READ8_MEMBER( mbee_state::video_high_r )
+uint8_t mbee_state::video_high_r(offs_t offset)
 {
 	if (BIT(m_08, 6))
 		return m_p_colorram[offset];
@@ -135,7 +135,7 @@ READ8_MEMBER( mbee_state::video_high_r )
 		return m_p_gfxram[(((m_1c & 15) + 1) << 11) | offset];
 }
 
-WRITE8_MEMBER( mbee_state::video_high_w )
+void mbee_state::video_high_w(offs_t offset, uint8_t data)
 {
 	if (BIT(m_08, 6) && (~m_0b & 1))
 		m_p_colorram[offset] = data;
@@ -143,27 +143,27 @@ WRITE8_MEMBER( mbee_state::video_high_w )
 		m_p_gfxram[(((m_1c & 15) + 1) << 11) | offset] = data;
 }
 
-WRITE8_MEMBER( mbee_state::port0b_w )
+void mbee_state::port0b_w(uint8_t data)
 {
 	m_0b = data & 1;
 }
 
-READ8_MEMBER( mbee_state::port08_r )
+uint8_t mbee_state::port08_r()
 {
 	return m_08;
 }
 
-WRITE8_MEMBER( mbee_state::port08_w )
+void mbee_state::port08_w(uint8_t data)
 {
 	m_08 = data & 0x4e;
 }
 
-READ8_MEMBER( mbee_state::port1c_r )
+uint8_t mbee_state::port1c_r()
 {
 	return m_1c;
 }
 
-WRITE8_MEMBER( mbee_state::port1c_w )
+void mbee_state::port1c_w(uint8_t data)
 {
 /*  d7 extended graphics (1=allow attributes and pcg banks)
     d5 bankswitch basic rom
@@ -252,14 +252,14 @@ void mbee_state::oldkb_scan( uint16_t param )
 
 ************************************************************/
 
-WRITE8_MEMBER ( mbee_state::m6545_index_w )
+void mbee_state::m6545_index_w(uint8_t data)
 {
 	data &= 0x1f;
 	m_sy6545_ind = data;
-	m_crtc->address_w( space, 0, data );
+	m_crtc->address_w(data);
 }
 
-WRITE8_MEMBER ( mbee_state::m6545_data_w )
+void mbee_state::m6545_data_w(uint8_t data)
 {
 	static const uint8_t sy6545_mask[32]={0xff,0xff,0xff,0x0f,0x7f,0x1f,0x7f,0x7f,3,0x1f,0x7f,0x1f,0x3f,0xff,0x3f,0xff,0,0,0x3f,0xff};
 
@@ -272,7 +272,7 @@ WRITE8_MEMBER ( mbee_state::m6545_data_w )
 		break;
 	}
 	m_sy6545_reg[m_sy6545_ind] = data & sy6545_mask[m_sy6545_ind];  /* save data in register */
-	m_crtc->register_w( space, 0, data );
+	m_crtc->register_w(data);
 	if ((m_sy6545_ind > 8) && (m_sy6545_ind < 12)) sy6545_cursor_configure();       /* adjust cursor shape - remove when mame fixed */
 }
 
@@ -417,24 +417,21 @@ MC6845_UPDATE_ROW( mbee_state::crtc_update_row )
 
 *****************************************************************************************************/
 
-PALETTE_INIT_MEMBER( mbee_state, standard )
+void mbee_state::standard_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	uint8_t i=0, r, b, g, k, r1, g1, b1;
-	uint8_t bglevel[] = { 0, 0x54, 0xa0, 0xff };
-	uint8_t fglevel[] = { 0, 0xa0, 0xff, 0xff };
+	constexpr uint8_t bglevel[] = { 0, 0x54, 0xa0, 0xff };
+	constexpr uint8_t fglevel[] = { 0, 0xa0, 0xff, 0xff };
+	uint8_t i;
 
 	// set up background colours (00-63)
-	for (b1 = 0; b1 < 4; b1++)
+	i = 0;
+	for (uint8_t b : bglevel)
 	{
-		b = bglevel[b1];
-		for (g1 = 0; g1 < 4; g1++)
+		for (uint8_t g : bglevel)
 		{
-			g = bglevel[g1];
-			for (r1 = 0; r1 < 4; r1++)
+			for (uint8_t r : bglevel)
 			{
-				r = bglevel[r1];
-				k = BITSWAP8(i, 7, 6, 5, 3, 1, 4, 2, 0);
+				uint8_t const k = bitswap<8>(i, 7, 6, 5, 3, 1, 4, 2, 0);
 				palette.set_pen_color(k, rgb_t(r, g, b));
 				i++;
 			}
@@ -442,12 +439,13 @@ PALETTE_INIT_MEMBER( mbee_state, standard )
 	}
 
 	// set up foreground palette (64-95) by reading the prom
+	uint8_t const *const color_prom = memregion("proms")->base();
 	for (i = 0; i < 32; i++)
 	{
-		k = color_prom[i];
-		r = fglevel[(BIT(k, 2))|(BIT(k, 5)<<1)];
-		g = fglevel[(BIT(k, 1))|(BIT(k, 4)<<1)];
-		b = fglevel[(BIT(k, 0))|(BIT(k, 3)<<1)];
+		uint8_t const k = color_prom[i];
+		uint8_t const r = fglevel[(BIT(k, 2))|(BIT(k, 5)<<1)];
+		uint8_t const g = fglevel[(BIT(k, 1))|(BIT(k, 4)<<1)];
+		uint8_t const b = fglevel[(BIT(k, 0))|(BIT(k, 3)<<1)];
 		palette.set_pen_color(i|64, rgb_t(r, g, b));
 	}
 
@@ -459,28 +457,26 @@ PALETTE_INIT_MEMBER( mbee_state, standard )
 }
 
 
-PALETTE_INIT_MEMBER( mbee_state, premium )
+void mbee_state::premium_palette(palette_device &palette) const
 {
-	uint8_t i, r, b, g;
-
-	/* set up 8 low intensity colours */
-	for (i = 0; i < 7; i++)
+	// set up 8 low intensity colours
+	for (uint8_t i = 0; i < 7; i++)
 	{
-		r = BIT(i, 0) ? 0xc0 : 0;
-		g = BIT(i, 1) ? 0xc0 : 0;
-		b = BIT(i, 2) ? 0xc0 : 0;
+		uint8_t const r = BIT(i, 0) ? 0xc0 : 0;
+		uint8_t const g = BIT(i, 1) ? 0xc0 : 0;
+		uint8_t const b = BIT(i, 2) ? 0xc0 : 0;
 		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 
 	// colour 8 is dark grey, rather than black
 	palette.set_pen_color(8, rgb_t(96, 96, 96));
 
-	/* set up 8 high intensity colours */
-	for (i = 9; i < 16; i++)
+	// set up 8 high intensity colours
+	for (uint8_t i = 9; i < 16; i++)
 	{
-		r = BIT(i, 0) ? 0xff : 0;
-		g = BIT(i, 1) ? 0xff : 0;
-		b = BIT(i, 2) ? 0xff : 0;
+		uint8_t const r = BIT(i, 0) ? 0xff : 0;
+		uint8_t const g = BIT(i, 1) ? 0xff : 0;
+		uint8_t const b = BIT(i, 2) ? 0xff : 0;
 		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 

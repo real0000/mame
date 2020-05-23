@@ -71,20 +71,20 @@ uint32_t xmen_state::screen_update_xmen(screen_device &screen, bitmap_ind16 &bit
 {
 	int layer[3], bg_colorbase;
 
-	bg_colorbase = m_k053251->get_palette_index(K053251_CI4);
-	m_sprite_colorbase = m_k053251->get_palette_index(K053251_CI1);
-	m_layer_colorbase[0] = m_k053251->get_palette_index(K053251_CI3);
-	m_layer_colorbase[1] = m_k053251->get_palette_index(K053251_CI0);
-	m_layer_colorbase[2] = m_k053251->get_palette_index(K053251_CI2);
+	bg_colorbase = m_k053251->get_palette_index(k053251_device::CI4);
+	m_sprite_colorbase = m_k053251->get_palette_index(k053251_device::CI1);
+	m_layer_colorbase[0] = m_k053251->get_palette_index(k053251_device::CI3);
+	m_layer_colorbase[1] = m_k053251->get_palette_index(k053251_device::CI0);
+	m_layer_colorbase[2] = m_k053251->get_palette_index(k053251_device::CI2);
 
 	m_k052109->tilemap_update();
 
 	layer[0] = 0;
-	m_layerpri[0] = m_k053251->get_priority(K053251_CI3);
+	m_layerpri[0] = m_k053251->get_priority(k053251_device::CI3);
 	layer[1] = 1;
-	m_layerpri[1] = m_k053251->get_priority(K053251_CI0);
+	m_layerpri[1] = m_k053251->get_priority(k053251_device::CI0);
 	layer[2] = 2;
-	m_layerpri[2] = m_k053251->get_priority(K053251_CI2);
+	m_layerpri[2] = m_k053251->get_priority(k053251_device::CI2);
 
 	konami_sortlayers3(layer, m_layerpri);
 
@@ -135,7 +135,7 @@ uint32_t xmen_state::screen_update_xmen6p_right(screen_device &screen, bitmap_in
 }
 
 /* my lefts and rights are mixed up in several places.. */
-void xmen_state::screen_eof_xmen6p(screen_device &screen, bool state)
+WRITE_LINE_MEMBER(xmen_state::screen_vblank_xmen6p)
 {
 	// rising edge
 	if (state)
@@ -151,7 +151,6 @@ void xmen_state::screen_eof_xmen6p(screen_device &screen, bool state)
 		cliprect.set(0, 64 * 8 - 1, 2 * 8, 30 * 8 - 1);
 
 
-		address_space &space = machine().dummy_space();
 		if (m_screen->frame_number() & 0x01)
 		{
 			/* copy the desired spritelist to the chip */
@@ -163,8 +162,7 @@ void xmen_state::screen_eof_xmen6p(screen_device &screen, bool state)
 			   */
 			for (offset = 0; offset < (0xc000 / 2); offset++)
 			{
-	//          m_k052109->lsb_w
-				m_k052109->write(space, offset, m_xmen6p_tilemapright[offset] & 0x00ff);
+				m_k052109->write(offset, m_xmen6p_tilemapright[offset] & 0x00ff);
 			}
 
 
@@ -182,8 +180,7 @@ void xmen_state::screen_eof_xmen6p(screen_device &screen, bool state)
 			   */
 			for (offset = 0; offset < (0xc000 / 2); offset++)
 			{
-	//          m_k052109->lsb_w
-				m_k052109->write(space, offset, m_xmen6p_tilemapleft[offset] & 0x00ff);
+				m_k052109->write(offset, m_xmen6p_tilemapleft[offset] & 0x00ff);
 			}
 
 
@@ -191,20 +188,20 @@ void xmen_state::screen_eof_xmen6p(screen_device &screen, bool state)
 		}
 
 
-		bg_colorbase = m_k053251->get_palette_index(K053251_CI4);
-		m_sprite_colorbase = m_k053251->get_palette_index(K053251_CI1);
-		m_layer_colorbase[0] = m_k053251->get_palette_index(K053251_CI3);
-		m_layer_colorbase[1] = m_k053251->get_palette_index(K053251_CI0);
-		m_layer_colorbase[2] = m_k053251->get_palette_index(K053251_CI2);
+		bg_colorbase = m_k053251->get_palette_index(k053251_device::CI4);
+		m_sprite_colorbase = m_k053251->get_palette_index(k053251_device::CI1);
+		m_layer_colorbase[0] = m_k053251->get_palette_index(k053251_device::CI3);
+		m_layer_colorbase[1] = m_k053251->get_palette_index(k053251_device::CI0);
+		m_layer_colorbase[2] = m_k053251->get_palette_index(k053251_device::CI2);
 
 		m_k052109->tilemap_update();
 
 		layer[0] = 0;
-		m_layerpri[0] = m_k053251->get_priority(K053251_CI3);
+		m_layerpri[0] = m_k053251->get_priority(k053251_device::CI3);
 		layer[1] = 1;
-		m_layerpri[1] = m_k053251->get_priority(K053251_CI0);
+		m_layerpri[1] = m_k053251->get_priority(k053251_device::CI0);
 		layer[2] = 2;
-		m_layerpri[2] = m_k053251->get_priority(K053251_CI2);
+		m_layerpri[2] = m_k053251->get_priority(k053251_device::CI2);
 
 		konami_sortlayers3(layer, m_layerpri);
 

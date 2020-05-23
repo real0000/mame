@@ -1,33 +1,11 @@
 // license:BSD-3-Clause
 // copyright-holders:Olivier Galibert
+#ifndef MAME_CPU_M6502_M3745X_H
+#define MAME_CPU_M6502_M3745X_H
+
 #pragma once
 
-#ifndef __M3745X_H__
-#define __M3745X_H__
-
 #include "m740.h"
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_M3745X_ADC14_CALLBACKS(_ad0, _ad1, _ad2, _ad3) \
-	downcast<m3745x_device *>(device)->set_ad14_callbacks(DEVCB_##_ad0, DEVCB_##_ad1, DEVCB_##_ad2, DEVCB_##_ad3);
-
-#define MCFG_M3745X_ADC58_CALLBACKS(_ad0, _ad1, _ad2, _ad3) \
-	downcast<m3745x_device *>(device)->set_ad58_callbacks(DEVCB_##_ad0, DEVCB_##_ad1, DEVCB_##_ad2, DEVCB_##_ad3);
-
-#define MCFG_M3745X_PORT3_CALLBACKS(_read, _write) \
-	downcast<m3745x_device *>(device)->set_p3_callbacks(DEVCB_##_read, DEVCB_##_write);
-
-#define MCFG_M3745X_PORT4_CALLBACKS(_read, _write) \
-	downcast<m3745x_device *>(device)->set_p4_callbacks(DEVCB_##_read, DEVCB_##_write);
-
-#define MCFG_M3745X_PORT5_CALLBACKS(_read, _write) \
-	downcast<m3745x_device *>(device)->set_p5_callbacks(DEVCB_##_read, DEVCB_##_write);
-
-#define MCFG_M3745X_PORT6_CALLBACKS(_read, _write) \
-	downcast<m3745x_device *>(device)->set_p6_callbacks(DEVCB_##_read, DEVCB_##_write);
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -60,55 +38,11 @@ public:
 		M3745X_SET_OVERFLOW = M740_SET_OVERFLOW
 	};
 
-	// construction/destruction
-	m3745x_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, address_map_constructor internal_map, const char *shortname, const char *source);
-
 	const address_space_config m_program_config;
 
-	template<class _read, class _write> void set_p3_callbacks(_read rd, _write wr)
-	{
-		read_p3.set_callback(rd);
-		write_p3.set_callback(wr);
-	}
-
-	template<class _read, class _write> void set_p4_callbacks(_read rd, _write wr)
-	{
-		read_p4.set_callback(rd);
-		write_p4.set_callback(wr);
-	}
-
-	template<class _read, class _write> void set_p5_callbacks(_read rd, _write wr)
-	{
-		read_p5.set_callback(rd);
-		write_p5.set_callback(wr);
-	}
-
-	template<class _read, class _write> void set_p6_callbacks(_read rd, _write wr)
-	{
-		read_p6.set_callback(rd);
-		write_p6.set_callback(wr);
-	}
-
-	template<class _read, class _read2, class _read3, class _read4> void set_ad14_callbacks(_read rd, _read2 rd2, _read3 rd3, _read4 rd4)
-	{
-		read_ad_0.set_callback(rd);
-		read_ad_1.set_callback(rd2);
-		read_ad_2.set_callback(rd3);
-		read_ad_3.set_callback(rd4);
-	}
-
-	template<class _read, class _read2, class _read3, class _read4> void set_ad58_callbacks(_read rd, _read2 rd2, _read3 rd3, _read4 rd4)
-	{
-		read_ad_4.set_callback(rd);
-		read_ad_5.set_callback(rd2);
-		read_ad_6.set_callback(rd3);
-		read_ad_7.set_callback(rd4);
-	}
-
-	devcb_read8  read_p3, read_p4, read_p5, read_p6;
-	devcb_write8 write_p3, write_p4, write_p5, write_p6;
-	devcb_read8  read_ad_0, read_ad_1, read_ad_2, read_ad_3;
-	devcb_read8  read_ad_4, read_ad_5, read_ad_6, read_ad_7;
+	template<std::size_t Bit> auto read_p() { return m_read_p[Bit-3].bind(); }
+	template<std::size_t Bit> auto write_p() { return m_write_p[Bit-3].bind(); }
+	template<std::size_t Bit> auto read_ad() { return m_read_ad[Bit].bind(); }
 
 	DECLARE_READ8_MEMBER(ports_r);
 	DECLARE_WRITE8_MEMBER(ports_w);
@@ -120,17 +54,24 @@ public:
 	bool are_port_bits_output(uint8_t port, uint8_t mask) { return ((m_ddrs[port] & mask) == mask) ? true : false; }
 
 protected:
+	// construction/destruction
+	m3745x_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, address_map_constructor internal_map);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 	virtual void execute_set_input(int inputnum, int state) override;
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : nullptr; }
+	virtual space_config_vector memory_space_config() const override;
 
-	void send_port(address_space &space, uint8_t offset, uint8_t data);
+	void send_port(uint8_t offset, uint8_t data);
 	uint8_t read_port(uint8_t offset);
 
 	void recalc_irqs();
+
+	devcb_read8::array<4>  m_read_p;
+	devcb_write8::array<4> m_write_p;
+	devcb_read8::array<8>  m_read_ad;
 
 	uint8_t m_ports[6], m_ddrs[6];
 	uint8_t m_intreq1, m_intreq2, m_intctrl1, m_intctrl2;
@@ -145,9 +86,12 @@ class m37450_device : public m3745x_device
 {
 public:
 	m37450_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	m37450_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source);
+
+	void m37450_map(address_map &map);
+protected:
+	m37450_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
 };
 
-extern const device_type M37450;
+DECLARE_DEVICE_TYPE(M37450, m37450_device)
 
-#endif
+#endif // MAME_CPU_M6502_M3745X_H

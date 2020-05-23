@@ -10,18 +10,20 @@
 
 #include "emu.h"
 #include "emuopts.h"
+
 #include "ng_memcard.h"
 
+
 // device type definition
-const device_type NG_MEMCARD = device_creator<ng_memcard_device>;
+DEFINE_DEVICE_TYPE(NG_MEMCARD, ng_memcard_device, "ng_memcard", "NeoGeo Memory Card")
 
 //-------------------------------------------------
 //  ng_memcard_device - constructor
 //-------------------------------------------------
 
 ng_memcard_device::ng_memcard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, NG_MEMCARD, "NeoGeo Memory Card", tag, owner, clock, "ng_memcard", __FILE__),
-		device_image_interface(mconfig, *this)
+	: device_t(mconfig, NG_MEMCARD, tag, owner, clock)
+	, device_image_interface(mconfig, *this)
 {
 }
 
@@ -71,12 +73,12 @@ image_init_result ng_memcard_device::call_create(int format_type, util::option_r
 }
 
 
-READ8_MEMBER(ng_memcard_device::read)
+uint8_t ng_memcard_device::read(offs_t offset)
 {
 	return m_memcard_data[offset];
 }
 
-WRITE8_MEMBER(ng_memcard_device::write)
+void ng_memcard_device::write(offs_t offset, uint8_t data)
 {
 	m_memcard_data[offset] = data;
 }

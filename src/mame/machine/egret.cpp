@@ -53,7 +53,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type EGRET = device_creator<egret_device>;
+DEFINE_DEVICE_TYPE(EGRET, egret_device, "egret", "Apple Egret")
 
 ROM_START( egret )
 	ROM_REGION(0x4400, EGRET_CPU_TAG, 0)
@@ -66,36 +66,28 @@ ROM_END
 //  ADDRESS_MAP
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( egret_map, AS_PROGRAM, 8, egret_device )
-	AM_RANGE(0x0000, 0x0002) AM_READWRITE(ports_r, ports_w)
-	AM_RANGE(0x0004, 0x0006) AM_READWRITE(ddr_r, ddr_w)
-	AM_RANGE(0x0007, 0x0007) AM_READWRITE(pll_r, pll_w)
-	AM_RANGE(0x0008, 0x0008) AM_READWRITE(timer_ctrl_r, timer_ctrl_w)
-	AM_RANGE(0x0009, 0x0009) AM_READWRITE(timer_counter_r, timer_counter_w)
-	AM_RANGE(0x0012, 0x0012) AM_READWRITE(onesec_r, onesec_w)
-	AM_RANGE(0x0090, 0x00ff) AM_RAM                         // work RAM and stack
-	AM_RANGE(0x0100, 0x01ff) AM_READWRITE(pram_r, pram_w)
-	AM_RANGE(0x0f00, 0x1fff) AM_ROM AM_REGION(EGRET_CPU_TAG, 0)
-ADDRESS_MAP_END
-
-//-------------------------------------------------
-//  MACHINE_CONFIG
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( egret )
-	MCFG_CPU_ADD(EGRET_CPU_TAG, M68HC05EG, XTAL_32_768kHz*192)  // 32.768 kHz input clock, can be PLL'ed to x128 = 4.1 MHz under s/w control
-	MCFG_CPU_PROGRAM_MAP(egret_map)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor egret_device::device_mconfig_additions() const
+void egret_device::egret_map(address_map &map)
 {
-	return MACHINE_CONFIG_NAME( egret );
+	map(0x0000, 0x0002).rw(FUNC(egret_device::ports_r), FUNC(egret_device::ports_w));
+	map(0x0004, 0x0006).rw(FUNC(egret_device::ddr_r), FUNC(egret_device::ddr_w));
+	map(0x0007, 0x0007).rw(FUNC(egret_device::pll_r), FUNC(egret_device::pll_w));
+	map(0x0008, 0x0008).rw(FUNC(egret_device::timer_ctrl_r), FUNC(egret_device::timer_ctrl_w));
+	map(0x0009, 0x0009).rw(FUNC(egret_device::timer_counter_r), FUNC(egret_device::timer_counter_w));
+	map(0x0012, 0x0012).rw(FUNC(egret_device::onesec_r), FUNC(egret_device::onesec_w));
+	map(0x0090, 0x00ff).ram();                         // work RAM and stack
+	map(0x0100, 0x01ff).rw(FUNC(egret_device::pram_r), FUNC(egret_device::pram_w));
+	map(0x0f00, 0x1fff).rom().region(EGRET_CPU_TAG, 0);
+}
+
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+void egret_device::device_add_mconfig(machine_config &config)
+{
+	M68HC05EG(config, m_maincpu, XTAL(32'768)*192);  // 32.768 kHz input clock, can be PLL'ed to x128 = 4.1 MHz under s/w control
+	m_maincpu->set_addrmap(AS_PROGRAM, &egret_device::egret_map);
 }
 
 const tiny_rom_entry *egret_device::device_rom_region() const
@@ -107,7 +99,7 @@ const tiny_rom_entry *egret_device::device_rom_region() const
 //  LIVE DEVICE
 //**************************************************************************
 
-void egret_device::send_port(address_space &space, uint8_t offset, uint8_t data)
+void egret_device::send_port(uint8_t offset, uint8_t data)
 {
 	switch (offset)
 	{
@@ -192,21 +184,21 @@ void egret_device::send_port(address_space &space, uint8_t offset, uint8_t data)
 	}
 }
 
-READ8_MEMBER( egret_device::ddr_r )
+uint8_t egret_device::ddr_r(offs_t offset)
 {
 	return ddrs[offset];
 }
 
-WRITE8_MEMBER( egret_device::ddr_w )
+void egret_device::ddr_w(offs_t offset, uint8_t data)
 {
 /*  printf("%02x to DDR %c\n", data, 'A' + offset);*/
 
-	send_port(space, offset, ports[offset] & data);
+	send_port(offset, ports[offset] & data);
 
 	ddrs[offset] = data;
 }
 
-READ8_MEMBER( egret_device::ports_r )
+uint8_t egret_device::ports_r(offs_t offset)
 {
 	uint8_t incoming = 0;
 
@@ -249,19 +241,19 @@ READ8_MEMBER( egret_device::ports_r )
 	return incoming;
 }
 
-WRITE8_MEMBER( egret_device::ports_w )
+void egret_device::ports_w(offs_t offset, uint8_t data)
 {
-	send_port(space, offset, data);
+	send_port(offset, data);
 
 	ports[offset] = data;
 }
 
-READ8_MEMBER( egret_device::pll_r )
+uint8_t egret_device::pll_r()
 {
 	return pll_ctrl;
 }
 
-WRITE8_MEMBER( egret_device::pll_w )
+void egret_device::pll_w(uint8_t data)
 {
 	#ifdef EGRET_SUPER_VERBOSE
 	if (pll_ctrl != data)
@@ -278,34 +270,34 @@ WRITE8_MEMBER( egret_device::pll_w )
 	pll_ctrl = data;
 }
 
-READ8_MEMBER( egret_device::timer_ctrl_r )
+uint8_t egret_device::timer_ctrl_r()
 {
 	return timer_ctrl;
 }
 
-WRITE8_MEMBER( egret_device::timer_ctrl_w )
+void egret_device::timer_ctrl_w(uint8_t data)
 {
 //  printf("%02x to timer control\n", data);
 	timer_ctrl = data;
 }
 
-READ8_MEMBER( egret_device::timer_counter_r )
+uint8_t egret_device::timer_counter_r()
 {
 	return timer_counter;
 }
 
-WRITE8_MEMBER( egret_device::timer_counter_w )
+void egret_device::timer_counter_w(uint8_t data)
 {
 //  printf("%02x to timer/counter\n", data);
 	timer_counter = data;
 }
 
-READ8_MEMBER( egret_device::onesec_r )
+uint8_t egret_device::onesec_r()
 {
 	return onesec;
 }
 
-WRITE8_MEMBER( egret_device::onesec_w )
+void egret_device::onesec_w(uint8_t data)
 {
 //  printf("%02x to one-second control\n", data);
 
@@ -319,12 +311,12 @@ WRITE8_MEMBER( egret_device::onesec_w )
 	onesec = data;
 }
 
-READ8_MEMBER( egret_device::pram_r )
+uint8_t egret_device::pram_r(offs_t offset)
 {
 	return pram[offset];
 }
 
-WRITE8_MEMBER( egret_device::pram_w )
+void egret_device::pram_w(offs_t offset, uint8_t data)
 {
 	pram[offset] = data;
 }
@@ -334,7 +326,7 @@ WRITE8_MEMBER( egret_device::pram_w )
 //-------------------------------------------------
 
 egret_device::egret_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, EGRET, "Apple Egret", tag, owner, clock, "egret", __FILE__),
+	: device_t(mconfig, EGRET, tag, owner, clock),
 	device_nvram_interface(mconfig, *this),
 	write_reset(*this),
 	write_linechange(*this),
@@ -342,17 +334,6 @@ egret_device::egret_device(const machine_config &mconfig, const char *tag, devic
 	write_via_data(*this),
 	m_maincpu(*this, EGRET_CPU_TAG)
 {
-}
-
-//-------------------------------------------------
-//  static_set_type - configuration helper to set
-//  the chip type
-//-------------------------------------------------
-
-void egret_device::static_set_type(device_t &device, int type)
-{
-	egret_device &egret = downcast<egret_device &>(device);
-	egret.rom_offset = type;
 }
 
 //-------------------------------------------------
@@ -389,7 +370,7 @@ void egret_device::device_start()
 	save_item(NAME(pram));
 	save_item(NAME(disk_pram));
 
-	uint8_t *rom = device().machine().root_device().memregion(device().subtag(EGRET_CPU_TAG).c_str())->base();
+	uint8_t *rom = device().machine().root_device().memregion(device().subtag(EGRET_CPU_TAG))->base();
 
 	if (rom)
 	{

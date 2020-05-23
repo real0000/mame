@@ -45,45 +45,17 @@
 */
 
 
-namespace {
-
-MACHINE_CONFIG_FRAGMENT( taito68705 )
-	MCFG_CPU_ADD("mcu", M68705P5, DERIVED_CLOCK(1, 1))
-	MCFG_M68705_PORTC_R_CB(READ8(taito68705_mcu_device, mcu_portc_r))
-	MCFG_M68705_PORTA_W_CB(WRITE8(taito68705_mcu_device, mcu_pa_w))
-	MCFG_M68705_PORTB_W_CB(WRITE8(taito68705_mcu_device, mcu_portb_w))
-MACHINE_CONFIG_END
-
-MACHINE_CONFIG_FRAGMENT( arkanoid_68705p3 )
-	MCFG_CPU_ADD("mcu", M68705P3, DERIVED_CLOCK(1, 1))
-	MCFG_M68705_PORTB_R_CB(READ8(arkanoid_mcu_device_base, mcu_pb_r))
-	MCFG_M68705_PORTC_R_CB(READ8(arkanoid_mcu_device_base, mcu_pc_r))
-	MCFG_M68705_PORTA_W_CB(WRITE8(arkanoid_mcu_device_base, mcu_pa_w))
-	MCFG_M68705_PORTC_W_CB(WRITE8(arkanoid_mcu_device_base, mcu_pc_w))
-MACHINE_CONFIG_END
-
-MACHINE_CONFIG_FRAGMENT( arkanoid_68705p5 )
-	MCFG_CPU_ADD("mcu", M68705P5, DERIVED_CLOCK(1, 1))
-	MCFG_M68705_PORTB_R_CB(READ8(arkanoid_mcu_device_base, mcu_pb_r))
-	MCFG_M68705_PORTC_R_CB(READ8(arkanoid_mcu_device_base, mcu_pc_r))
-	MCFG_M68705_PORTA_W_CB(WRITE8(arkanoid_mcu_device_base, mcu_pa_w))
-	MCFG_M68705_PORTC_W_CB(WRITE8(arkanoid_mcu_device_base, mcu_pc_w))
-MACHINE_CONFIG_END
-
-} // anonymous namespace
+DEFINE_DEVICE_TYPE(TAITO68705_MCU,       taito68705_mcu_device,       "taito68705",      "Taito MC68705 MCU Interface")
+DEFINE_DEVICE_TYPE(TAITO68705_MCU_TIGER, taito68705_mcu_tiger_device, "taito68705tiger", "Taito MC68705 MCU Interface (Tiger-Heli)")
+DEFINE_DEVICE_TYPE(ARKANOID_68705P3,     arkanoid_68705p3_device,     "arkanoid68705p3", "Arkanoid MC68705P3 Interface")
+DEFINE_DEVICE_TYPE(ARKANOID_68705P5,     arkanoid_68705p5_device,     "arkanoid68705p5", "Arkanoid MC68705P5 Interface")
 
 
-device_type const TAITO68705_MCU = device_creator<taito68705_mcu_device>;
-device_type const TAITO68705_MCU_TIGER = device_creator<taito68705_mcu_tiger_device>;
-device_type const ARKANOID_68705P3 = device_creator<arkanoid_68705p3_device>;
-device_type const ARKANOID_68705P5 = device_creator<arkanoid_68705p5_device>;
-
-
-READ8_MEMBER(taito68705_mcu_device_base::data_r)
+u8 taito68705_mcu_device_base::data_r()
 {
 	// clear MCU semaphore flag and return data
 	u8 const result(m_mcu_latch);
-	if (!machine().side_effect_disabled())
+	if (!machine().side_effects_disabled())
 	{
 		m_mcu_flag = false;
 		m_semaphore_cb(CLEAR_LINE);
@@ -91,14 +63,14 @@ READ8_MEMBER(taito68705_mcu_device_base::data_r)
 	return result;
 }
 
-WRITE8_MEMBER(taito68705_mcu_device_base::data_w)
+void taito68705_mcu_device_base::data_w(u8 data)
 {
 	// set host semaphore flag and latch data
 	if (!m_reset_input)
 		m_host_flag = true;
 	m_host_latch = data;
 	if (m_latch_driven)
-		m_mcu->pa_w(space, 0, data);
+		m_mcu->pa_w(data);
 	m_mcu->set_input_line(M68705_IRQ_LINE, m_host_flag ? ASSERT_LINE : CLEAR_LINE);
 }
 
@@ -114,21 +86,13 @@ WRITE_LINE_MEMBER(taito68705_mcu_device_base::reset_w)
 	m_mcu->set_input_line(INPUT_LINE_RESET, state);
 }
 
-WRITE8_MEMBER(taito68705_mcu_device_base::mcu_pa_w)
-{
-	m_pa_output = data;
-}
-
 taito68705_mcu_device_base::taito68705_mcu_device_base(
 		machine_config const &mconfig,
 		device_type type,
-		char const *name,
 		char const *tag,
 		device_t *owner,
-		u32 clock,
-		char const *shortname,
-		char const *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source)
+		u32 clock)
+	: device_t(mconfig, type, tag, owner, clock)
 	, m_mcu(*this, "mcu")
 	, m_semaphore_cb(*this)
 	, m_latch_driven(false)
@@ -139,6 +103,11 @@ taito68705_mcu_device_base::taito68705_mcu_device_base(
 	, m_mcu_latch(0xff)
 	, m_pa_output(0xff)
 {
+}
+
+void taito68705_mcu_device_base::mcu_pa_w(u8 data)
+{
+	m_pa_output = data;
 }
 
 void taito68705_mcu_device_base::device_start()
@@ -178,7 +147,7 @@ void taito68705_mcu_device_base::latch_control(u8 data, u8 &value, unsigned host
 	if (BIT(data, host_bit))
 	{
 		m_latch_driven = false;
-		m_mcu->pa_w(m_mcu->space(AS_PROGRAM), 0, 0xff);
+		m_mcu->pa_w(0xff);
 		if (!BIT(value, host_bit))
 		{
 			m_host_flag = false;
@@ -188,7 +157,7 @@ void taito68705_mcu_device_base::latch_control(u8 data, u8 &value, unsigned host
 	else
 	{
 		m_latch_driven = true;
-		m_mcu->pa_w(m_mcu->space(AS_PROGRAM), 0, m_host_latch);
+		m_mcu->pa_w(m_host_latch);
 	}
 
 	// PB2 sets the MCU semaphore when low
@@ -209,20 +178,23 @@ void taito68705_mcu_device_base::latch_control(u8 data, u8 &value, unsigned host
 
 
 taito68705_mcu_device::taito68705_mcu_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)
-	: taito68705_mcu_device(mconfig, TAITO68705_MCU, "Taito MC68705 MCU Interface", tag, owner, clock, "taito68705", __FILE__)
+	: taito68705_mcu_device(mconfig, TAITO68705_MCU, tag, owner, clock)
 {
 }
 
-taito68705_mcu_device::taito68705_mcu_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, u32 clock, const char *shortname, const char *source)
-	: taito68705_mcu_device_base(mconfig, type, name, tag, owner, clock, shortname, source)
+taito68705_mcu_device::taito68705_mcu_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock)
+	: taito68705_mcu_device_base(mconfig, type, tag, owner, clock)
 	, m_aux_strobe_cb(*this)
 	, m_pb_output(0xff)
 {
 }
 
-machine_config_constructor taito68705_mcu_device::device_mconfig_additions() const
+void taito68705_mcu_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME(taito68705);
+	M68705P5(config, m_mcu, DERIVED_CLOCK(1, 1));
+	m_mcu->porta_w().set(FUNC(taito68705_mcu_device::mcu_pa_w));
+	m_mcu->portb_w().set(FUNC(taito68705_mcu_device::mcu_portb_w));
+	m_mcu->portc_r().set(FUNC(taito68705_mcu_device::mcu_portc_r));
 }
 
 void taito68705_mcu_device::device_start()
@@ -256,14 +228,14 @@ void taito68705_mcu_device::device_start()
  */
 
 
-READ8_MEMBER(taito68705_mcu_device::mcu_portc_r)
+u8 taito68705_mcu_device::mcu_portc_r()
 {
 	// PC0 is the host semaphore flag (active high)
 	// PC1 is the MCU semaphore flag (active low)
 	return (host_flag() ? 0x01 : 0x00) | (mcu_flag() ? 0x00 : 0x02) | 0xfc;
 }
 
-WRITE8_MEMBER(taito68705_mcu_device::mcu_portb_w)
+void taito68705_mcu_device::mcu_portb_w(offs_t offset, u8 data, u8 mem_mask)
 {
 	// some games have additional peripherals strobed on falling edge
 	u8 const old_pa_value(pa_value());
@@ -282,54 +254,51 @@ WRITE8_MEMBER(taito68705_mcu_device::mcu_portb_w)
 }
 
 
-/* The Tiger Heli interface has some extensions, handle them here */
+/* The Tiger-Heli interface has some extensions, handle them here */
 
 taito68705_mcu_tiger_device::taito68705_mcu_tiger_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)
-	: taito68705_mcu_device(mconfig, TAITO68705_MCU_TIGER, "Taito MC68705 MCU Interface (Tiger Heli)", tag, owner, clock, "taito68705tiger", __FILE__)
+	: taito68705_mcu_device(mconfig, TAITO68705_MCU_TIGER, tag, owner, clock)
 {
 }
 
-READ8_MEMBER(taito68705_mcu_tiger_device::mcu_portc_r)
+u8 taito68705_mcu_tiger_device::mcu_portc_r()
 {
-	// Tiger Heli has these status bits inverted MCU-side
-	return taito68705_mcu_device::mcu_portc_r(space, offset, mem_mask) ^ 0x03;
+	// Tiger-Heli has these status bits inverted MCU-side
+	return taito68705_mcu_device::mcu_portc_r() ^ 0x03;
 }
 
 
 // Arkanoid/Puzznic (latch control on PC2 and PC3 instead of PB1 and PB2)
 
-READ8_MEMBER(arkanoid_mcu_device_base::mcu_pb_r)
+arkanoid_mcu_device_base::arkanoid_mcu_device_base(
+		machine_config const &mconfig,
+		device_type type,
+		char const *tag,
+		device_t *owner,
+		u32 clock)
+	: taito68705_mcu_device_base(mconfig, type, tag, owner, clock)
+	, m_portb_r_cb(*this)
+	, m_pc_output(0xff)
 {
-	return m_portb_r_cb(space, offset, mem_mask);
 }
 
-READ8_MEMBER(arkanoid_mcu_device_base::mcu_pc_r)
+u8 arkanoid_mcu_device_base::mcu_pb_r()
+{
+	return m_portb_r_cb();
+}
+
+u8 arkanoid_mcu_device_base::mcu_pc_r()
 {
 	// PC0 is the host semaphore flag (active high)
 	// PC1 is the MCU semaphore flag (active low)
 	return (host_flag() ? 0x01 : 0x00) | (mcu_flag() ? 0x00 : 0x02) | 0xfc;
 }
 
-WRITE8_MEMBER(arkanoid_mcu_device_base::mcu_pc_w)
+void arkanoid_mcu_device_base::mcu_pc_w(u8 data)
 {
 	// rising edge on PC2 clears the host semaphore flag
 	// PC3 sets the MCU semaphore when low
 	latch_control(data, m_pc_output, 2, 3);
-}
-
-arkanoid_mcu_device_base::arkanoid_mcu_device_base(
-		machine_config const &mconfig,
-		device_type type,
-		char const *name,
-		char const *tag,
-		device_t *owner,
-		u32 clock,
-		char const *shortname,
-		char const *source)
-	: taito68705_mcu_device_base(mconfig, type, name, tag, owner, clock, shortname, source)
-	, m_portb_r_cb(*this)
-	, m_pc_output(0xff)
-{
 }
 
 void arkanoid_mcu_device_base::device_start()
@@ -349,13 +318,17 @@ arkanoid_68705p3_device::arkanoid_68705p3_device(
 		char const *tag,
 		device_t *owner,
 		u32 clock)
-	: arkanoid_mcu_device_base(mconfig, ARKANOID_68705P3, "Arkanoid MC68705P3 Interface", tag, owner, clock, "arkanoid68705p3", __FILE__)
+	: arkanoid_mcu_device_base(mconfig, ARKANOID_68705P3, tag, owner, clock)
 {
 }
 
-machine_config_constructor arkanoid_68705p3_device::device_mconfig_additions() const
+void arkanoid_68705p3_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME(arkanoid_68705p3);
+	M68705P3(config, m_mcu, DERIVED_CLOCK(1, 1));
+	m_mcu->portb_r().set(FUNC(arkanoid_68705p3_device::mcu_pb_r));
+	m_mcu->portc_r().set(FUNC(arkanoid_68705p3_device::mcu_pc_r));
+	m_mcu->porta_w().set(FUNC(arkanoid_68705p3_device::mcu_pa_w));
+	m_mcu->portc_w().set(FUNC(arkanoid_68705p3_device::mcu_pc_w));
 }
 
 
@@ -364,11 +337,15 @@ arkanoid_68705p5_device::arkanoid_68705p5_device(
 		char const *tag,
 		device_t *owner,
 		u32 clock)
-	: arkanoid_mcu_device_base(mconfig, ARKANOID_68705P5, "Arkanoid MC68705P5 Interface", tag, owner, clock, "arkanoid68705p5", __FILE__)
+	: arkanoid_mcu_device_base(mconfig, ARKANOID_68705P5, tag, owner, clock)
 {
 }
 
-machine_config_constructor arkanoid_68705p5_device::device_mconfig_additions() const
+void arkanoid_68705p5_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME(arkanoid_68705p5);
+	M68705P5(config, m_mcu, DERIVED_CLOCK(1, 1));
+	m_mcu->portb_r().set(FUNC(arkanoid_68705p5_device::mcu_pb_r));
+	m_mcu->portc_r().set(FUNC(arkanoid_68705p5_device::mcu_pc_r));
+	m_mcu->porta_w().set(FUNC(arkanoid_68705p5_device::mcu_pa_w));
+	m_mcu->portc_w().set(FUNC(arkanoid_68705p5_device::mcu_pc_w));
 }

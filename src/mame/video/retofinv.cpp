@@ -12,43 +12,66 @@
 #include "includes/retofinv.h"
 
 
-PALETTE_INIT_MEMBER(retofinv_state, retofinv)
+void retofinv_state::retofinv_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
+	uint8_t const *const palette_prom = memregion("palette")->base();
+	uint8_t const *const clut_prom = memregion("clut")->base();
 
-	/* create a lookup table for the palette */
-	for (i = 0; i < 0x100; i++)
+	// create a lookup table for the palette
+	for (int i = 0; i < 0x100; i++)
 	{
-		int r = pal4bit(color_prom[i + 0x000]);
-		int g = pal4bit(color_prom[i + 0x100]);
-		int b = pal4bit(color_prom[i + 0x200]);
+		int const r = pal4bit(palette_prom[i | 0x000]);
+		int const g = pal4bit(palette_prom[i | 0x100]);
+		int const b = pal4bit(palette_prom[i | 0x200]);
 
 		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
-	/* color_prom now points to the beginning of the lookup table */
-	color_prom += 0x300;
-
-
-	/* fg chars (1bpp) */
-	for (i = 0; i < 0x200; i++)
+	// fg chars (1bpp)
+	for (int i = 0; i < 0x200; i++)
 	{
-		uint8_t ctabentry;
-
-		if (i & 0x01)
-			ctabentry = i >> 1;
-		else
-			ctabentry = 0;
+		uint8_t const ctabentry = (i & 0x01) ? (i >> 1) : 0;
 
 		palette.set_pen_indirect(i, ctabentry);
 	}
 
-	/* sprites and bg tiles */
-	for (i = 0; i < 0x800; i++)
+	// sprites and bg tiles clut
+	for (int i = 0; i < 0x800; i++)
 	{
-		uint8_t ctabentry = BITSWAP8(color_prom[i],4,5,6,7,3,2,1,0);
-		palette.set_pen_indirect(i + 0x200, ctabentry);
+		// descramble the address
+		int const j = bitswap<16>(i, 15,14,13,12,11,10,9,8,7,6,5,4,3,0,1,2);
+		palette.set_pen_indirect(i + 0x200, clut_prom[j]);
+	}
+}
+
+void retofinv_state::retofinv_bl_palette(palette_device &palette) const
+{
+	uint8_t const *const palette_prom = memregion("palette")->base();
+	uint8_t const *const clut_prom = memregion("clut")->base();
+
+	// create a lookup table for the palette
+	for (int i = 0; i < 0x100; i++)
+	{
+		int const r = pal4bit(palette_prom[i | 0x000]);
+		int const g = pal4bit(palette_prom[i | 0x100]);
+		int const b = pal4bit(palette_prom[i | 0x200]);
+
+		palette.set_indirect_color(i, rgb_t(r, g, b));
+	}
+
+	// fg chars (1bpp)
+	for (int i = 0; i < 0x200; i++)
+	{
+		uint8_t const ctabentry = (i & 0x01) ? (i >> 1) : 0;
+
+		palette.set_pen_indirect(i, ctabentry);
+	}
+
+	// sprites and bg tiles clut
+	for (int i = 0; i < 0x800; i++)
+	{
+		// descramble the data
+		palette.set_pen_indirect(i + 0x200, bitswap<8>(clut_prom[i], 4,5,6,7,3,2,1,0));
 	}
 }
 
@@ -73,7 +96,7 @@ TILEMAP_MAPPER_MEMBER(retofinv_state::tilemap_scan)
 
 TILE_GET_INFO_MEMBER(retofinv_state::bg_get_tile_info)
 {
-	SET_TILE_INFO_MEMBER(2,
+	tileinfo.set(2,
 			m_bg_videoram[tile_index] + 256 * m_bg_bank,
 			m_bg_videoram[0x400 + tile_index] & 0x3f,
 			0);
@@ -85,7 +108,7 @@ TILE_GET_INFO_MEMBER(retofinv_state::fg_get_tile_info)
 
 	tileinfo.group = color;
 
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 			m_fg_videoram[tile_index] + 256 * m_fg_bank,
 			color,
 			0);
@@ -101,8 +124,8 @@ TILE_GET_INFO_MEMBER(retofinv_state::fg_get_tile_info)
 
 void retofinv_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(retofinv_state::bg_get_tile_info),this),tilemap_mapper_delegate(FUNC(retofinv_state::tilemap_scan),this),8,8,36,28);
-	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(retofinv_state::fg_get_tile_info),this),tilemap_mapper_delegate(FUNC(retofinv_state::tilemap_scan),this),8,8,36,28);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(retofinv_state::bg_get_tile_info)), tilemap_mapper_delegate(*this, FUNC(retofinv_state::tilemap_scan)), 8, 8, 36, 28);
+	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(retofinv_state::fg_get_tile_info)), tilemap_mapper_delegate(*this, FUNC(retofinv_state::tilemap_scan)), 8, 8, 36, 28);
 
 	m_fg_tilemap->configure_groups(*m_gfxdecode->gfx(0), 0);
 

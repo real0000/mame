@@ -14,15 +14,12 @@
 #pragma once
 
 #include "drivenum.h"
+#include "emuopts.h"
 
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
-
-// forward declarations
-class machine_config;
-
 
 // core validity checker class
 class validity_checker : public osd_output
@@ -47,7 +44,7 @@ public:
 
 	// helpers for devices
 	void validate_tag(const char *tag);
-	int region_length(const char *tag) { return m_region_map.find(tag)->second; }
+	int region_length(const char *tag) { auto i = m_region_map.find(tag); return i == m_region_map.end() ? 0 : i->second; }
 
 	// generic registry of already-checked stuff
 	bool already_checked(const char *string) { return !m_already_checked.insert(string).second; }
@@ -55,7 +52,7 @@ public:
 	// osd_output interface
 
 protected:
-	virtual void output_callback(osd_output_channel channel, const char *msg, va_list args) override;
+	virtual void output_callback(osd_output_channel channel, const util::format_argument_pack<std::ostream> &args) override;
 
 private:
 	// internal map types
@@ -76,7 +73,7 @@ private:
 	void validate_inlines();
 	void validate_rgb();
 	void validate_driver();
-	void validate_roms();
+	void validate_roms(device_t &root);
 	void validate_analog_input_field(ioport_field &field);
 	void validate_dip_settings(ioport_field &field);
 	void validate_condition(ioport_condition &condition, device_t &device, std::unordered_set<std::string> &port_map);
@@ -85,8 +82,8 @@ private:
 	void validate_device_types();
 
 	// output helpers
-	void build_output_prefix(std::string &str);
-	void output_via_delegate(osd_output_channel channel, const char *format, ...) ATTR_PRINTF(3,4);
+	void build_output_prefix(std::ostream &str) const;
+	template <typename Format, typename... Params> void output_via_delegate(osd_output_channel channel, Format &&fmt, Params &&...args);
 	void output_indented_errors(std::string &text, const char *header);
 
 	// random number generation
@@ -97,6 +94,9 @@ private:
 
 	// internal driver list
 	driver_enumerator       m_drivlist;
+
+	// blank options for use during validation
+	emu_options             m_blank_options;
 
 	// error tracking
 	int                     m_errors;
@@ -114,7 +114,7 @@ private:
 
 	// current state
 	const game_driver *     m_current_driver;
-	const machine_config *  m_current_config;
+	machine_config *        m_current_config;
 	const device_t *        m_current_device;
 	const char *            m_current_ioport;
 	int_map                 m_region_map;

@@ -19,7 +19,7 @@
 
     Port 0:
 
-    x-------  Clock to Mac
+    x-------  Clock, pulled up, driven by the 8021
     -x------  Caps Lock
     --x-----  Row 5 readback (tied to Vcc for keypad)
     ---x----  Row 4 readback
@@ -43,7 +43,7 @@
     x---      Command/Apple
     -x--      Shift
     --x-      Column 0 strobe
-    ---x      Data to Mac
+    ---x      Data, pulled up, driven by both sides
 
     The T1 line is "Option".
 
@@ -65,7 +65,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type MACKBD = device_creator<mackbd_device>;
+DEFINE_DEVICE_TYPE(MACKBD, mackbd_device, "mackbd", "Macintosh Keyboard")
 
 ROM_START( mackbd )
 	ROM_REGION(0x800, MACKBD_CPU_TAG, 0)
@@ -75,104 +75,79 @@ ROM_START( mackbd )
 	ROM_LOAD( "341-0332-a.bin", 0x000400, 0x000400, CRC(6554f5b6) SHA1(a80404a122d74721cda13b285c412057c2c78bd7) )
 ROM_END
 
-//-------------------------------------------------
-//  ADDRESS_MAP
-//-------------------------------------------------
-
-static ADDRESS_MAP_START( mackbd_map, AS_PROGRAM, 8, mackbd_device )
-	AM_RANGE(0x0000, 0x03ff) AM_ROM AM_REGION(MACKBD_CPU_TAG, 0)
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( mackbd_io_map, AS_IO, 8, mackbd_device )
-	AM_RANGE(MCS48_PORT_BUS, MCS48_PORT_BUS) AM_READ(p0_r)
-	AM_RANGE(0x2f, 0x36) AM_WRITE(p0_w)
-	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_READWRITE(p1_r, p1_w)
-	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_READWRITE(p2_r, p2_w)
-	AM_RANGE(MCS48_PORT_T1, MCS48_PORT_T1) AM_READ(t1_r)
-ADDRESS_MAP_END
-
-//-------------------------------------------------
-//  MACHINE_CONFIG
-//-------------------------------------------------
-
-static MACHINE_CONFIG_FRAGMENT( mackbd )
-	MCFG_CPU_ADD(MACKBD_CPU_TAG, I8021, 3000000)    // "the approximate clock rate of the MPU is 3 MHz"
-	MCFG_CPU_PROGRAM_MAP(mackbd_map)
-	MCFG_CPU_IO_MAP(mackbd_io_map)
-MACHINE_CONFIG_END
 
 static INPUT_PORTS_START( mackbd )
 	PORT_START("COL0")
-	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_G) PORT_CHAR('g') PORT_CHAR('G')
-	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_H) PORT_CHAR('h') PORT_CHAR('H')
-	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_F) PORT_CHAR('f') PORT_CHAR('F')
-	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_D) PORT_CHAR('d') PORT_CHAR('D')
-	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_S) PORT_CHAR('s') PORT_CHAR('S')
-	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_A) PORT_CHAR('a') PORT_CHAR('A')
+	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_G) PORT_CHAR('g') PORT_CHAR('G')
+	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_H) PORT_CHAR('h') PORT_CHAR('H')
+	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_F) PORT_CHAR('f') PORT_CHAR('F')
+	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_D) PORT_CHAR('d') PORT_CHAR('D')
+	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_S) PORT_CHAR('s') PORT_CHAR('S')
+	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_A) PORT_CHAR('a') PORT_CHAR('A')
 
 	PORT_START("COL1")
-	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_B) PORT_CHAR('b') PORT_CHAR('B')
-	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_UNKNOWN)
-	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_V) PORT_CHAR('v') PORT_CHAR('V')
-	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_C) PORT_CHAR('c') PORT_CHAR('C')
-	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_X) PORT_CHAR('x') PORT_CHAR('X')
-	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_Z) PORT_CHAR('z') PORT_CHAR('Z')
+	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_B) PORT_CHAR('b') PORT_CHAR('B')
+	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_V) PORT_CHAR('v') PORT_CHAR('V')
+	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_C) PORT_CHAR('c') PORT_CHAR('C')
+	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_X) PORT_CHAR('x') PORT_CHAR('X')
+	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_Z) PORT_CHAR('z') PORT_CHAR('Z')
 
 	PORT_START("COL2")
-	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_T) PORT_CHAR('t') PORT_CHAR('T')
-	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_Y) PORT_CHAR('y') PORT_CHAR('Y')
-	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_R) PORT_CHAR('r') PORT_CHAR('R')
-	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_E) PORT_CHAR('e') PORT_CHAR('E')
-	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_W) PORT_CHAR('w') PORT_CHAR('W')
-	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_Q) PORT_CHAR('q') PORT_CHAR('Q')
+	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_T) PORT_CHAR('t') PORT_CHAR('T')
+	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_Y) PORT_CHAR('y') PORT_CHAR('Y')
+	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_R) PORT_CHAR('r') PORT_CHAR('R')
+	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_E) PORT_CHAR('e') PORT_CHAR('E')
+	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_W) PORT_CHAR('w') PORT_CHAR('W')
+	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_Q) PORT_CHAR('q') PORT_CHAR('Q')
 
 	PORT_START("COL3")
-	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_5) PORT_CHAR('5') PORT_CHAR('%')
-	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_6) PORT_CHAR('6') PORT_CHAR('^')
-	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_4) PORT_CHAR('4') PORT_CHAR('$')
-	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_3) PORT_CHAR('3') PORT_CHAR('#')
-	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_2) PORT_CHAR('2') PORT_CHAR('@')
-	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_1) PORT_CHAR('1') PORT_CHAR('!')
+	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_5) PORT_CHAR('5') PORT_CHAR('%')
+	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_6) PORT_CHAR('6') PORT_CHAR('^')
+	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_4) PORT_CHAR('4') PORT_CHAR('$')
+	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_3) PORT_CHAR('3') PORT_CHAR('#')
+	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_2) PORT_CHAR('2') PORT_CHAR('@')
+	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_1) PORT_CHAR('1') PORT_CHAR('!')
 
 	PORT_START("COL4")
-	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_0) PORT_CHAR('0') PORT_CHAR(')')
-	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_8) PORT_CHAR('8') PORT_CHAR('*')
-	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_MINUS)  PORT_CHAR('-') PORT_CHAR('_')
-	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_7) PORT_CHAR('7') PORT_CHAR('&')
-	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_9) PORT_CHAR('9') PORT_CHAR('(')
-	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_EQUALS) PORT_CHAR('=') PORT_CHAR('+')
+	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_0) PORT_CHAR('0') PORT_CHAR(')')
+	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_8) PORT_CHAR('8') PORT_CHAR('*')
+	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_MINUS)  PORT_CHAR('-') PORT_CHAR('_')
+	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_7) PORT_CHAR('7') PORT_CHAR('&')
+	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_9) PORT_CHAR('9') PORT_CHAR('(')
+	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_EQUALS) PORT_CHAR('=') PORT_CHAR('+')
 
 	PORT_START("COL5")
-	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_P) PORT_CHAR('p') PORT_CHAR('P')
-	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_I) PORT_CHAR('i') PORT_CHAR('I')
-	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_OPENBRACE)  PORT_CHAR('[') PORT_CHAR('{')
-	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_U) PORT_CHAR('u') PORT_CHAR('U')
-	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_O) PORT_CHAR('o') PORT_CHAR('O')
-	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_CLOSEBRACE) PORT_CHAR(']') PORT_CHAR('}')
+	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_P) PORT_CHAR('p') PORT_CHAR('P')
+	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_I) PORT_CHAR('i') PORT_CHAR('I')
+	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_OPENBRACE)  PORT_CHAR('[') PORT_CHAR('{')
+	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_U) PORT_CHAR('u') PORT_CHAR('U')
+	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_O) PORT_CHAR('o') PORT_CHAR('O')
+	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_CLOSEBRACE) PORT_CHAR(']') PORT_CHAR('}')
 
 	PORT_START("COL6")
-	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_COLON)  PORT_CHAR(';') PORT_CHAR(':')
-	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_K) PORT_CHAR('k') PORT_CHAR('K')
-	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_QUOTE)  PORT_CHAR('\'') PORT_CHAR('"')
-	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_J) PORT_CHAR('j') PORT_CHAR('J')
-	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_L) PORT_CHAR('l') PORT_CHAR('L')
-	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_ENTER) PORT_CHAR('\r') PORT_NAME("Return")
+	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_COLON)  PORT_CHAR(';') PORT_CHAR(':')
+	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_K) PORT_CHAR('k') PORT_CHAR('K')
+	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_QUOTE)  PORT_CHAR('\'') PORT_CHAR('"')
+	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_J) PORT_CHAR('j') PORT_CHAR('J')
+	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_L) PORT_CHAR('l') PORT_CHAR('L')
+	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_ENTER) PORT_CHAR('\r') PORT_NAME("Return")
 
 	PORT_START("COL7")
-	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_STOP) PORT_CHAR('.') PORT_CHAR('>')
-	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_M) PORT_CHAR('m') PORT_CHAR('M')
-	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_N) PORT_CHAR('n') PORT_CHAR('N')
-	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_SLASH) PORT_CHAR('/') PORT_CHAR('?')
-	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_COMMA) PORT_CHAR(',') PORT_CHAR('<')
-	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_BACKSLASH) PORT_CHAR('\\') PORT_CHAR('|')
+	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_STOP) PORT_CHAR('.') PORT_CHAR('>')
+	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_M) PORT_CHAR('m') PORT_CHAR('M')
+	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_N) PORT_CHAR('n') PORT_CHAR('N')
+	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_SLASH) PORT_CHAR('/') PORT_CHAR('?')
+	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_COMMA) PORT_CHAR(',') PORT_CHAR('<')
+	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_BACKSLASH) PORT_CHAR('\\') PORT_CHAR('|')
 
 	PORT_START("COL8")
-	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_UNKNOWN)
-	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_UNKNOWN)
-	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_BACKSPACE)  PORT_CHAR(8)
-	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_TILDE) PORT_CHAR('`') PORT_CHAR('~')
-	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_SPACE) PORT_CHAR(' ')
-	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_TAB) PORT_CHAR('\t')
+	PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_UNKNOWN)
+	PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_BACKSPACE)  PORT_CHAR(8)
+	PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_TILDE) PORT_CHAR('`') PORT_CHAR('~')
+	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_SPACE) PORT_CHAR(' ')
+	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_TAB) PORT_CHAR('\t')
 
 	PORT_START("MODS")
 	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Caps Lock") PORT_CODE(KEYCODE_CAPSLOCK) PORT_TOGGLE
@@ -182,13 +157,19 @@ static INPUT_PORTS_START( mackbd )
 INPUT_PORTS_END
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor mackbd_device::device_mconfig_additions() const
+void mackbd_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( mackbd );
+	mcs48_cpu_device &cpu(I8021(config, m_maincpu, 3000000));   // "the approximate clock rate of the MPU is 3 MHz"
+	cpu.bus_in_cb().set(FUNC(mackbd_device::p0_r));
+	cpu.bus_out_cb().set(FUNC(mackbd_device::p0_w));
+	cpu.p1_in_cb().set(FUNC(mackbd_device::p1_r));
+	cpu.p1_out_cb().set(FUNC(mackbd_device::p1_w));
+	cpu.p2_in_cb().set(FUNC(mackbd_device::p2_r));
+	cpu.p2_out_cb().set(FUNC(mackbd_device::p2_w));
+	cpu.t1_in_cb().set_ioport("MODS").bit(1); // option
 }
 
 const tiny_rom_entry *mackbd_device::device_rom_region() const
@@ -209,9 +190,10 @@ ioport_constructor mackbd_device::device_input_ports() const
 //  mackbd_device - constructor
 //-------------------------------------------------
 
-mackbd_device::mackbd_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, MACKBD, "Macintosh keyboard", tag, owner, clock, "mackbd", __FILE__),
+mackbd_device::mackbd_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, MACKBD, tag, owner, clock),
 	m_maincpu(*this, MACKBD_CPU_TAG),
+	m_col(*this, "COL%u", 0U),
 	m_clkout_handler(*this),
 	m_dataout_handler(*this)
 {
@@ -224,6 +206,8 @@ mackbd_device::mackbd_device(const machine_config &mconfig, const char *tag, dev
 void mackbd_device::device_start()
 {
 	m_clkout_handler.resolve_safe();
+	m_dataout_handler.resolve_safe();
+	m_sync = timer_alloc(0);
 }
 
 
@@ -233,97 +217,71 @@ void mackbd_device::device_start()
 
 void mackbd_device::device_reset()
 {
-	p0 = p1 = p2 = 0;
-	p0 = 0x3f;
-	data_from_mac = data_to_mac = 0;
+	p0 = p1 = p2 = 0xff;
+	datain = true;
+	m_clkout_handler(1);
+	m_dataout_handler(1);
 }
 
-void mackbd_device::scan_kbd_col(int col)
+u8 mackbd_device::p0_r()
 {
-	char tempcol[8];
-	uint16_t keydata;
+	u8 ret = p0;
 
-	// read the selected col
-	sprintf(tempcol, "COL%d", col);
-	keydata = ioport(tempcol)->read();
+	for(int i=0; i<8; i++)
+		if(!(p1 & (1<<i)))
+			ret &= m_col[i+1]->read();
 
-	p0 &= ~0x3f;
-	p0 |= (keydata & 0x3f);
-
-	// set modifier bits in p2
-	p2 = ioport("MODS")->read() & 0xc;
-}
-
-READ8_MEMBER(mackbd_device::p0_r)
-{
-	uint8_t ret = p0;
+	if(!(p2 & 0x02))
+		ret &= m_col[0]->read();
 
 	// capslock
-	if (ioport("MODS")->read() & 0x1)
-	{
-		ret |= 0x40;
-	}
+	if(!(ioport("MODS")->read() & 0x1))
+		ret &= ~0x40;
 
 	return ret;
 }
 
-WRITE8_MEMBER(mackbd_device::p0_w)
+void mackbd_device::p0_w(u8 data)
 {
-	if (!(data & 2))
-	{
-		scan_kbd_col(0);
-	}
+	u8 delta = p0 ^ data;
+	p0 = data;
 
-	if (data & 0x80)
-	{
-		m_clkout_handler(ASSERT_LINE);
-	}
-	else
-	{
-		m_clkout_handler(CLEAR_LINE);
-//      machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(10));
-	}
+	if(delta & 0x80)
+		m_sync->adjust(attotime::zero);
 }
 
-READ8_MEMBER(mackbd_device::p1_r)
+void mackbd_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	m_clkout_handler(p0 & 0x80 ? ASSERT_LINE : CLEAR_LINE);
+}
+
+u8 mackbd_device::p1_r()
 {
 	return p1;
 }
 
-WRITE8_MEMBER(mackbd_device::p1_w)
+void mackbd_device::p1_w(u8 data)
 {
-	data ^= 0xff;
-	if (data & 0x01) scan_kbd_col(1);
-	if (data & 0x02) scan_kbd_col(2);
-	if (data & 0x04) scan_kbd_col(3);
-	if (data & 0x08) scan_kbd_col(4);
-	if (data & 0x10) scan_kbd_col(5);
-	if (data & 0x20) scan_kbd_col(6);
-	if (data & 0x40) scan_kbd_col(7);
-	if (data & 0x80) scan_kbd_col(8);
+	p1 = data;
 }
 
-READ8_MEMBER(mackbd_device::p2_r)
+u8 mackbd_device::p2_r()
 {
-	return p2 | data_from_mac;
+	// Keypad has bit 5 connected to GND, but this is the keyboard.
+	u8 ret = p2;
+	if(!datain)
+		ret &= 0xfe;
+	ret &= ioport("MODS")->read() | ~0x0c;
+	return ret;
 }
 
-WRITE8_MEMBER(mackbd_device::p2_w)
+void mackbd_device::p2_w(u8 data)
 {
-	// prevent key scan accesses to the port from messing with the data line (how does this work on h/w?)
-	if (m_maincpu->pc() != 0x19e && m_maincpu->pc() != 0x1a3)
-	{
-		data_to_mac = data_from_mac = (data & 1);
-//      printf("data to/from mac = %d (PC=%x)\n", data_to_mac, m_maincpu->pc());
-	}
+	p2 = data;
+	m_dataout_handler(p2 & datain & 1);
 }
 
-READ8_MEMBER(mackbd_device::t1_r)
+void mackbd_device::datain_w(int state)
 {
-	return (ioport("MODS")->read() & 0x2) ? 0xff : 0x00;
-}
-
-WRITE_LINE_MEMBER(mackbd_device::data_w)
-{
-	data_from_mac = (state == ASSERT_LINE) ? 1 : 0;
+	datain = state;
 }

@@ -1,4 +1,4 @@
-// license:GPL-2.0+
+// license:BSD-3-Clause
 // copyright-holders:Dirk Best
 /***************************************************************************
 
@@ -27,9 +27,9 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type I82730 = device_creator<i82730_device>;
+DEFINE_DEVICE_TYPE(I82730, i82730_device, "i82730", "Intel 82730")
 
-const char *i82730_device::m_command_names[] =
+const char *const i82730_device::s_command_names[] =
 {
 	/* 00 */ "NOP",
 	/* 01 */ "START DISPLAY",
@@ -55,31 +55,38 @@ const char *i82730_device::m_command_names[] =
 //-------------------------------------------------
 
 i82730_device::i82730_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, I82730, "I82730", tag, owner, clock, "i82730", __FILE__),
+	device_t(mconfig, I82730, tag, owner, clock),
 	device_video_interface(mconfig, *this),
 	m_sint_handler(*this),
-	m_cpu_tag(nullptr), m_program(nullptr),
+	m_update_row_cb(*this),
+	m_cpu(*this, finder_base::DUMMY_TAG),
+	m_program(nullptr),
 	m_row_timer(nullptr),
-	m_initialized(false), m_mode_set(false),
+	m_initialized(false),
+	m_mode_set(false),
 	m_ca(0),
-	m_sysbus(0x00), m_ibp(0x0000), m_cbp(0x0000), m_intmask(0xffff), m_status(0x0000),
-	m_list_switch(0), m_auto_line_feed(0), m_max_dma_count(0),
-	m_lptr(0), m_sptr(0),
-	m_dma_burst_space(0), m_dma_burst_length(0),
-	m_hfldstrt(0), m_margin(0), m_lpr(0), m_field_attribute_mask(0), m_vsyncstp(0), m_vfldstrt(0), m_vfldstp(0),
+	m_sysbus(0x00),
+	m_ibp(0x0000),
+	m_cbp(0x0000),
+	m_intmask(0xffff),
+	m_status(0x0000),
+	m_list_switch(0),
+	m_auto_line_feed(0),
+	m_max_dma_count(0),
+	m_lptr(0),
+	m_sptr(0),
+	m_dma_burst_space(0),
+	m_dma_burst_length(0),
+	m_hfldstrt(0),
+	m_margin(0),
+	m_lpr(0),
+	m_field_attribute_mask(0),
+	m_vsyncstp(0),
+	m_vfldstrt(0),
+	m_vfldstp(0),
 	m_frame_int_count(0),
 	m_row_index(0)
 {
-}
-
-//-------------------------------------------------
-//  set_cpu_tag - set cpu we are attached to
-//-------------------------------------------------
-
-void i82730_device::set_cpu_tag(device_t &device, device_t *owner, const char *tag)
-{
-	i82730_device &dev = dynamic_cast<i82730_device &>(device);
-	dev.m_cpu_tag = tag;
 }
 
 //-------------------------------------------------
@@ -89,13 +96,13 @@ void i82730_device::set_cpu_tag(device_t &device, device_t *owner, const char *t
 void i82730_device::device_start()
 {
 	// register bitmap
-	m_screen->register_screen_bitmap(m_bitmap);
+	screen().register_screen_bitmap(m_bitmap);
 
 	// resolve callbacks
 	m_sint_handler.resolve_safe();
 
 	// bind delegates
-	m_update_row_cb.bind_relative_to(*owner());
+	m_update_row_cb.resolve();
 
 	// allocate row timer
 	m_row_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(i82730_device::row_update), this));
@@ -107,8 +114,7 @@ void i82730_device::device_start()
 
 void i82730_device::device_reset()
 {
-	cpu_device *cpu = m_owner->subdevice<cpu_device>(m_cpu_tag);
-	m_program = &cpu->space(AS_PROGRAM);
+	m_program = &m_cpu->space(AS_PROGRAM);
 
 	m_initialized = false;
 	m_mode_set = false;
@@ -224,13 +230,13 @@ void i82730_device::mode_set()
 	// setup screen mode
 	rectangle visarea(hbrdstrt * 16, hbrdstp * 16 - 1, m_vsyncstp, m_vfldstp + m_margin + 1 + m_lpr - 1);
 	attoseconds_t period = HZ_TO_ATTOSECONDS(clock() * 16) * line_length * 16 * frame_length;
-	m_screen->configure(line_length * 16, frame_length, visarea, period);
+	screen().configure(line_length * 16, frame_length, visarea, period);
 
 	// start display is now valid
 	m_mode_set = true;
 
 	// adjust timer for the new mode
-	m_row_timer->adjust(m_screen->time_until_pos(0));
+	m_row_timer->adjust(screen().time_until_pos(0));
 
 	// output some debug info
 	if (VERBOSE)
@@ -250,8 +256,8 @@ void i82730_device::execute_command()
 	uint8_t command = read_byte(m_cbp + 1);
 	uint16_t tmp;
 
-	if (VERBOSE_COMMANDS && command < ARRAY_LENGTH(m_command_names))
-		logerror("%s('%s'): executing command: %s [cbp = %08x]\n", shortname(), basetag(), m_command_names[command], m_cbp);
+	if (VERBOSE_COMMANDS && command < ARRAY_LENGTH(s_command_names))
+		logerror("%s('%s'): executing command: %s [cbp = %08x]\n", shortname(), basetag(), s_command_names[command], m_cbp);
 
 	tmp = read_word(m_cbp + 2);
 	m_list_switch = BIT(tmp, 6);
@@ -303,7 +309,7 @@ void i82730_device::execute_command()
 
 	// LPEN ENABLE
 	case 0x07:
-		fatalerror("%s('%s'): Unimplemented command %s\n", shortname(), basetag(), m_command_names[command]);
+		fatalerror("%s('%s'): Unimplemented command %s\n", shortname(), basetag(), s_command_names[command]);
 		break;
 
 	// READ STATUS
@@ -314,17 +320,17 @@ void i82730_device::execute_command()
 
 	// LD CUR POS
 	case 0x09:
-		fatalerror("%s('%s'): Unimplemented command %s\n", shortname(), basetag(), m_command_names[command]);
+		fatalerror("%s('%s'): Unimplemented command %s\n", shortname(), basetag(), s_command_names[command]);
 		break;
 
 	// SELF TEST
 	case 0x0a:
-		fatalerror("%s('%s'): Unimplemented command %s\n", shortname(), basetag(), m_command_names[command]);
+		fatalerror("%s('%s'): Unimplemented command %s\n", shortname(), basetag(), s_command_names[command]);
 		break;
 
 	// TEST ROW BUFFER
 	case 0x0b:
-		fatalerror("%s('%s'): Unimplemented command %s\n", shortname(), basetag(), m_command_names[command]);
+		fatalerror("%s('%s'): Unimplemented command %s\n", shortname(), basetag(), s_command_names[command]);
 		break;
 
 	default:
@@ -394,7 +400,7 @@ void i82730_device::load_row()
 
 TIMER_CALLBACK_MEMBER( i82730_device::row_update )
 {
-	int y = m_screen->vpos();
+	int y = screen().vpos();
 
 	if (y == 0)
 	{
@@ -454,7 +460,7 @@ TIMER_CALLBACK_MEMBER( i82730_device::row_update )
 		// todo: check ca
 
 		// frame interrupt?
-		if ((m_screen->frame_number() % m_frame_int_count) == 0)
+		if ((screen().frame_number() % m_frame_int_count) == 0)
 			m_status |= EONF;
 
 		// check interrupts
@@ -465,7 +471,7 @@ TIMER_CALLBACK_MEMBER( i82730_device::row_update )
 		// vblank
 	}
 
-	m_row_timer->adjust(m_screen->time_until_pos((y + 1) % m_screen->height()));
+	m_row_timer->adjust(screen().time_until_pos((y + 1) % screen().height()));
 }
 
 WRITE_LINE_MEMBER( i82730_device::ca_w )

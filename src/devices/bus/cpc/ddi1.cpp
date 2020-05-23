@@ -1,23 +1,25 @@
 // license:BSD-3-Clause
 // copyright-holders:Barry Rodewald
 /*
- * ddi1.c  --  Amstrad DDI-1 Floppy Disk Drive interface
+ * ddi1.cpp  --  Amstrad DDI-1 Floppy Disk Drive interface
  */
 
 #include "emu.h"
 #include "ddi1.h"
 #include "softlist.h"
-SLOT_INTERFACE_EXTERN(cpc_exp_cards);
+
+void cpc_exp_cards(device_slot_interface &device);
 
 //**************************************************************************
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type CPC_DDI1 = device_creator<cpc_ddi1_device>;
+DEFINE_DEVICE_TYPE(CPC_DDI1, cpc_ddi1_device, "cpc_ddi1", "Amstrad DDI-1")
 
-static SLOT_INTERFACE_START( ddi1_floppies )
-	SLOT_INTERFACE( "3ssdd", FLOPPY_3_SSDD )
-SLOT_INTERFACE_END
+static void ddi1_floppies(device_slot_interface &device)
+{
+	device.option_add("3ssdd", FLOPPY_3_SSDD);
+}
 
 //-------------------------------------------------
 //  Device ROM definition
@@ -38,31 +40,26 @@ const tiny_rom_entry *cpc_ddi1_device::device_rom_region() const
 }
 
 // device machine config
-static MACHINE_CONFIG_FRAGMENT( cpc_ddi1 )
-	MCFG_UPD765A_ADD("upd765", true, true)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:0", ddi1_floppies, "3ssdd", floppy_image_device::default_floppy_formats)
-	MCFG_SOFTWARE_LIST_ADD("flop_list","cpc_flop")
+void cpc_ddi1_device::device_add_mconfig(machine_config &config)
+{
+	UPD765A(config, m_fdc, DERIVED_CLOCK(1, 1), true, true); // pin 50 clock multiplied to 8 MHz, then divided back down through SMC FDC9229BT
+	FLOPPY_CONNECTOR(config, m_connector, ddi1_floppies, "3ssdd", floppy_image_device::default_floppy_formats);
+	SOFTWARE_LIST(config, "flop_list").set_original("cpc_flop");
 
 	// pass-through
-	MCFG_DEVICE_ADD("exp", CPC_EXPANSION_SLOT, 0)
-	MCFG_DEVICE_SLOT_INTERFACE(cpc_exp_cards, nullptr, false)
-	MCFG_CPC_EXPANSION_SLOT_OUT_IRQ_CB(DEVWRITELINE("^", cpc_expansion_slot_device, irq_w))
-	MCFG_CPC_EXPANSION_SLOT_OUT_NMI_CB(DEVWRITELINE("^", cpc_expansion_slot_device, nmi_w))
-	MCFG_CPC_EXPANSION_SLOT_OUT_ROMDIS_CB(DEVWRITELINE("^", cpc_expansion_slot_device, romdis_w))  // ROMDIS
-
-MACHINE_CONFIG_END
-
-machine_config_constructor cpc_ddi1_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( cpc_ddi1 );
+	cpc_expansion_slot_device &exp(CPC_EXPANSION_SLOT(config, "exp", DERIVED_CLOCK(1, 1), cpc_exp_cards, nullptr));
+	exp.irq_callback().set(DEVICE_SELF_OWNER, FUNC(cpc_expansion_slot_device::irq_w));
+	exp.nmi_callback().set(DEVICE_SELF_OWNER, FUNC(cpc_expansion_slot_device::nmi_w));
+	exp.romdis_callback().set(DEVICE_SELF_OWNER, FUNC(cpc_expansion_slot_device::romdis_w));  // ROMDIS
 }
+
 
 //**************************************************************************
 //  LIVE DEVICE
 //**************************************************************************
 
 cpc_ddi1_device::cpc_ddi1_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, CPC_DDI1, "DDI-1", tag, owner, clock, "cpc_ddi1", __FILE__),
+	device_t(mconfig, CPC_DDI1, tag, owner, clock),
 	device_cpc_expansion_card_interface(mconfig, *this), m_slot(nullptr),
 	m_fdc(*this,"upd765"),
 	m_connector(*this,"upd765:0"), m_rom_active(false), m_romen(false)
@@ -75,13 +72,12 @@ cpc_ddi1_device::cpc_ddi1_device(const machine_config &mconfig, const char *tag,
 
 void cpc_ddi1_device::device_start()
 {
-	device_t* cpu = machine().device("maincpu");
-	address_space& space = cpu->memory().space(AS_IO);
 	m_slot = dynamic_cast<cpc_expansion_slot_device *>(owner());
+	address_space &space = m_slot->cpu().space(AS_IO);
 
-	space.install_write_handler(0xfa7e,0xfa7f,write8_delegate(FUNC(cpc_ddi1_device::motor_w),this));
-	space.install_readwrite_handler(0xfb7e,0xfb7f,read8_delegate(FUNC(cpc_ddi1_device::fdc_r),this),write8_delegate(FUNC(cpc_ddi1_device::fdc_w),this));
-	space.install_write_handler(0xdf00,0xdfff,write8_delegate(FUNC(cpc_ddi1_device::rombank_w),this));
+	space.install_write_handler(0xfa7e,0xfa7f, write8_delegate(*this, FUNC(cpc_ddi1_device::motor_w)));
+	space.install_readwrite_handler(0xfb7e,0xfb7f, read8_delegate(*this, FUNC(cpc_ddi1_device::fdc_r)), write8_delegate(*this, FUNC(cpc_ddi1_device::fdc_w)));
+	space.install_write_handler(0xdf00,0xdfff, write8_delegate(*this, FUNC(cpc_ddi1_device::rombank_w)));
 }
 
 //-------------------------------------------------
@@ -120,7 +116,7 @@ WRITE8_MEMBER(cpc_ddi1_device::fdc_w)
 	switch(offset)
 	{
 	case 0x01:
-		m_fdc->fifo_w(space, 0,data);
+		m_fdc->fifo_w(data);
 		break;
 	}
 }
@@ -132,10 +128,10 @@ READ8_MEMBER(cpc_ddi1_device::fdc_r)
 	switch(offset)
 	{
 	case 0x00:
-		data = m_fdc->msr_r(space, 0);
+		data = m_fdc->msr_r();
 		break;
 	case 0x01:
-		data = m_fdc->fifo_r(space, 0);
+		data = m_fdc->fifo_r();
 		break;
 	}
 	return data;

@@ -6,20 +6,12 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_MM58167_H
+#define MAME_MACHINE_MM58167_H
+
 #pragma once
 
-#ifndef __MM58167_H__
-#define __MM58167_H__
-
 #include "dirtc.h"
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_MM58167_IRQ_CALLBACK(_cb) \
-	devcb = &mm58167_device::set_irq_cb(*device, DEVCB_##_cb);
 
 
 //**************************************************************************
@@ -35,10 +27,10 @@ public:
 	// construction/destruction
 	mm58167_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_READ8_MEMBER(read);
-	DECLARE_WRITE8_MEMBER(write);
+	uint8_t read(offs_t offset);
+	void write(offs_t offset, uint8_t data);
 
-	template<class _Object> static devcb_base &set_irq_cb(device_t &device, _Object wr) { return downcast<mm58167_device &>(device).m_irq_w.set_callback(wr); }
+	auto irq() { return m_irq_w.bind(); }
 
 	devcb_write_line m_irq_w;
 
@@ -65,6 +57,6 @@ private:
 };
 
 // device type definition
-extern const device_type MM58167;
+DECLARE_DEVICE_TYPE(MM58167, mm58167_device)
 
-#endif
+#endif // MAME_MACHINE_MM58167_H

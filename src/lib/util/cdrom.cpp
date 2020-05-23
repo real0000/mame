@@ -16,11 +16,11 @@
 
 ***************************************************************************/
 
-#include <assert.h>
+#include <cassert>
 
 #include "cdrom.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 #include "chdcd.h"
 
 
@@ -558,7 +558,7 @@ uint32_t cdrom_read_data(cdrom_file *file, uint32_t lbasector, void *buffer, uin
 		/* return 2352 byte mode 1 raw sector from 2048 bytes of mode 1 data */
 		if ((datatype == CD_TRACK_MODE1_RAW) && (tracktype == CD_TRACK_MODE1))
 		{
-			uint8_t *bufptr = (uint8_t *)buffer;
+			auto *bufptr = (uint8_t *)buffer;
 			uint32_t msf = lba_to_msf(lbasector);
 
 			static const uint8_t syncbytes[12] = {0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00};
@@ -575,6 +575,12 @@ uint32_t cdrom_read_data(cdrom_file *file, uint32_t lbasector, void *buffer, uin
 		if ((datatype == CD_TRACK_MODE1) && ((tracktype == CD_TRACK_MODE2_FORM1)||(tracktype == CD_TRACK_MODE2_RAW)))
 		{
 			return (read_partial_sector(file, buffer, lbasector, chdsector, tracknum, 24, 2048, phys) == CHDERR_NONE);
+		}
+
+		/* return 2048 bytes of mode 1 data from a mode2 form2 or XA sector */
+		if ((datatype == CD_TRACK_MODE1) && (tracktype == CD_TRACK_MODE2_FORM_MIX))
+		{
+			return (read_partial_sector(file, buffer, lbasector, chdsector, tracknum, 8, 2048, phys) == CHDERR_NONE);
 		}
 
 		/* return mode 2 2336 byte data from a 2352 byte mode 1 or 2 raw sector (skip the header) */
@@ -723,6 +729,16 @@ uint32_t cdrom_get_track_start_phys(cdrom_file *file, uint32_t track)
 		track = file->cdtoc.numtrks;
 
 	return file->cdtoc.tracks[track].physframeofs;
+}
+
+/*-------------------------------------------------
+    cdrom_get_chd - get a handle to a CHD
+    from a cdrom
+-------------------------------------------------*/
+
+chd_file *cdrom_get_chd(cdrom_file *file)
+{
+	return file->chd;
 }
 
 /***************************************************************************
@@ -1231,7 +1247,7 @@ chd_error cdrom_parse_metadata(chd_file *chd, cdrom_toc *toc)
 		return err;
 
 	/* reconstruct the TOC from it */
-	uint32_t *mrp = reinterpret_cast<uint32_t *>(&oldmetadata[0]);
+	auto *mrp = reinterpret_cast<uint32_t *>(&oldmetadata[0]);
 	toc->numtrks = *mrp++;
 
 	for (i = 0; i < CD_MAX_TRACKS; i++)
@@ -1253,16 +1269,16 @@ chd_error cdrom_parse_metadata(chd_file *chd, cdrom_toc *toc)
 	/* TODO: I don't know why sometimes the data is one endian and sometimes another */
 	if (toc->numtrks > CD_MAX_TRACKS)
 	{
-		toc->numtrks = flipendian_int32(toc->numtrks);
+		toc->numtrks = swapendian_int32(toc->numtrks);
 		for (i = 0; i < CD_MAX_TRACKS; i++)
 		{
-			toc->tracks[i].trktype = flipendian_int32(toc->tracks[i].trktype);
-			toc->tracks[i].subtype = flipendian_int32(toc->tracks[i].subtype);
-			toc->tracks[i].datasize = flipendian_int32(toc->tracks[i].datasize);
-			toc->tracks[i].subsize = flipendian_int32(toc->tracks[i].subsize);
-			toc->tracks[i].frames = flipendian_int32(toc->tracks[i].frames);
-			toc->tracks[i].padframes = flipendian_int32(toc->tracks[i].padframes);
-			toc->tracks[i].extraframes = flipendian_int32(toc->tracks[i].extraframes);
+			toc->tracks[i].trktype = swapendian_int32(toc->tracks[i].trktype);
+			toc->tracks[i].subtype = swapendian_int32(toc->tracks[i].subtype);
+			toc->tracks[i].datasize = swapendian_int32(toc->tracks[i].datasize);
+			toc->tracks[i].subsize = swapendian_int32(toc->tracks[i].subsize);
+			toc->tracks[i].frames = swapendian_int32(toc->tracks[i].frames);
+			toc->tracks[i].padframes = swapendian_int32(toc->tracks[i].padframes);
+			toc->tracks[i].extraframes = swapendian_int32(toc->tracks[i].extraframes);
 		}
 	}
 

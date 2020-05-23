@@ -2,7 +2,7 @@
 // copyright-holders:Philip Bennett
 /***************************************************************************
 
-    qs1000.c
+    qs1000.cpp
 
     QS1000 device emulator.
 
@@ -131,33 +131,23 @@
 
 
 // device type definition
-const device_type QS1000 = device_creator<qs1000_device>;
+DEFINE_DEVICE_TYPE(QS1000, qs1000_device, "qs1000", "QS1000")
 
 //**************************************************************************
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-static ADDRESS_MAP_START( qs1000_prg_map, AS_PROGRAM, 8, qs1000_device )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-ADDRESS_MAP_END
+void qs1000_device::qs1000_prg_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+}
 
 
-static ADDRESS_MAP_START( qs1000_io_map, AS_IO, 8, qs1000_device )
-	AM_RANGE(0x0000, 0x00ff) AM_RAM
-	AM_RANGE(0x0200, 0x0211) AM_WRITE(wave_w)
-	AM_RANGE(MCS51_PORT_P1, MCS51_PORT_P1) AM_READWRITE(p1_r, p1_w)
-	AM_RANGE(MCS51_PORT_P2, MCS51_PORT_P2) AM_READWRITE(p2_r, p2_w)
-	AM_RANGE(MCS51_PORT_P3, MCS51_PORT_P3) AM_READWRITE(p3_r, p3_w)
-ADDRESS_MAP_END
-
-
-// Machine fragment
-static MACHINE_CONFIG_FRAGMENT( qs1000 )
-	MCFG_CPU_ADD("cpu", I8052, DERIVED_CLOCK(1, 1))
-	MCFG_CPU_PROGRAM_MAP(qs1000_prg_map)
-	MCFG_CPU_IO_MAP(qs1000_io_map)
-	MCFG_MCS51_SERIAL_RX_CB(READ8(qs1000_device, data_to_i8052))
-MACHINE_CONFIG_END
+void qs1000_device::qs1000_io_map(address_map &map)
+{
+	map(0x0000, 0x00ff).ram();
+	map(0x0200, 0x0211).w(FUNC(qs1000_device::wave_w));
+}
 
 
 // ROM definition for the QS1000 internal program ROM
@@ -175,7 +165,7 @@ ROM_END
 //  qs1000_device - constructor
 //-------------------------------------------------
 qs1000_device::qs1000_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, QS1000, "QS1000", tag, owner, clock, "qs1000", __FILE__),
+	: device_t(mconfig, QS1000, tag, owner, clock),
 		device_sound_interface(mconfig, *this),
 		device_rom_interface(mconfig, *this, 24),
 		m_external_rom(false),
@@ -203,12 +193,21 @@ const tiny_rom_entry *qs1000_device::device_rom_region() const
 
 
 //-------------------------------------------------
-//  machine_config_additions - return a pointer to
-//  the device's machine fragment
+//  device_add_mconfig - add machine configuration
 //-------------------------------------------------
-machine_config_constructor qs1000_device::device_mconfig_additions() const
+
+void qs1000_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( qs1000 );
+	I8052(config, m_cpu, DERIVED_CLOCK(1, 1));
+	m_cpu->set_addrmap(AS_PROGRAM, &qs1000_device::qs1000_prg_map);
+	m_cpu->set_addrmap(AS_IO, &qs1000_device::qs1000_io_map);
+	m_cpu->port_in_cb<1>().set(FUNC(qs1000_device::p1_r));
+	m_cpu->port_out_cb<1>().set(FUNC(qs1000_device::p1_w));
+	m_cpu->port_in_cb<2>().set(FUNC(qs1000_device::p2_r));
+	m_cpu->port_out_cb<2>().set(FUNC(qs1000_device::p2_w));
+	m_cpu->port_in_cb<3>().set(FUNC(qs1000_device::p3_r));
+	m_cpu->port_out_cb<3>().set(FUNC(qs1000_device::p3_w));
+	m_cpu->serial_rx_cb().set(FUNC(qs1000_device::data_to_i8052));
 }
 
 
@@ -291,7 +290,7 @@ void qs1000_device::set_irq(int state)
 //  data_to_i8052 - called by the 8052 core to
 //  receive serial data
 //-------------------------------------------------
-READ8_MEMBER(qs1000_device::data_to_i8052)
+uint8_t qs1000_device::data_to_i8052()
 {
 	return m_serial_data_in;
 }
@@ -321,7 +320,7 @@ void qs1000_device::device_timer(emu_timer &timer, device_timer_id id, int param
 //-------------------------------------------------
 //  p0_r
 //-------------------------------------------------
-READ8_MEMBER( qs1000_device::p0_r )
+uint8_t  qs1000_device::p0_r()
 {
 	return 0xff;
 }
@@ -330,7 +329,7 @@ READ8_MEMBER( qs1000_device::p0_r )
 //-------------------------------------------------
 //  p1_r
 //-------------------------------------------------
-READ8_MEMBER( qs1000_device::p1_r )
+uint8_t  qs1000_device::p1_r()
 {
 	return m_in_p1_cb(0);
 }
@@ -339,7 +338,7 @@ READ8_MEMBER( qs1000_device::p1_r )
 //-------------------------------------------------
 //  p2_r
 //-------------------------------------------------
-READ8_MEMBER( qs1000_device::p2_r )
+uint8_t  qs1000_device::p2_r()
 {
 	return m_in_p2_cb(0);
 }
@@ -348,7 +347,7 @@ READ8_MEMBER( qs1000_device::p2_r )
 //-------------------------------------------------
 //  p3_r
 //-------------------------------------------------
-READ8_MEMBER( qs1000_device::p3_r )
+uint8_t qs1000_device::p3_r()
 {
 	return m_in_p3_cb(0);
 }
@@ -357,7 +356,7 @@ READ8_MEMBER( qs1000_device::p3_r )
 //-------------------------------------------------
 //  p0_w
 //-------------------------------------------------
-WRITE8_MEMBER( qs1000_device::p0_w )
+void qs1000_device::p0_w(uint8_t data)
 {
 }
 
@@ -366,7 +365,7 @@ WRITE8_MEMBER( qs1000_device::p0_w )
 //  p1_w
 //-------------------------------------------------
 
-WRITE8_MEMBER( qs1000_device::p1_w )
+void qs1000_device::p1_w(uint8_t data)
 {
 	m_out_p1_cb((offs_t)0, data);
 }
@@ -376,7 +375,7 @@ WRITE8_MEMBER( qs1000_device::p1_w )
 //  p2_w
 //-------------------------------------------------
 
-WRITE8_MEMBER( qs1000_device::p2_w )
+void qs1000_device::p2_w(uint8_t data)
 {
 	m_out_p2_cb((offs_t)0, data);
 }
@@ -386,7 +385,7 @@ WRITE8_MEMBER( qs1000_device::p2_w )
 //  p3_w
 //-------------------------------------------------
 
-WRITE8_MEMBER( qs1000_device::p3_w )
+void qs1000_device::p3_w(uint8_t data)
 {
 	m_out_p3_cb((offs_t)0, data);
 }
@@ -396,7 +395,7 @@ WRITE8_MEMBER( qs1000_device::p3_w )
 //  wave_w - process writes to wavetable engine
 //-------------------------------------------------
 
-WRITE8_MEMBER( qs1000_device::wave_w )
+void qs1000_device::wave_w(offs_t offset, uint8_t data)
 {
 	m_stream->update();
 

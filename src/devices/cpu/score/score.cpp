@@ -10,13 +10,14 @@
 #include "emu.h"
 #include "debugger.h"
 #include "score.h"
+#include "scoredsm.h"
 
 
 //**************************************************************************
 //  CONSTANTS
 //**************************************************************************
 
-const device_type SCORE7 = device_creator<score7_cpu_device>;
+DEFINE_DEVICE_TYPE(SCORE7, score7_cpu_device, "score7", "Sunplus S+core 7")
 
 
 //**************************************************************************
@@ -53,10 +54,10 @@ const score7_cpu_device::op_handler score7_cpu_device::s_opcode16_table[8] =
 //-------------------------------------------------
 
 score7_cpu_device::score7_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: cpu_device(mconfig, SCORE7, "S+core 7", tag, owner, clock, "score7", __FILE__),
-		m_program_config("program", ENDIANNESS_LITTLE, 32, 32, 0),
-		m_pc(0),
-		m_ppc(0)
+	: cpu_device(mconfig, SCORE7, tag, owner, clock)
+	, m_program_config("program", ENDIANNESS_LITTLE, 32, 32, 0)
+	, m_pc(0)
+	, m_ppc(0)
 {
 	memset(m_gpr, 0x00, sizeof(m_gpr));
 	memset(m_cr, 0x00, sizeof(m_cr));
@@ -72,10 +73,10 @@ void score7_cpu_device::device_start()
 {
 	// find address spaces
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_cache = m_program->cache<2, 0, ENDIANNESS_LITTLE>();
 
 	// set our instruction counter
-	m_icountptr = &m_icount;
+	set_icountptr(m_icount);
 
 	// register state for debugger
 	state_add(SCORE_PC  , "PC"  , m_pc).callimport().callexport().formatstr("%08X");
@@ -153,9 +154,11 @@ void score7_cpu_device::state_string_export(const device_state_entry &entry, std
 //  the space doesn't exist
 //-------------------------------------------------
 
-const address_space_config * score7_cpu_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector score7_cpu_device::memory_space_config() const
 {
-	return  (spacenum == AS_PROGRAM) ? &m_program_config: nullptr;
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
 }
 
 
@@ -169,7 +172,7 @@ void score7_cpu_device::execute_run()
 	do
 	{
 		m_ppc = m_pc;
-		debugger_instruction_hook(this, m_pc);
+		debugger_instruction_hook(m_pc);
 
 		check_irq();
 
@@ -280,7 +283,7 @@ int32_t score7_cpu_device::sign_extend(uint32_t data, uint8_t len)
 
 uint32_t score7_cpu_device::fetch()
 {
-	return m_direct->read_dword(m_pc & ~3);
+	return m_cache->read_dword(m_pc & ~3);
 }
 
 uint8_t score7_cpu_device::read_byte(offs_t offset)
@@ -322,7 +325,7 @@ void score7_cpu_device::check_irq()
 			if (m_pending_interrupt[i])
 			{
 				m_pending_interrupt[i] = false;
-				debugger_interrupt_hook(this, i);
+				standard_irq_callback(i);
 				gen_exception(EXCEPTION_INTERRUPT, i);
 				return;
 			}
@@ -332,7 +335,7 @@ void score7_cpu_device::check_irq()
 
 void score7_cpu_device::gen_exception(int cause, uint32_t param)
 {
-	debugger_exception_hook(this, cause);
+	debugger_exception_hook(cause);
 
 	REG_ECR = (REG_ECR & ~0x0000001f) | (cause & 0x1f);              // set exception cause
 	REG_PSR = (REG_PSR & ~0x0000000f) | ((REG_PSR << 2) & 0x0c);     // push status bits
@@ -1345,4 +1348,9 @@ void score7_cpu_device::op_undef()
 void score7_cpu_device::unemulated_op(const char * op)
 {
 	fatalerror("%s: unemulated %s (PC=0x%08x)\n", tag(), op, m_ppc);
+}
+
+std::unique_ptr<util::disasm_interface> score7_cpu_device::create_disassembler()
+{
+	return std::make_unique<score7_disassembler>();
 }

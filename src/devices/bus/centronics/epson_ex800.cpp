@@ -1,4 +1,4 @@
-// license:GPL-2.0+
+// license:BSD-3-Clause
 // copyright-holders:Dirk Best
 /******************************************************************************
 
@@ -171,7 +171,7 @@ TODO:  - The UPD7810 core is missing analog port emulation
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type EPSON_EX800 = device_creator<epson_ex800_t>;
+DEFINE_DEVICE_TYPE(EPSON_EX800, epson_ex800_device, "ex800", "Epson EX-800")
 
 
 //-------------------------------------------------
@@ -188,7 +188,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const tiny_rom_entry *epson_ex800_t::device_rom_region() const
+const tiny_rom_entry *epson_ex800_device::device_rom_region() const
 {
 	return ROM_NAME( ex800 );
 }
@@ -198,56 +198,46 @@ const tiny_rom_entry *epson_ex800_t::device_rom_region() const
 //  ADDRESS_MAP( ex800_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( ex800_mem, AS_PROGRAM, 8, epson_ex800_t )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM AM_REGION("maincpu", 0)
-	AM_RANGE(0x8000, 0xbfff) AM_RAM /* external RAM */
-	AM_RANGE(0xc000, 0xc7ff) AM_MIRROR(0x1800) AM_READWRITE(devsel_r, devsel_w)
-	AM_RANGE(0xe000, 0xe7ff) AM_READWRITE(gate5a_r, gate5a_w)
-	AM_RANGE(0xe800, 0xefff) AM_READWRITE(iosel_r, iosel_w)
-	AM_RANGE(0xf000, 0xf001) AM_MIRROR(0x07fc) AM_READ(gate7a_r)
-	AM_RANGE(0xf002, 0xf003) AM_MIRROR(0x07fc) AM_WRITE(gate7a_w)
-	AM_RANGE(0xf800, 0xfeff) AM_NOP /* not connected */
-	AM_RANGE(0xff00, 0xffff) AM_RAM /* internal CPU RAM */
-ADDRESS_MAP_END
+void epson_ex800_device::ex800_mem(address_map &map)
+{
+	map(0x0000, 0x7fff).rom().region("maincpu", 0);
+	map(0x8000, 0xbfff).ram(); /* external RAM */
+	map(0xc000, 0xc7ff).mirror(0x1800).rw(FUNC(epson_ex800_device::devsel_r), FUNC(epson_ex800_device::devsel_w));
+	map(0xe000, 0xe7ff).rw(FUNC(epson_ex800_device::gate5a_r), FUNC(epson_ex800_device::gate5a_w));
+	map(0xe800, 0xefff).rw(FUNC(epson_ex800_device::iosel_r), FUNC(epson_ex800_device::iosel_w));
+	map(0xf000, 0xf001).mirror(0x07fc).r(FUNC(epson_ex800_device::gate7a_r));
+	map(0xf002, 0xf003).mirror(0x07fc).w(FUNC(epson_ex800_device::gate7a_w));
+	map(0xf800, 0xfeff).noprw(); /* not connected */
+}
 
 
 //-------------------------------------------------
-//  MACHINE_DRIVER( epson_ex800 )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( epson_ex800 )
+void epson_ex800_device::device_add_mconfig(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", UPD7810, 12000000)  /* 12 MHz? */
-	MCFG_CPU_PROGRAM_MAP(ex800_mem)
-	MCFG_UPD7810_PORTA_READ_CB(READ8(epson_ex800_t, porta_r))
-	MCFG_UPD7810_PORTA_WRITE_CB(WRITE8(epson_ex800_t, porta_w))
-	MCFG_UPD7810_PORTB_READ_CB(READ8(epson_ex800_t, portb_r))
-	MCFG_UPD7810_PORTB_WRITE_CB(WRITE8(epson_ex800_t, portb_w))
-	MCFG_UPD7810_PORTC_READ_CB(READ8(epson_ex800_t, portc_r))
-	MCFG_UPD7810_PORTC_WRITE_CB(WRITE8(epson_ex800_t, portc_w))
+	upd7810_device &upd(UPD7810(config, m_maincpu, 12000000)); // 12 MHz?
+	upd.set_addrmap(AS_PROGRAM, &epson_ex800_device::ex800_mem);
+	upd.pa_in_cb().set(FUNC(epson_ex800_device::porta_r));
+	upd.pa_out_cb().set(FUNC(epson_ex800_device::porta_w));
+	upd.pb_in_cb().set(FUNC(epson_ex800_device::portb_r));
+	upd.pb_out_cb().set(FUNC(epson_ex800_device::portb_w));
+	upd.pc_in_cb().set(FUNC(epson_ex800_device::portc_r));
+	upd.pc_out_cb().set(FUNC(epson_ex800_device::portc_w));
 
-	MCFG_DEFAULT_LAYOUT(layout_ex800)
+	config.set_default_layout(layout_ex800);
 
 	/* audio hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("beeper", BEEP, 4000) /* measured at 4000 Hz */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor epson_ex800_t::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( epson_ex800 );
+	SPEAKER(config, "mono").front_center();
+	BEEP(config, m_beeper, 4000); // measured at 4000 Hz */
+	m_beeper->add_route(ALL_OUTPUTS, "mono", 1.0);
 }
 
 
 /* The ON LINE switch is directly connected to the INT1 input of the CPU */
-INPUT_CHANGED_MEMBER(epson_ex800_t::online_switch)
+INPUT_CHANGED_MEMBER(epson_ex800_device::online_switch)
 {
 	if (newval)
 	{
@@ -264,7 +254,7 @@ INPUT_CHANGED_MEMBER(epson_ex800_t::online_switch)
 INPUT_PORTS_START( epson_ex800 )
 	PORT_START("ONLISW")
 	PORT_BIT(0xfe, IP_ACTIVE_HIGH, IPT_UNUSED)
-	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("ON LINE")   PORT_CODE(KEYCODE_F9) PORT_CHANGED_MEMBER(DEVICE_SELF, epson_ex800_t, online_switch, nullptr)
+	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("ON LINE")   PORT_CODE(KEYCODE_F9) PORT_CHANGED_MEMBER(DEVICE_SELF, epson_ex800_device, online_switch, 0)
 
 	PORT_START("FEED")
 	PORT_BIT(0xfc, IP_ACTIVE_LOW, IPT_UNUSED)
@@ -337,7 +327,7 @@ INPUT_PORTS_END
 //  input_ports - device-specific input ports
 //-------------------------------------------------
 
-ioport_constructor epson_ex800_t::device_input_ports() const
+ioport_constructor epson_ex800_device::device_input_ports() const
 {
 	return INPUT_PORTS_NAME( epson_ex800 );
 }
@@ -349,11 +339,11 @@ ioport_constructor epson_ex800_t::device_input_ports() const
 //**************************************************************************
 
 //-------------------------------------------------
-//  epson_ex800_t - constructor
+//  epson_ex800_device - constructor
 //-------------------------------------------------
 
-epson_ex800_t::epson_ex800_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, EPSON_EX800, "Epson EX-800", tag, owner, clock, "ex800", __FILE__),
+epson_ex800_device::epson_ex800_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, EPSON_EX800, tag, owner, clock),
 	device_centronics_peripheral_interface(mconfig, *this),
 	m_maincpu(*this, "maincpu"),
 	m_beeper(*this, "beeper"), m_irq_state(0)
@@ -365,7 +355,7 @@ epson_ex800_t::epson_ex800_t(const machine_config &mconfig, const char *tag, dev
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void epson_ex800_t::device_start()
+void epson_ex800_device::device_start()
 {
 	m_irq_state = ASSERT_LINE;
 }
@@ -375,116 +365,116 @@ void epson_ex800_t::device_start()
 //  device_reset - device-specific reset
 //-------------------------------------------------
 
-void epson_ex800_t::device_reset()
+void epson_ex800_device::device_reset()
 {
 	/* Setup beep */
 	m_beeper->set_state(0);
 }
 
 
-READ8_MEMBER(epson_ex800_t::porta_r)
+uint8_t epson_ex800_device::porta_r()
 {
-	logerror("PA R @%x\n", space.device().safe_pc());
+	logerror("PA R %s\n", machine().describe_context());
 	return machine().rand();
 }
 
-READ8_MEMBER(epson_ex800_t::portb_r)
+uint8_t epson_ex800_device::portb_r()
 {
-	logerror("PB R @%x\n", space.device().safe_pc());
+	logerror("PB R %s\n", machine().describe_context());
 	return machine().rand();
 }
 
-READ8_MEMBER(epson_ex800_t::portc_r)
+uint8_t epson_ex800_device::portc_r()
 {
-	logerror("PC R @%x\n", space.device().safe_pc());
+	logerror("PC R %s\n", machine().describe_context());
 	return machine().rand();
 }
 
-WRITE8_MEMBER(epson_ex800_t::porta_w)
+void epson_ex800_device::porta_w(uint8_t data)
 {
 	if (PA6) logerror("BNK0 selected.\n");
 	if (PA7) logerror("BNK1 selected.\n");
 
-	logerror("PA W %x @%x\n", data, space.device().safe_pc());
+	logerror("PA W %x %s\n", data, machine().describe_context());
 }
 
-WRITE8_MEMBER(epson_ex800_t::portb_w)
+void epson_ex800_device::portb_w(uint8_t data)
 {
 	if (data & 3)
-		logerror("PB0/1 Line feed @%x\n", space.device().safe_pc());
+		logerror("PB0/1 Line feed %s\n", machine().describe_context());
 	if (!(data & 4))
-		logerror("PB2 Line feed @%x\n", space.device().safe_pc());
+		logerror("PB2 Line feed %s\n", machine().describe_context());
 	if (data & 8)
-		logerror("PB3 Online LED on @%x\n", space.device().safe_pc());
+		logerror("PB3 Online LED on %s\n", machine().describe_context());
 	else
-		logerror("PB3 Online LED off @%x\n", space.device().safe_pc());
+		logerror("PB3 Online LED off %s\n", machine().describe_context());
 	if (data & 16)
-		logerror("PB4 Serial @%x\n", space.device().safe_pc());
+		logerror("PB4 Serial %s\n", machine().describe_context());
 	if (data & 32)
-		logerror("PB4 Serial @%x\n", space.device().safe_pc());
+		logerror("PB4 Serial %s\n", machine().describe_context());
 	if (data & 64)
-		logerror("PB4 Serial @%x\n", space.device().safe_pc());
+		logerror("PB4 Serial %s\n", machine().describe_context());
 	if (data & 128)
-		logerror("PB3 Paper empty LED on @%x\n", space.device().safe_pc());
+		logerror("PB3 Paper empty LED on %s\n", machine().describe_context());
 	else
-		logerror("PB3 Paper empty LED off @%x\n", space.device().safe_pc());
+		logerror("PB3 Paper empty LED off %s\n", machine().describe_context());
 
-//  logerror("PB W %x @%x\n", data, space.device().safe_pc());
+//  logerror("PB W %x %s\n", data, machine().describe_context());
 }
 
-WRITE8_MEMBER(epson_ex800_t::portc_w)
+void epson_ex800_device::portc_w(uint8_t data)
 {
 	if (data & 0x80)
 		m_beeper->set_state(0);
 	else
 		m_beeper->set_state(1);
 
-	logerror("PC W %x @%x\n", data, space.device().safe_pc());
+	logerror("PC W %x %s\n", data, machine().describe_context());
 }
 
 
 /* Memory mapped I/O access */
 
-READ8_MEMBER(epson_ex800_t::devsel_r)
+READ8_MEMBER(epson_ex800_device::devsel_r)
 {
-	logerror("DEVSEL R @%x with offset %x\n", space.device().safe_pc(), offset);
+	logerror("DEVSEL R %s with offset %x\n", machine().describe_context(), offset);
 	return machine().rand();
 }
 
-WRITE8_MEMBER(epson_ex800_t::devsel_w)
+WRITE8_MEMBER(epson_ex800_device::devsel_w)
 {
-	logerror("DEVSEL W %x @%x with offset %x\n", data, space.device().safe_pc(), offset);
+	logerror("DEVSEL W %x %s with offset %x\n", data, machine().describe_context(), offset);
 }
 
-READ8_MEMBER(epson_ex800_t::gate5a_r)
+READ8_MEMBER(epson_ex800_device::gate5a_r)
 {
-	logerror("GATE5A R @%x with offset %x\n", space.device().safe_pc(), offset);
+	logerror("GATE5A R %s with offset %x\n", machine().describe_context(), offset);
 	return machine().rand();
 }
 
-WRITE8_MEMBER(epson_ex800_t::gate5a_w)
+WRITE8_MEMBER(epson_ex800_device::gate5a_w)
 {
-	logerror("GATE5A W %x @%x with offset %x\n", data, space.device().safe_pc(), offset);
+	logerror("GATE5A W %x %s with offset %x\n", data, machine().describe_context(), offset);
 }
 
-READ8_MEMBER(epson_ex800_t::iosel_r)
+READ8_MEMBER(epson_ex800_device::iosel_r)
 {
-	logerror("IOSEL R @%x with offset %x\n", space.device().safe_pc(), offset);
+	logerror("IOSEL R %s with offset %x\n", machine().describe_context(), offset);
 	return machine().rand();
 }
 
-WRITE8_MEMBER(epson_ex800_t::iosel_w)
+WRITE8_MEMBER(epson_ex800_device::iosel_w)
 {
-	logerror("IOSEL W %x @%x with offset %x\n", data, space.device().safe_pc(), offset);
+	logerror("IOSEL W %x %s with offset %x\n", data, machine().describe_context(), offset);
 }
 
-READ8_MEMBER(epson_ex800_t::gate7a_r)
+READ8_MEMBER(epson_ex800_device::gate7a_r)
 {
-	logerror("GATE7A R @%x with offset %x\n", space.device().safe_pc(), offset);
+	logerror("GATE7A R %s with offset %x\n", machine().describe_context(), offset);
 	return machine().rand();
 }
 
-WRITE8_MEMBER(epson_ex800_t::gate7a_w)
+WRITE8_MEMBER(epson_ex800_device::gate7a_w)
 {
-	logerror("GATE7A W %x @%x with offset %x\n", data, space.device().safe_pc(), offset);
+	logerror("GATE7A W %x %s with offset %x\n", data, machine().describe_context(), offset);
 }

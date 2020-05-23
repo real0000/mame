@@ -41,8 +41,10 @@ Tomasz Slanina 20050225
 #include "machine/i8255.h"
 #include "machine/nvram.h"
 #include "sound/ay8910.h"
+#include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
+#include "tilemap.h"
 
 
 class vroulet_state : public driver_device
@@ -58,6 +60,9 @@ public:
 		m_colorram(*this, "colorram"),
 		m_ball(*this, "ball") { }
 
+	void vroulet(machine_config &config);
+
+private:
 	required_device<cpu_device> m_maincpu;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<palette_device> m_palette;
@@ -72,15 +77,17 @@ public:
 	DECLARE_WRITE8_MEMBER(paletteram_w);
 	DECLARE_WRITE8_MEMBER(videoram_w);
 	DECLARE_WRITE8_MEMBER(colorram_w);
-	DECLARE_WRITE8_MEMBER(ppi8255_a_w);
-	DECLARE_WRITE8_MEMBER(ppi8255_b_w);
-	DECLARE_WRITE8_MEMBER(ppi8255_c_w);
+	void ppi8255_a_w(uint8_t data);
+	void ppi8255_b_w(uint8_t data);
+	void ppi8255_c_w(uint8_t data);
 
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 
 	virtual void video_start() override;
 
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void vroulet_io_map(address_map &map);
+	void vroulet_map(address_map &map);
 };
 
 
@@ -125,14 +132,14 @@ TILE_GET_INFO_MEMBER(vroulet_state::get_bg_tile_info)
 	int code = m_videoram[tile_index] + ((attr & 0xc0) << 2);
 	int color = attr & 0x1f;
 
-	SET_TILE_INFO_MEMBER(0, code, color, 0);
+	tileinfo.set(0, code, color, 0);
 }
 
 void vroulet_state::video_start()
 {
 	m_bg_tilemap = &machine().tilemap().create(
 			*m_gfxdecode,
-			tilemap_get_info_delegate(FUNC(vroulet_state::get_bg_tile_info),this),
+			tilemap_get_info_delegate(*this, FUNC(vroulet_state::get_bg_tile_info)),
 			TILEMAP_SCAN_ROWS,
 			8, 8, 32, 32);
 }
@@ -147,24 +154,26 @@ uint32_t vroulet_state::screen_update(screen_device &screen, bitmap_ind16 &bitma
 
 /* Memory Maps */
 
-static ADDRESS_MAP_START( vroulet_map, AS_PROGRAM, 8, vroulet_state )
-	AM_RANGE(0x0000, 0x5fff) AM_ROM
-	AM_RANGE(0x6000, 0x67ff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0x8000, 0x8000) AM_NOP
-	AM_RANGE(0x9000, 0x93ff) AM_RAM_WRITE(videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0x9400, 0x97ff) AM_RAM_WRITE(colorram_w) AM_SHARE("colorram")
-	AM_RANGE(0xa000, 0xa001) AM_RAM AM_SHARE("ball")
-	AM_RANGE(0xb000, 0xb0ff) AM_WRITE(paletteram_w) AM_SHARE("paletteram")
-	AM_RANGE(0xc000, 0xc000) AM_NOP
-ADDRESS_MAP_END
+void vroulet_state::vroulet_map(address_map &map)
+{
+	map(0x0000, 0x5fff).rom();
+	map(0x6000, 0x67ff).ram().share("nvram");
+	map(0x8000, 0x8000).noprw();
+	map(0x9000, 0x93ff).ram().w(FUNC(vroulet_state::videoram_w)).share("videoram");
+	map(0x9400, 0x97ff).ram().w(FUNC(vroulet_state::colorram_w)).share("colorram");
+	map(0xa000, 0xa001).ram().share("ball");
+	map(0xb000, 0xb0ff).w(FUNC(vroulet_state::paletteram_w)).share("paletteram");
+	map(0xc000, 0xc000).noprw();
+}
 
-static ADDRESS_MAP_START( vroulet_io_map, AS_IO, 8, vroulet_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_DEVREAD("aysnd", ay8910_device, data_r)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
-	AM_RANGE(0x10, 0x13) AM_DEVREADWRITE("ppi8255_0", i8255_device, read, write)
-	AM_RANGE(0x80, 0x83) AM_DEVREADWRITE("ppi8255_1", i8255_device, read, write)
-ADDRESS_MAP_END
+void vroulet_state::vroulet_io_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0x00, 0x00).r("aysnd", FUNC(ym2149_device::data_r));
+	map(0x00, 0x01).w("aysnd", FUNC(ym2149_device::data_address_w));
+	map(0x10, 0x13).rw("ppi8255_0", FUNC(i8255_device::read), FUNC(i8255_device::write));
+	map(0x80, 0x83).rw("ppi8255_1", FUNC(i8255_device::read), FUNC(i8255_device::write));
+}
 
 /* Input Ports */
 
@@ -259,58 +268,58 @@ static const gfx_layout charlayout =
 
 /* Graphics Decode Information */
 
-static GFXDECODE_START( vroulet )
+static GFXDECODE_START( gfx_vroulet )
 	GFXDECODE_ENTRY( "gfx1", 0x0000, charlayout,    0, 32 )
 GFXDECODE_END
 
 /* PPI8255 Interface */
 
-WRITE8_MEMBER(vroulet_state::ppi8255_a_w){}// watchdog ?
-WRITE8_MEMBER(vroulet_state::ppi8255_b_w){}// lamps ?
-WRITE8_MEMBER(vroulet_state::ppi8255_c_w){}
+void vroulet_state::ppi8255_a_w(uint8_t data) {}// watchdog ?
+void vroulet_state::ppi8255_b_w(uint8_t data) {}// lamps ?
+void vroulet_state::ppi8255_c_w(uint8_t data) {}
 
 /* Machine Driver */
 
-static MACHINE_CONFIG_START( vroulet, vroulet_state )
+void vroulet_state::vroulet(machine_config &config)
+{
 	// basic machine hardware
-	MCFG_CPU_ADD("maincpu", Z80, 4000000)   //???
-	MCFG_CPU_PROGRAM_MAP(vroulet_map)
-	MCFG_CPU_IO_MAP(vroulet_io_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", vroulet_state,  irq0_line_hold)
+	Z80(config, m_maincpu, 4000000);   //???
+	m_maincpu->set_addrmap(AS_PROGRAM, &vroulet_state::vroulet_map);
+	m_maincpu->set_addrmap(AS_IO, &vroulet_state::vroulet_io_map);
+	m_maincpu->set_vblank_int("screen", FUNC(vroulet_state::irq0_line_hold));
 
-	MCFG_NVRAM_ADD_1FILL("nvram")
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+	i8255_device &ppi0(I8255A(config, "ppi8255_0"));
+	ppi0.in_pa_callback().set_ioport("IN0");
+	ppi0.in_pb_callback().set_ioport("IN1");
+	ppi0.in_pc_callback().set_ioport("IN2");
 
-	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
-	MCFG_I8255_OUT_PORTA_CB(WRITE8(vroulet_state, ppi8255_a_w))
-	MCFG_I8255_OUT_PORTB_CB(WRITE8(vroulet_state, ppi8255_b_w))
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(vroulet_state, ppi8255_c_w))
+	i8255_device &ppi1(I8255A(config, "ppi8255_1"));
+	ppi1.out_pa_callback().set(FUNC(vroulet_state::ppi8255_a_w));
+	ppi1.out_pb_callback().set(FUNC(vroulet_state::ppi8255_b_w));
+	ppi1.out_pc_callback().set(FUNC(vroulet_state::ppi8255_c_w));
 
 	// video hardware
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(vroulet_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(32*8, 32*8);
+	screen.set_visarea(0*8, 32*8-1, 2*8, 30*8-1);
+	screen.set_screen_update(FUNC(vroulet_state::screen_update));
+	screen.set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", vroulet)
-	MCFG_PALETTE_ADD("palette", 128*4)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_vroulet);
+	PALETTE(config, m_palette).set_entries(128*4);
 
 	// sound hardware
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("aysnd", AY8910, 2000000)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSWA"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSWB"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-
-MACHINE_CONFIG_END
+	ym2149_device &aysnd(YM2149(config, "aysnd", 2000000));
+	aysnd.port_a_read_callback().set_ioport("DSWA");
+	aysnd.port_b_read_callback().set_ioport("DSWB");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.25);
+}
 
 /* ROMs */
 
@@ -326,4 +335,4 @@ ROM_END
 
 /* Game Driver */
 
-GAME( 1989, vroulet, 0, vroulet, vroulet, driver_device, 0, ROT90, "World Game", "Vegas Roulette", MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_COLORS | MACHINE_SUPPORTS_SAVE )
+GAME( 1989, vroulet, 0, vroulet, vroulet, vroulet_state, empty_init, ROT90, "World Game", "Vegas Roulette", MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_COLORS | MACHINE_SUPPORTS_SAVE )

@@ -1,9 +1,9 @@
 // license:BSD-3-Clause
 // copyright-holders:Carl
-#pragma once
+#ifndef MAME_BUS_ISA_MCD_H
+#define MAME_BUS_ISA_MCD_H
 
-#ifndef __MCD_H__
-#define __MCD_H__
+#pragma once
 
 #include "isa.h"
 #include "imagedev/chd_cd.h"
@@ -21,21 +21,25 @@ public:
 	// construction/destruction
 	mcd_isa_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
+protected:
 	// optional information overrides
 	virtual ioport_constructor device_input_ports() const override;
 
-	DECLARE_ADDRESS_MAP(map, 16);
-
-	DECLARE_READ8_MEMBER(data_r);
-	DECLARE_READ8_MEMBER(flag_r);
-	DECLARE_WRITE8_MEMBER(cmd_w);
-	DECLARE_WRITE8_MEMBER(reset_w);
 	virtual uint16_t dack16_r(int line) override;
+
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+
 private:
+	DECLARE_READ8_MEMBER(data_r);
+	DECLARE_READ8_MEMBER(flag_r);
+	DECLARE_WRITE8_MEMBER(cmd_w);
+	DECLARE_WRITE8_MEMBER(reset_w);
+
+	void map(address_map &map);
+
 	bool read_sector(bool first = false);
 
 	bool m_change;
@@ -113,6 +117,6 @@ private:
 
 
 // device type definition
-extern const device_type ISA16_MCD;
+DECLARE_DEVICE_TYPE(ISA16_MCD, mcd_isa_device)
 
-#endif
+#endif // MAME_BUS_ISA_MCD_H

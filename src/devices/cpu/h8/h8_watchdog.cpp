@@ -1,13 +1,13 @@
 #include "emu.h"
 #include "h8_watchdog.h"
 
-const device_type H8_WATCHDOG = device_creator<h8_watchdog_device>;
+DEFINE_DEVICE_TYPE(H8_WATCHDOG, h8_watchdog_device, "h8_watchdog", "H8 watchdog")
 
 const int h8_watchdog_device::div_bh[8] = { 1, 6, 7, 9, 11, 13, 15, 17 };
 const int h8_watchdog_device::div_s [8] = { 1, 5, 6, 7,  8,  9, 11, 12 };
 
 h8_watchdog_device::h8_watchdog_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, H8_WATCHDOG, "H8 watchdog", tag, owner, clock, "h8_watchdog", __FILE__),
+	device_t(mconfig, H8_WATCHDOG, tag, owner, clock),
 	cpu(*this, DEVICE_SELF_OWNER)
 {
 }
@@ -67,9 +67,11 @@ void h8_watchdog_device::tcnt_update(uint64_t cur_time)
 
 READ16_MEMBER(h8_watchdog_device::wd_r)
 {
-	tcnt_update();
-
-	logerror("read\n");
+	if (!machine().side_effects_disabled())
+	{
+		tcnt_update();
+		logerror("read\n");
+	}
 	return 0;
 }
 
@@ -99,7 +101,8 @@ WRITE16_MEMBER(h8_watchdog_device::wd_w)
 
 READ16_MEMBER(h8_watchdog_device::rst_r)
 {
-	logerror("rst_r\n");
+	if (!machine().side_effects_disabled())
+		logerror("rst_r\n");
 	return 0;
 }
 

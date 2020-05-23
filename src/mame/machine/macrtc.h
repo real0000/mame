@@ -7,21 +7,12 @@
 
 **********************************************************************/
 
+#ifndef MAME_MACHINE_MACRTC_H
+#define MAME_MACHINE_MACRTC_H
+
 #pragma once
 
-#ifndef __RTC3430042_H__
-#define __RTC3430042_H__
-
 #include "dirtc.h"
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_RTC3430042_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, RTC3430042, _clock)
-
 
 
 //**************************************************************************
@@ -96,6 +87,6 @@ private:
 
 
 // device type definition
-extern const device_type RTC3430042;
+DECLARE_DEVICE_TYPE(RTC3430042, rtc3430042_device)
 
-#endif
+#endif // MAME_MACHINE_MACRTC_H

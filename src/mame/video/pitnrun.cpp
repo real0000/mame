@@ -26,7 +26,7 @@ In debug build press 'w' for spotlight and 'e' for lightning
 TILE_GET_INFO_MEMBER(pitnrun_state::get_tile_info1)
 {
 	int code = m_videoram[tile_index];
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 		code,
 		0,
 		0);
@@ -35,7 +35,7 @@ TILE_GET_INFO_MEMBER(pitnrun_state::get_tile_info1)
 TILE_GET_INFO_MEMBER(pitnrun_state::get_tile_info2)
 {
 	int code = m_videoram2[tile_index];
-	SET_TILE_INFO_MEMBER(1,
+	tileinfo.set(1,
 		code + (m_char_bank<<8),
 		m_color_select&1,
 		0);
@@ -53,13 +53,10 @@ WRITE8_MEMBER(pitnrun_state::videoram2_w)
 	m_bg ->mark_all_dirty();
 }
 
-WRITE8_MEMBER(pitnrun_state::char_bank_select)
+WRITE_LINE_MEMBER(pitnrun_state::char_bank_select_w)
 {
-	if(m_char_bank!=data)
-	{
-		m_bg ->mark_all_dirty();
-		m_char_bank=data;
-	}
+	m_char_bank = state;
+	m_bg->mark_all_dirty();
 }
 
 
@@ -67,6 +64,11 @@ WRITE8_MEMBER(pitnrun_state::scroll_w)
 {
 	m_scroll = (m_scroll & (0xff<<((offset)?0:8))) |( data<<((offset)?8:0));
 	m_bg->set_scrollx(0, m_scroll);
+}
+
+WRITE8_MEMBER(pitnrun_state::scroll_y_w)
+{
+	m_bg->set_scrolly(0, data);
 }
 
 WRITE8_MEMBER(pitnrun_state::ha_w)
@@ -84,81 +86,92 @@ WRITE8_MEMBER(pitnrun_state::v_heed_w)
 	m_v_heed=data;
 }
 
-WRITE8_MEMBER(pitnrun_state::color_select_w)
+WRITE_LINE_MEMBER(pitnrun_state::color_select_w)
 {
-	m_color_select=data;
+	m_color_select = state;
 	machine().tilemap().mark_all_dirty();
 }
 
 void pitnrun_state::spotlights()
 {
-	int x,y,i,b,datapix;
-	uint8_t *ROM = memregion("user1")->base();
-	for(i=0;i<4;i++)
-		for(y=0;y<128;y++)
-		for(x=0;x<16;x++)
+	uint8_t const *const ROM = memregion("spot")->base();
+	for (int i=0; i<4; i++)
+	{
+		for (int y=0; y<128; y++)
 		{
-		datapix=ROM[128*16*i+x+y*16];
-		for(b=0;b<8;b++)
-		{
-			m_tmp_bitmap[i]->pix16(y, x*8+(7-b)) = (datapix&1);
-			datapix>>=1;
+			for (int x=0; x<16; x++)
+			{
+				int datapix = ROM[128*16*i + x + y*16];
+				for(int b=0; b<8; b++)
+				{
+					m_tmp_bitmap[i]->pix16(y, x*8 + (7 - b)) = (datapix & 1);
+					datapix>>=1;
+				}
+			}
 		}
-		}
+	}
 }
 
 
-PALETTE_INIT_MEMBER(pitnrun_state, pitnrun)
+void pitnrun_state::pitnrun_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
-	int bit0,bit1,bit2,r,g,b;
-	for (i = 0;i < 32*3; i++)
-	{
-		bit0 = (color_prom[i] >> 0) & 0x01;
-		bit1 = (color_prom[i] >> 1) & 0x01;
-		bit2 = (color_prom[i] >> 2) & 0x01;
-		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
-		bit0 = (color_prom[i] >> 3) & 0x01;
-		bit1 = (color_prom[i] >> 4) & 0x01;
-		bit2 = (color_prom[i] >> 5) & 0x01;
-		g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
-		bit0 = 0;
-		bit1 = (color_prom[i] >> 6) & 0x01;
-		bit2 = (color_prom[i] >> 7) & 0x01;
-		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+	uint8_t const *const color_prom = memregion("proms")->base();
 
-		palette.set_pen_color(i,rgb_t(r,g,b));
+	for (int i = 0; i < 32*3; i++)
+	{
+		int bit0, bit1, bit2;
+
+		bit0 = BIT(color_prom[i], 0);
+		bit1 = BIT(color_prom[i], 1);
+		bit2 = BIT(color_prom[i], 2);
+		int const r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+
+		bit0 = BIT(color_prom[i], 3);
+		bit1 = BIT(color_prom[i], 4);
+		bit2 = BIT(color_prom[i], 5);
+		int const g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+
+		bit0 = 0;
+		bit1 = BIT(color_prom[i], 6);
+		bit2 = BIT(color_prom[i], 7);
+		int const b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 
-	/* fake bg palette for lightning effect*/
-	for(i=2*16;i<2*16+16;i++)
+	// fake bg palette for lightning effect
+	for (int i = 2*16; i < 2*16 + 16; i++)
 	{
-		bit0 = (color_prom[i] >> 0) & 0x01;
-		bit1 = (color_prom[i] >> 1) & 0x01;
-		bit2 = (color_prom[i] >> 2) & 0x01;
-		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
-		bit0 = (color_prom[i] >> 3) & 0x01;
-		bit1 = (color_prom[i] >> 4) & 0x01;
-		bit2 = (color_prom[i] >> 5) & 0x01;
-		g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
-		bit0 = 0;
-		bit1 = (color_prom[i] >> 6) & 0x01;
-		bit2 = (color_prom[i] >> 7) & 0x01;
-		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
-		r/=3;
-		g/=3;
-		b/=3;
+		int bit0, bit1, bit2;
 
-		palette.set_pen_color(i+16,(r>0xff)?0xff:r,(g>0xff)?0xff:g,(b>0xff)?0xff:b);
+		bit0 = BIT(color_prom[i], 0);
+		bit1 = BIT(color_prom[i], 1);
+		bit2 = BIT(color_prom[i], 2);
+		int r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+
+		bit0 = BIT(color_prom[i], 3);
+		bit1 = BIT(color_prom[i], 4);
+		bit2 = BIT(color_prom[i], 5);
+		int g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+
+		bit0 = 0;
+		bit1 = BIT(color_prom[i], 6);
+		bit2 = BIT(color_prom[i], 7);
+		int b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
+
+		r /= 3;
+		g /= 3;
+		b /= 3;
+
+		palette.set_pen_color(i + 16, (r > 0xff) ? 0xff : r, (g > 0xff) ? 0xff : g, (b > 0xff) ? 0xff : b);
 
 	}
 }
 
 void pitnrun_state::video_start()
 {
-	m_fg = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(pitnrun_state::get_tile_info1),this),TILEMAP_SCAN_ROWS,8,8,32,32 );
-	m_bg = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(pitnrun_state::get_tile_info2),this),TILEMAP_SCAN_ROWS,8,8,32*4,32 );
+	m_fg = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(pitnrun_state::get_tile_info1)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(pitnrun_state::get_tile_info2)), TILEMAP_SCAN_ROWS, 8, 8, 32*4, 32);
 	m_fg->set_transparent_pen(0 );
 	m_tmp_bitmap[0] = std::make_unique<bitmap_ind16>(128,128);
 	m_tmp_bitmap[1] = std::make_unique<bitmap_ind16>(128,128);
@@ -184,7 +197,7 @@ void pitnrun_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect
 		pal=spriteram[offs+2]&0x3;
 
 		sy = 256-spriteram[offs+0]-16;
-		sx = spriteram[offs+3];
+		sx = spriteram[offs+3]+1; // +1 needed to properly align Jump Kun
 		flipy = (spriteram[offs+1]&0x80)>>7;
 		flipx = (spriteram[offs+1]&0x40)>>6;
 

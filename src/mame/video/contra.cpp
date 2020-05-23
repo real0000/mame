@@ -21,21 +21,17 @@
 **
 ***************************************************************************/
 
-PALETTE_INIT_MEMBER(contra_state, contra)
+void contra_state::contra_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	int chip;
+	uint8_t const *const color_prom = memregion("proms")->base();
 
-	for (chip = 0; chip < 2; chip++)
+	for (int chip = 0; chip < 2; chip++)
 	{
-		int pal;
-
-		for (pal = 0; pal < 8; pal++)
+		for (int pal = 0; pal < 8; pal++)
 		{
-			int i;
-			int clut = (chip << 1) | (pal & 1);
+			int const clut = (chip << 1) | (pal & 1);
 
-			for (i = 0; i < 0x100; i++)
+			for (int i = 0; i < 0x100; i++)
 			{
 				uint8_t ctabentry;
 
@@ -60,10 +56,10 @@ PALETTE_INIT_MEMBER(contra_state, contra)
 
 TILE_GET_INFO_MEMBER(contra_state::get_fg_tile_info)
 {
-	uint8_t ctrl_3 = m_k007121_1->ctrlram_r(generic_space(), 3);
-	uint8_t ctrl_4 = m_k007121_1->ctrlram_r(generic_space(), 4);
-	uint8_t ctrl_5 = m_k007121_1->ctrlram_r(generic_space(), 5);
-	uint8_t ctrl_6 = m_k007121_1->ctrlram_r(generic_space(), 6);
+	uint8_t ctrl_3 = m_k007121_1->ctrlram_r(3);
+	uint8_t ctrl_4 = m_k007121_1->ctrlram_r(4);
+	uint8_t ctrl_5 = m_k007121_1->ctrlram_r(5);
+	uint8_t ctrl_6 = m_k007121_1->ctrlram_r(6);
 	int attr = m_fg_cram[tile_index];
 	int bit0 = (ctrl_5 >> 0) & 0x03;
 	int bit1 = (ctrl_5 >> 2) & 0x03;
@@ -79,7 +75,7 @@ TILE_GET_INFO_MEMBER(contra_state::get_fg_tile_info)
 
 	bank = (bank & ~(mask << 1)) | ((ctrl_4 & mask) << 1);
 
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 			m_fg_vram[tile_index] + bank * 256,
 			((ctrl_6 & 0x30) * 2 + 16) + (attr & 7),
 			0);
@@ -87,10 +83,10 @@ TILE_GET_INFO_MEMBER(contra_state::get_fg_tile_info)
 
 TILE_GET_INFO_MEMBER(contra_state::get_bg_tile_info)
 {
-	uint8_t ctrl_3 = m_k007121_2->ctrlram_r(generic_space(), 3);
-	uint8_t ctrl_4 = m_k007121_2->ctrlram_r(generic_space(), 4);
-	uint8_t ctrl_5 = m_k007121_2->ctrlram_r(generic_space(), 5);
-	uint8_t ctrl_6 = m_k007121_2->ctrlram_r(generic_space(), 6);
+	uint8_t ctrl_3 = m_k007121_2->ctrlram_r(3);
+	uint8_t ctrl_4 = m_k007121_2->ctrlram_r(4);
+	uint8_t ctrl_5 = m_k007121_2->ctrlram_r(5);
+	uint8_t ctrl_6 = m_k007121_2->ctrlram_r(6);
 	int attr = m_bg_cram[tile_index];
 	int bit0 = (ctrl_5 >> 0) & 0x03;
 	int bit1 = (ctrl_5 >> 2) & 0x03;
@@ -107,7 +103,7 @@ TILE_GET_INFO_MEMBER(contra_state::get_bg_tile_info)
 	// 2009-12 FP: TO BE VERIFIED - old code used ctrl4 from chip 0?!?
 	bank = (bank & ~(mask << 1)) | ((ctrl_4 & mask) << 1);
 
-	SET_TILE_INFO_MEMBER(1,
+	tileinfo.set(1,
 			m_bg_vram[tile_index] + bank * 256,
 			((ctrl_6 & 0x30) * 2 + 16) + (attr & 7),
 			0);
@@ -115,8 +111,8 @@ TILE_GET_INFO_MEMBER(contra_state::get_bg_tile_info)
 
 TILE_GET_INFO_MEMBER(contra_state::get_tx_tile_info)
 {
-	uint8_t ctrl_5 = m_k007121_1->ctrlram_r(generic_space(), 5);
-	uint8_t ctrl_6 = m_k007121_1->ctrlram_r(generic_space(), 6);
+	uint8_t ctrl_5 = m_k007121_1->ctrlram_r(5);
+	uint8_t ctrl_6 = m_k007121_1->ctrlram_r(6);
 	int attr = m_tx_cram[tile_index];
 	int bit0 = (ctrl_5 >> 0) & 0x03;
 	int bit1 = (ctrl_5 >> 2) & 0x03;
@@ -128,7 +124,7 @@ TILE_GET_INFO_MEMBER(contra_state::get_tx_tile_info)
 			((attr >> (bit2    )) & 0x08) |
 			((attr >> (bit3 - 1)) & 0x10);
 
-	SET_TILE_INFO_MEMBER(0,
+	tileinfo.set(0,
 			m_tx_vram[tile_index] + bank * 256,
 			((ctrl_6 & 0x30) * 2 + 16) + (attr & 7),
 			0);
@@ -143,9 +139,9 @@ TILE_GET_INFO_MEMBER(contra_state::get_tx_tile_info)
 
 void contra_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(contra_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(contra_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_tx_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(contra_state::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(contra_state::get_bg_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(contra_state::get_fg_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_tx_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(contra_state::get_tx_tile_info)), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_buffered_spriteram = std::make_unique<uint8_t[]>(0x800);
 	m_buffered_spriteram_2 = std::make_unique<uint8_t[]>(0x800);
@@ -161,8 +157,8 @@ void contra_state::video_start()
 
 	m_fg_tilemap->set_transparent_pen(0);
 
-	save_pointer(NAME(m_buffered_spriteram.get()), 0x800);
-	save_pointer(NAME(m_buffered_spriteram_2.get()), 0x800);
+	save_pointer(NAME(m_buffered_spriteram), 0x800);
+	save_pointer(NAME(m_buffered_spriteram_2), 0x800);
 }
 
 
@@ -210,7 +206,7 @@ WRITE8_MEMBER(contra_state::contra_text_cram_w)
 
 WRITE8_MEMBER(contra_state::contra_K007121_ctrl_0_w)
 {
-	uint8_t ctrl_6 = m_k007121_1->ctrlram_r(space, 6);
+	uint8_t ctrl_6 = m_k007121_1->ctrlram_r(6);
 
 	if (offset == 3)
 	{
@@ -229,19 +225,19 @@ WRITE8_MEMBER(contra_state::contra_K007121_ctrl_0_w)
 	if (offset == 7)
 		m_fg_tilemap->set_flip((data & 0x08) ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);
 
-	m_k007121_1->ctrl_w(space, offset, data);
+	m_k007121_1->ctrl_w(offset, data);
 }
 
 WRITE8_MEMBER(contra_state::contra_K007121_ctrl_1_w)
 {
-	uint8_t ctrl_6 = m_k007121_2->ctrlram_r(space, 6);
+	uint8_t ctrl_6 = m_k007121_2->ctrlram_r(6);
 
 	if (offset == 3)
 	{
 		if ((data & 0x8) == 0)
-			memcpy(m_buffered_spriteram_2.get(), m_spriteram + 0x2800, 0x800);
+			memcpy(m_buffered_spriteram_2.get(), m_spriteram_2 + 0x800, 0x800);
 		else
-			memcpy(m_buffered_spriteram_2.get(), m_spriteram + 0x2000, 0x800);
+			memcpy(m_buffered_spriteram_2.get(), m_spriteram_2 + 0x000, 0x800);
 	}
 	if (offset == 6)
 	{
@@ -251,7 +247,7 @@ WRITE8_MEMBER(contra_state::contra_K007121_ctrl_1_w)
 	if (offset == 7)
 		m_bg_tilemap->set_flip((data & 0x08) ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);
 
-	m_k007121_2->ctrl_w(space, offset, data);
+	m_k007121_2->ctrl_w(offset, data);
 }
 
 
@@ -265,8 +261,7 @@ WRITE8_MEMBER(contra_state::contra_K007121_ctrl_1_w)
 void contra_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap, int bank )
 {
 	k007121_device *k007121 = bank ? m_k007121_2 : m_k007121_1;
-	address_space &space = machine().dummy_space();
-	int base_color = (k007121->ctrlram_r(space, 6) & 0x30) * 2;
+	int base_color = (k007121->ctrlram_r(6) & 0x30) * 2;
 	const uint8_t *source;
 
 	if (bank == 0)
@@ -279,11 +274,10 @@ void contra_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect,
 
 uint32_t contra_state::screen_update_contra(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	address_space &space = machine().dummy_space();
-	uint8_t ctrl_1_0 = m_k007121_1->ctrlram_r(space, 0);
-	uint8_t ctrl_1_2 = m_k007121_1->ctrlram_r(space, 2);
-	uint8_t ctrl_2_0 = m_k007121_2->ctrlram_r(space, 0);
-	uint8_t ctrl_2_2 = m_k007121_2->ctrlram_r(space, 2);
+	uint8_t ctrl_1_0 = m_k007121_1->ctrlram_r(0);
+	uint8_t ctrl_1_2 = m_k007121_1->ctrlram_r(2);
+	uint8_t ctrl_2_0 = m_k007121_2->ctrlram_r(0);
+	uint8_t ctrl_2_2 = m_k007121_2->ctrlram_r(2);
 	rectangle bg_finalclip = m_bg_clip;
 	rectangle fg_finalclip = m_fg_clip;
 	rectangle tx_finalclip = m_tx_clip;

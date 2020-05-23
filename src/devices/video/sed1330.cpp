@@ -8,14 +8,16 @@
 
 #include "emu.h"
 #include "sed1330.h"
+#include "screen.h"
+
+//#define VERBOSE 1
+#include "logmacro.h"
 
 
 
 //**************************************************************************
 //  MACROS / CONSTANTS
 //**************************************************************************
-
-#define LOG 0
 
 
 #define INSTRUCTION_SYSTEM_SET      0x40
@@ -32,9 +34,9 @@
 #define INSTRUCTION_HDOT_SCR        0x5a
 #define INSTRUCTION_OVLAY           0x5b
 #define INSTRUCTION_CSRW            0x46
-#define INSTRUCTION_CSRR            0x47    // unimplemented
+#define INSTRUCTION_CSRR            0x47
 #define INSTRUCTION_MWRITE          0x42
-#define INSTRUCTION_MREAD           0x43    // unimplemented
+#define INSTRUCTION_MREAD           0x43
 
 
 #define CSRDIR_RIGHT                0x00
@@ -50,9 +52,15 @@
 
 
 #define FC_OFF                      0x00
-#define FC_SOLID                    0x01    // unimplemented
+#define FC_SOLID                    0x01
 #define FC_FLASH_32                 0x02    // unimplemented
 #define FC_FLASH_64                 0x03    // unimplemented
+
+
+#define FP_OFF                      0x00
+#define FP_SOLID                    0x01
+#define FP_FLASH_32                 0x02    // unimplemented
+#define FP_FLASH_4                  0x03    // unimplemented
 
 
 
@@ -61,13 +69,15 @@
 //**************************************************************************
 
 // device type definition
-const device_type SED1330 = device_creator<sed1330_device>;
+DEFINE_DEVICE_TYPE(SED1330, sed1330_device, "sed1330", "Epson SED1330")
 
 
 // default address map
-static ADDRESS_MAP_START( sed1330, AS_0, 8, sed1330_device )
-	AM_RANGE(0x0000, 0xffff) AM_RAM
-ADDRESS_MAP_END
+void sed1330_device::sed1330(address_map &map)
+{
+	if (!has_configured_map(0))
+		map(0x0000, 0xffff).ram();
+}
 
 
 // internal character generator ROM
@@ -139,11 +149,11 @@ inline void sed1330_device::increment_csr()
 //-------------------------------------------------
 
 sed1330_device::sed1330_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, SED1330, "SED1330", tag, owner, clock, "sed1330", __FILE__),
+	: device_t(mconfig, SED1330, tag, owner, clock),
 		device_memory_interface(mconfig, *this),
 		device_video_interface(mconfig, *this),
 		m_bf(0),
-		m_space_config("videoram", ENDIANNESS_LITTLE, 8, 16, 0, nullptr, *ADDRESS_MAP_NAME(sed1330))
+		m_space_config("videoram", ENDIANNESS_LITTLE, 8, 16, 0, address_map_constructor(FUNC(sed1330_device::sed1330), this))
 {
 }
 
@@ -164,6 +174,8 @@ const tiny_rom_entry *sed1330_device::device_rom_region() const
 
 void sed1330_device::device_start()
 {
+	m_cache = space().cache<0, 0, ENDIANNESS_LITTLE>();
+
 	// register for state saving
 	save_item(NAME(m_bf));
 	save_item(NAME(m_ir));
@@ -218,9 +230,11 @@ void sed1330_device::device_reset()
 //  any address spaces owned by this device
 //-------------------------------------------------
 
-const address_space_config *sed1330_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector sed1330_device::memory_space_config() const
 {
-	return (spacenum == AS_0) ? &m_space_config : nullptr;
+	return space_config_vector {
+		std::make_pair(0, &m_space_config)
+	};
 }
 
 
@@ -228,9 +242,10 @@ const address_space_config *sed1330_device::memory_space_config(address_spacenum
 //  status_r -
 //-------------------------------------------------
 
-READ8_MEMBER( sed1330_device::status_r )
+uint8_t sed1330_device::status_r()
 {
-	if (LOG) logerror("SED1330 '%s' Status Read: %s\n", tag(), m_bf ? "busy" : "ready");
+	if (!machine().side_effects_disabled())
+		LOG("SED1330 Status Read: %s\n", m_bf ? "busy" : "ready");
 
 	return m_bf << 6;
 }
@@ -240,7 +255,7 @@ READ8_MEMBER( sed1330_device::status_r )
 //  command_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( sed1330_device::command_w )
+void sed1330_device::command_w(uint8_t data)
 {
 	m_ir = data;
 	m_pbc = 0;
@@ -257,15 +272,12 @@ WRITE8_MEMBER( sed1330_device::command_w )
 	case INSTRUCTION_CSRDIR_DOWN:
 		m_cd = data & 0x03;
 
-		if (LOG)
+		switch (m_cd)
 		{
-			switch (m_cd)
-			{
-			case CSRDIR_RIGHT:  logerror("SED1330 '%s' Cursor Direction: Right\n", tag());  break;
-			case CSRDIR_LEFT:   logerror("SED1330 '%s' Cursor Direction: Left\n", tag());   break;
-			case CSRDIR_UP:     logerror("SED1330 '%s' Cursor Direction: Up\n", tag());     break;
-			case CSRDIR_DOWN:   logerror("SED1330 '%s' Cursor Direction: Down\n", tag());   break;
-			}
+		case CSRDIR_RIGHT:  LOG("SED1330 Cursor Direction: Right\n");  break;
+		case CSRDIR_LEFT:   LOG("SED1330 Cursor Direction: Left\n");   break;
+		case CSRDIR_UP:     LOG("SED1330 Cursor Direction: Up\n");     break;
+		case CSRDIR_DOWN:   LOG("SED1330 Cursor Direction: Down\n");   break;
 		}
 		break;
 	}
@@ -276,13 +288,46 @@ WRITE8_MEMBER( sed1330_device::command_w )
 //  data_r -
 //-------------------------------------------------
 
-READ8_MEMBER( sed1330_device::data_r )
+uint8_t sed1330_device::data_r()
 {
-	uint8_t data = readbyte(m_csr);
+	uint8_t data = 0;
 
-	if (LOG) logerror("SED1330 '%s' Memory Read %02x from %04x\n", tag(), data, m_csr);
+	switch (m_ir)
+	{
+	case INSTRUCTION_MREAD:
+		data = readbyte(m_csr);
+		if (!machine().side_effects_disabled())
+		{
+			LOG("SED1330 Memory Read %02x from %04x\n", data, m_csr);
+			increment_csr();
+		}
+		break;
 
-	increment_csr();
+	case INSTRUCTION_CSRR:
+		switch (m_pbc)
+		{
+		case 0:
+			data = m_csr & 0xff;
+			break;
+
+		case 1:
+			data = (m_csr & 0xff00) >> 8;
+			break;
+
+		default:
+			logerror("SED1330 Invalid parameter byte %02x\n", data);
+		}
+		if (!machine().side_effects_disabled())
+		{
+			LOG("SED1330 Cursor Byte %d Read %02x\n", m_pbc, data);
+			m_pbc++;
+		}
+		break;
+
+	default:
+		logerror("SED1330 Unsupported instruction %02x\n", m_ir);
+		break;
+	}
 
 	return data;
 }
@@ -292,7 +337,7 @@ READ8_MEMBER( sed1330_device::data_r )
 //  data_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( sed1330_device::data_w )
+void sed1330_device::data_w(uint8_t data)
 {
 	switch (m_ir)
 	{
@@ -306,45 +351,45 @@ WRITE8_MEMBER( sed1330_device::data_w )
 			m_ws = BIT(data, 3);
 			m_iv = BIT(data, 5);
 
-			if (LOG)
-			{
-				logerror("SED1330 '%s' %s CG ROM\n", tag(), BIT(data, 0) ? "External" : "Internal");
-				logerror("SED1330 '%s' D6 Correction: %s\n", tag(), BIT(data, 1) ? "enabled" : "disabled");
-				logerror("SED1330 '%s' Character Height: %u\n", tag(), BIT(data, 2) ? 16 : 8);
-				logerror("SED1330 '%s' %s Panel Drive\n", tag(), BIT(data, 3) ? "Dual" : "Single");
-				logerror("SED1330 '%s' Screen Top-Line Correction: %s\n", tag(), BIT(data, 5) ? "disabled" : "enabled");
-			}
+			LOG("SED1330 %s CG ROM\n", BIT(data, 0) ? "External" : "Internal");
+			LOG("SED1330 D6 Correction: %s\n", BIT(data, 1) ? "enabled" : "disabled");
+			LOG("SED1330 Character Height: %u\n", BIT(data, 2) ? 16 : 8);
+			LOG("SED1330 %s Panel Drive\n", BIT(data, 3) ? "Dual" : "Single");
+			LOG("SED1330 Screen Top-Line Correction: %s\n", BIT(data, 5) ? "disabled" : "enabled");
 			break;
 
 		case 1:
 			m_fx = (data & 0x07) + 1;
 			m_wf = BIT(data, 7);
 
-			if (LOG)
-			{
-				logerror("SED1330 '%s' Horizontal Character Size: %u\n", tag(), m_fx);
-				logerror("SED1330 '%s' %s AC Drive\n", tag(), BIT(data, 7) ? "2-frame" : "16-line");
-			}
+			LOG("SED1330 Horizontal Character Size: %u\n", m_fx);
+			LOG("SED1330 %s AC Drive\n", BIT(data, 7) ? "2-frame" : "16-line");
 			break;
 
 		case 2:
 			m_fy = (data & 0x0f) + 1;
-			if (LOG) logerror("SED1330 '%s' Vertical Character Size: %u\n", tag(), m_fy);
+			LOG("SED1330 Vertical Character Size: %u\n", m_fy);
 			break;
 
 		case 3:
 			m_cr = data + 1;
-			if (LOG) logerror("SED1330 '%s' Visible Characters Per Line: %u\n", tag(), m_cr);
+			LOG("SED1330 Visible Characters Per Line: %u\n", m_cr);
 			break;
 
 		case 4:
 			m_tcr = data + 1;
-			if (LOG) logerror("SED1330 '%s' Total Characters Per Line: %u\n", tag(), m_tcr);
+			LOG("SED1330 Total Characters Per Line: %u\n", m_tcr);
 			break;
 
 		case 5:
 			m_lf = data + 1;
-			if (LOG) logerror("SED1330 '%s' Frame Height: %u\n", tag(), m_lf);
+			LOG("SED1330 Frame Height: %u\n", m_lf);
+			if (clock() != 0)
+			{
+				attotime fr = clocks_to_attotime(m_tcr * m_lf * 9);
+				screen().configure(m_tcr * m_fx, m_lf, screen().visible_area(), fr.as_attoseconds());
+				LOG("SED1330 Frame Rate: %.1f Hz\n", fr.as_hz());
+			}
 			break;
 
 		case 6:
@@ -353,54 +398,51 @@ WRITE8_MEMBER( sed1330_device::data_w )
 
 		case 7:
 			m_ap = (data << 8) | (m_ap & 0xff);
-			if (LOG) logerror("SED1330 '%s' Virtual Screen Width: %u\n", tag(), m_ap);
+			LOG("SED1330 Virtual Screen Width: %u\n", m_ap);
 			break;
 
 		default:
-			logerror("SED1330 '%s' Invalid parameter byte %02x\n", tag(), data);
+			logerror("SED1330 Invalid parameter byte %02x\n", data);
 		}
 		break;
 
 	case INSTRUCTION_DISP_ON:
 	case INSTRUCTION_DISP_OFF:
-		m_d = BIT(data, 0);
+		m_d = BIT(m_ir, 0);
 		m_fc = data & 0x03;
 		m_fp = data >> 2;
-		if (LOG)
+		LOG("SED1330 Display: %s\n", BIT(m_ir, 0) ? "enabled" : "disabled");
+
+		switch (m_fc)
 		{
-			logerror("SED1330 '%s' Display: %s\n", tag(), BIT(data, 0) ? "enabled" : "disabled");
+		case FC_OFF:        LOG("SED1330 Cursor: disabled\n"); break;
+		case FC_SOLID:      LOG("SED1330 Cursor: solid\n");    break;
+		case FC_FLASH_32:   LOG("SED1330 Cursor: fFR/32\n");   break;
+		case FC_FLASH_64:   LOG("SED1330 Cursor: fFR/64\n");   break;
+		}
 
-			switch (m_fc)
-			{
-			case FC_OFF:        logerror("SED1330 '%s' Cursor: disabled\n", tag()); break;
-			case FC_SOLID:      logerror("SED1330 '%s' Cursor: solid\n", tag());        break;
-			case FC_FLASH_32:   logerror("SED1330 '%s' Cursor: fFR/32\n", tag());       break;
-			case FC_FLASH_64:   logerror("SED1330 '%s' Cursor: fFR/64\n", tag());       break;
-			}
+		switch (m_fp & 0x03)
+		{
+		case FP_OFF:        LOG("SED1330 Display Page 1: disabled\n");     break;
+		case FP_SOLID:      LOG("SED1330 Display Page 1: enabled\n");      break;
+		case FP_FLASH_32:   LOG("SED1330 Display Page 1: flash fFR/32\n"); break;
+		case FP_FLASH_4:    LOG("SED1330 Display Page 1: flash fFR/4\n");  break;
+		}
 
-			switch (m_fp & 0x03)
-			{
-			case FC_OFF:        logerror("SED1330 '%s' Display Page 1: disabled\n", tag());     break;
-			case FC_SOLID:      logerror("SED1330 '%s' Display Page 1: enabled\n", tag());      break;
-			case FC_FLASH_32:   logerror("SED1330 '%s' Display Page 1: flash fFR/32\n", tag()); break;
-			case FC_FLASH_64:   logerror("SED1330 '%s' Display Page 1: flash fFR/64\n", tag()); break;
-			}
+		switch ((m_fp >> 2) & 0x03)
+		{
+		case FP_OFF:        LOG("SED1330 Display Page 2/4: disabled\n");       break;
+		case FP_SOLID:      LOG("SED1330 Display Page 2/4: enabled\n");        break;
+		case FP_FLASH_32:   LOG("SED1330 Display Page 2/4: flash fFR/32\n");   break;
+		case FP_FLASH_4:    LOG("SED1330 Display Page 2/4: flash fFR/4\n");    break;
+		}
 
-			switch ((m_fp >> 2) & 0x03)
-			{
-			case FC_OFF:        logerror("SED1330 '%s' Display Page 2/4: disabled\n", tag());       break;
-			case FC_SOLID:      logerror("SED1330 '%s' Display Page 2/4: enabled\n", tag());        break;
-			case FC_FLASH_32:   logerror("SED1330 '%s' Display Page 2/4: flash fFR/32\n", tag());   break;
-			case FC_FLASH_64:   logerror("SED1330 '%s' Display Page 2/4: flash fFR/64\n", tag());   break;
-			}
-
-			switch ((m_fp >> 4) & 0x03)
-			{
-			case FC_OFF:        logerror("SED1330 '%s' Display Page 3: disabled\n", tag());     break;
-			case FC_SOLID:      logerror("SED1330 '%s' Display Page 3: enabled\n", tag());      break;
-			case FC_FLASH_32:   logerror("SED1330 '%s' Display Page 3: flash fFR/32\n", tag()); break;
-			case FC_FLASH_64:   logerror("SED1330 '%s' Display Page 3: flash fFR/64\n", tag()); break;
-			}
+		switch ((m_fp >> 4) & 0x03)
+		{
+		case FP_OFF:        LOG("SED1330 Display Page 3: disabled\n");     break;
+		case FP_SOLID:      LOG("SED1330 Display Page 3: enabled\n");      break;
+		case FP_FLASH_32:   LOG("SED1330 Display Page 3: flash fFR/32\n"); break;
+		case FP_FLASH_4:    LOG("SED1330 Display Page 3: flash fFR/4\n");  break;
 		}
 		break;
 
@@ -413,12 +455,12 @@ WRITE8_MEMBER( sed1330_device::data_w )
 
 		case 1:
 			m_sad1 = (data << 8) | (m_sad1 & 0xff);
-			if (LOG) logerror("SED1330 '%s' Display Page 1 Start Address: %04x\n", tag(), m_sad1);
+			LOG("SED1330 Display Page 1 Start Address: %04x\n", m_sad1);
 			break;
 
 		case 2:
 			m_sl1 = data + 1;
-			if (LOG) logerror("SED1330 '%s' Display Block 1 Screen Lines: %u\n", tag(), m_sl1);
+			LOG("SED1330 Display Block 1 Screen Lines: %u\n", m_sl1);
 			break;
 
 		case 3:
@@ -427,12 +469,12 @@ WRITE8_MEMBER( sed1330_device::data_w )
 
 		case 4:
 			m_sad2 = (data << 8) | (m_sad2 & 0xff);
-			if (LOG) logerror("SED1330 '%s' Display Page 2 Start Address: %04x\n", tag(), m_sad2);
+			LOG("SED1330 Display Page 2 Start Address: %04x\n", m_sad2);
 			break;
 
 		case 5:
 			m_sl2 = data + 1;
-			if (LOG) logerror("SED1330 '%s' Display Block 2 Screen Lines: %u\n", tag(), m_sl2);
+			LOG("SED1330 Display Block 2 Screen Lines: %u\n", m_sl2);
 			break;
 
 		case 6:
@@ -441,7 +483,7 @@ WRITE8_MEMBER( sed1330_device::data_w )
 
 		case 7:
 			m_sad3 = (data << 8) | (m_sad3 & 0xff);
-			if (LOG) logerror("SED1330 '%s' Display Page 3 Start Address: %04x\n", tag(), m_sad3);
+			LOG("SED1330 Display Page 3 Start Address: %04x\n", m_sad3);
 			break;
 
 		case 8:
@@ -450,11 +492,11 @@ WRITE8_MEMBER( sed1330_device::data_w )
 
 		case 9:
 			m_sad4 = (data << 8) | (m_sad4 & 0xff);
-			if (LOG) logerror("SED1330 '%s' Display Page 4 Start Address: %04x\n", tag(), m_sad4);
+			LOG("SED1330 Display Page 4 Start Address: %04x\n", m_sad4);
 			break;
 
 		default:
-			logerror("SED1330 '%s' Invalid parameter byte %02x\n", tag(), data);
+			logerror("SED1330 Invalid parameter byte %02x\n", data);
 		}
 		break;
 
@@ -463,21 +505,18 @@ WRITE8_MEMBER( sed1330_device::data_w )
 		{
 		case 0:
 			m_crx = (data & 0x0f) + 1;
-			if (LOG) logerror("SED1330 '%s' Horizontal Cursor Size: %u\n", tag(), m_crx);
+			LOG("SED1330 Horizontal Cursor Size: %u\n", m_crx);
 			break;
 
 		case 1:
 			m_cry = (data & 0x0f) + 1;
 			m_cm = BIT(data, 7);
-			if (LOG)
-			{
-				logerror("SED1330 '%s' Vertical Cursor Location: %u\n", tag(), m_cry);
-				logerror("SED1330 '%s' Cursor Shape: %s\n", tag(), BIT(data, 7) ? "Block" : "Underscore");
-			}
+			LOG("SED1330 Vertical Cursor Location: %u\n", m_cry);
+			LOG("SED1330 Cursor Shape: %s\n", BIT(data, 7) ? "Block" : "Underscore");
 			break;
 
 		default:
-			logerror("SED1330 '%s' Invalid parameter byte %02x\n", tag(), data);
+			logerror("SED1330 Invalid parameter byte %02x\n", data);
 		}
 		break;
 
@@ -490,17 +529,17 @@ WRITE8_MEMBER( sed1330_device::data_w )
 
 		case 1:
 			m_sag = (data << 8) | (m_sag & 0xff);
-			if (LOG) logerror("SED1330 '%s' Character Generator RAM Start Address: %04x\n", tag(), m_sag);
+			LOG("SED1330 Character Generator RAM Start Address: %04x\n", m_sag);
 			break;
 
 		default:
-			logerror("SED1330 '%s' Invalid parameter byte %02x\n", tag(), data);
+			logerror("SED1330 Invalid parameter byte %02x\n", data);
 		}
 		break;
 
 	case INSTRUCTION_HDOT_SCR:
 		m_hdotscr = data & 0x07;
-		if (LOG) logerror("SED1330 '%s' Horizontal Dot Scroll: %u\n", tag(), m_hdotscr);
+		LOG("SED1330 Horizontal Dot Scroll: %u\n", m_hdotscr);
 		break;
 
 	case INSTRUCTION_OVLAY:
@@ -508,20 +547,17 @@ WRITE8_MEMBER( sed1330_device::data_w )
 		m_dm = (data >> 2) & 0x03;
 		m_ov = BIT(data, 4);
 
-		if (LOG)
+		switch (m_mx)
 		{
-			switch (m_mx)
-			{
-			case MX_OR:             logerror("SED1330 '%s' Display Composition Method: OR\n", tag());               break;
-			case MX_XOR:            logerror("SED1330 '%s' Display Composition Method: Exclusive-OR\n", tag()); break;
-			case MX_AND:            logerror("SED1330 '%s' Display Composition Method: AND\n", tag());          break;
-			case MX_PRIORITY_OR:    logerror("SED1330 '%s' Display Composition Method: Priority-OR\n", tag());  break;
-			}
-
-			logerror("SED1330 '%s' Display Page 1 Mode: %s\n", tag(), BIT(data, 2) ? "Graphics" : "Text");
-			logerror("SED1330 '%s' Display Page 3 Mode: %s\n", tag(), BIT(data, 3) ? "Graphics" : "Text");
-			logerror("SED1330 '%s' Display Composition Layers: %u\n", tag(), BIT(data, 4) ? 3 : 2);
+		case MX_OR:             LOG("SED1330 Display Composition Method: OR\n");           break;
+		case MX_XOR:            LOG("SED1330 Display Composition Method: Exclusive-OR\n"); break;
+		case MX_AND:            LOG("SED1330 Display Composition Method: AND\n");          break;
+		case MX_PRIORITY_OR:    LOG("SED1330 Display Composition Method: Priority-OR\n");  break;
 		}
+
+		LOG("SED1330 Display Page 1 Mode: %s\n", BIT(data, 2) ? "Graphics" : "Text");
+		LOG("SED1330 Display Page 3 Mode: %s\n", BIT(data, 3) ? "Graphics" : "Text");
+		LOG("SED1330 Display Composition Layers: %u\n", BIT(data, 4) ? 3 : 2);
 		break;
 
 	case INSTRUCTION_CSRW:
@@ -533,11 +569,11 @@ WRITE8_MEMBER( sed1330_device::data_w )
 
 		case 1:
 			m_csr = (data << 8) | (m_csr & 0xff);
-			if (LOG) logerror("SED1330 '%s' Cursor Address %04x\n", tag(), m_csr);
+			LOG("SED1330 Cursor Address %04x\n", m_csr);
 			break;
 
 		default:
-			logerror("SED1330 '%s' Invalid parameter byte %02x\n", tag(), data);
+			logerror("SED1330 Invalid parameter byte %02x\n", data);
 		}
 		break;
 #if 0
@@ -545,7 +581,7 @@ WRITE8_MEMBER( sed1330_device::data_w )
 		break;
 #endif
 	case INSTRUCTION_MWRITE:
-		if (LOG) logerror("SED1330 '%s' Memory Write %02x to %04x (row %u col %u line %u)\n", tag(), data, m_csr, m_csr/80/8, m_csr%80, m_csr/80);
+		LOG("SED1330 Memory Write %02x to %04x (row %u col %u line %u)\n", data, m_csr, m_csr/80/8, m_csr%80, m_csr/80);
 
 		writebyte(m_csr, data);
 
@@ -556,7 +592,7 @@ WRITE8_MEMBER( sed1330_device::data_w )
 		break;
 #endif
 	default:
-		logerror("SED1330 '%s' Unsupported instruction %02x\n", tag(), m_ir);
+		logerror("SED1330 Unsupported instruction %02x\n", m_ir);
 	}
 
 	m_pbc++;
@@ -567,36 +603,37 @@ WRITE8_MEMBER( sed1330_device::data_w )
 //  draw_text_scanline -
 //-------------------------------------------------
 
-void sed1330_device::draw_text_scanline(bitmap_ind16 &bitmap, const rectangle &cliprect, int y, uint16_t va)
+void sed1330_device::draw_text_scanline(bitmap_ind16 &bitmap, const rectangle &cliprect, int y, int r, uint16_t va, bool cursor)
 {
-	int sx, x;
+	uint16_t *p = &bitmap.pix16(y, 0);
 
-	for (sx = 0; sx < m_cr; sx++)
+	for (int sx = 0; sx < m_cr; sx++, p += m_fx)
 	{
-		if ((va + sx) == m_csr)
+		if (m_m0 && !m_m1)
 		{
-			if (m_fc == FC_OFF) continue;
+			uint8_t c = m_cache->read_byte(va + sx);
+			uint8_t data = m_cache->read_byte(0xf000 | (m_m2 ? u16(c) << 4 | r : u16(c) << 3 | (r & 7)));
+			for (int x = 0; x < m_fx; x++, data <<= 1)
+				if (BIT(data, 7))
+					p[x] = 1;
+		}
 
+		if (cursor && (va + sx) == m_csr)
+		{
 			if (m_cm)
 			{
 				// block cursor
-				if (y % m_fy < m_cry)
+				if (r < m_cry)
 				{
-					for (x = 0; x < m_crx; x++)
-					{
-						bitmap.pix16(y, (sx * m_fx) + x) = 1;
-					}
+					std::fill_n(p, m_crx, 1);
 				}
 			}
 			else
 			{
 				// underscore cursor
-				if (y % m_fy == m_cry)
+				if (r == m_cry)
 				{
-					for (x = 0; x < m_crx; x++)
-					{
-						bitmap.pix16(y, (sx * m_fx) + x) = 1;
-					}
+					std::fill_n(p, m_crx, 1);
 				}
 			}
 		}
@@ -610,13 +647,11 @@ void sed1330_device::draw_text_scanline(bitmap_ind16 &bitmap, const rectangle &c
 
 void sed1330_device::draw_graphics_scanline(bitmap_ind16 &bitmap, const rectangle &cliprect, int y, uint16_t va)
 {
-	int sx, x;
-
-	for (sx = 0; sx < m_cr; sx++)
+	for (int sx = 0; sx < m_cr; sx++)
 	{
 		uint8_t data = readbyte(va++);
 
-		for (x = 0; x < m_fx; x++)
+		for (int x = 0; x < m_fx; x++)
 		{
 			bitmap.pix16(y, (sx * m_fx) + x) = BIT(data, 7);
 			data <<= 1;
@@ -640,28 +675,49 @@ void sed1330_device::update_graphics(bitmap_ind16 &bitmap, const rectangle &clip
 
 void sed1330_device::update_text(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	int y;
+	uint8_t attr1 = m_fp & 0x03;
+	uint8_t attr2 = (m_fp >> 2) & 0x03;
+	uint8_t attr3 = (m_fp >> 4) & 0x03;
 
-	if (m_ws)
+	for (int y = 0; y < m_lf; y++)
 	{
-		for (y = 0; y < m_sl1; y++)
+		if (y >= m_sl1)
 		{
-			uint16_t sad1 = m_sad1 + ((y / m_fy) * m_ap);
-			uint16_t sad2 = m_sad2 + (y * m_ap);
-			uint16_t sad3 = m_sad3 + ((y / m_fy) * m_ap);
-			uint16_t sad4 = m_sad4 + (y * m_ap);
+			if (attr3 != FP_OFF)
+			{
+				uint16_t sad3 = m_sad3 + (((y - m_sl1) / m_fy) * m_ap);
 
-			// draw graphics display page 2 scanline
-			draw_graphics_scanline(bitmap, cliprect, y, sad2);
+				// draw text display page 3 scanline
+				draw_text_scanline(bitmap, cliprect, y, (y - m_sl1) % m_fy, sad3, m_ov && m_fc != FC_OFF);
+			}
+		}
+		else
+		{
+			if (attr1 != FP_OFF)
+			{
+				uint16_t sad1 = m_sad1 + ((y / m_fy) * m_ap);
 
-			// draw text display page 1 scanline
-			draw_text_scanline(bitmap, cliprect, y, sad1);
+				// draw text display page 1 scanline
+				draw_text_scanline(bitmap, cliprect, y, y % m_fy, sad1, !m_ov && m_fc != FC_OFF);
+			}
+		}
 
-			// draw graphics display page 4 scanline
-			draw_graphics_scanline(bitmap, cliprect, y + m_sl1, sad4);
+		if (attr2 != FP_OFF)
+		{
+			if (m_ws && y >= m_sl2)
+			{
+				uint16_t sad4 = m_sad4 + ((y - m_sl2) * m_ap);
 
-			// draw text display page 3 scanline
-			draw_text_scanline(bitmap, cliprect, y + m_sl1, sad3);
+				// draw graphics display page 4 scanline
+				draw_graphics_scanline(bitmap, cliprect, y, sad4);
+			}
+			else
+			{
+				uint16_t sad2 = m_sad2 + (y * m_ap);
+
+				// draw graphics display page 2 scanline
+				draw_graphics_scanline(bitmap, cliprect, y, sad2);
+			}
 		}
 	}
 }
@@ -673,6 +729,7 @@ void sed1330_device::update_text(bitmap_ind16 &bitmap, const rectangle &cliprect
 
 uint32_t sed1330_device::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
+	bitmap.fill(0, cliprect);
 	if (m_d)
 	{
 		if (m_dm)

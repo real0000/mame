@@ -9,14 +9,14 @@
 #include "emu.h"
 #include "hd44102.h"
 
+//#define VERBOSE 1
+#include "logmacro.h"
+
 
 
 //**************************************************************************
 //  MACROS / CONSTANTS
 //**************************************************************************
-
-#define LOG 0
-
 
 #define CONTROL_DISPLAY_OFF         0x38
 #define CONTROL_DISPLAY_ON          0x39
@@ -34,7 +34,7 @@
 
 
 // device type definition
-const device_type HD44102 = device_creator<hd44102_device>;
+DEFINE_DEVICE_TYPE(HD44102, hd44102_device, "hd44102", "Hitachi HD44102 LCD Controller")
 
 
 //**************************************************************************
@@ -68,26 +68,13 @@ inline void hd44102_device::count_up_or_down()
 //-------------------------------------------------
 
 hd44102_device::hd44102_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, HD44102, "HD44102", tag, owner, clock, "hd44102", __FILE__),
+	: device_t(mconfig, HD44102, tag, owner, clock),
 		device_video_interface(mconfig, *this),
 		m_cs2(0),
 		m_page(0),
 		m_x(0),
 		m_y(0)
 {
-}
-
-
-//-------------------------------------------------
-//  static_set_offsets - configuration helper
-//-------------------------------------------------
-
-void hd44102_device::static_set_offsets(device_t &device, int sx, int sy)
-{
-	hd44102_device &hd44102 = downcast<hd44102_device &>(device);
-
-	hd44102.m_sx = sx;
-	hd44102.m_sy = sy;
 }
 
 
@@ -125,13 +112,13 @@ void hd44102_device::device_reset()
 //  read - register read
 //-------------------------------------------------
 
-READ8_MEMBER( hd44102_device::read )
+uint8_t hd44102_device::read(offs_t offset)
 {
 	uint8_t data = 0;
 
 	if (m_cs2)
 	{
-		data = (offset & 0x01) ? data_r(space, offset) : status_r(space, offset);
+		data = (offset & 0x01) ? data_r() : status_r();
 	}
 
 	return data;
@@ -142,11 +129,11 @@ READ8_MEMBER( hd44102_device::read )
 //  write - register write
 //-------------------------------------------------
 
-WRITE8_MEMBER( hd44102_device::write )
+void hd44102_device::write(offs_t offset, uint8_t data)
 {
 	if (m_cs2)
 	{
-		(offset & 0x01) ? data_w(space, offset, data) : control_w(space, offset, data);
+		(offset & 0x01) ? data_w(data) : control_w(data);
 	}
 }
 
@@ -155,7 +142,7 @@ WRITE8_MEMBER( hd44102_device::write )
 //  status_r - status read
 //-------------------------------------------------
 
-READ8_MEMBER( hd44102_device::status_r )
+uint8_t hd44102_device::status_r()
 {
 	return m_status;
 }
@@ -165,58 +152,58 @@ READ8_MEMBER( hd44102_device::status_r )
 //  control_w - control write
 //-------------------------------------------------
 
-WRITE8_MEMBER( hd44102_device::control_w )
+void hd44102_device::control_w(uint8_t data)
 {
 	if (m_status & STATUS_BUSY) return;
 
 	switch (data)
 	{
 	case CONTROL_DISPLAY_OFF:
-		if (LOG) logerror("HD44102 '%s' Display Off\n", tag());
+		LOG("HD44102 Display Off\n");
 
 		m_status |= STATUS_DISPLAY_OFF;
 		break;
 
 	case CONTROL_DISPLAY_ON:
-		if (LOG) logerror("HD44102 '%s' Display On\n", tag());
+		LOG("HD44102 Display On\n");
 
 		m_status &= ~STATUS_DISPLAY_OFF;
 		break;
 
 	case CONTROL_COUNT_DOWN_MODE:
-		if (LOG) logerror("HD44102 '%s' Count Down Mode\n", tag());
+		LOG("HD44102 Count Down Mode\n");
 
 		m_status &= ~STATUS_COUNT_UP;
 		break;
 
 	case CONTROL_COUNT_UP_MODE:
-		if (LOG) logerror("HD44102 '%s' Count Up Mode\n", tag());
+		LOG("HD44102 Count Up Mode\n");
 
 		m_status |= STATUS_COUNT_UP;
 		break;
 
 	default:
 		{
-		int x = (data & CONTROL_X_ADDRESS_MASK) >> 6;
-		int y = data & CONTROL_Y_ADDRESS_MASK;
+			const int x = (data & CONTROL_X_ADDRESS_MASK) >> 6;
+			const int y = data & CONTROL_Y_ADDRESS_MASK;
 
-		if ((data & CONTROL_Y_ADDRESS_MASK) == CONTROL_DISPLAY_START_PAGE)
-		{
-			if (LOG) logerror("HD44102 '%s' Display Start Page %u\n", tag(), x);
+			if ((data & CONTROL_Y_ADDRESS_MASK) == CONTROL_DISPLAY_START_PAGE)
+			{
+				LOG("HD44102 Display Start Page %u\n", x);
 
-			m_page = x;
-		}
-		else if (y > 49)
-		{
-			logerror("HD44102 '%s' Invalid Address X %u Y %u (%02x)!\n", tag(), data, x, y);
-		}
-		else
-		{
-			if (LOG) logerror("HD44102 '%s' Address X %u Y %u (%02x)\n", tag(), data, x, y);
+				m_page = x;
+			}
+			else if (y > 49)
+			{
+				logerror("HD44102 Invalid Address X %u Y %u (%02x)!\n", data, x, y);
+			}
+			else
+			{
+				LOG("HD44102 Address X %u Y %u (%02x)\n", data, x, y);
 
-			m_x = x;
-			m_y = y;
-		}
+				m_x = x;
+				m_y = y;
+			}
 		}
 	}
 }
@@ -226,7 +213,7 @@ WRITE8_MEMBER( hd44102_device::control_w )
 //  data_r - data read
 //-------------------------------------------------
 
-READ8_MEMBER( hd44102_device::data_r )
+uint8_t hd44102_device::data_r()
 {
 	uint8_t data = m_output;
 
@@ -242,7 +229,7 @@ READ8_MEMBER( hd44102_device::data_r )
 //  data_w - data write
 //-------------------------------------------------
 
-WRITE8_MEMBER( hd44102_device::data_w )
+void hd44102_device::data_w(uint8_t data)
 {
 	m_ram[m_x][m_y] = data;
 
@@ -254,7 +241,7 @@ WRITE8_MEMBER( hd44102_device::data_w )
 //  cs2_w - chip select 2 write
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( hd44102_device::cs2_w )
+void hd44102_device::cs2_w(int state)
 {
 	m_cs2 = state;
 }

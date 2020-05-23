@@ -6,10 +6,10 @@
 
 **********************************************************************/
 
-#pragma once
+#ifndef MAME_BUS_S100_MM65K16S_H
+#define MAME_BUS_S100_MM65K16S_H
 
-#ifndef __S100_MM65K16S__
-#define __S100_MM65K16S__
+#pragma once
 
 #include "s100.h"
 
@@ -38,8 +38,8 @@ protected:
 	virtual void device_reset() override;
 
 	// device_s100_card_interface overrides
-	virtual uint8_t s100_smemr_r(address_space &space, offs_t offset) override;
-	virtual void s100_mwrt_w(address_space &space, offs_t offset, uint8_t data) override;
+	virtual uint8_t s100_smemr_r(offs_t offset) override;
+	virtual void s100_mwrt_w(offs_t offset, uint8_t data) override;
 	virtual void s100_phantom_w(int state) override;
 
 private:
@@ -48,7 +48,6 @@ private:
 
 
 // device type definition
-extern const device_type S100_MM65K16S;
+DECLARE_DEVICE_TYPE(S100_MM65K16S, s100_mm65k16s_device)
 
-
-#endif
+#endif // MAME_BUS_S100_MM65K16S_H

@@ -18,35 +18,11 @@
 
 **********************************************************************/
 
+#ifndef MAME_BUS_PC1512_MOUSE_H
+#define MAME_BUS_PC1512_MOUSE_H
+
 #pragma once
 
-#ifndef __PC1512_MOUSE_PORT__
-#define __PC1512_MOUSE_PORT__
-
-
-
-
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define PC1512_MOUSE_PORT_TAG "mous"
-
-#define MCFG_PC1512_MOUSE_PORT_ADD(_tag, _slot_intf, _def_slot) \
-	MCFG_DEVICE_ADD(_tag, PC1512_MOUSE_PORT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
-
-#define MCFG_PC1512_MOUSE_PORT_X_CB(_write) \
-	devcb = &pc1512_mouse_port_t::set_x_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_PC1512_MOUSE_PORT_Y_CB(_write) \
-	devcb = &pc1512_mouse_port_t::set_y_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_PC1512_MOUSE_PORT_M1_CB(_write) \
-	devcb = &pc1512_mouse_port_t::set_m1_wr_callback(*device, DEVCB_##_write);
-
-#define MCFG_PC1512_MOUSE_PORT_M2_CB(_write) \
-	devcb = &pc1512_mouse_port_t::set_m2_wr_callback(*device, DEVCB_##_write);
 
 
 
@@ -54,37 +30,47 @@
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-class pc1512_mouse_port_t;
+class pc1512_mouse_port_device;
 
 
 // ======================> device_pc1512_mouse_port_interface
 
-class device_pc1512_mouse_port_interface : public device_slot_card_interface
+class device_pc1512_mouse_port_interface : public device_interface
 {
 public:
 	// construction/destruction
-	device_pc1512_mouse_port_interface(const machine_config &mconfig, device_t &device);
 	virtual ~device_pc1512_mouse_port_interface() { }
 
 protected:
-	pc1512_mouse_port_t *m_port;
+	device_pc1512_mouse_port_interface(const machine_config &mconfig, device_t &device);
+
+	pc1512_mouse_port_device *m_port;
 };
 
 
-// ======================> pc1512_mouse_port_t
+// ======================> pc1512_mouse_port_device
 
-class pc1512_mouse_port_t : public device_t,
-							public device_slot_interface
+class pc1512_mouse_port_device : public device_t, public device_single_card_slot_interface<device_pc1512_mouse_port_interface>
 {
 public:
 	// construction/destruction
-	pc1512_mouse_port_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	template <typename T>
+	pc1512_mouse_port_device(machine_config const &mconfig, char const *tag, device_t *owner, T &&opts, char const *dflt)
+		: pc1512_mouse_port_device(mconfig, tag, owner, 0)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
+
+	pc1512_mouse_port_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
 	// static configuration helpers
-	template<class _Object> static devcb_base &set_x_wr_callback(device_t &device, _Object object) { return downcast<pc1512_mouse_port_t &>(device).m_write_x.set_callback(object); }
-	template<class _Object> static devcb_base &set_y_wr_callback(device_t &device, _Object object) { return downcast<pc1512_mouse_port_t &>(device).m_write_y.set_callback(object); }
-	template<class _Object> static devcb_base &set_m1_wr_callback(device_t &device, _Object object) { return downcast<pc1512_mouse_port_t &>(device).m_write_m1.set_callback(object); }
-	template<class _Object> static devcb_base &set_m2_wr_callback(device_t &device, _Object object) { return downcast<pc1512_mouse_port_t &>(device).m_write_m2.set_callback(object); }
+	auto x_wr_callback() { return m_write_x.bind(); }
+	auto y_wr_callback() { return m_write_y.bind(); }
+	auto m1_wr_callback() { return m_write_m1.bind(); }
+	auto m2_wr_callback() { return m_write_m2.bind(); }
 
 	// peripheral interface
 	void x_w(uint8_t data) { m_write_x(data); }
@@ -105,14 +91,13 @@ protected:
 };
 
 
-// ======================> pc1512_mouse_t
+// ======================> pc1512_mouse_device
 
-class pc1512_mouse_t : public device_t,
-					   public device_pc1512_mouse_port_interface
+class pc1512_mouse_device : public device_t, public device_pc1512_mouse_port_interface
 {
 public:
 	// construction/destruction
-	pc1512_mouse_t(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	pc1512_mouse_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// optional information overrides
 	virtual ioport_constructor device_input_ports() const override;
@@ -129,11 +114,11 @@ protected:
 
 
 // device type definition
-extern const device_type PC1512_MOUSE_PORT;
-extern const device_type PC1512_MOUSE;
+DECLARE_DEVICE_TYPE(PC1512_MOUSE_PORT, pc1512_mouse_port_device)
+DECLARE_DEVICE_TYPE(PC1512_MOUSE,      pc1512_mouse_device)
 
 
 // slot devices
-SLOT_INTERFACE_EXTERN( pc1512_mouse_port_devices );
+void pc1512_mouse_port_devices(device_slot_interface &device);
 
-#endif
+#endif // MAME_BUS_PC1512_MOUSE_H

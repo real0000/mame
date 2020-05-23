@@ -16,7 +16,7 @@
 #include <SDL2/SDL.h>
 
 // standard C headers
-#include <math.h>
+#include <cmath>
 #ifndef _MSC_VER
 #include <unistd.h>
 #endif
@@ -140,7 +140,10 @@ bool sdl_osd_interface::window_init()
 
 	osd_printf_verbose("\nHints:\n");
 	for (int i = 0; hints[i] != nullptr; i++)
-		osd_printf_verbose("\t%-40s %s\n", hints[i], SDL_GetHint(hints[i]));
+	{
+		char const *const hint(SDL_GetHint(hints[i]));
+		osd_printf_verbose("\t%-40s %s\n", hints[i], hint ? hint : "(NULL)");
+	}
 
 	// set up the window list
 	osd_printf_verbose("Leave sdlwindow_init\n");
@@ -297,7 +300,6 @@ void sdl_window_info::toggle_full_screen()
 	machine().ui().menu_reset();
 	// kill off the drawers
 	renderer_reset();
-//  set_platform_window(nullptr);
 	bool is_osx = false;
 #ifdef SDLMAME_MACOSX
 	// FIXME: This is weird behaviour and certainly a bug in SDL
@@ -310,6 +312,7 @@ void sdl_window_info::toggle_full_screen()
 		SDL_SetWindowFullscreen(platform_window(), SDL_WINDOW_FULLSCREEN);    // Try to set mode
 	}
 	SDL_DestroyWindow(platform_window());
+	set_platform_window(nullptr);
 
 	downcast<sdl_osd_interface &>(machine().osd()).release_keys();
 
@@ -356,7 +359,7 @@ void sdl_window_info::modify_prescale(int dir)
 
 void sdl_window_info::update_cursor_state()
 {
-#if (USE_XINPUT)
+#if (USE_XINPUT && USE_XINPUT_WII_LIGHTGUN_HACK)
 	// Hack for wii-lightguns:
 	// they stop working with a grabbed mouse;
 	// even a ShowCursor(SDL_DISABLE) already does this.
@@ -420,9 +423,9 @@ int sdl_window_info::window_init()
 
 	// make the window title
 	if (video_config.numscreens == 1)
-		sprintf(m_title, "%s: %s [%s]", emulator_info::get_appname(), m_machine.system().description, m_machine.system().name);
+		sprintf(m_title, "%s: %s [%s]", emulator_info::get_appname(), m_machine.system().type.fullname(), m_machine.system().name);
 	else
-		sprintf(m_title, "%s: %s [%s] - Screen %d", emulator_info::get_appname(), m_machine.system().description, m_machine.system().name, m_index);
+		sprintf(m_title, "%s: %s [%s] - Screen %d", emulator_info::get_appname(), m_machine.system().type.fullname(), m_machine.system().name, m_index);
 
 	result = complete_create();
 
@@ -601,9 +604,6 @@ void sdl_window_info::update()
 
 			// and redraw now
 
-			// Some configurations require events to be polled in the worker thread
-			downcast< sdl_osd_interface& >(machine().osd()).process_events_buf();
-
 			// Check whether window has vector screens
 
 			{
@@ -694,27 +694,13 @@ int sdl_window_info::complete_create()
 	 *
 	 */
 	osd_printf_verbose("Enter sdl_info::create\n");
-	if (renderer().has_flags(osd_renderer::FLAG_NEEDS_OPENGL))
+	if (renderer().has_flags(osd_renderer::FLAG_NEEDS_OPENGL) && !video_config.novideo)
 	{
 		SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
-
-		/* FIXME: A reminder that gamma is wrong throughout MAME. Currently, SDL2.0 doesn't seem to
-		    * support the following attribute although my hardware lists GL_ARB_framebuffer_sRGB as an extension.
-		    *
-		    * SDL_GL_SetAttribute( SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, 1 );
-		    *
-		    */
 		m_extra_flags = SDL_WINDOW_OPENGL;
 	}
 	else
 		m_extra_flags = 0;
-
-#ifdef SDLMAME_MACOSX
-	/* FIMXE: On OSX, SDL_WINDOW_FULLSCREEN_DESKTOP seems to be more reliable.
-	 *        It however creates issues with white borders, i.e. the screen clear
-	 *        does not work. This happens both with opengl and accel.
-	 */
-#endif
 
 	// We need to workaround an issue in SDL 2.0.4 for OS X where setting the
 	// relative mode on the mouse in fullscreen mode makes mouse events stop
@@ -737,7 +723,7 @@ int sdl_window_info::complete_create()
 	// create the SDL window
 	// soft driver also used | SDL_WINDOW_INPUT_GRABBED | SDL_WINDOW_MOUSE_FOCUS
 	m_extra_flags |= (fullscreen() ?
-			/*SDL_WINDOW_BORDERLESS |*/ SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_FULLSCREEN : SDL_WINDOW_RESIZABLE);
+			SDL_WINDOW_BORDERLESS | SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_FULLSCREEN : SDL_WINDOW_RESIZABLE);
 
 #if defined(SDLMAME_WIN32)
 	SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
@@ -1157,4 +1143,14 @@ sdl_window_info::sdl_window_info(
 sdl_window_info::~sdl_window_info()
 {
 	global_free(m_original_mode);
+}
+
+
+//============================================================
+//  osd_set_aggressive_input_focus
+//============================================================
+
+void osd_set_aggressive_input_focus(bool aggressive_focus)
+{
+	// dummy implementation for now
 }

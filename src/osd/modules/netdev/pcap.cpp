@@ -217,6 +217,9 @@ int netdev_pcap::recv_dev(uint8_t **buf)
 	uint8_t pktbuf[2048];
 	int ret;
 
+	// no device open?
+	if(!m_p) return 0;
+
 	// Empty
 	if(OSAtomicCompareAndSwapInt(m_ctx.head, m_ctx.tail, &m_ctx.tail)) {
 		return 0;
@@ -247,7 +250,7 @@ netdev_pcap::~netdev_pcap()
 
 static CREATE_NETDEV(create_pcap)
 {
-	class netdev_pcap *dev = global_alloc(netdev_pcap(ifname, ifdev, rate));
+	auto *dev = global_alloc(netdev_pcap(ifname, ifdev, rate));
 	return dynamic_cast<osd_netdev *>(dev);
 }
 

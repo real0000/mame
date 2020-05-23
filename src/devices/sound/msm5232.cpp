@@ -1,7 +1,6 @@
 // license:GPL-2.0+
 // copyright-holders:Jarek Burczynski, Hiromitsu Shioya
 #include "emu.h"
-
 #include "msm5232.h"
 
 #define CLOCK_RATE_DIVIDER 16
@@ -11,12 +10,14 @@
     8 channel tone generator
 */
 
-const device_type MSM5232 = device_creator<msm5232_device>;
+DEFINE_DEVICE_TYPE(MSM5232, msm5232_device, "msm5232", "MSM5232")
 
 msm5232_device::msm5232_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, MSM5232, "MSM5232", tag, owner, clock, "msm5232", __FILE__),
-		device_sound_interface(mconfig, *this), m_stream(nullptr), m_noise_cnt(0), m_noise_step(0), m_noise_rng(0), m_noise_clocks(0), m_UpdateStep(0), m_control1(0), m_control2(0), m_gate(0), m_chip_clock(0), m_rate(0),
-		m_gate_handler_cb(*this)
+	: device_t(mconfig, MSM5232, tag, owner, clock)
+	, device_sound_interface(mconfig, *this)
+	, m_stream(nullptr)
+	, m_noise_cnt(0), m_noise_step(0), m_noise_rng(0), m_noise_clocks(0), m_UpdateStep(0), m_control1(0), m_control2(0), m_gate(0), m_chip_clock(0), m_rate(0)
+	, m_gate_handler_cb(*this)
 {
 }
 
@@ -36,7 +37,6 @@ void msm5232_device::device_start()
 	m_stream = machine().sound().stream_alloc(*this, 0, 11, rate);
 
 	/* register with the save state system */
-	machine().save().register_postload(save_prepost_delegate(FUNC(msm5232_device::postload), this));
 	save_item(NAME(m_EN_out16));
 	save_item(NAME(m_EN_out8));
 	save_item(NAME(m_EN_out4));
@@ -80,12 +80,10 @@ void msm5232_device::device_start()
 
 void msm5232_device::device_reset()
 {
-	int i;
-
-	for (i=0; i<8; i++)
+	for (int i=0; i<8; i++)
 	{
-		write(machine().dummy_space(), i, 0x80);
-		write(machine().dummy_space(), i, 0x00);
+		write(i, 0x80);
+		write(i, 0x00);
 	}
 	m_noise_cnt     = 0;
 	m_noise_rng     = 1;
@@ -127,17 +125,16 @@ void msm5232_device::device_stop()
 #endif
 }
 
-void msm5232_device::static_set_capacitors(device_t &device, double cap1, double cap2, double cap3, double cap4, double cap5, double cap6, double cap7, double cap8)
+void msm5232_device::set_capacitors(double cap1, double cap2, double cap3, double cap4, double cap5, double cap6, double cap7, double cap8)
 {
-	msm5232_device &msm = downcast<msm5232_device &>(device);
-	msm.m_external_capacity[0] = cap1;
-	msm.m_external_capacity[1] = cap2;
-	msm.m_external_capacity[2] = cap3;
-	msm.m_external_capacity[3] = cap4;
-	msm.m_external_capacity[4] = cap5;
-	msm.m_external_capacity[5] = cap6;
-	msm.m_external_capacity[6] = cap7;
-	msm.m_external_capacity[7] = cap8;
+	m_external_capacity[0] = cap1;
+	m_external_capacity[1] = cap2;
+	m_external_capacity[2] = cap3;
+	m_external_capacity[3] = cap4;
+	m_external_capacity[4] = cap5;
+	m_external_capacity[5] = cap6;
+	m_external_capacity[6] = cap7;
+	m_external_capacity[7] = cap8;
 }
 
 /* Default chip clock is 2119040 Hz */
@@ -342,7 +339,7 @@ void msm5232_device::init(int clock, int rate)
 }
 
 
-WRITE8_MEMBER( msm5232_device::write )
+void msm5232_device::write(offs_t offset, uint8_t data)
 {
 	if (offset > 0x0d)
 		return;
@@ -709,7 +706,7 @@ void msm5232_device::TG_group_advance(int groupidx)
 
 
 /* MAME Interface */
-void msm5232_device::postload()
+void msm5232_device::device_post_load()
 {
 	init_tables();
 }

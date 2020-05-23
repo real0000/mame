@@ -88,7 +88,7 @@ READ16_MEMBER(sderby_state::sderby_input_r)
 			return 0xffff;          // to avoid game to reset (needs more work)
 	}
 
-	logerror("sderby_input_r : offset = %x - PC = %06x\n",offset*2,space.device().safe_pc());
+	logerror("sderby_input_r : offset = %x - PC = %06x\n",offset*2,m_maincpu->pc());
 
 	return 0xffff;
 }
@@ -103,7 +103,7 @@ READ16_MEMBER(sderby_state::sderbya_input_r)
 			return 0xffff;          // to avoid game to reset (needs more work)
 	}
 
-	logerror("sderby_input_r : offset = %x - PC = %06x\n",offset*2,space.device().safe_pc());
+	logerror("sderby_input_r : offset = %x - PC = %06x\n",offset*2,m_maincpu->pc());
 
 	return 0xffff;
 }
@@ -148,7 +148,7 @@ READ16_MEMBER(sderby_state::roulette_input_r)
 
 READ16_MEMBER(sderby_state::rprot_r)
 {
-	logerror("rprot_r : offset = %02x\n",space.device().safe_pc());
+	logerror("rprot_r : offset = %02x\n",m_maincpu->pc());
 
 /* This is the only mask I found that allow a normal play.
    Using other values, the game hangs waiting for response,
@@ -206,9 +206,9 @@ WRITE16_MEMBER(sderby_state::sderby_out_w)
     x--- ----  End of Race lamp.
 
 */
-	output().set_lamp_value(1, (data & 1));           /* Lamp 1 - START */
-	output().set_lamp_value(2, (data >> 1) & 1);      /* Lamp 2 - BET */
-	output().set_lamp_value(3, (data >> 15) & 1);     /* Lamp 3 - END OF RACE */
+	m_lamps[0] = BIT(data, 0);      /* Lamp 1 - START */
+	m_lamps[1] = BIT(data, 1);      /* Lamp 2 - BET */
+	m_lamps[2] = BIT(data, 15);     /* Lamp 3 - END OF RACE */
 
 	machine().bookkeeping().coin_counter_w(0, data & 0x2000);
 }
@@ -251,13 +251,13 @@ WRITE16_MEMBER(sderby_state::scmatto_out_w)
     --x- ----  Coin counter.
 
 */
-	output().set_lamp_value(1, (data & 1));           /* Lamp 1 - HOLD 1 */
-	output().set_lamp_value(2, (data >> 1) & 1);      /* Lamp 2 - HOLD 2 */
-	output().set_lamp_value(3, (data >> 2) & 1);      /* Lamp 3 - HOLD 3 */
-	output().set_lamp_value(4, (data >> 3) & 1);      /* Lamp 4 - HOLD 4 */
-	output().set_lamp_value(5, (data >> 4) & 1);      /* Lamp 5 - HOLD 5 */
-	output().set_lamp_value(6, (data >> 5) & 1);      /* Lamp 6 - START  */
-	output().set_lamp_value(7, (data >> 6) & 1);      /* Lamp 7 - BET    */
+	m_lamps[0] = BIT(data, 0);      /* Lamp 1 - HOLD 1 */
+	m_lamps[1] = BIT(data, 1);      /* Lamp 2 - HOLD 2 */
+	m_lamps[2] = BIT(data, 2);      /* Lamp 3 - HOLD 3 */
+	m_lamps[3] = BIT(data, 3);      /* Lamp 4 - HOLD 4 */
+	m_lamps[4] = BIT(data, 4);      /* Lamp 5 - HOLD 5 */
+	m_lamps[5] = BIT(data, 5);      /* Lamp 6 - START  */
+	m_lamps[6] = BIT(data, 6);      /* Lamp 7 - BET    */
 
 	machine().bookkeeping().coin_counter_w(0, data & 0x2000);
 }
@@ -287,8 +287,8 @@ WRITE16_MEMBER(sderby_state::roulette_out_w)
     ---- x---  Unknown (always activated).
 
 */
-	output().set_lamp_value(1, (data & 1));           /* Lamp 1 - START */
-	output().set_lamp_value(2, (data >> 1) & 1);      /* Lamp 2 - BET   */
+	m_lamps[0] = BIT(data, 0);      /* Lamp 1 - START */
+	m_lamps[1] = BIT(data, 1);      /* Lamp 2 - BET   */
 }
 
 
@@ -296,101 +296,127 @@ WRITE16_MEMBER(sderby_state::roulette_out_w)
 *       Memory Maps        *
 ***************************/
 
-static ADDRESS_MAP_START( sderby_map, AS_PROGRAM, 16, sderby_state )
-	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x100000, 0x100fff) AM_RAM_WRITE(sderby_videoram_w) AM_SHARE("videoram")       /* bg */
-	AM_RANGE(0x101000, 0x101fff) AM_RAM_WRITE(sderby_md_videoram_w) AM_SHARE("md_videoram") /* mid */
-	AM_RANGE(0x102000, 0x103fff) AM_RAM_WRITE(sderby_fg_videoram_w) AM_SHARE("fg_videoram") /* fg */
-	AM_RANGE(0x104000, 0x10400b) AM_WRITE(sderby_scroll_w)
-	AM_RANGE(0x10400c, 0x10400d) AM_WRITENOP    /* ??? - check code at 0x000456 (executed once at startup) */
-	AM_RANGE(0x10400e, 0x10400f) AM_WRITENOP    /* ??? - check code at 0x000524 (executed once at startup) */
-	AM_RANGE(0x200000, 0x200fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x308000, 0x30800d) AM_READ(sderby_input_r)
-	AM_RANGE(0x308008, 0x308009) AM_WRITE(sderby_out_w) /* output port */
-	AM_RANGE(0x30800e, 0x30800f) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x380000, 0x380fff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0x500000, 0x500001) AM_WRITENOP    /* unknown... write 0x01 in game, and 0x00 on reset */
-	AM_RANGE(0xd00000, 0xd007ff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0xffc000, 0xffffff) AM_RAM
-ADDRESS_MAP_END
+void sderby_state::sderby_map(address_map &map)
+{
+	map(0x000000, 0x07ffff).rom();
+	map(0x100000, 0x100fff).ram().w(FUNC(sderby_state::sderby_videoram_w)).share("videoram");       /* bg */
+	map(0x101000, 0x101fff).ram().w(FUNC(sderby_state::sderby_md_videoram_w)).share("md_videoram"); /* mid */
+	map(0x102000, 0x103fff).ram().w(FUNC(sderby_state::sderby_fg_videoram_w)).share("fg_videoram"); /* fg */
+	map(0x104000, 0x10400b).w(FUNC(sderby_state::sderby_scroll_w));
+	map(0x10400c, 0x10400d).nopw();    /* ??? - check code at 0x000456 (executed once at startup) */
+	map(0x10400e, 0x10400f).nopw();    /* ??? - check code at 0x000524 (executed once at startup) */
+	map(0x200000, 0x200fff).ram().share("spriteram");
+	map(0x308000, 0x30800d).r(FUNC(sderby_state::sderby_input_r));
+	map(0x308008, 0x308009).w(FUNC(sderby_state::sderby_out_w)); /* output port */
+	map(0x30800f, 0x30800f).rw("oki", FUNC(okim6295_device::read), FUNC(okim6295_device::write));
+	map(0x380000, 0x380fff).w(m_palette, FUNC(palette_device::write16)).share("palette");
+	map(0x500000, 0x500001).nopw();    /* unknown... write 0x01 in game, and 0x00 on reset */
+	map(0xd00000, 0xd007ff).ram().share("nvram");
+	map(0xffc000, 0xffffff).ram();
+}
 
-static ADDRESS_MAP_START( sderbya_map, AS_PROGRAM, 16, sderby_state )
-	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x100000, 0x100fff) AM_RAM_WRITE(sderby_videoram_w) AM_SHARE("videoram")       /* bg */
-	AM_RANGE(0x101000, 0x101fff) AM_RAM_WRITE(sderby_md_videoram_w) AM_SHARE("md_videoram") /* mid */
-	AM_RANGE(0x102000, 0x103fff) AM_RAM_WRITE(sderby_fg_videoram_w) AM_SHARE("fg_videoram") /* fg */
-	AM_RANGE(0x104000, 0x10400b) AM_WRITE(sderby_scroll_w)
-	AM_RANGE(0x10400c, 0x10400d) AM_WRITENOP    /* ??? - check code at 0x000456 (executed once at startup) */
-	AM_RANGE(0x10400e, 0x10400f) AM_WRITENOP    /* ??? - check code at 0x000524 (executed once at startup) */
-	AM_RANGE(0x200000, 0x200fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x308000, 0x30800d) AM_READ(sderbya_input_r)
-	AM_RANGE(0x308008, 0x308009) AM_WRITE(sderby_out_w) /* output port */
-	AM_RANGE(0x30800e, 0x30800f) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x380000, 0x380fff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0x300000, 0x300001) AM_WRITENOP    /* unknown... write 0x01 in game, and 0x00 on reset */      //MOD
-	AM_RANGE(0xcf0000, 0xcf07ff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0xcfc000, 0xcfffff) AM_RAM                                                                     //MOD
-ADDRESS_MAP_END
+void sderby_state::sderbya_map(address_map &map)
+{
+	map(0x000000, 0x07ffff).rom();
+	map(0x100000, 0x100fff).ram().w(FUNC(sderby_state::sderby_videoram_w)).share("videoram");       /* bg */
+	map(0x101000, 0x101fff).ram().w(FUNC(sderby_state::sderby_md_videoram_w)).share("md_videoram"); /* mid */
+	map(0x102000, 0x103fff).ram().w(FUNC(sderby_state::sderby_fg_videoram_w)).share("fg_videoram"); /* fg */
+	map(0x104000, 0x10400b).w(FUNC(sderby_state::sderby_scroll_w));
+	map(0x10400c, 0x10400d).nopw();    /* ??? - check code at 0x000456 (executed once at startup) */
+	map(0x10400e, 0x10400f).nopw();    /* ??? - check code at 0x000524 (executed once at startup) */
+	map(0x200000, 0x200fff).ram().share("spriteram");
+	map(0x308000, 0x30800d).r(FUNC(sderby_state::sderbya_input_r));
+	map(0x308008, 0x308009).w(FUNC(sderby_state::sderby_out_w)); /* output port */
+	map(0x30800f, 0x30800f).rw("oki", FUNC(okim6295_device::read), FUNC(okim6295_device::write));
+	map(0x380000, 0x380fff).w(m_palette, FUNC(palette_device::write16)).share("palette");
+	map(0x300000, 0x300001).nopw();    /* unknown... write 0x01 in game, and 0x00 on reset */      //MOD
+	map(0xcf0000, 0xcf07ff).ram().share("nvram");
+	map(0xcfc000, 0xcfffff).ram();                                                                     //MOD
+}
 
 
-static ADDRESS_MAP_START( luckboom_map, AS_PROGRAM, 16, sderby_state )
-	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x100000, 0x100fff) AM_RAM_WRITE(sderby_videoram_w) AM_SHARE("videoram")       /* bg */
-	AM_RANGE(0x101000, 0x101fff) AM_RAM_WRITE(sderby_md_videoram_w) AM_SHARE("md_videoram") /* mid */
-	AM_RANGE(0x102000, 0x103fff) AM_RAM_WRITE(sderby_fg_videoram_w) AM_SHARE("fg_videoram") /* fg */
-	AM_RANGE(0x104000, 0x10400b) AM_WRITE(sderby_scroll_w)
-	AM_RANGE(0x10400c, 0x10400d) AM_WRITENOP    /* ??? - check code at 0x000456 (executed once at startup) */
-	AM_RANGE(0x10400e, 0x10400f) AM_WRITENOP    /* ??? - check code at 0x000524 (executed once at startup) */
-	AM_RANGE(0x200000, 0x200fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x308000, 0x30800d) AM_READ(sderby_input_r)
-	AM_RANGE(0x308008, 0x308009) AM_WRITE(sderby_out_w) /* output port */
-	AM_RANGE(0x30800e, 0x30800f) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x380000, 0x380fff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0x500000, 0x500001) AM_WRITENOP    /* unknown... write 0x01 in game, and 0x00 on reset */
-	AM_RANGE(0xe00000, 0xe007ff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0xff0000, 0xffffff) AM_RAM
-ADDRESS_MAP_END
+void sderby_state::luckboom_map(address_map &map)
+{
+	map(0x000000, 0x07ffff).rom();
+	map(0x100000, 0x100fff).ram().w(FUNC(sderby_state::sderby_videoram_w)).share("videoram");       /* bg */
+	map(0x101000, 0x101fff).ram().w(FUNC(sderby_state::sderby_md_videoram_w)).share("md_videoram"); /* mid */
+	map(0x102000, 0x103fff).ram().w(FUNC(sderby_state::sderby_fg_videoram_w)).share("fg_videoram"); /* fg */
+	map(0x104000, 0x10400b).w(FUNC(sderby_state::sderby_scroll_w));
+	map(0x10400c, 0x10400d).nopw();    /* ??? - check code at 0x000456 (executed once at startup) */
+	map(0x10400e, 0x10400f).nopw();    /* ??? - check code at 0x000524 (executed once at startup) */
+	map(0x200000, 0x200fff).ram().share("spriteram");
+	map(0x308000, 0x30800d).r(FUNC(sderby_state::sderby_input_r));
+	map(0x308008, 0x308009).w(FUNC(sderby_state::sderby_out_w)); /* output port */
+	map(0x30800f, 0x30800f).rw("oki", FUNC(okim6295_device::read), FUNC(okim6295_device::write));
+	map(0x380000, 0x380fff).w(m_palette, FUNC(palette_device::write16)).share("palette");
+	map(0x500000, 0x500001).nopw();    /* unknown... write 0x01 in game, and 0x00 on reset */
+	map(0xe00000, 0xe007ff).ram().share("nvram");
+	map(0xff0000, 0xffffff).ram();
+}
 
-static ADDRESS_MAP_START( spacewin_map, AS_PROGRAM, 16, sderby_state )
-	AM_RANGE(0x000000, 0x03ffff) AM_ROM
-	AM_RANGE(0x100000, 0x100fff) AM_RAM_WRITE(sderby_videoram_w) AM_SHARE("videoram")       /* bg */
-	AM_RANGE(0x101000, 0x101fff) AM_RAM_WRITE(sderby_md_videoram_w) AM_SHARE("md_videoram") /* mid */
-	AM_RANGE(0x102000, 0x103fff) AM_RAM_WRITE(sderby_fg_videoram_w) AM_SHARE("fg_videoram") /* fg */
-	AM_RANGE(0x104000, 0x10400b) AM_WRITE(sderby_scroll_w)  /* tilemaps offset control */
-	AM_RANGE(0x10400c, 0x10400d) AM_WRITENOP    /* seems another video register. constantly used */
-	AM_RANGE(0x10400e, 0x10400f) AM_WRITENOP    /* seems another video register. constantly used */
-	AM_RANGE(0x104010, 0x105fff) AM_WRITENOP    /* unknown */
-	AM_RANGE(0x300000, 0x300001) AM_WRITENOP    /* unknown... write 0x01 in game, and 0x00 on reset */
-	AM_RANGE(0x308000, 0x30800d) AM_READ(sderby_input_r)
-	AM_RANGE(0x308008, 0x308009) AM_WRITE(scmatto_out_w)    /* output port */
-	AM_RANGE(0x30800e, 0x30800f) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x380000, 0x380fff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0xd00000, 0xd001ff) AM_RAM
-	AM_RANGE(0x800000, 0x800fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x801000, 0x80100d) AM_WRITENOP    /* unknown */
-	AM_RANGE(0x8f0000, 0x8f07ff) AM_RAM AM_SHARE("nvram")   /* 16K Dallas DS1220Y-200 NVRAM */
-	AM_RANGE(0x8fc000, 0x8fffff) AM_RAM
-ADDRESS_MAP_END
+void sderby_state::spacewin_map(address_map &map)
+{
+	map(0x000000, 0x03ffff).rom();
+	map(0x100000, 0x100fff).ram().w(FUNC(sderby_state::sderby_videoram_w)).share("videoram");       /* bg */
+	map(0x101000, 0x101fff).ram().w(FUNC(sderby_state::sderby_md_videoram_w)).share("md_videoram"); /* mid */
+	map(0x102000, 0x103fff).ram().w(FUNC(sderby_state::sderby_fg_videoram_w)).share("fg_videoram"); /* fg */
+	map(0x104000, 0x10400b).w(FUNC(sderby_state::sderby_scroll_w));  /* tilemaps offset control */
+	map(0x10400c, 0x10400d).nopw();    /* seems another video register. constantly used */
+	map(0x10400e, 0x10400f).nopw();    /* seems another video register. constantly used */
+	map(0x104010, 0x105fff).nopw();    /* unknown */
+	map(0x300000, 0x300001).nopw();    /* unknown... write 0x01 in game, and 0x00 on reset */
+	map(0x308000, 0x30800d).r(FUNC(sderby_state::sderby_input_r));
+	map(0x308008, 0x308009).w(FUNC(sderby_state::scmatto_out_w));    /* output port */
+	map(0x30800f, 0x30800f).rw("oki", FUNC(okim6295_device::read), FUNC(okim6295_device::write));
+	map(0x380000, 0x380fff).w(m_palette, FUNC(palette_device::write16)).share("palette");
+	map(0xd00000, 0xd001ff).ram();
+	map(0x800000, 0x800fff).ram().share("spriteram");
+	map(0x801000, 0x80100d).nopw();    /* unknown */
+	map(0x8f0000, 0x8f07ff).ram().share("nvram");   /* 16K Dallas DS1220Y-200 NVRAM */
+	map(0x8fc000, 0x8fffff).ram();
+}
 
-static ADDRESS_MAP_START( roulette_map, AS_PROGRAM, 16, sderby_state )
-	AM_RANGE(0x000000, 0x03ffff) AM_ROM
-	AM_RANGE(0x440000, 0x440fff) AM_WRITEONLY AM_SHARE("spriteram")
-	AM_RANGE(0x500000, 0x500fff) AM_RAM_WRITE(sderby_videoram_w) AM_SHARE("videoram")           /* bg */
-	AM_RANGE(0x501000, 0x501fff) AM_RAM_WRITE(sderby_md_videoram_w) AM_SHARE("md_videoram") /* mid */
-	AM_RANGE(0x502000, 0x503fff) AM_RAM_WRITE(sderby_fg_videoram_w) AM_SHARE("fg_videoram") /* fg */
-	AM_RANGE(0x504000, 0x50400b) AM_RAM_WRITE(sderby_scroll_w)
-	AM_RANGE(0x50400e, 0x50400f) AM_WRITENOP
+void sderby_state::shinygld_map(address_map &map)
+{
+	map(0x000000, 0x03ffff).rom();
+	map(0x100000, 0x100fff).ram().w(FUNC(sderby_state::sderby_videoram_w)).share("videoram");       /* bg */
+	map(0x101000, 0x101fff).ram().w(FUNC(sderby_state::sderby_md_videoram_w)).share("md_videoram"); /* mid */
+	map(0x102000, 0x103fff).ram().w(FUNC(sderby_state::sderby_fg_videoram_w)).share("fg_videoram"); /* fg */
+	map(0x104000, 0x10400b).w(FUNC(sderby_state::sderby_scroll_w));  /* tilemaps offset control */
+	map(0x10400c, 0x10400d).nopw();    /* seems another video register. constantly used */
+	map(0x10400e, 0x10400f).nopw();    /* seems another video register. constantly used */
+	map(0x104010, 0x105fff).nopw();    /* unknown */
+	map(0x300000, 0x300001).nopw();    /* unknown... write 0x01 in game, and 0x00 on reset */
+	map(0x308000, 0x30800d).r(FUNC(sderby_state::sderby_input_r));
+	map(0x308008, 0x308009).nopw();    /* output port */
+	map(0x30800f, 0x30800f).rw("oki", FUNC(okim6295_device::read), FUNC(okim6295_device::write));
+	map(0x380000, 0x380fff).w(m_palette, FUNC(palette_device::write16)).share("palette");
+	map(0x400000, 0x400fff).ram().share("spriteram");
+	map(0x401000, 0x40100d).nopw();    /* unknown */
+	map(0x700000, 0x7007ff).ram().share("nvram");   /* 16K Dallas DS1220Y-200 NVRAM */
+	map(0x7f0000, 0x7fffff).ram();
+}
 
-	AM_RANGE(0x708000, 0x708009) AM_READ(roulette_input_r)
-	AM_RANGE(0x708006, 0x708007) AM_WRITE(roulette_out_w)
-	AM_RANGE(0x70800a, 0x70800b) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x70800c, 0x70800d) AM_WRITENOP    /* watchdog?? (0x0003) */
-	AM_RANGE(0x70800e, 0x70800f) AM_READWRITE(rprot_r, rprot_w) /* MCU communication */
-	AM_RANGE(0x780000, 0x780fff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+void sderby_state::roulette_map(address_map &map)
+{
+	map(0x000000, 0x03ffff).rom();
+	map(0x440000, 0x440fff).writeonly().share("spriteram");
+	map(0x500000, 0x500fff).ram().w(FUNC(sderby_state::sderby_videoram_w)).share("videoram");           /* bg */
+	map(0x501000, 0x501fff).ram().w(FUNC(sderby_state::sderby_md_videoram_w)).share("md_videoram"); /* mid */
+	map(0x502000, 0x503fff).ram().w(FUNC(sderby_state::sderby_fg_videoram_w)).share("fg_videoram"); /* fg */
+	map(0x504000, 0x50400b).ram().w(FUNC(sderby_state::sderby_scroll_w));
+	map(0x50400e, 0x50400f).nopw();
 
-	AM_RANGE(0xff0000, 0xff07ff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0xffc000, 0xffffff) AM_RAM
-ADDRESS_MAP_END
+	map(0x708000, 0x708009).r(FUNC(sderby_state::roulette_input_r));
+	map(0x708006, 0x708007).w(FUNC(sderby_state::roulette_out_w));
+	map(0x70800b, 0x70800b).rw("oki", FUNC(okim6295_device::read), FUNC(okim6295_device::write));
+	map(0x70800c, 0x70800d).nopw();    /* watchdog?? (0x0003) */
+	map(0x70800e, 0x70800f).rw(FUNC(sderby_state::rprot_r), FUNC(sderby_state::rprot_w)); /* MCU communication */
+	map(0x780000, 0x780fff).w(m_palette, FUNC(palette_device::write16)).share("palette");
+
+	map(0xff0000, 0xff07ff).ram().share("nvram");
+	map(0xffc000, 0xffffff).ram();
+}
 
 
 
@@ -478,6 +504,26 @@ static INPUT_PORTS_START( spacewin )
 	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( shinygld )
+	PORT_START("IN0")   /* 0x308000.w */
+	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_SLOT_STOP1 )
+	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_SLOT_STOP2 )
+	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_SLOT_STOP3 )
+	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_START1 ) PORT_NAME("Start")
+	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_GAMBLE_BET )
+	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_COIN1 )
+	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_SERVICE_NO_TOGGLE(0x1000, IP_ACTIVE_LOW)
+	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+INPUT_PORTS_END
+
 static INPUT_PORTS_START( pmroulet )
 	PORT_START("IN0")
 	PORT_BIT( 0x000f, IP_ACTIVE_LOW, IPT_UNKNOWN )
@@ -543,7 +589,7 @@ static const gfx_layout tiles16x16_layout =
 *      Graphics Decode      *
 ****************************/
 
-static GFXDECODE_START( sderby )
+static GFXDECODE_START( gfx_sderby )
 	GFXDECODE_ENTRY( "gfx1", 0, tiles8x8_layout,   0x000, 256  ) /* sprites */
 	GFXDECODE_ENTRY( "gfx1", 0, tiles16x16_layout, 0x000, 256  ) /* sprites */
 GFXDECODE_END
@@ -553,132 +599,143 @@ GFXDECODE_END
 *      Machine Drivers      *
 ****************************/
 
-static MACHINE_CONFIG_START( sderby, sderby_state )
+void sderby_state::sderby(machine_config &config)
+{
+	M68000(config, m_maincpu, 12000000);
+	m_maincpu->set_addrmap(AS_PROGRAM, &sderby_state::sderby_map);
+	m_maincpu->set_vblank_int("screen", FUNC(sderby_state::irq2_line_hold));
 
-	MCFG_CPU_ADD("maincpu", M68000, 12000000)
-	MCFG_CPU_PROGRAM_MAP(sderby_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", sderby_state,  irq2_line_hold)
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
-	MCFG_NVRAM_ADD_0FILL("nvram")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(64*8, 64*8);
+	screen.set_visarea(4*8, 44*8-1, 3*8, 33*8-1);
+	screen.set_screen_update(FUNC(sderby_state::screen_update_sderby));
+	screen.set_palette(m_palette);
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(64*8, 64*8)
-	MCFG_SCREEN_VISIBLE_AREA(4*8, 44*8-1, 3*8, 33*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(sderby_state, screen_update_sderby)
-	MCFG_SCREEN_PALETTE("palette")
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_sderby);
+	PALETTE(config, m_palette).set_format(palette_device::RGBx_555, 0x1000);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sderby)
-	MCFG_PALETTE_ADD("palette", 0x1000)
-	MCFG_PALETTE_FORMAT(RRRRRGGGGGBBBBBx)
+	SPEAKER(config, "mono").front_center();
+	OKIM6295(config, "oki", 1056000, okim6295_device::PIN7_HIGH).add_route(ALL_OUTPUTS, "mono", 1.0); /* clock frequency & pin 7 not verified */
+}
 
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) /* clock frequency & pin 7 not verified */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+void sderby_state::sderbya(machine_config &config)
+{
+	M68000(config, m_maincpu, 12000000);
+	m_maincpu->set_addrmap(AS_PROGRAM, &sderby_state::sderbya_map);
+	m_maincpu->set_vblank_int("screen", FUNC(sderby_state::irq2_line_hold));
 
-static MACHINE_CONFIG_START( sderbya, sderby_state )
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
-	MCFG_CPU_ADD("maincpu", M68000, 12000000)
-	MCFG_CPU_PROGRAM_MAP(sderbya_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", sderby_state,  irq2_line_hold)
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(64*8, 64*8);
+	screen.set_visarea(4*8, 44*8-1, 3*8, 33*8-1);
+	screen.set_screen_update(FUNC(sderby_state::screen_update_sderby));
+	screen.set_palette(m_palette);
 
-	MCFG_NVRAM_ADD_0FILL("nvram")
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_sderby);
+	PALETTE(config, m_palette).set_format(palette_device::RGBx_555, 0x1000);
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(64*8, 64*8)
-	MCFG_SCREEN_VISIBLE_AREA(4*8, 44*8-1, 3*8, 33*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(sderby_state, screen_update_sderby)
-	MCFG_SCREEN_PALETTE("palette")
+	SPEAKER(config, "mono").front_center();
+	OKIM6295(config, "oki", 1056000, okim6295_device::PIN7_HIGH).add_route(ALL_OUTPUTS, "mono", 1.0); /* clock frequency & pin 7 not verified */
+}
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sderby)
-	MCFG_PALETTE_ADD("palette", 0x1000)
-	MCFG_PALETTE_FORMAT(RRRRRGGGGGBBBBBx)
+void sderby_state::luckboom(machine_config &config)
+{
+	M68000(config, m_maincpu, 12000000);
+	m_maincpu->set_addrmap(AS_PROGRAM, &sderby_state::luckboom_map);
+	m_maincpu->set_vblank_int("screen", FUNC(sderby_state::irq4_line_hold));
 
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) /* clock frequency & pin 7 not verified */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(64*8, 64*8);
+	screen.set_visarea(4*8, 44*8-1, 3*8, 33*8-1);
+	screen.set_screen_update(FUNC(sderby_state::screen_update_sderby));
+	screen.set_palette(m_palette);
 
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_sderby);
+	PALETTE(config, m_palette).set_format(palette_device::RGBx_555, 0x1000);
 
-static MACHINE_CONFIG_START( luckboom, sderby_state )
+	SPEAKER(config, "mono").front_center();
+	OKIM6295(config, "oki", 1056000, okim6295_device::PIN7_HIGH).add_route(ALL_OUTPUTS, "mono", 1.0); /* clock frequency & pin 7 not verified */
+}
 
-	MCFG_CPU_ADD("maincpu", M68000, 12000000)
-	MCFG_CPU_PROGRAM_MAP(luckboom_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", sderby_state,  irq4_line_hold)
+void sderby_state::spacewin(machine_config &config)
+{
+	M68000(config, m_maincpu, 12000000);
+	m_maincpu->set_addrmap(AS_PROGRAM, &sderby_state::spacewin_map);
+	m_maincpu->set_vblank_int("screen", FUNC(sderby_state::irq2_line_hold));
 
-	MCFG_NVRAM_ADD_0FILL("nvram")
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(64*8, 64*8)
-	MCFG_SCREEN_VISIBLE_AREA(4*8, 44*8-1, 3*8, 33*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(sderby_state, screen_update_sderby)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(64*8, 64*8);
+	screen.set_visarea(4*8, 44*8-1, 3*8, 33*8-1);
+	screen.set_screen_update(FUNC(sderby_state::screen_update_pmroulet));
+	screen.set_palette(m_palette);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sderby)
-	MCFG_PALETTE_ADD("palette", 0x1000)
-	MCFG_PALETTE_FORMAT(RRRRRGGGGGBBBBBx)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_sderby);
+	PALETTE(config, m_palette).set_format(palette_device::RGBx_555, 0x1000);
 
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) /* clock frequency & pin 7 not verified */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	SPEAKER(config, "mono").front_center();
+	OKIM6295(config, "oki", 1056000, okim6295_device::PIN7_HIGH).add_route(ALL_OUTPUTS, "mono", 1.0); /* clock frequency & pin 7 not verified */
+}
 
-static MACHINE_CONFIG_START( spacewin, sderby_state )
+void sderby_state::shinygld(machine_config &config)
+{
+	M68000(config, m_maincpu, 24_MHz_XTAL / 2); // verified
+	m_maincpu->set_addrmap(AS_PROGRAM, &sderby_state::shinygld_map);
+	m_maincpu->set_vblank_int("screen", FUNC(sderby_state::irq4_line_hold));
 
-	MCFG_CPU_ADD("maincpu", M68000, 12000000)
-	MCFG_CPU_PROGRAM_MAP(spacewin_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", sderby_state,  irq2_line_hold)
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
-	MCFG_NVRAM_ADD_0FILL("nvram")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(57.47); // measured on PCB
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(64*8, 64*8);
+	screen.set_visarea(4*8, 44*8-1, 3*8, 33*8-1);
+	screen.set_screen_update(FUNC(sderby_state::screen_update_sderby));
+	screen.set_palette(m_palette);
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(64*8, 64*8)
-	MCFG_SCREEN_VISIBLE_AREA(4*8, 44*8-1, 3*8, 33*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(sderby_state, screen_update_pmroulet)
-	MCFG_SCREEN_PALETTE("palette")
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_sderby);
+	PALETTE(config, m_palette).set_format(palette_device::RGBx_555, 0x1000);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sderby)
-	MCFG_PALETTE_ADD("palette", 0x1000)
-	MCFG_PALETTE_FORMAT(RRRRRGGGGGBBBBBx)
+	SPEAKER(config, "mono").front_center();
+	OKIM6295(config, "oki", 1.056_MHz_XTAL, okim6295_device::PIN7_HIGH).add_route(ALL_OUTPUTS, "mono", 1.0); /* clock frequency & pin 7 verified */
+}
 
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) /* clock frequency & pin 7 not verified */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+void sderby_state::pmroulet(machine_config &config)
+{
+	M68000(config, m_maincpu, 12000000);
+	m_maincpu->set_addrmap(AS_PROGRAM, &sderby_state::roulette_map);
+	m_maincpu->set_vblank_int("screen", FUNC(sderby_state::irq2_line_hold));
 
-static MACHINE_CONFIG_START( pmroulet, sderby_state )
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
-	MCFG_CPU_ADD("maincpu", M68000, 12000000)
-	MCFG_CPU_PROGRAM_MAP(roulette_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", sderby_state,  irq2_line_hold)
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500)); /* not accurate */
+	screen.set_size(64*8, 64*8);
+	screen.set_visarea(4*8, 44*8-1, 3*8, 33*8-1);
+	screen.set_screen_update(FUNC(sderby_state::screen_update_pmroulet));
+	screen.set_palette(m_palette);
 
-	MCFG_NVRAM_ADD_0FILL("nvram")
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_sderby);
+	PALETTE(config, m_palette).set_format(palette_device::RGBx_555, 0x1000);
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_SCREEN_SIZE(64*8, 64*8)
-	MCFG_SCREEN_VISIBLE_AREA(4*8, 44*8-1, 3*8, 33*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(sderby_state, screen_update_pmroulet)
-	MCFG_SCREEN_PALETTE("palette")
-
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sderby)
-	MCFG_PALETTE_ADD("palette", 0x1000)
-	MCFG_PALETTE_FORMAT(RRRRRGGGGGBBBBBx)
-
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) /* clock frequency & pin 7 not verified */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	SPEAKER(config, "mono").front_center();
+	OKIM6295(config, "oki", 1056000, okim6295_device::PIN7_HIGH).add_route(ALL_OUTPUTS, "mono", 1.0); /* clock frequency & pin 7 not verified */
+}
 
 
 /****************************
@@ -796,6 +853,31 @@ ROM_START( spacewin )
 	ROM_LOAD( "8.u145", 0x080000, 0x20000, CRC(541a73fd) SHA1(fede5e2fcbb18e90cc50995d44e831c3f9b56614) )
 ROM_END
 
+// This board seems very similar to the spacewin's one.
+ROM_START( shinygld )
+	ROM_REGION( 0x40000, "maincpu", 0 ) /* 68000 Code */
+	ROM_LOAD16_BYTE( "16.u16", 0x00000, 0x20000, CRC(4b08a668) SHA1(8444e7624a40e14eca73c425db1cd574c2bf02e0) ) // 27C1001
+	ROM_LOAD16_BYTE( "17.u15", 0x00001, 0x20000, CRC(eb126e19) SHA1(d02ba03551f71f3ca46bee49291e4423daeea0ce) ) // 27C1001
+
+	ROM_REGION( 0x080000, "oki", 0 ) /* Samples */
+	ROM_LOAD( "15.u147", 0x00000, 0x40000,  CRC(66db6b15) SHA1(4a1ca962c61d60db8ff66c81253131d067bec8c6) ) // 27C2001
+
+	ROM_REGION( 0xa0000, "gfx1", 0 ) /* Sprites */
+	ROM_LOAD( "18.u141", 0x000000, 0x20000, CRC(a905c02d) SHA1(07a0a70424aa759e4c552408154c2d1515f512d5) ) // 27C1001
+	ROM_LOAD( "19.u142", 0x020000, 0x20000, CRC(8db53f3b) SHA1(aeb2da8bb065bb49edae1de51f6db9a7a02989c3) ) // 27C1001
+	ROM_LOAD( "20.u143", 0x040000, 0x20000, CRC(be54ae86) SHA1(23c8a01aa05204a6cd186a59269e515a068e23c4) ) // 27C1001
+	ROM_LOAD( "21.u144", 0x060000, 0x20000, CRC(de3be666) SHA1(647e054b9aefa80d95f6fb26cc89a976538f0d7c) ) // 27C1001
+	ROM_LOAD( "22.u145", 0x080000, 0x20000, CRC(113ccf81) SHA1(c2192e81a4be38911c971e1593b902f92d9a02d5) ) // 27C1001
+
+	/* Dumper's note: Board carries five PLDs : one GAL22V10 near the 68000 CPU (which most likely acts as main address decoder),
+	   three PALCE22V10H (two are near the GFX ROMs, probably for enabling them), one PALCE16V8H.*/
+	ROM_REGION( 0x1000, "plds", 0)
+	ROM_LOAD( "gal22v10.bin", 0x0400, 0x02e5, NO_DUMP ) // soldered
+	ROM_LOAD( "palce22v10_1.bin",   0x2dd, 0x2dd, NO_DUMP ) // soldered
+	ROM_LOAD( "palce22v10_2.bin",   0x2dd, 0x2dd, NO_DUMP ) // soldered
+	ROM_LOAD( "palce22v10_3.bin",   0x2dd, 0x2dd, NO_DUMP ) // soldered
+	ROM_LOAD( "palce16v8h.bin", 0x0200, 0x0117, NO_DUMP ) // soldered
+ROM_END
 
 /*
 Croupier (PlaYMark)
@@ -862,6 +944,9 @@ ROM_START( croupier )
 	ROM_LOAD16_BYTE( "2.bin", 0x00000, 0x20000, CRC(e7941975) SHA1(ea32cd51b8d87205a1d6c6a83ebf8b50e03c55fc))
 	ROM_LOAD16_BYTE( "3.bin", 0x00001, 0x20000, CRC(29d06a38) SHA1(c6fdca1a31fad9abf854e521e593f3ec8018ae6d))
 
+	ROM_REGION( 0x4008, "pic16c74", 0 )
+	ROM_LOAD( "pic16c74.u39", 0x00000, 0x4008, CRC(9cb88e5b) SHA1(3c6b371efeda757f2bcab6c860e7585b628c210a))
+
 	ROM_REGION( 0x080000, "oki", 0 ) /* samples are ok */
 	ROM_LOAD( "1.bin", 0x00000, 0x40000, CRC(6673de85) SHA1(df390cd6268efc0e743a9020f19bc0cbeb757cfa))
 
@@ -877,6 +962,9 @@ ROM_START( croupiera )
 	ROM_REGION( 0x40000, "maincpu", 0 ) /* 68000 code */
 	ROM_LOAD16_BYTE( "2.bin", 0x00000, 0x20000, CRC(1677a2de) SHA1(4dcbb3c1ce9b65e06ba7e0cffa00c0c8016538f5)) // sldh
 	ROM_LOAD16_BYTE( "3.bin", 0x00001, 0x20000, CRC(11acaac2) SHA1(19e7bbbf4356fc9a866f9f36d0568c42d6a36c07)) // sldh
+
+	ROM_REGION( 0x4008, "pic16c74", 0 )
+	ROM_LOAD( "pic16c74.u39", 0x00000, 0x4008, CRC(9cb88e5b) SHA1(3c6b371efeda757f2bcab6c860e7585b628c210a))
 
 	ROM_REGION( 0x080000, "oki", 0 ) /* samples are ok */
 	ROM_LOAD( "1.bin", 0x00000, 0x40000, CRC(6673de85) SHA1(df390cd6268efc0e743a9020f19bc0cbeb757cfa))
@@ -941,10 +1029,11 @@ ROM_END
 *        Game Drivers         *
 ******************************/
 
-/*     YEAR  NAME       PARENT    MACHINE   INPUT     INIT           ROT    COMPANY            FULLNAME                               FLAGS                                          LAYOUT  */
-GAMEL( 1996, sderby,    0,        sderby,   sderby,   driver_device, 0,     ROT0, "Playmark", "Super Derby (v.07.03)",                0,                                             layout_sderby   )
-GAMEL( 1996, sderbya,   sderby,   sderbya,  sderbya,  driver_device, 0,     ROT0, "Playmark", "Super Derby (v.10.04)",                0,                                             layout_sderby   )
-GAMEL( 1996, spacewin,  0,        spacewin, spacewin, driver_device, 0,     ROT0, "Playmark", "Scacco Matto / Space Win",             0,                                             layout_spacewin )
-GAMEL( 1997, croupier,  0,        pmroulet, pmroulet, driver_device, 0,     ROT0, "Playmark", "Croupier (Playmark Roulette v.20.05)", MACHINE_UNEMULATED_PROTECTION | MACHINE_NOT_WORKING, layout_pmroulet )
-GAMEL( 1997, croupiera, croupier, pmroulet, pmroulet, driver_device, 0,     ROT0, "Playmark", "Croupier (Playmark Roulette v.09.04)", MACHINE_UNEMULATED_PROTECTION | MACHINE_NOT_WORKING, layout_pmroulet )
-GAME ( 1996, luckboom,  0,        luckboom, luckboom, driver_device, 0,     ROT0, "Playmark", "Lucky Boom",                           0 )
+//     YEAR  NAME       PARENT    MACHINE   INPUT     CLASS         INIT        ROT   COMPANY     FULLNAME                                FLAGS                                                LAYOUT
+GAMEL( 1996, sderby,    0,        sderby,   sderby,   sderby_state, empty_init, ROT0, "Playmark", "Super Derby (Playmark, v.07.03)",      0,                                                   layout_sderby   )
+GAMEL( 1996, sderbya,   sderby,   sderbya,  sderbya,  sderby_state, empty_init, ROT0, "Playmark", "Super Derby (Playmark, v.10.04)",      0,                                                   layout_sderby   )
+GAMEL( 1996, spacewin,  0,        spacewin, spacewin, sderby_state, empty_init, ROT0, "Playmark", "Scacco Matto / Space Win",             0,                                                   layout_spacewin )
+GAME(  1996, shinygld,  0,        shinygld, shinygld, sderby_state, empty_init, ROT0, "Playmark", "Shiny Golds",                          0                                                                    )
+GAMEL( 1997, croupier,  0,        pmroulet, pmroulet, sderby_state, empty_init, ROT0, "Playmark", "Croupier (Playmark Roulette v.20.05)", MACHINE_UNEMULATED_PROTECTION | MACHINE_NOT_WORKING, layout_pmroulet )
+GAMEL( 1997, croupiera, croupier, pmroulet, pmroulet, sderby_state, empty_init, ROT0, "Playmark", "Croupier (Playmark Roulette v.09.04)", MACHINE_UNEMULATED_PROTECTION | MACHINE_NOT_WORKING, layout_pmroulet )
+GAME(  1996, luckboom,  0,        luckboom, luckboom, sderby_state, empty_init, ROT0, "Playmark", "Lucky Boom",                           0                                                                    )

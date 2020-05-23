@@ -18,82 +18,86 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type A800_ROM = device_creator<a800_rom_device>;
-const device_type A800_ROM_BBSB = device_creator<a800_rom_bbsb_device>;
-const device_type A800_ROM_WILLIAMS = device_creator<a800_rom_williams_device>;
-const device_type A800_ROM_EXPRESS = device_creator<a800_rom_express_device>;
-const device_type A800_ROM_TURBO = device_creator<a800_rom_turbo_device>;
-const device_type A800_ROM_TELELINK2 = device_creator<a800_rom_telelink2_device>;
-const device_type A800_ROM_MICROCALC = device_creator<a800_rom_microcalc_device>;
-const device_type XEGS_ROM = device_creator<xegs_rom_device>;
-const device_type A5200_ROM_2CHIPS = device_creator<a5200_rom_2chips_device>;
-const device_type A5200_ROM_BBSB = device_creator<a5200_rom_bbsb_device>;
+DEFINE_DEVICE_TYPE(A800_ROM,           a800_rom_device,           "a800_rom",      "Atari 800 ROM Carts")
+DEFINE_DEVICE_TYPE(A800_ROM_BBSB,      a800_rom_bbsb_device,      "a800_bbsb",     "Atari 800 ROM Carts BBSB")
+DEFINE_DEVICE_TYPE(A800_ROM_WILLIAMS,  a800_rom_williams_device,  "a800_williams", "Atari 800 64K ROM Carts Williams")
+DEFINE_DEVICE_TYPE(A800_ROM_EXPRESS,   a800_rom_express_device,   "a800_express",  "Atari 800 64K ROM Carts Express/Diamond")
+DEFINE_DEVICE_TYPE(A800_ROM_TURBO,     a800_rom_turbo_device,     "a800_turbo",    "Atari 800 64K ROM Carts Turbosoft")
+DEFINE_DEVICE_TYPE(A800_ROM_TELELINK2, a800_rom_telelink2_device, "a800_tlink2",   "Atari 800 64K ROM Cart Telelink II")
+DEFINE_DEVICE_TYPE(A800_ROM_MICROCALC, a800_rom_microcalc_device, "a800_sitsa",    "Atari 800 64K ROM Carts SITSA MicroCalc")
+DEFINE_DEVICE_TYPE(XEGS_ROM,           xegs_rom_device,           "a800_xegs",     "Atari XEGS 64K ROM Carts")
+DEFINE_DEVICE_TYPE(A5200_ROM_2CHIPS,   a5200_rom_2chips_device,   "a5200_16k2c",   "Atari 5200 ROM Cart 16K in 2 Chips")
+DEFINE_DEVICE_TYPE(A5200_ROM_BBSB,     a5200_rom_bbsb_device,     "a5200_bbsb",    "Atari 5200 ROM Cart BBSB")
 
 
-a800_rom_device::a800_rom_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-					: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-						device_a800_cart_interface( mconfig, *this )
+a800_rom_device::a800_rom_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock)
+	, device_a800_cart_interface( mconfig, *this )
 {
 }
 
 a800_rom_device::a800_rom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: device_t(mconfig, A800_ROM, "Atari 800 ROM Carts", tag, owner, clock, "a800_rom", __FILE__),
-						device_a800_cart_interface( mconfig, *this )
+	: a800_rom_device(mconfig, A800_ROM, tag, owner, clock)
 {
 }
 
 
 a800_rom_bbsb_device::a800_rom_bbsb_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a800_rom_device(mconfig, A800_ROM_BBSB, "Atari 800 ROM Cart BBSB", tag, owner, clock, "a800_bbsb", __FILE__)
+	: a800_rom_device(mconfig, A800_ROM_BBSB, tag, owner, clock)
 {
 }
 
 
 
 xegs_rom_device::xegs_rom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a800_rom_device(mconfig, XEGS_ROM, "Atari XEGS 64K ROM Carts", tag, owner, clock, "a800_xegs", __FILE__), m_bank(0)
-				{
+	: a800_rom_device(mconfig, XEGS_ROM, tag, owner, clock)
+	, m_bank(0)
+{
 }
 
 
 a800_rom_williams_device::a800_rom_williams_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a800_rom_device(mconfig, A800_ROM_WILLIAMS, "Atari 800 64K ROM Carts Williams", tag, owner, clock, "a800_williams", __FILE__), m_bank(0)
-				{
+	: a800_rom_device(mconfig, A800_ROM_WILLIAMS, tag, owner, clock)
+	, m_bank(0)
+{
 }
 
 
 a800_rom_express_device::a800_rom_express_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a800_rom_device(mconfig, A800_ROM_EXPRESS, "Atari 800 64K ROM Carts Express/Diamond", tag, owner, clock, "a800_express", __FILE__), m_bank(0)
-				{
+	: a800_rom_device(mconfig, A800_ROM_EXPRESS, tag, owner, clock)
+	, m_bank(0)
+{
 }
 
 
 a800_rom_turbo_device::a800_rom_turbo_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a800_rom_device(mconfig, A800_ROM_TURBO, "Atari 800 64K ROM Carts Turbosoft", tag, owner, clock, "a800_turbo", __FILE__), m_bank(0)
-				{
+	: a800_rom_device(mconfig, A800_ROM_TURBO, tag, owner, clock)
+	, m_bank(0)
+{
 }
 
 
 a800_rom_telelink2_device::a800_rom_telelink2_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a800_rom_device(mconfig, A800_ROM_TELELINK2, "Atari 800 64K ROM Cart Telelink II", tag, owner, clock, "a800_tlink2", __FILE__)
+	: a800_rom_device(mconfig, A800_ROM_TELELINK2, tag, owner, clock)
 {
 }
 
 
 a800_rom_microcalc_device::a800_rom_microcalc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a800_rom_device(mconfig, A800_ROM_MICROCALC, "Atari 800 64K ROM Cart SITSA MicroCalc", tag, owner, clock, "a800_sitsa", __FILE__), m_bank(0)
-				{
+	: a800_rom_device(mconfig, A800_ROM_MICROCALC, tag, owner, clock)
+	, m_bank(0)
+{
 }
 
 
 a5200_rom_2chips_device::a5200_rom_2chips_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a800_rom_device(mconfig, A5200_ROM_2CHIPS, "Atari 5200 ROM Cart 16K in 2 Chips", tag, owner, clock, "a5200_16k2c", __FILE__)
+	: a800_rom_device(mconfig, A5200_ROM_2CHIPS, tag, owner, clock)
 {
 }
 
 
 a5200_rom_bbsb_device::a5200_rom_bbsb_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: a800_rom_device(mconfig, A5200_ROM_BBSB, "Atari 5200 ROM Cart BBSB", tag, owner, clock, "a5200_bbsb", __FILE__)
+	: a800_rom_device(mconfig, A5200_ROM_BBSB, tag, owner, clock)
 {
 }
 
@@ -202,7 +206,7 @@ void a5200_rom_bbsb_device::device_reset()
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a800_rom_device::read_80xx)
+uint8_t a800_rom_device::read_80xx(offs_t offset)
 {
 	return m_rom[offset & (m_rom_size - 1)];
 }
@@ -222,7 +226,7 @@ READ8_MEMBER(a800_rom_device::read_80xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a800_rom_bbsb_device::read_80xx)
+uint8_t a800_rom_bbsb_device::read_80xx(offs_t offset)
 {
 	if (offset < 0x1000)
 		return m_rom[(offset & 0xfff) + (m_banks[0] * 0x1000) + 0];
@@ -232,7 +236,7 @@ READ8_MEMBER(a800_rom_bbsb_device::read_80xx)
 		return m_rom[(offset & 0x1fff) + 0x8000];
 }
 
-WRITE8_MEMBER(a800_rom_bbsb_device::write_80xx)
+void a800_rom_bbsb_device::write_80xx(offs_t offset, uint8_t data)
 {
 	uint16_t addr = offset & 0xfff;
 	if (addr >= 0xff6 && addr <= 0xff9)
@@ -248,7 +252,7 @@ WRITE8_MEMBER(a800_rom_bbsb_device::write_80xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(xegs_rom_device::read_80xx)
+uint8_t xegs_rom_device::read_80xx(offs_t offset)
 {
 	if (offset < 0x2000)
 		return m_rom[(offset & 0x1fff) + (m_bank * 0x2000)];
@@ -257,7 +261,7 @@ READ8_MEMBER(xegs_rom_device::read_80xx)
 
 }
 
-WRITE8_MEMBER(xegs_rom_device::write_d5xx)
+void xegs_rom_device::write_d5xx(offs_t offset, uint8_t data)
 {
 	m_bank = data & m_bank_mask;
 }
@@ -276,12 +280,12 @@ WRITE8_MEMBER(xegs_rom_device::write_d5xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a800_rom_williams_device::read_80xx)
+uint8_t a800_rom_williams_device::read_80xx(offs_t offset)
 {
 	return m_rom[(offset & 0x1fff) + (m_bank * 0x2000)];
 }
 
-WRITE8_MEMBER(a800_rom_williams_device::write_d5xx)
+void a800_rom_williams_device::write_d5xx(offs_t offset, uint8_t data)
 {
 	m_bank = (offset & 0x07);
 }
@@ -299,12 +303,12 @@ WRITE8_MEMBER(a800_rom_williams_device::write_d5xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a800_rom_express_device::read_80xx)
+uint8_t a800_rom_express_device::read_80xx(offs_t offset)
 {
 	return m_rom[(offset & 0x1fff) + (m_bank * 0x2000)];
 }
 
-WRITE8_MEMBER(a800_rom_express_device::write_d5xx)
+void a800_rom_express_device::write_d5xx(offs_t offset, uint8_t data)
 {
 	m_bank = (offset ^ 0x07) & 0x0f;
 }
@@ -317,12 +321,12 @@ WRITE8_MEMBER(a800_rom_express_device::write_d5xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a800_rom_turbo_device::read_80xx)
+uint8_t a800_rom_turbo_device::read_80xx(offs_t offset)
 {
 	return m_rom[(offset & 0x1fff) + (m_bank * 0x2000)];
 }
 
-WRITE8_MEMBER(a800_rom_turbo_device::write_d5xx)
+void a800_rom_turbo_device::write_d5xx(offs_t offset, uint8_t data)
 {
 	m_bank = offset & m_bank_mask;
 }
@@ -335,7 +339,7 @@ WRITE8_MEMBER(a800_rom_turbo_device::write_d5xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a800_rom_telelink2_device::read_80xx)
+uint8_t a800_rom_telelink2_device::read_80xx(offs_t offset)
 {
 	if (offset >= 0x2000)
 		return m_rom[offset & 0x1fff];
@@ -345,18 +349,18 @@ READ8_MEMBER(a800_rom_telelink2_device::read_80xx)
 	return 0xff;
 }
 
-WRITE8_MEMBER(a800_rom_telelink2_device::write_80xx)
+void a800_rom_telelink2_device::write_80xx(offs_t offset, uint8_t data)
 {
 	m_nvram[offset & 0xff] = data | 0xf0;   // low 4bits only
 }
 
-READ8_MEMBER(a800_rom_telelink2_device::read_d5xx)
+uint8_t a800_rom_telelink2_device::read_d5xx(offs_t offset)
 {
 	// this should affect NVRAM enable / save
 	return 0xff;
 }
 
-WRITE8_MEMBER(a800_rom_telelink2_device::write_d5xx)
+void a800_rom_telelink2_device::write_d5xx(offs_t offset, uint8_t data)
 {
 	// this should affect NVRAM enable / save
 }
@@ -370,12 +374,12 @@ WRITE8_MEMBER(a800_rom_telelink2_device::write_d5xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a800_rom_microcalc_device::read_80xx)
+uint8_t a800_rom_microcalc_device::read_80xx(offs_t offset)
 {
 	return m_rom[(offset & 0x1fff) + (m_bank * 0x2000)];
 }
 
-WRITE8_MEMBER(a800_rom_microcalc_device::write_d5xx)
+void a800_rom_microcalc_device::write_d5xx(offs_t offset, uint8_t data)
 {
 	m_bank = data;
 }
@@ -403,7 +407,7 @@ WRITE8_MEMBER(a800_rom_microcalc_device::write_d5xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a5200_rom_2chips_device::read_80xx)
+uint8_t a5200_rom_2chips_device::read_80xx(offs_t offset)
 {
 	if (offset < 0x4000)
 		return m_rom[offset & 0x1fff];
@@ -427,7 +431,7 @@ READ8_MEMBER(a5200_rom_2chips_device::read_80xx)
 
  -------------------------------------------------*/
 
-READ8_MEMBER(a5200_rom_bbsb_device::read_80xx)
+uint8_t a5200_rom_bbsb_device::read_80xx(offs_t offset)
 {
 	if (offset < 0x1000)
 		return m_rom[(offset & 0xfff) + (m_banks[0] * 0x1000) + 0];
@@ -439,7 +443,7 @@ READ8_MEMBER(a5200_rom_bbsb_device::read_80xx)
 		return 0;
 }
 
-WRITE8_MEMBER(a5200_rom_bbsb_device::write_80xx)
+void a5200_rom_bbsb_device::write_80xx(offs_t offset, uint8_t data)
 {
 	uint16_t addr = offset & 0xfff;
 	if (addr >= 0xff6 && addr <= 0xff9)

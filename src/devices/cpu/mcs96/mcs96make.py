@@ -4,12 +4,13 @@
 
 from __future__ import print_function
 
+import io
+import sys
+
 USAGE = """
 Usage:
 %s mcs96ops.lst mcs96.inc
 """
-import sys
-
 def save_full_one(f, t, name, source):
     print("void %s_device::%s_full()" % (t, name), file=f)
     print("{", file=f)
@@ -73,7 +74,7 @@ class OpcodeList:
         self.ea = {}
         self.macros = {}
         try:
-            f = open(fname, "rU")
+            f = io.open(fname, "r")
         except Exception:
             err = sys.exc_info()[1]
             sys.stderr.write("Cannot read opcodes file %s [%s]\n" % (fname, err))
@@ -117,7 +118,7 @@ class OpcodeList:
                             self.opcode_per_id[i] = inf
 
     def save_dasm(self, f, t):
-        print("const %s_device::disasm_entry %s_device::disasm_entries[0x100] = {" % (t, t), file=f)
+        print("const %s_disassembler::disasm_entry %s_disassembler::disasm_entries[0x100] = {" % (t, t), file=f)
         for i in range(0, 0x100):
             if i in self.opcode_per_id:
                 opc = self.opcode_per_id[i]
@@ -125,9 +126,9 @@ class OpcodeList:
                 if i + 0xfe00 in self.opcode_per_id:
                     alt = "\"" + self.opcode_per_id[i+0xfe00].name + "\""
                 if opc.name == "scall" or opc.name == "lcall":
-                    flags = "DASMFLAG_STEP_OVER"
+                    flags = "STEP_OVER"
                 elif opc.name == "rts":
-                    flags = "DASMFLAG_STEP_OUT"
+                    flags = "STEP_OUT"
                 else:
                     flags = "0"
                 print("\t{ \"%s\", %s, DASM_%s, %s }," % (opc.name, alt, opc.amode, flags), file=f)
@@ -170,25 +171,26 @@ class OpcodeList:
         print("}", file=f)
 
 def main(argv):
-    if len(argv) != 4:
+    if len(argv) != 5:
         print(USAGE % argv[0])
         return 1
-    
-    t = argv[1]
-    opcodes = OpcodeList(argv[2], t == "i8xc196")
+
+    m = argv[1]
+    t = argv[2]
+    opcodes = OpcodeList(argv[3], t == "i8xc196")
     
     try:
-        f = open(argv[3], "w")
+        f = open(argv[4], "w")
     except Exception:
         err = sys.exc_info()[1]
-        sys.stderr.write("cannot write file %s [%s]\n" % (argv[3], err))
+        sys.stderr.write("cannot write file %s [%s]\n" % (argv[4], err))
         sys.exit(1)
     
-    if t != "mcs96":
+    if t != "mcs96" and m == "d":
         opcodes.save_dasm(f, t)
-    if t != "i8x9x":
+    if t != "i8x9x" and m == "s":
         opcodes.save_opcodes(f, t)
-    if t != "mcs96":
+    if t != "mcs96" and m == "s":
         opcodes.save_exec(f, t)
     f.close()
 

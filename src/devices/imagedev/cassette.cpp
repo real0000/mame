@@ -11,21 +11,25 @@
 #include "emu.h"
 #include "formats/imageutl.h"
 #include "cassette.h"
-#include "ui/uimain.h"
 
-#define VERBOSE             0
-#define LOG(x) do { if (VERBOSE) logerror x; } while (0)
+#define LOG_WARN          (1U<<1)   // Warnings
+#define LOG_DETAIL        (1U<<2)   // Details
+
+#define VERBOSE ( LOG_WARN )
+
+#include "logmacro.h"
 
 // device type definition
-const device_type CASSETTE = device_creator<cassette_image_device>;
+DEFINE_DEVICE_TYPE(CASSETTE, cassette_image_device, "cassette_image", "Cassette")
 
 //-------------------------------------------------
 //  cassette_image_device - constructor
 //-------------------------------------------------
 
 cassette_image_device::cassette_image_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, CASSETTE, "Cassette", tag, owner, clock, "cassette_image", __FILE__),
+	: device_t(mconfig, CASSETTE, tag, owner, clock),
 	device_image_interface(mconfig, *this),
+	device_sound_interface(mconfig, *this),
 	m_cassette(nullptr),
 	m_state(CASSETTE_STOPPED),
 	m_position(0),
@@ -37,7 +41,8 @@ cassette_image_device::cassette_image_device(const machine_config &mconfig, cons
 	m_formats(cassette_default_formats),
 	m_create_opts(nullptr),
 	m_default_state(CASSETTE_PLAY),
-	m_interface(nullptr)
+	m_interface(nullptr),
+	m_stereo(false)
 {
 }
 
@@ -81,31 +86,32 @@ bool cassette_image_device::is_motor_on()
 
 void cassette_image_device::update()
 {
-	double cur_time = device().machine().time().as_double();
+	double cur_time = machine().time().as_double();
 
 	if (is_motor_on())
 	{
 		double new_position = m_position + (cur_time - m_position_time)*m_speed*m_direction;
 
-		switch(m_state & CASSETTE_MASK_UISTATE) {
+		switch (int(m_state & CASSETTE_MASK_UISTATE)) // cast to int to suppress unhandled enum value warning
+		{
 		case CASSETTE_RECORD:
 			cassette_put_sample(m_cassette, m_channel, m_position, new_position - m_position, m_value);
 			break;
 
 		case CASSETTE_PLAY:
-			if ( m_cassette )
+			if (m_cassette)
 			{
 				cassette_get_sample(m_cassette, m_channel, new_position, 0.0, &m_value);
-				/* See if reached end of tape */
+				// See if reached end of tape
 				double length = get_length();
 				if (new_position > length)
 				{
-					m_state = (cassette_state)(( m_state & ~CASSETTE_MASK_UISTATE ) | CASSETTE_STOPPED);
+					m_state = (m_state & ~CASSETTE_MASK_UISTATE) | CASSETTE_STOPPED;
 					new_position = length;
 				}
 				else if (new_position < 0)
 				{
-					m_state = (cassette_state)(( m_state & ~CASSETTE_MASK_UISTATE ) | CASSETTE_STOPPED);
+					m_state = (m_state & ~CASSETTE_MASK_UISTATE) | CASSETTE_STOPPED;
 					new_position = 0;
 				}
 			}
@@ -121,8 +127,8 @@ void cassette_image_device::change_state(cassette_state state, cassette_state ma
 	cassette_state new_state;
 
 	new_state = m_state;
-	new_state = (cassette_state)(new_state & ~mask);
-	new_state = (cassette_state)(new_state | (state & mask));
+	new_state &= ~mask;
+	new_state |= (state & mask);
 
 	if (new_state != m_state)
 	{
@@ -135,14 +141,11 @@ void cassette_image_device::change_state(cassette_state state, cassette_state ma
 
 double cassette_image_device::input()
 {
-	int32_t sample;
-	double double_value;
-
 	update();
-	sample = m_value;
-	double_value = sample / ((double) 0x7FFFFFFF);
+	int32_t sample = m_value;
+	double double_value = sample / (double(0x7FFFFFFF));
 
-	LOG(("cassette_input(): time_index=%g value=%g\n", m_position, double_value));
+	LOGMASKED(LOG_DETAIL, "cassette_input(): time_index=%g value=%g\n", m_position, double_value);
 
 	return double_value;
 }
@@ -158,7 +161,7 @@ void cassette_image_device::output(double value)
 		value = std::min(value, 1.0);
 		value = std::max(value, -1.0);
 
-		m_value = (int32_t) (value * 0x7FFFFFFF);
+		m_value = int32_t(value * 0x7FFFFFFF);
 	}
 }
 
@@ -168,7 +171,7 @@ double cassette_image_device::get_position()
 	double position = m_position;
 
 	if (is_motor_on())
-		position += (device().machine().time().as_double() - m_position_time)*m_speed*m_direction;
+		position += (machine().time().as_double() - m_position_time)*m_speed*m_direction;
 	return position;
 }
 
@@ -205,11 +208,9 @@ void cassette_image_device::go_reverse()
 
 void cassette_image_device::seek(double time, int origin)
 {
-	double length;
-
 	update();
 
-	length = get_length();
+	double length = get_length();
 
 	switch(origin) {
 	case SEEK_SET:
@@ -246,6 +247,8 @@ void cassette_image_device::device_start()
 	m_cassette = nullptr;
 	m_state = m_default_state;
 	m_value = 0;
+
+	machine().sound().stream_alloc(*this, 0, (m_stereo? 2:1), machine().sample_rate());
 }
 
 image_init_result cassette_image_device::call_create(int format_type, util::option_resolution *format_options)
@@ -264,7 +267,7 @@ image_init_result cassette_image_device::internal_load(bool is_create)
 	device_image_interface *image = nullptr;
 	interface_check(image);
 
-	if (is_create)
+	if (is_create || (length()==0)) // empty existing images are fine to write over.
 	{
 		// creating an image
 		err = cassette_create((void *)image, &image_ioprocs, &wavfile_format, m_create_opts, CASSETTE_FLAG_READWRITE|CASSETTE_FLAG_SAVEONEXIT, &m_cassette);
@@ -304,7 +307,7 @@ image_init_result cassette_image_device::internal_load(bool is_create)
 
 	/* reset the position */
 	m_position = 0.0;
-	m_position_time = device().machine().time().as_double();
+	m_position_time = machine().time().as_double();
 
 	/* default channel to 0, speed multiplier to 1 */
 	m_channel = 0;
@@ -368,25 +371,22 @@ std::string cassette_image_device::call_display()
 	// only show the image when a cassette is loaded and the motor is on
 	if (exists() && is_motor_on())
 	{
-		int n;
-		double position, length;
-		cassette_state uistate;
-		static const char *shapes[] = { u8"\u2500", u8"\u2572", u8"\u2502", u8"\u2571" };
+		static char const *const shapes[] = { u8"\u2500", u8"\u2572", u8"\u2502", u8"\u2571" };
 
 		// figure out where we are in the cassette
-		position = get_position();
-		length = get_length();
-		uistate = (cassette_state)(get_state() & CASSETTE_MASK_UISTATE);
+		double position = get_position();
+		double length = get_length();
+		cassette_state uistate = get_state() & CASSETTE_MASK_UISTATE;
 
 		// choose which frame of the animation we are at
-		n = ((int)position / ANIMATION_FPS) % ARRAY_LENGTH(shapes);
+		int n = (int(position) / ANIMATION_FPS) % ARRAY_LENGTH(shapes);
 
 		// play or record
 		const char *status_icon = (uistate == CASSETTE_PLAY)
 			? u8"\u25BA"
 			: u8"\u25CF";
 
-		// Since you can have anything in a BDF file, we will use crude ascii characters instead
+		// create information string
 		result = string_format("%s %s %02d:%02d (%04d) [%02d:%02d (%04d)]",
 			shapes[n],                  // animation
 			status_icon,                // play or record
@@ -404,10 +404,49 @@ std::string cassette_image_device::call_display()
 			{
 				if (get_position() > get_length())
 				{
-					m_state = (cassette_state)((m_state & ~CASSETTE_MASK_UISTATE) | CASSETTE_STOPPED);
+					m_state = ((m_state & ~CASSETTE_MASK_UISTATE) | CASSETTE_STOPPED);
 				}
 			}
 		}
 	}
 	return result;
+}
+
+//-------------------------------------------------
+//  Cassette sound
+//-------------------------------------------------
+
+void cassette_image_device::sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples)
+{
+	stream_sample_t *left_buffer = outputs[0];
+	stream_sample_t *right_buffer = nullptr;
+
+	if (m_stereo)
+		right_buffer = outputs[1];
+
+	cassette_state state = get_state() & (CASSETTE_MASK_UISTATE | CASSETTE_MASK_MOTOR | CASSETTE_MASK_SPEAKER);
+
+	if (exists() && (state == (CASSETTE_PLAY | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)))
+	{
+		cassette_image *cassette = get_image();
+		double time_index = get_position();
+		double duration = ((double) samples) / machine().sample_rate();
+
+		cassette_get_samples(cassette, 0, time_index, duration, samples, 2, left_buffer, CASSETTE_WAVEFORM_16BIT);
+		if (m_stereo)
+			cassette_get_samples(cassette, 1, time_index, duration, samples, 2, right_buffer, CASSETTE_WAVEFORM_16BIT);
+
+		for (int i = samples - 1; i >= 0; i--)
+		{
+			left_buffer[i] = ((int16_t *) left_buffer)[i];
+			if (m_stereo)
+				right_buffer[i] = ((int16_t *) right_buffer)[i];
+		}
+	}
+	else
+	{
+		memset(left_buffer, 0, sizeof(*left_buffer) * samples);
+		if (m_stereo)
+			memset(right_buffer, 0, sizeof(*right_buffer) * samples);
+	}
 }

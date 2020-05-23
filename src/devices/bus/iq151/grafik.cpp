@@ -16,19 +16,12 @@
     IMPLEMENTATION
 ***************************************************************************/
 
-static MACHINE_CONFIG_FRAGMENT( iq151_grafik )
-	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
-	MCFG_I8255_OUT_PORTA_CB(WRITE8(iq151_grafik_device, x_write))
-	MCFG_I8255_OUT_PORTB_CB(WRITE8(iq151_grafik_device, y_write))
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(iq151_grafik_device, control_w))
-MACHINE_CONFIG_END
-
 
 //**************************************************************************
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type IQ151_GRAFIK = device_creator<iq151_grafik_device>;
+DEFINE_DEVICE_TYPE(IQ151_GRAFIK, iq151_grafik_device, "iq151_grafik", "IQ151 grafik")
 
 //**************************************************************************
 //  LIVE DEVICE
@@ -39,10 +32,10 @@ const device_type IQ151_GRAFIK = device_creator<iq151_grafik_device>;
 //-------------------------------------------------
 
 iq151_grafik_device::iq151_grafik_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-		: device_t(mconfig, IQ151_GRAFIK, "IQ151 grafik", tag, owner, clock, "iq151_grafik", __FILE__),
-		device_iq151cart_interface( mconfig, *this ),
-		m_ppi8255(*this, "ppi8255"), m_posx(0), m_posy(0), m_all(0), m_pen(0), m_fast(0), m_ev(0), m_ex(0), m_sel(0)
-	{
+	: device_t(mconfig, IQ151_GRAFIK, tag, owner, clock)
+	, device_iq151cart_interface(mconfig, *this)
+	, m_ppi8255(*this, "ppi8255"), m_posx(0), m_posy(0), m_all(0), m_pen(0), m_fast(0), m_ev(0), m_ex(0), m_sel(0)
+{
 }
 
 //-------------------------------------------------
@@ -59,29 +52,33 @@ void iq151_grafik_device::device_start()
 
 void iq151_grafik_device::device_reset()
 {
-	screen_device *screen = machine().first_screen();
-
 	// if required adjust screen size
-	if (screen->visible_area().max_x < 64*8-1)
-		screen->set_visible_area(0, 64*8-1, 0, 32*8-1);
+	if (m_screen != nullptr && m_screen->visible_area().max_x < 64*8-1)
+	{
+		printf("adjusting screen size\n");
+		m_screen->set_visible_area(0, 64*8-1, 0, 32*8-1);
+	}
 
 	memset(m_videoram, 0x00, sizeof(m_videoram));
 }
 
 //-------------------------------------------------
-//  device_mconfig_additions
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor iq151_grafik_device::device_mconfig_additions() const
+void iq151_grafik_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( iq151_grafik );
+	I8255(config, m_ppi8255);
+	m_ppi8255->out_pa_callback().set(FUNC(iq151_grafik_device::x_write));
+	m_ppi8255->out_pb_callback().set(FUNC(iq151_grafik_device::y_write));
+	m_ppi8255->out_pc_callback().set(FUNC(iq151_grafik_device::control_w));
 }
 
 //-------------------------------------------------
 //  I8255 port a
 //-------------------------------------------------
 
-WRITE8_MEMBER(iq151_grafik_device::x_write)
+void iq151_grafik_device::x_write(uint8_t data)
 {
 	if (LOG) logerror("Grafik: set posx 0x%02x\n", data);
 
@@ -92,7 +89,7 @@ WRITE8_MEMBER(iq151_grafik_device::x_write)
 //  I8255 port b
 //-------------------------------------------------
 
-WRITE8_MEMBER(iq151_grafik_device::y_write)
+void iq151_grafik_device::y_write(uint8_t data)
 {
 	if (LOG) logerror("Grafik: set posy 0x%02x\n", data);
 
@@ -103,7 +100,7 @@ WRITE8_MEMBER(iq151_grafik_device::y_write)
 //  I8255 port c
 //-------------------------------------------------
 
-WRITE8_MEMBER(iq151_grafik_device::control_w)
+void iq151_grafik_device::control_w(uint8_t data)
 {
 	if (LOG) logerror("Grafik: control write 0x%02x\n", data);
 
@@ -124,8 +121,7 @@ void iq151_grafik_device::io_read(offs_t offset, uint8_t &data)
 {
 	if (offset >= 0xd0 && offset < 0xd4)
 	{
-		address_space& space = machine().device("maincpu")->memory().space(AS_IO);
-		data = m_ppi8255->read(space, offset & 3);
+		data = m_ppi8255->read(offset & 3);
 	}
 	else if (offset == 0xd4)
 	{
@@ -144,8 +140,7 @@ void iq151_grafik_device::io_write(offs_t offset, uint8_t data)
 {
 	if (offset >= 0xd0 && offset < 0xd4)
 	{
-		address_space& space = machine().device("maincpu")->memory().space(AS_IO);
-		m_ppi8255->write(space, offset & 3, data);
+		m_ppi8255->write(offset & 3, data);
 	}
 	else if (offset == 0xd4)
 	{

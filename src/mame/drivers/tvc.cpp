@@ -18,6 +18,7 @@
 #include "cpu/z80/z80.h"
 #include "imagedev/cassette.h"
 #include "imagedev/snapquik.h"
+#include "machine/bankdev.h"
 #include "machine/ram.h"
 #include "video/mc6845.h"
 
@@ -27,14 +28,12 @@
 #include "bus/tvc/tvc.h"
 #include "bus/tvc/hbf.h"
 
+#include "emupal.h"
 #include "screen.h"
 #include "softlist.h"
 #include "speaker.h"
 
 #include "formats/tvc_cas.h"
-
-#define TVC_RAM_BANK    1
-#define TVC_ROM_BANK    2
 
 #define CENTRONICS_TAG  "centronics"
 
@@ -45,208 +44,139 @@ public:
 	tvc_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag)
 		, m_maincpu(*this, "maincpu")
+		, m_bank1(*this, "bank1")
+		, m_bank3(*this, "bank3")
+		, m_bank4(*this, "bank4")
 		, m_ram(*this, RAM_TAG)
 		, m_sound(*this, "custom")
 		, m_cassette(*this, "cassette")
 		, m_cart(*this, "cartslot")
 		, m_centronics(*this, CENTRONICS_TAG)
+		, m_expansions(*this, "exp%u", 1)
 		, m_palette(*this, "palette")
 		, m_keyboard(*this, "LINE.%u", 0)
 	{ }
 
+	void tvc(machine_config &config);
+
+protected:
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+
 	required_device<cpu_device> m_maincpu;
+	required_device<address_map_bank_device> m_bank1;
+	required_device<address_map_bank_device> m_bank3;
+	required_device<address_map_bank_device> m_bank4;
 	required_device<ram_device> m_ram;
 	required_device<tvc_sound_device> m_sound;
 	required_device<cassette_image_device> m_cassette;
 	required_device<generic_slot_device> m_cart;
 	required_device<centronics_device> m_centronics;
+	required_device_array<tvcexp_slot_device, 4> m_expansions;
 	required_device<palette_device> m_palette;
 	required_ioport_array<16> m_keyboard;
 
-	tvcexp_slot_device *m_expansions[4];
-	memory_region *m_bios_rom;
-	memory_region *m_cart_rom;
-	memory_region *m_ext;
-	memory_region *m_vram;
+	uint8_t     *m_vram_base;
+	uint8_t     m_video_mode;
+	uint8_t     m_keyline;
+	uint8_t     m_active_slot;
+	uint8_t     m_int_flipflop;
+	uint8_t     m_col[4];
+	uint8_t     m_vram_bank;
+	uint8_t     m_cassette_ff;
+	uint8_t     m_centronics_ff;
 
-	void machine_start() override;
-	void machine_reset() override;
-
-	void set_mem_page(uint8_t data);
-	DECLARE_WRITE8_MEMBER(bank_w);
-	DECLARE_WRITE8_MEMBER(vram_bank_w);
-	DECLARE_WRITE8_MEMBER(palette_w);
-	DECLARE_WRITE8_MEMBER(keyboard_w);
-	DECLARE_READ8_MEMBER(keyboard_r);
-	DECLARE_READ8_MEMBER(int_state_r);
-	DECLARE_WRITE8_MEMBER(flipflop_w);
-	DECLARE_WRITE8_MEMBER(border_color_w);
-	DECLARE_WRITE8_MEMBER(sound_w);
-	DECLARE_WRITE8_MEMBER(cassette_w);
-	DECLARE_READ8_MEMBER(_5b_r);
+	void bank_w(uint8_t data);
+	void palette_w(offs_t offset, uint8_t data);
+	void keyboard_w(uint8_t data);
+	uint8_t keyboard_r();
+	uint8_t int_state_r();
+	void flipflop_w(uint8_t data);
+	void border_color_w(uint8_t data);
+	void sound_w(offs_t offset, uint8_t data);
+	void cassette_w(uint8_t data);
+	uint8_t _5b_r();
 	DECLARE_WRITE_LINE_MEMBER(int_ff_set);
 	DECLARE_WRITE_LINE_MEMBER(centronics_ack);
 
 	// expansions
-	DECLARE_WRITE8_MEMBER(expansion_w);
-	DECLARE_READ8_MEMBER(expansion_r);
-	DECLARE_READ8_MEMBER(exp_id_r);
-	DECLARE_WRITE8_MEMBER(expint_ack_w);
+	void expansion_w(offs_t offset, uint8_t data);
+	uint8_t expansion_r(offs_t offset);
+	uint8_t exp_id_r();
+	void expint_ack_w(offs_t offset, uint8_t data);
 
-	DECLARE_QUICKLOAD_LOAD_MEMBER( tvc64);
+	DECLARE_QUICKLOAD_LOAD_MEMBER(quickload_cb);
 
 	MC6845_UPDATE_ROW(crtc_update_row);
 
-	uint8_t       m_video_mode;
-	uint8_t       m_keyline;
-	uint8_t       m_active_slot;
-	uint8_t       m_int_flipflop;
-	uint8_t       m_col[4];
-	uint8_t       m_bank_type[4];
-	uint8_t       m_bank;
-	uint8_t       m_vram_bank;
-	uint8_t       m_cassette_ff;
-	uint8_t       m_centronics_ff;
-	DECLARE_PALETTE_INIT(tvc);
+	void tvc_palette(palette_device &palette) const;
+
+	void tvc_mem(address_map &map);
+	void tvc_bank1(address_map &map);
+	void tvc_bank3(address_map &map);
+	void tvc_bank4(address_map &map);
+	void tvc_io(address_map &map);
+};
+
+class tvc64p_state : public tvc_state
+{
+public:
+	tvc64p_state(const machine_config &mconfig, device_type type, const char *tag)
+		: tvc_state(mconfig, type, tag)
+		, m_vram_bank1(*this, "vram_bank1")
+		, m_vram_bank3(*this, "vram_bank3")
+	{ }
+
+	void tvc64p(machine_config &config);
+
+protected:
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
+
+private:
+	void vram_bank_w(uint8_t data);
+
+	void bank1_64p(address_map &map);
+	void bank3_64p(address_map &map);
+	void io_64p(address_map &map);
+
+	required_memory_bank m_vram_bank1;
+	required_memory_bank m_vram_bank3;
+	std::unique_ptr<uint8_t[]> m_vram_ptr;
 };
 
 
 
-#define TVC_INSTALL_ROM_BANK(_bank,_tag,_start,_end) \
-	if (m_bank_type[_bank] != TVC_ROM_BANK) \
-	{ \
-		space.install_read_bank(_start, _end, _tag); \
-		space.unmap_write(_start, _end); \
-		m_bank_type[_bank] = TVC_ROM_BANK; \
-	}
-#define TVC_INSTALL_RAM_BANK(_bank,_tag,_start,_end) \
-	if (m_bank_type[_bank] != TVC_RAM_BANK) \
-	{ \
-		space.install_readwrite_bank(_start, _end, _tag); \
-		m_bank_type[_bank] = TVC_RAM_BANK; \
-	}
-
-void tvc_state::set_mem_page(uint8_t data)
+void tvc_state::expansion_w(offs_t offset, uint8_t data)
 {
-	address_space &space = m_maincpu->space(AS_PROGRAM);
-	switch (data & 0x18)
-	{
-		case 0x00 : // system ROM selected
-			TVC_INSTALL_ROM_BANK(0, "bank1", 0x0000, 0x3fff);
-			membank("bank1")->set_base(m_bios_rom->base());
-			break;
-		case 0x08 : // Cart ROM selected
-			if (m_cart_rom)
-			{
-				TVC_INSTALL_ROM_BANK(0, "bank1", 0x0000, 0x3fff);
-				membank("bank1")->set_base(m_cart_rom->base());
-			}
-			break;
-		case 0x10 : // RAM selected
-			TVC_INSTALL_RAM_BANK(0, "bank1", 0x0000, 0x3fff);
-			membank("bank1")->set_base(m_ram->pointer());
-			break;
-		case 0x18 : // Video RAM
-			if (m_vram->bytes() > 0x4000)
-			{
-				// TVC 64+ only
-				TVC_INSTALL_RAM_BANK(0, "bank1", 0x0000, 0x3fff);
-				membank("bank1")->set_base(m_vram->base() + ((m_vram_bank & 0x03)<<14));
-			}
-			else
-			{
-				space.unmap_readwrite(0x0000, 0x3fff);
-				m_bank_type[0] = -1;
-			}
-			break;
-	}
-
-	if ((data & 0x20)==0)       // Video RAM
-	{
-		TVC_INSTALL_RAM_BANK(2, "bank3", 0x8000, 0xbfff);
-		membank("bank3")->set_base(m_vram->base() + ((m_vram_bank & 0x0c)<<12));
-	}
-	else                        // System RAM page 3
-	{
-		if (m_ram->size() > 0x8000)
-		{
-			TVC_INSTALL_RAM_BANK(2, "bank3", 0x8000, 0xbfff);
-			membank("bank3")->set_base(m_ram->pointer() + 0x8000);
-		}
-		else
-		{
-			space.unmap_readwrite(0x8000, 0xbfff);
-			m_bank_type[2] = -1;
-		}
-	}
-
-	switch(data & 0xc0)
-	{
-		case 0x00 : // Cart ROM selected
-			if (m_cart_rom)
-			{
-				TVC_INSTALL_ROM_BANK(3, "bank4", 0xc000, 0xffff);
-				membank("bank4")->set_base(m_cart_rom->base());
-			}
-			break;
-		case 0x40 : // System ROM selected
-			TVC_INSTALL_ROM_BANK(3, "bank4", 0xc000, 0xffff);
-			membank("bank4")->set_base(m_bios_rom->base());
-			break;
-		case 0x80 : // RAM selected
-			if (m_ram->size() > 0x8000)
-			{
-				TVC_INSTALL_RAM_BANK(3, "bank4", 0xc000, 0xffff);
-				membank("bank4")->set_base(m_ram->pointer() + 0xc000);
-			}
-			else
-			{
-				space.unmap_readwrite(0xc000, 0xffff);
-				m_bank_type[3] = -1;
-			}
-			break;
-		case 0xc0 : // External ROM selected
-			TVC_INSTALL_ROM_BANK(3, "bank4", 0xc000, 0xffff);
-			membank("bank4")->set_base(m_ext->base());
-			space.install_readwrite_handler (0xc000, 0xdfff, read8_delegate(FUNC(tvc_state::expansion_r), this), write8_delegate(FUNC(tvc_state::expansion_w), this), 0);
-			m_bank_type[3] = -1;
-			break;
-	}
+	m_expansions[m_active_slot & 3]->write(offset, data);
 }
 
 
-WRITE8_MEMBER(tvc_state::expansion_w)
+uint8_t tvc_state::expansion_r(offs_t offset)
 {
-	m_expansions[m_active_slot & 3]->write(space, offset, data);
+	return m_expansions[m_active_slot & 3]->read(offset);
 }
 
-
-READ8_MEMBER(tvc_state::expansion_r)
+void tvc_state::bank_w(uint8_t data)
 {
-	return m_expansions[m_active_slot & 3]->read(space, offset);
+	m_bank1->set_bank(BIT(data, 3, 2));
+	m_bank3->set_bank(BIT(data, 5));
+	m_bank4->set_bank(BIT(data, 6, 2));
 }
 
-WRITE8_MEMBER(tvc_state::bank_w)
+void tvc64p_state::vram_bank_w(uint8_t data)
 {
-	m_bank = data;
-	set_mem_page(data);
+	// bit 4-5 - screen video RAM
+	// bit 2-3 - video RAM active in bank 3
+	// bit 0-1 - video RAM active in bank 1
+
+	m_vram_bank = data;
+	m_vram_bank1->set_entry(BIT(data, 0, 2));
+	m_vram_bank3->set_entry(BIT(data, 2, 2));
 }
 
-WRITE8_MEMBER(tvc_state::vram_bank_w)
-{
-	// TVC 64+ only
-	if (m_vram->bytes() > 0x4000)
-	{
-		// bit 4-5 - screen video RAM
-		// bit 2-3 - video RAM active in bank 3
-		// bit 0-1 - video RAM active in bank 1
-
-		m_vram_bank = data;
-		set_mem_page(m_bank);
-	}
-}
-
-WRITE8_MEMBER(tvc_state::palette_w)
+void tvc_state::palette_w(offs_t offset, uint8_t data)
 {
 	//  0 I 0 G | 0 R 0 B
 	//  0 0 0 0 | I G R B
@@ -255,7 +185,7 @@ WRITE8_MEMBER(tvc_state::palette_w)
 	m_col[offset] = i;
 }
 
-WRITE8_MEMBER(tvc_state::keyboard_w)
+void tvc_state::keyboard_w(uint8_t data)
 {
 	// bit 6-7 - expansion select
 	// bit 0-3 - keyboard scan
@@ -264,12 +194,12 @@ WRITE8_MEMBER(tvc_state::keyboard_w)
 	m_active_slot = (data>>6) & 0x03;
 }
 
-READ8_MEMBER(tvc_state::keyboard_r)
+uint8_t tvc_state::keyboard_r()
 {
 	return m_keyboard[m_keyline & 0x0f]->read();
 }
 
-READ8_MEMBER(tvc_state::int_state_r)
+uint8_t tvc_state::int_state_r()
 {
 	/*
 	    x--- ----   centronics ACK flipflop
@@ -287,32 +217,32 @@ READ8_MEMBER(tvc_state::int_state_r)
 	return 0x40 | (m_int_flipflop << 4) | (level > 0.01 ? 0x20 : 0x00) | (m_centronics_ff << 7) | (expint & 0x0f);
 }
 
-WRITE8_MEMBER(tvc_state::flipflop_w)
+void tvc_state::flipflop_w(uint8_t data)
 {
 	// every write here clears the vblank flipflop
 	m_int_flipflop = 1;
 	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
-READ8_MEMBER(tvc_state::exp_id_r)
+uint8_t tvc_state::exp_id_r()
 {
 	// expansion slots ID
 	return  (m_expansions[0]->id_r()<<0) | (m_expansions[1]->id_r()<<2) |
 			(m_expansions[2]->id_r()<<4) | (m_expansions[3]->id_r()<<6);
 }
 
-WRITE8_MEMBER(tvc_state::expint_ack_w)
+void tvc_state::expint_ack_w(offs_t offset, uint8_t data)
 {
 	m_expansions[offset & 3]->int_ack();
 }
 
-WRITE8_MEMBER(tvc_state::border_color_w)
+void tvc_state::border_color_w(uint8_t data)
 {
 	// x-x- x-x-    border color (I G R B)
 }
 
 
-WRITE8_MEMBER(tvc_state::sound_w)
+void tvc_state::sound_w(offs_t offset, uint8_t data)
 {
 	switch(offset)
 	{
@@ -333,53 +263,94 @@ WRITE8_MEMBER(tvc_state::sound_w)
 	}
 
 	// sound ports
-	m_sound->write(space, offset, data);
+	m_sound->write(offset, data);
 }
 
-READ8_MEMBER(tvc_state::_5b_r)
+uint8_t tvc_state::_5b_r()
 {
-	m_sound->reset_divider();
+	if (!machine().side_effects_disabled())
+		m_sound->reset_divider();
 	return 0xff;
 }
 
-WRITE8_MEMBER(tvc_state::cassette_w)
+void tvc_state::cassette_w(uint8_t data)
 {
 	// writig here cause the toggle of the cassette flipflop
 	m_cassette_ff = !m_cassette_ff;
 	m_cassette->output(m_cassette_ff ? +1 : -1);
 }
 
-static ADDRESS_MAP_START(tvc_mem, AS_PROGRAM, 8, tvc_state )
-	AM_RANGE(0x0000, 0x3fff) AM_RAMBANK("bank1")
-	AM_RANGE(0x4000, 0x7fff) AM_RAMBANK("bank2")
-	AM_RANGE(0x8000, 0xbfff) AM_RAMBANK("bank3")
-	AM_RANGE(0xc000, 0xffff) AM_RAMBANK("bank4")
-ADDRESS_MAP_END
+void tvc_state::tvc_mem(address_map &map)
+{
+	map(0x0000, 0x3fff).m(m_bank1, FUNC(address_map_bank_device::amap8));
+	map(0x4000, 0x7fff).unmaprw(); // System RAM page 2
+	map(0x8000, 0xbfff).m(m_bank3, FUNC(address_map_bank_device::amap8));
+	map(0xc000, 0xffff).m(m_bank4, FUNC(address_map_bank_device::amap8));
+}
 
-static ADDRESS_MAP_START( tvc_io , AS_IO, 8, tvc_state )
-	ADDRESS_MAP_UNMAP_HIGH
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_WRITE(border_color_w)
-	AM_RANGE(0x01, 0x01) AM_DEVWRITE("cent_data_out", output_latch_device, write)
-	AM_RANGE(0x02, 0x02) AM_WRITE(bank_w)
-	AM_RANGE(0x03, 0x03) AM_WRITE(keyboard_w)
-	AM_RANGE(0x04, 0x06) AM_WRITE(sound_w)
-	AM_RANGE(0x07, 0x07) AM_WRITE(flipflop_w)
-	AM_RANGE(0x0f, 0x0f) AM_WRITE(vram_bank_w)
-	AM_RANGE(0x10, 0x1f) AM_DEVREADWRITE("exp1", tvcexp_slot_device, io_read, io_write)
-	AM_RANGE(0x20, 0x2f) AM_DEVREADWRITE("exp2", tvcexp_slot_device, io_read, io_write)
-	AM_RANGE(0x30, 0x3f) AM_DEVREADWRITE("exp3", tvcexp_slot_device, io_read, io_write)
-	AM_RANGE(0x40, 0x4f) AM_DEVREADWRITE("exp4", tvcexp_slot_device, io_read, io_write)
-	AM_RANGE(0x50, 0x50) AM_WRITE(cassette_w)
-	AM_RANGE(0x58, 0x58) AM_READ(keyboard_r)
-	AM_RANGE(0x59, 0x59) AM_READ(int_state_r)
-	AM_RANGE(0x5a, 0x5a) AM_READ(exp_id_r)
-	AM_RANGE(0x5b, 0x5b) AM_READ(_5b_r)
-	AM_RANGE(0x58, 0x5b) AM_WRITE(expint_ack_w)
-	AM_RANGE(0x60, 0x63) AM_WRITE(palette_w)
-	AM_RANGE(0x70, 0x70) AM_DEVWRITE("crtc", mc6845_device, address_w)
-	AM_RANGE(0x71, 0x71) AM_DEVREADWRITE("crtc", mc6845_device, register_r, register_w)
-ADDRESS_MAP_END
+void tvc_state::tvc_bank1(address_map &map)
+{
+	map(0x0000, 0x3fff).rom().region("sys", 0); // System ROM
+	map(0x4000, 0x7fff).unmaprw(); // Cart ROM (if provided)
+	map(0x8000, 0xbfff).unmaprw(); // System RAM page 1
+}
+
+void tvc64p_state::bank1_64p(address_map &map)
+{
+	tvc_bank1(map);
+	map(0xc000, 0xffff).bankrw("vram_bank1"); // Video RAM (TVC 64+ only)
+}
+
+void tvc_state::tvc_bank3(address_map &map)
+{
+	map(0x0000, 0x3fff).ram().share("vram"); // Video RAM
+	map(0x4000, 0x7fff).unmaprw(); // System RAM page 3
+}
+
+void tvc64p_state::bank3_64p(address_map &map)
+{
+	map(0x0000, 0x3fff).bankrw("vram_bank3"); // Video RAM
+}
+
+void tvc_state::tvc_bank4(address_map &map)
+{
+	map(0x0000, 0x3fff).unmaprw(); // Cart ROM (if provided)
+	map(0x4000, 0x7fff).rom().region("sys", 0); // System ROM
+	map(0x8000, 0xbfff).unmaprw(); // RAM (if provided)
+	map(0xc000, 0xdfff).rw(FUNC(tvc_state::expansion_r), FUNC(tvc_state::expansion_w));
+	map(0xe000, 0xffff).rom().region("ext", 0x2000); // External ROM
+}
+
+void tvc_state::tvc_io(address_map &map)
+{
+	map.unmap_value_high();
+	map.global_mask(0xff);
+	map(0x00, 0x00).w(FUNC(tvc_state::border_color_w));
+	map(0x01, 0x01).w("cent_data_out", FUNC(output_latch_device::write));
+	map(0x02, 0x02).w(FUNC(tvc_state::bank_w));
+	map(0x03, 0x03).w(FUNC(tvc_state::keyboard_w));
+	map(0x04, 0x06).w(FUNC(tvc_state::sound_w));
+	map(0x07, 0x07).w(FUNC(tvc_state::flipflop_w));
+	map(0x10, 0x1f).rw("exp1", FUNC(tvcexp_slot_device::io_read), FUNC(tvcexp_slot_device::io_write));
+	map(0x20, 0x2f).rw("exp2", FUNC(tvcexp_slot_device::io_read), FUNC(tvcexp_slot_device::io_write));
+	map(0x30, 0x3f).rw("exp3", FUNC(tvcexp_slot_device::io_read), FUNC(tvcexp_slot_device::io_write));
+	map(0x40, 0x4f).rw("exp4", FUNC(tvcexp_slot_device::io_read), FUNC(tvcexp_slot_device::io_write));
+	map(0x50, 0x50).w(FUNC(tvc_state::cassette_w));
+	map(0x58, 0x58).r(FUNC(tvc_state::keyboard_r));
+	map(0x59, 0x59).r(FUNC(tvc_state::int_state_r));
+	map(0x5a, 0x5a).r(FUNC(tvc_state::exp_id_r));
+	map(0x5b, 0x5b).r(FUNC(tvc_state::_5b_r));
+	map(0x58, 0x5b).w(FUNC(tvc_state::expint_ack_w));
+	map(0x60, 0x63).w(FUNC(tvc_state::palette_w));
+	map(0x70, 0x70).w("crtc", FUNC(mc6845_device::address_w));
+	map(0x71, 0x71).rw("crtc", FUNC(mc6845_device::register_r), FUNC(mc6845_device::register_w));
+}
+
+void tvc64p_state::io_64p(address_map &map)
+{
+	tvc_io(map);
+	map(0x0f, 0x0f).w(FUNC(tvc64p_state::vram_bank_w));
+}
 
 /* Input ports */
 static INPUT_PORTS_START( tvc )
@@ -604,40 +575,62 @@ void tvc_state::machine_start()
 
 	m_int_flipflop = 0;
 
-	m_expansions[0] = machine().device<tvcexp_slot_device>("exp1");
-	m_expansions[1] = machine().device<tvcexp_slot_device>("exp2");
-	m_expansions[2] = machine().device<tvcexp_slot_device>("exp3");
-	m_expansions[3] = machine().device<tvcexp_slot_device>("exp4");
+	uint8_t *ptr = static_cast<uint8_t *>(m_ram->pointer());
+	memset(&ptr[0], 0, m_ram->size());
 
-	m_bios_rom = memregion("sys");
-	m_ext = memregion("ext");
-	m_vram = memregion("vram");
+	m_bank1->space(0).install_ram(0x8000, 0xbfff, &ptr[0x0000]);
+	m_maincpu->space(AS_PROGRAM).install_ram(0x4000, 0x7fff, &ptr[0x4000]);
+	if (m_ram->size() > 0x8000)
+	{
+		m_bank3->space(0).install_ram(0x4000, 0x7fff, &ptr[0x8000]);
+		m_bank4->space(0).install_ram(0x8000, 0xbfff, &ptr[0xc000]);
+	}
+
+	memory_share *vram = memshare("vram");
+	if (vram != nullptr)
+		m_vram_base = static_cast<uint8_t *>(vram->ptr());
+	m_vram_bank = 0;
 
 	std::string region_tag;
-	m_cart_rom = memregion(region_tag.assign(m_cart->tag()).append(GENERIC_ROM_REGION_TAG).c_str());
+	memory_region *cart_rom = memregion(region_tag.assign(m_cart->tag()).append(GENERIC_ROM_REGION_TAG).c_str());
+	if (cart_rom != nullptr)
+	{
+		m_bank1->space(0).install_rom(0x4000, 0x7fff, cart_rom->base());
+		m_bank4->space(0).install_rom(0x0000, 0x3fff, cart_rom->base());
+	}
+}
+
+void tvc64p_state::machine_start()
+{
+	tvc_state::machine_start();
+
+	m_vram_ptr = make_unique_clear<uint8_t[]>(0x10000);
+	m_vram_base = m_vram_ptr.get();
+	m_vram_bank1->configure_entries(0, 4, m_vram_base, 0x4000);
+	m_vram_bank3->configure_entries(0, 4, m_vram_base, 0x4000);
 }
 
 void tvc_state::machine_reset()
 {
-	memset(m_ram->pointer(), 0, m_ram->size());
-	set_mem_page(0);
+	bank_w(0);
 	m_video_mode = 0;
 	m_cassette_ff = 1;
 	m_centronics_ff = 1;
-	m_bank = 0;
-	m_vram_bank = 0;
-	memset(m_bank_type, 0, sizeof(m_bank_type));
 	m_active_slot = 0;
+}
 
-	// Bank 2 is always RAM
-	membank("bank2")->set_base(m_ram->pointer() + 0x4000);
+void tvc64p_state::machine_reset()
+{
+	tvc_state::machine_reset();
+
+	vram_bank_w(0);
 }
 
 MC6845_UPDATE_ROW( tvc_state::crtc_update_row )
 {
 	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	uint32_t  *p = &bitmap.pix32(y);
-	uint8_t *vram = m_vram->base() + ((m_vram_bank & 0x30)<<10);
+	uint8_t *vram = &m_vram_base[(m_vram_bank & 0x30)<<10];
 	uint16_t offset = ((ma*4 + ra*0x40) & 0x3fff);
 	int i;
 
@@ -695,31 +688,29 @@ MC6845_UPDATE_ROW( tvc_state::crtc_update_row )
 	}
 }
 
-PALETTE_INIT_MEMBER(tvc_state, tvc)
+void tvc_state::tvc_palette(palette_device &palette) const
 {
-	const static unsigned char tvc_palette[16][3] =
+	static constexpr rgb_t tvc_pens[16] =
 	{
-		{ 0x00,0x00,0x00 },
-		{ 0x00,0x00,0x7f },
-		{ 0x7f,0x00,0x00 },
-		{ 0x7f,0x00,0x7f },
-		{ 0x00,0x7f,0x00 },
-		{ 0x00,0x7f,0x7f },
-		{ 0x7f,0x7f,0x00 },
-		{ 0x7f,0x7f,0x7f },
-		{ 0x00,0x00,0x00 },
-		{ 0x00,0x00,0xff },
-		{ 0xff,0x00,0x00 },
-		{ 0xff,0x00,0xff },
-		{ 0x00,0xff,0x00 },
-		{ 0x00,0xff,0xff },
-		{ 0xff,0xff,0x00 },
-		{ 0xff,0xff,0xff }
+		{ 0x00, 0x00, 0x00 },
+		{ 0x00, 0x00, 0x7f },
+		{ 0x7f, 0x00, 0x00 },
+		{ 0x7f, 0x00, 0x7f },
+		{ 0x00, 0x7f, 0x00 },
+		{ 0x00, 0x7f, 0x7f },
+		{ 0x7f, 0x7f, 0x00 },
+		{ 0x7f, 0x7f, 0x7f },
+		{ 0x00, 0x00, 0x00 },
+		{ 0x00, 0x00, 0xff },
+		{ 0xff, 0x00, 0x00 },
+		{ 0xff, 0x00, 0xff },
+		{ 0x00, 0xff, 0x00 },
+		{ 0x00, 0xff, 0xff },
+		{ 0xff, 0xff, 0x00 },
+		{ 0xff, 0xff, 0xff }
 	};
-	int i;
 
-	for(i = 0; i < 16; i++)
-		palette.set_pen_color(i, tvc_palette[i][0], tvc_palette[i][1], tvc_palette[i][2]);
+	palette.set_pen_colors(0, tvc_pens);
 }
 
 WRITE_LINE_MEMBER(tvc_state::int_ff_set)
@@ -737,7 +728,7 @@ WRITE_LINE_MEMBER(tvc_state::centronics_ack)
 		m_centronics_ff = 1;
 }
 
-QUICKLOAD_LOAD_MEMBER( tvc_state, tvc64)
+QUICKLOAD_LOAD_MEMBER(tvc_state::quickload_cb)
 {
 	uint8_t first_byte;
 
@@ -755,86 +746,114 @@ QUICKLOAD_LOAD_MEMBER( tvc_state, tvc64)
 }
 
 
-extern SLOT_INTERFACE_START(tvc_exp)
-	SLOT_INTERFACE("hbf", TVC_HBF)          // Videoton HBF floppy interface
-SLOT_INTERFACE_END
+void tvc_exp(device_slot_interface &device)
+{
+	device.option_add("hbf", TVC_HBF);      // Videoton HBF floppy interface
+}
 
 
-static MACHINE_CONFIG_START( tvc, tvc_state )
+void tvc_state::tvc(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu",Z80, 3125000)
-	MCFG_CPU_PROGRAM_MAP(tvc_mem)
-	MCFG_CPU_IO_MAP(tvc_io)
+	Z80(config, m_maincpu, 3125000);
+	m_maincpu->set_addrmap(AS_PROGRAM, &tvc_state::tvc_mem);
+	m_maincpu->set_addrmap(AS_IO, &tvc_state::tvc_io);
+
+	ADDRESS_MAP_BANK(config, m_bank1);
+	m_bank1->set_endianness(ENDIANNESS_LITTLE);
+	m_bank1->set_data_width(8);
+	m_bank1->set_addr_width(16);
+	m_bank1->set_stride(0x4000);
+	m_bank1->set_addrmap(0, &tvc_state::tvc_bank1);
+
+	ADDRESS_MAP_BANK(config, m_bank3);
+	m_bank3->set_endianness(ENDIANNESS_LITTLE);
+	m_bank3->set_data_width(8);
+	m_bank3->set_addr_width(15);
+	m_bank3->set_stride(0x4000);
+	m_bank3->set_addrmap(0, &tvc_state::tvc_bank3);
+
+	ADDRESS_MAP_BANK(config, m_bank4);
+	m_bank4->set_endianness(ENDIANNESS_LITTLE);
+	m_bank4->set_data_width(8);
+	m_bank4->set_addr_width(16);
+	m_bank4->set_stride(0x4000);
+	m_bank4->set_addrmap(0, &tvc_state::tvc_bank4);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_SCREEN_SIZE(512, 240)
-	MCFG_SCREEN_VISIBLE_AREA(0, 512 - 1, 0, 240 - 1)
-	MCFG_SCREEN_UPDATE_DEVICE("crtc", mc6845_device, screen_update)
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(50);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500)); /* not accurate */
+	screen.set_size(512, 240);
+	screen.set_visarea(0, 512 - 1, 0, 240 - 1);
+	screen.set_screen_update("crtc", FUNC(mc6845_device::screen_update));
 
-	MCFG_PALETTE_ADD( "palette", 16 )
-	MCFG_PALETTE_INIT_OWNER(tvc_state, tvc)
+	PALETTE(config, m_palette, FUNC(tvc_state::tvc_palette), 16);
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", 3125000/2) // clk taken from schematics
-	MCFG_MC6845_SHOW_BORDER_AREA(false)
-	MCFG_MC6845_CHAR_WIDTH(8) /*?*/
-	MCFG_MC6845_UPDATE_ROW_CB(tvc_state, crtc_update_row)
-	MCFG_MC6845_OUT_CUR_CB(WRITELINE(tvc_state, int_ff_set))
+	mc6845_device &crtc(MC6845(config, "crtc", 3125000/2)); // clk taken from schematics
+	crtc.set_screen("screen");
+	crtc.set_show_border_area(false);
+	crtc.set_char_width(8); /*?*/
+	crtc.set_update_row_callback(FUNC(tvc_state::crtc_update_row));
+	crtc.out_cur_callback().set(FUNC(tvc_state::int_ff_set));
 
 	/* internal ram */
-	MCFG_RAM_ADD(RAM_TAG)
-	MCFG_RAM_DEFAULT_SIZE("64K")
-	MCFG_RAM_EXTRA_OPTIONS("32K")
+	RAM(config, RAM_TAG).set_default_size("64K").set_extra_options("32K");
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("custom", TVC_SOUND, 0)
-	MCFG_TVC_SOUND_SNDINT_CALLBACK(WRITELINE(tvc_state, int_ff_set))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
+	SPEAKER(config, "mono").front_center();
+	TVC_SOUND(config, m_sound, 0);
+	m_sound->sndint_wr_callback().set(FUNC(tvc_state::int_ff_set));
+	m_sound->add_route(ALL_OUTPUTS, "mono", 0.75);
 
-	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_devices, "printer")
-	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(tvc_state, centronics_ack))
+	CENTRONICS(config, m_centronics, centronics_devices, "printer");
+	m_centronics->ack_handler().set(FUNC(tvc_state::centronics_ack));
 
-	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+	output_latch_device &cent_data_out(OUTPUT_LATCH(config, "cent_data_out"));
+	m_centronics->set_output_latch(cent_data_out);
 
 	/* cartridge */
-	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_plain_slot, "tvc_cart")
-	MCFG_GENERIC_EXTENSIONS("bin,rom,crt")
+	GENERIC_CARTSLOT(config, m_cart, generic_plain_slot, "tvc_cart", "bin,rom,crt");
 
 	/* expansion interface */
-	MCFG_DEVICE_ADD("exp1", TVCEXP_SLOT, 0)
-	MCFG_DEVICE_SLOT_INTERFACE(tvc_exp , nullptr, false)
-	MCFG_TVCEXP_SLOT_OUT_IRQ_CB(INPUTLINE("maincpu", 0))
-	MCFG_TVCEXP_SLOT_OUT_NMI_CB(INPUTLINE("maincpu", INPUT_LINE_NMI))
-	MCFG_DEVICE_ADD("exp2", TVCEXP_SLOT, 0)
-	MCFG_DEVICE_SLOT_INTERFACE(tvc_exp , nullptr, false)
-	MCFG_TVCEXP_SLOT_OUT_IRQ_CB(INPUTLINE("maincpu", 0))
-	MCFG_TVCEXP_SLOT_OUT_NMI_CB(INPUTLINE("maincpu", INPUT_LINE_NMI))
-	MCFG_DEVICE_ADD("exp3", TVCEXP_SLOT, 0)
-	MCFG_DEVICE_SLOT_INTERFACE(tvc_exp , nullptr, false)
-	MCFG_TVCEXP_SLOT_OUT_IRQ_CB(INPUTLINE("maincpu", 0))
-	MCFG_TVCEXP_SLOT_OUT_NMI_CB(INPUTLINE("maincpu", INPUT_LINE_NMI))
-	MCFG_DEVICE_ADD("exp4", TVCEXP_SLOT, 0)
-	MCFG_DEVICE_SLOT_INTERFACE(tvc_exp , nullptr, false)
-	MCFG_TVCEXP_SLOT_OUT_IRQ_CB(INPUTLINE("maincpu", 0))
-	MCFG_TVCEXP_SLOT_OUT_NMI_CB(INPUTLINE("maincpu", INPUT_LINE_NMI))
+	TVCEXP_SLOT(config, m_expansions[0], tvc_exp , nullptr);
+	m_expansions[0]->out_irq_callback().set_inputline(m_maincpu, 0);
+	m_expansions[0]->out_nmi_callback().set_inputline(m_maincpu, INPUT_LINE_NMI);
+	TVCEXP_SLOT(config, m_expansions[1], tvc_exp , nullptr);
+	m_expansions[1]->out_irq_callback().set_inputline(m_maincpu, 0);
+	m_expansions[1]->out_nmi_callback().set_inputline(m_maincpu, INPUT_LINE_NMI);
+	TVCEXP_SLOT(config, m_expansions[2], tvc_exp , nullptr);
+	m_expansions[2]->out_irq_callback().set_inputline(m_maincpu, 0);
+	m_expansions[2]->out_nmi_callback().set_inputline(m_maincpu, INPUT_LINE_NMI);
+	TVCEXP_SLOT(config, m_expansions[3], tvc_exp , nullptr);
+	m_expansions[3]->out_irq_callback().set_inputline(m_maincpu, 0);
+	m_expansions[3]->out_nmi_callback().set_inputline(m_maincpu, INPUT_LINE_NMI);
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( "cassette" )
-	MCFG_CASSETTE_FORMATS(tvc64_cassette_formats)
-	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED)
-	MCFG_CASSETTE_INTERFACE("tvc_cass")
+	CASSETTE(config, m_cassette);
+	m_cassette->set_formats(tvc64_cassette_formats);
+	m_cassette->set_default_state(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED);
+	m_cassette->set_interface("tvc_cass");
+	m_cassette->add_route(ALL_OUTPUTS, "mono", 0.05);
 
 	/* quickload */
-	MCFG_QUICKLOAD_ADD("quickload", tvc_state, tvc64, "cas", 6)
+	QUICKLOAD(config, "quickload", "cas", attotime::from_seconds(6)).set_load_callback(FUNC(tvc_state::quickload_cb));
 
 	/* Software lists */
-	MCFG_SOFTWARE_LIST_ADD("cart_list", "tvc_cart")
-	MCFG_SOFTWARE_LIST_ADD("cass_list", "tvc_cass")
-	MCFG_SOFTWARE_LIST_ADD("flop_list", "tvc_flop")
-MACHINE_CONFIG_END
+	SOFTWARE_LIST(config, "cart_list").set_original("tvc_cart");
+	SOFTWARE_LIST(config, "cass_list").set_original("tvc_cass");
+	SOFTWARE_LIST(config, "flop_list").set_original("tvc_flop");
+}
+
+void tvc64p_state::tvc64p(machine_config &config)
+{
+	tvc(config);
+
+	m_maincpu->set_addrmap(AS_IO, &tvc64p_state::io_64p);
+	m_bank1->set_addrmap(0, &tvc64p_state::bank1_64p);
+	m_bank3->set_addrmap(0, &tvc64p_state::bank3_64p);
+}
+
 
 /* ROM definition */
 ROM_START( tvc64 )
@@ -844,23 +863,19 @@ ROM_START( tvc64 )
 
 	ROM_REGION( 0x4000, "ext", ROMREGION_ERASEFF )
 	ROM_LOAD( "tvc12_d7.64k", 0x2000, 0x2000, CRC(1cbbeac6) SHA1(54b29c9ca9942f04620fbf3edab3b8e3cd21c194))
-
-	ROM_REGION( 0x4000, "vram", ROMREGION_ERASE )
 ROM_END
 
 ROM_START( tvc64p )
 	ROM_REGION( 0x4000, "sys", ROMREGION_ERASEFF )
 	ROM_SYSTEM_BIOS( 0, "v22", "v2.2")
-	ROMX_LOAD( "tvc22_d6.64k", 0x0000, 0x2000, CRC(05ac3a34) SHA1(bdc7eda5fd53f806dca8c4929ee498e8e59eb787), ROM_BIOS(1) )
-	ROMX_LOAD( "tvc22_d4.64k", 0x2000, 0x2000, CRC(ba6ad589) SHA1(e5c8a6db506836a327d901387a8dc8c681a272db), ROM_BIOS(1) )
+	ROMX_LOAD( "tvc22_d6.64k", 0x0000, 0x2000, CRC(05ac3a34) SHA1(bdc7eda5fd53f806dca8c4929ee498e8e59eb787), ROM_BIOS(0) )
+	ROMX_LOAD( "tvc22_d4.64k", 0x2000, 0x2000, CRC(ba6ad589) SHA1(e5c8a6db506836a327d901387a8dc8c681a272db), ROM_BIOS(0) )
 	ROM_SYSTEM_BIOS( 1, "v21", "v2.1")
-	ROMX_LOAD( "tvc21_d6.64k", 0x0000, 0x2000, CRC(f197ffce) SHA1(7b27a91504dd864170451949ada5f938d6532cae), ROM_BIOS(2) )
-	ROMX_LOAD( "tvc21_d4.64k", 0x2000, 0x2000, CRC(b054c0b2) SHA1(c8ca8d5a4d092604de01e2cafc2a2dabe94e6380), ROM_BIOS(2) )
+	ROMX_LOAD( "tvc21_d6.64k", 0x0000, 0x2000, CRC(f197ffce) SHA1(7b27a91504dd864170451949ada5f938d6532cae), ROM_BIOS(1) )
+	ROMX_LOAD( "tvc21_d4.64k", 0x2000, 0x2000, CRC(b054c0b2) SHA1(c8ca8d5a4d092604de01e2cafc2a2dabe94e6380), ROM_BIOS(1) )
 
 	ROM_REGION( 0x4000, "ext", ROMREGION_ERASEFF )
 	ROM_LOAD( "tvc22_d7.64k", 0x2000, 0x2000, CRC(05e1c3a8) SHA1(abf119cf947ea32defd08b29a8a25d75f6bd4987))
-
-	ROM_REGION( 0x10000, "vram", ROMREGION_ERASE )
 ROM_END
 
 ROM_START( tvc64pru )
@@ -870,13 +885,11 @@ ROM_START( tvc64pru )
 
 	ROM_REGION( 0x4000, "ext", ROMREGION_ERASEFF )
 	ROM_LOAD( "tvcru_d7.bin", 0x2000, 0x2000, CRC(70cde756) SHA1(c49662af9f6653347ead641e85777c3463cc161b))
-
-	ROM_REGION( 0x10000, "vram", ROMREGION_ERASE )
 ROM_END
 
 /* Driver */
 
-/*    YEAR  NAME      PARENT  COMPAT MACHINE    INPUT     INIT                     COMPANY       FULLNAME       FLAGS */
-COMP( 1985, tvc64,    0,      0,     tvc,       tvc,      driver_device,  0,       "Videoton",   "TVC 64",       MACHINE_NOT_WORKING | MACHINE_NO_SOUND)
-COMP( 1985, tvc64p,   tvc64,  0,     tvc,       tvc,      driver_device,  0,       "Videoton",   "TVC 64+",      MACHINE_NOT_WORKING | MACHINE_NO_SOUND)
-COMP( 1985, tvc64pru, tvc64,  0,     tvc,       tvc64pru, driver_device,  0,       "Videoton",   "TVC 64+ (Russian)",        MACHINE_NOT_WORKING | MACHINE_NO_SOUND)
+//    YEAR  NAME      PARENT  COMPAT  MACHINE  INPUT     CLASS         INIT        COMPANY       FULLNAME             FLAGS
+COMP( 1985, tvc64,    0,      0,      tvc,     tvc,      tvc_state,    empty_init, "Videoton",   "TVC 64",            MACHINE_NOT_WORKING | MACHINE_NO_SOUND )
+COMP( 1985, tvc64p,   tvc64,  0,      tvc64p,  tvc,      tvc64p_state, empty_init, "Videoton",   "TVC 64+",           MACHINE_NOT_WORKING | MACHINE_NO_SOUND )
+COMP( 1985, tvc64pru, tvc64,  0,      tvc64p,  tvc64pru, tvc64p_state, empty_init, "Videoton",   "TVC 64+ (Russian)", MACHINE_NOT_WORKING | MACHINE_NO_SOUND )

@@ -2,44 +2,41 @@
 // copyright-holders:Samuele Zannoli
 
 #include "emu.h"
+#include "machine/pci.h"
+#include "machine/idectrl.h"
+#include "includes/xbox_pci.h"
 #include "includes/xbox.h"
 
 #include "cpu/i386/i386.h"
-#include "machine/lpci.h"
-#include "machine/pit8253.h"
 #include "debug/debugcon.h"
 #include "debug/debugcmd.h"
 
 #include "debugger.h"
-
-#include "bitmap.h"
+#include "romload.h"
 
 #include <functional>
-
-#define LOG_PCI
-//#define LOG_AUDIO
 
 const xbox_base_state::debugger_constants xbox_base_state::debugp[] = {
 	{ 0x66232714, {0x8003aae0, 0x5c, 0x1c, 0x28, 0x210, 8, 0x28, 0x1c} },
 	{ 0x49d8055a, {0x8003aae0, 0x5c, 0x1c, 0x28, 0x210, 8, 0x28, 0x1c} }
 };
 
-int xbox_base_state::find_bios_index(running_machine &mach)
+int xbox_base_state::find_bios_index()
 {
-	u8 sb = mach.driver_data()->system_bios();
+	u8 sb = system_bios();
 	return sb;
 }
 
-bool xbox_base_state::find_bios_hash(running_machine &mach, int bios, uint32_t &crc32)
+bool xbox_base_state::find_bios_hash(int bios, uint32_t &crc32)
 {
 	uint32_t crc = 0;
-	const std::vector<rom_entry> &rev = mach.root_device().rom_region_vector();
+	const std::vector<rom_entry> &rev = rom_region_vector();
 
-	for (rom_entry re : rev)
+	for (rom_entry const &re : rev)
 	{
-		if ((re.flags() & ROMENTRY_TYPEMASK) == ROMENTRYTYPE_ROM)
+		if (ROMENTRY_ISFILE(re))
 		{
-			if ((re.flags() & ROM_BIOSFLAGSMASK) == ROM_BIOS(bios + 1))
+			if (ROM_GETBIOSFLAGS(re) == (uint32_t)(bios + 1))
 			{
 				const std::string &h = re.hashdata();
 				util::hash_collection hc(h.c_str());
@@ -54,14 +51,14 @@ bool xbox_base_state::find_bios_hash(running_machine &mach, int bios, uint32_t &
 	return false;
 }
 
-void xbox_base_state::find_debug_params(running_machine &mach)
+void xbox_base_state::find_debug_params()
 {
 	uint32_t crc;
 	int sb;
 
-	sb = (int)find_bios_index(machine());
+	sb = (int)find_bios_index();
 	debugc_bios = debugp;
-	if (find_bios_hash(machine(), sb - 1, crc) == true)
+	if (find_bios_hash(sb - 1, crc) == true)
 	{
 		for (int n = 0; n < 2; n++)
 			if (debugp[n].id == crc)
@@ -259,7 +256,7 @@ void xbox_base_state::dump_timer_command(int ref, const std::vector<std::string>
 	con.printf("Header.Inserted %d byte\n", cpu.read_byte(space, address + 3, true));
 	con.printf("Header.SignalState %08X dword\n", cpu.read_dword(space, address + 4, true));
 	con.printf("Header.WaitListEntry {%08X,%08X} _LIST_ENTRY\n", cpu.read_dword(space, address + 8, true), cpu.read_dword(space, address + 12, true));
-	con.printf("%s", string_format("DueTime %I64x qword\n", (int64_t)cpu.read_qword(space, address + 16, true)).c_str());
+	con.printf("%s", string_format("DueTime %x qword\n", (int64_t)cpu.read_qword(space, address + 16, true)).c_str());
 	con.printf("TimerListEntry {%08X,%08X} _LIST_ENTRY\n", cpu.read_dword(space, address + 24, true), cpu.read_dword(space, address + 28, true));
 	con.printf("Dpc %08X dword\n", cpu.read_dword(space, address + 32, true));
 	con.printf("Period %d dword\n", cpu.read_dword(space, address + 36, true));
@@ -393,7 +390,8 @@ void xbox_base_state::grab_vprog_command(int ref, const std::vector<std::string>
 		return;
 	if ((fil = fopen(params[1].c_str(), "wb")) == nullptr)
 		return;
-	for (int n = 0; n < 136; n++) {
+	for (int n = 0; n < 136; n++)
+	{
 		nvidia_nv2a->debug_grab_vertex_program_slot(n, instruction);
 		fwrite(instruction, sizeof(uint32_t), 4, fil);
 	}
@@ -407,8 +405,8 @@ void xbox_base_state::vprogdis_command(int ref, const std::vector<std::string> &
 	if (params.size() < 3)
 		return;
 
-	uint64_t address;
-	if (!machine().debugger().commands().validate_number_parameter(params[1], address))
+	uint64_t addr;
+	if (!machine().debugger().commands().validate_number_parameter(params[1], addr))
 		return;
 
 	uint64_t length;
@@ -426,8 +424,8 @@ void xbox_base_state::vprogdis_command(int ref, const std::vector<std::string> &
 		uint32_t instruction[4];
 		if (type == 1)
 		{
-			offs_t addr = (offs_t)address;
-			if (!m_maincpu->translate(AS_PROGRAM, TRANSLATE_READ_DEBUG, addr))
+			offs_t address = (offs_t)addr;
+			if (!m_maincpu->translate(AS_PROGRAM, TRANSLATE_READ_DEBUG, address))
 				return;
 			instruction[0] = space.read_dword_unaligned(address);
 			instruction[1] = space.read_dword_unaligned(address + 4);
@@ -436,7 +434,7 @@ void xbox_base_state::vprogdis_command(int ref, const std::vector<std::string> &
 		}
 		else
 		{
-			nvidia_nv2a->debug_grab_vertex_program_slot((int)address, instruction);
+			nvidia_nv2a->debug_grab_vertex_program_slot((int)addr, instruction);
 		}
 
 		char line[64];
@@ -444,9 +442,9 @@ void xbox_base_state::vprogdis_command(int ref, const std::vector<std::string> &
 			machine().debugger().console().printf("%s\n", line);
 
 		if (type == 1)
-			address = address + 4 * 4;
+			addr = addr + 4 * 4;
 		else
-			address++;
+			addr++;
 
 		length--;
 	}
@@ -525,59 +523,12 @@ void xbox_base_state::debug_generate_irq(int irq, bool active)
 		debug_irq_active = false;
 		state = 0;
 	}
-	switch (irq)
-	{
-	case 0:
-		xbox_base_devs.pic8259_1->ir0_w(state);
-		break;
-	case 1:
-		xbox_base_devs.pic8259_1->ir1_w(state);
-		break;
-	case 3:
-		xbox_base_devs.pic8259_1->ir3_w(state);
-		break;
-	case 4:
-		xbox_base_devs.pic8259_1->ir4_w(state);
-		break;
-	case 5:
-		xbox_base_devs.pic8259_1->ir5_w(state);
-		break;
-	case 6:
-		xbox_base_devs.pic8259_1->ir6_w(state);
-		break;
-	case 7:
-		xbox_base_devs.pic8259_1->ir7_w(state);
-		break;
-	case 8:
-		xbox_base_devs.pic8259_2->ir0_w(state);
-		break;
-	case 9:
-		xbox_base_devs.pic8259_2->ir1_w(state);
-		break;
-	case 10:
-		xbox_base_devs.pic8259_2->ir2_w(state);
-		break;
-	case 11:
-		xbox_base_devs.pic8259_2->ir3_w(state);
-		break;
-	case 12:
-		xbox_base_devs.pic8259_2->ir4_w(state);
-		break;
-	case 13:
-		xbox_base_devs.pic8259_2->ir5_w(state);
-		break;
-	case 14:
-		xbox_base_devs.pic8259_2->ir6_w(state);
-		break;
-	case 15:
-		xbox_base_devs.pic8259_2->ir7_w(state);
-		break;
-	}
+	mcpxlpc->debug_generate_irq(irq, state);
 }
 
-void xbox_base_state::vblank_callback(screen_device &screen, bool state)
+WRITE_LINE_MEMBER(xbox_base_state::vblank_callback)
 {
-	nvidia_nv2a->vblank_callback(screen, state);
+	nvidia_nv2a->vblank_callback(state);
 }
 
 uint32_t xbox_base_state::screen_update_callback(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
@@ -585,372 +536,107 @@ uint32_t xbox_base_state::screen_update_callback(screen_device &screen, bitmap_r
 	return nvidia_nv2a->screen_update_callback(screen, bitmap, cliprect);
 }
 
-READ32_MEMBER(xbox_base_state::geforce_r)
-{
-	return nvidia_nv2a->geforce_r(space, offset, mem_mask);
-}
-
-WRITE32_MEMBER(xbox_base_state::geforce_w)
-{
-	nvidia_nv2a->geforce_w(space, offset, data, mem_mask);
-}
-
-static uint32_t geforce_pci_r(device_t *busdevice, device_t *device, int function, int reg, uint32_t mem_mask)
-{
-#ifdef LOG_PCI
-	busdevice->logerror("  bus:1 device:NV_2A function:%d register:%d mask:%08X\n",function,reg,mem_mask);
-#endif
-	return 0;
-}
-
-static void geforce_pci_w(device_t *busdevice, device_t *device, int function, int reg, uint32_t data, uint32_t mem_mask)
-{
-#ifdef LOG_PCI
-	busdevice->logerror("  bus:1 device:NV_2A function:%d register:%d data:%08X mask:%08X\n",function,reg,data,mem_mask);
-#endif
-}
-
-/*
- * Audio
- */
-
-READ32_MEMBER(xbox_base_state::audio_apu_r)
-{
-#ifdef LOG_AUDIO
-	logerror("Audio_APU: read from %08X mask %08X\n", 0xfe800000 + offset * 4, mem_mask);
-#endif
-	if (offset == 0x20010 / 4) // some kind of internal counter or state value
-		return 0x20 + 4 + 8 + 0x48 + 0x80;
-	return apust.memory[offset];
-}
-
-WRITE32_MEMBER(xbox_base_state::audio_apu_w)
-{
-	//uint32_t old;
-	uint32_t v;
-
-#ifdef LOG_AUDIO
-	logerror("Audio_APU: write at %08X mask %08X value %08X\n", 0xfe800000 + offset * 4, mem_mask, data);
-#endif
-	//old = apust.memory[offset];
-	apust.memory[offset] = data;
-	if (offset == 0x02040 / 4) // address of memory area with scatter-gather info (gpdsp scratch dma)
-		apust.gpdsp_sgaddress = data;
-	if (offset == 0x020d4 / 4) { // block count (gpdsp)
-		apust.gpdsp_sgblocks = data;
-		apust.gpdsp_address = apust.space->read_dword(apust.gpdsp_sgaddress); // memory address of first block
-		apust.timer->enable();
-		apust.timer->adjust(attotime::from_msec(1), 0, attotime::from_msec(1));
-	}
-	if (offset == 0x02048 / 4) // (epdsp scratch dma)
-		apust.epdsp_sgaddress = data;
-	if (offset == 0x020dc / 4) // (epdsp)
-		apust.epdsp_sgblocks = data;
-	if (offset == 0x0204c / 4) // address of memory area with information about blocks
-		apust.unknown_sgaddress = data;
-	if (offset == 0x020e0 / 4) // block count - 1
-		apust.unknown_sgblocks = data;
-	if (offset == 0x0202c / 4) { // address of memory area with 0x80 bytes for each voice
-		apust.voicedata_address = data;
-		return;
-	}
-	if (offset == 0x04024 / 4) // offset in memory area indicated by 0x204c (analog output ?)
-		return;
-	if (offset == 0x04034 / 4) // size
-		return;
-	if (offset == 0x04028 / 4) // offset in memory area indicated by 0x204c (digital output ?)
-		return;
-	if (offset == 0x04038 / 4) // size
-		return;
-	if (offset == 0x20804 / 4) { // block number for scatter-gather heap that stores sampled audio to be played
-		if (data >= 1024) {
-			logerror("Audio_APU: sg block number too high, increase size of voices_heap_blockaddr\n");
-			apust.memory[offset] = 1023;
-		}
-		return;
-	}
-	if (offset == 0x20808 / 4) { // block address for scatter-gather heap that stores sampled audio to be played
-		apust.voices_heap_blockaddr[apust.memory[0x20804 / 4]] = data;
-		return;
-	}
-	if (offset == 0x202f8 / 4) { // voice number for parameters ?
-		apust.voice_number = data;
-		return;
-	}
-	if (offset == 0x202fc / 4) // 1 when accessing voice parameters 0 otherwise
-		return;
-	if (offset == 0x20304 / 4) { // format
-		/*
-		bits 28-31 sample format:
-		0  8-bit pcm
-		5  16-bit pcm
-		10 adpcm ?
-		14 24-bit pcm
-		15 32-bit pcm
-		bits 16-20 number of channels - 1:
-		0  mono
-		1  stereo
-		*/
-		return;
-	}
-	if (offset == 0x2037c / 4) { // value related to sample rate
-		int16_t v0 = (int16_t)(data >> 16); // upper 16 bits as a signed 16 bit value
-		float vv = ((float)v0) / 4096.0f; // divide by 4096
-		float vvv = powf(2, vv); // two to the vv
-		int f = vvv*48000.0f; // sample rate
-		apust.voices_frequency[apust.voice_number] = f;
-		return;
-	}
-	if (offset == 0x203a0 / 4) // start offset of data in scatter-gather heap
-		return;
-	if (offset == 0x203a4 / 4) { // first sample to play
-		apust.voices_position_start[apust.voice_number] = data * 1000;
-		return;
-	}
-	if (offset == 0x203dc / 4) { // last sample to play
-		apust.voices_position_end[apust.voice_number] = data * 1000;
-		return;
-	}
-	if (offset == 0x2010c / 4) // voice processor 0 idle 1 not idle ?
-		return;
-	if (offset == 0x20124 / 4) { // voice number to activate ?
-		v = apust.voice_number;
-		apust.voices_active[v >> 6] |= ((uint64_t)1 << (v & 63));
-		apust.voices_position[v] = apust.voices_position_start[apust.voice_number];
-		apust.voices_position_increment[apust.voice_number] = apust.voices_frequency[apust.voice_number];
-		return;
-	}
-	if (offset == 0x20128 / 4) { // voice number to deactivate ?
-		v = apust.voice_number;
-		apust.voices_active[v >> 6] &= ~(1 << (v & 63));
-		return;
-	}
-	if (offset == 0x20140 / 4) // voice number to ?
-		return;
-	if ((offset >= 0x20200 / 4) && (offset < 0x20280 / 4)) // headroom for each of the 32 mixbins
-		return;
-	if (offset == 0x20280 / 4) // hrtf headroom ?
-		return;
-}
-
-READ32_MEMBER(xbox_base_state::audio_ac93_r)
-{
-	uint32_t ret = 0;
-
-#ifdef LOG_AUDIO
-	logerror("Audio_AC3: read from %08X mask %08X\n", 0xfec00000 + offset * 4, mem_mask);
-#endif
-	if (offset < 0x80 / 4)
-	{
-		ret = ac97st.mixer_regs[offset];
-	}
-	if ((offset >= 0x100 / 4) && (offset <= 0x138 / 4))
-	{
-		offset = offset - 0x100 / 4;
-		if (offset == 0x18 / 4)
-		{
-			ac97st.controller_regs[offset] &= ~0x02000000; // REGRST: register reset
-		}
-		if (offset == 0x30 / 4)
-		{
-			ac97st.controller_regs[offset] |= 0x100; // PCRDY: primary codec ready
-		}
-		if (offset == 0x34 / 4)
-		{
-			ac97st.controller_regs[offset] &= ~1; // CAS: codec access semaphore
-		}
-		ret = ac97st.controller_regs[offset];
-	}
-	return ret;
-}
-
-WRITE32_MEMBER(xbox_base_state::audio_ac93_w)
-{
-#ifdef LOG_AUDIO
-	logerror("Audio_AC3: write at %08X mask %08X value %08X\n", 0xfec00000 + offset * 4, mem_mask, data);
-#endif
-	if (offset < 0x80 / 4)
-	{
-		COMBINE_DATA(ac97st.mixer_regs + offset);
-	}
-	if ((offset >= 0x100 / 4) && (offset <= 0x138 / 4))
-	{
-		offset = offset - 0x100 / 4;
-		COMBINE_DATA(ac97st.controller_regs + offset);
-	}
-}
-
-TIMER_CALLBACK_MEMBER(xbox_base_state::audio_apu_timer)
-{
-	int cmd;
-	int bb, b, v;
-	uint64_t bv;
-	uint32_t phys;
-
-	cmd = apust.space->read_dword(apust.gpdsp_address + 0x800 + 0x10);
-	if (cmd == 3)
-		apust.space->write_dword(apust.gpdsp_address + 0x800 + 0x10, 0);
-	/*else
-	logerror("Audio_APU: unexpected value at address %d\n",apust.gpdsp_address+0x800+0x10);*/
-	for (b = 0; b < 4; b++) {
-		bv = 1;
-		for (bb = 0; bb < 64; bb++) {
-			if (apust.voices_active[b] & bv) {
-				v = bb + (b << 6);
-				apust.voices_position[v] += apust.voices_position_increment[v];
-				while (apust.voices_position[v] >= apust.voices_position_end[v])
-					apust.voices_position[v] = apust.voices_position_start[v] + apust.voices_position[v] - apust.voices_position_end[v] - 1000;
-				phys = apust.voicedata_address + 0x80 * v;
-				apust.space->write_dword(phys + 0x58, apust.voices_position[v] / 1000);
-			}
-			bv = bv << 1;
-		}
-	}
-}
-
-static uint32_t pcibridghostbridg_pci_r(device_t *busdevice, device_t *device, int function, int reg, uint32_t mem_mask)
-{
-#ifdef LOG_PCI
-	busdevice->logerror("  bus:0 function:%d register:%d mask:%08X\n",function,reg,mem_mask);
-#endif
-	if ((function == 3) && (reg == 0x6c))
-		return 0x08800044;
-	return 0;
-}
-
-static void pcibridghostbridg_pci_w(device_t *busdevice, device_t *device, int function, int reg, uint32_t data, uint32_t mem_mask)
-{
-#ifdef LOG_PCI
-	busdevice->logerror("  bus:0 function:%d register:%d data:%08X mask:%08X\n", function, reg, data, mem_mask);
-#endif
-}
-
-static uint32_t hubintisabridg_pci_r(device_t *busdevice, device_t *device, int function, int reg, uint32_t mem_mask)
-{
-#ifdef LOG_PCI
-	busdevice->logerror("  bus:0 function:%d register:%d mask:%08X\n",function,reg,mem_mask);
-#endif
-	if ((function == 0) && (reg == 8))
-		return 0xb4; // 0:1:0 revision id must be at least 0xb4, otherwise usb will require a hub
-	return 0;
-}
-
-static void hubintisabridg_pci_w(device_t *busdevice, device_t *device, int function, int reg, uint32_t data, uint32_t mem_mask)
-{
-#ifdef LOG_PCI
-	busdevice->logerror("  bus:0 function:%d register:%d data:%08X mask:%08X\n", function, reg, data, mem_mask);
-#endif
-}
-
-/*
- * dummy for non connected devices
- */
-
-static uint32_t dummy_pci_r(device_t *busdevice, device_t *device, int function, int reg, uint32_t mem_mask)
-{
-#ifdef LOG_PCI
-	busdevice->logerror("  bus:0 function:%d register:%d mask:%08X\n",function,reg,mem_mask);
-#endif
-	return 0;
-}
-
-static void dummy_pci_w(device_t *busdevice, device_t *device, int function, int reg, uint32_t data, uint32_t mem_mask)
-{
-#ifdef LOG_PCI
-	busdevice->logerror("  bus:0 function:%d register:%d data:%08X mask:%08X\n", function, reg, data, mem_mask);
-#endif
-}
-
-READ32_MEMBER(xbox_base_state::dummy_r)
-{
-	return 0;
-}
-
-WRITE32_MEMBER(xbox_base_state::dummy_w)
-{
-}
-
 /*
  * PIC & PIT
  */
 
-WRITE_LINE_MEMBER(xbox_base_state::xbox_pic8259_1_set_int_line)
+WRITE_LINE_MEMBER(xbox_base_state::maincpu_interrupt)
 {
 	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
 }
 
-READ8_MEMBER(xbox_base_state::get_slave_ack)
-{
-	if (offset == 2) { // IRQ = 2
-		return xbox_base_devs.pic8259_2->acknowledge();
-	}
-	return 0x00;
-}
-
 IRQ_CALLBACK_MEMBER(xbox_base_state::irq_callback)
 {
-	int r = 0;
-	r = xbox_base_devs.pic8259_1->acknowledge();
+	int r;
+	r = mcpxlpc->acknowledge();
 	if (debug_irq_active)
 		debug_generate_irq(debug_irq_number, false);
 	return r;
-}
-
-WRITE_LINE_MEMBER(xbox_base_state::xbox_pit8254_out0_changed)
-{
-	if (xbox_base_devs.pic8259_1)
-	{
-		xbox_base_devs.pic8259_1->ir0_w(state);
-	}
-}
-
-WRITE_LINE_MEMBER(xbox_base_state::xbox_pit8254_out2_changed)
-{
-	//xbox_speaker_set_input( state ? 1 : 0 );
 }
 
 /*
  * SMbus devices
  */
 
-int smbus_callback_pic16lc(xbox_base_state &chs, int command, int rw, int data)
+/*
+ * PIC16LC
+ */
+
+DEFINE_DEVICE_TYPE(XBOX_PIC16LC, xbox_pic16lc_device, "pic16lc", "XBOX PIC16LC")
+
+xbox_pic16lc_device::xbox_pic16lc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, XBOX_PIC16LC, tag, owner, clock)
 {
-	return chs.smbus_pic16lc(command, rw, data);
 }
 
-int xbox_base_state::smbus_pic16lc(int command, int rw, int data)
+int xbox_pic16lc_device::execute_command(int command, int rw, int data)
 {
 	if (rw == 1) { // read
-		if (command == 0) {
-			if (pic16lc_buffer[0] == 'D')
-				pic16lc_buffer[0] = 'X';
-			else if (pic16lc_buffer[0] == 'X')
-				pic16lc_buffer[0] = 'B';
-			else if (pic16lc_buffer[0] == 'B')
-				pic16lc_buffer[0] = 'D';
+		if (command == 0)
+		{
+			if (buffer[0] == 'D')
+				buffer[0] = 'X';
+			else if (buffer[0] == 'X')
+				buffer[0] = 'B';
+			else if (buffer[0] == 'B')
+				buffer[0] = 'D';
 		}
-		logerror("pic16lc: %d %d %d\n", command, rw, pic16lc_buffer[command]);
-		return pic16lc_buffer[command];
+		logerror("pic16lc: %d %d %d\n", command, rw, buffer[command]);
+		return buffer[command];
 	}
 	else
 		if (command == 0)
-			pic16lc_buffer[0] = 'B';
+			buffer[0] = 'B';
 		else
-			pic16lc_buffer[command] = (uint8_t)data;
+			buffer[command] = (uint8_t)data;
 	logerror("pic16lc: %d %d %d\n", command, rw, data);
 	return 0;
 }
 
-int smbus_callback_cx25871(xbox_base_state &chs, int command, int rw, int data)
+void xbox_pic16lc_device::device_start()
 {
-	return chs.smbus_cx25871(command, rw, data);
+	memset(buffer, 0, sizeof(buffer));
+	buffer[0] = 'B';
+	buffer[4] = 0; // A/V connector, 0=scart 2=vga 4=svideo 7=none
+	// PIC challenge handshake data
+	buffer[0x1c] = 0x0c;
+	buffer[0x1d] = 0x0d;
+	buffer[0x1e] = 0x0e;
+	buffer[0x1f] = 0x0f;
 }
 
-int xbox_base_state::smbus_cx25871(int command, int rw, int data)
+void xbox_pic16lc_device::device_reset()
+{
+}
+
+/*
+ * CX25871
+ */
+
+DEFINE_DEVICE_TYPE(XBOX_CX25871, xbox_cx25871_device, "cx25871", "XBOX CX25871")
+
+xbox_cx25871_device::xbox_cx25871_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, XBOX_CX25871, tag, owner, clock)
+{
+}
+
+int xbox_cx25871_device::execute_command(int command, int rw, int data)
 {
 	logerror("cx25871: %d %d %d\n", command, rw, data);
 	return 0;
 }
+
+void xbox_cx25871_device::device_start()
+{
+}
+
+void xbox_cx25871_device::device_reset()
+{
+}
+
+/*
+ * EEPROM
+ */
 
 // let's try to fake the missing eeprom, make sure its ntsc, otherwise chihiro will show an error
 static int dummyeeprom[256] = {
@@ -966,19 +652,23 @@ static int dummyeeprom[256] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-int smbus_callback_eeprom(xbox_base_state &chs, int command, int rw, int data)
+DEFINE_DEVICE_TYPE(XBOX_EEPROM, xbox_eeprom_device, "eeprom", "XBOX EEPROM")
+
+xbox_eeprom_device::xbox_eeprom_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, XBOX_EEPROM, tag, owner, clock)
 {
-	return chs.smbus_eeprom(command, rw, data);
 }
 
-int xbox_base_state::smbus_eeprom(int command, int rw, int data)
+int xbox_eeprom_device::execute_command(int command, int rw, int data)
 {
 	if (command >= 112)
 		return 0;
-	if (rw == 1) { // if reading
+	if (rw == 1) // if reading
+	{
 		// hack to avoid hanging if eeprom contents are not correct
-		// this would need dumping the serial eeprom on the xbox board
-		if (command == 0) {
+		// removing this would need dumping the serial eeprom on the chihiro xbox board
+		if (command == 0)
+		{
 			hack_eeprom();
 		}
 		data = dummyeeprom[command] + dummyeeprom[command + 1] * 256;
@@ -990,167 +680,115 @@ int xbox_base_state::smbus_eeprom(int command, int rw, int data)
 	return 0;
 }
 
+void xbox_eeprom_device::device_start()
+{
+}
+
+void xbox_eeprom_device::device_reset()
+{
+}
+
 /*
- * SMbus controller
+ * Super-io connected to lpc bus
  */
 
-void xbox_base_state::smbus_register_device(int address, int(*handler)(xbox_base_state &chs, int command, int rw, int data))
+DEFINE_DEVICE_TYPE(XBOX_SUPERIO, xbox_superio_device, "superio_device", "XBOX debug SuperIO")
+
+xbox_superio_device::xbox_superio_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, XBOX_SUPERIO, tag, owner, clock)
+	, configuration_mode(false)
+	, index(0)
+	, selected(0)
 {
-	if (address < 128)
-		smbusst.devices[address] = handler;
+
 }
 
-READ32_MEMBER(xbox_base_state::smbus_r)
+void xbox_superio_device::internal_io_map(address_map &map)
 {
-	if ((offset == 0) && (mem_mask == 0xff)) // 0 smbus status
-		smbusst.words[offset] = (smbusst.words[offset] & ~mem_mask) | ((smbusst.status << 0) & mem_mask);
-	if ((offset == 1) && ((mem_mask == 0x00ff0000) || (mem_mask == 0xffff0000))) // 6 smbus data
-		smbusst.words[offset] = (smbusst.words[offset] & ~mem_mask) | ((smbusst.data << 16) & mem_mask);
-	return smbusst.words[offset];
+	map(0x002e, 0x002f).rw(FUNC(xbox_superio_device::read), FUNC(xbox_superio_device::write));
+	map(0x03f8, 0x03ff).rw(FUNC(xbox_superio_device::read_rs232), FUNC(xbox_superio_device::write_rs232));
 }
 
-WRITE32_MEMBER(xbox_base_state::smbus_w)
+void xbox_superio_device::map_extra(address_space *memory_space, address_space *io_space)
 {
-	COMBINE_DATA(smbusst.words);
-	if ((offset == 0) && (mem_mask == 0xff)) // 0 smbus status
-	{
-		if (!((smbusst.status ^ data) & 0x10)) // clearing interrupt
-			xbox_base_devs.pic8259_2->ir3_w(0); // IRQ 11
-		smbusst.status &= ~data;
-	}
-	if ((offset == 0) && (mem_mask == 0xff0000)) // 2 smbus control
-	{
-		data = data >> 16;
-		smbusst.control = data;
-		int cycletype = smbusst.control & 7;
-		if (smbusst.control & 8) { // start
-			if ((cycletype & 6) == 2)
-			{
-				if (smbusst.devices[smbusst.address])
-					if (smbusst.rw == 0)
-						smbusst.devices[smbusst.address](*this, smbusst.command, smbusst.rw, smbusst.data);
-					else
-						smbusst.data = smbusst.devices[smbusst.address](*this, smbusst.command, smbusst.rw, smbusst.data);
-				else
-					logerror("SMBUS: access to missing device at address %d\n", smbusst.address);
-				smbusst.status |= 0x10;
-				if (smbusst.control & 0x10)
-				{
-					xbox_base_devs.pic8259_2->ir3_w(1); // IRQ 11
-				}
-			}
-		}
-	}
-	if ((offset == 1) && (mem_mask == 0xff)) // 4 smbus address
-	{
-		smbusst.address = data >> 1;
-		smbusst.rw = data & 1;
-	}
-	if ((offset == 1) && ((mem_mask == 0x00ff0000) || (mem_mask == 0xffff0000))) // 6 smbus data
-	{
-		data = data >> 16;
-		smbusst.data = data;
-	}
-	if ((offset == 2) && (mem_mask == 0xff)) // 8 smbus command
-		smbusst.command = data;
-	//if ((offset == 2) && (mem_mask == 0x00ff0000)) ;
+	memspace = memory_space;
+	iospace = io_space;
+	io_space->install_device(0, 0xffff, *this, &xbox_superio_device::internal_io_map);
 }
 
-READ32_MEMBER(xbox_base_state::smbus2_r)
+void xbox_superio_device::set_host(int index, lpcbus_host_interface *host)
 {
-	return 0;
+	lpchost = host;
+	lpcindex = index;
 }
 
-WRITE32_MEMBER(xbox_base_state::smbus2_w)
+void xbox_superio_device::device_start()
 {
+	memset(registers, 0, sizeof(registers));
+	registers[0][0x26] = 0x2e; // Configuration port address byte 0
 }
 
-/*
-* Ethernet controller
-*/
-
-READ32_MEMBER(xbox_base_state::network_r)
+READ8_MEMBER(xbox_superio_device::read)
 {
-	return 0;
-}
-
-WRITE32_MEMBER(xbox_base_state::network_w)
-{
-}
-
-READ32_MEMBER(xbox_base_state::networkio_r)
-{
-	return 0;
-}
-
-WRITE32_MEMBER(xbox_base_state::networkio_w)
-{
-}
-
-/*
- * SuperIO
- */
-
-READ8_MEMBER(xbox_base_state::superio_read)
-{
-	if (superiost.configuration_mode == false)
+	if (configuration_mode == false)
 		return 0;
 	if (offset == 0) // index port 0x2e
-		return superiost.index;
+		return index;
 	if (offset == 1)
 	{
 		// data port 0x2f
-		if (superiost.index < 0x30)
-			return superiost.registers[0][superiost.index];
-		return superiost.registers[superiost.selected][superiost.index];
+		if (index < 0x30)
+			return registers[0][index];
+		return registers[selected][index];
 	}
 	return 0;
 }
 
-WRITE8_MEMBER(xbox_base_state::superio_write)
+WRITE8_MEMBER(xbox_superio_device::write)
 {
-	if (superiost.configuration_mode == false)
+	if (configuration_mode == false)
 	{
 		// config port 0x2e
 		if ((offset == 0) && (data == 0x55))
-			superiost.configuration_mode = true;
+			configuration_mode = true;
 		return;
 	}
 	if ((offset == 0) && (data == 0xaa))
 	{
 		// config port 0x2e
-		superiost.configuration_mode = false;
+		configuration_mode = false;
 		return;
 	}
 	if (offset == 0)
 	{
 		// index port 0x2e
-		superiost.index = data;
+		index = data;
 	}
 	if (offset == 1)
 	{
 		// data port 0x2f
-		if (superiost.index < 0x30)
+		if (index < 0x30)
 		{
-			superiost.registers[0][superiost.index] = data;
-			superiost.selected = superiost.registers[0][7];
-		} else
+			registers[0][index] = data;
+			selected = registers[0][7];
+		}
+		else
 		{
-			superiost.registers[superiost.selected][superiost.index] = data;
+			registers[selected][index] = data;
 			//if ((superiost.selected == 4) && (superiost.index == 0x30) && (data != 0))
 			//  ; // add handlers 0x3f8- +7
 		}
 	}
 }
 
-READ8_MEMBER(xbox_base_state::superiors232_read)
+READ8_MEMBER(xbox_superio_device::read_rs232)
 {
 	if (offset == 5)
 		return 0x20;
 	return 0;
 }
 
-WRITE8_MEMBER(xbox_base_state::superiors232_write)
+WRITE8_MEMBER(xbox_superio_device::write_rs232)
 {
 	if (offset == 0)
 	{
@@ -1158,159 +796,94 @@ WRITE8_MEMBER(xbox_base_state::superiors232_write)
 	}
 }
 
-READ32_MEMBER(xbox_base_state::ohci_usb_r)
-{
-	if (offset == 0) /* hacks needed until usb (and jvs) is implemented */
-	{
-		hack_usb();
-	}
-	return ohci_usb->read(space, offset, mem_mask);
-}
-
-WRITE32_MEMBER(xbox_base_state::ohci_usb_w)
-{
-	if (!usb_hack_enabled)
-		ohci_usb->write(space, offset, data, mem_mask);
-}
-
-READ32_MEMBER(xbox_base_state::ohci_usb2_r)
-{
-	return 0;
-}
-
-WRITE32_MEMBER(xbox_base_state::ohci_usb2_w)
-{
-}
-
-ADDRESS_MAP_START(xbox_base_map, AS_PROGRAM, 32, xbox_base_state)
-	AM_RANGE(0x00000000, 0x07ffffff) AM_RAM AM_SHARE("nv2a_share") // 128 megabytes
-	AM_RANGE(0xf0000000, 0xf7ffffff) AM_RAM AM_SHARE("nv2a_share") // 3d accelerator wants this
-	AM_RANGE(0xfd000000, 0xfdffffff) AM_RAM AM_READWRITE(geforce_r, geforce_w)
-	AM_RANGE(0xfed00000, 0xfed003ff) AM_READWRITE(ohci_usb_r, ohci_usb_w)
-	//AM_RANGE(0xfed00000, 0xfed00fff) AM_DEVREADWRITE("ohci_usb", ohci_usb_controller, read, write)
-	AM_RANGE(0xfed08000, 0xfed08fff) AM_READWRITE(ohci_usb2_r, ohci_usb2_w)
-	AM_RANGE(0xfe800000, 0xfe87ffff) AM_READWRITE(audio_apu_r, audio_apu_w)
-	AM_RANGE(0xfec00000, 0xfec00fff) AM_READWRITE(audio_ac93_r, audio_ac93_w)
-	AM_RANGE(0xfef00000, 0xfef003ff) AM_READWRITE(network_r, network_w)
-ADDRESS_MAP_END
-
-ADDRESS_MAP_START(xbox_base_map_io, AS_IO, 32, xbox_base_state)
-	AM_RANGE(0x0020, 0x0023) AM_DEVREADWRITE8("pic8259_1", pic8259_device, read, write, 0xffffffff)
-	AM_RANGE(0x002c, 0x002f) AM_READWRITE8(superio_read, superio_write, 0xffff0000)
-	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8("pit8254", pit8254_device, read, write, 0xffffffff)
-	AM_RANGE(0x00a0, 0x00a3) AM_DEVREADWRITE8("pic8259_2", pic8259_device, read, write, 0xffffffff)
-	AM_RANGE(0x01f0, 0x01f7) AM_DEVREADWRITE("ide", bus_master_ide_controller_device, read_cs0, write_cs0)
-	AM_RANGE(0x03f8, 0x03ff) AM_READWRITE8(superiors232_read, superiors232_write, 0xffffffff)
-	AM_RANGE(0x0cf8, 0x0cff) AM_DEVREADWRITE("pcibus", pci_bus_legacy_device, read, write)
-	AM_RANGE(0x8000, 0x80ff) AM_READWRITE(dummy_r, dummy_w) // lpc bridge
-	AM_RANGE(0xc000, 0xc00f) AM_READWRITE(smbus_r, smbus_w)
-	AM_RANGE(0xc200, 0xc21f) AM_READWRITE(smbus2_r, smbus2_w)
-	AM_RANGE(0xe000, 0xe007) AM_READWRITE(networkio_r, networkio_w)
-	AM_RANGE(0xff60, 0xff6f) AM_DEVREADWRITE("ide", bus_master_ide_controller_device, bmdma_r, bmdma_w)
-ADDRESS_MAP_END
-
 void xbox_base_state::machine_start()
 {
-	find_debug_params(machine());
-	nvidia_nv2a = std::make_unique<nv2a_renderer>(machine());
-	memset(pic16lc_buffer, 0, sizeof(pic16lc_buffer));
-	pic16lc_buffer[0] = 'B';
-	pic16lc_buffer[4] = 0; // A/V connector, 0=scart 2=vga 4=svideo 7=none
-	smbus_register_device(0x10, smbus_callback_pic16lc);
-	smbus_register_device(0x45, smbus_callback_cx25871);
-	smbus_register_device(0x54, smbus_callback_eeprom);
-	xbox_base_devs.pic8259_1 = machine().device<pic8259_device>("pic8259_1");
-	xbox_base_devs.pic8259_2 = machine().device<pic8259_device>("pic8259_2");
-	xbox_base_devs.ide = machine().device<bus_master_ide_controller_device>("ide");
-	memset(apust.memory, 0, sizeof(apust.memory));
-	memset(apust.voices_heap_blockaddr, 0, sizeof(apust.voices_heap_blockaddr));
-	memset(apust.voices_active, 0, sizeof(apust.voices_active));
-	memset(apust.voices_position, 0, sizeof(apust.voices_position));
-	memset(apust.voices_position_start, 0, sizeof(apust.voices_position_start));
-	memset(apust.voices_position_end, 0, sizeof(apust.voices_position_end));
-	memset(apust.voices_position_increment, 0, sizeof(apust.voices_position_increment));
-	apust.space = &m_maincpu->space();
-	apust.timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(xbox_base_state::audio_apu_timer), this), (void *)"APU Timer");
-	apust.timer->enable(false);
+	find_debug_params();
+	nvidia_nv2a = subdevice<nv2a_gpu_device>("pci:1e.0:00.0")->debug_get_renderer();
 	if (machine().debug_flags & DEBUG_FLAG_ENABLED)
 	{
 		using namespace std::placeholders;
-		machine().debugger().console().register_command("xbox", CMDFLAG_NONE, 0, 1, 4, std::bind(&xbox_base_state::xbox_debug_commands, this, _1, _2));
+		machine().debugger().console().register_command("xbox", CMDFLAG_CUSTOM_HELP, 0, 1, 4, std::bind(&xbox_base_state::xbox_debug_commands, this, _1, _2));
 	}
-	// PIC challenge handshake data
-	pic16lc_buffer[0x1c] = 0x0c;
-	pic16lc_buffer[0x1d] = 0x0d;
-	pic16lc_buffer[0x1e] = 0x0e;
-	pic16lc_buffer[0x1f] = 0x0f;
-	// usb
-	ohci_usb = machine().device<ohci_usb_controller>("ohci_usb");
-	// super-io
-	memset(&superiost, 0, sizeof(superiost));
-	superiost.configuration_mode = false;
-	superiost.registers[0][0x26] = 0x2e; // Configuration port address byte 0
+	subdevice<xbox_eeprom_device>("pci:01.1:154")->hack_eeprom =
+		[&](void)
+	{
+		hack_eeprom();
+	};
+	subdevice<mcpx_ohci_device>("pci:02.0")->set_hack_callback(
+		[&](void)
+	{
+		hack_usb();
+	}
+	);
 	// savestates
 	save_item(NAME(debug_irq_active));
 	save_item(NAME(debug_irq_number));
-	save_item(NAME(smbusst.status));
-	save_item(NAME(smbusst.control));
-	save_item(NAME(smbusst.address));
-	save_item(NAME(smbusst.data));
-	save_item(NAME(smbusst.command));
-	save_item(NAME(smbusst.rw));
-	save_item(NAME(smbusst.words));
-	save_item(NAME(pic16lc_buffer));
-	nvidia_nv2a->set_interrupt_device(xbox_base_devs.pic8259_1);
-	nvidia_nv2a->start(&m_maincpu->space());
-	nvidia_nv2a->savestate_items();
 }
 
-MACHINE_CONFIG_START(xbox_base, xbox_base_state)
+#if 0
+void xbox_base_state::xbox_base_map(address_map &map)
+{
+	map(0x00000000, 0x07ffffff).ram(); // 128 megabytes
+	map(0xf0000000, 0xf7ffffff).ram().share("nv2a_share"); // 3d accelerator wants this
+	map(0xfd000000, 0xfdffffff).ram().rw(FUNC(xbox_base_state::geforce_r), FUNC(xbox_base_state::geforce_w));
+	map(0xfed00000, 0xfed003ff).rw(FUNC(xbox_base_state::ohci_usb_r), FUNC(xbox_base_state::ohci_usb_w));
+	map(0xfed08000, 0xfed083ff).rw(FUNC(xbox_base_state::ohci_usb2_r), FUNC(xbox_base_state::ohci_usb2_w));
+	map(0xfe800000, 0xfe87ffff).rw(FUNC(xbox_base_state::audio_apu_r), FUNC(xbox_base_state::audio_apu_w));
+	map(0xfec00000, 0xfec00fff).rw(FUNC(xbox_base_state::audio_ac93_r), FUNC(xbox_base_state::audio_ac93_w));
+	map(0xfef00000, 0xfef003ff).rw(FUNC(xbox_base_state::network_r), FUNC(xbox_base_state::network_w));
+}
 
+void xbox_base_state::xbox_base_map_io(address_map &map)
+{
+	map(0x01f0, 0x01f7).rw(":pci:09.0:ide1", FUNC(bus_master_ide_controller_device::cs0_r), FUNC(bus_master_ide_controller_device::cs0_w));
+	map(0x002e, 0x002f).rw(FUNC(xbox_base_state::superio_read), FUNC(xbox_base_state::superio_write));
+	map(0x03f8, 0x03ff).rw(FUNC(xbox_base_state::superiors232_read), FUNC(xbox_base_state::superiors232_write));
+	map(0x0cf8, 0x0cff).rw("pcibus", FUNC(pci_bus_legacy_device::read), FUNC(pci_bus_legacy_device::write));
+	map(0x8000, 0x80ff).rw(FUNC(xbox_base_state::dummy_r), FUNC(xbox_base_state::dummy_w)); // lpc bridge
+	map(0xc000, 0xc00f).rw(FUNC(xbox_base_state::smbus_r), FUNC(xbox_base_state::smbus_w));
+	map(0xc200, 0xc21f).rw(FUNC(xbox_base_state::smbus2_r), FUNC(xbox_base_state::smbus2_w));
+	map(0xd000, 0xd0ff).noprw(); // ac97
+	map(0xd200, 0xd27f).noprw(); // ac97
+	map(0xe000, 0xe007).rw(FUNC(xbox_base_state::networkio_r), FUNC(xbox_base_state::networkio_w));
+	map(0xff60, 0xff6f).rw("ide", FUNC(bus_master_ide_controller_device::bmdma_r), FUNC(bus_master_ide_controller_device::bmdma_w));
+}
+#endif
+
+void xbox_base_state::xbox_base(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", PENTIUM3, 733333333) /* Wrong! family 6 model 8 stepping 10 */
-	MCFG_CPU_PROGRAM_MAP(xbox_base_map)
-	MCFG_CPU_IO_MAP(xbox_base_map_io)
-	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(xbox_base_state, irq_callback)
+	PENTIUM3(config, m_maincpu, 733333333); /* Wrong! family 6 model 8 stepping 10 */
+	m_maincpu->set_irq_acknowledge_callback(FUNC(xbox_base_state::irq_callback));
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
+	config.set_maximum_quantum(attotime::from_hz(6000));
 
-	MCFG_PCI_BUS_LEGACY_ADD("pcibus", 0)
-	MCFG_PCI_BUS_LEGACY_DEVICE(0, "PCI Bridge Device - Host Bridge", pcibridghostbridg_pci_r, pcibridghostbridg_pci_w)
-	MCFG_PCI_BUS_LEGACY_DEVICE(1, "HUB Interface - ISA Bridge", hubintisabridg_pci_r, hubintisabridg_pci_w) // function 0 lpc function 1 smbus
-	MCFG_PCI_BUS_LEGACY_DEVICE(2, "OHCI USB Controller 1", dummy_pci_r, dummy_pci_w)
-	MCFG_PCI_BUS_LEGACY_DEVICE(3, "OHCI USB Controller 2", dummy_pci_r, dummy_pci_w)
-	MCFG_PCI_BUS_LEGACY_DEVICE(4, "MCP Networking Adapter", dummy_pci_r, dummy_pci_w)
-	MCFG_PCI_BUS_LEGACY_DEVICE(5, "MCP APU", dummy_pci_r, dummy_pci_w)
-	MCFG_PCI_BUS_LEGACY_DEVICE(6, "AC`97 Audio Codec Interface", dummy_pci_r, dummy_pci_w)
-	MCFG_PCI_BUS_LEGACY_DEVICE(9, "IDE Controller", dummy_pci_r, dummy_pci_w)
-	MCFG_PCI_BUS_LEGACY_DEVICE(30, "AGP Host to PCI Bridge", dummy_pci_r, dummy_pci_w)
-	MCFG_PCI_BUS_LEGACY_ADD("agpbus", 1)
-	MCFG_PCI_BUS_LEGACY_SIBLING("pcibus")
-	MCFG_PCI_BUS_LEGACY_DEVICE(0, "NV2A GeForce 3MX Integrated GPU/Northbridge", geforce_pci_r, geforce_pci_w)
-	MCFG_PIC8259_ADD("pic8259_1", WRITELINE(xbox_base_state, xbox_pic8259_1_set_int_line), VCC, READ8(xbox_base_state, get_slave_ack))
-	MCFG_PIC8259_ADD("pic8259_2", DEVWRITELINE("pic8259_1", pic8259_device, ir2_w), GND, NOOP)
-
-	MCFG_DEVICE_ADD("pit8254", PIT8254, 0)
-	MCFG_PIT8253_CLK0(1125000) /* heartbeat IRQ */
-	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(xbox_base_state, xbox_pit8254_out0_changed))
-	MCFG_PIT8253_CLK1(1125000) /* (unused) dram refresh */
-	MCFG_PIT8253_CLK2(1125000) /* (unused) pio port c pin 4, and speaker polling enough */
-	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(xbox_base_state, xbox_pit8254_out2_changed))
-
-	MCFG_DEVICE_ADD("ide", BUS_MASTER_IDE_CONTROLLER, 0)
-	MCFG_ATA_INTERFACE_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir6_w))
-	MCFG_BUS_MASTER_IDE_CONTROLLER_SPACE("maincpu", AS_PROGRAM)
-
-	// usb controller
-	MCFG_OHCI_USB_CONTROLLER_ADD("ohci_usb")
-	MCFG_OHCI_USB_CONTROLLER_INTERRUPT_HANDLER(WRITELINE(xbox_base_state, xbox_ohci_usb_interrupt_changed))
+	PCI_ROOT(config,        ":pci", 0);
+	NV2A_HOST(config,       ":pci:00.0", 0, m_maincpu);
+	NV2A_RAM(config,        ":pci:00.3", 0, 128); // 128 megabytes
+	MCPX_ISALPC(config,     ":pci:01.0", 0, 0).interrupt_output().set(FUNC(xbox_base_state::maincpu_interrupt));
+	XBOX_SUPERIO(config,    ":pci:01.0:0", 0);
+	MCPX_SMBUS(config,      ":pci:01.1", 0).interrupt_handler().set(":pci:01.0", FUNC(mcpx_isalpc_device::irq11)); //.set(FUNC(xbox_base_state::smbus_interrupt_changed));
+	XBOX_PIC16LC(config,    ":pci:01.1:110", 0); // these 3 are on smbus number 1
+	XBOX_CX25871(config,    ":pci:01.1:145", 0);
+	XBOX_EEPROM(config,     ":pci:01.1:154", 0);
+	MCPX_OHCI(config,       ":pci:02.0", 0).interrupt_handler().set(":pci:01.0", FUNC(mcpx_isalpc_device::irq1));  //.set(FUNC(xbox_base_state::ohci_usb_interrupt_changed));
+	MCPX_OHCI(config,       ":pci:03.0", 0);
+	MCPX_ETH(config,        ":pci:04.0", 0);
+	MCPX_APU(config,        ":pci:05.0", 0, m_maincpu);
+	MCPX_AC97_AUDIO(config, ":pci:06.0", 0);
+	MCPX_AC97_MODEM(config, ":pci:06.1", 0);
+	PCI_BRIDGE(config,      ":pci:08.0", 0, 0x10de01b8, 0);
+	MCPX_IDE(config,        ":pci:09.0", 0).pri_interrupt_handler().set(":pci:01.0", FUNC(mcpx_isalpc_device::irq14));  //.set(FUNC(xbox_base_state::ide_interrupt_changed));
+	NV2A_AGP(config,        ":pci:1e.0", 0, 0x10de01b7, 0);
+	NV2A_GPU(config,        ":pci:1e.0:00.0", 0, m_maincpu).interrupt_handler().set(":pci:01.0", FUNC(mcpx_isalpc_device::irq3)); //.set(FUNC(xbox_base_state::nv2a_interrupt_changed));
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))  /* not accurate */
-	MCFG_SCREEN_SIZE(640, 480)
-	MCFG_SCREEN_VISIBLE_AREA(0, 639, 0, 479)
-	MCFG_SCREEN_UPDATE_DRIVER(xbox_base_state, screen_update_callback)
-	MCFG_SCREEN_VBLANK_DRIVER(xbox_base_state, vblank_callback)
-MACHINE_CONFIG_END
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500));  /* not accurate */
+	screen.set_size(640, 480);
+	screen.set_visarea(0, 639, 0, 479);
+	screen.set_screen_update(FUNC(xbox_base_state::screen_update_callback));
+	screen.screen_vblank().set(FUNC(xbox_base_state::vblank_callback));
+}

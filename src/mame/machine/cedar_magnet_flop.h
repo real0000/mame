@@ -1,49 +1,48 @@
 // license:BSD-3-Clause
 // copyright-holders:David Haywood
+#ifndef MAME_MACHINE_CEDAR_MAGNET_FLOP_H
+#define MAME_MACHINE_CEDAR_MAGNET_FLOP_H
 
 #pragma once
 
-#ifndef CEDAR_MAGNET_FLOP_DEF
-#define CEDAR_MAGNET_FLOP_DEF
 
-extern const device_type CEDAR_MAGNET_FLOP;
-
-#define MCFG_CEDAR_MAGNET_FLOP_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, CEDAR_MAGNET_FLOP, 0)
+DECLARE_DEVICE_TYPE(CEDAR_MAGNET_FLOP, cedar_magnet_flop_device)
 
 #include "machine/nvram.h"
 
-class cedar_magnet_flop_device :  public device_t
+class cedar_magnet_flop_device : public device_t
 {
 public:
 	// construction/destruction
 	cedar_magnet_flop_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	uint8_t m_flopdat;
-	uint8_t m_flopcmd;
-	uint8_t m_flopsec;
-	uint8_t m_flopstat;
-	uint8_t m_floptrk;
+	u8 port60_r();
+	u8 port61_r();
+	u8 port63_r();
 
-	uint8_t m_curtrack;
-	int m_secoffs;
+	void port60_w(u8 data);
+	void port62_w(u8 data);
+	void port63_w(u8 data);
 
-	DECLARE_READ8_MEMBER(port60_r);
-	DECLARE_READ8_MEMBER(port61_r);
-	DECLARE_READ8_MEMBER(port63_r);
-
-	DECLARE_WRITE8_MEMBER(port60_w);
-	DECLARE_WRITE8_MEMBER(port62_w);
-	DECLARE_WRITE8_MEMBER(port63_w);
-
-	DECLARE_READ8_MEMBER(read);
-	DECLARE_WRITE8_MEMBER(write);
+	u8 read(offs_t offset);
+	void write(offs_t offset, u8 data);
 
 protected:
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
+
 private:
+	required_region_ptr<u8> m_disk;
+	u8 m_flopdat;
+	u8 m_flopcmd;
+	u8 m_flopsec;
+	u8 m_flopstat;
+	u8 m_floptrk;
+
+	u8 m_curtrack;
+	int m_secoffs;
+
 };
 
-#endif
+#endif // MAME_MACHINE_CEDAR_MAGNET_FLOP_H

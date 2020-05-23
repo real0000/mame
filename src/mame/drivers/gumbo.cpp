@@ -48,44 +48,48 @@ PCB Layout
 
 #include "cpu/m68000/m68000.h"
 #include "sound/okim6295.h"
+#include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
 
 
-static ADDRESS_MAP_START( gumbo_map, AS_PROGRAM, 16, gumbo_state )
-	AM_RANGE(0x000000, 0x03ffff) AM_ROM
-	AM_RANGE(0x080000, 0x083fff) AM_RAM // main ram
-	AM_RANGE(0x1b0000, 0x1b03ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0x1c0100, 0x1c0101) AM_READ_PORT("P1_P2")
-	AM_RANGE(0x1c0200, 0x1c0201) AM_READ_PORT("DSW")
-	AM_RANGE(0x1c0300, 0x1c0301) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x1e0000, 0x1e0fff) AM_RAM_WRITE(gumbo_bg_videoram_w) AM_SHARE("bg_videoram") // bg tilemap
-	AM_RANGE(0x1f0000, 0x1f3fff) AM_RAM_WRITE(gumbo_fg_videoram_w) AM_SHARE("fg_videoram") // fg tilemap
-ADDRESS_MAP_END
+void gumbo_state::gumbo_map(address_map &map)
+{
+	map(0x000000, 0x03ffff).rom();
+	map(0x080000, 0x083fff).ram(); // main ram
+	map(0x1b0000, 0x1b03ff).ram().w("palette", FUNC(palette_device::write16)).share("palette");
+	map(0x1c0100, 0x1c0101).portr("P1_P2");
+	map(0x1c0200, 0x1c0201).portr("DSW");
+	map(0x1c0301, 0x1c0301).rw("oki", FUNC(okim6295_device::read), FUNC(okim6295_device::write));
+	map(0x1e0000, 0x1e0fff).ram().w(FUNC(gumbo_state::gumbo_bg_videoram_w)).share("bg_videoram"); // bg tilemap
+	map(0x1f0000, 0x1f3fff).ram().w(FUNC(gumbo_state::gumbo_fg_videoram_w)).share("fg_videoram"); // fg tilemap
+}
 
 /* Miss Puzzle has a different memory map */
 
-static ADDRESS_MAP_START( mspuzzle_map, AS_PROGRAM, 16, gumbo_state )
-	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x100000, 0x103fff) AM_RAM // main ram
-	AM_RANGE(0x190000, 0x197fff) AM_RAM_WRITE(gumbo_fg_videoram_w) AM_SHARE("fg_videoram") // fg tilemap
-	AM_RANGE(0x1a0000, 0x1a03ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0x1b0100, 0x1b0101) AM_READ_PORT("P1_P2")
-	AM_RANGE(0x1b0200, 0x1b0201) AM_READ_PORT("DSW")
-	AM_RANGE(0x1b0300, 0x1b0301) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x1c0000, 0x1c1fff) AM_RAM_WRITE(gumbo_bg_videoram_w) AM_SHARE("bg_videoram") // bg tilemap
-ADDRESS_MAP_END
+void gumbo_state::mspuzzle_map(address_map &map)
+{
+	map(0x000000, 0x07ffff).rom();
+	map(0x100000, 0x103fff).ram(); // main ram
+	map(0x190000, 0x197fff).ram().w(FUNC(gumbo_state::gumbo_fg_videoram_w)).share("fg_videoram"); // fg tilemap
+	map(0x1a0000, 0x1a03ff).ram().w("palette", FUNC(palette_device::write16)).share("palette");
+	map(0x1b0100, 0x1b0101).portr("P1_P2");
+	map(0x1b0200, 0x1b0201).portr("DSW");
+	map(0x1b0301, 0x1b0301).rw("oki", FUNC(okim6295_device::read), FUNC(okim6295_device::write));
+	map(0x1c0000, 0x1c1fff).ram().w(FUNC(gumbo_state::gumbo_bg_videoram_w)).share("bg_videoram"); // bg tilemap
+}
 
-static ADDRESS_MAP_START( dblpoint_map, AS_PROGRAM, 16, gumbo_state )
-	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x080000, 0x083fff) AM_RAM // main ram
-	AM_RANGE(0x1b0000, 0x1b03ff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
-	AM_RANGE(0x1c0100, 0x1c0101) AM_READ_PORT("P1_P2")
-	AM_RANGE(0x1c0200, 0x1c0201) AM_READ_PORT("DSW")
-	AM_RANGE(0x1c0300, 0x1c0301) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x1e0000, 0x1e3fff) AM_RAM_WRITE(gumbo_fg_videoram_w) AM_SHARE("fg_videoram") // fg tilemap
-	AM_RANGE(0x1f0000, 0x1f0fff) AM_RAM_WRITE(gumbo_bg_videoram_w) AM_SHARE("bg_videoram") // bg tilemap
-ADDRESS_MAP_END
+void gumbo_state::dblpoint_map(address_map &map)
+{
+	map(0x000000, 0x07ffff).rom();
+	map(0x080000, 0x083fff).ram(); // main ram
+	map(0x1b0000, 0x1b03ff).w("palette", FUNC(palette_device::write16)).share("palette");
+	map(0x1c0100, 0x1c0101).portr("P1_P2");
+	map(0x1c0200, 0x1c0201).portr("DSW");
+	map(0x1c0301, 0x1c0301).rw("oki", FUNC(okim6295_device::read), FUNC(okim6295_device::write));
+	map(0x1e0000, 0x1e3fff).ram().w(FUNC(gumbo_state::gumbo_fg_videoram_w)).share("fg_videoram"); // fg tilemap
+	map(0x1f0000, 0x1f0fff).ram().w(FUNC(gumbo_state::gumbo_bg_videoram_w)).share("bg_videoram"); // bg tilemap
+}
 
 static INPUT_PORTS_START( gumbo )
 	PORT_START("P1_P2")
@@ -227,49 +231,51 @@ static const gfx_layout gumbo2_layout =
 	4*16
 };
 
-static GFXDECODE_START( gumbo )
+static GFXDECODE_START( gfx_gumbo )
 	GFXDECODE_ENTRY( "gfx1", 0, gumbo_layout,   0x0, 2  ) /* bg tiles */
 	GFXDECODE_ENTRY( "gfx2", 0, gumbo2_layout,  0x0, 2  ) /* fg tiles */
 GFXDECODE_END
 
 
-static MACHINE_CONFIG_START( gumbo, gumbo_state )
+void gumbo_state::gumbo(machine_config &config)
+{
+	M68000(config, m_maincpu, XTAL(14'318'181)/2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &gumbo_state::gumbo_map);
+	m_maincpu->set_vblank_int("screen", FUNC(gumbo_state::irq1_line_hold)); // all the same
 
-	MCFG_CPU_ADD("maincpu", M68000, XTAL_14_31818MHz/2)
-	MCFG_CPU_PROGRAM_MAP(gumbo_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", gumbo_state,  irq1_line_hold) // all the same
+	GFXDECODE(config, m_gfxdecode, "palette", gfx_gumbo);
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", gumbo)
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(64*8, 32*8);
+	screen.set_visarea(8*8, 48*8-1, 2*8, 30*8-1);
+	screen.set_screen_update(FUNC(gumbo_state::screen_update_gumbo));
+	screen.set_palette("palette");
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(64*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(8*8, 48*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(gumbo_state, screen_update_gumbo)
-	MCFG_SCREEN_PALETTE("palette")
+	PALETTE(config, "palette").set_format(palette_device::xRGB_555, 0x200);
 
-	MCFG_PALETTE_ADD("palette", 0x200)
-	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+	SPEAKER(config, "lspeaker").front_left();
+	SPEAKER(config, "rspeaker").front_right();
 
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+	okim6295_device &oki(OKIM6295(config, "oki", XTAL(14'318'181)/16, okim6295_device::PIN7_HIGH)); // clock frequency & pin 7 not verified
+	oki.add_route(ALL_OUTPUTS, "lspeaker", 0.47);
+	oki.add_route(ALL_OUTPUTS, "rspeaker", 0.47);
+}
 
-	MCFG_OKIM6295_ADD("oki", XTAL_14_31818MHz/16, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.47)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.47)
-MACHINE_CONFIG_END
+void gumbo_state::mspuzzle(machine_config &config)
+{
+	gumbo(config);
 
-static MACHINE_CONFIG_DERIVED( mspuzzle, gumbo )
+	m_maincpu->set_addrmap(AS_PROGRAM, &gumbo_state::mspuzzle_map);
+}
 
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(mspuzzle_map)
-MACHINE_CONFIG_END
+void gumbo_state::dblpoint(machine_config &config)
+{
+	gumbo(config);
 
-static MACHINE_CONFIG_DERIVED( dblpoint, gumbo )
-
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(dblpoint_map)
-MACHINE_CONFIG_END
+	m_maincpu->set_addrmap(AS_PROGRAM, &gumbo_state::dblpoint_map);
+}
 
 ROM_START( gumbo )
 	ROM_REGION( 0x40000, "maincpu", 0 ) /* 68000 Code */
@@ -324,8 +330,8 @@ ROM_END
 
 ROM_START( mspuzzle )
 	ROM_REGION( 0x80000, "maincpu", 0 ) /* 68000 Code */
-	ROM_LOAD16_BYTE( "u1.bin", 0x00001, 0x40000, CRC(d9e63f12) SHA1(c826c604f101d68057fdebf1b231293e4b2811f0) )
-	ROM_LOAD16_BYTE( "u2.bin", 0x00000, 0x40000, CRC(9c3fc677) SHA1(193606fe739dbf5f26962f91be968ca371b7fd74) )
+	ROM_LOAD16_BYTE( "u1.bin", 0x00001, 0x40000, CRC(d9e63f12) SHA1(c826c604f101d68057fdebf1b231293e4b2811f0) ) /* identical halves */
+	ROM_LOAD16_BYTE( "u2.bin", 0x00000, 0x40000, CRC(9c3fc677) SHA1(193606fe739dbf5f26962f91be968ca371b7fd74) ) /* identical halves */
 
 	ROM_REGION( 0x040000, "oki", 0 ) /* Samples */
 	ROM_LOAD( "u210.bin", 0x00000, 0x40000, CRC(0a223a38) SHA1(e5aefbdbb09c18cc230bc852df3ea1defb1a21a8) )
@@ -341,21 +347,42 @@ ROM_START( mspuzzle )
 	ROM_LOAD( "u511.bin", 0x40000, 0x40000, CRC(3d6b6c78) SHA1(3016423102b4d47c0f1296471cf1670258acc856) )
 ROM_END
 
-ROM_START( mspuzzlen )
-	/* all the roms for this game could do with checking on another board, this one was in pretty bad condition
-	   and reads weren't always consistent */
+ROM_START( mspuzzlea ) /* sticker on PCB stated:  MISS PUZZLE  V ..8 */
 	ROM_REGION( 0x80000, "maincpu", 0 ) /* 68000 Code */
-	ROM_LOAD16_BYTE( "u1.rom", 0x00001, 0x20000, BAD_DUMP CRC(ec940df4) SHA1(20bb6e2757868cf8fbbb11e05adf8c1d625ee172) )
-	ROM_LOAD16_BYTE( "u2.rom", 0x00000, 0x20000, BAD_DUMP CRC(7b9cac82) SHA1(c5edfb3fbdf43219ba317c18222e671ebed94469) )
+	ROM_LOAD16_BYTE( "u1.u1", 0x00001, 0x40000, CRC(5e96ea17) SHA1(9b4cfa32e386eacca4e65190d29978cf9cf08fbc) ) /* identical halves */
+	ROM_LOAD16_BYTE( "u2.u2", 0x00000, 0x40000, CRC(8f161b0c) SHA1(783dbb34ae5fb7603558c17a39abbe0a93e3a01f) ) /* identical halves */
+
+	ROM_REGION( 0x040000, "oki", 0 ) /* Samples */
+	ROM_LOAD( "u210.bin", 0x00000, 0x40000, CRC(0a223a38) SHA1(e5aefbdbb09c18cc230bc852df3ea1defb1a21a8) )
+
+	ROM_REGION( 0x200000, "gfx1", 0 )
+	ROM_LOAD( "u421.u421", 0x000000, 0x80000, CRC(52b67ee5) SHA1(209fdf845c5ef2e65fbc0de8aeb26562b6d033ab) ) /* several more explicit pictures have been replaced compared to the set below */
+	ROM_LOAD( "u420.u420", 0x100000, 0x80000, CRC(3565696e) SHA1(5234dc25f73e6245b199071fa3a9c0d2367cae9f) ) /* Starting with 204 & 205, as well as many in 300 range */
+	ROM_LOAD( "u425.u425", 0x080000, 0x80000, CRC(933544e3) SHA1(d77b1050c4b56d0fd3be703bec961863d5188484) )
+	ROM_LOAD( "u426.u426", 0x180000, 0x80000, CRC(e458eb9d) SHA1(bead05ec57d97c86ed727b2c4b95f8ffdbd7ef4c) )
+
+	ROM_REGION( 0x80000, "gfx2", 0 ) /* BG Tiles */
+	ROM_LOAD( "u512.bin", 0x00000, 0x40000, CRC(505ee3c2) SHA1(a719958c34d9c54445ad207bca1f49df3aff938b) )
+	ROM_LOAD( "u511.bin", 0x40000, 0x40000, CRC(3d6b6c78) SHA1(3016423102b4d47c0f1296471cf1670258acc856) )
+ROM_END
+
+ROM_START( mspuzzleb )
+	/* all the roms for this set needs a full redump, the PCB was in pretty bad condition and data reads were not consistent */
+	ROM_REGION( 0x80000, "maincpu", 0 ) /* 68000 Code */
+//  ROM_LOAD16_BYTE( "u1.rom", 0x00001, 0x20000, BAD_DUMP CRC(ec940df4) SHA1(20bb6e2757868cf8fbbb11e05adf8c1d625ee172) )
+//  ROM_LOAD16_BYTE( "u2.rom", 0x00000, 0x20000, BAD_DUMP CRC(7b9cac82) SHA1(c5edfb3fbdf43219ba317c18222e671ebed94469) )
+	ROM_LOAD16_BYTE( "u1.u1", 0x00001, 0x40000, CRC(5e96ea17) SHA1(9b4cfa32e386eacca4e65190d29978cf9cf08fbc) ) /* identical halves - use program ROMs from mspuzzlea for now */
+	ROM_LOAD16_BYTE( "u2.u2", 0x00000, 0x40000, CRC(8f161b0c) SHA1(783dbb34ae5fb7603558c17a39abbe0a93e3a01f) ) /* identical halves - use program ROMs from mspuzzlea for now  */
 
 	ROM_REGION( 0x040000, "oki", 0 ) /* Samples */
 	ROM_LOAD( "u210.rom", 0x00000, 0x40000, CRC(8826b018) SHA1(075e5cef114146c6c72c0331dd3434b27fed180d) )
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
-	ROM_LOAD( "u421.rom", 0x000000, 0x80000, CRC(3c567c55) SHA1(100e0c9535bf07f3ca8537b3a172486b65e5f24a) )
-	ROM_LOAD( "u420.rom", 0x100000, 0x80000, CRC(f52ab7fd) SHA1(e5b8905cae3e15a8a379c4c149441d849931cbde) )
-	ROM_LOAD( "u425.rom", 0x080000, 0x80000, BAD_DUMP CRC(1c4c8fc1) SHA1(90e3f297db68a44cba0966b599bb7c593eced16e) )
-	ROM_LOAD( "u426.rom", 0x180000, 0x80000, CRC(c28b2743) SHA1(df4bf998ae17ddebf1b4047564eb296c69bc9071) )
+	ROM_LOAD( "u421.rom", 0x000000, 0x80000, BAD_DUMP CRC(3c567c55) SHA1(100e0c9535bf07f3ca8537b3a172486b65e5f24a) )
+	/* 0x000000-0x3FFFF of u421.rom == 0x000000-0x3FFFF of u421 in mspuzzlea, all other data is corrupt to some degree */
+	ROM_LOAD( "u420.rom", 0x100000, 0x80000, BAD_DUMP CRC(f52ab7fd) SHA1(e5b8905cae3e15a8a379c4c149441d849931cbde) ) /* pictures 204 & 205 are corrupt (as shown in score box as 002040 & 002050) */
+	ROM_LOAD( "u425.rom", 0x080000, 0x80000, BAD_DUMP CRC(1c4c8fc1) SHA1(90e3f297db68a44cba0966b599bb7c593eced16e) ) /* Title screen and Course Select graphics & girls */
+	ROM_LOAD( "u426.rom", 0x180000, 0x80000, BAD_DUMP CRC(c28b2743) SHA1(df4bf998ae17ddebf1b4047564eb296c69bc9071) ) /* Every other line of girls matched with U425 */
 
 	ROM_REGION( 0x80000, "gfx2", 0 ) /* BG Tiles */
 	ROM_LOAD( "u512.bin", 0x00000, 0x40000, CRC(505ee3c2) SHA1(a719958c34d9c54445ad207bca1f49df3aff938b) )
@@ -397,10 +424,11 @@ ROM_START( dblpointd )
 	ROM_LOAD( "d15.bin", 0x40000, 0x40000, CRC(6b899a51) SHA1(04114ec9695caaac722800ac1a4ffb563ec433c9) )
 ROM_END
 
-GAME( 1994, gumbo,    0,        gumbo,    gumbo, driver_device,    0, ROT0,  "Min Corp.", "Gumbo", MACHINE_SUPPORTS_SAVE )
-GAME( 1994, mspuzzleg,gumbo,    gumbo,    gumbo, driver_device,    0, ROT0,  "Min Corp.", "Miss Puzzle (Clone of Gumbo)", MACHINE_SUPPORTS_SAVE )
-GAME( 1994, msbingo,  0,        mspuzzle, msbingo, driver_device,  0, ROT0,  "Min Corp.", "Miss Bingo", MACHINE_SUPPORTS_SAVE )
-GAME( 1994, mspuzzle, 0,        mspuzzle, mspuzzle, driver_device, 0, ROT90, "Min Corp.", "Miss Puzzle", MACHINE_SUPPORTS_SAVE )
-GAME( 1994, mspuzzlen,mspuzzle, mspuzzle, mspuzzle, driver_device, 0, ROT90, "Min Corp.", "Miss Puzzle (Nudes)", MACHINE_NOT_WORKING | MACHINE_SUPPORTS_SAVE )
-GAME( 1995, dblpoint, 0,        dblpoint, dblpoint, driver_device, 0, ROT0,  "Min Corp.", "Double Point", MACHINE_SUPPORTS_SAVE )
-GAME( 1995, dblpointd,dblpoint, dblpoint, dblpoint, driver_device, 0, ROT0,  "bootleg? (Dong Bang Electron)", "Double Point (Dong Bang Electron, bootleg?)", MACHINE_SUPPORTS_SAVE )
+GAME( 1994, gumbo,     0,        gumbo,    gumbo,    gumbo_state, empty_init, ROT0,  "Min Corp.",                     "Gumbo",                                       MACHINE_SUPPORTS_SAVE )
+GAME( 1994, mspuzzleg, gumbo,    gumbo,    gumbo,    gumbo_state, empty_init, ROT0,  "Min Corp.",                     "Miss Puzzle (Clone of Gumbo)",                MACHINE_SUPPORTS_SAVE )
+GAME( 1994, msbingo,   0,        mspuzzle, msbingo,  gumbo_state, empty_init, ROT0,  "Min Corp.",                     "Miss Bingo",                                  MACHINE_SUPPORTS_SAVE )
+GAME( 1994, mspuzzle,  0,        mspuzzle, mspuzzle, gumbo_state, empty_init, ROT90, "Min Corp.",                     "Miss Puzzle",                                 MACHINE_SUPPORTS_SAVE )
+GAME( 1994, mspuzzlea, mspuzzle, mspuzzle, mspuzzle, gumbo_state, empty_init, ROT90, "Min Corp.",                     "Miss Puzzle (Nudes, less explicit)",          MACHINE_SUPPORTS_SAVE )
+GAME( 1994, mspuzzleb, mspuzzle, mspuzzle, mspuzzle, gumbo_state, empty_init, ROT90, "Min Corp.",                     "Miss Puzzle (Nudes, more explicit)",          MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+GAME( 1995, dblpoint,  0,        dblpoint, dblpoint, gumbo_state, empty_init, ROT0,  "Min Corp.",                     "Double Point",                                MACHINE_SUPPORTS_SAVE )
+GAME( 1995, dblpointd, dblpoint, dblpoint, dblpoint, gumbo_state, empty_init, ROT0,  "bootleg? (Dong Bang Electron)", "Double Point (Dong Bang Electron, bootleg?)", MACHINE_SUPPORTS_SAVE )

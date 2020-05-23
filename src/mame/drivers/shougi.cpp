@@ -2,7 +2,7 @@
 // copyright-holders:Jarek Burczynski, Tomasz Slanina
 /***************************************************************************
 
-Driver by Jarek Burczynski, started by Tomasz Slanina  dox@space.pl
+Driver by Jarek Burczynski, started by Tomasz Slanina
 Lots of hardware info from Guru
 
 memory map :
@@ -78,11 +78,13 @@ PROM  : Type MB7051
 **************************************************************************/
 
 #include "emu.h"
+#include "machine/74259.h"
 #include "machine/alpha8201.h"
 #include "machine/watchdog.h"
 #include "cpu/z80/z80.h"
 #include "sound/ay8910.h"
 #include "video/resnet.h"
+#include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -90,13 +92,29 @@ PROM  : Type MB7051
 class shougi_state : public driver_device
 {
 public:
-	shougi_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	shougi_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_subcpu(*this, "sub"),
 		m_alpha_8201(*this, "alpha_8201"),
 		m_videoram(*this, "videoram")
 	{ }
+
+	void shougi(machine_config &config);
+
+private:
+	DECLARE_WRITE_LINE_MEMBER(nmi_enable_w);
+	DECLARE_READ8_MEMBER(semaphore_r);
+
+	void shougi_palette(palette_device &palette) const;
+
+	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	INTERRUPT_GEN_MEMBER(vblank_nmi);
+
+	virtual void machine_start() override;
+	void main_map(address_map &map);
+	void readport_sub(address_map &map);
+	void sub_map(address_map &map);
 
 	// devices/pointers
 	required_device<cpu_device> m_maincpu;
@@ -105,41 +123,20 @@ public:
 
 	required_shared_ptr<uint8_t> m_videoram;
 
-	uint8_t m_control[8];
 	uint8_t m_nmi_enabled;
 	int m_r;
-
-	DECLARE_WRITE8_MEMBER(control_w);
-	DECLARE_READ8_MEMBER(semaphore_r);
-
-	DECLARE_PALETTE_INIT(shougi);
-
-	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	INTERRUPT_GEN_MEMBER(vblank_nmi);
-
-	virtual void machine_start() override;
-	virtual void machine_reset() override;
 };
 
 
 void shougi_state::machine_start()
 {
 	// zerofill
-	memset(m_control, 0, sizeof(m_control));
 	m_nmi_enabled = 0;
 	m_r = 0;
 
 	// register for savestates
-	save_item(NAME(m_control));
 	save_item(NAME(m_nmi_enabled));
 	save_item(NAME(m_r));
-}
-
-void shougi_state::machine_reset()
-{
-	// 74LS259 is auto CLR on reset
-	for (int i = 0; i < 8; i++)
-		control_w(m_maincpu->space(), i, 0);
 }
 
 
@@ -165,7 +162,7 @@ void shougi_state::machine_reset()
 
 ***************************************************************************/
 
-PALETTE_INIT_MEMBER(shougi_state, shougi)
+void shougi_state::shougi_palette(palette_device &palette) const
 {
 	const uint8_t *color_prom = memregion("proms")->base();
 	static const int resistances_b[2]  = { 470, 220 };
@@ -179,24 +176,24 @@ PALETTE_INIT_MEMBER(shougi_state, shougi)
 
 	for (int i = 0; i < palette.entries(); i++)
 	{
-		int bit0,bit1,bit2,r,g,b;
+		int bit0,bit1,bit2;
 
 		/* red component */
 		bit0 = (color_prom[i] >> 0) & 0x01;
 		bit1 = (color_prom[i] >> 1) & 0x01;
 		bit2 = (color_prom[i] >> 2) & 0x01;
-		r = combine_3_weights(weights_r, bit0, bit1, bit2);
+		int const r = combine_weights(weights_r, bit0, bit1, bit2);
 
 		/* green component */
 		bit0 = (color_prom[i] >> 3) & 0x01;
 		bit1 = (color_prom[i] >> 4) & 0x01;
 		bit2 = (color_prom[i] >> 5) & 0x01;
-		g = combine_3_weights(weights_g, bit0, bit1, bit2);
+		int const g = combine_weights(weights_g, bit0, bit1, bit2);
 
 		/* blue component */
 		bit0 = (color_prom[i] >> 6) & 0x01;
 		bit1 = (color_prom[i] >> 7) & 0x01;
-		b = combine_2_weights(weights_b, bit0, bit1);
+		int const b = combine_weights(weights_b, bit0, bit1);
 
 		palette.set_pen_color(i,rgb_t(r,g,b));
 	}
@@ -237,60 +234,33 @@ uint32_t shougi_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap
 
 // maincpu side
 
-WRITE8_MEMBER(shougi_state::control_w)
+WRITE_LINE_MEMBER(shougi_state::nmi_enable_w)
 {
-	// 4800-480f connected to the 74LS259, A3 is data line
-	// so 4800-4807 write 0, and 4808-480f write 1
-	data = offset >> 3 & 1;
-	offset &= 7;
+	m_nmi_enabled = state;
 
-	switch (offset)
+	// NMI lines are tied together on both CPUs and connected to the LS74 /Q output
+	if (!m_nmi_enabled)
 	{
-		case 1:
-			m_nmi_enabled = data;
-
-			// NMI lines are tied together on both CPUs and connected to the LS74 /Q output
-			if (!m_nmi_enabled)
-			{
-				m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-				m_subcpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-			}
-			break;
-
-		case 3:
-			// start/halt ALPHA-8201
-			m_alpha_8201->mcu_start_w(data);
-			break;
-
-		case 4:
-			// ALPHA-8201 shared RAM bus direction: 0: mcu, 1: maincpu
-			m_alpha_8201->bus_dir_w(!data);
-			break;
-
-		default:
-			// 0: 0: sharedram = sub, 1: sharedram = main (TODO!)
-			// 2: ?
-			// 7: nothing? connected to +5v via resistor
-			break;
+		m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 	}
-
-	m_control[offset] = data;
 }
 
 
-static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, shougi_state )
-	AM_RANGE(0x0000, 0x3fff) AM_ROM
-	AM_RANGE(0x4000, 0x43ff) AM_RAM /* 2114 x 2 (0x400 x 4bit each) */
-	AM_RANGE(0x4800, 0x480f) AM_WRITE(control_w)
-	AM_RANGE(0x4800, 0x4800) AM_READ_PORT("DSW")
-	AM_RANGE(0x5000, 0x5000) AM_READ_PORT("P1")
-	AM_RANGE(0x5800, 0x5800) AM_READ_PORT("P2") AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w) /* game won't boot if watchdog doesn't work */
-	AM_RANGE(0x6000, 0x6000) AM_DEVWRITE("aysnd", ay8910_device, address_w)
-	AM_RANGE(0x6800, 0x6800) AM_DEVWRITE("aysnd", ay8910_device, data_w)
-	AM_RANGE(0x7000, 0x73ff) AM_DEVREADWRITE("alpha_8201", alpha_8201_device, ext_ram_r, ext_ram_w)
-	AM_RANGE(0x7800, 0x7bff) AM_RAM AM_SHARE("sharedram") /* 2114 x 2 (0x400 x 4bit each) */
-	AM_RANGE(0x8000, 0xffff) AM_RAM AM_SHARE("videoram") /* 4116 x 16 (32K) */
-ADDRESS_MAP_END
+void shougi_state::main_map(address_map &map)
+{
+	map(0x0000, 0x3fff).rom();
+	map(0x4000, 0x43ff).ram(); /* 2114 x 2 (0x400 x 4bit each) */
+	map(0x4800, 0x480f).w("mainlatch", FUNC(ls259_device::write_a3));
+	map(0x4800, 0x4800).portr("DSW");
+	map(0x5000, 0x5000).portr("P1");
+	map(0x5800, 0x5800).portr("P2").w("watchdog", FUNC(watchdog_timer_device::reset_w)); /* game won't boot if watchdog doesn't work */
+	map(0x6000, 0x6000).w("aysnd", FUNC(ay8910_device::address_w));
+	map(0x6800, 0x6800).w("aysnd", FUNC(ay8910_device::data_w));
+	map(0x7000, 0x73ff).rw(m_alpha_8201, FUNC(alpha_8201_device::ext_ram_r), FUNC(alpha_8201_device::ext_ram_w));
+	map(0x7800, 0x7bff).ram().share("sharedram"); /* 2114 x 2 (0x400 x 4bit each) */
+	map(0x8000, 0xffff).ram().share("videoram"); /* 4116 x 16 (32K) */
+}
 
 
 // subcpu side
@@ -304,15 +274,17 @@ READ8_MEMBER(shougi_state::semaphore_r)
 }
 
 
-static ADDRESS_MAP_START( sub_map, AS_PROGRAM, 8, shougi_state )
-	AM_RANGE(0x0000, 0x5fff) AM_ROM
-	AM_RANGE(0x6000, 0x63ff) AM_RAM AM_SHARE("sharedram") /* 2114 x 2 (0x400 x 4bit each) */
-ADDRESS_MAP_END
+void shougi_state::sub_map(address_map &map)
+{
+	map(0x0000, 0x5fff).rom();
+	map(0x6000, 0x63ff).ram().share("sharedram"); /* 2114 x 2 (0x400 x 4bit each) */
+}
 
-static ADDRESS_MAP_START( readport_sub, AS_IO, 8, shougi_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x00ff)
-	AM_RANGE(0x00, 0x00) AM_READ(semaphore_r)
-ADDRESS_MAP_END
+void shougi_state::readport_sub(address_map &map)
+{
+	map.global_mask(0x00ff);
+	map(0x00, 0x00).r(FUNC(shougi_state::semaphore_r));
+}
 
 
 
@@ -398,42 +370,47 @@ INTERRUPT_GEN_MEMBER(shougi_state::vblank_nmi)
 }
 
 
-static MACHINE_CONFIG_START( shougi, shougi_state )
-
+void shougi_state::shougi(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, XTAL_10MHz/4)
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", shougi_state, vblank_nmi)
+	Z80(config, m_maincpu, XTAL(10'000'000)/4);
+	m_maincpu->set_addrmap(AS_PROGRAM, &shougi_state::main_map);
+	m_maincpu->set_vblank_int("screen", FUNC(shougi_state::vblank_nmi));
 
-	MCFG_CPU_ADD("sub", Z80, XTAL_10MHz/4)
-	MCFG_CPU_PROGRAM_MAP(sub_map)
-	MCFG_CPU_IO_MAP(readport_sub)
+	Z80(config, m_subcpu, XTAL(10'000'000)/4);
+	m_subcpu->set_addrmap(AS_PROGRAM, &shougi_state::sub_map);
+	m_subcpu->set_addrmap(AS_IO, &shougi_state::readport_sub);
 
-	MCFG_DEVICE_ADD("alpha_8201", ALPHA_8201, XTAL_10MHz/4/8)
+	ALPHA_8201(config, m_alpha_8201, XTAL(10'000'000)/4/8);
 
-	MCFG_QUANTUM_PERFECT_CPU("maincpu")
+	ls259_device &mainlatch(LS259(config, "mainlatch"));
+	mainlatch.q_out_cb<0>().set_nop(); // 0: sharedram = sub, 1: sharedram = main (TODO!)
+	mainlatch.q_out_cb<1>().set(FUNC(shougi_state::nmi_enable_w));
+	mainlatch.q_out_cb<2>().set_nop(); // ?
+	mainlatch.q_out_cb<3>().set(m_alpha_8201, FUNC(alpha_8201_device::mcu_start_w)); // start/halt ALPHA-8201
+	mainlatch.q_out_cb<4>().set(m_alpha_8201, FUNC(alpha_8201_device::bus_dir_w)).invert(); // ALPHA-8201 shared RAM bus direction: 0: mcu, 1: maincpu
+	mainlatch.q_out_cb<7>().set_nop(); // nothing? connected to +5v via resistor
 
-	MCFG_WATCHDOG_ADD("watchdog")
-	MCFG_WATCHDOG_VBLANK_INIT("screen", 0x10) // assuming it's the same as champbas
+	config.set_perfect_quantum(m_maincpu);
+
+	WATCHDOG_TIMER(config, "watchdog").set_vblank_count("screen", 0x10); // assuming it's the same as champbas
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(256, 256)
-	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0, 255)
-	MCFG_SCREEN_UPDATE_DRIVER(shougi_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(256, 256);
+	screen.set_visarea(0, 255, 0, 255);
+	screen.set_screen_update(FUNC(shougi_state::screen_update));
+	screen.set_palette("palette");
 
-	MCFG_PALETTE_ADD("palette", 32)
-	MCFG_PALETTE_INIT_OWNER(shougi_state, shougi)
+	PALETTE(config, "palette", FUNC(shougi_state::shougi_palette), 32);
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("aysnd", AY8910, XTAL_10MHz/8)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
-MACHINE_CONFIG_END
+	AY8910(config, "aysnd", XTAL(10'000'000)/8).add_route(ALL_OUTPUTS, "mono", 0.30);
+}
 
 
 
@@ -489,6 +466,6 @@ ROM_START( shougi2 )
 ROM_END
 
 
-/*    YEAR  NAME     PARENT  MACHINE  INPUT    INIT              MONITOR, COMPANY, FULLNAME, FLAGS */
-GAME( 1982, shougi,  0,      shougi,  shougi,  driver_device, 0, ROT0, "Alpha Denshi Co. (Tehkan license)", "Shougi", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, shougi2, 0,      shougi,  shougi2, driver_device, 0, ROT0, "Alpha Denshi Co. (Tehkan license)", "Shougi Part II", MACHINE_SUPPORTS_SAVE )
+/*    YEAR  NAME     PARENT  MACHINE  INPUT    STATE         INIT        MONITOR  COMPANY                              FULLNAME          FLAGS */
+GAME( 1982, shougi,  0,      shougi,  shougi,  shougi_state, empty_init, ROT0,    "Alpha Denshi Co. (Tehkan license)", "Shougi",         MACHINE_SUPPORTS_SAVE )
+GAME( 1982, shougi2, 0,      shougi,  shougi2, shougi_state, empty_init, ROT0,    "Alpha Denshi Co. (Tehkan license)", "Shougi Part II", MACHINE_SUPPORTS_SAVE )

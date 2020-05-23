@@ -60,29 +60,34 @@ tilt the mirror up and down, and the monitor left and right.
  *
  *************************************/
 
-PALETTE_INIT_MEMBER(stactics_state,stactics)
+void stactics_state::stactics_palette(palette_device &palette) const
 {
-	const uint8_t *color_prom = memregion("proms")->base();
-	int i;
+	uint8_t const *const color_prom = memregion("proms")->base();
 
-	for (i = 0; i < 0x400; i++)
+	for (int i = 0; i < 0x400; i++)
 	{
-		int bit0 = (color_prom[i] >> 0) & 0x01;
-		int bit1 = (color_prom[i] >> 1) & 0x01;
-		int bit2 = (color_prom[i] >> 2) & 0x01;
-		int bit3 = (color_prom[i] >> 3) & 0x01;
+		int const bit0 = BIT(color_prom[i], 0);
+		int const bit1 = BIT(color_prom[i], 1);
+		int const bit2 = BIT(color_prom[i], 2);
+		int const bit3 = BIT(color_prom[i], 3);
 
-		/* red component */
-		int r = 0xff * bit0;
+		// red component
+		int const r = 0xff * bit0;
 
-		/* green component */
-		int g = 0xff * bit1 - 0xcc * bit3;
+		// green component
+		int const g = 0xff * bit1 - 0xcc * bit3;
 
-		/* blue component */
-		int b = 0xff * bit2;
+		// blue component
+		int const b = 0xff * bit2;
 
 		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
+}
+
+
+WRITE_LINE_MEMBER(stactics_state::palette_bank_w)
+{
+	m_palette_bank = m_outlatch->q6_r() | (m_outlatch->q7_r() << 1);
 }
 
 
@@ -114,7 +119,7 @@ WRITE8_MEMBER(stactics_state::scroll_ram_w)
  *
  *************************************/
 
-CUSTOM_INPUT_MEMBER(stactics_state::get_frame_count_d3)
+READ_LINE_MEMBER(stactics_state::frame_count_d3_r)
 {
 	return (m_frame_count >> 3) & 0x01;
 }
@@ -164,13 +169,13 @@ WRITE8_MEMBER(stactics_state::shot_flag_clear_w)
 }
 
 
-CUSTOM_INPUT_MEMBER(stactics_state::get_shot_standby)
+READ_LINE_MEMBER(stactics_state::shot_standby_r)
 {
 	return m_shot_standby;
 }
 
 
-CUSTOM_INPUT_MEMBER(stactics_state::get_not_shot_arrive)
+READ_LINE_MEMBER(stactics_state::not_shot_arrive_r)
 {
 	return !m_shot_arrive;
 }
@@ -255,8 +260,7 @@ void stactics_state::draw_background(bitmap_ind16 &bitmap, const rectangle &clip
 						(pixel_f << 5) |
 						(pixel_e << 6) |
 						(pixel_d << 7) |
-						((m_palette_val[0] & 0x01) << 8) |
-						((m_palette_val[1] & 0x01) << 9);
+						(m_palette_bank << 8);
 
 			/* compute the effective pixel coordinate after adjusting for the
 			   mirror movement - this is mechanical on the real machine */
@@ -279,72 +283,75 @@ void stactics_state::draw_background(bitmap_ind16 &bitmap, const rectangle &clip
  *************************************/
 
 /* from 7448 datasheet */
-static const int to_7seg[0x10] =
+static constexpr int to_7seg[0x10] =
 {
 	0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7c, 0x07,
 	0x7f, 0x67, 0x58, 0x4c, 0x62, 0x69, 0x78, 0x00
 };
 
 
-void stactics_state::set_indicator_leds(int data, const char *output_name, int base_index)
+template <unsigned N> void stactics_state::set_indicator_leds(unsigned offset, output_finder<N> &outputs, int base_index)
 {
 	/* decode the data */
-	data = to_7seg[~data & 0x0f];
+	int const data = to_7seg[~m_display_buffer[offset] & 0x0f];
 
 	/* set the 4 LEDs */
-	output().set_indexed_value(output_name, base_index + 0, (data >> 2) & 0x01);
-	output().set_indexed_value(output_name, base_index + 1, (data >> 6) & 0x01);
-	output().set_indexed_value(output_name, base_index + 2, (data >> 5) & 0x01);
-	output().set_indexed_value(output_name, base_index + 3, (data >> 4) & 0x01);
+	outputs[base_index + 0] = BIT(data, 2);
+	outputs[base_index + 1] = BIT(data, 6);
+	outputs[base_index + 2] = BIT(data, 5);
+	outputs[base_index + 3] = BIT(data, 4);
+}
+
+
+WRITE_LINE_MEMBER(stactics_state::barrier_lamp_w)
+{
+	// this needs to flash on/off, not implemented
+	m_barrier_lamp = state;
+}
+
+
+WRITE_LINE_MEMBER(stactics_state::start_lamp_w)
+{
+	m_start_lamp = state;
 }
 
 
 void stactics_state::update_artwork()
 {
-	int i;
 	uint8_t *beam_region = memregion("user1")->base();
 
-	/* set the lamps first */
-	output().set_indexed_value("base_lamp", 4, m_lamps[0] & 0x01);
-	output().set_indexed_value("base_lamp", 3, m_lamps[1] & 0x01);
-	output().set_indexed_value("base_lamp", 2, m_lamps[2] & 0x01);
-	output().set_indexed_value("base_lamp", 1, m_lamps[3] & 0x01);
-	output().set_indexed_value("base_lamp", 0, m_lamps[4] & 0x01);
-	output().set_value("start_lamp",   m_lamps[5] & 0x01);
-	output().set_value("barrier_lamp", m_lamps[6] & 0x01);  /* this needs to flash on/off, not implemented */
-
 	/* laser beam - loop for each LED */
-	for (i = 0; i < 0x40; i++)
+	for (int i = 0; i < 0x40; i++)
 	{
-		offs_t beam_data_offs = ((i & 0x08) << 7) | ((i & 0x30) << 4) | m_beam_state;
-		uint8_t beam_data = beam_region[beam_data_offs];
-		int on = (beam_data >> (i & 0x07)) & 0x01;
+		offs_t const beam_data_offs = ((i & 0x08) << 7) | ((i & 0x30) << 4) | m_beam_state;
+		uint8_t const beam_data = beam_region[beam_data_offs];
+		int const on = BIT(beam_data, i & 0x07);
 
-		output().set_indexed_value("beam_led_left", i, on);
-		output().set_indexed_value("beam_led_right", i, on);
+		m_beam_leds_left[i] = on;
+		m_beam_leds_right[i] = on;
 	}
 
 	/* sight LED */
-	output().set_value("sight_led", *m_motor_on & 0x01);
+	m_sight_led = m_motor_on;
 
 	/* score display */
-	for (i = 0x01; i < 0x07; i++)
-		output().set_digit_value(i - 1, to_7seg[~m_display_buffer[i] & 0x0f]);
+	for (int i = 0x01; i < 0x07; i++)
+		m_score_digits[i - 1] = to_7seg[~m_display_buffer[i] & 0x0f];
 
 	/* credits indicator */
-	set_indicator_leds(m_display_buffer[0x07], "credit_led", 0x00);
-	set_indicator_leds(m_display_buffer[0x08], "credit_led", 0x04);
+	set_indicator_leds(0x07, m_credit_leds, 0x00);
+	set_indicator_leds(0x08, m_credit_leds, 0x04);
 
 	/* barriers indicator */
-	set_indicator_leds(m_display_buffer[0x09], "barrier_led", 0x00);
-	set_indicator_leds(m_display_buffer[0x0a], "barrier_led", 0x04);
-	set_indicator_leds(m_display_buffer[0x0b], "barrier_led", 0x08);
+	set_indicator_leds(0x09, m_barrier_leds, 0x00);
+	set_indicator_leds(0x0a, m_barrier_leds, 0x04);
+	set_indicator_leds(0x0b, m_barrier_leds, 0x08);
 
 	/* rounds indicator */
-	set_indicator_leds(m_display_buffer[0x0c], "round_led", 0x00);
-	set_indicator_leds(m_display_buffer[0x0d], "round_led", 0x04);
-	set_indicator_leds(m_display_buffer[0x0e], "round_led", 0x08);
-	set_indicator_leds(m_display_buffer[0x0f], "round_led", 0x0c);
+	set_indicator_leds(0x0c, m_round_leds, 0x00);
+	set_indicator_leds(0x0d, m_round_leds, 0x04);
+	set_indicator_leds(0x0e, m_round_leds, 0x08);
+	set_indicator_leds(0x0f, m_round_leds, 0x0c);
 }
 
 
@@ -357,6 +364,17 @@ void stactics_state::update_artwork()
 
 void stactics_state::video_start()
 {
+	m_base_lamps.resolve();
+	m_beam_leds_left.resolve();
+	m_beam_leds_right.resolve();
+	m_score_digits.resolve();
+	m_credit_leds.resolve();
+	m_barrier_leds.resolve();
+	m_round_leds.resolve();
+	m_barrier_lamp.resolve();
+	m_start_lamp.resolve();
+	m_sight_led.resolve();
+
 	m_y_scroll_d = 0;
 	m_y_scroll_e = 0;
 	m_y_scroll_f = 0;
@@ -367,6 +385,8 @@ void stactics_state::video_start()
 	m_beam_state = 0;
 	m_old_beam_state = 0;
 
+	m_palette_bank = 0;
+
 	save_item(NAME(m_y_scroll_d));
 	save_item(NAME(m_y_scroll_e));
 	save_item(NAME(m_y_scroll_f));
@@ -376,6 +396,7 @@ void stactics_state::video_start()
 	save_item(NAME(m_beam_state));
 	save_item(NAME(m_old_beam_state));
 	save_item(NAME(m_beam_states_per_frame));
+	save_item(NAME(m_palette_bank));
 }
 
 
@@ -405,17 +426,16 @@ uint32_t stactics_state::screen_update(screen_device &screen, bitmap_ind16 &bitm
  *
  *************************************/
 
-MACHINE_CONFIG_FRAGMENT( stactics_video )
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(32*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(stactics_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+void stactics_state::stactics_video(machine_config &config)
+{
+	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+	screen.set_video_attributes(VIDEO_ALWAYS_UPDATE);
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(32*8, 32*8);
+	screen.set_visarea(0*8, 32*8-1, 0*8, 30*8-1);
+	screen.set_screen_update(FUNC(stactics_state::screen_update));
+	screen.set_palette("palette");
 
-	MCFG_PALETTE_ADD("palette", 0x400)
-
-	MCFG_PALETTE_INIT_OWNER(stactics_state,stactics)
-MACHINE_CONFIG_END
+	PALETTE(config, "palette", FUNC(stactics_state::stactics_palette), 0x400);
+}

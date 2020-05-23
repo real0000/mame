@@ -20,8 +20,6 @@
 #include "emu.h"
 #include "irem.h"
 
-#include "cpu/m6502/m6502.h"
-
 #ifdef NES_PCB_DEBUG
 #define VERBOSE 1
 #else
@@ -35,36 +33,36 @@
 //  constructor
 //-------------------------------------------------
 
-const device_type NES_LROG017 = device_creator<nes_lrog017_device>;
-const device_type NES_HOLYDIVR = device_creator<nes_holydivr_device>;
-const device_type NES_TAM_S1 = device_creator<nes_tam_s1_device>;
-const device_type NES_G101 = device_creator<nes_g101_device>;
-const device_type NES_H3001 = device_creator<nes_h3001_device>;
+DEFINE_DEVICE_TYPE(NES_LROG017,  nes_lrog017_device,  "nes_lrog017",  "NES Cart Irem Discrete 74*161/161/21/138 PCB")
+DEFINE_DEVICE_TYPE(NES_HOLYDIVR, nes_holydivr_device, "nes_holydivr", "NES Cart Irem Holy Diver PCB")
+DEFINE_DEVICE_TYPE(NES_TAM_S1,   nes_tam_s1_device,   "nes_tam_s1",   "NES Cart Irem TAM-S1 PCB")
+DEFINE_DEVICE_TYPE(NES_G101,     nes_g101_device,     "nes_g101",     "NES Cart Irem G-101 PCB")
+DEFINE_DEVICE_TYPE(NES_H3001,    nes_h3001_device,    "ns_h3001",     "NES Cart Irem H-3001 PCB")
 
 
 nes_lrog017_device::nes_lrog017_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_LROG017, "NES Cart Irem Discrete 74*161/161/21/138 PCB", tag, owner, clock, "nes_lrog017", __FILE__)
+	: nes_nrom_device(mconfig, NES_LROG017, tag, owner, clock)
 {
 }
 
 nes_holydivr_device::nes_holydivr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_HOLYDIVR, "NES Cart Irem Holy Diver PCB", tag, owner, clock, "nes_holydivr", __FILE__)
+	: nes_nrom_device(mconfig, NES_HOLYDIVR, tag, owner, clock)
 {
 }
 
 nes_tam_s1_device::nes_tam_s1_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_TAM_S1, "NES Cart Irem TAM-S1 PCB", tag, owner, clock, "nes_tam_s1", __FILE__)
+	: nes_nrom_device(mconfig, NES_TAM_S1, tag, owner, clock)
 {
 }
 
 nes_g101_device::nes_g101_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_G101, "NES Cart Irem G-101 PCB", tag, owner, clock, "nes_g101", __FILE__), m_latch(0)
-				{
+	: nes_nrom_device(mconfig, NES_G101, tag, owner, clock), m_latch(0)
+{
 }
 
 nes_h3001_device::nes_h3001_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-					: nes_nrom_device(mconfig, NES_H3001, "NES Cart Irem H-3001 PCB", tag, owner, clock, "nes_h3001", __FILE__), m_irq_count(0), m_irq_count_latch(0), m_irq_enable(0), irq_timer(nullptr)
-				{
+	: nes_nrom_device(mconfig, NES_H3001, tag, owner, clock), m_irq_count(0), m_irq_count_latch(0), m_irq_enable(0), irq_timer(nullptr)
+{
 }
 
 
@@ -130,7 +128,7 @@ void nes_h3001_device::device_start()
 {
 	common_start();
 	irq_timer = timer_alloc(TIMER_IRQ);
-	irq_timer->adjust(attotime::zero, 0, machine().device<cpu_device>("maincpu")->cycles_to_attotime(1));
+	irq_timer->adjust(attotime::zero, 0, clocks_to_attotime(1));
 
 	save_item(NAME(m_irq_enable));
 	save_item(NAME(m_irq_count));
@@ -168,7 +166,7 @@ void nes_h3001_device::pcb_reset()
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_lrog017_device::write_h)
+void nes_lrog017_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("lrog017 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -187,7 +185,7 @@ WRITE8_MEMBER(nes_lrog017_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_holydivr_device::write_h)
+void nes_holydivr_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("holy diver write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -211,7 +209,7 @@ WRITE8_MEMBER(nes_holydivr_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_tam_s1_device::write_h)
+void nes_tam_s1_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("tam s1 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -235,7 +233,7 @@ WRITE8_MEMBER(nes_tam_s1_device::write_h)
 
  -------------------------------------------------*/
 
-WRITE8_MEMBER(nes_g101_device::write_h)
+void nes_g101_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("g101 write_h, offset: %04x, data: %02x\n", offset, data));
 
@@ -294,14 +292,14 @@ void nes_h3001_device::device_timer(emu_timer &timer, device_timer_id id, int pa
 
 			if (!m_irq_count)
 			{
-				m_maincpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+				set_irq_line(ASSERT_LINE);
 				m_irq_enable = 0;
 			}
 		}
 	}
 }
 
-WRITE8_MEMBER(nes_h3001_device::write_h)
+void nes_h3001_device::write_h(offs_t offset, uint8_t data)
 {
 	LOG_MMC(("h3001 write_h, offset %04x, data: %02x\n", offset, data));
 
@@ -317,12 +315,12 @@ WRITE8_MEMBER(nes_h3001_device::write_h)
 
 		case 0x1003:
 			m_irq_enable = data & 0x80;
-			m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+			set_irq_line(CLEAR_LINE);
 			break;
 
 		case 0x1004:
 			m_irq_count = m_irq_count_latch;
-			m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+			set_irq_line(CLEAR_LINE);
 			break;
 
 		case 0x1005:

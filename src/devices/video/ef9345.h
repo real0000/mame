@@ -8,15 +8,13 @@
 
 *********************************************************************/
 
+#ifndef MAME_VIDEO_EF9345_H
+#define MAME_VIDEO_EF9345_H
 
 #pragma once
 
-#ifndef __EF9345_H__
-#define __EF9345_H__
+#include "emupal.h"
 
-
-#define MCFG_EF9345_PALETTE(_palette_tag) \
-	ef9345_device::static_set_palette_tag(*device, "^" _palette_tag);
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -32,23 +30,32 @@ public:
 	// construction/destruction
 	ef9345_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// static configuration
-	static void static_set_palette_tag(device_t &device, const char *tag);
+	// configuration
+	template <typename T> void set_palette_tag(T &&tag) { m_palette.set_tag(std::forward<T>(tag)); }
 
 	// device interface
-	DECLARE_READ8_MEMBER( data_r );
-	DECLARE_WRITE8_MEMBER( data_w );
+	uint8_t data_r(offs_t offset);
+	void data_w(offs_t offset, uint8_t data);
 	void update_scanline(uint16_t scanline);
 	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 protected:
+
+	enum class EF9345_MODE {
+		TYPE_EF9345    = 0x001,
+		TYPE_TS9347    = 0x002
+	};
+
+	// pass-through constructor
+	ef9345_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, EF9345_MODE variant);
+
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
 	// device_config_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	// address space configurations
 	const address_space_config      m_space_config;
@@ -60,7 +67,6 @@ protected:
 	inline void inc_y(uint8_t r);
 
 private:
-
 	void set_busy_flag(int period);
 	void draw_char_40(uint8_t *c, uint16_t x, uint16_t y);
 	void draw_char_80(uint8_t *c, uint16_t x, uint16_t y);
@@ -72,13 +78,15 @@ private:
 	uint16_t indexblock(uint16_t x, uint16_t y);
 	void bichrome40(uint8_t type, uint16_t address, uint8_t dial, uint16_t iblock, uint16_t x, uint16_t y, uint8_t c0, uint8_t c1, uint8_t insert, uint8_t flash, uint8_t hided, uint8_t negative, uint8_t underline);
 	void quadrichrome40(uint8_t c, uint8_t b, uint8_t a, uint16_t x, uint16_t y);
-	void bichrome80(uint8_t c, uint8_t a, uint16_t x, uint16_t y);
+	void bichrome80(uint8_t c, uint8_t a, uint16_t x, uint16_t y, uint8_t cursor);
 	void makechar(uint16_t x, uint16_t y);
 	void draw_border(uint16_t line);
 	void makechar_16x40(uint16_t x, uint16_t y);
 	void makechar_24x40(uint16_t x, uint16_t y);
 	void makechar_12x80(uint16_t x, uint16_t y);
 	void ef9345_exec(uint8_t cmd);
+
+	void ef9345(address_map &map);
 
 	// internal state
 	static const device_timer_id BUSY_TIMER = 0;
@@ -109,10 +117,19 @@ private:
 	emu_timer *m_busy_timer;
 	emu_timer *m_blink_timer;
 
+	const EF9345_MODE m_variant;
+
 	required_device<palette_device> m_palette;
 };
 
-// device type definition
-extern const device_type EF9345;
+class ts9347_device : public ef9345_device
+{
+public:
+	ts9347_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+};
 
-#endif
+// device type definition
+DECLARE_DEVICE_TYPE(EF9345, ef9345_device)
+DECLARE_DEVICE_TYPE(TS9347, ts9347_device)
+
+#endif // MAME_VIDEO_EF9345_H

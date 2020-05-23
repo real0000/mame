@@ -1,18 +1,13 @@
 // license:BSD-3-Clause
 // copyright-holders:Raphael Nabet, R. Belmont
 /*
-    rtc65271.h: include file for rtc65271.c
+    rtc65271.h: include file for rtc65271.cpp
 */
 
-#ifndef __RTC65271_H__
-#define __RTC65271_H__
+#ifndef MAME_MACHINE_RTC65271_H
+#define MAME_MACHINE_RTC65271_H
 
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
-
-#define MCFG_RTC65271_INTERRUPT_CB(_devcb) \
-	devcb = &rtc65271_device::set_interrupt_callback(*device, DEVCB_##_devcb);
+#pragma once
 
 
 // ======================> rtc65271_device
@@ -23,6 +18,19 @@ class rtc65271_device : public device_t,
 public:
 	// construction/destruction
 	rtc65271_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+	auto interrupt_cb() { return m_interrupt_cb.bind(); }
+
+	uint8_t rtc_r(offs_t offset);
+	uint8_t xram_r(offs_t offset);
+	void rtc_w(offs_t offset, uint8_t data);
+	void xram_w(offs_t offset, uint8_t data);
+
+	uint8_t read(int xramsel, offs_t offset);
+	void write(int xramsel, offs_t offset, uint8_t data);
+
+	DECLARE_READ_LINE_MEMBER(intrq_r);
+
 protected:
 	// device-level overrides
 	virtual void device_start() override;
@@ -30,17 +38,8 @@ protected:
 	virtual void nvram_default() override;
 	virtual void nvram_read(emu_file &file) override;
 	virtual void nvram_write(emu_file &file) override;
-public:
 
-	template<class _Object> static devcb_base &set_interrupt_callback(device_t &device, _Object object) { return downcast<rtc65271_device &>(device).m_interrupt_cb.set_callback(object); }
-
-	DECLARE_READ8_MEMBER( rtc_r );
-	DECLARE_READ8_MEMBER( xram_r );
-	DECLARE_WRITE8_MEMBER( rtc_w );
-	DECLARE_WRITE8_MEMBER( xram_w );
 private:
-	uint8_t read(int xramsel, offs_t offset);
-	void write(int xramsel, offs_t offset, uint8_t data);
 	void field_interrupts();
 
 	TIMER_CALLBACK_MEMBER(rtc_SQW_cb);
@@ -67,6 +66,6 @@ private:
 };
 
 // device type definition
-extern const device_type RTC65271;
+DECLARE_DEVICE_TYPE(RTC65271, rtc65271_device)
 
-#endif
+#endif // MAME_MACHINE_RTC65271_H

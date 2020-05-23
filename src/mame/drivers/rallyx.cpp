@@ -194,13 +194,13 @@ TODO:
 #include "includes/rallyx.h"
 
 #include "cpu/z80/z80.h"
+#include "machine/74259.h"
 #include "machine/gen_latch.h"
 #include "machine/watchdog.h"
 #include "sound/samples.h"
-#include "screen.h"
 #include "speaker.h"
 
-#define MASTER_CLOCK    XTAL_18_432MHz
+#define MASTER_CLOCK    XTAL(18'432'000)
 
 
 /*************************************
@@ -209,102 +209,65 @@ TODO:
  *
  *************************************/
 
-WRITE8_MEMBER(rallyx_state::rallyx_interrupt_vector_w)
+void rallyx_state::rallyx_interrupt_vector_w(uint8_t data)
 {
-	m_maincpu->set_input_line_vector(0, data);
+	m_maincpu->set_input_line_vector(0, data); // Z80
 	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 
-WRITE8_MEMBER(rallyx_state::rallyx_bang_w)
+void rallyx_state::bang_w(int state)
 {
-	if (data == 0 && m_last_bang != 0)
+	if (state == 0 && m_last_bang != 0)
 		m_samples->start(0, 0);
 
-	m_last_bang = data;
-}
-
-WRITE8_MEMBER(rallyx_state::rallyx_latch_w)
-{
-	int bit = data & 1;
-
-	switch (offset)
-	{
-		case 0x00:  /* BANG */
-			rallyx_bang_w(space, 0, bit);
-			break;
-
-		case 0x01:  /* INT ON */
-			m_main_irq_mask = bit;
-			if (!bit)
-				m_maincpu->set_input_line(0, CLEAR_LINE);
-			break;
-
-		case 0x02:  /* SOUND ON */
-			/* this doesn't work in New Rally X so I'm not supporting it */
-//          m_namco_sound->pacman_sound_enable_w(bit);
-			break;
-
-		case 0x03:  /* FLIP */
-			flip_screen_set(bit);
-			break;
-
-		case 0x04:
-			output().set_led_value(0, bit);
-			break;
-
-		case 0x05:
-			output().set_led_value(1, bit);
-			break;
-
-		case 0x06:
-			machine().bookkeeping().coin_lockout_w(0, !bit);
-			break;
-
-		case 0x07:
-			machine().bookkeeping().coin_counter_w(0, bit);
-			break;
-	}
+	m_last_bang = state;
 }
 
 
-WRITE8_MEMBER(rallyx_state::locomotn_latch_w)
+void rallyx_state::irq_mask_w(int state)
 {
-	int bit = data & 1;
+	m_main_irq_mask = state;
+	if (!state)
+		m_maincpu->set_input_line(0, CLEAR_LINE);
+}
 
-	switch (offset)
-	{
-		case 0x00:  /* SOUNDON */
-			m_timeplt_audio->sh_irqtrigger_w(space,0,bit);
-			break;
+void rallyx_state::nmi_mask_w(int state)
+{
+	m_main_irq_mask = state;
+	if (!state)
+		m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+}
 
-		case 0x01:  /* INTST */
-			m_main_irq_mask = bit;
-			break;
 
-		case 0x02:  /* MUT */
-//          sound disable
-			break;
+void rallyx_state::sound_on_w(int state)
+{
+	// this doesn't work in New Rally X so I'm not supporting it
+	//m_namco_sound->pacman_sound_enable_w(state);
+}
 
-		case 0x03:  /* FLIP */
-			flip_screen_set(bit);
-			break;
 
-		case 0x04:  /* OUT1 */
-			machine().bookkeeping().coin_counter_w(0, bit);
-			break;
+void rallyx_state::flip_screen_w(int state)
+{
+	flip_screen_set(state);
+}
 
-		case 0x05:  /* OUT2 */
-			break;
 
-		case 0x06:  /* OUT3 */
-			machine().bookkeeping().coin_counter_w(1,bit);
-			break;
+void rallyx_state::coin_lockout_w(int state)
+{
+	machine().bookkeeping().coin_lockout_w(0, !state);
+}
 
-		case 0x07:  /* STARSON */
-			tactcian_starson_w(space, offset, bit);
-			break;
-	}
+
+void rallyx_state::coin_counter_1_w(int state)
+{
+	machine().bookkeeping().coin_counter_w(0, state);
+}
+
+
+void rallyx_state::coin_counter_2_w(int state)
+{
+	machine().bookkeeping().coin_counter_w(1, state);
 }
 
 
@@ -314,43 +277,46 @@ WRITE8_MEMBER(rallyx_state::locomotn_latch_w)
  *
  *************************************/
 
-static ADDRESS_MAP_START( rallyx_map, AS_PROGRAM, 8, rallyx_state )
-	AM_RANGE(0x0000, 0x3fff) AM_ROM
-	AM_RANGE(0x8000, 0x8fff) AM_RAM_WRITE(rallyx_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0x9800, 0x9fff) AM_RAM
-	AM_RANGE(0xa000, 0xa000) AM_READ_PORT("P1")
-	AM_RANGE(0xa080, 0xa080) AM_READ_PORT("P2")
-	AM_RANGE(0xa100, 0xa100) AM_READ_PORT("DSW")
-	AM_RANGE(0xa000, 0xa00f) AM_WRITEONLY AM_SHARE("radarattr")
-	AM_RANGE(0xa080, 0xa080) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)
-	AM_RANGE(0xa100, 0xa11f) AM_DEVWRITE("namco", namco_device, pacman_sound_w)
-	AM_RANGE(0xa130, 0xa130) AM_WRITE(rallyx_scrollx_w)
-	AM_RANGE(0xa140, 0xa140) AM_WRITE(rallyx_scrolly_w)
-	AM_RANGE(0xa170, 0xa170) AM_WRITENOP            /* ? */
-	AM_RANGE(0xa180, 0xa187) AM_WRITE(rallyx_latch_w)
-ADDRESS_MAP_END
+void rallyx_state::rallyx_map(address_map &map)
+{
+	map(0x0000, 0x3fff).rom();
+	map(0x8000, 0x8fff).ram().w(FUNC(rallyx_state::videoram_w)).share(m_videoram);
+	map(0x9800, 0x9fff).ram();
+	map(0xa000, 0xa000).portr("P1");
+	map(0xa080, 0xa080).portr("P2");
+	map(0xa100, 0xa100).portr("DSW");
+	map(0xa000, 0xa00f).writeonly().share(m_radarattr);
+	map(0xa080, 0xa080).w("watchdog", FUNC(watchdog_timer_device::reset_w));
+	map(0xa100, 0xa11f).w(m_namco_sound, FUNC(namco_device::pacman_sound_w));
+	map(0xa130, 0xa130).w(FUNC(rallyx_state::scrollx_w));
+	map(0xa140, 0xa140).w(FUNC(rallyx_state::scrolly_w));
+	map(0xa170, 0xa170).nopw();            // ?
+	map(0xa180, 0xa187).w("mainlatch", FUNC(ls259_device::write_d0));
+}
 
-static ADDRESS_MAP_START( io_map, AS_IO, 8, rallyx_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0, 0) AM_WRITE(rallyx_interrupt_vector_w)
-ADDRESS_MAP_END
+void rallyx_state::io_map(address_map &map)
+{
+	map.global_mask(0xff);
+	map(0, 0).w(FUNC(rallyx_state::rallyx_interrupt_vector_w));
+}
 
 
-static ADDRESS_MAP_START( jungler_map, AS_PROGRAM, 8, rallyx_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x8fff) AM_RAM_WRITE(rallyx_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0x9800, 0x9fff) AM_RAM
-	AM_RANGE(0xa000, 0xa000) AM_READ_PORT("P1")
-	AM_RANGE(0xa080, 0xa080) AM_READ_PORT("P2")
-	AM_RANGE(0xa100, 0xa100) AM_READ_PORT("DSW1")
-	AM_RANGE(0xa180, 0xa180) AM_READ_PORT("DSW2")
-	AM_RANGE(0xa000, 0xa00f) AM_MIRROR(0x00f0) AM_WRITEONLY AM_SHARE("radarattr")   // jungler writes to a03x
-	AM_RANGE(0xa080, 0xa080) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)
-	AM_RANGE(0xa100, 0xa100) AM_DEVWRITE("soundlatch", generic_latch_8_device, write)
-	AM_RANGE(0xa130, 0xa130) AM_WRITE(rallyx_scrollx_w) /* only jungler and tactcian */
-	AM_RANGE(0xa140, 0xa140) AM_WRITE(rallyx_scrolly_w) /* only jungler and tactcian */
-	AM_RANGE(0xa180, 0xa187) AM_WRITE(locomotn_latch_w)
-ADDRESS_MAP_END
+void rallyx_state::jungler_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0x8fff).ram().w(FUNC(rallyx_state::videoram_w)).share(m_videoram);
+	map(0x9800, 0x9fff).ram();
+	map(0xa000, 0xa000).portr("P1");
+	map(0xa080, 0xa080).portr("P2");
+	map(0xa100, 0xa100).portr("DSW1");
+	map(0xa180, 0xa180).portr("DSW2");
+	map(0xa000, 0xa00f).mirror(0x00f0).writeonly().share(m_radarattr);   // jungler writes to a03x
+	map(0xa080, 0xa080).w("watchdog", FUNC(watchdog_timer_device::reset_w));
+	map(0xa100, 0xa100).w(m_timeplt_audio, FUNC(timeplt_audio_device::sound_data_w));
+	map(0xa130, 0xa130).w(FUNC(rallyx_state::scrollx_w)); // only jungler and tactcian
+	map(0xa140, 0xa140).w(FUNC(rallyx_state::scrolly_w)); // only jungler and tactcian
+	map(0xa180, 0xa187).w("mainlatch", FUNC(ls259_device::write_d0));
+}
 
 
 /*************************************
@@ -433,6 +399,17 @@ static INPUT_PORTS_START( rallyx )
 	PORT_SERVICE_DIPLOC( 0x01, 0x01, "DSW:1")
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( dngrtrck )
+	PORT_INCLUDE( rallyx )
+
+	PORT_MODIFY("DSW")
+	PORT_DIPNAME( 0xc0, 0x00, DEF_STR( Coinage ) )      PORT_DIPLOCATION("DSW:7,8")
+	PORT_DIPSETTING(    0x00, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(    0x40, "1stC/1C 2ndC/2C" )
+	PORT_DIPSETTING(    0x80, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(    0xc0, "1stC/2C 2ndC/3C" )
+INPUT_PORTS_END
+
 static INPUT_PORTS_START( nrallyx )
 	PORT_INCLUDE( rallyx )
 
@@ -503,11 +480,11 @@ static INPUT_PORTS_START( jungler )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_START2 )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START1 )
 
-	PORT_START("DSW1")      /* Sound board */
+	PORT_START("DSW1")      // Sound board
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_4WAY
 	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_UNUSED )
 
-	PORT_START("DSW2")      /* CPU board */
+	PORT_START("DSW2")      // CPU board
 	PORT_DIPNAME( 0x07, 0x07, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("DSW2:1,2,3")
 	PORT_DIPSETTING(    0x01, DEF_STR( 4C_1C ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( 3C_1C ) )
@@ -556,7 +533,7 @@ static INPUT_PORTS_START( locomotn )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_START2 )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START1 )
 
-	PORT_START("DSW1")      /* Sound board */
+	PORT_START("DSW1")      // Sound board
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_4WAY
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Lives ) )        PORT_DIPLOCATION("DSW1:5,6")
@@ -575,7 +552,7 @@ static INPUT_PORTS_START( locomotn )
 	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 
-	PORT_START("DSW2")      /* CPU board */
+	PORT_START("DSW2")      // CPU board
 	PORT_DIPNAME( 0x0f, 0x0f, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("DSW2:1,2,3,4")
 	PORT_DIPSETTING(    0x04, DEF_STR( 4C_1C ) )
 	PORT_DIPSETTING(    0x0a, DEF_STR( 3C_1C ) )
@@ -610,7 +587,7 @@ static INPUT_PORTS_START( locomotn )
 	PORT_DIPSETTING(    0x50, DEF_STR( 1C_6C ) )
 	PORT_DIPSETTING(    0x90, DEF_STR( 1C_7C ) )
 	PORT_DIPSETTING(    0x00, "No Coin B" )
-	/* "No Coin B" = coins produce sound, but no effect on coin counter */
+	// "No Coin B" = coins produce sound, but no effect on coin counter
 INPUT_PORTS_END
 
 
@@ -623,7 +600,7 @@ static INPUT_PORTS_START( tactcian )
 	PORT_MODIFY("P2")
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_COCKTAIL
 
-	PORT_MODIFY("DSW1")      /* Sound board */
+	PORT_MODIFY("DSW1")      // Sound board
 	PORT_DIPNAME( 0x30, 0x00, DEF_STR( Lives ) )        PORT_DIPLOCATION("DSW1:5,6")
 	PORT_DIPSETTING(    0x30, "255" )
 	PORT_DIPSETTING(    0x20, "5" )
@@ -642,7 +619,7 @@ static INPUT_PORTS_START( tactcian )
 	PORT_DIPSETTING(    0x00, "10k, 80k then every 100k" )
 	PORT_DIPSETTING(    0x01, "20k, 80k then every 100k" )
 
-	PORT_MODIFY("DSW2")      /* CPU board */
+	PORT_MODIFY("DSW2")      // CPU board
 	PORT_DIPNAME( 0x01, 0x00, "Coin Mode" )         PORT_DIPLOCATION("DSW2:1")
 	PORT_DIPSETTING(    0x00, "Mode 1" )
 	PORT_DIPSETTING(    0x01, "Mode 2" )
@@ -677,7 +654,7 @@ static INPUT_PORTS_START( commsega )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_START2 )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START1 )
 
-	PORT_START("DSW1")      /* (sound board) */
+	PORT_START("DSW1")      // (sound board)
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_4WAY
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON1 )        PORT_DIPLOCATION("DSW1:7")
 	PORT_DIPUNUSED_DIPLOC( 0x20, 0x20, "DSW1:6")
@@ -695,7 +672,7 @@ static INPUT_PORTS_START( commsega )
 	PORT_DIPSETTING(    0x02, DEF_STR( 1C_3C ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Free_Play ) )
 
-	PORT_START("DSW2")      /* (CPU board) */
+	PORT_START("DSW2")      // (CPU board)
 	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Lives ) )        PORT_DIPLOCATION("DSW2:1,2")
 	PORT_DIPSETTING(    0x03, "3" )
 	PORT_DIPSETTING(    0x02, "4" )
@@ -785,13 +762,13 @@ static const gfx_layout dotlayout =
 	16*8
 };
 
-static GFXDECODE_START( rallyx )
+static GFXDECODE_START( gfx_rallyx )
 	GFXDECODE_ENTRY( "gfx1", 0, rallyx_charlayout,     0, 64 )
 	GFXDECODE_ENTRY( "gfx1", 0, rallyx_spritelayout,   0, 64 )
 	GFXDECODE_ENTRY( "gfx2", 0, dotlayout,         64*4,  1 )
 GFXDECODE_END
 
-static GFXDECODE_START( jungler )
+static GFXDECODE_START( gfx_jungler )
 	GFXDECODE_ENTRY( "gfx1", 0, jungler_charlayout,    0, 64 )
 	GFXDECODE_ENTRY( "gfx1", 0, jungler_spritelayout,  0, 64 )
 	GFXDECODE_ENTRY( "gfx2", 0, dotlayout,          64*4,  1 )
@@ -808,7 +785,7 @@ static const char *const rallyx_sample_names[] =
 {
 	"*rallyx",
 	"bang",
-	nullptr   /* end of array */
+	nullptr   // end of array
 };
 
 /*************************************
@@ -821,139 +798,141 @@ MACHINE_START_MEMBER(rallyx_state,rallyx)
 {
 	save_item(NAME(m_last_bang));
 	save_item(NAME(m_stars_enable));
+	save_item(NAME(m_main_irq_mask));
 }
 
-MACHINE_RESET_MEMBER(rallyx_state,rallyx)
+void rallyx_state::rallyx_vblank_irq(int state)
 {
-	m_last_bang = 0;
-	m_stars_enable = 0;
+	if (state && m_main_irq_mask)
+		m_maincpu->set_input_line(0, ASSERT_LINE);
 }
 
-INTERRUPT_GEN_MEMBER(rallyx_state::rallyx_vblank_irq)
+void rallyx_state::jungler_vblank_irq(int state)
 {
-	if (m_main_irq_mask)
-		device.execute().set_input_line(0, ASSERT_LINE);
+	if (state && m_main_irq_mask)
+		m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }
 
-INTERRUPT_GEN_MEMBER(rallyx_state::jungler_vblank_irq)
+void rallyx_state::rallyx(machine_config &config)
 {
-	if (m_main_irq_mask)
-		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
-}
+	// basic machine hardware
+	Z80(config, m_maincpu, MASTER_CLOCK/6);    // 3.072 MHz
+	m_maincpu->set_addrmap(AS_PROGRAM, &rallyx_state::rallyx_map);
+	m_maincpu->set_addrmap(AS_IO, &rallyx_state::io_map);
 
-static MACHINE_CONFIG_START( rallyx, rallyx_state )
+	ls259_device &mainlatch(LS259(config, "mainlatch")); // 259 at 12M or 4099 at 11M on Logic Board I
+	mainlatch.q_out_cb<0>().set(FUNC(rallyx_state::bang_w)); // BANG
+	mainlatch.q_out_cb<1>().set(FUNC(rallyx_state::irq_mask_w)); // INT ON
+	mainlatch.q_out_cb<2>().set(FUNC(rallyx_state::sound_on_w)); // SOUND ON
+	mainlatch.q_out_cb<3>().set(FUNC(rallyx_state::flip_screen_w)); // FLIP
+	mainlatch.q_out_cb<4>().set_output("led0");
+	mainlatch.q_out_cb<5>().set_output("led1");
+	mainlatch.q_out_cb<6>().set(FUNC(rallyx_state::coin_lockout_w));
+	mainlatch.q_out_cb<7>().set(FUNC(rallyx_state::coin_counter_1_w));
 
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, MASTER_CLOCK/6)    /* 3.072 MHz */
-	MCFG_CPU_PROGRAM_MAP(rallyx_map)
-	MCFG_CPU_IO_MAP(io_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", rallyx_state, rallyx_vblank_irq)
-
-	MCFG_WATCHDOG_ADD("watchdog")
+	WATCHDOG_TIMER(config, "watchdog");
 
 	MCFG_MACHINE_START_OVERRIDE(rallyx_state,rallyx)
-	MCFG_MACHINE_RESET_OVERRIDE(rallyx_state,rallyx)
 
-	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60.606060)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(36*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(rallyx_state, screen_update_rallyx)
-	MCFG_SCREEN_PALETTE("palette")
+	// video hardware
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_refresh_hz(60.606060);
+	m_screen->set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	m_screen->set_size(36*8, 32*8);
+	m_screen->set_visarea(0*8, 36*8-1, 2*8, 30*8-1);
+	m_screen->set_screen_update(FUNC(rallyx_state::screen_update_rallyx));
+	m_screen->set_palette(m_palette);
+	m_screen->screen_vblank().set(FUNC(rallyx_state::rallyx_vblank_irq));
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rallyx)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_rallyx);
 
-	MCFG_PALETTE_ADD("palette", 64*4+4)
-	MCFG_PALETTE_INDIRECT_ENTRIES(32)
-	MCFG_PALETTE_ENABLE_SHADOWS()
-	MCFG_PALETTE_INIT_OWNER(rallyx_state,rallyx)
+	PALETTE(config, m_palette, FUNC(rallyx_state::rallyx_palette), 64*4 + 4, 32);
+	m_palette->enable_shadows();
+
 	MCFG_VIDEO_START_OVERRIDE(rallyx_state,rallyx)
 
-	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
+	// sound hardware
+	SPEAKER(config, "mono").front_center();
 
-	MCFG_SOUND_ADD("namco", NAMCO, MASTER_CLOCK/6/32) /* 96 KHz */
-	MCFG_NAMCO_AUDIO_VOICES(3)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	NAMCO(config, m_namco_sound, MASTER_CLOCK/6/32); // 96 KHz
+	m_namco_sound->set_voices(3);
+	m_namco_sound->add_route(ALL_OUTPUTS, "mono", 1.0);
 
-	MCFG_SOUND_ADD("samples", SAMPLES, 0)
-	MCFG_SAMPLES_CHANNELS(1)
-	MCFG_SAMPLES_NAMES(rallyx_sample_names)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
-MACHINE_CONFIG_END
+	SAMPLES(config, m_samples);
+	m_samples->set_channels(1);
+	m_samples->set_samples_names(rallyx_sample_names);
+	m_samples->add_route(ALL_OUTPUTS, "mono", 0.80);
+}
 
+void rallyx_state::jungler(machine_config &config)
+{
+	// basic machine hardware
+	Z80(config, m_maincpu, MASTER_CLOCK/6);    // 3.072 MHz
+	m_maincpu->set_addrmap(AS_PROGRAM, &rallyx_state::jungler_map);
 
-static MACHINE_CONFIG_START( jungler, rallyx_state )
+	ls259_device &mainlatch(LS259(config, "mainlatch")); // 1C on Loco-Motion
+	mainlatch.q_out_cb<0>().set("timeplt_audio", FUNC(timeplt_audio_device::sh_irqtrigger_w)); // SOUNDON
+	mainlatch.q_out_cb<1>().set(FUNC(rallyx_state::nmi_mask_w)); // INTST
+	mainlatch.q_out_cb<2>().set("timeplt_audio", FUNC(timeplt_audio_device::mute_w)); // MUT
+	mainlatch.q_out_cb<3>().set(FUNC(rallyx_state::flip_screen_w)); // FLIP
+	mainlatch.q_out_cb<4>().set(FUNC(rallyx_state::coin_counter_1_w)); // OUT1
+	mainlatch.q_out_cb<5>().set_nop(); // OUT2
+	mainlatch.q_out_cb<6>().set(FUNC(rallyx_state::coin_counter_2_w)); // OUT3
+	mainlatch.q_out_cb<7>().set(FUNC(rallyx_state::stars_enable_w)); // STARSON
 
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, MASTER_CLOCK/6)    /* 3.072 MHz */
-	MCFG_CPU_PROGRAM_MAP(jungler_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", rallyx_state, jungler_vblank_irq)
-
-	MCFG_WATCHDOG_ADD("watchdog")
+	WATCHDOG_TIMER(config, "watchdog");
 
 	MCFG_MACHINE_START_OVERRIDE(rallyx_state,rallyx)
-	MCFG_MACHINE_RESET_OVERRIDE(rallyx_state,rallyx)
 
-	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0)  /* frames per second, vblank duration */)
-	MCFG_SCREEN_SIZE(36*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(rallyx_state, screen_update_jungler)
-	MCFG_SCREEN_PALETTE("palette")
+	// video hardware
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_refresh_hz(60);
+	m_screen->set_vblank_time(ATTOSECONDS_IN_USEC(0));  // frames per second, vblank duration
+	m_screen->set_size(36*8, 32*8);
+	m_screen->set_visarea(0*8, 36*8-1, 2*8, 30*8-1);
+	m_screen->set_screen_update(FUNC(rallyx_state::screen_update_jungler));
+	m_screen->set_palette(m_palette);
+	m_screen->screen_vblank().set(FUNC(rallyx_state::jungler_vblank_irq));
 
-	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jungler)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_jungler);
 
-	MCFG_PALETTE_ADD("palette", 64*4+4+64)
-	MCFG_PALETTE_INDIRECT_ENTRIES(32+64)
-	MCFG_PALETTE_ENABLE_SHADOWS()
-	MCFG_PALETTE_INIT_OWNER(rallyx_state,jungler)
+	PALETTE(config, m_palette, FUNC(rallyx_state::jungler_palette), 64*4 + 4 + 64, 32 + 64);
+	m_palette->enable_shadows();
+
 	MCFG_VIDEO_START_OVERRIDE(rallyx_state,jungler)
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	// sound hardware
+	LOCOMOTN_AUDIO(config, "timeplt_audio");
+}
 
-	/* sound hardware */
-	MCFG_FRAGMENT_ADD(locomotn_sound)
-MACHINE_CONFIG_END
+void rallyx_state::tactcian(machine_config &config)
+{
+	jungler(config);
 
+	m_screen->set_screen_update(FUNC(rallyx_state::screen_update_locomotn));
 
-static MACHINE_CONFIG_DERIVED( tactcian, jungler )
-
-	/* basic machine hardware */
-
-	/* video hardware */
 	MCFG_VIDEO_START_OVERRIDE(rallyx_state,locomotn)
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(rallyx_state, screen_update_locomotn)
-MACHINE_CONFIG_END
+}
 
+void rallyx_state::locomotn(machine_config &config)
+{
+	jungler(config);
 
-static MACHINE_CONFIG_DERIVED( locomotn, jungler )
+	m_screen->set_visarea(0*8, 32*8-1, 2*8, 30*8-1);
+	m_screen->set_screen_update(FUNC(rallyx_state::screen_update_locomotn));
 
-	/* basic machine hardware */
-
-	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(rallyx_state, screen_update_locomotn)
 	MCFG_VIDEO_START_OVERRIDE(rallyx_state,locomotn)
-MACHINE_CONFIG_END
+}
 
+void rallyx_state::commsega(machine_config &config)
+{
+	jungler(config);
 
-static MACHINE_CONFIG_DERIVED( commsega, jungler )
+	m_screen->set_visarea(0*8, 32*8-1, 2*8, 30*8-1);
+	m_screen->set_screen_update(FUNC(rallyx_state::screen_update_locomotn));
 
-	/* basic machine hardware */
-
-	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(rallyx_state, screen_update_locomotn)
 	MCFG_VIDEO_START_OVERRIDE(rallyx_state,commsega)
-MACHINE_CONFIG_END
+}
 
 
 /*************************************
@@ -973,17 +952,17 @@ ROM_START( rallyx )
 	ROM_LOAD( "8e",           0x0000, 0x1000, CRC(277c1de5) SHA1(30bc57263e8dad870c501c76bce6f42d69ab9e00) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  /* Prom type: IM5623    - dots */
+	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  // Prom type: IM5623    - dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "rx1-1.11n",    0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  /* Prom type: M3-7603-5 - palette */
-	ROM_LOAD( "rx1-7.8p",     0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  /* Prom type: IM5623    - lookup table */
-	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  /* Prom type: N82S123N  - video layout (not used) */
-	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
+	ROM_LOAD( "rx1-1.11n",    0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  // Prom type: M3-7603-5 - palette
+	ROM_LOAD( "rx1-7.8p",     0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  // Prom type: IM5623    - lookup table
+	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  // Prom type: N82S123N  - video layout (not used)
+	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  // Prom type: M3-7603-5 - video timing (not used)
 
-	ROM_REGION( 0x0200, "namco", 0 ) /* sound proms */
-	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
-	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
+	ROM_REGION( 0x0200, "namco", 0 ) // sound proms
+	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  // Prom type: IM5623
+	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  // Prom type: IM5623 - not used
 ROM_END
 
 ROM_START( rallyxa )
@@ -1002,17 +981,17 @@ ROM_START( rallyxa )
 	ROM_LOAD( "rx1_chg_2.8d", 0x0800, 0x0800, CRC(68dff552) SHA1(5dad38db45afbd79b5627a75b295fc920ad68856) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  /* Prom type: IM5623    - dots */
+	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  // Prom type: IM5623    - dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "rx1-1.11n",    0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  /* Prom type: M3-7603-5 - palette */
-	ROM_LOAD( "rx1-7.8p",     0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  /* Prom type: IM5623    - lookup table */
-	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  /* Prom type: N82S123N  - video layout (not used) */
-	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
+	ROM_LOAD( "rx1-1.11n",    0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  // Prom type: M3-7603-5 - palette
+	ROM_LOAD( "rx1-7.8p",     0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  // Prom type: IM5623    - lookup table
+	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  // Prom type: N82S123N  - video layout (not used)
+	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  // Prom type: M3-7603-5 - video timing (not used)
 
-	ROM_REGION( 0x0200, "namco", 0 ) /* sound proms */
-	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
-	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
+	ROM_REGION( 0x0200, "namco", 0 ) // sound proms
+	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  // Prom type: IM5623
+	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  // Prom type: IM5623 - not used
 ROM_END
 
 ROM_START( rallyxm )
@@ -1026,17 +1005,17 @@ ROM_START( rallyxm )
 	ROM_LOAD( "8e",           0x0000, 0x1000, CRC(277c1de5) SHA1(30bc57263e8dad870c501c76bce6f42d69ab9e00) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  /* Prom type: IM5623    - dots */
+	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  // Prom type: IM5623    - dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "rx1-1.11n",    0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  /* Prom type: M3-7603-5 - palette */
-	ROM_LOAD( "rx1-7.8p",     0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  /* Prom type: IM5623    - lookup table */
-	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  /* Prom type: N82S123N  - video layout (not used) */
-	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
+	ROM_LOAD( "rx1-1.11n",    0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  // Prom type: M3-7603-5 - palette
+	ROM_LOAD( "rx1-7.8p",     0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  // Prom type: IM5623    - lookup table
+	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  // Prom type: N82S123N  - video layout (not used)
+	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  // Prom type: M3-7603-5 - video timing (not used)
 
-	ROM_REGION( 0x0200, "namco", 0 ) /* sound proms */
-	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
-	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
+	ROM_REGION( 0x0200, "namco", 0 ) // sound proms
+	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  // Prom type: IM5623
+	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  // Prom type: IM5623 - not used
 ROM_END
 
 ROM_START( rallyxmr )
@@ -1055,17 +1034,46 @@ ROM_START( rallyxmr )
 	ROM_LOAD( "174.bin",      0x0800, 0x0800, CRC(68dff552) SHA1(5dad38db45afbd79b5627a75b295fc920ad68856) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  /* Prom type: IM5623    - dots */
+	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  // Prom type: IM5623    - dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "rx1-1.11n",    0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  /* Prom type: M3-7603-5 - palette */
-	ROM_LOAD( "rx1-7.8p",     0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  /* Prom type: IM5623    - lookup table */
-	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  /* Prom type: N82S123N  - video layout (not used) */
-	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
+	ROM_LOAD( "rx1-1.11n",    0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  // Prom type: M3-7603-5 - palette
+	ROM_LOAD( "rx1-7.8p",     0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  // Prom type: IM5623    - lookup table
+	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  // Prom type: N82S123N  - video layout (not used)
+	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  // Prom type: M3-7603-5 - video timing (not used)
 
-	ROM_REGION( 0x0200, "namco", 0 ) /* sound proms */
-	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
-	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
+	ROM_REGION( 0x0200, "namco", 0 ) // sound proms */
+	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  // Prom type: IM5623
+	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  // Prom type: IM5623 - not used
+ROM_END
+
+ROM_START( dngrtrck ) // PROMs weren't dumped for this PCB, supposed to match
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "1b-2716.bin",      0x0000, 0x0800, CRC(b6180a12) SHA1(f442fe81f7fac6e915944640c763d7016a6577f6) )
+	ROM_LOAD( "1c-2716.bin",      0x0800, 0x0800, CRC(7cbeb656) SHA1(ff6e669f7d3e91c1cc835106cccefcd81aa28bb8) )
+	ROM_LOAD( "1d-2716.bin",      0x1000, 0x0800, CRC(594207b1) SHA1(addea746e2378c44c06d6d18d466138946a339cf) )
+	ROM_LOAD( "1e-2716.bin",      0x1800, 0x0800, CRC(ae447251) SHA1(7c86193c9418929662b35143c66a5dff44663dd7) )
+	ROM_LOAD( "1h-2716.bin",      0x2000, 0x0800, CRC(e0d4b534) SHA1(fb64b21c418a2633d592f4476aed909ea6678fb2) )
+	ROM_LOAD( "1j-2716.bin",      0x2800, 0x0800, CRC(e9740f16) SHA1(02a134ccd3d6557d46492747b04da02e933aa6b4) )
+	ROM_LOAD( "1k-2716.bin",      0x3000, 0x0800, CRC(843109f2) SHA1(7241d1025f249d23a0d15b5e31fdb2f5297ffbf4) )
+	ROM_LOAD( "1l-2716.bin",      0x3800, 0x0800, CRC(17759749) SHA1(8169eebcb02615b99f786f6c5294eb31a8d1911b) )
+
+	ROM_REGION( 0x1000, "gfx1", 0 )
+	ROM_LOAD( "8e-2716.bin",      0x0000, 0x0800, CRC(50a224e2) SHA1(33da1bdc33f085d19ae2c482747c509cf9441674) )
+	ROM_LOAD( "8d-2716.bin",      0x0800, 0x0800, CRC(68dff552) SHA1(5dad38db45afbd79b5627a75b295fc920ad68856) )
+
+	ROM_REGION( 0x0100, "gfx2", 0 )
+	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  // Prom type: IM5623    - dots
+
+	ROM_REGION( 0x0160, "proms", 0 )
+	ROM_LOAD( "rx1-1.11n",    0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  // Prom type: M3-7603-5 - palette
+	ROM_LOAD( "rx1-7.8p",     0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  // Prom type: IM5623    - lookup table
+	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  // Prom type: N82S123N  - video layout (not used)
+	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  // Prom type: M3-7603-5 - video timing (not used)
+
+	ROM_REGION( 0x0200, "namco", 0 ) // sound proms
+	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  // Prom type: IM5623
+	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  // Prom type: IM5623 - not used
 ROM_END
 
 ROM_START( nrallyx )
@@ -1084,17 +1092,17 @@ ROM_START( nrallyx )
 	ROM_LOAD( "nrx_chg2.8d",  0x0800, 0x0800, CRC(85d9fffd) SHA1(12dff66d98a808b9dc952b2d87a56308b46a973e) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  /* Prom type: IM5623    - dots */
+	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  // Prom type: IM5623    - dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "nrx1-1.11n",   0x0000, 0x0020, CRC(a0a49017) SHA1(494c920a157e9f876d533c1b0146275a366c4989) )  /* Prom type: M3-7603-5 - palette */
-	ROM_LOAD( "nrx1-7.8p",    0x0020, 0x0100, CRC(4e46f485) SHA1(3f013aafba96a76d410f2db16d1d24d2fb257aaf) )  /* Prom type: IM5623    - lookup table */
-	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  /* Prom type: N82S123N  - video layout (not used) */
-	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
+	ROM_LOAD( "nrx1-1.11n",   0x0000, 0x0020, CRC(a0a49017) SHA1(494c920a157e9f876d533c1b0146275a366c4989) )  // Prom type: M3-7603-5 - palette
+	ROM_LOAD( "nrx1-7.8p",    0x0020, 0x0100, CRC(4e46f485) SHA1(3f013aafba96a76d410f2db16d1d24d2fb257aaf) )  // Prom type: IM5623    - lookup table
+	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  // Prom type: N82S123N  - video layout (not used)
+	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  // Prom type: M3-7603-5 - video timing (not used)
 
-	ROM_REGION( 0x0200, "namco", 0 ) /* sound proms */
-	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
-	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
+	ROM_REGION( 0x0200, "namco", 0 ) // sound proms
+	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  // Prom type: IM5623
+	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  // Prom type: IM5623 - not used
 ROM_END
 
 ROM_START( nrallyxb )
@@ -1108,17 +1116,17 @@ ROM_START( nrallyxb )
 	ROM_LOAD( "nrallyx.8e",   0x0000, 0x1000, CRC(ca7a174a) SHA1(dc553df18c45ba399661122be75b71d6cb54d6a2) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  /* Prom type: IM5623    - dots */
+	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  // Prom type: IM5623    - dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "nrx1-1.11n",   0x0000, 0x0020, CRC(a0a49017) SHA1(494c920a157e9f876d533c1b0146275a366c4989) )  /* Prom type: M3-7603-5 - palette */
-	ROM_LOAD( "nrx1-7.8p",    0x0020, 0x0100, CRC(4e46f485) SHA1(3f013aafba96a76d410f2db16d1d24d2fb257aaf) )  /* Prom type: IM5623    - lookup table */
-	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  /* Prom type: N82S123N  - video layout (not used) */
-	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
+	ROM_LOAD( "nrx1-1.11n",   0x0000, 0x0020, CRC(a0a49017) SHA1(494c920a157e9f876d533c1b0146275a366c4989) )  // Prom type: M3-7603-5 - palette
+	ROM_LOAD( "nrx1-7.8p",    0x0020, 0x0100, CRC(4e46f485) SHA1(3f013aafba96a76d410f2db16d1d24d2fb257aaf) )  // Prom type: IM5623    - lookup table
+	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  // Prom type: N82S123N  - video layout (not used)
+	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  // Prom type: M3-7603-5 - video timing (not used)
 
-	ROM_REGION( 0x0200, "namco", 0 ) /* sound proms */
-	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
-	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
+	ROM_REGION( 0x0200, "namco", 0 ) // sound proms
+	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  // Prom type: IM5623
+	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  // Prom type: IM5623 - not used
 ROM_END
 
 ROM_START( jungler )
@@ -1128,7 +1136,7 @@ ROM_START( jungler )
 	ROM_LOAD( "jungr3",       0x2000, 0x1000, CRC(3dcc03da) SHA1(2c328a46511c4c9eec6515b9316a586de6503152) )
 	ROM_LOAD( "jungr4",       0x3000, 0x1000, CRC(f92e9940) SHA1(d72a4d0a0ab7c9a1dcbb7925eb8530052640a234) )
 
-	ROM_REGION( 0x10000, "tpsound", 0 )
+	ROM_REGION( 0x10000, "timeplt_audio:tpsound", 0 )
 	ROM_LOAD( "1b",           0x0000, 0x1000, CRC(f86999c3) SHA1(4660bd7826219b1bad7d9178918823196d4fd8d6) )
 
 	ROM_REGION( 0x1000, "gfx1", 0 )
@@ -1136,13 +1144,13 @@ ROM_START( jungler )
 	ROM_LOAD( "5m",           0x0800, 0x0800, CRC(131a08ac) SHA1(167a0710a2a153f7f7c6839d2340e5aa725ef039) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "82s129.10g",   0x0000, 0x0100, CRC(c59c51b7) SHA1(e8ac60fed9ba16c61a4c3c09e27f8c3f4e254014) ) /* dots */
+	ROM_LOAD( "82s129.10g",   0x0000, 0x0100, CRC(c59c51b7) SHA1(e8ac60fed9ba16c61a4c3c09e27f8c3f4e254014) ) // dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "18s030.8b",    0x0000, 0x0020, CRC(55a7e6d1) SHA1(f9e4ff3b165235db2fd8dab94c43bc686c3ad29b) ) /* palette */
-	ROM_LOAD( "tbp24s10.9d",  0x0020, 0x0100, CRC(d223f7b8) SHA1(87b62f09d4eda09c16d99d1554017d18e52b5886) ) /* loookup table */
-	ROM_LOAD( "18s030.7a",    0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) ) /* video layout (not used) */
-	ROM_LOAD( "6331-1.10a",   0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) /* video timing (not used) */
+	ROM_LOAD( "18s030.8b",    0x0000, 0x0020, CRC(55a7e6d1) SHA1(f9e4ff3b165235db2fd8dab94c43bc686c3ad29b) ) // palette
+	ROM_LOAD( "tbp24s10.9d",  0x0020, 0x0100, CRC(d223f7b8) SHA1(87b62f09d4eda09c16d99d1554017d18e52b5886) ) // lookup table
+	ROM_LOAD( "18s030.7a",    0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) ) // video layout (not used)
+	ROM_LOAD( "6331-1.10a",   0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) // video timing (not used)
 ROM_END
 
 ROM_START( junglers )
@@ -1152,7 +1160,7 @@ ROM_START( junglers )
 	ROM_LOAD( "4d",           0x2000, 0x1000, CRC(557c7925) SHA1(84d8eb2fdb7ee9098805be9f457a37f51e4bc3b8) )
 	ROM_LOAD( "4c",           0x3000, 0x1000, CRC(51aac9a5) SHA1(2c8a24b4ce8cec96c6e09332f3f63bd7d25ae4c6) )
 
-	ROM_REGION( 0x10000, "tpsound", 0 )
+	ROM_REGION( 0x10000, "timeplt_audio:tpsound", 0 )
 	ROM_LOAD( "1b",           0x0000, 0x1000, CRC(f86999c3) SHA1(4660bd7826219b1bad7d9178918823196d4fd8d6) )
 
 	ROM_REGION( 0x1000, "gfx1", 0 )
@@ -1160,23 +1168,51 @@ ROM_START( junglers )
 	ROM_LOAD( "5m",           0x0800, 0x0800, CRC(131a08ac) SHA1(167a0710a2a153f7f7c6839d2340e5aa725ef039) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "82s129.10g",   0x0000, 0x0100, CRC(c59c51b7) SHA1(e8ac60fed9ba16c61a4c3c09e27f8c3f4e254014) ) /* dots */
+	ROM_LOAD( "82s129.10g",   0x0000, 0x0100, CRC(c59c51b7) SHA1(e8ac60fed9ba16c61a4c3c09e27f8c3f4e254014) ) // dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "18s030.8b",    0x0000, 0x0020, CRC(55a7e6d1) SHA1(f9e4ff3b165235db2fd8dab94c43bc686c3ad29b) ) /* palette */
-	ROM_LOAD( "tbp24s10.9d",  0x0020, 0x0100, CRC(d223f7b8) SHA1(87b62f09d4eda09c16d99d1554017d18e52b5886) ) /* loookup table */
-	ROM_LOAD( "18s030.7a",    0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) ) /* video layout (not used) */
-	ROM_LOAD( "6331-1.10a",   0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) /* video timing (not used) */
+	ROM_LOAD( "18s030.8b",    0x0000, 0x0020, CRC(55a7e6d1) SHA1(f9e4ff3b165235db2fd8dab94c43bc686c3ad29b) ) // palette
+	ROM_LOAD( "tbp24s10.9d",  0x0020, 0x0100, CRC(d223f7b8) SHA1(87b62f09d4eda09c16d99d1554017d18e52b5886) ) // lookup table
+	ROM_LOAD( "18s030.7a",    0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) ) // video layout (not used)
+	ROM_LOAD( "6331-1.10a",   0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) // video timing (not used)
 ROM_END
 
-ROM_START( jackler ) /* Board ID SL-HA-2061-21-B */
+// main PCB is marked: "OLYMPIA", "[C] 13-53", "Konami LICENSED", "CE" and "22 A" on solder side
+// sound PCB is marked: "OLYMPIA", "[C] 15-82", "Konami LICENSED", "CE" and "22 B" on component side
+ROM_START( junglero )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "j1.bin", 0x0000, 0x1000, CRC(5bd6ad15) SHA1(608de86e19c6726bb7d21e7dc0e936f00121a3f4) )
+	ROM_LOAD( "j2.bin", 0x1000, 0x1000, CRC(dc99f1e3) SHA1(942405f6c7d816139e36289126fe883a6a9a0a08) )
+	ROM_LOAD( "j3.bin", 0x2000, 0x1000, CRC(3dcc03da) SHA1(2c328a46511c4c9eec6515b9316a586de6503152) )
+	ROM_LOAD( "j4.bin", 0x3000, 0x1000, CRC(f92e9940) SHA1(d72a4d0a0ab7c9a1dcbb7925eb8530052640a234) )
+
+	ROM_REGION( 0x10000, "timeplt_audio:tpsound", 0 )
+	ROM_LOAD( "js1.bin", 0x0000, 0x1000, CRC(f86999c3) SHA1(4660bd7826219b1bad7d9178918823196d4fd8d6) )
+
+	ROM_REGION( 0x1000, "gfx1", 0 )
+	ROM_LOAD( "j5.bin", 0x0000, 0x800, CRC(4190c6c0) SHA1(ebd3b5b0e6660045f1ee84006536fa31cb3d5f8e) )
+	ROM_IGNORE(0x800)
+	ROM_LOAD( "j6.bin", 0x0800, 0x800, CRC(5c001c66) SHA1(aab8342131f831cb9bab4258488a0f666c35ee4d) )
+	ROM_IGNORE(0x800)
+
+	ROM_REGION( 0x0100, "gfx2", 0 )
+	ROM_LOAD( "am27s21dc.jn4", 0x0000, 0x0100, CRC(c59c51b7) SHA1(e8ac60fed9ba16c61a4c3c09e27f8c3f4e254014) ) // dots
+
+	ROM_REGION( 0x0160, "proms", 0 )
+	ROM_LOAD( "dm74s288n.jn2", 0x0000, 0x0020, CRC(55a7e6d1) SHA1(f9e4ff3b165235db2fd8dab94c43bc686c3ad29b) ) // palette
+	ROM_LOAD( "tbp24s10.jn5",  0x0020, 0x0100, CRC(d223f7b8) SHA1(87b62f09d4eda09c16d99d1554017d18e52b5886) ) // lookup table
+	ROM_LOAD( "dm74s288n.jn1", 0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) ) // video layout (not used)
+	ROM_LOAD( "mb7051.jn3",    0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) // video timing (not used)
+ROM_END
+
+ROM_START( jackler ) // Board ID SL-HA-2061-21-B
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "jackler_j1.r1",0x0000, 0x1000, CRC(3fc0d149) SHA1(d2d8273d57e26ebc97158549d5c7dada78bf2ae4) )
 	ROM_LOAD( "jackler_j2.r2",0x1000, 0x1000, CRC(5f482c7d) SHA1(5111f114c8427271d4641a55c88e54853e82aa50) )
 	ROM_LOAD( "jungr3",       0x2000, 0x1000, CRC(3dcc03da) SHA1(2c328a46511c4c9eec6515b9316a586de6503152) ) // jackler_j2.r2
 	ROM_LOAD( "jungr4",       0x3000, 0x1000, CRC(f92e9940) SHA1(d72a4d0a0ab7c9a1dcbb7925eb8530052640a234) ) // jackler_j3.r3
 
-	ROM_REGION( 0x10000, "tpsound", 0 )
+	ROM_REGION( 0x10000, "timeplt_audio:tpsound", 0 )
 	ROM_LOAD( "1b",           0x0000, 0x1000, CRC(f86999c3) SHA1(4660bd7826219b1bad7d9178918823196d4fd8d6) ) // jackler_j7_sound.1b
 
 	ROM_REGION( 0x1800, "gfx1", 0 )
@@ -1184,13 +1220,13 @@ ROM_START( jackler ) /* Board ID SL-HA-2061-21-B */
 	ROM_LOAD( "jackler_j6.r10",0x0800, 0x1000, CRC(5c001c66) SHA1(aab8342131f831cb9bab4258488a0f666c35ee4d) ) // so mapped to overlap
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "82s129.10g",   0x0000, 0x0100, CRC(c59c51b7) SHA1(e8ac60fed9ba16c61a4c3c09e27f8c3f4e254014) ) /* dots */
+	ROM_LOAD( "82s129.10g",   0x0000, 0x0100, CRC(c59c51b7) SHA1(e8ac60fed9ba16c61a4c3c09e27f8c3f4e254014) ) // dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "18s030.8b",    0x0000, 0x0020, CRC(55a7e6d1) SHA1(f9e4ff3b165235db2fd8dab94c43bc686c3ad29b) ) /* palette */
-	ROM_LOAD( "tbp24s10.9d",  0x0020, 0x0100, CRC(d223f7b8) SHA1(87b62f09d4eda09c16d99d1554017d18e52b5886) ) /* loookup table */
-	ROM_LOAD( "18s030.7a",    0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) ) /* video layout (not used) */
-	ROM_LOAD( "6331-1.10a",   0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) /* video timing (not used) */
+	ROM_LOAD( "18s030.8b",    0x0000, 0x0020, CRC(55a7e6d1) SHA1(f9e4ff3b165235db2fd8dab94c43bc686c3ad29b) ) // palette
+	ROM_LOAD( "tbp24s10.9d",  0x0020, 0x0100, CRC(d223f7b8) SHA1(87b62f09d4eda09c16d99d1554017d18e52b5886) ) // lookup table
+	ROM_LOAD( "18s030.7a",    0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) ) // video layout (not used)
+	ROM_LOAD( "6331-1.10a",   0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) // video timing (not used)
 ROM_END
 
 ROM_START( savanna )
@@ -1200,7 +1236,7 @@ ROM_START( savanna )
 	ROM_LOAD( "sav3.bin",     0x2000, 0x1000, CRC(557c7925) SHA1(84d8eb2fdb7ee9098805be9f457a37f51e4bc3b8) )
 	ROM_LOAD( "sav4.bin",     0x3000, 0x1000, CRC(b38b6cbd) SHA1(76ab41097bceb3d73c95ab8a89df702e554ba403) )
 
-	ROM_REGION( 0x10000, "tpsound", 0 )
+	ROM_REGION( 0x10000, "timeplt_audio:tpsound", 0 )
 	ROM_LOAD( "1b",           0x0000, 0x1000, CRC(f86999c3) SHA1(4660bd7826219b1bad7d9178918823196d4fd8d6) )
 
 	ROM_REGION( 0x1000, "gfx1", 0 )
@@ -1208,13 +1244,13 @@ ROM_START( savanna )
 	ROM_LOAD( "5m",           0x0800, 0x0800, CRC(131a08ac) SHA1(167a0710a2a153f7f7c6839d2340e5aa725ef039) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "82s129.10g",   0x0000, 0x0100, CRC(c59c51b7) SHA1(e8ac60fed9ba16c61a4c3c09e27f8c3f4e254014) ) /* dots */
+	ROM_LOAD( "82s129.10g",   0x0000, 0x0100, CRC(c59c51b7) SHA1(e8ac60fed9ba16c61a4c3c09e27f8c3f4e254014) ) // dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "18s030.8b",    0x0000, 0x0020, CRC(55a7e6d1) SHA1(f9e4ff3b165235db2fd8dab94c43bc686c3ad29b) ) /* palette */
-	ROM_LOAD( "tbp24s10.9d",  0x0020, 0x0100, CRC(d223f7b8) SHA1(87b62f09d4eda09c16d99d1554017d18e52b5886) ) /* loookup table */
-	ROM_LOAD( "18s030.7a",    0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) ) /* video layout (not used) */
-	ROM_LOAD( "6331-1.10a",   0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) /* video timing (not used) */
+	ROM_LOAD( "18s030.8b",    0x0000, 0x0020, CRC(55a7e6d1) SHA1(f9e4ff3b165235db2fd8dab94c43bc686c3ad29b) ) // palette
+	ROM_LOAD( "tbp24s10.9d",  0x0020, 0x0100, CRC(d223f7b8) SHA1(87b62f09d4eda09c16d99d1554017d18e52b5886) ) // lookup table
+	ROM_LOAD( "18s030.7a",    0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) ) // video layout (not used)
+	ROM_LOAD( "6331-1.10a",   0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) // video timing (not used)
 ROM_END
 
 ROM_START( tactcian )
@@ -1226,7 +1262,7 @@ ROM_START( tactcian )
 	ROM_LOAD( "tacticia.005", 0x4000, 0x1000, CRC(76456106) SHA1(580428f3c8cf442ee5c0f56db973644229aa8093) )
 	ROM_LOAD( "tacticia.006", 0x5000, 0x1000, CRC(b33ca9ea) SHA1(0299c1cb9a3c6368bbbacb60c6f5c6854035a7bf) )
 
-	ROM_REGION( 0x10000, "tpsound", 0 )
+	ROM_REGION( 0x10000, "timeplt_audio:tpsound", 0 )
 	ROM_LOAD( "tacticia.s2",  0x0000, 0x1000, CRC(97d145a7) SHA1(7aee9004287590a25e153d45b95dfaac89fbe996) )
 	ROM_LOAD( "tacticia.s1",  0x1000, 0x1000, CRC(067f781b) SHA1(640bc7813c239e497644e53a080d81366fcd04df) )
 
@@ -1235,13 +1271,13 @@ ROM_START( tactcian )
 	ROM_LOAD( "tacticia.c2",  0x1000, 0x1000, CRC(e8c59c4f) SHA1(e4881f2e2e08bb8af37cc679c4e2367528ac4804) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "tact6301.004", 0x0000, 0x0100, CRC(88b0b511) SHA1(785eded1ba761cdb59db579eb8a786516ff58152) ) /* dots */ // tac.a7
+	ROM_LOAD( "tact6301.004", 0x0000, 0x0100, CRC(88b0b511) SHA1(785eded1ba761cdb59db579eb8a786516ff58152) ) // dots - tac.a7
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "tact6331.002", 0x0000, 0x0020, CRC(b7ef83b7) SHA1(5ffab25c2dc5be0856a43a93711d39c4aec6660b) ) /* palette */
-	ROM_LOAD( "tact6301.003", 0x0020, 0x0100, CRC(a92796f2) SHA1(0faab2dc0f868f4023a34ecfcf972d1c86a224a0) ) /* loookup table */    // tac.b4
-	ROM_LOAD( "tact6331.001", 0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) ) /* video layout (not used) */
-//  ROM_LOAD( "10a.bpr",      0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) /* video timing (not used) */
+	ROM_LOAD( "tact6331.002", 0x0000, 0x0020, CRC(b7ef83b7) SHA1(5ffab25c2dc5be0856a43a93711d39c4aec6660b) ) // palette
+	ROM_LOAD( "tact6301.003", 0x0020, 0x0100, CRC(a92796f2) SHA1(0faab2dc0f868f4023a34ecfcf972d1c86a224a0) ) // lookup table - tac.b4
+	ROM_LOAD( "tact6331.001", 0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) ) // video layout (not used)
+//  ROM_LOAD( "10a.bpr",      0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) // video timing (not used)
 ROM_END
 
 ROM_START( tactcian2 )
@@ -1253,8 +1289,8 @@ ROM_START( tactcian2 )
 	ROM_LOAD( "tan5",         0x4000, 0x1000, CRC(1dae4c61) SHA1(70283b8412b0725f1c2acc281625c582a4fae39d) )
 	ROM_LOAD( "tan6",         0x5000, 0x1000, CRC(2b36a18d) SHA1(bea8f36ec98975438ab267509bd9d1d1eb605945) )
 
-	ROM_REGION( 0x10000, "tpsound", 0 )
-	/* sound ROMs were missing - using the ones from the other set */
+	ROM_REGION( 0x10000, "timeplt_audio:tpsound", 0 )
+	// sound ROMs were missing - using the ones from the other set
 	ROM_LOAD( "tacticia.s2",  0x0000, 0x1000, CRC(97d145a7) SHA1(7aee9004287590a25e153d45b95dfaac89fbe996) )
 	ROM_LOAD( "tacticia.s1",  0x1000, 0x1000, CRC(067f781b) SHA1(640bc7813c239e497644e53a080d81366fcd04df) )
 
@@ -1263,13 +1299,13 @@ ROM_START( tactcian2 )
 	ROM_LOAD( "c2",           0x1000, 0x1000, CRC(8e8861e8) SHA1(38728418b09df06356c1e45a26cf438b93517ce5) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "tact6301.004", 0x0000, 0x0100, CRC(88b0b511) SHA1(785eded1ba761cdb59db579eb8a786516ff58152) ) /* dots */ // tac.a7
+	ROM_LOAD( "tact6301.004", 0x0000, 0x0100, CRC(88b0b511) SHA1(785eded1ba761cdb59db579eb8a786516ff58152) ) // dots - tac.a7
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "tact6331.002", 0x0000, 0x0020, CRC(b7ef83b7) SHA1(5ffab25c2dc5be0856a43a93711d39c4aec6660b) ) /* palette */
-	ROM_LOAD( "tact6301.003", 0x0020, 0x0100, CRC(a92796f2) SHA1(0faab2dc0f868f4023a34ecfcf972d1c86a224a0) ) /* loookup table */    // tac.b4
-	ROM_LOAD( "tact6331.001", 0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) ) /* video layout (not used) */
-//  ROM_LOAD( "10a.bpr",      0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) /* video timing (not used) */
+	ROM_LOAD( "tact6331.002", 0x0000, 0x0020, CRC(b7ef83b7) SHA1(5ffab25c2dc5be0856a43a93711d39c4aec6660b) ) // palette
+	ROM_LOAD( "tact6301.003", 0x0020, 0x0100, CRC(a92796f2) SHA1(0faab2dc0f868f4023a34ecfcf972d1c86a224a0) ) // lookup table - tac.b4
+	ROM_LOAD( "tact6331.001", 0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) ) // video layout (not used)
+//  ROM_LOAD( "10a.bpr",      0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) // video timing (not used)
 ROM_END
 
 ROM_START( locomotn )
@@ -1280,7 +1316,7 @@ ROM_START( locomotn )
 	ROM_LOAD( "4.cpu",        0x3000, 0x1000, CRC(caf6431c) SHA1(f013d8846fad9f64367b69febeb7512029a639c0) )
 	ROM_LOAD( "5.cpu",        0x4000, 0x1000, CRC(64cf8dd6) SHA1(8fa1b5c4a7f136cb74833425a565fa558eeee083) )
 
-	ROM_REGION( 0x10000, "tpsound", 0 )
+	ROM_REGION( 0x10000, "timeplt_audio:tpsound", 0 )
 	ROM_LOAD( "1b_s1.bin",    0x0000, 0x1000, CRC(a1105714) SHA1(6e2e264748ab90bc5e8e8167f17ff91677ef6ae7) )
 
 	ROM_REGION( 0x2000, "gfx1", 0 )
@@ -1288,13 +1324,13 @@ ROM_START( locomotn )
 	ROM_LOAD( "c2.cpu",       0x1000, 0x1000, CRC(c3035300) SHA1(ddb1d658a28b973b60e2ce72fd7662537e147860) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "10g.bpr",      0x0000, 0x0100, CRC(2ef89356) SHA1(5ed33386bab5d583358709c92f21ad9ad1a1bce9) ) /* dots */
+	ROM_LOAD( "10g.bpr",      0x0000, 0x0100, CRC(2ef89356) SHA1(5ed33386bab5d583358709c92f21ad9ad1a1bce9) ) // dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "8b.bpr",       0x0000, 0x0020, CRC(75b05da0) SHA1(aee98f5389e42332f30a6882ee22ff23f37e0573) ) /* palette */
-	ROM_LOAD( "9d.bpr",       0x0020, 0x0100, CRC(aa6cf063) SHA1(08c1c9ab03eb168954b0170d40e95eed81022acd) ) /* loookup table */
-	ROM_LOAD( "7a.bpr",       0x0120, 0x0020, CRC(48c8f094) SHA1(61592209720fddc8991751edf08b6950388af42e) ) /* video layout (not used) */
-	ROM_LOAD( "10a.bpr",      0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) /* video timing (not used) */
+	ROM_LOAD( "8b.bpr",       0x0000, 0x0020, CRC(75b05da0) SHA1(aee98f5389e42332f30a6882ee22ff23f37e0573) ) // palette
+	ROM_LOAD( "9d.bpr",       0x0020, 0x0100, CRC(aa6cf063) SHA1(08c1c9ab03eb168954b0170d40e95eed81022acd) ) // lookup table
+	ROM_LOAD( "7a.bpr",       0x0120, 0x0020, CRC(48c8f094) SHA1(61592209720fddc8991751edf08b6950388af42e) ) // video layout (not used)
+	ROM_LOAD( "10a.bpr",      0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) // video timing (not used)
 ROM_END
 
 ROM_START( gutangtn )
@@ -1305,7 +1341,7 @@ ROM_START( gutangtn )
 	ROM_LOAD( "3h_4.bin",     0x3000, 0x1000, CRC(aa258ddf) SHA1(0f01ac0d72d8bb5a55c91a6fba3e55ed1c038b86) )
 	ROM_LOAD( "3j_5.bin",     0x4000, 0x1000, CRC(52aec87e) SHA1(6516724c4e570972f070f6dab5b066ea92f56be0) )
 
-	ROM_REGION( 0x10000, "tpsound", 0 )
+	ROM_REGION( 0x10000, "timeplt_audio:tpsound", 0 )
 	ROM_LOAD( "1b_s1.bin",    0x0000, 0x1000, CRC(a1105714) SHA1(6e2e264748ab90bc5e8e8167f17ff91677ef6ae7) )
 
 	ROM_REGION( 0x2000, "gfx1", 0 )
@@ -1313,13 +1349,13 @@ ROM_START( gutangtn )
 	ROM_LOAD( "5m_c2.bin",    0x1000, 0x1000, CRC(51c542fd) SHA1(1437f8cba15811361b2c5b46085587ea3598fc88) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "10g.bpr",      0x0000, 0x0100, CRC(2ef89356) SHA1(5ed33386bab5d583358709c92f21ad9ad1a1bce9) ) /* dots */
+	ROM_LOAD( "10g.bpr",      0x0000, 0x0100, CRC(2ef89356) SHA1(5ed33386bab5d583358709c92f21ad9ad1a1bce9) ) // dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "8b.bpr",       0x0000, 0x0020, CRC(75b05da0) SHA1(aee98f5389e42332f30a6882ee22ff23f37e0573) ) /* palette */
-	ROM_LOAD( "9d.bpr",       0x0020, 0x0100, CRC(aa6cf063) SHA1(08c1c9ab03eb168954b0170d40e95eed81022acd) ) /* loookup table */
-	ROM_LOAD( "7a.bpr",       0x0120, 0x0020, CRC(48c8f094) SHA1(61592209720fddc8991751edf08b6950388af42e) ) /* video layout (not used) */
-	ROM_LOAD( "10a.bpr",      0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) /* video timing (not used) */
+	ROM_LOAD( "8b.bpr",       0x0000, 0x0020, CRC(75b05da0) SHA1(aee98f5389e42332f30a6882ee22ff23f37e0573) ) // palette
+	ROM_LOAD( "9d.bpr",       0x0020, 0x0100, CRC(aa6cf063) SHA1(08c1c9ab03eb168954b0170d40e95eed81022acd) ) // lookup table
+	ROM_LOAD( "7a.bpr",       0x0120, 0x0020, CRC(48c8f094) SHA1(61592209720fddc8991751edf08b6950388af42e) ) // video layout (not used)
+	ROM_LOAD( "10a.bpr",      0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) // video timing (not used)
 ROM_END
 
 ROM_START( cottong )
@@ -1329,7 +1365,7 @@ ROM_START( cottong )
 	ROM_LOAD( "c3",           0x2000, 0x1000, CRC(01f909fe) SHA1(c80295e9f91ce25bfd28e72823b20ee6f6524a5c) )
 	ROM_LOAD( "c4",           0x3000, 0x1000, CRC(a89eb3e3) SHA1(058928ade909faba06f177750f914cf1dabaefc3) )
 
-	ROM_REGION( 0x10000, "tpsound", 0 )
+	ROM_REGION( 0x10000, "timeplt_audio:tpsound", 0 )
 	ROM_LOAD( "c7",           0x0000, 0x1000, CRC(3d83f6d3) SHA1(e10ed6b6ce7280697c1bc9dbe6c6e6018e1d8be4) )
 	ROM_LOAD( "c8",           0x1000, 0x1000, CRC(323e1937) SHA1(75499d6c8a9032fac090a13cd4f36bd350f52dab) )
 
@@ -1338,13 +1374,13 @@ ROM_START( cottong )
 	ROM_LOAD( "c6",           0x1000, 0x1000, CRC(0149ef46) SHA1(58f684a9b7b9410236b3c54ea6c0fa9853a078c5) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "5.bpr",        0x0000, 0x0100, CRC(21fb583f) SHA1(b8c65fbdd5d8b70bf51341cd60fc2efeaab8bb82) ) /* dots */
+	ROM_LOAD( "5.bpr",        0x0000, 0x0100, CRC(21fb583f) SHA1(b8c65fbdd5d8b70bf51341cd60fc2efeaab8bb82) ) // dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "2.bpr",        0x0000, 0x0020, CRC(26f42e6f) SHA1(f51578216a5d588c4d0143ce7a23d695a15a3914) ) /* palette */
-	ROM_LOAD( "3.bpr",        0x0020, 0x0100, CRC(4aecc0c8) SHA1(3c1086a598d84b4bcb277556b716fd18c76c4364) ) /* loookup table */
-	ROM_LOAD( "7a.bpr",       0x0120, 0x0020, CRC(48c8f094) SHA1(61592209720fddc8991751edf08b6950388af42e) ) /* video layout (not used) */
-	ROM_LOAD( "10a.bpr",      0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) /* video timing (not used) */
+	ROM_LOAD( "2.bpr",        0x0000, 0x0020, CRC(26f42e6f) SHA1(f51578216a5d588c4d0143ce7a23d695a15a3914) ) // palette
+	ROM_LOAD( "3.bpr",        0x0020, 0x0100, CRC(4aecc0c8) SHA1(3c1086a598d84b4bcb277556b716fd18c76c4364) ) // lookup table
+	ROM_LOAD( "7a.bpr",       0x0120, 0x0020, CRC(48c8f094) SHA1(61592209720fddc8991751edf08b6950388af42e) ) // video layout (not used)
+	ROM_LOAD( "10a.bpr",      0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) // video timing (not used)
 ROM_END
 
 ROM_START( locoboot )
@@ -1359,7 +1395,7 @@ ROM_START( locoboot )
 	   and the program roms appear to be a hack of that
 	*/
 
-	ROM_REGION( 0x10000, "tpsound", 0 )
+	ROM_REGION( 0x10000, "timeplt_audio:tpsound", 0 )
 	ROM_LOAD( "c7",           0x0000, 0x1000, CRC(3d83f6d3) SHA1(e10ed6b6ce7280697c1bc9dbe6c6e6018e1d8be4) )
 	ROM_LOAD( "c8",           0x1000, 0x1000, CRC(323e1937) SHA1(75499d6c8a9032fac090a13cd4f36bd350f52dab) )
 
@@ -1368,13 +1404,13 @@ ROM_START( locoboot )
 	ROM_LOAD( "c6",           0x1000, 0x1000, CRC(0149ef46) SHA1(58f684a9b7b9410236b3c54ea6c0fa9853a078c5) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "5.bpr",        0x0000, 0x0100, CRC(21fb583f) SHA1(b8c65fbdd5d8b70bf51341cd60fc2efeaab8bb82) ) /* dots */
+	ROM_LOAD( "5.bpr",        0x0000, 0x0100, CRC(21fb583f) SHA1(b8c65fbdd5d8b70bf51341cd60fc2efeaab8bb82) ) // dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "2.bpr",        0x0000, 0x0020, CRC(26f42e6f) SHA1(f51578216a5d588c4d0143ce7a23d695a15a3914) ) /* palette */
-	ROM_LOAD( "3.bpr",        0x0020, 0x0100, CRC(4aecc0c8) SHA1(3c1086a598d84b4bcb277556b716fd18c76c4364) ) /* loookup table */
-	ROM_LOAD( "7a.bpr",       0x0120, 0x0020, CRC(48c8f094) SHA1(61592209720fddc8991751edf08b6950388af42e) ) /* video layout (not used) */
-	ROM_LOAD( "10a.bpr",      0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) /* video timing (not used) */
+	ROM_LOAD( "2.bpr",        0x0000, 0x0020, CRC(26f42e6f) SHA1(f51578216a5d588c4d0143ce7a23d695a15a3914) ) // palette
+	ROM_LOAD( "3.bpr",        0x0020, 0x0100, CRC(4aecc0c8) SHA1(3c1086a598d84b4bcb277556b716fd18c76c4364) ) // lookup table
+	ROM_LOAD( "7a.bpr",       0x0120, 0x0020, CRC(48c8f094) SHA1(61592209720fddc8991751edf08b6950388af42e) ) // video layout (not used)
+	ROM_LOAD( "10a.bpr",      0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) // video timing (not used)
 ROM_END
 
 ROM_START( commsega )
@@ -1385,7 +1421,7 @@ ROM_START( commsega )
 	ROM_LOAD( "csega4",       0x3000, 0x1000, CRC(e0ac69b4) SHA1(3a52b2a6204b7310cfe321c582352b437de16660) )
 	ROM_LOAD( "csega5",       0x4000, 0x1000, CRC(bc56ebd0) SHA1(a178cd5ba381b107e720e18f3549247477037998) )
 
-	ROM_REGION( 0x10000, "tpsound", 0 )
+	ROM_REGION( 0x10000, "timeplt_audio:tpsound", 0 )
 	ROM_LOAD( "csega8",       0x0000, 0x1000, CRC(588b4210) SHA1(43bac1bdac721567e4b5d56e9e4488165872bd6a) )
 
 	ROM_REGION( 0x2000, "gfx1", 0 )
@@ -1393,13 +1429,13 @@ ROM_START( commsega )
 	ROM_LOAD( "csega6",       0x1000, 0x1000, CRC(cf07fd5e) SHA1(4fe351c3d093f8f5fcf95e3e921a06e44d14d2a7) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "gg3.bpr",      0x0000, 0x0100, CRC(ae7fd962) SHA1(118359cffb2ad3fdf09456a484aa730cb1b85a5d) ) /* dots */
+	ROM_LOAD( "gg3.bpr",      0x0000, 0x0100, CRC(ae7fd962) SHA1(118359cffb2ad3fdf09456a484aa730cb1b85a5d) ) // dots
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "gg1.bpr",      0x0000, 0x0020, CRC(f69e585a) SHA1(248740b154732b6bc6f772d4bb19d654798c3739) ) /* palette */
-	ROM_LOAD( "gg2.bpr",      0x0020, 0x0100, CRC(0b756e30) SHA1(8890e305547df8df108af0f89074fb1c8bed8e6c) ) /* loookup table */
-	ROM_LOAD( "gg0.bpr",      0x0120, 0x0020, CRC(48c8f094) SHA1(61592209720fddc8991751edf08b6950388af42e) ) /* video layout (not used) */
-	ROM_LOAD( "tt3.bpr",      0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) /* video timing (not used) */
+	ROM_LOAD( "gg1.bpr",      0x0000, 0x0020, CRC(f69e585a) SHA1(248740b154732b6bc6f772d4bb19d654798c3739) ) // palette
+	ROM_LOAD( "gg2.bpr",      0x0020, 0x0100, CRC(0b756e30) SHA1(8890e305547df8df108af0f89074fb1c8bed8e6c) ) // lookup table
+	ROM_LOAD( "gg0.bpr",      0x0120, 0x0020, CRC(48c8f094) SHA1(61592209720fddc8991751edf08b6950388af42e) ) // video layout (not used)
+	ROM_LOAD( "tt3.bpr",      0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) // video timing (not used)
 ROM_END
 
 
@@ -1409,20 +1445,22 @@ ROM_END
  *
  *************************************/
 
-GAME( 1980, rallyx,   0,        rallyx,   rallyx, driver_device,   0, ROT0,  "Namco", "Rally X (32k Ver.?)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1980, rallyxa,  rallyx,   rallyx,   rallyx, driver_device,   0, ROT0,  "Namco", "Rally X", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1980, rallyxm,  rallyx,   rallyx,   rallyx, driver_device,   0, ROT0,  "Namco (Midway license)", "Rally X (Midway)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1980, rallyxmr, rallyx,   rallyx,   rallyx, driver_device,   0, ROT0,  "bootleg (Model Racing)", "Rally X (Model Racing bootleg)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1981, nrallyx,  0,        rallyx,   nrallyx, driver_device,  0, ROT0,  "Namco", "New Rally X", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1981, nrallyxb, nrallyx,  rallyx,   nrallyx, driver_device,  0, ROT0,  "Namco", "New Rally X (bootleg?)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
-GAME( 1981, jungler,  0,        jungler,  jungler, driver_device,  0, ROT90, "Konami", "Jungler", MACHINE_SUPPORTS_SAVE )
-GAME( 1981, junglers, jungler,  jungler,  jungler, driver_device,  0, ROT90, "Konami (Stern Electronics license)", "Jungler (Stern Electronics)", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, jackler,  jungler,  jungler,  jungler, driver_device,  0, ROT90, "bootleg", "Jackler (Jungler bootleg)", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, savanna,  jungler,  jungler,  jungler, driver_device,  0, ROT90, "bootleg (Olympia)", "Savanna (Jungler bootleg)", MACHINE_SUPPORTS_SAVE ) // or licensed from Konami?
-GAME( 1982, tactcian, 0,        tactcian, tactcian, driver_device, 0, ROT90, "Konami (Sega license)", "Tactician (set 1)", MACHINE_SUPPORTS_SAVE )
-GAME( 1981, tactcian2,tactcian, tactcian, tactcian, driver_device, 0, ROT90, "Konami (Sega license)", "Tactician (set 2)", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, locomotn, 0,        locomotn, locomotn, driver_device, 0, ROT90, "Konami (Centuri license)", "Loco-Motion", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, gutangtn, locomotn, locomotn, locomotn, driver_device, 0, ROT90, "Konami (Sega license)", "Guttang Gottong", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, cottong,  locomotn, locomotn, locomotn, driver_device, 0, ROT90, "bootleg", "Cotocoto Cottong", MACHINE_SUPPORTS_SAVE )
-GAME( 1982, locoboot, locomotn, locomotn, locomotn, driver_device, 0, ROT90, "bootleg", "Loco-Motion (bootleg)", MACHINE_SUPPORTS_SAVE )
-GAME( 1983, commsega, 0,        commsega, commsega, driver_device, 0, ROT90, "Sega", "Commando (Sega)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1980, rallyx,   0,        rallyx,   rallyx,   rallyx_state, empty_init, ROT0,  "Namco", "Rally X (32k Ver.?)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1980, rallyxa,  rallyx,   rallyx,   rallyx,   rallyx_state, empty_init, ROT0,  "Namco", "Rally X", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1980, rallyxm,  rallyx,   rallyx,   rallyx,   rallyx_state, empty_init, ROT0,  "Namco (Midway license)", "Rally X (Midway)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1980, rallyxmr, rallyx,   rallyx,   rallyx,   rallyx_state, empty_init, ROT0,  "bootleg (Model Racing)", "Rally X (Model Racing bootleg)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1980, dngrtrck, rallyx,   rallyx,   dngrtrck, rallyx_state, empty_init, ROT0,  "bootleg (Petaco)", "Danger Track (Rally X bootleg)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1981, nrallyx,  0,        rallyx,   nrallyx,  rallyx_state, empty_init, ROT0,  "Namco", "New Rally X", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1981, nrallyxb, nrallyx,  rallyx,   nrallyx,  rallyx_state, empty_init, ROT0,  "Namco", "New Rally X (bootleg?)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1981, jungler,  0,        jungler,  jungler,  rallyx_state, empty_init, ROT90, "Konami", "Jungler", MACHINE_SUPPORTS_SAVE )
+GAME( 1981, junglers, jungler,  jungler,  jungler,  rallyx_state, empty_init, ROT90, "Konami (Stern Electronics license)", "Jungler (Stern Electronics)", MACHINE_SUPPORTS_SAVE )
+GAME( 1981, junglero, jungler,  jungler,  jungler,  rallyx_state, empty_init, ROT90, "Konami (Olympia license)", "Jungler (Olympia)", MACHINE_SUPPORTS_SAVE )
+GAME( 1982, jackler,  jungler,  jungler,  jungler,  rallyx_state, empty_init, ROT90, "bootleg", "Jackler (Jungler bootleg)", MACHINE_SUPPORTS_SAVE )
+GAME( 1982, savanna,  jungler,  jungler,  jungler,  rallyx_state, empty_init, ROT90, "bootleg (Olympia)", "Savanna (Jungler bootleg)", MACHINE_SUPPORTS_SAVE ) // or licensed from Konami?
+GAME( 1982, tactcian, 0,        tactcian, tactcian, rallyx_state, empty_init, ROT90, "Konami (Sega license)", "Tactician (set 1)", MACHINE_SUPPORTS_SAVE )
+GAME( 1981, tactcian2,tactcian, tactcian, tactcian, rallyx_state, empty_init, ROT90, "Konami (Sega license)", "Tactician (set 2)", MACHINE_SUPPORTS_SAVE )
+GAME( 1982, locomotn, 0,        locomotn, locomotn, rallyx_state, empty_init, ROT90, "Konami (Centuri license)", "Loco-Motion", MACHINE_SUPPORTS_SAVE )
+GAME( 1982, gutangtn, locomotn, locomotn, locomotn, rallyx_state, empty_init, ROT90, "Konami (Sega license)", "Guttang Gottong", MACHINE_SUPPORTS_SAVE )
+GAME( 1982, cottong,  locomotn, locomotn, locomotn, rallyx_state, empty_init, ROT90, "bootleg", "Cotocoto Cottong", MACHINE_SUPPORTS_SAVE )
+GAME( 1982, locoboot, locomotn, locomotn, locomotn, rallyx_state, empty_init, ROT90, "bootleg", "Loco-Motion (bootleg)", MACHINE_SUPPORTS_SAVE )
+GAME( 1983, commsega, 0,        commsega, commsega, rallyx_state, empty_init, ROT90, "Sega", "Commando (Sega)", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )

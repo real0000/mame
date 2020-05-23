@@ -17,7 +17,7 @@
 #ifndef MAME_EMU_VIDEO_H
 #define MAME_EMU_VIDEO_H
 
-#include "aviio.h"
+#include "recording.h"
 
 
 //**************************************************************************
@@ -25,21 +25,13 @@
 //**************************************************************************
 
 // number of levels of frameskipping supported
-const int FRAMESKIP_LEVELS = 12;
-const int MAX_FRAMESKIP = FRAMESKIP_LEVELS - 2;
+constexpr int FRAMESKIP_LEVELS = 12;
+constexpr int MAX_FRAMESKIP = FRAMESKIP_LEVELS - 2;
 
-#define LCD_FRAMES_PER_SECOND   30
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
-
-// forward references
-class render_target;
-class screen_device;
-class avi_file;
-
-
 
 // ======================> video_manager
 
@@ -48,13 +40,6 @@ class video_manager
 	friend class screen_device;
 
 public:
-	// movie format options
-	enum movie_format
-	{
-		MF_MNG,
-		MF_AVI
-	};
-
 	// construction/destruction
 	video_manager(running_machine &machine);
 
@@ -66,7 +51,7 @@ public:
 	bool throttled() const { return m_throttled; }
 	float throttle_rate() const { return m_throttle_rate; }
 	bool fastforward() const { return m_fastforward; }
-	bool is_recording() const { return (m_mng_file || m_avi_file); }
+	bool is_recording() const;
 
 	// setters
 	void set_frameskip(int frameskip);
@@ -77,8 +62,10 @@ public:
 
 	// misc
 	void toggle_throttle();
-	void toggle_record_movie();
-	osd_file::error open_next(emu_file &file, const char *extension);
+	void toggle_record_movie(movie_recording::format format);
+	osd_file::error open_next(emu_file &file, const char *extension, uint32_t index = 0);
+	void compute_snapshot_size(s32 &width, s32 &height);
+	void pixels(u32 *buffer);
 
 	// render a frame
 	void frame_update(bool from_debugger = false);
@@ -86,6 +73,7 @@ public:
 	// current speed helpers
 	std::string speed_text();
 	double speed_percent() const { return m_speed_percent; }
+	int effective_frameskip() const;
 
 	// snapshots
 	void save_snapshot(screen_device *screen, emu_file &file);
@@ -93,8 +81,8 @@ public:
 	void save_input_timecode();
 
 	// movies
-	void begin_recording(const char *name, movie_format format);
-	void end_recording(movie_format format);
+	void begin_recording(const char *name, movie_recording::format format);
+	void end_recording();
 	void add_sound_to_recording(const s16 *sound, int numsamples);
 
 	void set_timecode_enabled(bool value) { m_timecode_enabled = value; }
@@ -107,7 +95,6 @@ public:
 	std::string &timecode_text(std::string &str);
 	std::string &timecode_total_text(std::string &str);
 
-
 private:
 	// internal helpers
 	void exit();
@@ -116,7 +103,6 @@ private:
 
 	// effective value helpers
 	bool effective_autoframeskip() const;
-	int effective_frameskip() const;
 	bool effective_throttle() const;
 
 	// speed and throttling helpers
@@ -131,6 +117,9 @@ private:
 	// snapshot/movie helpers
 	void create_snapshot_bitmap(screen_device *screen);
 	void record_frame();
+
+	// movies
+	void begin_recording_screen(const std::string &filename, uint32_t index, screen_device *screen, movie_recording::format format);
 
 	// internal state
 	running_machine &   m_machine;                  // reference to our machine
@@ -163,6 +152,7 @@ private:
 	u32                 m_seconds_to_run;           // number of seconds to run before quitting
 	bool                m_auto_frameskip;           // flag: true if we're automatically frameskipping
 	u32                 m_speed;                    // overall speed (*1000)
+	bool                m_low_latency;              // flag: true if we are throttling after blitting
 
 	// frameskipping
 	u8                  m_empty_skip_count;         // number of empty frames we have skipped
@@ -179,17 +169,8 @@ private:
 	s32                 m_snap_width;               // width of snapshots (0 == auto)
 	s32                 m_snap_height;              // height of snapshots (0 == auto)
 
-	// movie recording - MNG
-	std::unique_ptr<emu_file> m_mng_file;              // handle to the open movie file
-	attotime            m_mng_frame_period;         // period of a single movie frame
-	attotime            m_mng_next_frame_time;      // time of next frame
-	u32                 m_mng_frame;                // current movie frame number
-
-	// movie recording - AVI
-	avi_file::ptr       m_avi_file;                 // handle to the open movie file
-	attotime            m_avi_frame_period;         // period of a single movie frame
-	attotime            m_avi_next_frame_time;      // time of next frame
-	u32                 m_avi_frame;                // current movie frame number
+	// movie recordings
+	std::vector<movie_recording::ptr> m_movie_recordings;
 
 	static const bool   s_skiptable[FRAMESKIP_LEVELS][FRAMESKIP_LEVELS];
 
@@ -201,7 +182,6 @@ private:
 	std::string         m_timecode_text;        // Message for that video part (intro, gameplay, extra)
 	attotime            m_timecode_start;       // Starting timer for that video part (intro, gameplay, extra)
 	attotime            m_timecode_total;       // Show/hide timer at left (total elapsed on resulting video preview)
-
 };
 
 #endif // MAME_EMU_VIDEO_H

@@ -5,10 +5,11 @@
 #include "mcd.h"
 #include "coreutil.h"
 
-DEVICE_ADDRESS_MAP_START(map, 16, mcd_isa_device)
-	AM_RANGE(0x0, 0x1) AM_READWRITE8(data_r, cmd_w, 0x00ff)
-	AM_RANGE(0x0, 0x1) AM_READWRITE8(flag_r, reset_w, 0xff00)
-ADDRESS_MAP_END
+void mcd_isa_device::map(address_map &map)
+{
+	map(0x0, 0x0).rw(FUNC(mcd_isa_device::data_r), FUNC(mcd_isa_device::cmd_w));
+	map(0x1, 0x1).rw(FUNC(mcd_isa_device::flag_r), FUNC(mcd_isa_device::reset_w));
+}
 
 static INPUT_PORTS_START( ide )
 INPUT_PORTS_END
@@ -17,7 +18,7 @@ INPUT_PORTS_END
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type ISA16_MCD = device_creator<mcd_isa_device>;
+DEFINE_DEVICE_TYPE(ISA16_MCD, mcd_isa_device, "mcd_isa", "Mitsumi ISA CD-ROM Adapter")
 
 //-------------------------------------------------
 //  input_ports - device-specific input ports
@@ -37,8 +38,8 @@ ioport_constructor mcd_isa_device::device_input_ports() const
 //-------------------------------------------------
 
 mcd_isa_device::mcd_isa_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-		cdrom_image_device(mconfig, ISA16_MCD, "Mitsumi ISA CDROM Adapter", tag, owner, clock, "mcd_isa", __FILE__),
-		device_isa16_card_interface( mconfig, *this )
+	cdrom_image_device(mconfig, ISA16_MCD, tag, owner, clock),
+	device_isa16_card_interface( mconfig, *this )
 {
 }
 
@@ -51,7 +52,7 @@ void mcd_isa_device::device_start()
 	cdrom_image_device::device_start();
 	set_isa_device();
 	m_isa->set_dma_channel(5, this, false);
-	m_isa->install_device(0x0310, 0x0311, *this, &mcd_isa_device::map, 16);
+	m_isa->install_device(0x0310, 0x0311, *this, &mcd_isa_device::map);
 }
 
 //-------------------------------------------------

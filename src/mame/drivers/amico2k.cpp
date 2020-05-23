@@ -40,34 +40,42 @@ class amico2k_state : public driver_device
 {
 public:
 	amico2k_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_maincpu(*this, "maincpu") { }
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_digits(*this, "digit%u", 0U)
+	{ }
 
+	void amico2k(machine_config &config);
+
+private:
 	void machine_start() override;
 
-	DECLARE_READ8_MEMBER( ppi_pa_r );
-	DECLARE_WRITE8_MEMBER( ppi_pa_w );
-	DECLARE_READ8_MEMBER( ppi_pb_r );
-	DECLARE_WRITE8_MEMBER( ppi_pb_w );
-
-	int m_ls145_p;
-	uint8_t m_segment;
+	uint8_t ppi_pa_r();
+	void ppi_pa_w(uint8_t data);
+	uint8_t ppi_pb_r();
+	void ppi_pb_w(uint8_t data);
 
 	// timers
 	emu_timer *m_led_refresh_timer;
 	TIMER_CALLBACK_MEMBER(led_refresh);
+	void amico2k_mem(address_map &map);
+
+	int m_ls145_p;
+	uint8_t m_segment;
 	required_device<cpu_device> m_maincpu;
+	output_finder<6> m_digits;
 };
 
 
-static ADDRESS_MAP_START( amico2k_mem, AS_PROGRAM, 8, amico2k_state )
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x0000, 0x03ff) AM_RAM
-//  AM_RANGE(0x0400, 0x07ff) AM_RAM // optional expansion RAM
-	AM_RANGE(0xfb00, 0xfcff) AM_ROM
-	AM_RANGE(0xfd00, 0xfd03) AM_DEVREADWRITE("i8255", i8255_device, read, write)
-	AM_RANGE(0xfe00, 0xffff) AM_ROM
-ADDRESS_MAP_END
+void amico2k_state::amico2k_mem(address_map &map)
+{
+	map.unmap_value_high();
+	map(0x0000, 0x03ff).ram();
+//  map(0x0400, 0x07ff).ram(); // optional expansion RAM
+	map(0xfb00, 0xfcff).rom();
+	map(0xfd00, 0xfd03).rw("i8255", FUNC(i8255_device::read), FUNC(i8255_device::write));
+	map(0xfe00, 0xffff).rom();
+}
 
 /* Input ports */
 static INPUT_PORTS_START( amico2k )
@@ -106,11 +114,11 @@ TIMER_CALLBACK_MEMBER(amico2k_state::led_refresh)
 {
 	if (m_ls145_p > 3)
 	{
-		output().set_digit_value(m_ls145_p - 4, m_segment);
+		m_digits[m_ls145_p - 4] = m_segment;
 	}
 }
 
-READ8_MEMBER( amico2k_state::ppi_pa_r )
+uint8_t amico2k_state::ppi_pa_r()
 {
 	/*
 
@@ -136,7 +144,7 @@ READ8_MEMBER( amico2k_state::ppi_pa_r )
 	}
 }
 
-WRITE8_MEMBER( amico2k_state::ppi_pa_w )
+void amico2k_state::ppi_pa_w(uint8_t data)
 {
 	/*
 
@@ -157,7 +165,7 @@ WRITE8_MEMBER( amico2k_state::ppi_pa_w )
 	m_led_refresh_timer->adjust(attotime::from_usec(70));
 }
 
-READ8_MEMBER( amico2k_state::ppi_pb_r )
+uint8_t amico2k_state::ppi_pb_r()
 {
 	/*
 
@@ -177,7 +185,7 @@ READ8_MEMBER( amico2k_state::ppi_pb_r )
 	return 0;
 }
 
-WRITE8_MEMBER( amico2k_state::ppi_pb_w )
+void amico2k_state::ppi_pb_w(uint8_t data)
 {
 	/*
 
@@ -199,6 +207,7 @@ WRITE8_MEMBER( amico2k_state::ppi_pb_w )
 
 void amico2k_state::machine_start()
 {
+	m_digits.resolve();
 	m_led_refresh_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(amico2k_state::led_refresh),this));
 
 	// state saving
@@ -206,20 +215,21 @@ void amico2k_state::machine_start()
 	save_item(NAME(m_segment));
 }
 
-static MACHINE_CONFIG_START( amico2k, amico2k_state )
+void amico2k_state::amico2k(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6502, 1000000) /* 1MHz */
-	MCFG_CPU_PROGRAM_MAP(amico2k_mem)
+	M6502(config, m_maincpu, 1000000); /* 1MHz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &amico2k_state::amico2k_mem);
 
 	/* video hardware */
-	MCFG_DEFAULT_LAYOUT( layout_amico2k )
+	config.set_default_layout(layout_amico2k);
 
-	MCFG_DEVICE_ADD("i8255", I8255, 0)
-	MCFG_I8255_IN_PORTA_CB(READ8(amico2k_state, ppi_pa_r))
-	MCFG_I8255_OUT_PORTA_CB(WRITE8(amico2k_state, ppi_pa_w))
-	MCFG_I8255_IN_PORTB_CB(READ8(amico2k_state, ppi_pb_r))
-	MCFG_I8255_OUT_PORTB_CB(WRITE8(amico2k_state, ppi_pb_w))
-MACHINE_CONFIG_END
+	i8255_device &ppi(I8255(config, "i8255"));
+	ppi.in_pa_callback().set(FUNC(amico2k_state::ppi_pa_r));
+	ppi.out_pa_callback().set(FUNC(amico2k_state::ppi_pa_w));
+	ppi.in_pb_callback().set(FUNC(amico2k_state::ppi_pb_r));
+	ppi.out_pb_callback().set(FUNC(amico2k_state::ppi_pb_w));
+}
 
 
 /* ROM definition */
@@ -237,5 +247,5 @@ ROM_END
 
 /* Driver */
 
-/*    YEAR  NAME      PARENT  COMPAT MACHINE     INPUT       INIT     COMPANY   FULLNAME         FLAGS */
-COMP( 1978, amico2k,  0,      0,     amico2k,    amico2k, driver_device,    0,     "A.S.E.L.", "Amico 2000", MACHINE_NO_SOUND_HW)
+//    YEAR  NAME     PARENT  COMPAT  MACHINE  INPUT    CLASS          INIT        COMPANY     FULLNAME      FLAGS
+COMP( 1978, amico2k, 0,      0,      amico2k, amico2k, amico2k_state, empty_init, "A.S.E.L.", "Amico 2000", MACHINE_NO_SOUND_HW)

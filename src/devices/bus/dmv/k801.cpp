@@ -1,5 +1,6 @@
 // license:BSD-3-Clause
 // copyright-holders:Sandro Ronco
+// thanks-to:rfka01
 /***************************************************************************
 
     K801 RS-232 Switchable Interface
@@ -20,42 +21,6 @@
     IMPLEMENTATION
 ***************************************************************************/
 
-
-static MACHINE_CONFIG_FRAGMENT( dmv_k801 )
-	MCFG_DEVICE_ADD("epci", MC2661, XTAL_5_0688MHz)
-	MCFG_MC2661_TXD_HANDLER(DEVWRITELINE("rs232", rs232_port_device, write_txd))
-	MCFG_MC2661_RTS_HANDLER(DEVWRITELINE("rs232", rs232_port_device, write_rts))
-	MCFG_MC2661_DTR_HANDLER(DEVWRITELINE("rs232", rs232_port_device, write_dtr))
-	MCFG_MC2661_RXRDY_HANDLER(WRITELINE(dmv_k801_device, epci_irq_w))
-	MCFG_MC2661_TXRDY_HANDLER(WRITELINE(dmv_k801_device, epci_irq_w))
-
-	MCFG_RS232_PORT_ADD("rs232", default_rs232_devices, "printer")
-	MCFG_RS232_RXD_HANDLER(DEVWRITELINE("epci", mc2661_device, rx_w))
-	MCFG_RS232_DCD_HANDLER(DEVWRITELINE("epci", mc2661_device, dcd_w))
-	MCFG_RS232_DSR_HANDLER(DEVWRITELINE("epci", mc2661_device, dsr_w))
-	MCFG_RS232_CTS_HANDLER(DEVWRITELINE("epci", mc2661_device, cts_w))
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_FRAGMENT( dmv_k211 )
-	MCFG_FRAGMENT_ADD( dmv_k801 )
-
-	MCFG_DEVICE_MODIFY("rs232")
-	MCFG_SLOT_DEFAULT_OPTION("null_modem")
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_FRAGMENT( dmv_k212 )
-	MCFG_FRAGMENT_ADD( dmv_k801 )
-
-	MCFG_DEVICE_MODIFY("rs232")
-	MCFG_SLOT_DEFAULT_OPTION("printer")
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_FRAGMENT( dmv_k213 )
-	MCFG_FRAGMENT_ADD( dmv_k801 )
-
-	MCFG_DEVICE_MODIFY("rs232")
-	MCFG_SLOT_DEFAULT_OPTION(nullptr)
-MACHINE_CONFIG_END
 
 static INPUT_PORTS_START( dmv_k801 )
 	PORT_START("DSW")
@@ -98,10 +63,10 @@ INPUT_PORTS_END
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type DMV_K801 = device_creator<dmv_k801_device>;
-const device_type DMV_K211 = device_creator<dmv_k211_device>;
-const device_type DMV_K212 = device_creator<dmv_k212_device>;
-const device_type DMV_K213 = device_creator<dmv_k213_device>;
+DEFINE_DEVICE_TYPE(DMV_K801, dmv_k801_device, "dmv_k801", "K801 RS-232 Switchable Interface")
+DEFINE_DEVICE_TYPE(DMV_K211, dmv_k211_device, "dmv_k211", "K211 RS-232 Communications Interface")
+DEFINE_DEVICE_TYPE(DMV_K212, dmv_k212_device, "dmv_k212", "K212 RS-232 Printer Interface")
+DEFINE_DEVICE_TYPE(DMV_K213, dmv_k213_device, "dmv_k213", "K213 RS-232 Plotter Interface")
 
 //**************************************************************************
 //  LIVE DEVICE
@@ -112,19 +77,17 @@ const device_type DMV_K213 = device_creator<dmv_k213_device>;
 //-------------------------------------------------
 
 dmv_k801_device::dmv_k801_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-		: device_t(mconfig, DMV_K801, "K801 RS-232 Switchable Interface", tag, owner, clock, "dmv_k801", __FILE__),
-		device_dmvslot_interface( mconfig, *this ),
-		m_epci(*this, "epci"),
-		m_dsw(*this, "DSW"), m_bus(nullptr)
-	{
+	: dmv_k801_device(mconfig, DMV_K801, tag, owner, clock)
+{
 }
 
-dmv_k801_device::dmv_k801_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-		: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-		device_dmvslot_interface( mconfig, *this ),
-		m_epci(*this, "epci"),
-		m_dsw(*this, "DSW"), m_bus(nullptr)
-	{
+dmv_k801_device::dmv_k801_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock),
+	device_dmvslot_interface( mconfig, *this ),
+	m_pci(*this, "pci"),
+	m_rs232(*this, "rs232"),
+	m_dsw(*this, "DSW")
+{
 }
 
 //-------------------------------------------------
@@ -132,13 +95,13 @@ dmv_k801_device::dmv_k801_device(const machine_config &mconfig, device_type type
 //-------------------------------------------------
 
 dmv_k211_device::dmv_k211_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-		: dmv_k801_device(mconfig, DMV_K211, "K211 RS-232 Communications Interface", tag, owner, clock, "dmv_k211", __FILE__)
+	: dmv_k211_device(mconfig, DMV_K211, tag, owner, clock)
 {
 }
 
 
-dmv_k211_device::dmv_k211_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source)
-		: dmv_k801_device(mconfig, type, name, tag, owner, clock, shortname, source)
+dmv_k211_device::dmv_k211_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: dmv_k801_device(mconfig, type, tag, owner, clock)
 {
 }
 
@@ -147,7 +110,7 @@ dmv_k211_device::dmv_k211_device(const machine_config &mconfig, device_type type
 //-------------------------------------------------
 
 dmv_k212_device::dmv_k212_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-		: dmv_k211_device(mconfig, DMV_K212, "K212 RS-232 Printer Interface", tag, owner, clock, "dmv_k212", __FILE__)
+	: dmv_k211_device(mconfig, DMV_K212, tag, owner, clock)
 {
 }
 
@@ -156,7 +119,7 @@ dmv_k212_device::dmv_k212_device(const machine_config &mconfig, const char *tag,
 //-------------------------------------------------
 
 dmv_k213_device::dmv_k213_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-		: dmv_k211_device(mconfig, DMV_K213, "K213 RS-232 Plotter Interface", tag, owner, clock, "dmv_k213", __FILE__)
+	: dmv_k211_device(mconfig, DMV_K213, tag, owner, clock)
 {
 }
 
@@ -166,7 +129,6 @@ dmv_k213_device::dmv_k213_device(const machine_config &mconfig, const char *tag,
 
 void dmv_k801_device::device_start()
 {
-	m_bus = static_cast<dmvcart_slot_device*>(owner());
 }
 
 //-------------------------------------------------
@@ -178,28 +140,46 @@ void dmv_k801_device::device_reset()
 }
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor dmv_k801_device::device_mconfig_additions() const
+void dmv_k801_device::pci_mconfig(machine_config &config, bool epci, const char *default_option)
 {
-	return MACHINE_CONFIG_NAME( dmv_k801 );
+	if (epci)
+		SCN2661C(config, m_pci, XTAL(5'068'800));
+	else
+		SCN2651(config, m_pci, XTAL(5'068'800));
+	m_pci->txd_handler().set("rs232", FUNC(rs232_port_device::write_txd));
+	m_pci->rts_handler().set("rs232", FUNC(rs232_port_device::write_rts));
+	m_pci->dtr_handler().set("rs232", FUNC(rs232_port_device::write_dtr));
+	m_pci->rxrdy_handler().set(FUNC(dmv_k801_device::pci_irq_w));
+	m_pci->txrdy_handler().set(FUNC(dmv_k801_device::pci_irq_w));
+
+	RS232_PORT(config, m_rs232, default_rs232_devices, default_option);
+	m_rs232->rxd_handler().set(m_pci, FUNC(scn_pci_device::rxd_w));
+	m_rs232->dcd_handler().set(m_pci, FUNC(scn_pci_device::dcd_w));
+	m_rs232->dsr_handler().set(m_pci, FUNC(scn_pci_device::dsr_w));
+	m_rs232->cts_handler().set(m_pci, FUNC(scn_pci_device::cts_w));
 }
 
-machine_config_constructor dmv_k211_device::device_mconfig_additions() const
+void dmv_k801_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( dmv_k211 );
+	pci_mconfig(config, true, "printer");
 }
 
-machine_config_constructor dmv_k212_device::device_mconfig_additions() const
+void dmv_k211_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( dmv_k212 );
+	pci_mconfig(config, false, "null_modem");
 }
 
-machine_config_constructor dmv_k213_device::device_mconfig_additions() const
+void dmv_k212_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( dmv_k213 );
+	pci_mconfig(config, false, "printer");
+}
+
+void dmv_k213_device::device_add_mconfig(machine_config &config)
+{
+	pci_mconfig(config, false, nullptr);
 }
 
 //-------------------------------------------------
@@ -226,55 +206,55 @@ ioport_constructor dmv_k213_device::device_input_ports() const
 	return INPUT_PORTS_NAME( dmv_k213 );
 }
 
-WRITE_LINE_MEMBER(dmv_k801_device::epci_irq_w)
+WRITE_LINE_MEMBER(dmv_k801_device::pci_irq_w)
 {
-	m_bus->m_out_irq_cb(state);
+	out_irq(state);
 }
 
-void dmv_k801_device::io_read(address_space &space, int ifsel, offs_t offset, uint8_t &data)
+void dmv_k801_device::io_read(int ifsel, offs_t offset, uint8_t &data)
 {
 	uint8_t dsw = m_dsw->read() & 0x0f;
 	if ((dsw >> 1) == ifsel && BIT(offset, 3) == BIT(dsw, 0))
 	{
 		if (offset & 0x04)
-			m_epci->write(space, offset & 0x03, data);
+			m_pci->write(offset & 0x03, data);
 		else
-			data = m_epci->read(space, offset & 0x03);
+			data = m_pci->read(offset & 0x03);
 	}
 }
 
-void dmv_k801_device::io_write(address_space &space, int ifsel, offs_t offset, uint8_t data)
+void dmv_k801_device::io_write(int ifsel, offs_t offset, uint8_t data)
 {
 	uint8_t dsw = m_dsw->read() & 0x0f;
 	if ((dsw >> 1) == ifsel && BIT(offset, 3) == BIT(dsw, 0))
 	{
 		if (offset & 0x04)
-			m_epci->write(space, offset & 0x03, data);
+			m_pci->write(offset & 0x03, data);
 		else
-			data = m_epci->read(space, offset & 0x03);
+			data = m_pci->read(offset & 0x03);
 	}
 }
 
-void dmv_k211_device::io_read(address_space &space, int ifsel, offs_t offset, uint8_t &data)
+void dmv_k211_device::io_read(int ifsel, offs_t offset, uint8_t &data)
 {
 	uint8_t jumpers = m_dsw->read() & 0x03;
 	if ((BIT(jumpers, 0) && ifsel == 0) || (BIT(jumpers, 1) && ifsel == 1))
 	{
 		if (offset & 0x04)
-			m_epci->write(space, offset & 0x03, data);
+			m_pci->write(offset & 0x03, data);
 		else
-			data = m_epci->read(space, offset & 0x03);
+			data = m_pci->read(offset & 0x03);
 	}
 }
 
-void dmv_k211_device::io_write(address_space &space, int ifsel, offs_t offset, uint8_t data)
+void dmv_k211_device::io_write(int ifsel, offs_t offset, uint8_t data)
 {
 	uint8_t jumpers = m_dsw->read() & 0x03;
 	if ((BIT(jumpers, 0) && ifsel == 0) || (BIT(jumpers, 1) && ifsel == 1))
 	{
 		if (offset & 0x04)
-			m_epci->write(space, offset & 0x03, data);
+			m_pci->write(offset & 0x03, data);
 		else
-			data = m_epci->read(space, offset & 0x03);
+			data = m_pci->read(offset & 0x03);
 	}
 }

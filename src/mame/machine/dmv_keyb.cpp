@@ -14,7 +14,7 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type DMV_KEYBOARD = device_creator<dmv_keyboard_device>;
+DEFINE_DEVICE_TYPE(DMV_KEYBOARD, dmv_keyboard_device, "dmv_keyboard", "Decision Mate V Keyboard")
 
 
 //***************************************************************************
@@ -25,18 +25,6 @@ ROM_START( dmv_keyboard )
 	ROM_REGION( 0x400, "mcu", 0 )
 	ROM_LOAD( "dmv_kbmcu.bin", 0x0000, 0x0400, CRC(14e376de) SHA1 (ed09048ef03c602dba17ad6fcfe125c082c9bb17))
 ROM_END
-
-
-static ADDRESS_MAP_START( dmv_keyboard_io, AS_IO, 8, dmv_keyboard_device )
-	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_READ(port1_r)
-	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_READWRITE(port2_r, port2_w)
-ADDRESS_MAP_END
-
-
-static MACHINE_CONFIG_FRAGMENT( dmv_keyboard )
-	MCFG_CPU_ADD("mcu", I8741, XTAL_6MHz)
-	MCFG_CPU_IO_MAP(dmv_keyboard_io)
-MACHINE_CONFIG_END
 
 
 INPUT_PORTS_START( dmv_keyboard )
@@ -209,7 +197,7 @@ ioport_constructor dmv_keyboard_device::device_input_ports() const
 //-------------------------------------------------
 
 dmv_keyboard_device::dmv_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: device_t(mconfig, DMV_KEYBOARD, "Decision Mate V Keyboard", tag, owner, clock, "dmv_keyboard", __FILE__)
+	: device_t(mconfig, DMV_KEYBOARD, tag, owner, clock)
 	, m_maincpu(*this, "mcu")
 	, m_keyboard(*this, "COL.%u", 0)
 {
@@ -221,6 +209,10 @@ dmv_keyboard_device::dmv_keyboard_device(const machine_config &mconfig, const ch
 
 void dmv_keyboard_device::device_start()
 {
+	// register for state saving
+	save_item(NAME(m_col));
+	save_item(NAME(m_sd_data_state));
+	save_item(NAME(m_sd_poll_state));
 }
 
 
@@ -236,13 +228,15 @@ void dmv_keyboard_device::device_reset()
 }
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor dmv_keyboard_device::device_mconfig_additions() const
+void dmv_keyboard_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( dmv_keyboard );
+	I8741A(config, m_maincpu, XTAL(6'000'000));
+	m_maincpu->p1_in_cb().set(FUNC(dmv_keyboard_device::port1_r));
+	m_maincpu->p2_in_cb().set(FUNC(dmv_keyboard_device::port2_r));
+	m_maincpu->p2_out_cb().set(FUNC(dmv_keyboard_device::port2_w));
 }
 
 
@@ -260,7 +254,7 @@ const tiny_rom_entry *dmv_keyboard_device::device_rom_region() const
 //  port1_r -
 //-------------------------------------------------
 
-READ8_MEMBER( dmv_keyboard_device::port1_r )
+uint8_t dmv_keyboard_device::port1_r()
 {
 	return m_keyboard[m_col]->read();
 }
@@ -269,7 +263,7 @@ READ8_MEMBER( dmv_keyboard_device::port1_r )
 //  port2_r
 //-------------------------------------------------
 
-READ8_MEMBER( dmv_keyboard_device::port2_r )
+uint8_t dmv_keyboard_device::port2_r()
 {
 	return ((m_sd_data_state | m_sd_poll_state) << 7) | m_col;
 }
@@ -278,7 +272,7 @@ READ8_MEMBER( dmv_keyboard_device::port2_r )
 //  port2_w
 //-------------------------------------------------
 
-WRITE8_MEMBER( dmv_keyboard_device::port2_w )
+void dmv_keyboard_device::port2_w(uint8_t data)
 {
 	/*
 	   P2.0    col 0
@@ -299,7 +293,7 @@ WRITE8_MEMBER( dmv_keyboard_device::port2_w )
 DECLARE_WRITE_LINE_MEMBER(dmv_keyboard_device::sd_poll_w)
 {
 	if (m_sd_poll_state && !state)
-		m_maincpu->upi41_master_w(m_maincpu->space(), 0, 0);
+		m_maincpu->upi41_master_w(0, 0);
 
 	m_sd_poll_state = state;
 }

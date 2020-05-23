@@ -1,29 +1,25 @@
 // license:BSD-3-Clause
 // copyright-holders:Carl
+#ifndef MAME_BUS_PSX_CTLRPORT_H
+#define MAME_BUS_PSX_CTLRPORT_H
+
 #pragma once
 
-#ifndef __PSXCPORT_H__
-#define __PSXCPORT_H__
 
 #include "memcard.h"
 
-#define MCFG_PSX_CTRL_PORT_ADD(_tag, _slot_intf, _def_slot) \
-	MCFG_DEVICE_ADD(_tag, PSX_CONTROLLER_PORT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
+void psx_controllers(device_slot_interface &device);
 
-SLOT_INTERFACE_EXTERN(psx_controllers);
-
-extern const device_type PSXCONTROLLERPORTS;
-extern const device_type PSX_CONTROLLER_PORT;
-extern const device_type PSX_STANDARD_CONTROLLER;
+DECLARE_DEVICE_TYPE(PSXCONTROLLERPORTS,      psxcontrollerports_device)
+DECLARE_DEVICE_TYPE(PSX_CONTROLLER_PORT,     psx_controller_port_device)
+DECLARE_DEVICE_TYPE(PSX_STANDARD_CONTROLLER, psx_standard_controller_device)
 
 class psx_controller_port_device;
 
-class device_psx_controller_interface : public device_slot_card_interface
+class device_psx_controller_interface : public device_interface
 {
 	friend class psx_multitap_device;
 public:
-	device_psx_controller_interface(const machine_config &mconfig, device_t &device);
 	virtual ~device_psx_controller_interface();
 
 	void clock_w(bool state) { if(!m_clock && !m_sel && state && !m_memcard) do_pad(); m_clock = state; }
@@ -33,8 +29,11 @@ public:
 	bool ack_r() { return m_ack; }
 
 protected:
-	virtual void interface_pre_reset() override;
+	device_psx_controller_interface(const machine_config &mconfig, device_t &device);
+
 	virtual void interface_pre_start() override;
+	virtual void interface_pre_reset() override;
+	virtual void interface_post_stop() override;
 
 	enum
 	{
@@ -79,20 +78,16 @@ private:
 	required_ioport m_pad1;
 };
 
-#define MCFG_PSX_CONTROLLER_PORTS_DSR_HANDLER(_devcb) \
-	devcb = &psxcontrollerports_device::set_dsr_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_PSX_CONTROLLER_PORTS_RXD_HANDLER(_devcb) \
-	devcb = &psxcontrollerports_device::set_rxd_handler(*device, DEVCB_##_devcb);
 
 class psxcontrollerports_device : public device_t
 {
 public:
 	psxcontrollerports_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
 	void ack();
 
-	template<class _Object> static devcb_base &set_dsr_handler(device_t &device, _Object object) { return downcast<psxcontrollerports_device &>(device).m_dsr_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_rxd_handler(device_t &device, _Object object) { return downcast<psxcontrollerports_device &>(device).m_rxd_handler.set_callback(object); }
+	auto dsr() { return m_dsr_handler.bind(); }
+	auto rxd() { return m_rxd_handler.bind(); }
 
 	DECLARE_WRITE_LINE_MEMBER(write_sck);
 	DECLARE_WRITE_LINE_MEMBER(write_dtr);
@@ -102,19 +97,27 @@ protected:
 	virtual void device_start() override;
 
 private:
-	psx_controller_port_device *m_port0;
-	psx_controller_port_device *m_port1;
+	required_device<psx_controller_port_device> m_port0;
+	required_device<psx_controller_port_device> m_port1;
 
 	devcb_write_line m_dsr_handler;
 	devcb_write_line m_rxd_handler;
 };
 
 class psx_controller_port_device :  public device_t,
-									public device_slot_interface
+									public device_single_card_slot_interface<device_psx_controller_interface>
 {
 public:
+	template <typename T>
+	psx_controller_port_device(machine_config const &mconfig, char const *tag, device_t *owner, T &&opts, char const *dflt)
+		: psx_controller_port_device(mconfig, tag, owner, (uint32_t)0)
+	{
+		option_reset();
+		opts(*this);
+		set_default_option(dflt);
+		set_fixed(false);
+	}
 	psx_controller_port_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual machine_config_constructor device_mconfig_additions() const override;
 
 	typedef delegate<void ()> void_cb;
 	void ack() { if(!ack_cb.isnull()) ack_cb(); }
@@ -135,6 +138,8 @@ protected:
 	virtual void device_reset() override { m_tx = true; }
 	virtual void device_config_complete() override;
 
+	virtual void device_add_mconfig(machine_config &config) override;
+
 private:
 	void_cb ack_cb;
 	bool m_tx;
@@ -142,4 +147,5 @@ private:
 	device_psx_controller_interface *m_dev;
 	required_device<psxcard_device> m_card;
 };
-#endif
+
+#endif // MAME_BUS_PSX_CTLRPORT_H

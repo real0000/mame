@@ -10,21 +10,22 @@
  *
  *****************************************************************************/
 
+#ifndef MAME_CPU_SC61860_SC61860_H
+#define MAME_CPU_SC61860_SC61860_H
+
 #pragma once
 
-#ifndef __SC61860_H__
-#define __SC61860_H__
-
 /*
-  official names seam to be
+  Official names seem to be:
   ESR-H, ESR-J
-  (ESR-L SC62015 ist complete different)
- */
+  (ESR-L SC62015 is completely different)
+*/
 
-/* unsolved problems
-   the processor has 8 kbyte internal rom
-   only readable with special instructions and program execution
-   64 kb external ram (first 8kbyte not seen for program execution?) */
+/* Known Issues:
+   - The processor has an 8kbyte internal ROM which is only readable with
+     special instructions and program execution.
+   - 64kbyte external RAM (first 8kbytes not seen for program execution?)
+*/
 
 
 enum
@@ -33,7 +34,7 @@ enum
 	SC61860_P, SC61860_Q, SC61860_R,
 	SC61860_CARRY,
 	SC61860_ZERO,
-	// the following are in the internal ram!
+	// The following are in the internal RAM!
 	SC61860_BA,
 	SC61860_X, SC61860_Y,
 	SC61860_I, SC61860_J, SC61860_K, SC61860_L, SC61860_V, SC61860_W,
@@ -44,45 +45,21 @@ enum
 };
 
 
-#define MCFG_SC61860_READ_RESET_HANDLER(_devcb) \
-	devcb = &sc61860_device::set_reset_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_SC61860_READ_BRK_HANDLER(_devcb) \
-	devcb = &sc61860_device::set_brk_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_SC61860_READ_X_HANDLER(_devcb) \
-	devcb = &sc61860_device::set_x_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_SC61860_READ_A_HANDLER(_devcb) \
-	devcb = &sc61860_device::set_ina_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_SC61860_WRITE_A_HANDLER(_devcb) \
-	devcb = &sc61860_device::set_outa_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_SC61860_READ_B_HANDLER(_devcb) \
-	devcb = &sc61860_device::set_inb_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_SC61860_WRITE_B_HANDLER(_devcb) \
-	devcb = &sc61860_device::set_outb_cb(*device, DEVCB_##_devcb);
-
-#define MCFG_SC61860_WRITE_C_HANDLER(_devcb) \
-	devcb = &sc61860_device::set_outc_cb(*device, DEVCB_##_devcb);
-
 class sc61860_device : public cpu_device
 {
 public:
 	// construction/destruction
 	sc61860_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// static configuration helpers
-	template<class _Object> static devcb_base &set_reset_cb(device_t &device, _Object object) { return downcast<sc61860_device &>(device).m_reset.set_callback(object); }
-	template<class _Object> static devcb_base &set_brk_cb(device_t &device, _Object object) { return downcast<sc61860_device &>(device).m_brk.set_callback(object); }
-	template<class _Object> static devcb_base &set_x_cb(device_t &device, _Object object) { return downcast<sc61860_device &>(device).m_x.set_callback(object); }
-	template<class _Object> static devcb_base &set_ina_cb(device_t &device, _Object object) { return downcast<sc61860_device &>(device).m_ina.set_callback(object); }
-	template<class _Object> static devcb_base &set_outa_cb(device_t &device, _Object object) { return downcast<sc61860_device &>(device).m_outa.set_callback(object); }
-	template<class _Object> static devcb_base &set_inb_cb(device_t &device, _Object object) { return downcast<sc61860_device &>(device).m_inb.set_callback(object); }
-	template<class _Object> static devcb_base &set_outb_cb(device_t &device, _Object object) { return downcast<sc61860_device &>(device).m_outb.set_callback(object); }
-	template<class _Object> static devcb_base &set_outc_cb(device_t &device, _Object object) { return downcast<sc61860_device &>(device).m_outc.set_callback(object); }
+	// configuration helpers
+	auto reset_cb() { return m_reset.bind(); }
+	auto brk_cb() { return m_brk.bind(); }
+	auto x_cb() { return m_x.bind(); }
+	auto in_a_cb() { return m_ina.bind(); }
+	auto out_a_cb() { return m_outa.bind(); }
+	auto in_b_cb() { return m_inb.bind(); }
+	auto out_b_cb() { return m_outb.bind(); }
+	auto out_c_cb() { return m_outc.bind(); }
 
 	/* this is though for power on/off of the sharps */
 	uint8_t *internal_ram();
@@ -95,13 +72,13 @@ protected:
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 2; }
-	virtual uint32_t execute_max_cycles() const override { return 4; }
-	virtual uint32_t execute_input_lines() const override { return 0; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 2; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 4; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 0; }
 	virtual void execute_run() override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : nullptr; }
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_import(const device_state_entry &entry) override;
@@ -109,9 +86,7 @@ protected:
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 1; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 4; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 private:
 	address_space_config m_program_config;
@@ -134,9 +109,10 @@ private:
 	int m_carry, m_zero;
 
 	struct { int t2ms, t512ms; int count; } m_timer;
+	emu_timer *m_2ms_tick_timer;
 
 	address_space *m_program;
-	direct_read_data *m_direct;
+	memory_access_cache<0, 0, ENDIANNESS_BIG> *m_cache;
 	int m_icount;
 	uint8_t m_ram[0x100]; // internal special ram, should be 0x60, 0x100 to avoid memory corruption for now
 
@@ -230,7 +206,6 @@ private:
 };
 
 
-extern const device_type SC61860;
+DECLARE_DEVICE_TYPE(SC61860, sc61860_device)
 
-
-#endif /* __SC61860_H__ */
+#endif // MAME_CPU_SC61860_SC61860_H

@@ -428,6 +428,16 @@ void nes_cart_slot_device::call_load_ines()
 			bus_conflict = true;
 		else if (mapper == 7 && submapper == 2)
 			bus_conflict = true;
+		// 019: Namcot N163
+		else if (mapper == 19)
+		{
+			int vol = submapper & 0x07;
+			if (vol >= 0 && vol <= 5)
+			{
+				pcb_id = NAMCOT_163;
+				m_cart->set_n163_vol(vol);
+			}
+		}
 		// 021, 023, 025: VRC4 / VRC2
 		else if (mapper == 21 || mapper == 23 || mapper == 25)
 		{
@@ -691,7 +701,7 @@ void nes_cart_slot_device::call_load_ines()
 	if (!ines20)
 	{
 		logerror("Loaded game in iNES format:\n");
-		logerror("-- Mapper %d\n", mapper);
+		logerror("-- Mapper %u\n", mapper);
 		logerror("-- PRG 0x%x (%d x 16k chunks)\n", prg_size, prg_size / 0x4000);
 		logerror("-- VROM 0x%x (%d x 8k chunks)\n", vrom_size, vrom_size / 0x2000);
 		logerror("-- VRAM 0x%x (%d x 8k chunks)\n", vram_size, vram_size / 0x2000);
@@ -707,8 +717,8 @@ void nes_cart_slot_device::call_load_ines()
 	else
 	{
 		logerror("Loaded game in Extended iNES format:\n");
-		logerror("-- Mapper: %d\n", mapper);
-		logerror("-- Submapper: %d\n", (header[8] & 0xf0) >> 4);
+		logerror("-- Mapper: %u\n", mapper);
+		logerror("-- Submapper: %u\n", (header[8] & 0xf0) >> 4);
 		logerror("-- PRG 0x%x (%d x 16k chunks)\n", prg_size, prg_size / 0x4000);
 		logerror("-- VROM 0x%x (%d x 8k chunks)\n", vrom_size, vrom_size / 0x2000);
 		logerror("-- VRAM 0x%x (%d x 8k chunks)\n", vram_size, vram_size / 0x2000);
@@ -811,7 +821,7 @@ void nes_cart_slot_device::call_load_ines()
 	}
 }
 
-const char * nes_cart_slot_device::get_default_card_ines(uint8_t *ROM, uint32_t len)
+const char * nes_cart_slot_device::get_default_card_ines(get_default_card_software_hook &hook, const uint8_t *ROM, uint32_t len) const
 {
 	uint8_t mapper, submapper = 0;
 	bool ines20 = false;
@@ -837,7 +847,7 @@ const char * nes_cart_slot_device::get_default_card_ines(uint8_t *ROM, uint32_t 
 	}
 
 	// use info from nes.hsi if available!
-	if (hashfile_extrainfo(*this, mapinfo))
+	if (hook.hashfile_extrainfo(mapinfo))
 	{
 		if (4 == sscanf(mapinfo.c_str(),"%d %d %d %d", &mapint1, &mapint2, &mapint3, &mapint4))
 		{

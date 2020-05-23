@@ -22,69 +22,63 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
-const device_type A2BUS_ALFAM2 = device_creator<a2bus_alfam2_device>;
-const device_type A2BUS_AESMS = device_creator<a2bus_aesms_device>;
+DEFINE_DEVICE_TYPE(A2BUS_ALFAM2, a2bus_alfam2_device, "a2alfam2", "ALF MC1 / Apple Music II")
+DEFINE_DEVICE_TYPE(A2BUS_AESMS,  a2bus_aesms_device,  "a2aesms",  "Applied Engineering Super Music Synthesizer")
 
 #define SN1_TAG         "sn76489_1" // left
 #define SN2_TAG         "sn76489_2" // center
 #define SN3_TAG         "sn76489_3" // right
 #define SN4_TAG         "sn76489_4" // center?
 
-MACHINE_CONFIG_FRAGMENT( a2alfam2 )
-	MCFG_SPEAKER_STANDARD_STEREO("alf_l", "alf_r")
-
-	MCFG_SOUND_ADD(SN1_TAG, SN76489, 1020484)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "alf_l", 0.50)
-	MCFG_SOUND_ADD(SN2_TAG, SN76489, 1020484)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "alf_l", 0.50)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "alf_r", 0.50)
-	MCFG_SOUND_ADD(SN3_TAG, SN76489, 1020484)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "alf_r", 0.50)
-MACHINE_CONFIG_END
-
-MACHINE_CONFIG_FRAGMENT( a2aesms )
-	MCFG_SPEAKER_STANDARD_STEREO("alf_l", "alf_r")
-
-	MCFG_SOUND_ADD(SN1_TAG, SN76489, 1020484)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "alf_l", 0.50)
-
-	MCFG_SOUND_ADD(SN2_TAG, SN76489, 1020484)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "alf_l", 0.50)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "alf_r", 0.50)
-
-	MCFG_SOUND_ADD(SN3_TAG, SN76489, 1020484)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "alf_r", 0.50)
-
-	MCFG_SOUND_ADD(SN4_TAG, SN76489, 1020484)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "alf_l", 0.50)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "alf_r", 0.50)
-MACHINE_CONFIG_END
 
 /***************************************************************************
     FUNCTION PROTOTYPES
 ***************************************************************************/
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor a2bus_sn76489_device::device_mconfig_additions() const
+void a2bus_sn76489_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( a2alfam2 );
+	SPEAKER(config, "alf_l").front_left();
+	SPEAKER(config, "alf_r").front_right();
+
+	SN76489(config, m_sn1, 1020484);
+	m_sn1->add_route(ALL_OUTPUTS, "alf_l", 0.50);
+	SN76489(config, m_sn2, 1020484);
+	m_sn2->add_route(ALL_OUTPUTS, "alf_l", 0.50);
+	m_sn2->add_route(ALL_OUTPUTS, "alf_r", 0.50);
+	SN76489(config, m_sn3, 1020484);
+	m_sn3->add_route(ALL_OUTPUTS, "alf_r", 0.50);
 }
 
-machine_config_constructor a2bus_aesms_device::device_mconfig_additions() const
+void a2bus_aesms_device::device_add_mconfig(machine_config &config)
 {
-	return MACHINE_CONFIG_NAME( a2aesms );
+	SPEAKER(config, "alf_l").front_left();
+	SPEAKER(config, "alf_r").front_right();
+
+	SN76489(config, m_sn1, 1020484);
+	m_sn1->add_route(ALL_OUTPUTS, "alf_l", 0.50);
+
+	SN76489(config, m_sn2, 1020484);
+	m_sn2->add_route(ALL_OUTPUTS, "alf_l", 0.50);
+	m_sn2->add_route(ALL_OUTPUTS, "alf_r", 0.50);
+
+	SN76489(config, m_sn3, 1020484);
+	m_sn3->add_route(ALL_OUTPUTS, "alf_r", 0.50);
+
+	SN76489(config, m_sn4, 1020484);
+	m_sn4->add_route(ALL_OUTPUTS, "alf_l", 0.50);
+	m_sn4->add_route(ALL_OUTPUTS, "alf_r", 0.50);
 }
 
 //**************************************************************************
 //  LIVE DEVICE
 //**************************************************************************
 
-a2bus_sn76489_device::a2bus_sn76489_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, uint32_t clock, const char *shortname, const char *source) :
-	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+a2bus_sn76489_device::a2bus_sn76489_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+	device_t(mconfig, type, tag, owner, clock),
 	device_a2bus_card_interface(mconfig, *this),
 	m_sn1(*this, SN1_TAG),
 	m_sn2(*this, SN2_TAG),
@@ -94,13 +88,13 @@ a2bus_sn76489_device::a2bus_sn76489_device(const machine_config &mconfig, device
 }
 
 a2bus_alfam2_device::a2bus_alfam2_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	a2bus_sn76489_device(mconfig, A2BUS_ALFAM2, "ALF MC1 / Apple Music II", tag, owner, clock, "a2alfam2", __FILE__)
+	a2bus_sn76489_device(mconfig, A2BUS_ALFAM2, tag, owner, clock)
 {
 	m_has4thsn = false;
 }
 
 a2bus_aesms_device::a2bus_aesms_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	a2bus_sn76489_device(mconfig, A2BUS_AESMS, "Applied Engineering Super Music Synthesizer", tag, owner, clock, "a2aesms", __FILE__)
+	a2bus_sn76489_device(mconfig, A2BUS_AESMS, tag, owner, clock)
 {
 	m_has4thsn = true;
 }
@@ -111,8 +105,6 @@ a2bus_aesms_device::a2bus_aesms_device(const machine_config &mconfig, const char
 
 void a2bus_sn76489_device::device_start()
 {
-	// set_a2bus_device makes m_slot valid
-	set_a2bus_device();
 	m_latch0 = m_latch1 = m_latch2 = m_latch3 = 0;
 
 	save_item(NAME(m_latch0));
@@ -126,7 +118,7 @@ void a2bus_sn76489_device::device_reset()
 	m_latch0 = m_latch1 = m_latch2 = m_latch3 = 0;
 }
 
-uint8_t a2bus_sn76489_device::read_c0nx(address_space &space, uint8_t offset)
+uint8_t a2bus_sn76489_device::read_c0nx(uint8_t offset)
 {
 	// SN76489 can't be read, it appears from the schematics this is what happens
 	switch (offset)
@@ -147,29 +139,29 @@ uint8_t a2bus_sn76489_device::read_c0nx(address_space &space, uint8_t offset)
 	return 0xff;
 }
 
-void a2bus_sn76489_device::write_c0nx(address_space &space, uint8_t offset, uint8_t data)
+void a2bus_sn76489_device::write_c0nx(uint8_t offset, uint8_t data)
 {
 	switch (offset)
 	{
 		case 0:
-			m_sn1->write(space, 0, data);
+			m_sn1->write(data);
 			m_latch0 = data;
 			break;
 
 		case 1:
-			m_sn2->write(space, 0, data);
+			m_sn2->write(data);
 			m_latch1 = data;
 			break;
 
 		case 2:
-			m_sn3->write(space, 0, data);
+			m_sn3->write(data);
 			m_latch2 = data;
 			break;
 
 		case 3:
 			if (m_has4thsn)
 			{
-				m_sn4->write(space, 0, data);
+				m_sn4->write(data);
 				m_latch3 = data;
 			}
 			break;

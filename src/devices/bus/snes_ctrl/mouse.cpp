@@ -13,12 +13,12 @@
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type SNES_MOUSE = device_creator<snes_mouse_device>;
+DEFINE_DEVICE_TYPE(SNES_MOUSE, snes_mouse_device, "snes_mouse", "Nintendo SNES / SFC Mouse Controller")
 
 
 static INPUT_PORTS_START( snes_mouse )
 	PORT_START("BUTTONS")
-	PORT_BIT( 0x00ff, IP_ACTIVE_HIGH, IPT_SPECIAL ) // these must be 0!
+	PORT_BIT( 0x00ff, IP_ACTIVE_HIGH, IPT_CUSTOM ) // these must be 0!
 	PORT_BIT( 0x0100, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("Button Right")
 	PORT_BIT( 0x0200, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_NAME("Button Left")
 	PORT_BIT( 0x0c00, IP_ACTIVE_HIGH, IPT_UNUSED ) // mouse speed: 0 = slow, 1 = normal, 2 = fast, 3 = unused
@@ -60,12 +60,14 @@ ioport_constructor snes_mouse_device::device_input_ports() const
 //-------------------------------------------------
 
 snes_mouse_device::snes_mouse_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-					device_t(mconfig, SNES_MOUSE, "Nintendo SNES / SFC Mouse Controller", tag, owner, clock, "snes_mouse", __FILE__),
-					device_snes_control_port_interface(mconfig, *this),
-					m_buttons(*this, "BUTTONS"),
-					m_xaxis(*this, "MOUSE_X"),
-					m_yaxis(*this, "MOUSE_Y"), m_strobe(0), m_idx(0), m_latch(0), m_x(0), m_y(0), m_oldx(0), m_oldy(0), m_deltax(0),
-	m_deltay(0), m_speed(0), m_dirx(0), m_diry(0)
+	device_t(mconfig, SNES_MOUSE, tag, owner, clock),
+	device_snes_control_port_interface(mconfig, *this),
+	m_buttons(*this, "BUTTONS"),
+	m_xaxis(*this, "MOUSE_X"),
+	m_yaxis(*this, "MOUSE_Y"),
+	m_strobe(0), m_idx(0), m_latch(0),
+	m_x(0), m_y(0), m_oldx(0), m_oldy(0),
+	m_deltax(0), m_deltay(0), m_speed(0), m_dirx(0), m_diry(0)
 {
 }
 

@@ -37,46 +37,14 @@
  *  0x3X6: Data port (write only)
  */
 
-#pragma once
+#ifndef MAME_BUS_ISA_GUS_H
+#define MAME_BUS_ISA_GUS_H
 
-#ifndef __ISA_GUS_H__
-#define __ISA_GUS_H__
+#pragma once
 
 #include "isa.h"
 #include "machine/6850acia.h"
 
-#define MCFG_GF1_TXIRQ_HANDLER(_devcb) \
-	devcb = &gf1_device::set_txirq_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_GF1_RXIRQ_HANDLER(_devcb) \
-	devcb = &gf1_device::set_rxirq_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_GF1_WAVE_IRQ_HANDLER(_devcb) \
-	devcb = &gf1_device::set_wave_irq_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_GF1_RAMP_IRQ_HANDLER(_devcb) \
-	devcb = &gf1_device::set_ramp_irq_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_GF1_TIMER1_IRQ_HANDLER(_devcb) \
-	devcb = &gf1_device::set_timer1_irq_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_GF1_TIMER2_IRQ_HANDLER(_devcb) \
-	devcb = &gf1_device::set_timer2_irq_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_GF1_SB_IRQ_HANDLER(_devcb) \
-	devcb = &gf1_device::set_sb_irq_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_GF1_DMA_IRQ_HANDLER(_devcb) \
-	devcb = &gf1_device::set_dma_irq_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_GF1_DRQ1_HANDLER(_devcb) \
-	devcb = &gf1_device::set_drq1_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_GF1_DRQ2_HANDLER(_devcb) \
-	devcb = &gf1_device::set_drq2_handler(*device, DEVCB_##_devcb);
-
-#define MCFG_GF1_NMI_HANDLER(_devcb) \
-	devcb = &gf1_device::set_nmi_handler(*device, DEVCB_##_devcb);
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -86,53 +54,43 @@
 
 #define GF1_CLOCK 9878400
 
-#define IRQ_2XF           0x00
-#define IRQ_MIDI_TRANSMIT 0x01
-#define IRQ_MIDI_RECEIVE  0x02
-#define IRQ_TIMER1        0x04
-#define IRQ_TIMER2        0x08
-#define IRQ_SB            0x10
-#define IRQ_WAVETABLE     0x20
-#define IRQ_VOLUME_RAMP   0x40
-#define IRQ_DRAM_TC_DMA   0x80
-
-struct gus_voice
-{
-	uint8_t voice_ctrl;
-	uint16_t freq_ctrl;
-	uint32_t start_addr;
-	uint32_t end_addr;
-	uint8_t vol_ramp_rate;
-	uint8_t vol_ramp_start;
-	uint8_t vol_ramp_end;
-	uint16_t current_vol;
-	uint32_t current_addr;
-	uint8_t pan_position;
-	uint8_t vol_ramp_ctrl;
-	uint32_t vol_count;
-	bool rollover;
-	int16_t sample;  // current sample data
-};
-
 class gf1_device :
 	public acia6850_device,
 	public device_sound_interface
 {
 public:
+	struct gus_voice
+	{
+		uint8_t voice_ctrl;
+		uint16_t freq_ctrl;
+		uint32_t start_addr;
+		uint32_t end_addr;
+		uint8_t vol_ramp_rate;
+		uint8_t vol_ramp_start;
+		uint8_t vol_ramp_end;
+		uint16_t current_vol;
+		uint32_t current_addr;
+		uint8_t pan_position;
+		uint8_t vol_ramp_ctrl;
+		uint32_t vol_count;
+		bool rollover;
+		int16_t sample;  // current sample data
+	};
+
 	// construction/destruction
 	gf1_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	template<class _Object> static devcb_base &set_txirq_handler(device_t &device, _Object object) { return downcast<gf1_device &>(device).m_txirq_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_rxirq_handler(device_t &device, _Object object) { return downcast<gf1_device &>(device).m_rxirq_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_wave_irq_handler(device_t &device, _Object object) { return downcast<gf1_device &>(device).m_wave_irq_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_ramp_irq_handler(device_t &device, _Object object) { return downcast<gf1_device &>(device).m_ramp_irq_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_timer1_irq_handler(device_t &device, _Object object) { return downcast<gf1_device &>(device).m_timer1_irq_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_timer2_irq_handler(device_t &device, _Object object) { return downcast<gf1_device &>(device).m_timer2_irq_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_sb_irq_handler(device_t &device, _Object object) { return downcast<gf1_device &>(device).m_sb_irq_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_dma_irq_handler(device_t &device, _Object object) { return downcast<gf1_device &>(device).m_dma_irq_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_drq1_handler(device_t &device, _Object object) { return downcast<gf1_device &>(device).m_drq1_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_drq2_handler(device_t &device, _Object object) { return downcast<gf1_device &>(device).m_drq2_handler.set_callback(object); }
-	template<class _Object> static devcb_base &set_nmi_handler(device_t &device, _Object object) { return downcast<gf1_device &>(device).m_nmi_handler.set_callback(object); }
+	auto txirq_handler() { return m_txirq_handler.bind(); }
+	auto rxirq_handler() { return m_rxirq_handler.bind(); }
+	auto wave_irq_handler() { return m_wave_irq_handler.bind(); }
+	auto ramp_irq_handler() { return m_ramp_irq_handler.bind(); }
+	auto timer1_irq_handler() { return m_timer1_irq_handler.bind(); }
+	auto timer2_irq_handler() { return m_timer2_irq_handler.bind(); }
+	auto sb_irq_handler() { return m_sb_irq_handler.bind(); }
+	auto dma_irq_handler() { return m_dma_irq_handler.bind(); }
+	auto drq1_handler() { return m_drq1_handler.bind(); }
+	auto drq2_handler() { return m_drq2_handler.bind(); }
+	auto nmi_handler() { return m_nmi_handler.bind(); }
 
 	// current IRQ/DMA channel getters
 	uint8_t gf1_irq() { if(m_gf1_irq != 0) return m_gf1_irq; else return m_midi_irq; }  // workaround for win95 loading dumb values
@@ -167,6 +125,7 @@ public:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples) override;
 
+protected:
 	// voice-specific registers
 	gus_voice m_voice[32];
 
@@ -192,11 +151,11 @@ public:
 
 	std::vector<uint8_t> m_wave_ram;
 
-protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_stop() override;
+	virtual void device_clock_changed() override;
 
 	virtual void update_irq() override;
 
@@ -280,6 +239,23 @@ public:
 	DECLARE_WRITE8_MEMBER(adlib_w);
 	DECLARE_READ8_MEMBER(joy_r);
 	DECLARE_WRITE8_MEMBER(joy_w);
+
+	// DMA overrides
+	virtual uint8_t dack_r(int line) override;
+	virtual void dack_w(int line,uint8_t data) override;
+	virtual void eop_w(int state) override;
+
+protected:
+	// device-level overrides
+	virtual void device_start() override;
+	virtual void device_reset() override;
+	virtual void device_stop() override;
+
+	// optional information overrides
+	virtual void device_add_mconfig(machine_config &config) override;
+	virtual ioport_constructor device_input_ports() const override;
+
+private:
 	DECLARE_WRITE_LINE_MEMBER(midi_txirq);
 	DECLARE_WRITE_LINE_MEMBER(midi_rxirq);
 	DECLARE_WRITE_LINE_MEMBER(wavetable_irq);
@@ -293,22 +269,6 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(nmi_w);
 	DECLARE_WRITE_LINE_MEMBER(write_acia_clock);
 
-	// DMA overrides
-	virtual uint8_t dack_r(int line) override;
-	virtual void dack_w(int line,uint8_t data) override;
-	virtual void eop_w(int state) override;
-
-	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	virtual ioport_constructor device_input_ports() const override;
-
-protected:
-	// device-level overrides
-	virtual void device_start() override;
-	virtual void device_reset() override;
-	virtual void device_stop() override;
-
-private:
 	required_device<gf1_device> m_gf1;
 
 	uint8_t m_irq_status;
@@ -316,7 +276,7 @@ private:
 };
 
 // device type definition
-extern const device_type GGF1;
-extern const device_type ISA16_GUS;
+DECLARE_DEVICE_TYPE(GF1,       gf1_device)
+DECLARE_DEVICE_TYPE(ISA16_GUS, isa16_gus_device)
 
-#endif  /* __ISA_GUS_H__ */
+#endif // MAME_BUS_ISA_GUS_H

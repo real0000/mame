@@ -47,10 +47,10 @@ Notes:
 //  DEVICE DEFINITIONS
 //**************************************************************************
 
-const device_type SMS_SPORTS_PAD = device_creator<sms_sports_pad_device>;
+DEFINE_DEVICE_TYPE(SMS_SPORTS_PAD, sms_sports_pad_device, "sms_sports_pad", "Sega SMS Sports Pad (US)")
 
 // time interval not verified
-#define SPORTS_PAD_INTERVAL attotime::from_hz(XTAL_10_738635MHz/3/512)
+#define SPORTS_PAD_INTERVAL attotime::from_hz(XTAL(10'738'635)/3/512)
 
 
 void sms_sports_pad_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
@@ -74,7 +74,7 @@ void sms_sports_pad_device::device_timer(emu_timer &timer, device_timer_id id, i
 
 		break;
 	default:
-		assert_always(false, "Unknown id in sms_sports_pad_device::device_timer");
+		throw emu_fatalerror("sms_sports_pad_device(%s): Unknown timer ID", tag());
 	}
 }
 
@@ -120,17 +120,17 @@ CUSTOM_INPUT_MEMBER( sms_sports_pad_device::rldu_pins_r )
 
 static INPUT_PORTS_START( sms_sports_pad )
 	PORT_START("SPORTS_IN")
-	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, sms_sports_pad_device, rldu_pins_r, nullptr) // R,L,D,U
+	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_CUSTOM_MEMBER(sms_sports_pad_device, rldu_pins_r) // R,L,D,U
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNUSED ) // Vcc
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON1 ) // TL (Button 1)
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER(DEVICE_SELF, sms_sports_pad_device, th_pin_r) // TH
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(sms_sports_pad_device, th_pin_r) // TH
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_BUTTON2 ) // TR (Button 2)
 
 	PORT_START("SPORTS_OUT")
 	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_UNUSED ) // Directional pins
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNUSED ) // Vcc
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNUSED ) // TL (Button 1)
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER(DEVICE_SELF, sms_sports_pad_device, th_pin_w) // TH
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_MEMBER(sms_sports_pad_device, th_pin_w) // TH
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNUSED ) // TR (Button 2)
 
 	PORT_START("SPORTS_X")    /* Sports Pad X axis */
@@ -161,7 +161,7 @@ ioport_constructor sms_sports_pad_device::device_input_ports() const
 //-------------------------------------------------
 
 sms_sports_pad_device::sms_sports_pad_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	device_t(mconfig, SMS_SPORTS_PAD, "Sega SMS Sports Pad US", tag, owner, clock, "sms_sports_pad", __FILE__),
+	device_t(mconfig, SMS_SPORTS_PAD, tag, owner, clock),
 	device_sms_control_port_interface(mconfig, *this),
 	m_sports_in(*this, "SPORTS_IN"),
 	m_sports_out(*this, "SPORTS_OUT"),
@@ -171,7 +171,8 @@ sms_sports_pad_device::sms_sports_pad_device(const machine_config &mconfig, cons
 	m_th_pin_state(0),
 	m_x_axis_reset_value(0x80), // value 0x80 helps when start playing paddle games.
 	m_y_axis_reset_value(0x80),
-	m_interval(SPORTS_PAD_INTERVAL), m_sportspad_timer(nullptr)
+	m_interval(SPORTS_PAD_INTERVAL),
+	m_sportspad_timer(nullptr)
 {
 }
 

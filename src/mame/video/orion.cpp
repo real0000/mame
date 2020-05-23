@@ -13,23 +13,18 @@
 #include "emu.h"
 #include "includes/orion.h"
 
-VIDEO_START_MEMBER(orion_state,orion128)
-{
-}
-
 uint32_t orion_state::screen_update_orion128(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	uint8_t code1,code2,code3,code4,color,val;
-	int y, x,b;
 	int orionproshift = (m_orion128_video_mode & 0x10) ? 1 : 0;
 	int part1addr = (3-((m_orion128_video_page & 3) | orionproshift)) * 0x4000;
 	int part2addr = part1addr + 0x10000;
 	int video_mode = m_orion128_video_mode & m_video_mode_mask;
 	uint8_t *ram = m_ram->pointer();
 
-	for (x = 0; x < m_orion128_video_width; x++)
+	for (int x = 0; x < m_orion128_video_width; x++)
 	{
-		for (y = 0; y < 256; y++)
+		for (int y = 0; y < 256; y++)
 		{
 			code1 = ram[part1addr + y + x*256];
 			code2 = ram[part2addr + y + x*256];
@@ -39,7 +34,7 @@ uint32_t orion_state::screen_update_orion128(screen_device &screen, bitmap_ind16
 				code2 = m_orionpro_pseudo_color;
 			}
 			color = 0;
-			for (b = 7; b >= 0; b--)
+			for (int b = 7; b >= 0; b--)
 			{
 				switch(m_orion128_video_mode & m_video_mode_mask) {
 					case 0 : color = ((code1 >> b) & 0x01) ? 10 : 0; break;
@@ -87,28 +82,28 @@ uint32_t orion_state::screen_update_orion128(screen_device &screen, bitmap_ind16
 	return 0;
 }
 
-static const rgb_t orion128_palette[18] = {
-	rgb_t(0x00, 0x00, 0x00), // 0
-	rgb_t(0x00, 0x00, 0xc0), // 1
-	rgb_t(0x00, 0xc0, 0x00), // 2
-	rgb_t(0x00, 0xc0, 0xc0), // 3
-	rgb_t(0xc0, 0x00, 0x00), // 4
-	rgb_t(0xc0, 0x00, 0xc0), // 5
-	rgb_t(0xc0, 0xc0, 0x00), // 6
-	rgb_t(0xc0, 0xc0, 0xc0), // 7
-	rgb_t(0x80, 0x80, 0x80), // 8
-	rgb_t(0x00, 0x00, 0xff), // 9
-	rgb_t(0x00, 0xff, 0x00), // A
-	rgb_t(0x00, 0xff, 0xff), // B
-	rgb_t(0xff, 0x00, 0x00), // C
-	rgb_t(0xff, 0x00, 0xff), // D
-	rgb_t(0xff, 0xff, 0x00), // E
-	rgb_t(0xff, 0xff, 0xff), // F
-	rgb_t(0xc8, 0xb4, 0x28), // 10
-	rgb_t(0x32, 0xfa, 0xfa)  // 11
+static constexpr rgb_t orion128_pens[18] = {
+	{ 0x00, 0x00, 0x00 }, // 0
+	{ 0x00, 0x00, 0xc0 }, // 1
+	{ 0x00, 0xc0, 0x00 }, // 2
+	{ 0x00, 0xc0, 0xc0 }, // 3
+	{ 0xc0, 0x00, 0x00 }, // 4
+	{ 0xc0, 0x00, 0xc0 }, // 5
+	{ 0xc0, 0xc0, 0x00 }, // 6
+	{ 0xc0, 0xc0, 0xc0 }, // 7
+	{ 0x80, 0x80, 0x80 }, // 8
+	{ 0x00, 0x00, 0xff }, // 9
+	{ 0x00, 0xff, 0x00 }, // A
+	{ 0x00, 0xff, 0xff }, // B
+	{ 0xff, 0x00, 0x00 }, // C
+	{ 0xff, 0x00, 0xff }, // D
+	{ 0xff, 0xff, 0x00 }, // E
+	{ 0xff, 0xff, 0xff }, // F
+	{ 0xc8, 0xb4, 0x28 }, // 10
+	{ 0x32, 0xfa, 0xfa }  // 11
 };
 
-PALETTE_INIT_MEMBER(orion_state,orion128 )
+void orion_state::orion128_palette(palette_device &palette) const
 {
-	palette.set_pen_colors(0, orion128_palette, ARRAY_LENGTH(orion128_palette));
+	palette.set_pen_colors(0, orion128_pens);
 }

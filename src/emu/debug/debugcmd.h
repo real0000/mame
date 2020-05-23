@@ -16,8 +16,6 @@
 #include "debugcpu.h"
 #include "debugcon.h"
 
-class parsed_expression;
-class symbol_table;
 
 class debugger_commands
 {
@@ -39,8 +37,10 @@ public:
 private:
 	struct global_entry
 	{
-		void *      base;
-		u32         size;
+		global_entry() { }
+
+		void *      base = nullptr;
+		u32         size = 0;
 	};
 
 
@@ -81,12 +81,12 @@ private:
 	u64 cheat_byte_swap(const cheat_system *cheatsys, u64 value);
 	u64 cheat_read_extended(const cheat_system *cheatsys, address_space &space, offs_t address);
 
-	u64 execute_min(symbol_table &table, void *ref, int params, const u64 *param);
-	u64 execute_max(symbol_table &table, void *ref, int params, const u64 *param);
-	u64 execute_if(symbol_table &table, void *ref, int params, const u64 *param);
+	u64 execute_min(int params, const u64 *param);
+	u64 execute_max(int params, const u64 *param);
+	u64 execute_if(int params, const u64 *param);
 
-	u64 global_get(symbol_table &table, void *ref);
-	void global_set(symbol_table &table, void *ref, u64 value);
+	u64 global_get(global_entry *global);
+	void global_set(global_entry *global, u64 value);
 
 	int mini_printf(char *buffer, const char *format, int params, u64 *param);
 
@@ -106,11 +106,16 @@ private:
 	void execute_go(int ref, const std::vector<std::string> &params);
 	void execute_go_vblank(int ref, const std::vector<std::string> &params);
 	void execute_go_interrupt(int ref, const std::vector<std::string> &params);
+	void execute_go_exception(int ref, const std::vector<std::string> &params);
 	void execute_go_time(int ref, const std::vector<std::string> &params);
+	void execute_go_privilege(int ref, const std::vector<std::string> &params);
 	void execute_focus(int ref, const std::vector<std::string> &params);
 	void execute_ignore(int ref, const std::vector<std::string> &params);
 	void execute_observe(int ref, const std::vector<std::string> &params);
+	void execute_suspend(int ref, const std::vector<std::string> &params);
+	void execute_resume(int ref, const std::vector<std::string> &params);
 	void execute_next(int ref, const std::vector<std::string> &params);
+	void execute_cpulist(int ref, const std::vector<std::string> &params);
 	void execute_comment_add(int ref, const std::vector<std::string> &params);
 	void execute_comment_del(int ref, const std::vector<std::string> &params);
 	void execute_comment_save(int ref, const std::vector<std::string> &params);
@@ -131,6 +136,7 @@ private:
 	void execute_hotspot(int ref, const std::vector<std::string> &params);
 	void execute_statesave(int ref, const std::vector<std::string> &params);
 	void execute_stateload(int ref, const std::vector<std::string> &params);
+	void execute_rewind(int ref, const std::vector<std::string> &params);
 	void execute_save(int ref, const std::vector<std::string> &params);
 	void execute_load(int ref, const std::vector<std::string> &params);
 	void execute_dump(int ref, const std::vector<std::string> &params);
@@ -164,7 +170,7 @@ private:
 	debugger_cpu&       m_cpu;
 	debugger_console&   m_console;
 
-	global_entry *m_global_array;
+	std::unique_ptr<global_entry []> m_global_array;
 	cheat_system m_cheat;
 
 	static const size_t MAX_GLOBALS;

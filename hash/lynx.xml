@@ -1,20 +1,18 @@
 <?xml version="1.0"?>
 <!DOCTYPE softwarelist SYSTEM "softwarelist.dtd">
 <!--
+license:CC0
+
 Undumped games:
 * Hyperdrome (Telegames 1999)
 
 Undumped Self-Published Titles:
-* Alpine Games (R. & J. Graf)
 * CGE 5th (Songbird Productions, CF30B2)
 * Championship Rally (Songbird Productions, CF2006)
-* Crystal Mines II - Buried Treasure (Songbird Productions, CF2008)
 * Cyber Virus (Songbird Productions, CF2007)
 * Cyber Virus - CinciClassic Edition (Songbird Productions, CF20B1)
 * Lynx Othello (H. Dodgson)
-* MegaPak 1 (Songbird Productions, CF2010)  - too new (2008)
 * PokerMania (MW Software)
-* Ponx (Songbird Productions, CF2002)
 * Remnant - Planar Wars 3D (Songbird Productions, CF2005)
 * SFX - The Ultimate Audio Tool (Songbird Productions, CF2001)
 * S.I.M.I.S. (B. Schick & M. Domin)
@@ -245,6 +243,18 @@ Known undumped prototypes:
 		<part name="cart" interface="lynx_cart">
 			<dataarea name="rom" size="131072">
 				<rom name="crystal mines ii (euro, usa).bin" size="131072" crc="aec474c8" sha1="3364bde38508c5c4fed5575295cc80c6f72edebe" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="cmines2bt" cloneof="cmines2">
+		<description>Crystal Mines II - Buried Treasure (Euro, USA)</description>
+		<year>2003</year>
+		<publisher>Songbird Productions</publisher>
+		<info name="serial" value="CF2008" />
+		<part name="cart" interface="lynx_cart">
+			<dataarea name="rom" size="262144">
+				<rom name="crystal mines ii - buried treasure.bin" size="262144" crc="122ec861" sha1="c0977ce9f22b0182b332af96290a36f0e7b8fbe6" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -591,7 +601,19 @@ Known undumped prototypes:
 		<publisher>Digital Image</publisher>
 		<part name="cart" interface="lynx_cart">
 			<dataarea name="rom" size="262144">
-				<rom name="marlboro go! (euro) (prototype).bin" size="262144" crc="c3fa0d4d" sha1="26b18b706359b093d0b1bbca4dba9cd2d73e0372" offset="000000" />
+				<rom name="marlboro go (euro) (prototype).bin" size="262144" crc="c3fa0d4d" sha1="26b18b706359b093d0b1bbca4dba9cd2d73e0372" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="megapak">
+		<description>MegaPak 1 (Euro, USA)</description>
+		<year>2007</year>
+		<publisher>Songbird Productions</publisher>
+		<info name="serial" value="CF2010" />
+		<part name="cart" interface="lynx_cart">
+			<dataarea name="rom" size="262144">
+				<rom name="Mega Pak 1.bin" size="262144" crc="ca7cf30b" sha1="c961b618021e37cf71104f4f7a04f5ea3e0ccb06" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -689,6 +711,18 @@ Known undumped prototypes:
 		<part name="cart" interface="lynx_cart">
 			<dataarea name="rom" size="524288">
 				<rom name="pit fighter - the ultimate competition (euro, usa).bin" size="524288" crc="2393135f" sha1="30f8c7acf41a988578768b251e88b636462752cb" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="ponx">
+		<description>Ponx</description>
+		<year>1999</year>
+		<publisher>Songbird Productions</publisher>
+		<info name="serial" value="CF2002" />
+		<part name="cart" interface="lynx_cart">
+			<dataarea name="rom" size="262144">
+				<rom name="ponx.bin" size="262144" crc="341c88e2" sha1="3254f5c3d347d444dc1bf4cdb07523cc0241d979" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1028,6 +1062,28 @@ Known undumped prototypes:
 		</part>
 	</software>
 
+	<software name="yastuna1">
+		<description>Yastuna Vol.1 - The Alchemy of Cubes</description>
+		<year>2008</year>
+		<publisher>Fadest</publisher>
+		<part name="cart" interface="lynx_cart">
+			<dataarea name="rom" size="262208">
+				<rom name="yastuna1.lnx" size="262208" crc="a87ed55e" sha1="2c311788def1e4ec7d5adc64e2fbb44c851861e8" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="yastuna2">
+		<description>Yastuna Vol.2 - The Space Incident</description>
+		<year>2008</year>
+		<publisher>Fadest</publisher>
+		<part name="cart" interface="lynx_cart">
+			<dataarea name="rom" size="262208">
+				<rom name="yastuna2.lnx" size="262208" crc="658929e1" sha1="4be4ba20a495c5b865e2512d0194d31185b016c5" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="zarlor">
 		<description>Zarlor Mercenary (Euro, USA)</description>
 		<year>1990</year>
@@ -1040,13 +1096,14 @@ Known undumped prototypes:
 		</part>
 	</software>
 
-	<software name="dragnet">
-		<description>Dragnet Sound Demo</description>
-		<year>1995</year>
-		<publisher>&lt;unknown&gt;</publisher>
+	<software name="alpineg" supported="no"> <!-- Needs granularity set as 0x400 instead as 0x800 like the driver expects for 512k cartridges. Also will need eeprom support -->
+		<description>Alpine Games</description>
+		<year>2004</year>
+		<publisher>&lt;homebrew&gt;</publisher>
+		<info name="developer" value="R. &amp; J. Graf" />
 		<part name="cart" interface="lynx_cart">
-			<dataarea name="rom" size="262144">
-				<rom name="dragnet (1995).bin" size="262144" crc="5598a4c9" sha1="fc802b8b6a62312e6f68065881d0e4f23a967451" offset="000000" />
+			<dataarea name="rom" size="524288">
+				<rom name="AlpineGames.bin" size="524288" crc="95a1ea09" sha1="fb71ad96f0730f88acd7d51eaa761e475a015d6c" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1064,6 +1121,17 @@ Known undumped prototypes:
 		</part>
 	</software>
 
+	<software name="dragnet">
+		<description>Dragnet Sound Demo</description>
+		<year>1995</year>
+		<publisher>&lt;unknown&gt;</publisher>
+		<part name="cart" interface="lynx_cart">
+			<dataarea name="rom" size="262144">
+				<rom name="dragnet (1995).bin" size="262144" crc="5598a4c9" sha1="fc802b8b6a62312e6f68065881d0e4f23a967451" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="lynx2tst">
 		<description>Lynx II Production Test Program V0.02 (Prototype)</description>
 		<year>19??</year>
@@ -1071,6 +1139,17 @@ Known undumped prototypes:
 		<part name="cart" interface="lynx_cart">
 			<dataarea name="rom" size="262144">
 				<rom name="lynx ii production test program v0.02 (usa) (prototype).bin" size="262144" crc="28ada019" sha1="c0d35fcfac44437cf3d6d56e6f8cea0dcb12a296" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="weltensc">
+		<description>Weltenschlächter</description>
+		<year>2016</year>
+		<publisher>Luchs Soft</publisher>
+		<part name="cart" interface="lynx_cart">
+			<dataarea name="rom" size="524288">
+				<rom name="weltenschlacht.lyx" size="524288" crc="a0c59271" sha1="dbba003684efe249b6f17a070b3b008b09c67d3f" offset="000000" />
 			</dataarea>
 		</part>
 	</software>

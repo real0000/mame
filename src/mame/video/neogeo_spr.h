@@ -1,7 +1,10 @@
 // license:BSD-3-Clause
 // copyright-holders:Bryan McPhail,Ernesto Corvi,Andrew Prime,Zsolt Vasvari
 // thanks-to:Fuzz
-#define VERBOSE     (0)
+#ifndef MAME_VIDEO_NEOGEO_SPR_H
+#define MAME_VIDEO_NEOGEO_SPR_H
+
+#pragma once
 
 // todo, move these back, currently the sprite code needs some of the values tho
 #define NEOGEO_MASTER_CLOCK                     (24000000)
@@ -18,7 +21,7 @@
 #define NEOGEO_VSSTART                          (0x100)
 
 // todo, sort out what needs to be public and make the rest private/protected
-class neosprite_base_device : public device_t
+class neosprite_base_device : public device_t, public device_video_interface
 {
 public:
 	virtual void optimize_sprite_data();
@@ -45,7 +48,6 @@ public:
 	void start_sprite_line_timer();
 	virtual void set_sprite_region(uint8_t* region_sprites, uint32_t region_sprites_size);
 	void set_fixed_regions(uint8_t* fix_cart, uint32_t fix_cart_size, memory_region* fix_bios);
-	void set_screen(screen_device* screen);
 	void set_pens(const pen_t* pens);
 
 	std::unique_ptr<uint16_t[]>     m_videoram;
@@ -54,8 +56,6 @@ public:
 	uint16_t     m_vram_offset;
 	uint16_t     m_vram_read_buffer;
 	uint16_t     m_vram_modulo;
-
-	const uint8_t *m_region_zoomy;
 
 	uint32_t     m_sprite_gfx_address_mask;
 
@@ -73,19 +73,15 @@ public:
 	TIMER_CALLBACK_MEMBER(auto_animation_timer_callback);
 	TIMER_CALLBACK_MEMBER(sprite_line_timer_callback);
 
-
 	int m_bppshift; // 4 for 4bpp gfx (NeoGeo) 8 for 8bpp gfx (Midas)
 
 protected:
 	neosprite_base_device(
 			const machine_config &mconfig,
 			device_type type,
-			const char *name,
 			const char *tag,
 			device_t *owner,
-			uint32_t clock,
-			const char *shortname,
-			const char *source);
+			uint32_t clock);
 
 	virtual void device_start() override;
 	virtual void device_reset() override;
@@ -93,11 +89,10 @@ protected:
 	uint8_t* m_region_sprites; uint32_t m_region_sprites_size;
 	uint8_t* m_region_fixed; uint32_t m_region_fixed_size;
 	memory_region* m_region_fixedbios;
-	screen_device* m_screen;
 	const pen_t   *m_pens;
-};
 
-//extern const device_type NEOGEO_SPRITE_BASE;
+	required_region_ptr<uint8_t> m_region_zoomy;
+};
 
 
 class neosprite_regular_device : public neosprite_base_device
@@ -109,7 +104,7 @@ public:
 
 };
 
-extern const device_type NEOGEO_SPRITE_REGULAR;
+DECLARE_DEVICE_TYPE(NEOGEO_SPRITE_REGULAR, neosprite_regular_device)
 
 
 class neosprite_optimized_device : public neosprite_base_device
@@ -126,10 +121,7 @@ private:
 	uint32_t optimize_helper(std::vector<uint8_t> &spritegfx, uint8_t* region_sprites, uint32_t region_sprites_size);
 };
 
-extern const device_type NEOGEO_SPRITE_OPTIMZIED;
-
-
-
+DECLARE_DEVICE_TYPE(NEOGEO_SPRITE_OPTIMZIED, neosprite_optimized_device)
 
 
 class neosprite_midas_device : public neosprite_base_device
@@ -149,4 +141,6 @@ public:
 
 };
 
-extern const device_type NEOGEO_SPRITE_MIDAS;
+DECLARE_DEVICE_TYPE(NEOGEO_SPRITE_MIDAS, neosprite_midas_device)
+
+#endif // MAME_VIDEO_NEOGEO_SPR_H
