@@ -296,7 +296,7 @@ void vr_machine::uninit()
 
     for( unsigned int i=0 ; i<m_machine_fx.size() ; ++i )
     {
-        auto &l_UniformVec = m_machine_fx[i]->m_UniformMap;
+        //auto &l_UniformVec = m_machine_fx[i]->m_UniformMap;
         delete m_machine_fx[i];
     }
     m_machine_fx.clear();

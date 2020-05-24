@@ -97,7 +97,7 @@ drcbe_interface::drcbe_interface(drcuml_state &drcuml, drc_cache &cache, device_
 
 	// find the spaces and fetch memory accessors
 	device_memory_interface *memory;
-	if (device.interface_check(memory))
+	if (device.interface(memory))
 	{
 		int const count = memory->max_space_count();
 		m_accessors = reinterpret_cast<data_accessors *>(cache.alloc_near(sizeof(*m_accessors) * count));

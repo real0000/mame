@@ -40,7 +40,7 @@ includedirs {
 	ext_includedir("openvr"),
 	ext_includedir("glm"),
 	ext_includedir("physx"),
-	"$(ADSK_FBX_SDK_2017)/include",
+	"$(ADSK_FBX_SDK)/include",
 	MAME_DIR .. "3rdparty/asio/include",
 }
 

@@ -39,14 +39,14 @@ private:
 //-------------------------------------------------
 
 machine_config::machine_config(const game_driver &gamedrv, emu_options &options)
-	: m_gamedrv(gamedrv)
+	: m_vr_machine_name("")
+	, m_gamedrv(gamedrv)
 	, m_options(options)
 	, m_root_device()
 	, m_default_layouts([] (char const *a, char const *b) { return 0 > std::strcmp(a, b); })
 	, m_current_device(nullptr)
 	, m_maximum_quantums([] (char const *a, char const *b) { return 0 > std::strcmp(a, b); })
 	, m_perfect_quantum_device(nullptr, "")
-	, m_vr_machine_name("")
 {
 	// add the root device
 	device_add("root", gamedrv.type, 0);

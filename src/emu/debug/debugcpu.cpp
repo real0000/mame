@@ -644,7 +644,7 @@ u64 debugger_cpu::expression_read_memory(const char *name, expression_space spac
 
 			if (name != nullptr)
 				device = expression_get_device(name);
-			if (device == nullptr || !device->interface_check(memory))
+			if (device == nullptr || !device->interface(memory))
 			{
 				device = get_visible_cpu();
 				memory = &device->memory();
@@ -668,7 +668,7 @@ u64 debugger_cpu::expression_read_memory(const char *name, expression_space spac
 
 			if (name != nullptr)
 				device = expression_get_device(name);
-			if (device == nullptr || !device->interface_check(memory))
+			if (device == nullptr || !device->interface(memory))
 			{
 				device = get_visible_cpu();
 				memory = &device->memory();
@@ -689,7 +689,7 @@ u64 debugger_cpu::expression_read_memory(const char *name, expression_space spac
 
 			if (name != nullptr)
 				device = expression_get_device(name);
-			if (device == nullptr || !device->interface_check(memory))
+			if (device == nullptr || !device->interface(memory))
 			{
 				device = get_visible_cpu();
 				memory = &device->memory();
@@ -849,7 +849,7 @@ void debugger_cpu::expression_write_memory(const char *name, expression_space sp
 		case EXPSPACE_SPACE3_LOGICAL:
 			if (name != nullptr)
 				device = expression_get_device(name);
-			if (device == nullptr || !device->interface_check(memory))
+			if (device == nullptr || !device->interface(memory))
 			{
 				device = get_visible_cpu();
 				memory = &device->memory();
@@ -868,7 +868,7 @@ void debugger_cpu::expression_write_memory(const char *name, expression_space sp
 		case EXPSPACE_SPACE3_PHYSICAL:
 			if (name != nullptr)
 				device = expression_get_device(name);
-			if (device == nullptr || !device->interface_check(memory))
+			if (device == nullptr || !device->interface(memory))
 			{
 				device = get_visible_cpu();
 				memory = &device->memory();
@@ -884,7 +884,7 @@ void debugger_cpu::expression_write_memory(const char *name, expression_space sp
 		case EXPSPACE_RAMWRITE: {
 			if (name != nullptr)
 				device = expression_get_device(name);
-			if (device == nullptr || !device->interface_check(memory))
+			if (device == nullptr || !device->interface(memory))
 			{
 				device = get_visible_cpu();
 				memory = &device->memory();
@@ -1059,7 +1059,7 @@ expression_error::error_code debugger_cpu::expression_validate(const char *name,
 		}
 		if (!device)
 			device = get_visible_cpu();
-		if (!device->interface_check(memory) || !memory->has_space(AS_PROGRAM + (space - EXPSPACE_PROGRAM_LOGICAL)))
+		if (!device->interface(memory) || !memory->has_space(AS_PROGRAM + (space - EXPSPACE_PROGRAM_LOGICAL)))
 			return expression_error::NO_SUCH_MEMORY_SPACE;
 		break;
 
@@ -1075,7 +1075,7 @@ expression_error::error_code debugger_cpu::expression_validate(const char *name,
 		}
 		if (!device)
 			device = get_visible_cpu();
-		if (!device->interface_check(memory) || !memory->has_space(AS_PROGRAM + (space - EXPSPACE_PROGRAM_PHYSICAL)))
+		if (!device->interface(memory) || !memory->has_space(AS_PROGRAM + (space - EXPSPACE_PROGRAM_PHYSICAL)))
 			return expression_error::NO_SUCH_MEMORY_SPACE;
 		break;
 
@@ -1083,12 +1083,12 @@ expression_error::error_code debugger_cpu::expression_validate(const char *name,
 		if (name)
 		{
 			device = expression_get_device(name);
-			if (device == nullptr || !device->interface_check(memory))
+			if (device == nullptr || !device->interface(memory))
 				return expression_error::INVALID_MEMORY_NAME;
 		}
 		if (!device)
 			device = get_visible_cpu();
-		if (!device->interface_check(memory) || !memory->has_space(AS_PROGRAM))
+		if (!device->interface(memory) || !memory->has_space(AS_PROGRAM))
 			return expression_error::NO_SUCH_MEMORY_SPACE;
 		break;
 
@@ -1304,10 +1304,10 @@ device_debug::device_debug(device_t &device)
 	memset(m_pc_history, 0, sizeof(m_pc_history));
 
 	// find out which interfaces we have to work with
-	device.interface_check(m_exec);
-	device.interface_check(m_memory);
-	device.interface_check(m_state);
-	device.interface_check(m_disasm);
+	device.interface(m_exec);
+	device.interface(m_memory);
+	device.interface(m_state);
+	device.interface(m_disasm);
 
 	// set up notifiers and clear the passthrough handlers
 	if (m_memory) {

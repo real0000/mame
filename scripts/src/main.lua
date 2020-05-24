@@ -107,7 +107,7 @@ end
 			libdirs {
 				MAME_DIR .. "3rdparty/openvr/lib/win64",
 				MAME_DIR .. "3rdparty/physx/PhysXSDK/Lib/vc14win64",
-				"$(ADSK_FBX_SDK_2017)lib/vs2015/x64/release",
+				"$(ADSK_FBX_SDK)lib/vs2015/x64/release",
 			}
 			links {
 				"openvr_api",
@@ -128,7 +128,7 @@ end
 			libdirs {
 				MAME_DIR .. "3rdparty/openvr/lib/win64",
 				MAME_DIR .. "3rdparty/physx/PhysXSDK/Lib/vc14win64",
-				"$(ADSK_FBX_SDK_2017)lib/vs2015/x64/debug",
+				"$(ADSK_FBX_SDK)lib/vs2015/x64/debug",
 			}
 			links {
 				"openvr_api",
@@ -149,7 +149,7 @@ end
 			libdirs {
 				MAME_DIR .. "3rdparty/openvr/lib/win32",
 				MAME_DIR .. "3rdparty/physx/PhysXSDK/Lib/vc14win32",
-				"$(ADSK_FBX_SDK_2017)lib/vs2015/x86/release",
+				"$(ADSK_FBX_SDK)lib/vs2015/x86/release",
 			}
 			links {
 				"openvr_api",
@@ -170,7 +170,7 @@ end
 			libdirs {
 				MAME_DIR .. "3rdparty/openvr/lib/win32",
 				MAME_DIR .. "3rdparty/physx/PhysXSDK/Lib/vc14win32",
-				"$(ADSK_FBX_SDK_2017)lib/vs2015/x86/debug",
+				"$(ADSK_FBX_SDK)lib/vs2015/x86/debug",
 			}
 			links {
 				"openvr_api",

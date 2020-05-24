@@ -855,8 +855,7 @@ int shaders::create_resources()
 		vector_effect,
 		chroma_effect
 	};
-	const unsigned int c_NumEffect = sizeof(effects) / sizeof(effect);
-
+	
 	for (int i = 0; i < effects.size(); i++)
 	{
 		effects[i]->add_uniform("SourceDims", uniform::UT_VEC2, uniform::CU_SOURCE_DIMS);

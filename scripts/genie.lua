@@ -1329,6 +1329,7 @@ end
 		}
 
 		buildoptions {
+			"/source-charset:utf-8", -- warning C4819
 			"/wd4003", -- warning C4003: not enough actual parameters for macro 'xxx'
 			"/wd4005", -- warning C4005: The macro identifier is defined twice. The compiler uses the second macro definition
 			"/wd4018", -- warning C4018: 'x' : signed/unsigned mismatch
@@ -1351,10 +1352,13 @@ end
 			"/wd4457", -- warning C4457: declaration of 'xxx' hides function parameter
 			"/wd4458", -- warning C4458: declaration of 'xxx' hides class member
 			"/wd4459", -- warning C4459: declaration of 'xxx' hides global declaration
+			"/wd4566", -- warning C4566: 
 			"/wd4702", -- warning C4702: unreachable code
 			"/wd4706", -- warning C4706: assignment within conditional expression
 			"/wd4804", -- warning C4804: '>>': unsafe use of type 'bool' in operation
 			"/wd4805", -- warning C4805: 'x' : unsafe mix of type 'xxx' and type 'xxx' in operation
+			"/wd4828", -- warning C4828: 
+			"/wd4834", -- warning C4834: 
 			"/wd4996", -- warning C4996: 'function': was declared deprecated
 		}
 

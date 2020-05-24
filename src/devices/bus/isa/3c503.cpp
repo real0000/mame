@@ -24,20 +24,12 @@ el2_3c503_device::el2_3c503_device(const machine_config& mconfig, const char* ta
 }
 
 void el2_3c503_device::device_start() {
-	char mac[7];
 	uint32_t num = machine().rand();
 	memset(m_prom, 0x57, 16);
-	//sprintf(mac, "\x02\x60\x8c%c%c%c", (num >> 16) & 0xff, (num >> 8) & 0xff, num & 0xff); c4474, compiler bug ?
-	mac[0] = 0x02;
-	mac[1] = 0x60;
-	mac[2] = -116;//0x8c;
-	mac[3] = (num >> 16) & 0xff;
-	mac[4] = (num >> 8) & 0xff;
-	mac[5] = num & 0xff;
-	mac[6] = 0;
+	unsigned char mac[7] = {0x02, 0x60, 0x8c, (num >> 16) & 0xff, (num >> 8) & 0xff, num & 0xff};
 	memcpy(m_prom, mac, 6);
 	memset(m_rom, 0, 8*1024); // empty
-	m_dp8390->set_mac(mac);
+	m_dp8390->set_mac((const char*)mac);
 	set_isa_device();
 	m_isa->install_device(0x0300, 0x030f, read8_delegate(*this, FUNC(el2_3c503_device::el2_3c503_loport_r)), write8_delegate(*this, FUNC(el2_3c503_device::el2_3c503_loport_w)));
 	m_isa->install_device(0x0700, 0x070f, read8_delegate(*this, FUNC(el2_3c503_device::el2_3c503_hiport_r)), write8_delegate(*this, FUNC(el2_3c503_device::el2_3c503_hiport_w)));

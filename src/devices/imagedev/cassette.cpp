@@ -265,7 +265,7 @@ image_init_result cassette_image_device::internal_load(bool is_create)
 {
 	cassette_image::error err;
 	device_image_interface *image = nullptr;
-	interface_check(image);
+	interface(image);
 
 	if (is_create || (length()==0)) // empty existing images are fine to write over.
 	{

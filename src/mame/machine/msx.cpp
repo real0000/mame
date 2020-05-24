@@ -40,7 +40,7 @@ void msx2_state::machine_start()
 	for (device_t &device : device_iterator(*this))
 	{
 		msx_switched_interface *switched;
-		if (device.interface_check(switched))
+		if (device.interface(switched))
 		{
 			m_switched.push_back(switched);
 		}

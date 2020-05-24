@@ -1868,7 +1868,7 @@ double konami573_cassette_xi_device::punchmania_inputs_callback(uint8_t input)
 {
 	ksys573_state *state = machine().driver_data<ksys573_state>();
 	double *pad_position = state->m_pad_position;
-	int pads = state->m_pads->read();
+	/*int pads = */state->m_pads->read();
 	
 	pad_position[0] = (int64_t)vr_interface_get_handle_state(pnchmn_event::MOTOR_LT);
 	pad_position[1] = (int64_t)vr_interface_get_handle_state(pnchmn_event::MOTOR_LM);
@@ -1911,7 +1911,7 @@ int pad_light[ 6 ];
 
 void ksys573_state::punchmania_output_callback(offs_t offset, uint8_t data)
 {
-	double *pad_position = m_pad_position;
+	//double *pad_position = m_pad_position;
 
 	switch( offset )
 	{
@@ -2625,7 +2625,6 @@ void ksys573_state::stepchmp(machine_config& config)
 	konami573(config);
 	cassyi(config);
 
-	config.m_vr_machine_name = "pnchmn";
 	subdevice<konami573_cassette_slot_device>("cassette")->set_option_machine_config("game", [this](device_t* device) { stepchmp_cassette_install(device); });
 }
 
@@ -2654,12 +2653,12 @@ void ksys573_state::gchgchmp(machine_config &config)
 
 void ksys573_state::pnchmn(machine_config &config)
 {
-
 	konami573(config);
 	m_maincpu->set_addrmap(AS_PROGRAM, &ksys573_state::konami573a_map);
 
 	cassxi(config);
 	pccard1_32mb(config);
+	config.m_vr_machine_name = "pnchmn";
 
 	subdevice<konami573_cassette_slot_device>("cassette")->set_option_machine_config( "game", [this] (device_t *device) { punchmania_cassette_install(device); } );
 }
@@ -2668,6 +2667,7 @@ void ksys573_state::pnchmn2(machine_config &config)
 {
 	pnchmn(config);
 	pccard2_64mb(config);
+	config.m_vr_machine_name = "pnchmn";
 }
 
 void ksys573_state::gunmania(machine_config &config)

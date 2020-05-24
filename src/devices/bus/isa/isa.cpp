@@ -43,7 +43,7 @@ void isa8_slot_device::device_start()
 {
 	device_isa8_card_interface *const dev = dynamic_cast<device_isa8_card_interface *>(get_card_device());
 	const device_isa16_card_interface *intf;
-	if (get_card_device() && get_card_device()->interface_check(intf))
+	if (get_card_device() && get_card_device()->interface(intf))
 		fatalerror("ISA16 device in ISA8 slot\n");
 
 	if (dev) dev->set_isabus(m_isa_bus);

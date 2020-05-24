@@ -577,7 +577,7 @@ void r9751_state::init_r9751()
 
 	m_mem = &m_maincpu->space(AS_PROGRAM);
 
-	m_maincpu->interface_check<m68000_base_device>(ptr_m68000);
+	m_maincpu->interface<m68000_base_device>(ptr_m68000);
 
 	device_trace_enable_all();
 	device_trace_disable(0x07);

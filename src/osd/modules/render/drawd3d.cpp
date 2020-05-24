@@ -6,9 +6,9 @@
 //
 //============================================================
 
-#include <d3d9.h>
-#include <d3dx9.h>
-#include <d3d11.h>
+//#include <d3d9.h>
+//#include <d3dx9.h>
+//#include <d3d11.h>
 
 // MAME headers
 #include "emu.h"
@@ -582,10 +582,10 @@ texture_info *d3d_texture_manager::find_texinfo(const render_texinfo *texinfo, u
 
 renderer_d3d9::renderer_d3d9(std::shared_ptr<osd_window> window)
 	: osd_renderer(window, FLAG_NONE), m_adapter(0), m_width(0), m_height(0), m_refresh(0), m_create_error_count(0), m_device(nullptr), m_gamma_supported(0), m_pixformat(),
+	m_device11(nullptr), m_context11(nullptr),
 	m_vertexbuf(nullptr), m_lockedbuf(nullptr), m_numverts(0), m_vectorbatch(nullptr), m_batchindex(0), m_numpolys(0), m_toggle(false),
 	m_screen_format(), m_last_texture(nullptr), m_last_texture_flags(0), m_last_blendenable(0), m_last_blendop(0), m_last_blendsrc(0), m_last_blenddst(0), m_last_filter(0),
 	m_last_wrap(), m_last_modmode(0), m_shaders(nullptr), m_texture_manager(nullptr),
-	m_device11(nullptr), m_context11(nullptr),
 	m_game_screen_texture(nullptr),
 	m_vr_left_eye(std::make_tuple(nullptr, nullptr, nullptr)), m_vr_left_eye_depth(std::make_tuple(nullptr, nullptr, nullptr)),
 	m_vr_right_eye(std::make_tuple(nullptr, nullptr, nullptr)), m_vr_right_eye_depth(std::make_tuple(nullptr, nullptr, nullptr))

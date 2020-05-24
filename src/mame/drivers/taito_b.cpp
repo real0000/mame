@@ -1706,7 +1706,7 @@ void taitob_state::mb87078_gain_changed(offs_t offset, uint8_t data)
 	if (offset == 1)
 	{
 		device_sound_interface *sound;
-		m_ym->interface_check(sound);
+		m_ym->interface(sound);
 		sound->set_output_gain(0, data / 100.0);
 		sound->set_output_gain(1, data / 100.0);
 		sound->set_output_gain(2, data / 100.0);

@@ -17,10 +17,10 @@
 #include <d3d9.h>
 #include <d3dx9.h>
 #include <cmath>
-#undef interface
-
 #include <d3d11.h>
 #include <D3DCompiler.h>
+
+#undef interface
 #include "d3d/d3dcomm.h"
 #include "sliderdirtynotifier.h"
 #include "modules/lib/osdlib.h"

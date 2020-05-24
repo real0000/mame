@@ -246,7 +246,7 @@ econet_device::daisy_entry::daisy_entry(device_t *device) :
 		elem = 1;
 	}
 
-	device->interface_check(m_interface);
+	device->interface(m_interface);
 }
 
 

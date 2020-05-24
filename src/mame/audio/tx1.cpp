@@ -309,7 +309,7 @@ void tx1_sound_device::ay8910_b_w(uint8_t data)
 	/* It'll do until we get quadrophonic speaker support! */
 	double gain = BIT(m_ay_outputb, 4) ? 1.5 : 2.0;
 	device_sound_interface *sound;
-	interface_check(sound);
+	interface(sound);
 	sound->set_output_gain(0, gain);
 	sound->set_output_gain(1, gain);
 	sound->set_output_gain(2, gain);

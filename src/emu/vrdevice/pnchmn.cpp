@@ -424,7 +424,7 @@ void vr_device_pnchmn::sendMessage(int a_ArgCount, va_list a_ArgList)
             case MOTOR_RB:{
                 int l_PadIdx = l_EventID - MOTOR_LT;
                 m_Pads[l_PadIdx].m_bToBack = va_arg(a_ArgList, bool);
-                physx::PxRigidDynamic *l_pBody = (physx::PxRigidDynamic *)m_Pads[l_PadIdx].m_Joints[1];
+                //physx::PxRigidDynamic *l_pBody = (physx::PxRigidDynamic *)m_Pads[l_PadIdx].m_Joints[1];
 				if( 0 != m_Pads[l_PadIdx].m_TestCount )
 				{
 					--m_Pads[l_PadIdx].m_TestCount;
